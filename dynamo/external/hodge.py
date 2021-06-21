@@ -21,6 +21,7 @@ from ..tools.graph_operators import (
     div,
     potential,
 )
+from ..tools.connectivity import check_and_recompute_neighbors
 
 
 def ddhodge(
@@ -134,6 +135,8 @@ def ddhodge(
                 Idx = None
             else:
                 conn_key = "connectivities" if layer is None else layer + "_connectivities"
+                neighbor_result_prefix = "" if layer is None else layer
+                check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
                 neighbors = adata_.obsp[conn_key]
                 Idx = neighbors.tolil().rows
 

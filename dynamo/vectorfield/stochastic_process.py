@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from ..tools.utils import log1p_
 from .utils import vecfld_from_adata, vector_field_function
+from ..tools.connectivity import check_and_recompute_neighbors
 
 
 def diffusionMatrix(
@@ -165,6 +166,7 @@ def diffusionMatrix(
             nbrs = NearestNeighbors(n_neighbors=n, algorithm=alg, n_jobs=-1).fit(X_data)
             _, Idx = nbrs.kneighbors(X_data)
     else:
+        check_and_recompute_neighbors(adata, result_prefix=layer)
         conn_key = "connectivities" if layer is None else layer + "_connectivities"
         neighbors = adata.obsp[conn_key]
         Idx = neighbors.tolil().rows

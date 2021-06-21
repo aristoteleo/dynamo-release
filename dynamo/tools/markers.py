@@ -21,6 +21,7 @@ from ..dynamo_logger import (
     main_critical,
     main_exception,
 )
+from ..tools.connectivity import check_and_recompute_neighbors
 
 
 def moran_i(
@@ -102,7 +103,7 @@ def moran_i(
         from .dimension_reduction import reduceDimension
 
         adata = reduceDimension(adata, X_data=X_data, layer=layer)
-
+    check_and_recompute_neighbors(adata, result_prefix="")
     neighbor_graph = adata.obsp["connectivities"]
 
     # convert a sparse adjacency matrix to a dictionary

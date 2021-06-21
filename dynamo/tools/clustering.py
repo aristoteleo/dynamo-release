@@ -548,7 +548,7 @@ def cluster_community(
                 neighbors(adata, X_data=X_data, result_prefix=layer)
 
         if not (adj_matrix_key in adata.obsp):
-            raise ValueError("%s not exist in adata.obsp" % adj_matrix_key)
+            raise ValueError("%s does not exist in adata.obsp" % adj_matrix_key)
 
         graph_sparse_matrix = adata.obsp[adj_matrix_key]
     else:
