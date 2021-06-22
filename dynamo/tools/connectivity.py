@@ -6,6 +6,7 @@ import warnings
 from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
+from anndata import AnnData
 from ..preprocessing.utils import get_layer_keys
 from .utils import (
     log1p_,
@@ -622,24 +623,32 @@ def neighbors(
 
 
 def check_neighbors_completeness(
-    adata: AnnData, conn_key="connectivities", dist_key="distances", result_prefix=""
+    adata: AnnData,
+    conn_key="connectivities",
+    dist_key="distances",
+    result_prefix="",
+    check_nonzero_row=True,
+    check_nonzero_col=False,
 ) -> bool:
     """Check if neighbor graph in adata is valid.
 
     Parameters
     ----------
-    adata : AnnData
-    conn_key : str, optional
-        connectivity key, by default "connectivities"
-    dist_key : str, optional
-        distance key, by default "distances"
-    result_prefix : str, optional
-        The result prefix in adata.uns for neighbor graph related data, by default ""
-
+        adata : AnnData
+        conn_key : str, optional
+            connectivity key, by default "connectivities"
+        dist_key : str, optional
+            distance key, by default "distances"
+        result_prefix : str, optional
+            The result prefix in adata.uns for neighbor graph related data, by default ""
+        check_nonzero_row:
+            Whether to check if row sums of neighbor graph distance or connectivity matrix are nonzero.
+        check_nonzero_col:
+            Whether to check if column sums of neighbor graph distance or connectivity matrix are nonzero.
     Returns
     -------
     bool
-        [description]
+        whether the neighbor graph is valid or not. (If valid, return True)
     """
     is_valid = True
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
@@ -659,25 +668,40 @@ def check_neighbors_completeness(
     # check if connection matrix and distance matrix shapes are compatible with adata shape
     is_valid = is_valid and tuple(conn_mat.shape) == tuple([n_obs, n_obs])
     is_valid = is_valid and tuple(dist_mat.shape) == tuple([n_obs, n_obs])
+    if not is_valid:
+        main_info("Connection matrix or dist matrix has some invalid shape.")
+        return False
 
     # check if indices in nearest neighbor matrix are valid
     neighbor_mat = adata.uns[neighbor_key]["indices"]
     is_indices_valid = np.all(neighbor_mat < len(adata))
     if not is_indices_valid:
         main_warning("Some value in %s is not valid." % (neighbor_key))
+        return False
     is_valid = is_valid and is_indices_valid
+
+    def _check_nonzero_sum(mat, axis):
+        sums = np.sum(mat, axis=axis)
+        return np.all(sums > 0)
+
+    if check_nonzero_row:
+        is_row_valid = _check_nonzero_sum(dist_mat, 1) and _check_nonzero_sum(conn_mat, 1)
+        is_valid = is_valid and is_row_valid
+    if check_nonzero_col:
+        is_col_valid = _check_nonzero_sum(dist_mat, 0) and _check_nonzero_sum(conn_mat, 0)
+        is_valid = is_valid and is_col_valid
 
     return is_valid
 
 
 def check_and_recompute_neighbors(adata, result_prefix=""):
-    """[summary]
+    """Check if adata's neighbor graph is valid and recompute neighbor graph if necessary.
 
     Parameters
     ----------
-    adata : AnnData
-    result_prefix : str, optional
-        The result prefix in adata.uns for neighbor graph related data, by default ""
+        adata : AnnData
+        result_prefix : str, optional
+            The result prefix in adata.uns for neighbor graph related data, by default ""
     """
     if result_prefix is None:
         result_prefix = ""
