@@ -39,7 +39,7 @@ from .utils import (
     find_fixed_points,
     FixedPoints,
     remove_redundant_points,
-    vector_transformation
+    vector_transformation,
 )
 from typing import Union, Callable
 from ..dynamo_logger import LoggerManager, main_warning
@@ -1146,10 +1146,10 @@ def vector_field_function_knockout(
 
     if return_vector_field_class:
         vf = base_vectorfield()
+        vf.func = vf_func_perturb
         if not callable(vecfld):
             vf.data["X"] = vecfld.data["X"]
             vf.data["V"] = vf.func(vf.data["X"])
-        vf.func = vf_func_perturb
         return vf
     else:
         return vf_func_perturb
