@@ -649,8 +649,8 @@ def check_neighbors_completeness(
             Whether to check if column sums of neighbor graph distance or connectivity matrix are nonzero.
     Returns
     -------
-    bool
-        whether the neighbor graph is valid or not. (If valid, return True)
+        bool
+            whether the neighbor graph is valid or not. (If valid, return True)
     """
     is_valid = True
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
