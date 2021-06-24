@@ -21,7 +21,7 @@ from ..tools.graph_operators import (
     div,
     potential,
 )
-from ..tools.connectivity import check_and_recompute_neighbors
+from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 
 
 def ddhodge(
@@ -130,12 +130,11 @@ def ddhodge(
         adj_mat = adata_.obsp[prefix + "ddhodge"]
     else:
         if adjmethod == "graphize_vecfld":
-            neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
+            neighbor_result_prefix = "" if layer is None else layer
+            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
             if neighbor_key not in adata_.uns_keys() or to_downsample:
                 Idx = None
             else:
-                conn_key = "connectivities" if layer is None else layer + "_connectivities"
-                neighbor_result_prefix = "" if layer is None else layer
                 check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
                 neighbors = adata_.obsp[conn_key]
                 Idx = neighbors.tolil().rows

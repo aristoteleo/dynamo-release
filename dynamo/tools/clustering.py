@@ -5,7 +5,7 @@ import numpy as np
 import anndata
 import pandas as pd
 from ..dynamo_logger import main_info
-from .connectivity import neighbors
+from .connectivity import _gen_neighbor_keys, neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
 from ..utils import LoggerManager, copy_adata
@@ -94,7 +94,8 @@ def hdbscan(
     else:
         reduction_method = basis.split("_")[-1]
         embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
-        neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
+        neighbor_result_prefix = "" if layer is None else layer
+        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
 
         adata = run_reduce_dim(
             adata,
