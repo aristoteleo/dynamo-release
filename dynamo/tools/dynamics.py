@@ -481,7 +481,7 @@ def dynamics(
         if assumption_mRNA.lower() == "ss" or (experiment_type.lower() in ["one-shot", "mix_std_stm"]):
             if est_method.lower() == "auto":
                 est_method = "gmm" if model.lower() == "stochastic" else "ols"
-            if experiment_type.lower() == "one_shot":
+            if experiment_type.lower() == "one-shot":
                 beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
                 gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
                 ss_estimation_kwargs = {"beta": beta, "gamma": gamma}
