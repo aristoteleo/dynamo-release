@@ -1634,8 +1634,10 @@ def recipe_monocle(
         logger.error(
             "No genes pass basic filters. Please check your data, for example, layer names, etc or other " "arguments."
         )
+        raise Exception()
     if adata.obs.pass_basic_filter.sum() == 0:
         logger.error("No cells pass basic filters. Please check your data or arguments, for example, fc_kwargs.")
+        raise Exception()
 
     # calculate sz factor
     logger.info("calculating size factor...")
