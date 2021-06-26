@@ -90,10 +90,11 @@ def get_conn_dist_graph(knn, distances):
 
     Parameters
     ----------
-    knn:
-        n_obs x n_neighbors, k nearest neighbor graph
-    distances:
-        KNN dists
+        knn:
+            n_obs x n_neighbors, k nearest neighbor graph
+        distances:
+            KNN dists
+
     Returns
     -------
         distance and connectivity matrices
@@ -644,13 +645,14 @@ def check_neighbors_completeness(
         result_prefix : str, optional
             The result prefix in adata.uns for neighbor graph related data, by default ""
         check_nonzero_row:
-            Whether to check if row sums of neighbor graph distance or connectivity matrix are nonzero.
+            Whether to check if row sums of neighbor graph distance or connectivity matrix are nonzero. Row sums correspond to out-degrees by convention.
         check_nonzero_col:
-            Whether to check if column sums of neighbor graph distance or connectivity matrix are nonzero.
+            Whether to check if column sums of neighbor graph distance or connectivity matrix are nonzero. Column sums correspond to in-degrees by convention.
+
     Returns
     -------
-    bool
-        whether the neighbor graph is valid or not. (If valid, return True)
+        bool
+            whether the neighbor graph is valid or not. (If valid, return True)
     """
     is_valid = True
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
@@ -665,7 +667,7 @@ def check_neighbors_completeness(
     # New anndata stores connectivities and distances in obsp
     conn_mat = adata.obsp[conn_key]
     dist_mat = adata.obsp[dist_key]
-    n_obs = len(adata)
+    n_obs = adata.n_obs
 
     # check if connection matrix and distance matrix shapes are compatible with adata shape
     is_valid = is_valid and tuple(conn_mat.shape) == tuple([n_obs, n_obs])
@@ -676,9 +678,11 @@ def check_neighbors_completeness(
 
     # check if indices in nearest neighbor matrix are valid
     neighbor_mat = adata.uns[neighbor_key]["indices"]
-    is_indices_valid = np.all(neighbor_mat < len(adata))
+    is_indices_valid = np.all(neighbor_mat < n_obs)
     if not is_indices_valid:
-        main_warning("Some value in %s is not valid." % (neighbor_key))
+        main_warning(
+            "Some indices in %s are larger than the number of observations and thus not valid." % (neighbor_key)
+        )
         return False
     is_valid = is_valid and is_indices_valid
 
@@ -688,20 +692,24 @@ def check_neighbors_completeness(
 
     if check_nonzero_row:
         is_row_valid = _check_nonzero_sum(dist_mat, 1) and _check_nonzero_sum(conn_mat, 1)
+        if not is_row_valid:
+            main_warning("Some row sums(out degree) in adata's neighbor graph are zero.")
         is_valid = is_valid and is_row_valid
     if check_nonzero_col:
         is_col_valid = _check_nonzero_sum(dist_mat, 0) and _check_nonzero_sum(conn_mat, 0)
+        if not is_col_valid:
+            main_warning("Some column sums(in degree) in adata's neighbor graph are zero.")
         is_valid = is_valid and is_col_valid
 
     return is_valid
 
 
-def check_and_recompute_neighbors(adata, result_prefix=""):
+def check_and_recompute_neighbors(adata: AnnData, result_prefix: str = ""):
     """Check if adata's neighbor graph is valid and recompute neighbor graph if necessary.
 
     Parameters
     ----------
-        adata : AnnData
+        adata:
         result_prefix : str, optional
             The result prefix in adata.uns for neighbor graph related data, by default ""
     """
