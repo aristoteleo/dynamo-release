@@ -129,6 +129,7 @@ def cell_wise_confidence(
             )
 
     elif method == "cosine":
+        check_and_recompute_neighbors(adata, result_prefix="")
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
         for i in tqdm(
@@ -145,6 +146,7 @@ def cell_wise_confidence(
             )
 
     elif method == "consensus":
+        check_and_recompute_neighbors(adata, result_prefix="")
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
         for i in tqdm(
@@ -160,6 +162,7 @@ def cell_wise_confidence(
 
     elif method == "correlation":
         # this is equivalent to scVelo
+        check_and_recompute_neighbors(adata, result_prefix="")
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
         for i in tqdm(

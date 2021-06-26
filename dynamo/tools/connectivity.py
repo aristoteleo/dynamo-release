@@ -467,9 +467,24 @@ def mnn(
     return adata
 
 
-def _gen_neighbor_keys(result_prefix=""):
+def _gen_neighbor_keys(result_prefix="") -> tuple:
+    """Generate neighbor keys for other functions to store/access info in adata.
+
+    Parameters
+    ----------
+        result_prefix : str, optional
+            generate keys based on this prefix, by default ""
+
+    Returns
+    -------
+        tuple:
+            A tuple consisting of (conn_key, dist_key, neighbor_key)
+
+    """
     if result_prefix:
         result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
+    if result_prefix is None:
+        result_prefix = ""
 
     conn_key, dist_key, neighbor_key = (
         result_prefix + "connectivities",
@@ -661,8 +676,11 @@ def check_neighbors_completeness(
     # Old anndata version version
     # conn_mat = adata.uns[neighbor_key]["connectivities"]
     # dist_mat = adata.uns[neighbor_key]["distances"]
-
     if (conn_key not in adata.obsp) or (dist_key not in adata.obsp) or ("indices" not in adata.uns[neighbor_key]):
+        main_info(
+            "incomplete neighbor graph info detected: %s and %s do not exist in adata.obsp, indices not in adata.uns.%s."
+            % (conn_key, dist_key, neighbor_key)
+        )
         return False
     # New anndata stores connectivities and distances in obsp
     conn_mat = adata.obsp[conn_key]
@@ -674,6 +692,10 @@ def check_neighbors_completeness(
     is_valid = is_valid and tuple(dist_mat.shape) == tuple([n_obs, n_obs])
     if not is_valid:
         main_info("Connection matrix or dist matrix has some invalid shape.")
+        return False
+
+    if neighbor_key not in adata.uns:
+        main_info("%s not in adata.uns" % (neighbor_key))
         return False
 
     # check if indices in nearest neighbor matrix are valid

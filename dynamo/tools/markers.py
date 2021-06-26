@@ -21,7 +21,7 @@ from ..dynamo_logger import (
     main_critical,
     main_exception,
 )
-from ..tools.connectivity import check_and_recompute_neighbors
+from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 
 
 def moran_i(
@@ -93,7 +93,9 @@ def moran_i(
     cell_num, gene_num = X_data.shape
 
     embedding_key = "X_umap" if layer is None else layer + "_umap"
-    neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
+    neighbor_result_prefix = "" if layer is None else layer
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+
     if neighbor_key not in adata.uns.keys():
         main_warning(
             f"Neighbor graph is required for Moran's I test. No neighbor_key {neighbor_key} exists in the data. "
@@ -103,8 +105,9 @@ def moran_i(
         from .dimension_reduction import reduceDimension
 
         adata = reduceDimension(adata, X_data=X_data, layer=layer)
-    check_and_recompute_neighbors(adata, result_prefix="")
-    neighbor_graph = adata.obsp["connectivities"]
+
+    check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
+    neighbor_graph = adata.obsp[conn_key]
 
     # convert a sparse adjacency matrix to a dictionary
     adj_dict = {i: row.indices for i, row in enumerate(neighbor_graph)}
