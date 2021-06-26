@@ -3,7 +3,12 @@ import pandas as pd
 from tqdm import tqdm
 from scipy.sparse import issparse, csr_matrix
 from sklearn.neighbors import NearestNeighbors
-from .connectivity import check_and_recompute_neighbors, umap_conn_indices_dist_embedding, mnn_from_list
+from .connectivity import (
+    adj_to_knn,
+    check_and_recompute_neighbors,
+    umap_conn_indices_dist_embedding,
+    mnn_from_list,
+)
 from .utils import (
     get_finite_inds,
     inverse_norm,
@@ -54,6 +59,12 @@ def cell_wise_confidence(
         adata: :class:`~anndata.AnnData`
             Returns an updated `~anndata.AnnData` with `.obs.confidence` as the cell-wise velocity confidence.
     """
+
+    if method in ["cosine", "consensus", "correlation"]:
+        if "indices" not in adata.uns["neighbors"].keys():
+            adata.uns["neighbors"]["indices"], _ = adj_to_knn(
+                adata.obsp["connectivities"], n_neighbors=adata.uns["neighbors"]["params"]["n_neighbors"]
+            )
 
     if ekey == "X":
         X, V = (
