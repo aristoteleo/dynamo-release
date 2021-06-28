@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from ..preprocessing.utils import pca
 from .utils import update_dict, log1p_
-from .connectivity import umap_conn_indices_dist_embedding, knn_to_adj
+from .connectivity import _gen_neighbor_keys, umap_conn_indices_dist_embedding, knn_to_adj
 from .psl_py import psl
 
 
@@ -220,10 +220,8 @@ def run_reduce_dim(
         }
 
         layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
-        conn_key = "connectivities" if layer is None else layer + "_connectivities"
-        dist_key = "distances" if layer is None else layer + "_distances"
-
-        adata.obsp[conn_key], adata.obsp[dist_key] = graph, knn_dists
+        neighbor_result_prefix = "" if layer is None else layer
+        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
 
         adata.uns["umap_fit"] = {
             "fit": mapper,

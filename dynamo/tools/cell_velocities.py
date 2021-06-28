@@ -12,7 +12,7 @@ from .Markov import (
     fp_operator,
     ContinuousTimeMarkovChain,
 )
-from .connectivity import adj_to_knn
+from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
 
 from .metric_velocity import gene_wise_confidence
 from .utils import (
@@ -62,7 +62,7 @@ def cell_velocities(
     min_gamma: Union[float, None] = None,
     min_delta: Union[float, None] = None,
     basis: str = "umap",
-    neigh_key: str = "neighbors",
+    neighbor_key_prefix: str = "",
     adj_key: str = "distances",
     add_transition_key: str = None,
     add_velocity_key: str = None,
@@ -136,8 +136,8 @@ def cell_velocities(
         basis: str (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
             or `X_total_umap`, etc.
-        neigh_key: str (optional, default `neighbors`)
-            The dictionary key for the neighbor information (stores nearest neighbor `indices`) in .uns.
+        neighbor_key_prefix: str (optional, default `neighbors`)
+            The dictionary key prefix in .uns. Connectivity and distance matrix keys are also generate with this prefix in adata.obsp.
         adj_key: str (optional, default `distances`)
             The dictionary key for the adjacency matrix of the nearest neighbor graph in .obsp.
         add_transition_key: str or None (default: None)
@@ -193,6 +193,7 @@ def cell_velocities(
             Returns an updated :class:`~anndata.AnnData` with projected velocity vectors, and a cell transition matrix
             calculated using either the Itô kernel method or similar methods from (La Manno et al. 2018).
     """
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_key_prefix)
     mapper_r = get_mapper_inverse()
     layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
     ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, layer)
@@ -200,9 +201,10 @@ def cell_velocities(
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if neigh_key is not None and neigh_key in adata.uns.keys() and "indices" in adata.uns[neigh_key]:
-        # use neighbor indices in neigh_key (if available) first for the sake of performance.
-        indices = adata.uns[neigh_key]["indices"]
+    if neighbor_key is not None and neighbor_key in adata.uns.keys() and "indices" in adata.uns[neighbor_key]:
+        check_and_recompute_neighbors(adata, result_prefix=neighbor_key_prefix)
+        # use neighbor indices in neighbor_key (if available) first for the sake of performance.
+        indices = adata.uns[neighbor_key]["indices"]
         if type(indices) is not np.ndarray:
             indices = np.array(indices)
 

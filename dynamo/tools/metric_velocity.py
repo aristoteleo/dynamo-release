@@ -4,9 +4,10 @@ from tqdm import tqdm
 from scipy.sparse import issparse, csr_matrix
 from sklearn.neighbors import NearestNeighbors
 from .connectivity import (
+    adj_to_knn,
+    check_and_recompute_neighbors,
     umap_conn_indices_dist_embedding,
     mnn_from_list,
-    adj_to_knn,
 )
 from .utils import (
     get_finite_inds,
@@ -82,6 +83,7 @@ def cell_wise_confidence(
         X = inverse_norm(adata, X) if X_data is None else X_data
 
     if not neighbors_from_basis:
+        check_and_recompute_neighbors(adata, result_prefix="")
         n_neigh, X_neighbors = (
             adata.uns["neighbors"]["params"]["n_neighbors"],
             adata.obsp["connectivities"],
@@ -138,6 +140,7 @@ def cell_wise_confidence(
             )
 
     elif method == "cosine":
+        check_and_recompute_neighbors(adata, result_prefix="")
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
         for i in tqdm(
@@ -154,6 +157,7 @@ def cell_wise_confidence(
             )
 
     elif method == "consensus":
+        check_and_recompute_neighbors(adata, result_prefix="")
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
         for i in tqdm(
@@ -169,6 +173,7 @@ def cell_wise_confidence(
 
     elif method == "correlation":
         # this is equivalent to scVelo
+        check_and_recompute_neighbors(adata, result_prefix="")
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
         for i in tqdm(
