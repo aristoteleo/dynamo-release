@@ -1199,7 +1199,7 @@ def plot_energy(
         if vf_key not in adata.uns.keys():
             raise ValueError(
                 f"Your adata doesn't have the key for Vector Field with {basis} basis."
-                f"Try firstly running dyn.tl.VectorField(adata, basis={basis})."
+                f"Try firstly running dyn.vf.VectorField(adata, basis={basis})."
             )
 
         vecfld_dict = adata.uns[vf_key]
