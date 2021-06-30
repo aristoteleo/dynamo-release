@@ -119,7 +119,7 @@ def kinetic_curves(
     )
 
     Color = np.empty((0, 1))
-    if color is not None and mode != "vector_field":
+    if color is not None and mode not in ["lap", "vector_field"]:
         color = list(set(color).intersection(adata.obs.keys()))
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
@@ -134,7 +134,7 @@ def kinetic_curves(
     time = np.sort(time)
     exprs = exprs[np.argsort(time), :]
 
-    if dist_threshold is not None and mode == "vector_field":
+    if dist_threshold is not None and mode in ["lap", "vector_field"]:
         valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
