@@ -50,7 +50,7 @@ def fate(
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         init_cells: `list`
             Cell name or indices of the initial cell states for the historical or future cell state prediction with
-            numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be treated as
+            numerical integration. If the names in init_cells not found in the adata.obs_name, it will be treated as
             cell indices and must be integers.
         init_states: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
