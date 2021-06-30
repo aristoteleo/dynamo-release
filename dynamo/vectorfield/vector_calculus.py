@@ -881,8 +881,8 @@ def rank_genes(
 
     if arr.ndim > 1:
         if normalize:
-            arr_max = np.max(np.abs(arr), axis=1)
-            arr = (arr.T / arr_max).T
+            arr_max = np.max(np.abs(arr), axis=0)
+            arr = arr / arr_max
             arr[np.isnan(arr)] = 0
         if groups is not None:
             if type(groups) is str and groups in adata.obs.keys():
@@ -1304,6 +1304,7 @@ def rank_jacobian_genes(
         Jmax = np.max(np.abs(J), axis=2)
         for i in range(J.shape[2]):
             J[:, :, i] /= Jmax
+
     if groups is None:
         J_mean = {"all": np.mean(J, axis=2)}
     else:
