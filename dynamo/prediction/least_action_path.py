@@ -232,7 +232,7 @@ def least_action(
     t, prediction, action, exprs, mftp, trajectory = [], [], [], [], [], []
 
     for (init_state, target_state) in LoggerManager.progress_logger(
-        pairs, progress_name=f"iterating through {len(pairs)} pairs"
+        pairs, progress_name=f"iterating through {len(pairs)} pairs\n"
     ):
         logger.info(
             "initializing path with the shortest path in the graph built from the velocity transition matrix...",
