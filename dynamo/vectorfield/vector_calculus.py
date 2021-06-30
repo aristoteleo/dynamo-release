@@ -837,6 +837,7 @@ def rank_genes(
     groups=None,
     genes=None,
     abs=False,
+    normalize=False,
     fcn_pool=lambda x: np.mean(x, axis=0),
     dtype=None,
     output_values=False,
@@ -858,8 +859,12 @@ def rank_genes(
             The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
         abs: bool (default: False)
             When pooling the values in the array (see below), whether to take the absolute values.
+        normalize: bool (default: False)
+            Whether normalize the array across all cells first, if the array is 2d.
         fcn_pool: callable (default: numpy.mean(x, axis=0))
             The function used to pool values in the to-be-ranked array if the array is 2d.
+        output_values: bool (default: False)
+            Whether output the values along with the rankings.
     Returns
     -------
         ret_dict: dict
@@ -875,6 +880,10 @@ def rank_genes(
     )
 
     if arr.ndim > 1:
+        if normalize:
+            arr_max = np.max(np.abs(arr), axis=1)
+            arr = (arr.T / arr_max).T
+            arr[np.isnan(arr)] = 0
         if groups is not None:
             if type(groups) is str and groups in adata.obs.keys():
                 grps = np.array(adata.obs[groups])
@@ -1248,6 +1257,7 @@ def rank_jacobian_genes(
     abs=False,
     mode="full reg",
     exclude_diagonal=False,
+    normalize=False,
     **kwargs,
 ):
     """Rank genes or gene-gene interactions based on their Jacobian elements for each cell group.
@@ -1263,7 +1273,7 @@ def rank_jacobian_genes(
         jkey: str (default: 'jacobian_pca')
             The key of the stored Jacobians in `.uns`.
         abs: bool (default: False)
-            Whether or not to take the absolute value of the Jacobian.
+            Whether take the absolute value of the Jacobian.
         mode: {'full reg', 'full eff', 'reg', 'eff', 'int'} (default: 'full_reg')
             The mode of ranking:
             (1) `'full reg'`: top regulators are ranked for each effector for each cell group;
@@ -1271,6 +1281,8 @@ def rank_jacobian_genes(
             (3) '`reg`': top regulators in each cell group;
             (4) '`eff`': top effectors in each cell group;
             (5) '`int`': top effector-regulator pairs in each cell group.
+        normalize: bool (default: False)
+            Whether normalize the Jacobian across all cells before performing the ranking.
         kwargs:
             Keyword arguments passed to ranking functions.
 
@@ -1288,6 +1300,10 @@ def rank_jacobian_genes(
     J = J_dict["jacobian_gene"]
     if abs:
         J = np.abs(J)
+    if normalize:
+        Jmax = np.max(np.abs(J), axis=2)
+        for i in range(J.shape[2]):
+            J[:, :, i] /= Jmax
     if groups is None:
         J_mean = {"all": np.mean(J, axis=2)}
     else:
@@ -1302,14 +1318,14 @@ def rank_jacobian_genes(
     eff = np.array([x for x in J_dict["effectors"]])
     reg = np.array([x for x in J_dict["regulators"]])
     rank_dict = {}
+    ov = kwargs.pop("output_values", False)
     if mode in ["full reg", "full_reg"]:
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, **kwargs)
+            rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, output_values=ov, **kwargs)
     elif mode in ["full eff", "full_eff"]:
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(J.T, reg, eff, n_top_genes=None, **kwargs)
+            rank_dict[k] = table_top_genes(J, reg, eff, n_top_genes=None, output_values=ov, **kwargs)
     elif mode == "reg":
-        ov = kwargs.pop("output_values", False)
         for k, J in J_mean.items():
             if exclude_diagonal:
                 for i, ef in enumerate(eff):
@@ -1318,6 +1334,10 @@ def rank_jacobian_genes(
                         J[i, ii] = np.nan
             j = np.nanmean(J, axis=0)
             if ov:
+                if normalize:
+                    max_j = np.max(np.abs(j))
+                    if max_j > 0:
+                        j /= max_j
                 rank_dict[k], rank_dict[k + "_values"] = list_top_genes(
                     j, reg, None, return_sorted_array=True, **kwargs
                 )
@@ -1325,7 +1345,6 @@ def rank_jacobian_genes(
                 rank_dict[k] = list_top_genes(j, reg, None, **kwargs)
         rank_dict = pd.DataFrame(data=rank_dict)
     elif mode == "eff":
-        ov = kwargs.pop("output_values", False)
         for k, J in J_mean.items():
             if exclude_diagonal:
                 for i, re in enumerate(reg):
@@ -1334,6 +1353,10 @@ def rank_jacobian_genes(
                         J[ii, i] = np.nan
             j = np.nanmean(J, axis=1)
             if ov:
+                if normalize:
+                    max_j = np.max(np.abs(j))
+                    if max_j > 0:
+                        j /= max_j
                 rank_dict[k], rank_dict[k + "_values"] = list_top_genes(
                     j, eff, None, return_sorted_array=True, **kwargs
                 )
@@ -1341,7 +1364,6 @@ def rank_jacobian_genes(
                 rank_dict[k] = list_top_genes(j, eff, None, **kwargs)
         rank_dict = pd.DataFrame(data=rank_dict)
     elif mode == "int":
-        ov = kwargs.pop("output_values", False)
         for k, J in J_mean.items():
             ints, vals = list_top_interactions(J, eff, reg, **kwargs)
             rank_dict[k] = []
