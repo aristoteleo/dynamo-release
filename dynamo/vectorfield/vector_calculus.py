@@ -1334,10 +1334,6 @@ def rank_jacobian_genes(
                         J[i, ii] = np.nan
             j = np.nanmean(J, axis=0)
             if ov:
-                if normalize:
-                    max_j = np.max(np.abs(j))
-                    if max_j > 0:
-                        j /= max_j
                 rank_dict[k], rank_dict[k + "_values"] = list_top_genes(
                     j, reg, None, return_sorted_array=True, **kwargs
                 )
@@ -1353,10 +1349,6 @@ def rank_jacobian_genes(
                         J[ii, i] = np.nan
             j = np.nanmean(J, axis=1)
             if ov:
-                if normalize:
-                    max_j = np.max(np.abs(j))
-                    if max_j > 0:
-                        j /= max_j
                 rank_dict[k], rank_dict[k + "_values"] = list_top_genes(
                     j, eff, None, return_sorted_array=True, **kwargs
                 )
