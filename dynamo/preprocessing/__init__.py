@@ -26,7 +26,7 @@ from .utils import (
     top_pca_genes,
     relative2abs,
     scale,
-    convert2symbol,
+    fix_gene_names,
     filter_genes_by_pattern,
     decode,
 )
@@ -53,7 +53,7 @@ __all__ = [
     "top_pca_genes",
     "relative2abs",
     "scale",
-    "convert2symbol",
+    "fix_gene_names",
     "filter_genes_by_pattern",
     "decode",
 ]

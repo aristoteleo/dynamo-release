@@ -1,3 +1,4 @@
+from anndata._core.anndata import AnnData
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -6,7 +7,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 
 import warnings
 import anndata
-from typing import Union
+from typing import Iterable, Union
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..utils import areinstance
 
@@ -62,7 +63,9 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
     return var_pd
 
 
-def convert2symbol(adata, scopes=None, subset=True):
+def fix_gene_names(adata: AnnData, scopes: Union[str, Iterable, None] = None, subset=True):
+    """This helper function converts unofficial gene names to official gene names."""
+
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
         logger = LoggerManager.gen_logger("dynamo-utils")
         logger.info("convert ensemble name to official gene name", indent_level=1)
@@ -113,8 +116,7 @@ def convert2symbol(adata, scopes=None, subset=True):
                 "Subsetting adata object and removing Nan columns from adata when converting gene names.",
                 indent_level=1,
             )
-            adata = adata[:, adata.var_names.notnull()]
-
+            adata._inplace_subset_var(adata.var_names.notnull())
     return adata
 
 
