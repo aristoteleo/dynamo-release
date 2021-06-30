@@ -3,7 +3,7 @@ from scipy.optimize import minimize
 from scipy.interpolate import interp1d
 import networkx as nx
 from anndata import AnnData
-from typing import Optional, Union, Callable
+from typing import Union, Callable
 from ..tools.utils import (
     nearest_neighbors,
     fetch_states,
