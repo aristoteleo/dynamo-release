@@ -971,10 +971,10 @@ def filter_cells(
 
     filter_bool = np.array(filter_bool).flatten()
     if keep_filtered:
-        adata.obs["use_for_pca"] = filter_bool
+        adata.obs["pass_basic_filter"] = filter_bool
     else:
         adata._inplace_subset_obs(filter_bool)
-        adata.obs["use_for_pca"] = True
+        adata.obs["pass_basic_filter"] = True
 
     return adata
 
@@ -1599,7 +1599,9 @@ def recipe_monocle(
         filter_cells_kwargs.update(fc_kwargs)
 
     logger.info("filtering cells...")
+    logger.info_insert_adata("pass_basic_filter", "obs")
     adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
+    logger.info(f"{adata.obs.pass_basic_filter.sum()} cells passed basic filters.")
 
     filter_genes_kwargs = {
         "filter_bool": None,
@@ -1620,11 +1622,22 @@ def recipe_monocle(
         filter_genes_kwargs.update(fg_kwargs)
 
     # set pass_basic_filter for genes
-    logger.info("filtering genes...")
+    logger.info("filtering gene...")
+    logger.info_insert_adata("pass_basic_filter", "var")
     adata = filter_genes(
         adata,
         **filter_genes_kwargs,
     )
+    logger.info(f"{adata.var.pass_basic_filter.sum()} genes passed basic filters.")
+
+    if adata.var.pass_basic_filter.sum() == 0:
+        logger.error(
+            "No genes pass basic filters. Please check your data, for example, layer names, etc or other " "arguments."
+        )
+        raise Exception()
+    if adata.obs.pass_basic_filter.sum() == 0:
+        logger.error("No cells pass basic filters. Please check your data or arguments, for example, fc_kwargs.")
+        raise Exception()
 
     # calculate sz factor
     logger.info("calculating size factor...")
