@@ -48,6 +48,8 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
         )
 
     mg = mygene.MyGeneInfo()
+    main_info("Storing myGene name info into local cache db: mygene_cache.sqlite.")
+    mg.set_caching()
 
     ensemble_names = [i.split(".")[0] for i in input_names]
     var_pd = mg.querymany(
