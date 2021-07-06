@@ -12,7 +12,7 @@ from typing import Union, Callable
 from .cell_cycle import cell_cycle_scores
 from ..tools.utils import update_dict
 from .utils import (
-    fix_gene_names,
+    convert2symbol,
     pca,
     clusters_stats,
     cook_dist,
@@ -1395,11 +1395,11 @@ def recipe_monocle(
     if "use_for_pca" in adata.var.columns:
         del adata.var["use_for_pca"]  # avoid use_for_pca was set previously.
 
-    adata = fix_gene_names(adata, scopes=scopes)
+    adata = convert2symbol(adata, scopes=scopes)
     n_cells, n_genes = adata.n_obs, adata.n_vars
 
-    # Since fix_gene_names may subset adata and generate a new AnnData object,
-    # we should create all following data after fix_gene_names (gene names)
+    # Since convert2symbol may subset adata and generate a new AnnData object,
+    # we should create all following data after convert2symbol (gene names)
     adata.uns["pp"] = {}
     if norm_method == "Freeman_Tukey":
         norm_method = Freeman_Tukey
