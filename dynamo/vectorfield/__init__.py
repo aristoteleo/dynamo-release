@@ -62,4 +62,4 @@ from .Ao import Ao_pot_map, solveQ
 from .stochastic_process import diffusionMatrix
 
 # vfGraph operation related:
-from .vfGraph import vfGraph
+from .vfGraph_deprecated import vfGraph

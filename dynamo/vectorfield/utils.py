@@ -18,6 +18,7 @@ from ..tools.utils import (
     subset_dict_with_key_list,
 )
 from ..dynamo_logger import LoggerManager, main_info
+from .FixedPoints import FixedPoints
 
 
 def is_outside_domain(x, domain):

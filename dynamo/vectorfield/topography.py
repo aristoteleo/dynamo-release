@@ -29,7 +29,7 @@ from .utils import (
     remove_redundant_points,
     find_fixed_points,
 )
-from FixedPoints import FixedPoints
+from .FixedPoints import FixedPoints
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
