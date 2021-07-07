@@ -582,6 +582,7 @@ def prepare_data_has_splicing(
         )
     else:
         tot_sfs = adata.obs.total_Size_Factor
+        tot_sfs = tot_sfs[:, None]
 
     if T is None:
         T = normalize_util(
