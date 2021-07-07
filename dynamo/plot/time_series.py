@@ -119,7 +119,7 @@ def kinetic_curves(
     )
 
     Color = np.empty((0, 1))
-    if color is not None and mode != "vector_field":
+    if color is not None and mode not in ["lap", "vector_field"]:
         color = list(set(color).intersection(adata.obs.keys()))
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
@@ -134,7 +134,7 @@ def kinetic_curves(
     time = np.sort(time)
     exprs = exprs[np.argsort(time), :]
 
-    if dist_threshold is not None and mode == "vector_field":
+    if dist_threshold is not None and mode in ["lap", "vector_field"]:
         valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
@@ -330,6 +330,9 @@ def kinetic_heatmap(
         exprs = exprs.A if issparse(exprs) else exprs
         if mode != "pseudotime":
             exprs = np.log1p(exprs) if log else exprs
+
+            spaced_num = None  # don't need to get further smoothed.
+
         if len(set(genes).intersection(valid_genes)) > 0:
             # by default, expression values are log1p tranformed if using the expression from adata.
             exprs = np.expm1(exprs) if not log else exprs
@@ -359,7 +362,7 @@ def kinetic_heatmap(
                     :, None
                 ]
             max_sort = np.argsort(np.argmax(exprs, axis=1))
-            if spaced_num is None:
+            if spaced_num is None and mode == "pseudotime":
                 df = pd.DataFrame(
                     exprs[max_sort, :],
                     index=np.array(valid_genes)[max_sort],
@@ -592,7 +595,13 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
 
 def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
     gene_num = exprs.shape[0]
-    res = exprs.copy() if spaced_num is None else np.zeros((gene_num, spaced_num))
+    if spaced_num is None:
+        res = exprs.copy()
+
+        if exprs.shape[1] < 300:
+            return res
+    else:
+        res = np.zeros((gene_num, spaced_num))
 
     for i in range(gene_num):
         x = exprs[i]
