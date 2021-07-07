@@ -8,7 +8,7 @@ from ..tools.utils import (
     nearest_neighbors,
     fetch_states,
 )
-from ..vectorfield import svc_vectorfield
+from ..vectorfield import SvcVectorfield
 from .utils import remove_redundant_points_trajectory, arclength_sampling, pca_to_expr
 from .trajectory import Trajectory
 from ..dynamo_logger import LoggerManager
@@ -180,7 +180,7 @@ def least_action(
     logger = LoggerManager.gen_logger("dynamo-least-action-path")
 
     if vecfld is None:
-        vf = svc_vectorfield()
+        vf = SvcVectorfield()
         vf.from_adata(adata, basis=basis, vf_key=vf_key)
     else:
         vf = vecfld

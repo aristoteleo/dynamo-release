@@ -5,11 +5,9 @@ from .scVectorField import (
     SparseVFC,
     graphize_vecfld,
     base_vectorfield,
-    svc_vectorfield,
+    SvcVectorfield,
 )  # , evaluate, con_K_div_cur_free
-from .utils import (
-    vector_field_function,
-)
+from .utils import vector_field_function
 from .topography import (
     FixedPoints,
     VectorField2D,

@@ -753,7 +753,7 @@ class base_vectorfield:
         return t, prediction
 
 
-class svc_vectorfield(base_vectorfield):
+class SvcVectorfield(base_vectorfield):
     def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
         """Initialize the VectorField class.
 

@@ -12,7 +12,7 @@ import anndata
 from typing import Union
 from ..dynamo_logger import LoggerManager, main_warning, main_info
 
-from .scVectorField import base_vectorfield, svc_vectorfield
+from .scVectorField import base_vectorfield, SvcVectorfield
 from ..tools.utils import (
     update_dict,
     inverse_norm,
@@ -769,7 +769,7 @@ def VectorField(
         while True:
             if method.lower() == "sparsevfc":
                 kwargs.update({"seed": restart_seed[restart_counter]})
-                VecFld = svc_vectorfield(X, V, Grid, **vf_kwargs)
+                VecFld = SvcVectorfield(X, V, Grid, **vf_kwargs)
                 cur_vf_dict = VecFld.train(normalize=normalize, **kwargs)
             elif method.lower() == "dynode":
                 train_kwargs = update_dict(train_kwargs, kwargs)
@@ -809,7 +809,7 @@ def VectorField(
                 break
     else:
         if method.lower() == "sparsevfc":
-            VecFld = svc_vectorfield(X, V, Grid, **vf_kwargs)
+            VecFld = SvcVectorfield(X, V, Grid, **vf_kwargs)
             vf_dict = VecFld.train(normalize=normalize, **kwargs)
         elif method.lower() == "dynode":
             train_kwargs = update_dict(train_kwargs, kwargs)
