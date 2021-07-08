@@ -1,5 +1,4 @@
 from typing import Union
-from cdlib.classes.node_clustering import NodeClustering
 from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
@@ -586,9 +585,8 @@ def cluster_community(
         return adata
 
 
-def cluster_community_from_graph(
-    graph=None, graph_sparse_matrix=None, method="louvain", directed=False, **kwargs
-) -> NodeClustering:
+def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", directed=False, **kwargs):
+    # -> NodeClustering:
     """Detect communities based on graph inputs and selected methods with arguments passed in kwargs."""
     logger = LoggerManager.get_main_logger()
     logger.info("Detecting communities on graph...")
