@@ -65,7 +65,7 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
     return var_pd
 
 
-def fix_gene_names(adata: AnnData, scopes: Union[str, Iterable, None] = None, subset=True):
+def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, subset=True):
     """This helper function converts unofficial gene names to official gene names."""
 
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:

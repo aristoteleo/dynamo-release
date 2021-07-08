@@ -416,6 +416,34 @@ def elementwise_jacobian_transformation(Js, qi, qj):
     return ret
 
 
+def Jacobian_kovf(x, fjac_base, K, Q):
+    """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
+
+    Arguments
+    ---------
+    x: :class:`~numpy.ndarray`
+        Coordinates where the Jacobian is evaluated.
+    vf_dict: dict
+        A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+        and RKHS coefficients.
+        Essential keys: 'X_ctrl', 'beta', 'C'
+
+    Returns
+    -------
+    J: :class:`~numpy.ndarray`
+        Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
+        d is the number of dimensions and n the number of coordinates in x.
+    """
+    if K.ndim == 1:
+        K = np.diag(K)
+
+    G = Q.T @ K @ Q  # can be further optimized by ignoring zero off-diagonal elements of K
+    if x.ndim > 1:
+        G = np.repeat(G[:, :, None], x.shape[0], axis=2)
+
+    return fjac_base(x) - G
+
+
 @timeit
 def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
     """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.

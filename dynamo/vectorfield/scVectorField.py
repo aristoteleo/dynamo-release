@@ -35,6 +35,7 @@ from .utils import (
     compute_sensitivity,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
+    Jacobian_kovf,
     vecfld_from_adata,
     find_fixed_points,
     FixedPoints,
@@ -753,7 +754,47 @@ class base_vectorfield:
         return t, prediction
 
 
-class SvcVectorfield(base_vectorfield):
+class differentiable_vectorfield(base_vectorfield):
+    def get_Jacobian(self, method=None):
+        # subclasses must implement this function.
+        pass
+
+    def compute_divergence(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_divergence(f_jac, X, **kwargs)
+
+    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
+        X = self.data["X"] if X is None else X
+        if dim3 is None or X.shape[1] < 3:
+            X = X[:, [dim1, dim2]]
+        else:
+            X = X[:, [dim1, dim2, dim3]]
+        f_jac = self.get_Jacobian(method=method, **kwargs)
+        return compute_curl(f_jac, X, **kwargs)
+
+    def compute_acceleration(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_acceleration(self.func, f_jac, X, **kwargs)
+
+    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
+
+    def compute_torsion(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_torsion(self.func, f_jac, X, **kwargs)
+
+    def compute_sensitivity(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_sensitivity(f_jac, X, **kwargs)
+
+
+class SvcVectorfield(differentiable_vectorfield):
     def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
         """Initialize the VectorField class.
 
@@ -891,40 +932,6 @@ class SvcVectorfield(base_vectorfield):
 
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
-    def compute_divergence(self, X=None, method="analytical", **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_divergence(f_jac, X, **kwargs)
-
-    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
-        X = self.data["X"] if X is None else X
-        if dim3 is None or X.shape[1] < 3:
-            X = X[:, [dim1, dim2]]
-        else:
-            X = X[:, [dim1, dim2, dim3]]
-        f_jac = self.get_Jacobian(method=method, **kwargs)
-        return compute_curl(f_jac, X, **kwargs)
-
-    def compute_acceleration(self, X=None, method="analytical", **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_acceleration(self.func, f_jac, X, **kwargs)
-
-    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
-
-    def compute_torsion(self, X=None, method="analytical", **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_torsion(self.func, f_jac, X, **kwargs)
-
-    def compute_sensitivity(self, X=None, method="analytical", **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_sensitivity(f_jac, X, **kwargs)
-
     def get_Jacobian(self, method="analytical", input_vector_convention="row", **kwargs):
         """
         Get the Jacobian of the vector field function.
@@ -997,6 +1004,54 @@ class SvcVectorfield(base_vectorfield):
         print("recall rate: %d/%d = %f" % (NumVFCCorrect, NumCorrectIndex, recall))
 
         return corrRate, precision, recall
+
+
+class ko_vectorfield(differentiable_vectorfield):
+    def __init__(
+        self, X=None, V=None, Grid=None, K=None, func_base=None, fjac_base=None, PCs=None, mean=None, *args, **kwargs
+    ):
+        super().__init__(X, V, Grid=Grid, *args, **kwargs)
+
+        if K.ndim == 2:
+            K = np.diag(K)
+        self.K = K
+        self.PCs = PCs
+        self.mean = mean
+        self.func_base = func_base
+        self.fjac_base = fjac_base
+
+        if self.K is not None and self.PCs is not None and self.mean is not None and self.func_base is not None:
+            self.setup_perturbed_func()
+
+    def setup_perturbed_func(self):
+        def vf_func_perturb(x):
+            x_gene = np.abs(x @ self.PCs.T + self.mean)
+            v_gene = vector_transformation(self.func_base(x), self.PCs)
+            v_gene = v_gene - self.K * x_gene
+            return v_gene @ self.PCs
+
+        self.func = vf_func_perturb
+
+    def get_Jacobian(self, method="analytical"):
+        """
+        Get the Jacobian of the vector field function.
+        If method is 'analytical':
+        The analytical Jacobian will be returned and it always
+        take row vectors as input no matter what input_vector_convention is.
+
+        No matter the method and input vector convention, the returned Jacobian is of the
+        following format:
+                df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
+                df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
+                df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
+                ...         ...         ...         ...
+        """
+        if method == "analytical":
+            return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs)
+        else:
+            raise NotImplementedError(
+                f"The method {method} is not implemented. Currently only " f"supports 'analytical'."
+            )
 
 
 try:
@@ -1107,7 +1162,7 @@ def vector_field_function_knockout(
     pca_genes="use_for_pca",
     PCs="PCs",
     mean="pca_mean",
-    return_vector_field_class=False,
+    return_vector_field_class=True,
 ):
 
     if type(pca_genes) is str:
@@ -1138,18 +1193,19 @@ def vector_field_function_knockout(
     else:
         vf_func = vecfld
 
-    def vf_func_perturb(x):
+    """def vf_func_perturb(x):
         x_gene = np.abs(x @ PCs.T + mean)
         v_gene = vector_transformation(vf_func(x), PCs)
         v_gene = v_gene - k * x_gene
-        return v_gene @ PCs
+        return v_gene @ PCs"""
 
+    vf = ko_vectorfield(K=k, func_base=vf_func, fjac_base=vecfld.get_Jacobian(), PCs=PCs, mean=mean)
+    if not callable(vecfld):
+        vf.data["X"] = vecfld.data["X"]
+        vf.data["V"] = vf.func(vf.data["X"])
     if return_vector_field_class:
-        vf = base_vectorfield()
-        vf.func = vf_func_perturb
-        if not callable(vecfld):
-            vf.data["X"] = vecfld.data["X"]
-            vf.data["V"] = vf.func(vf.data["X"])
+        # vf = ko_vectorfield(K=k, func_base=vf_func, fjac_base=vecfld.get_Jacobian(), Q=PCs, mean=mean)
+        # vf.func = vf_func_perturb
         return vf
     else:
-        return vf_func_perturb
+        return vf.func
