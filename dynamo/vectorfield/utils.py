@@ -353,7 +353,7 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     return ret
 
 
-def jacobian_numerical(f: Callable, input_vector_convention: str = "row"):
+def Jacobian_numerical(f: Callable, input_vector_convention: str = "row"):
     """
     Get the numerical Jacobian of the vector field function.
     If the input_vector_convention is 'row', it means that fjac takes row vectors

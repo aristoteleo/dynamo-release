@@ -26,7 +26,7 @@ from .utils import (
     vector_field_function,
     con_K_div_cur_free,
     con_K,
-    jacobian_numerical,
+    Jacobian_numerical,
     compute_divergence,
     compute_curl,
     compute_acceleration,
@@ -956,7 +956,7 @@ class SvcVectorfield(differentiable_vectorfield):
                 ...         ...         ...         ...
         """
         if method == "numerical":
-            return jacobian_numerical(self.func, input_vector_convention, **kwargs)
+            return Jacobian_numerical(self.func, input_vector_convention, **kwargs)
         elif method == "parallel":
             return lambda x: Jacobian_rkhs_gaussian_parallel(x, self.vf_dict, **kwargs)
         elif method == "analytical":
