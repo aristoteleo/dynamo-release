@@ -164,7 +164,7 @@ Vector field (vf)
 
    vf.SparseVFC
    vf.base_vectorfield
-   vf.svc_vectorfield
+   vf.SvcVectorfield
    .. vf.graphize_vecfld
    .. vf.vector_field_function
 

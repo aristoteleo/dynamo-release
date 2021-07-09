@@ -794,7 +794,7 @@ class differentiable_vectorfield(base_vectorfield):
         return compute_sensitivity(f_jac, X, **kwargs)
 
 
-class svc_vectorfield(differentiable_vectorfield):
+class SvcVectorfield(differentiable_vectorfield):
     def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
         """Initialize the VectorField class.
 

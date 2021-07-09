@@ -1,10 +1,10 @@
+from typing import Callable, Union
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist, pdist
 from scipy.sparse import issparse
 from scipy.optimize import fsolve
-from scipy.linalg import eig
 import numdifftools as nd
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
@@ -17,7 +17,8 @@ from ..tools.utils import (
     timeit,
     subset_dict_with_key_list,
 )
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_info
+from .FixedPoints import FixedPoints
 
 
 def is_outside_domain(x, domain):
@@ -352,7 +353,7 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     return ret
 
 
-def Jacobian_numerical(f, input_vector_convention="row"):
+def Jacobian_numerical(f: Callable, input_vector_convention: str = "row"):
     """
     Get the numerical Jacobian of the vector field function.
     If the input_vector_convention is 'row', it means that fjac takes row vectors
@@ -570,7 +571,7 @@ def acceleration_(v, J):
     return J.dot(v)
 
 
-def curvature_method1(a, v):
+def curvature_method1(a: np.array, v: np.array):
     """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
     if v.ndim == 1:
         v = v[:, None]
@@ -579,7 +580,7 @@ def curvature_method1(a, v):
     return kappa
 
 
-def curvature_method2(a, v):
+def curvature_method2(a: np.array, v: np.array):
     """https://dl.acm.org/doi/10.5555/319351.319441"""
     # if v.ndim == 1: v = v[:, None]
     kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v) ** 4
@@ -746,7 +747,7 @@ def compute_curl(f_jac, X):
 
 # ---------------------------------------------------------------------------------------------------
 # ranking related utilies
-def get_metric_gene_in_rank(mat, genes, neg=False):
+def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False):
     metric_in_rank = mat.mean(0).A1 if issparse(mat) else mat.mean(0)
     rank = metric_in_rank.argsort() if neg else metric_in_rank.argsort()[::-1]
     metric_in_rank, genes_in_rank = metric_in_rank[rank], genes[rank]
@@ -754,8 +755,10 @@ def get_metric_gene_in_rank(mat, genes, neg=False):
     return metric_in_rank, genes_in_rank
 
 
-def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
-    mask = groups == grp
+def get_metric_gene_in_rank_by_group(
+    mat: np.mat, genes: list, groups: np.array, selected_group, neg: bool = False
+) -> tuple:
+    mask = groups == selected_group
     if type(mask) == pd.Series:
         mask = mask.values
 
@@ -769,7 +772,7 @@ def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
     return gene_wise_metrics, group_wise_metrics, genes_in_rank
 
 
-def get_sorted_metric_genes_df(df, genes, neg=False):
+def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False) -> tuple:
     sorted_metric = pd.DataFrame(
         {
             key: (sorted(values, reverse=False) if neg else sorted(values, reverse=True))
@@ -785,7 +788,8 @@ def get_sorted_metric_genes_df(df, genes, neg=False):
     return sorted_metric, sorted_genes
 
 
-def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
+def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, uniq_group: list) -> tuple:
+    main_info("split mat to a positive matrix and a negative matrix.")
     if issparse(mat):
         mask = mat.data > 0
         pos_mat, neg_mat = mat.copy(), mat.copy()
@@ -798,6 +802,7 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
         pos_mat[~mask], neg_mat[mask] = 0, 0
 
     if group is None:
+        main_info("ranking vector calculus in group: %s" % (group))
         metric_in_rank, genes_in_rank = get_metric_gene_in_rank(abs(mat), genes)
 
         pos_metric_in_rank, pos_genes_in_rank = get_metric_gene_in_rank(pos_mat, genes)
@@ -829,7 +834,7 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
             group_wise_neg_metrics,
             group_wise_neg_genes,
         ) = ({}, {}, {}, {}, {}, {})
-        for i, grp in tqdm(enumerate(uniq_group), desc="ranking genes across gropus"):
+        for i, grp in tqdm(enumerate(uniq_group), desc="ranking genes across groups"):
             (
                 gene_wise_metrics[grp],
                 group_wise_metrics[grp],
@@ -975,11 +980,17 @@ def remove_redundant_points(X, tol=1e-4, output_discard=False):
         return X
 
 
-def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4, return_all=False):
+def find_fixed_points(
+    x0_list: Union[list, np.array],
+    func_vf: Callable,
+    domain=None,
+    tol_redundant: float = 1e-4,
+    return_all: bool = False,
+) -> tuple:
     X = []
     J = []
     fval = []
-    for x0 in X0:
+    for x0 in x0_list:
         x, info_dict, _, _ = fsolve(func_vf, x0, full_output=True)
 
         outside = is_outside(x[None, :], domain)[0] if domain is not None else False
@@ -1010,77 +1021,6 @@ def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4, return_all=F
             return X, J, fval
         else:
             return None, None, None
-
-
-class FixedPoints:
-    def __init__(self, X=None, J=None):
-        self.X = X if X is not None else []
-        self.J = J if J is not None else []
-        self.eigvals = []
-
-    def get_X(self):
-        return np.array(self.X)
-
-    def get_J(self):
-        return np.array(self.J)
-
-    def add_fixed_points(self, X, J, tol_redundant=1e-4):
-        for i, x in enumerate(X):
-            redundant = False
-            if tol_redundant is not None and len(self.X) > 0:
-                for y in self.X:
-                    if np.linalg.norm(x - y) <= tol_redundant:
-                        redundant = True
-            if not redundant:
-                self.X.append(x)
-                self.J.append(J[i])
-
-    def compute_eigvals(self):
-        self.eigvals = []
-        for i in range(len(self.J)):
-            if self.J[i] is None or np.isnan(self.J[i]).any():
-                w = np.nan
-            else:
-                w, _ = eig(self.J[i])
-            self.eigvals.append(w)
-
-    def is_stable(self):
-        if len(self.eigvals) != len(self.X):
-            self.compute_eigvals()
-
-        stable = np.ones(len(self.eigvals), dtype=bool)
-        for i, w in enumerate(self.eigvals):
-            if w is None or np.isnan(w).any():
-                stable[i] = np.nan
-            else:
-                if np.any(np.real(w) >= 0):
-                    stable[i] = False
-        return stable
-
-    def is_saddle(self):
-        is_stable = self.is_stable()
-        saddle = np.zeros(len(self.eigvals), dtype=bool)
-        for i, w in enumerate(self.eigvals):
-            if w is None or np.isnan(w).any():
-                saddle[i] = np.nan
-            else:
-                if not is_stable[i] and np.any(np.real(w) < 0):
-                    saddle[i] = True
-        return saddle, is_stable
-
-    def get_fixed_point_types(self):
-        is_saddle, is_stable = self.is_saddle()
-        # -1 -- stable, 0 -- saddle, 1 -- unstable
-        ftype = np.ones(len(self.X))
-        for i in range(len(ftype)):
-            if self.X[i] is None or np.isnan((self.X[i])).any():
-                ftype[i] = np.nan
-            else:
-                if is_saddle[i]:
-                    ftype[i] = 0
-                elif is_stable[i]:
-                    ftype[i] = -1
-        return ftype
 
 
 # ---------------------------------------------------------------------------------------------------

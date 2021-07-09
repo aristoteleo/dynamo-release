@@ -1,9 +1,11 @@
+from typing import Union
 from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
 import anndata
 import pandas as pd
+from anndata import AnnData
 from ..dynamo_logger import main_info
 from .connectivity import _gen_neighbor_keys, neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
@@ -385,29 +387,6 @@ def louvain(
     copy=False,
     **kwargs
 ) -> anndata.AnnData:
-    """[summary]
-
-    Parameters
-    ----------
-    adata : [type]
-        [description]
-    resolution : float, optional
-        [description], by default 1.0
-    adj_matrix : [type], optional
-        [description], by default None
-    use_weight : bool, optional
-        [description], by default True
-    randomize : bool, optional
-        randomize – boolean, from CDlib: "randomize the node evaluation order and the community evaluation order to get
-        different partitions at each call, by default False"
-    result_key : [type], optional
-        [description], by default None
-
-    Returns
-    -------
-    AnnData
-        [description]
-    """
     if directed:
         raise ValueError("CDlib does not support directed graph for Louvain community detection for now.")
     kwargs.update(
@@ -468,77 +447,71 @@ def infomap(
 
 
 def cluster_community(
-    adata,
-    method="leiden",
-    result_key=None,
-    adj_matrix=None,
-    adj_matrix_key=None,
-    use_weight=True,
-    no_community_label=-1,
-    layer=None,
-    conn_type="connectivities",
-    obsm_key=None,
-    cell_subsets=None,
+    adata: AnnData,
+    method: str = "leiden",
+    result_key: Union[str, None] = None,
+    adj_matrix: Union[list, np.array, csr_matrix, None] = None,
+    adj_matrix_key: Union[str, None] = None,
+    use_weight: bool = True,
+    no_community_label: int = -1,
+    layer: Union[str, None] = None,
+    conn_type: str = "connectivities",
+    obsm_key: Union[str, None] = None,
+    cell_subsets: list = None,
     cluster_and_subsets: list = None,
-    directed=True,
-    copy=False,
+    directed: bool = True,
+    copy: bool = False,
     **kwargs
-):
-    """Detect communities and insert data into adata.
-
+) -> Union[AnnData, None]:
+    """Detect communities and insert data into adata with methods specified in arguments.
+    Priority: adj_matrix > adj_matrix_key > others
 
     Parameters
     ----------
-    adata : [type]
-        [description]
-    method : str, optional
-        [description], by default "leiden"
-    result_key : [type], optional
-        [description], by default None
-    adj_matrix : [type], optional
-        [description], by default None
-    adj_matrix_key : str, optional
-        [description], by default "connectivities"
-    use_weight : bool, optional
-        [description], by default False
-    no_community_label : int, optional
-        [description], by default -1
-    layer: str or None:
-        [description], by default None
-    conn_type: str:
-        [description], by default "connectivities"
-    obsm_key: str or None:
-        [description], by default None
-    cell_subsets : [type], optional
-        [description], by default None
-    cluster_and_subsets : list, optional
-        [description], by default None
-    directed : bool, optional
-        [description], by default False
-    copy : bool, optional
-        [description], by default False
-
-    Returns
-    -------
-    [type]
-        [description]
+    adata
+        adata object
+    method
+        community detection method, by default "leiden"
+    result_key
+        the key where the results are stored in obs, by default None
+    adj_matrix
+        adj_matrix used for clustering, by default None
+    adj_matrix_key
+        adj_matrix_key in adata.obsp used for clustering
+    use_weight
+        if using weight or not, by default False meaning using connectivities only (0/1 integer values)
+    no_community_label
+        the label value used for nodes not contained in any community, by default -1
+    layer
+        some adata layer which cluster algorithms will work on, by default None
+    conn_type
+        can be "connectivities" or "distances" for now, by default "connectivities". Note "distances" may not take effect when use_weight is set to False because all data in graph will be set to 0/1 integer values.
+    cell_subsets
+        cluster only a subset of cells in adata, by default None
+    cluster_key_and_cluster_subsets
+        A tuple of 2 elements (cluster_key, allowed_clusters).filtering cells in adata based on cluster_key in adata.obs and only reserve cells in the allowed clusters, by default None
+    directed
+        if the edges in the graph should be directed, by default False
     """
 
     adata = copy_adata(adata) if copy else adata
     if (layer is not None) and (adj_matrix_key is not None):
         raise ValueError("Please supply one of adj_matrix_key and layer")
+
+    # build adj_matrix_key
     if adj_matrix_key is None:
         if layer is None:
             if obsm_key is None:
-                adj_matrix_key = "connectivities"
+                adj_matrix_key = conn_type
             else:
-                adj_matrix_key = obsm_key + "_" + "connectivities"
+                adj_matrix_key = obsm_key + "_" + conn_type
         else:
             adj_matrix_key = layer + "_" + conn_type
 
     # try generating required adj_matrix according to
     # user inputs through "neighbors" interface
     if adj_matrix is None:
+        main_info("accessing adj_matrix_key=%s built from args for clustering..." % (adj_matrix_key))
         if not (adj_matrix_key in adata.obsp):
             if layer is None:
                 if obsm_key is None:
@@ -555,8 +528,10 @@ def cluster_community(
 
         graph_sparse_matrix = adata.obsp[adj_matrix_key]
     else:
+        main_info("using adj_matrix passed from arg for clustering...")
         graph_sparse_matrix = adj_matrix
 
+    # build result_key for storing results
     if result_key is None:
         if all((cell_subsets is None, cluster_and_subsets is None)):
             result_key = "%s" % (method) if layer is None else layer + "_" + method
@@ -566,7 +541,7 @@ def cluster_community(
     valid_indices = None
     if cell_subsets is not None:
         if type(cell_subsets[0]) == str:
-            valid_indices = [adata.obs_names.get_loc(i) for i in cell_subsets]
+            valid_indices = [adata.obs_names.get_loc(cur_cell) for cur_cell in cell_subsets]
         else:
             valid_indices = cell_subsets
 
@@ -608,36 +583,13 @@ def cluster_community(
         "cluster_and_subsets": cluster_and_subsets,
         "directed": directed,
     }
-
-    return adata
+    if copy:
+        return adata
 
 
 def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", directed=False, **kwargs):
-    """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
-
-    Parameters
-    ----------
-    graph : [type], optional
-        [description], by default None
-    graph_sparse_matrix : [type], optional
-        [description], by default None
-    method : str, optional
-        [description], by default "louvain"
-
-    Returns
-    -------
-    [type]
-        NodeClustering Object from CDlib
-
-    Raises
-    ------
-    ImportError
-        [description]
-    ValueError
-        [description]
-    NotImplementedError
-        [description]
-    """
+    # -> NodeClustering:
+    """Detect communities based on graph inputs and selected methods with arguments passed in kwargs."""
     logger = LoggerManager.get_main_logger()
     logger.info("Detecting communities on graph...")
     try:
