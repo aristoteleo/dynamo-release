@@ -116,7 +116,7 @@ def reduceDimension(
             n_neighbors,
             neighbor_key,
             cores,
-            kwargs,
+            **kwargs,
         )
     if neighbor_key not in adata.uns_keys():
         neighbors(adata)

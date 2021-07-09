@@ -1102,7 +1102,7 @@ def dynamics(
 ):
     """Plot the data and fitting of different metabolic labeling experiments.
     Note that if non-smoothed data was used for kinetic fitting, you often won't see boxplot
-    but only the triangles for the mean values. This is because the raw data has a lot dropout,
+    but only the triangles for the mean values. This is because the raw data has a lot of dropouts,
     thus the median is outside of the whiskers of the boxplot and the boxplot is then not drawn
     by default.
 

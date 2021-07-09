@@ -79,7 +79,7 @@ def hdbscan(
     adata = copy_adata(adata) if copy else adata
 
     if X_data is None:
-        _, n_components, has_basis, basis = prepare_dim_reduction(
+        X_data, n_components, basis = prepare_dim_reduction(
             adata,
             genes=genes,
             layer=layer,
@@ -89,25 +89,27 @@ def hdbscan(
             n_components=n_components,
         )
 
-    if has_basis:
-        X_data = adata.obsm[basis]
-    else:
-        reduction_method = basis.split("_")[-1]
-        embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
-        neighbor_result_prefix = "" if layer is None else layer
-        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+        if basis in adata.obsm_keys():
+            X_data = adata.obsm[basis]
+        else:
+            reduction_method = basis.split("_")[-1]
+            embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
+            neighbor_result_prefix = "" if layer is None else layer
+            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
 
-        adata = run_reduce_dim(
-            adata,
-            X_data,
-            n_components,
-            n_pca_components,
-            reduction_method,
-            embedding_key=embedding_key,
-            n_neighbors=30,
-            neighbor_key=neighbor_key,
-            cores=1,
-        )
+            adata = run_reduce_dim(
+                adata,
+                X_data,
+                n_components,
+                n_pca_components,
+                reduction_method,
+                embedding_key=embedding_key,
+                n_neighbors=30,
+                neighbor_key=neighbor_key,
+                cores=1,
+            )
+
+            X_data = adata.obsm[basis]
 
     X_data = X_data if dims is None else X_data[:, dims]
 

@@ -134,7 +134,7 @@ def run_reduce_dim(
     n_neighbors,
     neighbor_key,
     cores,
-    kwargs,
+    **kwargs,
 ):
     if reduction_method == "trimap":
         import trimap
