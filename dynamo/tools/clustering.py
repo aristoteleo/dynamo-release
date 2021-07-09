@@ -518,7 +518,7 @@ def cluster_community(
                     X_data = adata.obsm[obsm_key]
                     neighbors(adata, X_data=X_data, result_prefix=obsm_key)
             else:
-                X_data = adata.layers[layer]
+                X_data = adata[:, adata.var.use_for_pca].layers[layer]
                 neighbors(adata, X_data=X_data, result_prefix=layer)
 
         if not (adj_matrix_key in adata.obsp):
@@ -539,7 +539,7 @@ def cluster_community(
     valid_indices = None
     if cell_subsets is not None:
         if type(cell_subsets[0]) == str:
-            valid_indices = [adata.obs_names.get_loc(subset) for subset in cell_subsets]
+            valid_indices = [adata.obs_names.get_loc(cur_cell) for cur_cell in cell_subsets]
         else:
             valid_indices = cell_subsets
 
