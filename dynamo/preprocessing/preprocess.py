@@ -1685,6 +1685,12 @@ def recipe_monocle(
             SVRs_kwargs=select_genes_dict,
         )
     else:
+        if len(adata.var_names.intersection(genes_to_use)) == 0:
+            logger.error(
+                "No genes from genes_to_use matches with the gene names from adata. Please ensure you use gene short "
+                "names!"
+            )
+            raise Exception()
         logger.info_insert_adata("use_for_pca", "var")
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
 

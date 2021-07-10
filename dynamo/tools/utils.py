@@ -735,7 +735,7 @@ def get_data_for_kin_params_estimation(
         None,
         None,
         None,
-    )  # U: unlabeled unspliced; S: unlabel spliced
+    )  # U: (unlabeled) unspliced; S: (unlabeled) spliced; U / Ul: old and labeled; U, Ul, S, Sl: uu/ul/su/sl
     normalized, assumption_mRNA = (
         False,
         None,
@@ -1681,8 +1681,12 @@ def set_transition_genes(
             adata.var["gamma_r2"] = None
         if np.all(adata.var.gamma_r2.values is None):
             adata.var.gamma_r2 = 1
+        if sum(adata.var.gamma_r2.isna()) == adata.n_vars:
+            gamm_r2_checker = adata.var.gamma_r2.isna()
+        else:
+            gamm_r2_checker = adata.var.gamma_r2 > min_r2
         adata.var[store_key] = (
-            (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamics
+            (adata.var.gamma > min_gamma) & gamm_r2_checker & adata.var.use_for_dynamics
             if use_for_dynamics
             else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )

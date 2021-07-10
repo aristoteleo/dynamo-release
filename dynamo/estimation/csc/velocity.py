@@ -426,7 +426,7 @@ class ss_estimation:
             "p": P,
             "us": US,
             "s2": S2,
-        }
+        }  # U: (unlabeled) unspliced; S: (unlabeled) spliced; U / Ul: old and labeled; U, Ul, S, Sl: uu/ul/su/sl
         if concat_data:
             self.concatenate_data()
 

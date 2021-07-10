@@ -508,7 +508,7 @@ def dynamics(
                 concat_data=concat_data,
                 cores=cores,
                 **ss_estimation_kwargs,
-            )
+            )  # U: (unlabeled) unspliced; S: (unlabeled) spliced; U / Ul: old and labeled; U, Ul, S, Sl: uu/ul/su/sl
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
