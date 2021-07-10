@@ -1688,7 +1688,7 @@ def set_transition_genes(
         adata.var[store_key] = (
             (adata.var.gamma > min_gamma) & gamm_r2_checker & adata.var.use_for_dynamics
             if use_for_dynamics
-            else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
+            else (adata.var.gamma > min_gamma) & gamm_r2_checker
         )
 
     if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
