@@ -4,16 +4,29 @@ from matplotlib import rcParams, cm, colors
 from cycler import cycler
 import matplotlib.pyplot as plt
 
+
 # set the data store mode.
 # saving memory or storing more results
 # modes: verbose, succint
 data_store_mode = "verbose"
 keep_filtered_genes = True
 keep_raw_layers = True
+keep_filtered_cells = True
 
-if data_store_mode == "succint":
-    keep_filtered_genes = False
-    keep_raw_layers = False
+
+def update_data_store_mode(mode):
+    global data_store_mode, keep_filtered_cells, keep_filtered_genes, keep_raw_layers
+    data_store_mode = mode
+    if data_store_mode == "succint":
+        keep_filtered_genes = False
+        keep_raw_layers = False
+        keep_filtered_cells = False
+    elif data_store_mode == "verbose":
+        keep_filtered_genes = True
+        keep_raw_layers = True
+        keep_filtered_cells = True
+    else:
+        raise NotImplementedError
 
 
 # create cmap
