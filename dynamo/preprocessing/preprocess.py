@@ -40,7 +40,7 @@ from ..dynamo_logger import (
     LoggerManager,
 )
 from ..utils import copy_adata
-from ..configuration import keep_filtered_genes, keep_filtered_cells
+from ..configuration import DynamoConfig
 
 
 def szFactor(
@@ -1266,9 +1266,9 @@ def recipe_monocle(
     n_top_genes: int = 2000,
     maintain_n_top_genes: bool = True,
     relative_expr: bool = True,
-    keep_filtered_cells: bool = keep_filtered_cells,
-    keep_filtered_genes: bool = keep_filtered_genes,
-    keep_raw_layers: bool = True,
+    keep_filtered_cells: bool = None,
+    keep_filtered_genes: bool = None,
+    keep_raw_layers: bool = None,
     scopes: Union[str, Iterable, None] = None,
     fc_kwargs: Union[dict, None] = None,
     fg_kwargs: Union[dict, None] = None,
@@ -1393,7 +1393,12 @@ def recipe_monocle(
     """
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
-
+    if keep_filtered_cells is None:
+        keep_filtered_cells = DynamoConfig.keep_filtered_cells_default
+    if keep_filtered_genes is None:
+        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
+    if keep_raw_layers is None:
+        keep_raw_layers = DynamoConfig.keep_raw_layers_default
     adata = copy_adata(adata) if copy else adata
 
     logger.info("apply Monocole recipe to adata...", indent_level=1)
@@ -1888,7 +1893,7 @@ def recipe_velocyto(
     n_top_genes=2000,
     cluster="Clusters",
     relative_expr=True,
-    keep_filtered_genes=keep_filtered_genes,
+    keep_filtered_genes=None,
 ):
     """This function is adapted from the velocyto's DentateGyrus notebook.
     .
@@ -1926,6 +1931,10 @@ def recipe_velocyto(
                 An updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced
                 dimensions, etc.
     """
+
+    if keep_filtered_genes is None:
+        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
+
     adata = szFactor(adata, method="mean", total_layers=total_layers)
     initial_Ucell_size = adata.layers["unspliced"].sum(1)
 

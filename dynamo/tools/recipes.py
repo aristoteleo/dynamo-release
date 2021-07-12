@@ -5,7 +5,7 @@ from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
 from .utils import set_transition_genes
-from ..configuration import keep_filtered_genes, keep_filtered_cells
+from ..configuration import DynamoConfig
 
 # add recipe_csc_data()
 
@@ -17,8 +17,8 @@ def recipe_kin_data(
     X_total_layers=False,
     splicing_total_layers=False,
     n_top_genes=1000,
-    keep_filtered_cells=keep_filtered_cells,
-    keep_filtered_genes=keep_filtered_genes,
+    keep_filtered_cells=None,
+    keep_filtered_genes=None,
     keep_raw_layers=False,
     del_2nd_moments=True,
     ekey="M_t",
@@ -88,6 +88,11 @@ def recipe_kin_data(
     """
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
+
+    if keep_filtered_cells is None:
+        keep_filtered_cells = DynamoConfig.keep_filtered_cells_default
+    if keep_filtered_genes is None:
+        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
@@ -185,8 +190,8 @@ def recipe_deg_data(
     X_total_layers=False,
     splicing_total_layers=False,
     n_top_genes=1000,
-    keep_filtered_cells=keep_filtered_cells,
-    keep_filtered_genes=keep_filtered_genes,
+    keep_filtered_cells=None,
+    keep_filtered_genes=None,
     keep_raw_layers=False,
     del_2nd_moments=True,
     fraction_for_deg=False,
@@ -260,6 +265,11 @@ def recipe_deg_data(
 
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
+
+    if keep_filtered_cells is None:
+        keep_filtered_cells = DynamoConfig.keep_filtered_cells_default
+    if keep_filtered_genes is None:
+        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
@@ -368,9 +378,9 @@ def recipe_mix_kin_deg_data(
     X_total_layers=False,
     splicing_total_layers=False,
     n_top_genes=1000,
-    keep_filtered_cells=keep_filtered_cells,
-    keep_filtered_genes=keep_filtered_genes,
-    keep_raw_layers=False,
+    keep_filtered_cells=None,
+    keep_filtered_genes=None,
+    keep_raw_layers=None,
     del_2nd_moments=True,
     ekey="M_t",
     vkey="velocity_T",
@@ -439,6 +449,13 @@ def recipe_mix_kin_deg_data(
     """
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
+
+    if keep_filtered_cells is None:
+        keep_filtered_cells = DynamoConfig.keep_filtered_cells_default
+    if keep_filtered_genes is None:
+        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
+    if keep_raw_layers is None:
+        keep_raw_layers = DynamoConfig.keep_raw_layers_default
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 

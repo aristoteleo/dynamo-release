@@ -5,28 +5,31 @@ from cycler import cycler
 import matplotlib.pyplot as plt
 
 
-# set the data store mode.
-# saving memory or storing more results
-# modes: verbose, succint
-data_store_mode = "verbose"
-keep_filtered_genes = True
-keep_raw_layers = True
-keep_filtered_cells = True
+class DynamoConfig:
+    # set the data store mode.
+    # saving memory or storing more results
+    # modes: verbose, succint
+    data_store_mode = "verbose"
+    keep_filtered_genes_default = True
+    keep_raw_layers_default = True
+    keep_filtered_cells_default = True
+
+    def update_data_store_mode(mode):
+        data_store_mode = mode
+        if data_store_mode == "succint":
+            DynamoConfig.keep_filtered_genes_default = False
+            DynamoConfig.keep_raw_layers_default = False
+            DynamoConfig.keep_filtered_cells_default = False
+        elif data_store_mode == "verbose":
+            DynamoConfig.keep_filtered_genes_default = True
+            DynamoConfig.keep_raw_layers_default = True
+            DynamoConfig.keep_filtered_cells_default = True
+        else:
+            raise NotImplementedError
 
 
 def update_data_store_mode(mode):
-    global data_store_mode, keep_filtered_cells, keep_filtered_genes, keep_raw_layers
-    data_store_mode = mode
-    if data_store_mode == "succint":
-        keep_filtered_genes = False
-        keep_raw_layers = False
-        keep_filtered_cells = False
-    elif data_store_mode == "verbose":
-        keep_filtered_genes = True
-        keep_raw_layers = True
-        keep_filtered_cells = True
-    else:
-        raise NotImplementedError
+    DynamoConfig.update_data_store_mode(mode)
 
 
 # create cmap
