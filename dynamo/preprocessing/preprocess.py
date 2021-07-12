@@ -374,8 +374,8 @@ def Gini(adata, layers="all"):
     return adata
 
 
-def parametricDispersionFit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])):
-    """fThis function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])):
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
@@ -515,7 +515,7 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
     return layers, res_list
 
 
-def topTable(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
+def top_table_monocle3(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -537,8 +537,12 @@ def topTable(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion")
 
     if mode == "dispersion":
         if adata.uns[key] is None:
+            estimate_dispersion(adata, layers=[layer])
+
+        if adata.uns[key] is None:
             raise KeyError(
-                "Error: no dispersion model found. Please call estimateDispersions() before calling this function"
+                "Error: for adata.uns.key=%s, no dispersion model found. Please call estimate_dispersion() before calling this function"
+                % key
             )
 
         top_df = pd.DataFrame(
@@ -606,7 +610,7 @@ def vstExprs(
     return res
 
 
-def Dispersion(
+def estimate_dispersion(
     adata: anndata.AnnData,
     layers: str = "X",
     modelFormulaStr: str = "~ 1",
@@ -658,7 +662,7 @@ def Dispersion(
 
         disp_table = disp_table.loc[np.where(disp_table["mu"] != np.nan)[0], :]
 
-        res = parametricDispersionFit(disp_table)
+        res = parametric_dispersion_fit(disp_table)
         fit, coefs, good = res[0], res[1], res[2]
 
         if removeOutliers:
@@ -673,7 +677,7 @@ def Dispersion(
             # use CD.index.values? remove genes that lost when doing parameter fitting
             lost_gene = set(good.index.values).difference(set(range(len(CD))))
             outliers[lost_gene] = True
-            res = parametricDispersionFit(good.loc[~outliers, :])
+            res = parametric_dispersion_fit(good.loc[~outliers, :])
 
             fit, coefs = res[0], res[1]
 
@@ -1190,7 +1194,7 @@ def select_genes(
         filter_bool = np.ones(adata.shape[1], dtype=bool)
     else:
         if sort_by == "dispersion":
-            table = topTable(adata, layer, mode="dispersion")
+            table = top_table_monocle3(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
             valid_table = valid_table.loc[
                 set(adata.var.index[filter_bool]).intersection(valid_table.index),
@@ -1200,7 +1204,7 @@ def select_genes(
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
         elif sort_by == "gini":
-            table = topTable(adata, layer, mode="gini")
+            table = top_table_monocle3(adata, layer, mode="gini")
             valid_table = table.loc[filter_bool, :]
             gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
             gene_id = valid_table.index[gene_id]
@@ -1238,6 +1242,7 @@ def select_genes(
 def recipe_monocle(
     adata: anndata.AnnData,
     reset_X: bool = False,
+    feature_selection_layer: Union[list, np.ndarray, np.array] = None,
     tkey: Union[str, None] = None,
     t_label_keys: Union[str, list, None] = None,
     experiment_type: Union[str, None] = None,
@@ -1465,6 +1470,31 @@ def recipe_monocle(
     logger.info("ensure all labeling data properly collapased", indent_level=1)
     adata = collapse_adata(adata)
 
+    def _infer_experiment_type(adata):
+        experiment_type = None
+        t = np.array(adata.obs[tkey], dtype="float")
+        if len(np.unique(t)) == 1:
+            experiment_type = "one-shot"
+        else:
+            labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
+            xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
+
+            yy = t
+            xm, ym = np.mean(xx), np.mean(yy)
+            cov = np.mean(xx * yy) - xm * ym
+            var_x = np.mean(xx * xx) - xm * xm
+
+            k = cov / var_x
+
+            # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
+            experiment_type = "kin" if k > 0 else "deg"
+        main_warning(
+            f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
+            f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
+            f"needed."
+        )
+        return experiment_type
+
     # reset adata.X
     if has_labeling:
         if tkey is None:
@@ -1477,28 +1507,11 @@ def recipe_monocle(
         if tkey not in adata.obs.keys():
             raise ValueError(f"`tkey` {tkey} that encodes the labeling time is not existed in your adata.")
         if experiment_type is None:
-            t = np.array(adata.obs[tkey], dtype="float")
-            if len(np.unique(t)) == 1:
-                experiment_type = "one-shot"
-            else:
-                labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
-                xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
+            experiment_type = _infer_experiment_type(adata)
 
-                yy = t
-                xm, ym = np.mean(xx), np.mean(yy)
-                cov = np.mean(xx * yy) - xm * ym
-                var_x = np.mean(xx * xx) - xm * xm
+        main_info("detected experiment type: %s" % experiment_type)
 
-                k = cov / var_x
-
-                # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
-                experiment_type = "kin" if k > 0 else "deg"
-            main_warning(
-                f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
-                f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
-                f"needed."
-            )
-        elif experiment_type not in [
+        valid_experiment_types = [
             "one-shot",
             "kin",
             "mixture",
@@ -1507,7 +1520,8 @@ def recipe_monocle(
             "mix_pulse_chase",
             "mix_kin_deg",
             "deg",
-        ]:
+        ]
+        if experiment_type not in valid_experiment_types:
             raise ValueError(
                 "expriment_type can only be one of ['one-shot', 'kin', 'mixture', 'mix_std_stm', "
                 "'kinetics', 'mix_pulse_chase','mix_kin_deg', 'deg']"
@@ -1652,8 +1666,8 @@ def recipe_monocle(
             genes_use_for_norm=genes_use_for_norm,
         )
 
-    if feature_selection.lower() == "dispersion":
-        adata = Dispersion(adata)
+    # if feature_selection.lower() == "dispersion":
+    #     adata = estimate_dispersion(adata)
 
     # set use_for_pca (use basic_filtered data)
     select_genes_dict = {
@@ -1679,6 +1693,7 @@ def recipe_monocle(
         logger.info("selecting genes...")
         adata = select_genes(
             adata,
+            layer=feature_selection_layer,
             sort_by=feature_selection,
             n_top_genes=n_top_genes,
             keep_filtered=True,
