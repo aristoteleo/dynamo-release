@@ -529,6 +529,7 @@ def recipe_mix_kin_deg_data(
     return adata
 
 
+# support using just spliced/unspliced/new/total 4 layers, as well as uu, ul, su, sl layers
 def recipe_onde_shot_data(
     adata,
     tkey=None,

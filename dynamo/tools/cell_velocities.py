@@ -350,6 +350,10 @@ def cell_velocities(
     finite_inds = get_finite_inds(V)
     X, V = X[:, finite_inds], V[:, finite_inds]
 
+    if sum(finite_inds) != X.shape[0]:
+        main_info(f"{X.shape[0] - sum(finite_inds)} genes are removed because of nan velocity values.")
+        adata.var.loc[np.array(transition_genes)[~finite_inds], "use_for_transition"] = False
+
     if finite_inds.sum() < 5 and len(finite_inds) > 100:
         raise Exception(
             f"there are only {finite_inds.sum()} genes have finite velocity values. "
