@@ -1,4 +1,3 @@
-from dynamo.configuration import DynamoConfig
 from tqdm import tqdm
 import inspect
 import numpy as np
@@ -45,6 +44,7 @@ from ..dynamo_logger import (
     main_log_time,
     main_finish_progress,
 )
+from ..configuration import DynamoConfig
 
 warnings.simplefilter("ignore", SparseEfficiencyWarning)
 
