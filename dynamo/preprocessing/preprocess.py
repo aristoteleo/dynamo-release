@@ -515,7 +515,7 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
     return layers, res_list
 
 
-def top_table_monocle3(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
+def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -1194,7 +1194,7 @@ def select_genes(
         filter_bool = np.ones(adata.shape[1], dtype=bool)
     else:
         if sort_by == "dispersion":
-            table = top_table_monocle3(adata, layer, mode="dispersion")
+            table = top_table(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
             valid_table = valid_table.loc[
                 set(adata.var.index[filter_bool]).intersection(valid_table.index),
@@ -1204,7 +1204,7 @@ def select_genes(
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
         elif sort_by == "gini":
-            table = top_table_monocle3(adata, layer, mode="gini")
+            table = top_table(adata, layer, mode="gini")
             valid_table = table.loc[filter_bool, :]
             gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
             gene_id = valid_table.index[gene_id]
@@ -1242,7 +1242,6 @@ def select_genes(
 def recipe_monocle(
     adata: anndata.AnnData,
     reset_X: bool = False,
-    feature_selection_layer: Union[list, np.ndarray, np.array] = None,
     tkey: Union[str, None] = None,
     t_label_keys: Union[str, list, None] = None,
     experiment_type: Union[str, None] = None,
@@ -1274,6 +1273,7 @@ def recipe_monocle(
     fg_kwargs: Union[dict, None] = None,
     sg_kwargs: Union[dict, None] = None,
     copy: bool = False,
+    feature_selection_layer: Union[list, np.ndarray, np.array, str] = "X",
 ) -> Union[anndata.AnnData, None]:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -1393,12 +1393,14 @@ def recipe_monocle(
     """
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
-    if keep_filtered_cells is None:
-        keep_filtered_cells = DynamoConfig.keep_filtered_cells_default
-    if keep_filtered_genes is None:
-        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
-    if keep_raw_layers is None:
-        keep_raw_layers = DynamoConfig.keep_raw_layers_default
+    keep_filtered_cells = DynamoConfig.check_config_var(
+        keep_filtered_cells, DynamoConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY
+    )
+    keep_filtered_genes = DynamoConfig.check_config_var(
+        keep_filtered_genes, DynamoConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY
+    )
+    keep_raw_layers = DynamoConfig.check_config_var(keep_raw_layers, DynamoConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY)
+
     adata = copy_adata(adata) if copy else adata
 
     logger.info("apply Monocole recipe to adata...", indent_level=1)
@@ -1932,8 +1934,7 @@ def recipe_velocyto(
                 dimensions, etc.
     """
 
-    if keep_filtered_genes is None:
-        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
+    keep_filtered_genes = DynamoConfig.check_config_var(keep_filtered_genes, DynamoConfig.KEEP_FILTERED_GENES_KEY)
 
     adata = szFactor(adata, method="mean", total_layers=total_layers)
     initial_Ucell_size = adata.layers["unspliced"].sum(1)

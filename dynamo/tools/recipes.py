@@ -89,10 +89,8 @@ def recipe_kin_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    if keep_filtered_cells is None:
-        keep_filtered_cells = DynamoConfig.keep_filtered_cells_default
-    if keep_filtered_genes is None:
-        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
+    keep_filtered_cells = DynamoConfig.check_config_var(keep_filtered_cells, DynamoConfig.KEEP_FITLERED_CELLS_KEY)
+    keep_filtered_genes = DynamoConfig.check_config_var(keep_filtered_genes, DynamoConfig.KEEP_FITLERED_GENES_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
@@ -266,10 +264,8 @@ def recipe_deg_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    if keep_filtered_cells is None:
-        keep_filtered_cells = DynamoConfig.keep_filtered_cells_default
-    if keep_filtered_genes is None:
-        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
+    keep_filtered_cells = DynamoConfig.check_config_var(keep_filtered_cells, DynamoConfig.KEEP_FILTERED_CELLS_KEY)
+    keep_filtered_genes = DynamoConfig.check_config_var(keep_filtered_genes, DynamoConfig.KEEP_FILTERED_GENES_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
@@ -450,12 +446,9 @@ def recipe_mix_kin_deg_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    if keep_filtered_cells is None:
-        keep_filtered_cells = DynamoConfig.keep_filtered_cells_default
-    if keep_filtered_genes is None:
-        keep_filtered_genes = DynamoConfig.keep_filtered_genes_default
-    if keep_raw_layers is None:
-        keep_raw_layers = DynamoConfig.keep_raw_layers_default
+    keep_filtered_cells = DynamoConfig.check_config_var(keep_filtered_cells, DynamoConfig.KEEP_FILTERED_CELLS_KEY)
+    keep_filtered_genes = DynamoConfig.check_config_var(keep_filtered_genes, DynamoConfig.KEEP_FILTERED_GENES_KEY)
+    keep_raw_layers = DynamoConfig.check_config_var(keep_raw_layers, DynamoConfig.KEEP_RAW_LAYERS_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
