@@ -5,7 +5,7 @@ from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
 from .utils import set_transition_genes
-from ..configuration import keep_filtered_genes
+from ..configuration import keep_filtered_genes, keep_filtered_cells
 
 # add recipe_csc_data()
 
@@ -17,7 +17,7 @@ def recipe_kin_data(
     X_total_layers=False,
     splicing_total_layers=False,
     n_top_genes=1000,
-    keep_filtered_cells=False,
+    keep_filtered_cells=keep_filtered_cells,
     keep_filtered_genes=keep_filtered_genes,
     keep_raw_layers=False,
     del_2nd_moments=True,
@@ -185,7 +185,7 @@ def recipe_deg_data(
     X_total_layers=False,
     splicing_total_layers=False,
     n_top_genes=1000,
-    keep_filtered_cells=False,
+    keep_filtered_cells=keep_filtered_cells,
     keep_filtered_genes=keep_filtered_genes,
     keep_raw_layers=False,
     del_2nd_moments=True,
@@ -368,7 +368,7 @@ def recipe_mix_kin_deg_data(
     X_total_layers=False,
     splicing_total_layers=False,
     n_top_genes=1000,
-    keep_filtered_cells=False,
+    keep_filtered_cells=keep_filtered_cells,
     keep_filtered_genes=keep_filtered_genes,
     keep_raw_layers=False,
     del_2nd_moments=True,

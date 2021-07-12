@@ -40,7 +40,7 @@ from ..dynamo_logger import (
     LoggerManager,
 )
 from ..utils import copy_adata
-from ..configuration import keep_filtered_genes
+from ..configuration import keep_filtered_genes, keep_filtered_cells
 
 
 def szFactor(
@@ -1261,7 +1261,7 @@ def recipe_monocle(
     n_top_genes: int = 2000,
     maintain_n_top_genes: bool = True,
     relative_expr: bool = True,
-    keep_filtered_cells: bool = True,
+    keep_filtered_cells: bool = keep_filtered_cells,
     keep_filtered_genes: bool = keep_filtered_genes,
     keep_raw_layers: bool = True,
     scopes: Union[str, Iterable, None] = None,
