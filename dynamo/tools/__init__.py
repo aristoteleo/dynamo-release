@@ -105,4 +105,5 @@ from .recipes import (
     recipe_kin_data,
     recipe_deg_data,
     recipe_mix_kin_deg_data,
+    recipe_onde_shot_data,
 )
