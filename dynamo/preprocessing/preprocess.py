@@ -7,7 +7,7 @@ from sklearn.decomposition import FastICA
 from sklearn.utils import sparsefuncs
 import anndata
 from anndata import AnnData
-from typing import Union, Callable
+from typing import Optional, Union, Callable
 
 from .cell_cycle import cell_cycle_scores
 from ..tools.utils import update_dict
@@ -1266,9 +1266,9 @@ def recipe_monocle(
     n_top_genes: int = 2000,
     maintain_n_top_genes: bool = True,
     relative_expr: bool = True,
-    keep_filtered_cells: bool = None,
-    keep_filtered_genes: bool = None,
-    keep_raw_layers: bool = None,
+    keep_filtered_cells: Optional[bool] = None,
+    keep_filtered_genes: Optional[bool] = None,
+    keep_raw_layers: Optional[bool] = None,
     scopes: Union[str, Iterable, None] = None,
     fc_kwargs: Union[dict, None] = None,
     fg_kwargs: Union[dict, None] = None,
