@@ -559,8 +559,8 @@ def recipe_onde_shot_data(
     X_total_layers=False,
     splicing_total_layers=False,
     n_top_genes=1000,
-    keep_filtered_cells=False,
-    keep_filtered_genes=keep_filtered_genes,
+    keep_filtered_cells=None,
+    keep_filtered_genes=None,
     keep_raw_layers=False,
     one_shot_method="sci-fate",
     del_2nd_moments=True,
@@ -633,6 +633,13 @@ def recipe_onde_shot_data(
     """
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
+
+    keep_filtered_cells = DynamoSaveConfig.check_config_var(
+        keep_filtered_cells, DynamoSaveConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
+    )
+    keep_filtered_genes = DynamoSaveConfig.check_config_var(
+        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
+    )
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
