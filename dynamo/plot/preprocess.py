@@ -7,7 +7,7 @@ import matplotlib
 from matplotlib.axes import Axes
 
 from ..preprocessing import preprocess as pp
-from ..preprocessing.preprocess import topTable
+from ..preprocessing.preprocess import top_table
 from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
@@ -683,7 +683,7 @@ def feature_genes(
     if mode == "dispersion":
         key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
 
-        table = topTable(adata, layer)
+        table = top_table(adata, layer)
         x_min, x_max = (
             np.nanmin(table["mean_expression"]),
             np.nanmax(table["mean_expression"]),
