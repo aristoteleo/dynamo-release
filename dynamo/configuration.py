@@ -7,11 +7,11 @@ from .dynamo_logger import main_info
 
 
 class DynamoAdataConfig:
-    """dynamo config class holding static variables to change behaviors of functions globally."""
+    """dynamo anndata object config class holding static variables to change behaviors of functions globally."""
 
     # set the data store mode.
     # saving memory or storing more results
-    # modes: full, succint
+    # modes: full, succinct
     data_store_mode = None
 
     # save config for recipe_* functions
@@ -67,7 +67,7 @@ class DynamoAdataConfig:
         DynamoAdataConfig.recipe_keep_filtered_cells = False
         DynamoAdataConfig.recipe_del_2nd_moments = True
 
-        if DynamoAdataConfig.data_store_mode == "succint":
+        if DynamoAdataConfig.data_store_mode == "succinct":
             DynamoAdataConfig.recipe_monocle_keep_filtered_genes = False
             DynamoAdataConfig.recipe_monocle_keep_filtered_cells = False
             DynamoAdataConfig.recipe_monocle_keep_raw_layers = False
