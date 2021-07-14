@@ -25,6 +25,7 @@ class DynamoSaveConfig:
     recipe_monocle_keep_raw_layers = None
 
     dynamics_del_2nd_moments = None
+    recipe_del_2nd_moments = None
 
     (
         RECIPE_KEEP_FITLERED_CELLS_KEY,
@@ -34,6 +35,7 @@ class DynamoSaveConfig:
         RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY,
         RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY,
         DYNAMICS_DEL_2ND_MOMENTS_KEY,
+        RECIPE_DEL_2ND_MOMENTS_KEY,
     ) = [
         "keep_fitlered_cells_key",
         "keep_filtered_genes_key",
@@ -42,6 +44,7 @@ class DynamoSaveConfig:
         "recipe_monocle_keep_filtered_genes_key",
         "recipe_monocle_keep_raw_layers_key",
         "dynamics_del_2nd_moments_key",
+        "recipe_del_2nd_moments",
     ]
 
     config_key_to_values = None
@@ -62,6 +65,7 @@ class DynamoSaveConfig:
         DynamoSaveConfig.recipe_keep_filtered_genes = False
         DynamoSaveConfig.recipe_keep_raw_layers = False
         DynamoSaveConfig.recipe_keep_filtered_cells = False
+        DynamoSaveConfig.recipe_del_2nd_moments = True
 
         if DynamoSaveConfig.data_store_mode == "succint":
             DynamoSaveConfig.recipe_monocle_keep_filtered_genes = False
