@@ -14,23 +14,23 @@ def test_config_change():
     assert dyn.config.DynamoSaveConfig.data_store_mode == "succint"
     assert dyn.config.DynamoSaveConfig.recipe_monocle_keep_filtered_cells_default == True
     assert dyn.config.DynamoSaveConfig.recipe_monocle_keep_filtered_cells_default == True
-    assert dyn.config.DynamoSaveConfig.keep_raw_layers_default == False
+    assert dyn.config.DynamoSaveConfig.recipe_keep_raw_layers_default == False
 
     # update data store mode will update config variables as well
 
     # test succint mode
     dyn.config.DynamoSaveConfig.update_data_store_mode("succint")
-    assert dyn.config.DynamoSaveConfig.keep_filtered_cells_default == False
-    assert dyn.config.DynamoSaveConfig.keep_filtered_genes_default == False
-    assert dyn.config.DynamoSaveConfig.keep_raw_layers_default == False
+    assert dyn.config.DynamoSaveConfig.recipe_keep_filtered_cells_default == False
+    assert dyn.config.DynamoSaveConfig.recipe_keep_filtered_genes_default == False
+    assert dyn.config.DynamoSaveConfig.recipe_keep_raw_layers_default == False
     assert dyn.config.DynamoSaveConfig.recipe_monocle_keep_filtered_cells_default == False
     assert dyn.config.DynamoSaveConfig.recipe_monocle_keep_filtered_genes_default == False
 
     # test full mode
     dyn.config.DynamoSaveConfig.update_data_store_mode("full")
-    assert dyn.config.DynamoSaveConfig.keep_filtered_cells_default == False
-    assert dyn.config.DynamoSaveConfig.keep_filtered_genes_default == False
-    assert dyn.config.DynamoSaveConfig.keep_raw_layers_default == False
+    assert dyn.config.DynamoSaveConfig.recipe_keep_filtered_cells_default == False
+    assert dyn.config.DynamoSaveConfig.recipe_keep_filtered_genes_default == False
+    assert dyn.config.DynamoSaveConfig.recipe_keep_raw_layers_default == False
     assert dyn.config.DynamoSaveConfig.recipe_monocle_keep_filtered_cells_default == True
     assert dyn.config.DynamoSaveConfig.recipe_monocle_keep_filtered_cells_default == True
 

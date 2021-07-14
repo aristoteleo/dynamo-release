@@ -90,7 +90,7 @@ def recipe_kin_data(
     from ..preprocessing.utils import pca, detect_datatype
 
     keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.KEEP_FITLERED_CELLS_KEY
+        keep_filtered_cells, DynamoSaveConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
     )
     keep_filtered_genes = DynamoSaveConfig.check_config_var(
         keep_filtered_genes, DynamoSaveConfig.KEEP_FITLERED_GENES_KEY
@@ -272,7 +272,7 @@ def recipe_deg_data(
         keep_filtered_cells, DynamoSaveConfig.KEEP_FILTERED_CELLS_KEY
     )
     keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.KEEP_FILTERED_GENES_KEY
+        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
@@ -458,9 +458,9 @@ def recipe_mix_kin_deg_data(
         keep_filtered_cells, DynamoSaveConfig.KEEP_FILTERED_CELLS_KEY
     )
     keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.KEEP_FILTERED_GENES_KEY
+        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoSaveConfig.check_config_var(keep_raw_layers, DynamoSaveConfig.KEEP_RAW_LAYERS_KEY)
+    keep_raw_layers = DynamoSaveConfig.check_config_var(keep_raw_layers, DynamoSaveConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 

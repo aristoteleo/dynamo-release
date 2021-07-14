@@ -1937,7 +1937,7 @@ def recipe_velocyto(
     """
 
     keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.KEEP_FILTERED_GENES_KEY
+        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
 
     adata = szFactor(adata, method="mean", total_layers=total_layers)
