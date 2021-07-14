@@ -5,7 +5,7 @@ from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
 from .utils import set_transition_genes
-from ..configuration import DynamoSaveConfig
+from ..configuration import DynamoDataConfig
 
 # add recipe_csc_data()
 
@@ -89,11 +89,11 @@ def recipe_kin_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
+    keep_filtered_cells = DynamoDataConfig.check_config_var(
+        keep_filtered_cells, DynamoDataConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.KEEP_FITLERED_GENES_KEY
+    keep_filtered_genes = DynamoDataConfig.check_config_var(
+        keep_filtered_genes, DynamoDataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
@@ -268,11 +268,11 @@ def recipe_deg_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.KEEP_FILTERED_CELLS_KEY
+    keep_filtered_cells = DynamoDataConfig.check_config_var(
+        keep_filtered_cells, DynamoDataConfig.KEEP_FILTERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
+    keep_filtered_genes = DynamoDataConfig.check_config_var(
+        keep_filtered_genes, DynamoDataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
@@ -454,13 +454,13 @@ def recipe_mix_kin_deg_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.KEEP_FILTERED_CELLS_KEY
+    keep_filtered_cells = DynamoDataConfig.check_config_var(
+        keep_filtered_cells, DynamoDataConfig.KEEP_FILTERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
+    keep_filtered_genes = DynamoDataConfig.check_config_var(
+        keep_filtered_genes, DynamoDataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoSaveConfig.check_config_var(keep_raw_layers, DynamoSaveConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
+    keep_raw_layers = DynamoDataConfig.check_config_var(keep_raw_layers, DynamoDataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
