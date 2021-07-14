@@ -1258,6 +1258,7 @@ def rank_jacobian_genes(
     mode="full reg",
     exclude_diagonal=False,
     normalize=False,
+    output_values=False,
     **kwargs,
 ):
     """Rank genes or gene-gene interactions based on their Jacobian elements for each cell group.
@@ -1283,6 +1284,8 @@ def rank_jacobian_genes(
             (5) '`int`': top effector-regulator pairs in each cell group.
         normalize: bool (default: False)
             Whether normalize the Jacobian across all cells before performing the ranking.
+        output_values: bool (default: False)
+            Whether to return the data, otherwise it will save in adata object via the key `mode` of adata.uns.
         kwargs:
             Keyword arguments passed to ranking functions.
 
@@ -1370,7 +1373,11 @@ def rank_jacobian_genes(
         rank_dict = pd.DataFrame(data=rank_dict)
     else:
         raise ValueError(f"No such mode as {mode}.")
-    return rank_dict
+
+    if output_values:
+        return rank_dict
+    else:
+        adata.uns[mode] = rank_dict
 
 
 def rank_sensitivity_genes(

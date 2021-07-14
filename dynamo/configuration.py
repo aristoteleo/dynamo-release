@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from .dynamo_logger import main_info
 
 
-class DynamoSaveConfig:
+class DynamoAdataConfig:
     """dynamo config class holding static variables to change behaviors of functions globally."""
 
     # set the data store mode.
@@ -50,53 +50,53 @@ class DynamoSaveConfig:
     config_key_to_values = None
 
     def check_config_var(val, key):
-        if not key in DynamoSaveConfig.config_key_to_values:
+        if not key in DynamoAdataConfig.config_key_to_values:
             assert KeyError("Config key=%s not exist in DynamoSaveConfig." % (key))
         if val is None:
-            config_val = DynamoSaveConfig.config_key_to_values[key]
+            config_val = DynamoAdataConfig.config_key_to_values[key]
             main_info("%s key is None. Using default value from DynamoSaveConfig: %s=%s" % (key, key, val))
             return config_val
         return val
 
     def update_data_store_mode(mode):
-        DynamoSaveConfig.data_store_mode = mode
+        DynamoAdataConfig.data_store_mode = mode
 
         # default succint for recipe*, except for recipe_monocle
-        DynamoSaveConfig.recipe_keep_filtered_genes = False
-        DynamoSaveConfig.recipe_keep_raw_layers = False
-        DynamoSaveConfig.recipe_keep_filtered_cells = False
-        DynamoSaveConfig.recipe_del_2nd_moments = True
+        DynamoAdataConfig.recipe_keep_filtered_genes = False
+        DynamoAdataConfig.recipe_keep_raw_layers = False
+        DynamoAdataConfig.recipe_keep_filtered_cells = False
+        DynamoAdataConfig.recipe_del_2nd_moments = True
 
-        if DynamoSaveConfig.data_store_mode == "succint":
-            DynamoSaveConfig.recipe_monocle_keep_filtered_genes = False
-            DynamoSaveConfig.recipe_monocle_keep_filtered_cells = False
-            DynamoSaveConfig.recipe_monocle_keep_raw_layers = True
-            DynamoSaveConfig.dynamics_del_2nd_moments = True
-        elif DynamoSaveConfig.data_store_mode == "full":
-            DynamoSaveConfig.recipe_monocle_keep_filtered_genes = True
-            DynamoSaveConfig.recipe_monocle_keep_filtered_cells = True
-            DynamoSaveConfig.recipe_monocle_keep_raw_layers = True
-            DynamoSaveConfig.dynamics_del_2nd_moments = False
+        if DynamoAdataConfig.data_store_mode == "succint":
+            DynamoAdataConfig.recipe_monocle_keep_filtered_genes = False
+            DynamoAdataConfig.recipe_monocle_keep_filtered_cells = False
+            DynamoAdataConfig.recipe_monocle_keep_raw_layers = False
+            DynamoAdataConfig.dynamics_del_2nd_moments = True
+        elif DynamoAdataConfig.data_store_mode == "full":
+            DynamoAdataConfig.recipe_monocle_keep_filtered_genes = True
+            DynamoAdataConfig.recipe_monocle_keep_filtered_cells = True
+            DynamoAdataConfig.recipe_monocle_keep_raw_layers = True
+            DynamoAdataConfig.dynamics_del_2nd_moments = False
         else:
             raise NotImplementedError
 
-        DynamoSaveConfig.config_key_to_values = {
-            DynamoSaveConfig.RECIPE_KEEP_FITLERED_CELLS_KEY: DynamoSaveConfig.recipe_keep_filtered_cells,
-            DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY: DynamoSaveConfig.recipe_keep_filtered_genes,
-            DynamoSaveConfig.RECIPE_KEEP_RAW_LAYERS_KEY: DynamoSaveConfig.recipe_keep_raw_layers,
-            DynamoSaveConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY: DynamoSaveConfig.recipe_monocle_keep_filtered_cells,
-            DynamoSaveConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY: DynamoSaveConfig.recipe_monocle_keep_filtered_genes,
-            DynamoSaveConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY: DynamoSaveConfig.recipe_monocle_keep_raw_layers,
-            DynamoSaveConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY: DynamoSaveConfig.dynamics_del_2nd_moments,
+        DynamoAdataConfig.config_key_to_values = {
+            DynamoAdataConfig.RECIPE_KEEP_FITLERED_CELLS_KEY: DynamoAdataConfig.recipe_keep_filtered_cells,
+            DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_keep_filtered_genes,
+            DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY: DynamoAdataConfig.recipe_keep_raw_layers,
+            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_cells,
+            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_genes,
+            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY: DynamoAdataConfig.recipe_monocle_keep_raw_layers,
+            DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.dynamics_del_2nd_moments,
         }
 
 
 # initialize DynamoSaveConfig mode as default
-DynamoSaveConfig.update_data_store_mode("full")
+DynamoAdataConfig.update_data_store_mode("full")
 
 
 def update_data_store_mode(mode):
-    DynamoSaveConfig.update_data_store_mode(mode)
+    DynamoAdataConfig.update_data_store_mode(mode)
 
 
 # create cmap

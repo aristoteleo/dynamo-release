@@ -40,7 +40,7 @@ from ..dynamo_logger import (
     LoggerManager,
 )
 from ..utils import copy_adata
-from ..configuration import DynamoSaveConfig
+from ..configuration import DynamoAdataConfig
 
 
 def szFactor(
@@ -1393,14 +1393,14 @@ def recipe_monocle(
     """
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
-    keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY
+    keep_filtered_cells = DynamoAdataConfig.check_config_var(
+        keep_filtered_cells, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY
+    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+        keep_filtered_genes, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoSaveConfig.check_config_var(
-        keep_raw_layers, DynamoSaveConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY
+    keep_raw_layers = DynamoAdataConfig.check_config_var(
+        keep_raw_layers, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY
     )
 
     adata = copy_adata(adata) if copy else adata
@@ -1936,8 +1936,8 @@ def recipe_velocyto(
                 dimensions, etc.
     """
 
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
+    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+        keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
 
     adata = szFactor(adata, method="mean", total_layers=total_layers)

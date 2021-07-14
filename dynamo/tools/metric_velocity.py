@@ -15,6 +15,12 @@ from .utils import (
     einsum_correlation,
     fetch_X_data,
 )
+from ..dynamo_logger import (
+    main_info,
+    main_critical,
+    main_warning,
+    LoggerManager,
+)
 
 
 def cell_wise_confidence(
@@ -316,6 +322,7 @@ def gene_wise_confidence(
         in each cell state. .var will also be updated with `avg_prog_confidence` and `avg_mature_confidence` key which
         correspond to the average gene wise confidence in the progenitor state or the mature cell state.
     """
+    logger = LoggerManager.gen_logger("gene_wise_confidence")
 
     if X_data is None:
         genes, X_data = fetch_X_data(adata, genes, ekey)
@@ -353,11 +360,18 @@ def gene_wise_confidence(
             for i, progenitor in enumerate(progenitors_groups):
                 prog_vals = all_vals[adata.obs[group] == progenitor]
                 prog_vals_v = all_vals_v[adata.obs[group] == progenitor]
+                if len(prog_vals_v) == 0:
+                    logger.error(f"The progenitor cell type {progenitor} is not in adata.obs[{group}].")
+                    raise Exception()
+
                 threshold_val = np.percentile(abs(all_vals_v), V_threshold)
 
                 for j, mature in enumerate(mature_cells_groups):
                     mature_vals = all_vals[adata.obs[group] == mature]
                     mature_vals_v = all_vals_v[adata.obs[group] == mature]
+                    if len(mature_vals_v) == 0:
+                        logger.error(f"The terminal cell type {progenitor} is not in adata.obs[{group}].")
+                        raise Exception()
 
                     if np.nanmedian(prog_vals) - np.nanmedian(mature_vals) > 0:
                         # repression phase (bottom curve -- phase curve below the linear line indicates steady states)

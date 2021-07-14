@@ -5,7 +5,7 @@ from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
 from .utils import set_transition_genes
-from ..configuration import DynamoSaveConfig
+from ..configuration import DynamoAdataConfig
 
 # add recipe_csc_data()
 
@@ -89,14 +89,14 @@ def recipe_kin_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
+    keep_filtered_cells = DynamoAdataConfig.check_config_var(
+        keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
+    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+        keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoSaveConfig.check_config_var(keep_raw_layers, DynamoSaveConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
-    del_2nd_moments = DynamoSaveConfig.check_config_var(del_2nd_moments, DynamoSaveConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
+    keep_raw_layers = DynamoAdataConfig.check_config_var(keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
+    del_2nd_moments = DynamoAdataConfig.check_config_var(del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
@@ -270,13 +270,13 @@ def recipe_deg_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
+    keep_filtered_cells = DynamoAdataConfig.check_config_var(
+        keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
+    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+        keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoSaveConfig.check_config_var(keep_raw_layers, DynamoSaveConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
+    keep_raw_layers = DynamoAdataConfig.check_config_var(keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
@@ -457,14 +457,14 @@ def recipe_mix_kin_deg_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
+    keep_filtered_cells = DynamoAdataConfig.check_config_var(
+        keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
+    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+        keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoSaveConfig.check_config_var(keep_raw_layers, DynamoSaveConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
-    del_2nd_moments = DynamoSaveConfig.check_config_var(del_2nd_moments, DynamoSaveConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
+    keep_raw_layers = DynamoAdataConfig.check_config_var(keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
+    del_2nd_moments = DynamoAdataConfig.check_config_var(del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
@@ -638,14 +638,14 @@ def recipe_onde_shot_data(
     from ..preprocessing import recipe_monocle
     from ..preprocessing.utils import pca, detect_datatype
 
-    keep_filtered_cells = DynamoSaveConfig.check_config_var(
-        keep_filtered_cells, DynamoSaveConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
+    keep_filtered_cells = DynamoAdataConfig.check_config_var(
+        keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoSaveConfig.check_config_var(
-        keep_filtered_genes, DynamoSaveConfig.RECIPE_KEEP_FILTERED_GENES_KEY
+    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+        keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoSaveConfig.check_config_var(keep_raw_layers, DynamoSaveConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
-    del_2nd_moments = DynamoSaveConfig.check_config_var(del_2nd_moments, DynamoSaveConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
+    keep_raw_layers = DynamoAdataConfig.check_config_var(keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
+    del_2nd_moments = DynamoAdataConfig.check_config_var(del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
