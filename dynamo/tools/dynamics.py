@@ -44,7 +44,7 @@ from ..dynamo_logger import (
     main_log_time,
     main_finish_progress,
 )
-from ..configuration import DynamoConfig
+from ..configuration import DynamoSaveConfig
 
 warnings.simplefilter("ignore", SparseEfficiencyWarning)
 
@@ -293,7 +293,7 @@ def dynamics(
                 log_unnormalized: Whether to log transform unnormalized data.
     """
 
-    del_2nd_moments = DynamoConfig.check_config_var(del_2nd_moments, DynamoConfig.DEL_2ND_MOMENTS_KEY)
+    del_2nd_moments = DynamoSaveConfig.check_config_var(del_2nd_moments, DynamoSaveConfig.DEL_2ND_MOMENTS_KEY)
     if "pp" not in adata.uns_keys():
         raise ValueError(f"\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
     if tkey is None:
