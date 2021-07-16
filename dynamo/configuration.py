@@ -61,7 +61,7 @@ class DynamoAdataConfig:
     def update_data_store_mode(mode):
         DynamoAdataConfig.data_store_mode = mode
 
-        # default succint for recipe*, except for recipe_monocle
+        # default succinct for recipe*, except for recipe_monocle
         DynamoAdataConfig.recipe_keep_filtered_genes = False
         DynamoAdataConfig.recipe_keep_raw_layers = False
         DynamoAdataConfig.recipe_keep_filtered_cells = False
@@ -81,13 +81,14 @@ class DynamoAdataConfig:
             raise NotImplementedError
 
         DynamoAdataConfig.config_key_to_values = {
-            DynamoAdataConfig.RECIPE_KEEP_FITLERED_CELLS_KEY: DynamoAdataConfig.recipe_keep_filtered_cells,
+            DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY: DynamoAdataConfig.recipe_keep_filtered_cells,
             DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_keep_filtered_genes,
             DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY: DynamoAdataConfig.recipe_keep_raw_layers,
             DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_cells,
             DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_genes,
             DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY: DynamoAdataConfig.recipe_monocle_keep_raw_layers,
             DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.dynamics_del_2nd_moments,
+            DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.recipe_del_2nd_moments,
         }
 
 
