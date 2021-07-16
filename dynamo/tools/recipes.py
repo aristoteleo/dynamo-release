@@ -90,7 +90,7 @@ def recipe_kin_data(
     from ..preprocessing.utils import pca, detect_datatype
 
     keep_filtered_cells = DynamoAdataConfig.check_config_var(
-        keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
+        keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
     )
     keep_filtered_genes = DynamoAdataConfig.check_config_var(
         keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
@@ -458,7 +458,7 @@ def recipe_mix_kin_deg_data(
     from ..preprocessing.utils import pca, detect_datatype
 
     keep_filtered_cells = DynamoAdataConfig.check_config_var(
-        keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FITLERED_CELLS_KEY
+        keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
     )
     keep_filtered_genes = DynamoAdataConfig.check_config_var(
         keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
