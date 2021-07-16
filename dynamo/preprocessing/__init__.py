@@ -21,6 +21,7 @@ from .preprocess import (
 )
 from .cell_cycle import cell_cycle_scores
 from .utils import (
+    basic_stats,
     cook_dist,
     pca,
     top_pca_genes,
@@ -48,6 +49,7 @@ __all__ = [
     "get_svr_filter",
     "highest_frac_genes",
     "cell_cycle_scores",
+    "basic_stats",
     "cook_dist",
     "pca",
     "top_pca_genes",
