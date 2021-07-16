@@ -274,11 +274,7 @@ def basic_stats(adata):
     adata.var["nCells"], adata.var["nCounts"] = (adata.X > 0).sum(0).T, (adata.X).sum(0).T
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
     try:
-        adata.obs["pMito"] = (
-            (adata.X[:, mito_genes]).sum(1).A / adata.obs["nCounts"].values.reshape((-1, 1))
-            if issparse(adata.X)
-            else (adata.X[:, mito_genes]).sum(1) / adata.obs["nCounts"].values.reshape((-1, 1))
-        )
+        adata.obs["pMito"] = adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1))
     except:  # noqa E722
         raise ValueError("looks like your var_names may be corrupted (i.e. include nan values)")
 
