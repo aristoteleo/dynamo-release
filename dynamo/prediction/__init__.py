@@ -8,6 +8,7 @@ from .least_action_path import (
     least_action,
 )
 from .perturbation import (
+    KO,
     perturbation,
     rank_perturbation_genes,
     rank_perturbation_cells,
@@ -23,6 +24,7 @@ __all__ = [
     "state_graph",
     "get_init_path",
     "least_action",
+    "KO",
     "perturbation",
     "rank_perturbation_cells",
     "rank_perturbation_genes",

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.sparse import csr_matrix
 import anndata
-from typing import Union
+from typing import Union, Callable
 
 from ..tools.cell_velocities import cell_velocities
 from .utils import (
@@ -19,7 +19,112 @@ from ..vectorfield.vector_calculus import (
     jacobian,
     vector_transformation,
 )
+from ..vectorfield.scVectorField import vector_field_function_knockout
+from ..vectorfield import SvcVectorfield
+
 from ..dynamo_logger import LoggerManager
+
+
+def KO(
+    adata: anndata.AnnData,
+    KO_genes: Union[str, list],
+    vecfld: Union[None, Callable] = None,
+    vf_key: str = "VecFld",
+    basis: str = "pca",
+    emb_basis: str = "umap",
+    add_perturbation_basis_key: Union[str, None] = None,
+    add_embedding_key: Union[str, None] = None,
+    add_vf_perturb_key: Union[str, None] = None,
+    store_vf_perturbation: bool = False,
+    return_vector_field_class: bool = True,
+):
+    """In silico knockout genes (and thus the vector field function) and prediction of cell fate after knockout.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        KO_genes:
+             The gene or list of genes that will be used to perform in-silico knockout.
+        vecfld:
+            The vector field function.
+        vf_key:
+            A key to the vector field functions in adata.uns.
+        basis:
+            The basis in which the vector field function is created.
+        emb_basis:
+            The embedding basis where the perturbed vector field function will be projected to.
+        add_perturbation_basis_key:
+            The key name for the velocity corresponds to the `basis` name whose associated vector field is perturbed.
+        add_embedding_key:
+            The key name for the velocity corresponds to the `embedding` name to which the high dimensional vector field
+            will be projected to.
+        add_vf_perturb_key:
+            The key to store the perturbed vector field function.
+        store_vf_perturbation:
+            Whether to store the perturbed vector field function. By default it is False.
+        return_vector_field_class:
+            Whether to return the perturbed vector field class. By default it is True.
+
+    Returns
+    -------
+        If return_vector_field_class is True, return the perturbed vector field class and update adata objected with
+        perturbed vector field in both the PCA and low dimension space. If return_vector_field_class is False, return
+        nothing but updates the adata object.
+    """
+
+    logger = LoggerManager.gen_logger("dynamo-KO")
+
+    if basis != "pca":
+        logger.error("Currently we can only perturb PCA space based vector field function.")
+        raise ValueError()
+
+    if vecfld is None:
+        vf = SvcVectorfield()
+        vf.from_adata(adata, basis=basis, vf_key=vf_key)
+    else:
+        vf = vecfld
+
+    logger.info(f"In silico knockout {KO_genes}")
+    KO_genes = [KO_genes] if type(KO_genes) is str else KO_genes
+    vf_perturb = vector_field_function_knockout(adata, vf, KO_genes)
+
+    if add_perturbation_basis_key is None:
+        x_basis_key, v_basis_key = "X_" + basis + "_perturb", "velocity_" + basis + "_perturb"
+    else:
+        if not add_perturbation_basis_key.startswith("velocity_"):
+            raise ValueError(f"add_perturbation_basis_key {add_perturbation_basis_key} must starts with `velocity_`")
+        x_basis_key, v_basis_key = "X_" + add_perturbation_basis_key.split("velocity_")[1], add_perturbation_basis_key
+
+    if add_embedding_key is None:
+        x_emb_key, v_emb_key = "X_" + emb_basis + "_perturb", "velocity_" + emb_basis + "_perturb"
+    else:
+        if not add_embedding_key.startswith("velocity_"):
+            raise ValueError(f"add_perturbation_basis_key {add_embedding_key} must starts with `velocity_`")
+        x_emb_key, v_emb_key = "X_" + add_embedding_key.split("velocity_")[1], add_embedding_key
+
+    logger.info_insert_adata(x_basis_key, "obsm")
+    adata.obsm[x_basis_key] = adata.obsm["X_" + basis].copy()
+    logger.info_insert_adata(v_basis_key, "obsm")
+    adata.obsm[v_basis_key] = vf_perturb.get_V()
+
+    logger.info_insert_adata(x_emb_key, "obsm")
+    adata.obsm[x_emb_key] = adata.obsm["X_" + emb_basis].copy()
+    logger.info(f"Project the high dimensional vector field after perturbation to {emb_basis}.")
+    cell_velocities(
+        adata,
+        X=adata.obsm["X_" + basis],
+        V=adata.obsm["velocity_" + basis + "_perturb"],
+        basis=emb_basis + "_perturb",
+        enforce=True,
+        add_velocity_key=v_emb_key,
+    )
+    if store_vf_perturbation:
+        if add_vf_perturb_key is None:
+            add_vf_perturb_key = "vf_perturb"
+        adata.uns[add_vf_perturb_key] = vf_perturb
+    if return_vector_field_class:
+        return vf_perturb
 
 
 def perturbation(
