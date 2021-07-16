@@ -32,6 +32,7 @@ def KO(
     vf_key: str = "VecFld",
     basis: str = "pca",
     emb_basis: str = "umap",
+    velocity_perturb_wt_difference: bool = False,
     add_perturbation_basis_key: Union[str, None] = None,
     add_embedding_key: Union[str, None] = None,
     store_vf_perturbation: bool = False,
@@ -54,6 +55,10 @@ def KO(
             The basis in which the vector field function is created.
         emb_basis:
             The embedding basis where the perturbed vector field function will be projected to.
+        velocity_perturb_wt_difference:
+            Whether to use the difference from perturbed vector field to wildtype vector field in embedding space
+            instead of raw perturbation vector field. Using the difference may reveal the perturbation effects more
+            clearly.
         add_perturbation_basis_key:
             The key name for the velocity corresponds to the `basis` name whose associated vector field is perturbed.
         add_embedding_key:
@@ -119,6 +124,8 @@ def KO(
         enforce=True,
         add_velocity_key=v_emb_key,
     )
+    if velocity_perturb_wt_difference:
+        adata.obsm[v_emb_key] -= adata.obsm["velocity_" + emb_basis]
     if store_vf_perturbation:
         if add_vf_perturb_key is None:
             add_vf_perturb_key = "vf_perturb"
