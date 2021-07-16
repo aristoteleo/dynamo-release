@@ -28,7 +28,7 @@ class DynamoAdataConfig:
     recipe_del_2nd_moments = None
 
     (
-        RECIPE_KEEP_FITLERED_CELLS_KEY,
+        RECIPE_KEEP_FILTERED_CELLS_KEY,
         RECIPE_KEEP_FILTERED_GENES_KEY,
         RECIPE_KEEP_RAW_LAYERS_KEY,
         RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY,

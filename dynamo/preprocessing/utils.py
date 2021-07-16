@@ -276,7 +276,11 @@ def basic_stats(adata):
     try:
         adata.obs["pMito"] = adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1))
     except:  # noqa E722
-        raise ValueError("looks like your var_names may be corrupted (i.e. include nan values)")
+        raise ValueError(
+            "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
+            "include nan values). If you don't believe so, please report to us on github or "
+            "via xqiu@wi.mmit.edu"
+        )
 
 
 def unique_var_obs_adata(adata):
