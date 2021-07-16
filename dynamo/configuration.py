@@ -9,7 +9,7 @@ from .dynamo_logger import main_info
 class DynamoAdataConfig:
     """dynamo anndata object config class holding static variables to change behaviors of functions globally."""
 
-    # set the data store mode.
+    # set the adata store mode.
     # saving memory or storing more results
     # modes: full, succinct
     data_store_mode = None
@@ -37,7 +37,7 @@ class DynamoAdataConfig:
         DYNAMICS_DEL_2ND_MOMENTS_KEY,
         RECIPE_DEL_2ND_MOMENTS_KEY,
     ) = [
-        "keep_fitlered_cells_key",
+        "keep_filtered_cells_key",
         "keep_filtered_genes_key",
         "keep_raw_layers_key",
         "recipe_monocle_keep_filtered_cells_key",
