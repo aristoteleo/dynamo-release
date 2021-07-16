@@ -1172,6 +1172,8 @@ def vector_field_function_knockout(
     for i, g in enumerate(pca_genes):
         if g in ko_genes:
             g_mask[i] = True
+    if g_mask.sum() != len(ko_genes):
+        raise ValueError(f"the ko_genes {ko_genes} you provided don't all belong to {pca_genes}.")
 
     k = np.zeros(len(pca_genes))
     if k_deg is None:
