@@ -8,7 +8,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 import warnings
 import anndata
 from typing import Iterable, Union
-from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning
 from ..utils import areinstance
 
 
@@ -338,10 +338,9 @@ def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=
         layer_keys.extend(["X", "protein"])
     else:
         layer_keys.extend(["X"])
-    layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
-
-    layers = list(set(layers).difference(["matrix", "ambiguous", "spanning"]))
-    return layers
+    res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
+    res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
+    return res_layers
 
 
 def get_shared_counts(adata, layers, min_shared_count, type="gene"):

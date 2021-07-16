@@ -34,6 +34,7 @@ from .utils import (
     gene_exp_fraction,
 )
 from ..dynamo_logger import (
+    main_debug,
     main_info,
     main_critical,
     main_warning,
@@ -758,6 +759,8 @@ def SVRs(
     """
     from sklearn.svm import SVR
 
+    main_debug("[In SVR]")
+    main_debug("layers before get_layer_keys: " + str(layers))
     layers = get_layer_keys(adata_ori, layers)
 
     if use_all_genes_cells:
@@ -779,7 +782,9 @@ def SVRs(
             adata = adata_ori[cell_inds, gene_inds].copy()
         filter_bool = filter_bool[gene_inds]
 
+    main_debug("layers: " + str(layers))
     for layer in layers:
+        main_debug("SVR layer: " + layer)
         if layer == "raw":
             CM = adata.X.copy() if adata.raw is None else adata.raw
             szfactors = (
@@ -866,6 +871,7 @@ def SVRs(
             score = -score
 
         prefix = "" if layer == "X" else layer + "_"
+        main_debug(">>>>>SVR layer: " + str(layer) + " prefix:" + str(prefix))
         (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
             np.nan,
             np.nan,
@@ -1222,7 +1228,7 @@ def select_genes(
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
             adata = SVRs(
                 adata,
-                layers=layer,
+                layers=[layer],
                 total_szfactor=total_szfactor,
                 filter_bool=filter_bool,
                 **SVRs_args,
@@ -1628,7 +1634,7 @@ def recipe_monocle(
 
     filter_genes_kwargs = {
         "filter_bool": None,
-        "layer": "all",
+        "layer": feature_selection_layer,
         "min_cell_s": max(5, 0.01 * n_cells),
         "min_cell_u": max(5, 0.005 * n_cells),
         "min_cell_p": max(5, 0.005 * n_cells),
