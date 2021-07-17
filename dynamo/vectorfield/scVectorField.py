@@ -1032,7 +1032,7 @@ class ko_vectorfield(differentiable_vectorfield):
 
         self.func = vf_func_perturb
 
-    def get_Jacobian(self, method="analytical"):
+    def get_Jacobian(self, method="analytical", **kwargs):
         """
         Get the Jacobian of the vector field function.
         If method is 'analytical':
@@ -1047,7 +1047,19 @@ class ko_vectorfield(differentiable_vectorfield):
                 ...         ...         ...         ...
         """
         if method == "analytical":
-            return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs)
+            exact = kwargs.pop("exact", False)
+            mu = kwargs.pop("mu", None)
+            if exact:
+                if mu is None:
+                    mu = self.mean
+                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, exact=True, mu=mu, **kwargs)
+            else:
+                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, **kwargs)
+        elif method == "numerical":
+            if self.func is not None:
+                return Jacobian_numerical(self.func, **kwargs)
+            else:
+                raise Exception("The perturbed vector field function has not been set up.")
         else:
             raise NotImplementedError(
                 f"The method {method} is not implemented. Currently only " f"supports 'analytical'."

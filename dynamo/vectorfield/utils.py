@@ -415,7 +415,7 @@ def elementwise_jacobian_transformation(Js, qi, qj):
     return ret
 
 
-def Jacobian_kovf(x, fjac_base, K, Q):
+def Jacobian_kovf(x, fjac_base, K, Q, exact=False, mu=None):
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
     Arguments
@@ -436,9 +436,23 @@ def Jacobian_kovf(x, fjac_base, K, Q):
     if K.ndim == 1:
         K = np.diag(K)
 
-    G = Q.T @ K @ Q  # can be further optimized by ignoring zero off-diagonal elements of K
-    if x.ndim > 1:
-        G = np.repeat(G[:, :, None], x.shape[0], axis=2)
+    if exact:
+        if mu is None:
+            raise Exception("For exact calculations of the Jacobian, the mean of the PCA transformation is needed.")
+
+        s = np.sign(x @ Q.T + mu)
+        if x.ndim > 1:
+            G = np.zeros((Q.shape[1], Q.shape[1], x.shape[0]))
+            KQ = K @ Q
+            # KQ = (np.diag(K) * Q.T).T
+            for i in range(x.shape[0]):
+                G[:, :, i] = s[i] * Q.T @ KQ
+        else:
+            G = s * Q.T @ K @ Q
+    else:
+        G = Q.T @ K @ Q
+        if x.ndim > 1:
+            G = np.repeat(G[:, :, None], x.shape[0], axis=2)
 
     return fjac_base(x) - G
 
@@ -546,7 +560,7 @@ def _divergence(f, x):
 
 
 @timeit
-def compute_divergence(f_jac, X, vectorize_size=1):
+def compute_divergence(f_jac, X, vectorize_size=1000):
     """Calculate divergence for many samples by taking the trace of a Jacobian matrix.
 
     vectorize_size is used to control the number of samples computed in each vectorized batch.
