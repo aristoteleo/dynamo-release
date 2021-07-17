@@ -1626,9 +1626,14 @@ def recipe_monocle(
     adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
     logger.info(f"{adata.obs.pass_basic_filter.sum()} cells passed basic filters.")
 
+    filter_genes_layer = None
+    if feature_selection_layer == "X":
+        filter_genes_layer = "all"
+    else:
+        filter_genes_layer = feature_selection_layer
     filter_genes_kwargs = {
         "filter_bool": None,
-        "layer": feature_selection_layer,
+        "layer": filter_genes_layer,
         "min_cell_s": max(5, 0.01 * n_cells),
         "min_cell_u": max(5, 0.005 * n_cells),
         "min_cell_p": max(5, 0.005 * n_cells),
