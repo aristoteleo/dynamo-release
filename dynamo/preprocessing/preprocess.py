@@ -1222,7 +1222,7 @@ def select_genes(
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
             adata = SVRs(
                 adata,
-                layers=layer,
+                layers=[layer],
                 total_szfactor=total_szfactor,
                 filter_bool=filter_bool,
                 **SVRs_args,
