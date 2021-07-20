@@ -1626,14 +1626,9 @@ def recipe_monocle(
     adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
     logger.info(f"{adata.obs.pass_basic_filter.sum()} cells passed basic filters.")
 
-    filter_genes_layer = None
-    if feature_selection_layer == "X":
-        filter_genes_layer = "all"
-    else:
-        filter_genes_layer = feature_selection_layer
     filter_genes_kwargs = {
         "filter_bool": None,
-        "layer": filter_genes_layer,
+        "layer": "all",
         "min_cell_s": max(5, 0.01 * n_cells),
         "min_cell_u": max(5, 0.005 * n_cells),
         "min_cell_p": max(5, 0.005 * n_cells),
@@ -1704,7 +1699,7 @@ def recipe_monocle(
                 f"genes for feature selection. Try lowering the gene selection stringency: "
                 f"{select_genes_dict}",
             )
-        logger.info("selecting genes...")
+        logger.info("selecting genes in layer:%s, sort method:%s..." % (feature_selection_layer, feature_selection))
         adata = select_genes(
             adata,
             layer=feature_selection_layer,
@@ -1923,7 +1918,7 @@ def recipe_velocyto(
             pseudo_expr: `int` (default: `1`)
                 A pseudocount added to the gene expression value before log/log2 normalization.
             feature_selection: `str` (default: `SVR`)
-                Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
+                Which sorting method, either dispersion, SVR or Gini index, to be used to select genes.
             n_top_genes: `int` (default: `2000`)
                 How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
             cluster: `str`
