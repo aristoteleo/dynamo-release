@@ -61,12 +61,9 @@ def recipe_kin_data(
             Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
         keep_raw_layers: `bool` (default: `False`)
             Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
-        del_2nd_moments:
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
-        tkey: `str` (default: `time`)
+       del_2nd_moments: `bool` (default: `None`)
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
+         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
             covariance. `{tkey}` column must exist in your adata object and indicates the labeling time period.
@@ -239,12 +236,9 @@ def recipe_deg_data(
             Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
         keep_raw_layers: `bool` (default: `False`)
             Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
-        del_2nd_moments: `bool` (default: `False`)
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
-        fraction_for_deg: `bool` (default: `False`)
+       del_2nd_moments: `bool` (default: `None`)
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
+         fraction_for_deg: `bool` (default: `False`)
             Whether to use the fraction of labeled RNA instead of the raw labeled RNA to estimate the degradation parameter.
         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
@@ -429,12 +423,9 @@ def recipe_mix_kin_deg_data(
             Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
         keep_raw_layers: `bool` (default: `False`)
             Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
-        del_2nd_moments: `bool` (default: `False`)
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
-        tkey: `str` (default: `time`)
+       del_2nd_moments: `bool` (default: `None`)
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
+         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
             covariance. `{tkey}` column must exist in your adata object and indicates the labeling time period.
@@ -610,11 +601,8 @@ def recipe_onde_shot_data(
             Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
         one_shot_method: `str` (default: `sci-fate`)
             The method to use for calculate the absolute labeling and splicing velocity for the one-shot data of use.
-        del_2nd_moments: `bool` (default: `False`)
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
+        del_2nd_moments: `bool` (default: `None`)
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
@@ -744,21 +732,18 @@ def velocity_N(
 ):
     """use new RNA based pca, umap, for velocity calculation and projection for kinetics or one-shot experiment.
 
-    Note that currently velocity_N function only consider labeling data and removes splicing data if there are.
+    Note that currently velocity_N function only considers labeling data and removes splicing data if they exist.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that stores data for the the kinetics experiment, must include `uu, ul, su, sl` four
-            different layers.
+            AnnData object that stores data for the the kinetics or one-shot experiment, must include `X_new, X_total`
+            layers.
         group: `str` or None (default: None)
-            The cell group that will be used to calculate velocity in each separate groups. This is useful if your data
+            The cell group that will be used to calculate velocity in each separate group. This is useful if your data
             comes from different labeling condition, etc.
         del_2nd_moments: `None` or `bool`
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
 
     Returns
     -------
@@ -873,7 +858,7 @@ def velocity_N(
         )
 
     # umap based on new RNA
-    reduceDimension(adata, X_data=adata[adata.obs_names].obsm["X_pca"][:, :30], enforce=True)
+    reduceDimension(adata, enforce=True)
 
     # project new RNA velocity to new RNA pca
     cell_velocities(
