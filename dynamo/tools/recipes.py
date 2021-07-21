@@ -5,6 +5,7 @@ from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
 from .utils import set_transition_genes
+from ..preprocessing.utils import pca
 from ..configuration import DynamoAdataConfig
 
 # add recipe_csc_data()
@@ -734,3 +735,160 @@ def recipe_onde_shot_data(
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
 
     return adata
+
+
+def velocity_N(
+    adata,
+    group=None,
+    del_2nd_moments=None,
+):
+    """use new RNA based pca, umap, for velocity calculation and projection for kinetics or one-shot experiment.
+
+    Note that currently velocity_N function only consider labeling data and removes splicing data if there are.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that stores data for the the kinetics experiment, must include `uu, ul, su, sl` four
+            different layers.
+        group: `str` or None (default: None)
+            The cell group that will be used to calculate velocity in each separate groups. This is useful if your data
+            comes from different labeling condition, etc.
+        del_2nd_moments: `None` or `bool`
+            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
+            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
+            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
+            function.
+
+    Returns
+    -------
+        Nothing but the adata object is updated with the low dimensional (umap or pca) velocity projections with the
+        new RNA or pca based RNA velocities.
+    """
+
+    del_2nd_moments = DynamoAdataConfig.check_config_var(del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
+
+    var_columns = adata.var.columns
+    layer_keys = adata.layers.keys()
+
+    # check velocity_N, velocity_T, X_new, X_total
+    if not np.all([i in layer_keys for i in ["X_new", "X_total"]]):
+        raise Exception(f"The `X_new`, `X_total` has to exist in your data before running velocity_N function.")
+
+    # delete the moments and velocities that generated via total RNA
+    for i in ["M_t", "M_tt", "M_n", "M_tn", "M_nn", "velocity_N", "velocity_T"]:
+        if i in layer_keys:
+            del adata.layers[i]
+
+    # delete the kinetic paraemters that generated via total RNA
+    if group is None:
+        for i in [
+            "alpha",
+            "beta",
+            "gamma",
+            "half_life",
+            "alpha_b",
+            "alpha_r2",
+            "gamma_b",
+            "gamma_r2",
+            "gamma_logLL",
+            "delta_b",
+            "delta_r2",
+            "bs",
+            "bf",
+            "uu0",
+            "ul0",
+            "su0",
+            "sl0",
+            "U0",
+            "S0",
+            "total0",
+            "beta_k",
+            "gamma_k",
+        ]:
+            if i in var_columns:
+                del adata.var[i]
+    else:
+        group_prefixes = [group + "_" + str(i) + "_" for i in adata.obs[group].unique()]
+        for i in group_prefixes:
+            for j in [
+                "alpha",
+                "beta",
+                "gamma",
+                "half_life",
+                "alpha_b",
+                "alpha_r2",
+                "gamma_b",
+                "gamma_r2",
+                "gamma_logLL",
+                "delta_b",
+                "delta_r2",
+                "bs",
+                "bf",
+                "uu0",
+                "ul0",
+                "su0",
+                "sl0",
+                "U0",
+                "S0",
+                "total0",
+                "beta_k",
+                "gamma_k",
+            ]:
+                if i + j in var_columns:
+                    del adata.var[i + j]
+
+    # now let us first run pca with new RNA
+    pca(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]))
+    # now assign new RNA pca to X_pca
+    adata.obsm["X_pca"] = adata[adata.obs_names].obsm["X"][:, :30].copy()
+
+    # if there are unspliced / spliced data, delete them for now:
+    for i in ["spliced", "unspliced", "X_spliced", "X_unspliced"]:
+        if i in layer_keys:
+            del adata.layers[i]
+
+    # now redo the RNA velocity analysis with moments generated with pca space of new RNA
+    # let us also check whether it is a one-shot or kinetics experiment
+    if adata.uns["pp"] == "one-shot":
+        dynamics(
+            adata,
+            one_shot_method="sci_fate",
+            model="deterministic",
+            group=group,
+            del_2nd_moments=del_2nd_moments,
+        )
+    elif adata.uns["pp"] == "kin":
+        dynamics(
+            adata,
+            model="deterministic",
+            est_method="twostep",
+            group=group,
+            del_2nd_moments=del_2nd_moments,
+        )
+    else:
+        raise Exception(
+            f"velocity_N function only supports either the one-shot or kinetics (kin) metabolic labeling "
+            f"experiment."
+        )
+
+    # umap based on new RNA
+    reduceDimension(adata, X_data=adata[adata.obs_names].obsm["X_pca"][:, :30], enforce=True)
+
+    # project new RNA velocity to new RNA pca
+    cell_velocities(
+        adata,
+        basis="pca",
+        X=adata.layers["M_n"],
+        V=adata.layers["velocity_N"],
+        enforce=True,
+    )
+
+    # project new RNA velocity to new RNA umap
+    cell_velocities(
+        adata,
+        basis="umap",
+        X=adata.layers["M_n"],
+        V=adata.layers["velocity_N"],
+        enforce=True,
+    )
