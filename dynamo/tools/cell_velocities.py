@@ -994,7 +994,8 @@ def projection_with_transition_matrix(n, T, X_embedding, correct_density=True):
             idx = T[i].indices
             diff_emb = X_embedding[idx] - X_embedding[i, None]
             diff_emb /= norm(diff_emb, axis=1)[:, None]
-            diff_emb[np.isnan(diff_emb)] = 0
+            if np.isnan(diff_emb).sum() != 0:
+                diff_emb[np.isnan(diff_emb)] = 0
             T_i = T[i].data
             delta_X[i] = T_i.dot(diff_emb)
             if correct_density:
