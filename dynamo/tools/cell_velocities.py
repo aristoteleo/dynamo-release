@@ -328,13 +328,13 @@ def cell_velocities(
 
         if "_" in basis and any([i in basis for i in ["X_", "spliced_", "unspliced_", "new_", "total"]]):
             basis_layer, basis = basis.rsplit("_", 1)
-            adata = reduceDimension(adata, layer=basis_layer, reduction_method=basis)
+            reduceDimension(adata, layer=basis_layer, reduction_method=basis)
             X_embedding = adata.obsm[basis]
         else:
             if vkey in ["velocity_S", "velocity_T"]:
                 X_embedding = adata.obsm["X_" + basis]
             else:
-                adata = reduceDimension(adata, layer=layer, reduction_method=basis)
+                reduceDimension(adata, layer=layer, reduction_method=basis)
                 X_embedding = adata.obsm[layer + "_" + basis]
 
     if X.shape[0] != X_embedding.shape[0]:
