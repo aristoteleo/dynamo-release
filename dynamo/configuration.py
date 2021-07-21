@@ -54,7 +54,7 @@ class DynamoAdataConfig:
             assert KeyError("Config %s not exist in DynamoAdataConfig." % (key))
         if val is None:
             config_val = DynamoAdataConfig.config_key_to_values[key]
-            main_info("%s is None. Using default value from DynamoAdataConfig: %s=%s" % (key, key, val))
+            main_info("%s is None. Using default value from DynamoAdataConfig: %s=%s" % (key, key, config_val))
             return config_val
         return val
 
