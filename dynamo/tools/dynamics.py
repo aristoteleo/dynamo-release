@@ -37,6 +37,7 @@ from .moments import (
     prepare_data_mix_no_splicing,
 )
 from ..dynamo_logger import (
+    main_debug,
     main_warning,
     main_info,
     main_tqdm,
@@ -1521,6 +1522,7 @@ def kinetic_model(
     if experiment_type:
         popt = [None] * n_genes
 
+    main_debug("model: %s, experiment_type: %s" % (model, experiment_type))
     for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
         if model.lower().startswith("mixture"):
             estm = Est

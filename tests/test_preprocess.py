@@ -96,6 +96,6 @@ if __name__ == "__main__":
     # adata = gen_or_read_zebrafish_data()
 
     # # To-do: use a fixture in future
-    # test_highest_frac_genes_plot(adata.copy())
-    # test_highest_frac_genes_plot_prefix_list(adata.copy())
+    test_highest_frac_genes_plot(adata.copy())
+    test_highest_frac_genes_plot_prefix_list(adata.copy())
     test_recipe_monocle_feature_selection_layer_simple0()

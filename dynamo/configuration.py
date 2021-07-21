@@ -51,10 +51,10 @@ class DynamoAdataConfig:
 
     def check_config_var(val, key):
         if not key in DynamoAdataConfig.config_key_to_values:
-            assert KeyError("Config key=%s not exist in DynamoAdataConfig." % (key))
+            assert KeyError("Config %s not exist in DynamoAdataConfig." % (key))
         if val is None:
             config_val = DynamoAdataConfig.config_key_to_values[key]
-            main_info("%s key is None. Using default value from DynamoAdataConfig: %s=%s" % (key, key, val))
+            main_info("%s is None. Using default value from DynamoAdataConfig: %s=%s" % (key, key, val))
             return config_val
         return val
 
