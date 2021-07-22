@@ -17,6 +17,7 @@ from inspect import signature
 from ..preprocessing.utils import Freeman_Tukey
 from ..utils import areinstance, isarray
 from ..dynamo_logger import (
+    main_debug,
     main_info_insert_adata,
     main_info_verbose_timeit,
     main_tqdm,
@@ -1636,14 +1637,16 @@ def set_transition_genes(
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
         if "gamma_r2" not in adata.var.columns:
-            adata.var["gamma_r2"] = None
+            main_debug("setting all gamma_r2 to 1")
+            adata.var["gamma_r2"] = 1
         if np.all(adata.var.gamma_r2.values is None):
+            main_debug("Since all adata.var.gamma_r2 values are None, setting all gamma_r2 values to 1.")
             adata.var.gamma_r2 = 1
-        adata.var[store_key] = (
-            (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamics
-            if use_for_dynamics
-            else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
-        )
+
+        adata.var[store_key] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
+        if use_for_dynamics:
+            adata.var[store_key] = adata.var[store_key] & adata.var.use_for_dynamics
+
     elif layer == "P":
         if "delta" not in adata.var.columns:
             is_group_delta, is_group_delta_r2 = (
@@ -1691,13 +1694,21 @@ def set_transition_genes(
             else (adata.var.gamma > min_gamma) & gamm_r2_checker
         )
 
+    main_debug("store_key: " + store_key, indent_level=2)
+    main_debug("adata.var[store_key].sum(): " + str(adata.var[store_key].sum()), indent_level=2)
+    main_debug("adata.n_vars: " + str(adata.n_vars), indent_level=2)
+    main_debug("min_r2: " + str(min_r2), indent_level=2)
+    main_debug("min_gamma: " + str(min_gamma), indent_level=2)
+    main_debug("use_for_dynamics: " + str(use_for_dynamics), indent_level=2)
+    main_debug("adata.var.gamma:" + str(adata.var.gamma), indent_level=2)
+    main_debug("adata.var.gamma_r2:" + str(adata.var.gamma_r2), indent_level=2)
     if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
         raise Exception(
             "Only less than 5 genes satisfies transition gene selection criteria, which may be resulted "
             "from: \n"
             "  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n"
             "  2. Your selection criteria may be set to be too stringent, try loosing those thresholds \n"
-            "  3. Your data has strange expression kinetics. Welcome reporting to dynamo team for more insights."
+            "  3. Your data has strange expression kinetics. Welcome to report to dynamo team for more insights."
         )
 
     return adata
