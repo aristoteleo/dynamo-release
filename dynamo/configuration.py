@@ -49,10 +49,26 @@ class DynamoAdataConfig:
 
     config_key_to_values = None
 
-    def check_config_var(val, key):
+    def check_config_var(val, key, replace_val=None):
+        """if key is equal to `replace_val`, then a config value will be returned. Otherwise return the original `val` value.
+
+        Parameters
+        ----------
+        val :
+
+        key :
+
+        replace_val :
+            by default None
+
+        Returns
+        -------
+        `val` or config value set in DynamoAdataConfig
+
+        """
         if not key in DynamoAdataConfig.config_key_to_values:
             assert KeyError("Config %s not exist in DynamoAdataConfig." % (key))
-        if val is None:
+        if val == replace_val:
             config_val = DynamoAdataConfig.config_key_to_values[key]
             main_info("%s is None. Using default value from DynamoAdataConfig: %s=%s" % (key, key, config_val))
             return config_val
