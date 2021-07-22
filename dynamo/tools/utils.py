@@ -1,3 +1,4 @@
+from anndata._core.anndata import AnnData
 from tqdm import tqdm
 from anndata._core.views import ArrayView
 import numpy as np
@@ -180,6 +181,37 @@ def index_gene(adata, arr, genes):
             raise Exception("The dimension of the input array does not match the number of genes.")
         else:
             return arr[:, mask]
+
+
+def select_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minimal_gene_num: int = 50):
+    """When the sum of `adata.var[var_store_key]` is less than `minimal_gene_num`, select the `minimal_gene_num` genes and save to (update) adata.var[var_store_key].
+
+    Parameters
+    ----------
+    adata :
+    var_store_key :
+    minimal_gene_num : int, optional
+        by default 50
+    Returns
+    -------
+    The data stored in `adata.var[var_store_key]`.
+    """
+
+    # already satisfy the requirement
+    if var_store_key in adata.var.columns and adata.var[var_store_key].sum() >= minimal_gene_num:
+        return adata.var[var_store_key]
+
+    if var_store_key not in adata.var.columns:
+        raise ValueError("adata.var.%s does not exists." % (var_store_key))
+
+    gamma_r2_not_na = np.array(adata.var.gamma_r2[adata.var.gamma_r2.notna()])
+    if len(gamma_r2_not_na) < minimal_gene_num:
+        raise ValueError("adata.var.%s does not have enough values that are not NA." % (var_store_key))
+
+    argsort_result = np.argsort(-np.abs(gamma_r2_not_na))
+    adata.var[var_store_key] = False
+    adata.var[var_store_key][argsort_result[:minimal_gene_num]] = True
+    return adata.var[var_store_key]
 
 
 def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format="index"):
@@ -1569,6 +1601,7 @@ def set_transition_genes(
     min_delta=None,
     use_for_dynamics=True,
     store_key="use_for_transition",
+    minimal_gene_num=50,
 ):
     layer = vkey.split("_")[1]
 
@@ -1694,21 +1727,15 @@ def set_transition_genes(
             else (adata.var.gamma > min_gamma) & gamm_r2_checker
         )
 
-    main_debug("store_key: " + store_key, indent_level=2)
-    main_debug("adata.var[store_key].sum(): " + str(adata.var[store_key].sum()), indent_level=2)
-    main_debug("adata.n_vars: " + str(adata.n_vars), indent_level=2)
-    main_debug("min_r2: " + str(min_r2), indent_level=2)
-    main_debug("min_gamma: " + str(min_gamma), indent_level=2)
-    main_debug("use_for_dynamics: " + str(use_for_dynamics), indent_level=2)
-    main_debug("adata.var.gamma:" + str(adata.var.gamma), indent_level=2)
-    main_debug("adata.var.gamma_r2:" + str(adata.var.gamma_r2), indent_level=2)
     if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
-        raise Exception(
+        select_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
+        main_warning(
             "Only less than 5 genes satisfies transition gene selection criteria, which may be resulted "
             "from: \n"
             "  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n"
             "  2. Your selection criteria may be set to be too stringent, try loosing those thresholds \n"
-            "  3. Your data has strange expression kinetics. Welcome to report to dynamo team for more insights."
+            "  3. Your data has strange expression kinetics. Welcome to report to dynamo team for more insights.\n"
+            "We have auto corrected this behavior by selecting the %d top genes according to gamma_r2 values."
         )
 
     return adata
