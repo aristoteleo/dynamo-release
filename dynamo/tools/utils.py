@@ -1,3 +1,4 @@
+from typing import Union
 from anndata._core.anndata import AnnData
 from tqdm import tqdm
 from anndata._core.views import ArrayView
@@ -183,18 +184,20 @@ def index_gene(adata, arr, genes):
             return arr[:, mask]
 
 
-def select_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minimal_gene_num: int = 50):
+def select_genes_by_gamma_r2(
+    adata: AnnData, var_store_key: str, minimal_gene_num: Union[int, None] = 50
+) -> Union[list, pd.Series, np.array]:
     """When the sum of `adata.var[var_store_key]` is less than `minimal_gene_num`, select the `minimal_gene_num` genes and save to (update) adata.var[var_store_key].
 
     Parameters
     ----------
-    adata :
-    var_store_key :
-    minimal_gene_num : int, optional
-        by default 50
+        adata:
+        var_store_key:
+        minimal_gene_num: int, optional
+            by default 50
     Returns
     -------
-    The data stored in `adata.var[var_store_key]`.
+        The data stored in `adata.var[var_store_key]`.
     """
 
     # already satisfy the requirement
