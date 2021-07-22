@@ -1728,15 +1728,15 @@ def set_transition_genes(
         )
 
     if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
-        select_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
         main_warning(
             "Only less than 5 genes satisfies transition gene selection criteria, which may be resulted "
             "from: \n"
             "  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n"
             "  2. Your selection criteria may be set to be too stringent, try loosing those thresholds \n"
             "  3. Your data has strange expression kinetics. Welcome to report to dynamo team for more insights.\n"
-            "We have auto corrected this behavior by selecting the %d top genes according to gamma_r2 values."
+            "We auto correct this behavior by selecting the %d top genes according to gamma_r2 values."
         )
+        select_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
 
     return adata
 
