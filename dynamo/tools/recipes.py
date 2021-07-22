@@ -835,7 +835,7 @@ def velocity_N(
 
     # now redo the RNA velocity analysis with moments generated with pca space of new RNA
     # let us also check whether it is a one-shot or kinetics experiment
-    if adata.uns["pp"] == "one-shot":
+    if adata.uns["pp"]["experiment_type"] == "one-shot":
         dynamics(
             adata,
             one_shot_method="sci_fate",
@@ -843,7 +843,7 @@ def velocity_N(
             group=group,
             del_2nd_moments=del_2nd_moments,
         )
-    elif adata.uns["pp"] == "kin":
+    elif adata.uns["pp"]["experiment_type"] == "kin":
         dynamics(
             adata,
             model="deterministic",
