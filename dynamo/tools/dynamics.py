@@ -12,7 +12,7 @@ from typing import Optional, Union
 import warnings
 
 from .moments import moments
-from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
+from ..estimation.csc.velocity import fit_linreg, Velocity, ss_estimation
 from ..estimation.csc.utils_velocity import solve_alpha_2p_mat
 from ..estimation.tsc.twostep import (
     lin_reg_gamma_synthesis,
@@ -536,7 +536,7 @@ def dynamics(
                 log_unnormalized,
                 NTR_vel,
             )
-            vel = velocity(estimation=est)
+            vel = Velocity(estimation=est)
 
             if experiment_type.lower() in [
                 "one_shot",
@@ -791,7 +791,7 @@ def dynamics(
             extra_params = params.loc[:, params.columns.difference(all_kinetic_params)]
             # if alpha = None, set alpha to be U; N - gamma R
             params = {"alpha": alpha, "beta": beta, "gamma": gamma, "t": t}
-            vel = velocity(**params)
+            vel = Velocity(**params)
             # Fix below:
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
