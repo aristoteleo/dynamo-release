@@ -37,6 +37,7 @@ from .moments import (
     prepare_data_mix_no_splicing,
 )
 from ..dynamo_logger import (
+    LoggerManager,
     main_debug,
     main_warning,
     main_info,
@@ -486,11 +487,11 @@ def dynamics(
         if assumption_mRNA.lower() == "ss" or (experiment_type.lower() in ["one-shot", "mix_std_stm"]):
             if est_method.lower() == "auto":
                 est_method = "gmm" if model.lower() == "stochastic" else "ols"
+
             if experiment_type.lower() == "one-shot":
                 beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
                 gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
                 ss_estimation_kwargs = {"beta": beta, "gamma": gamma}
-
             else:
                 ss_estimation_kwargs = {}
 
@@ -998,8 +999,9 @@ def kinetic_model(
     **est_kwargs,
 ):
     """est_method can be either `twostep` (two-step model) or `direct`. data_type can either 'sfs' or 'smoothed'."""
+    logger = LoggerManager.gen_logger("dynamo-kinetic-model")
+    logger.info("experiment type: %s, method: %s, model: %s" % (experiment_type.lower(), str(est_method), str(model)))
     time = subset_adata.obs[tkey].astype("float").values
-
     if experiment_type.lower() == "kin":
         if est_method == "twostep":
             if has_splicing:
