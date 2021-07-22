@@ -318,6 +318,10 @@ def phase_portraits(
         V_vec = index_gene(adata, adata.layers["velocity_T"], genes)
         if "velocity_P" in adata.obsm.keys():
             P_vec = index_gene(adata, adata.layers["velocity_P"], genes)
+    elif vkey == "velocity_N":
+        V_vec = index_gene(adata, adata.layers["velocity_N"], genes)
+        if "velocity_P" in adata.obsm.keys():
+            P_vec = index_gene(adata, adata.layers["velocity_P"], genes)
     else:
         raise Exception("adata has no vkey {} in either the layers or the obsm slot".format(vkey))
 
