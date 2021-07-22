@@ -728,6 +728,8 @@ def recipe_onde_shot_data(
 def velocity_N(
     adata,
     group=None,
+    recalculate_pca=True,
+    recalculate_umap=True,
     del_2nd_moments=None,
 ):
     """use new RNA based pca, umap, for velocity calculation and projection for kinetics or one-shot experiment.
@@ -742,6 +744,12 @@ def velocity_N(
         group: `str` or None (default: None)
             The cell group that will be used to calculate velocity in each separate group. This is useful if your data
             comes from different labeling condition, etc.
+        recalculate_pca: `bool` (default: True)
+            Whether to recalculate pca with the new RNA data. If setting to be False, you need to make sure the pca is
+            already generated via new RNA.
+        recalculate_umap: `bool` (default: True)
+            Whether to recalculate umap with the new RNA data. If setting to be False, you need to make sure the umap is
+            already generated via new RNA.
         del_2nd_moments: `None` or `bool`
             Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
 
@@ -824,9 +832,10 @@ def velocity_N(
                     del adata.var[i + j]
 
     # now let us first run pca with new RNA
-    pca(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]))
-    # now assign new RNA pca to X_pca
-    adata.obsm["X_pca"] = adata[adata.obs_names].obsm["X"][:, :30].copy()
+    if recalculate_pca:
+        pca(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]))
+        # now assign new RNA pca to X_pca
+        adata.obsm["X_pca"] = adata[adata.obs_names].obsm["X"][:, :30].copy()
 
     # if there are unspliced / spliced data, delete them for now:
     for i in ["spliced", "unspliced", "X_spliced", "X_unspliced"]:
@@ -858,7 +867,8 @@ def velocity_N(
         )
 
     # umap based on new RNA
-    reduceDimension(adata, enforce=True)
+    if recalculate_umap:
+        reduceDimension(adata, enforce=True)
 
     # project new RNA velocity to new RNA pca
     cell_velocities(
