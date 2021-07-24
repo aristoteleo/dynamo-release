@@ -774,34 +774,34 @@ def velocity_N(
             del adata.layers[i]
 
     # delete the kinetic paraemters that generated via total RNA
-    if group is None:
-        for i in [
-            "alpha",
-            "beta",
-            "gamma",
-            "half_life",
-            "alpha_b",
-            "alpha_r2",
-            "gamma_b",
-            "gamma_r2",
-            "gamma_logLL",
-            "delta_b",
-            "delta_r2",
-            "bs",
-            "bf",
-            "uu0",
-            "ul0",
-            "su0",
-            "sl0",
-            "U0",
-            "S0",
-            "total0",
-            "beta_k",
-            "gamma_k",
-        ]:
-            if i in var_columns:
-                del adata.var[i]
-    else:
+    for i in [
+        "alpha",
+        "beta",
+        "gamma",
+        "half_life",
+        "alpha_b",
+        "alpha_r2",
+        "gamma_b",
+        "gamma_r2",
+        "gamma_logLL",
+        "delta_b",
+        "delta_r2",
+        "bs",
+        "bf",
+        "uu0",
+        "ul0",
+        "su0",
+        "sl0",
+        "U0",
+        "S0",
+        "total0",
+        "beta_k",
+        "gamma_k",
+    ]:
+        if i in var_columns:
+            del adata.var[i]
+
+    if group is not None:
         group_prefixes = [group + "_" + str(i) + "_" for i in adata.obs[group].unique()]
         for i in group_prefixes:
             for j in [
@@ -833,9 +833,7 @@ def velocity_N(
 
     # now let us first run pca with new RNA
     if recalculate_pca:
-        pca(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]))
-        # now assign new RNA pca to X_pca
-        adata.obsm["X_pca"] = adata[adata.obs_names].obsm["X"][:, :30].copy()
+        pca(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]), pca_key="X_pca")
 
     # if there are unspliced / spliced data, delete them for now:
     for i in ["spliced", "unspliced", "X_spliced", "X_unspliced"]:
