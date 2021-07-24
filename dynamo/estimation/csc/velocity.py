@@ -21,7 +21,7 @@ from ...tools.moments import calc_2nd_moment
 # from sklearn.neighbors import NearestNeighbors
 
 
-class velocity:
+class Velocity:
     """The class that computes RNA/protein velocity given unknown parameters.
 
     Arguments
@@ -490,23 +490,23 @@ class ss_estimation:
             clusters: `list`
                 A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
-        n = self.get_n_genes()
+        n_genes = self.get_n_genes()
         cores = max(1, int(self.cores))
         # fit mRNA
         if self.extyp.lower() in ["conventional", "kin"]:
             if self.model.lower() == "deterministic":
                 if np.all(self._exist_data("uu", "su")):
-                    self.parameters["beta"] = np.ones(n)
+                    self.parameters["beta"] = np.ones(n_genes)
                     gamma, gamma_intercept, gamma_r2, gamma_logLL = (
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
                     )
                     U = self.data["uu"] if self.data["ul"] is None else self.data["uu"] + self.data["ul"]
                     S = self.data["su"] if self.data["sl"] is None else self.data["su"] + self.data["sl"]
                     if cores == 1:
-                        for i in tqdm(range(n), desc="estimating gamma"):
+                        for i in tqdm(range(n_genes), desc="estimating gamma"):
                             (
                                 gamma[i],
                                 gamma_intercept[i],
@@ -550,17 +550,17 @@ class ss_estimation:
                         self.aux_param["gamma_logLL"],
                     ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
                 elif np.all(self._exist_data("uu", "ul")):
-                    self.parameters["beta"] = np.ones(n)
+                    self.parameters["beta"] = np.ones(n_genes)
                     gamma, gamma_intercept, gamma_r2, gamma_logLL = (
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
                     )
                     U = self.data["ul"]
                     S = self.data["uu"] + self.data["ul"]
                     if cores == 1:
-                        for i in tqdm(range(n), desc="estimating gamma"):
+                        for i in tqdm(range(n_genes), desc="estimating gamma"):
                             (
                                 gamma[i],
                                 gamma_intercept[i],
@@ -605,14 +605,14 @@ class ss_estimation:
                     ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
             elif self.model.lower() == "stochastic":
                 if np.all(self._exist_data("uu", "su")):
-                    self.parameters["beta"] = np.ones(n)
+                    self.parameters["beta"] = np.ones(n_genes)
                     gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf = (
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
                     )
                     U = self.data["uu"] if self.data["ul"] is None else self.data["uu"] + self.data["ul"]
                     S = self.data["su"] if self.data["sl"] is None else self.data["su"] + self.data["sl"]
@@ -627,7 +627,7 @@ class ss_estimation:
                         else calc_2nd_moment(S.T, S.T, self.conn, mX=S.T, mY=S.T).T
                     )
                     if cores == 1:
-                        for i in tqdm(range(n), desc="estimating gamma"):
+                        for i in tqdm(range(n_genes), desc="estimating gamma"):
                             (
                                 gamma[i],
                                 gamma_intercept[i],
@@ -691,14 +691,14 @@ class ss_estimation:
                         self.aux_param["bf"],
                     ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf)
                 elif np.all(self._exist_data("uu", "ul")):
-                    self.parameters["beta"] = np.ones(n)
+                    self.parameters["beta"] = np.ones(n_genes)
                     gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf = (
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
                     )
                     U = self.data["ul"]
                     S = self.data["uu"] + self.data["ul"]
@@ -713,7 +713,7 @@ class ss_estimation:
                         else calc_2nd_moment(S.T, S.T, self.conn, mX=S.T, mY=S.T).T
                     )
                     if cores == 1:
-                        for i in tqdm(range(n), desc="estimating gamma"):
+                        for i in tqdm(range(n_genes), desc="estimating gamma"):
                             (
                                 gamma[i],
                                 gamma_intercept[i],
@@ -793,12 +793,12 @@ class ss_estimation:
                         # alpha estimation
                         uu_m, uu_v, _ = calc_12_mom_labeling(self.data["uu"], self.t)
                         alpha, uu0, r2 = (
-                            np.zeros((n, 1)),
-                            np.zeros(n),
-                            np.zeros(n),
+                            np.zeros((n_genes, 1)),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
                         )
                         if cores == 1:
-                            for i in range(n):
+                            for i in range(n_genes):
                                 alpha[i], uu0[i], r2[i] = fit_alpha_degradation(
                                     t_uniq,
                                     uu_m[i],
@@ -841,13 +841,13 @@ class ss_estimation:
                     if self._exist_data("uu"):
                         # alpha estimation
                         alpha, alpha_b, alpha_r2 = (
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
                         )
                         uu_m, uu_v, _ = calc_12_mom_labeling(self.data["uu"], self.t)
                         if cores == 1:
-                            for i in tqdm(range(n), desc="estimating alpha"):
+                            for i in tqdm(range(n_genes), desc="estimating alpha"):
                                 (alpha[i], alpha_b[i], alpha_r2[i],) = fit_alpha_degradation(
                                     t_uniq,
                                     uu_m[i],
@@ -894,10 +894,10 @@ class ss_estimation:
                         ) = self.fit_beta_gamma_lsq(t_uniq, uu_m, su_m)
                     # alpha estimation
                     ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
-                    alpha = np.zeros(n)
+                    alpha = np.zeros(n_genes)
                     # let us only assume one alpha for each gene in all cells
                     if cores == 1:
-                        for i in tqdm(range(n), desc="estimating alpha"):
+                        for i in tqdm(range(n_genes), desc="estimating alpha"):
                             # for j in range(len(self.data['ul'][i])):
                             alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters["beta"][i])
                     else:
@@ -915,20 +915,20 @@ class ss_estimation:
                         alpha = np.array(alpha)
                     self.parameters["alpha"] = alpha
                 elif np.all(self._exist_data("ul", "uu")):
-                    n = self.data["uu"].shape[0]  # self.get_n_genes(data=U)
-                    u0, gamma = np.zeros(n), np.zeros(n)
+                    n_genes = self.data["uu"].shape[0]  # self.get_n_genes(data=U)
+                    u0, gamma = np.zeros(n_genes), np.zeros(n_genes)
                     uu_m, uu_v, t_uniq = calc_12_mom_labeling(self.data["uu"], self.t)
-                    for i in tqdm(range(n), desc="estimating gamma"):
+                    for i in tqdm(range(n_genes), desc="estimating gamma"):
                         try:
                             gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
                         except:
                             gamma[i], u0[i] = 0, 0
                     self.parameters["gamma"], self.aux_param["uu0"] = gamma, u0
-                    alpha = np.zeros(n)
+                    alpha = np.zeros(n_genes)
                     # let us only assume one alpha for each gene in all cells
                     ul_m, ul_v, _ = calc_12_mom_labeling(self.data["ul"], self.t)
                     if cores == 1:
-                        for i in tqdm(range(n), desc="estimating gamma"):
+                        for i in tqdm(range(n_genes), desc="estimating gamma"):
                             # for j in range(len(self.data['ul'][i])):
                             alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters["gamma"][i])
                     else:
@@ -965,13 +965,13 @@ class ss_estimation:
                             )
                         else:
                             beta, gamma, U0, S0 = (
-                                np.zeros(n),
-                                np.zeros(n),
-                                np.zeros(n),
-                                np.zeros(n),
+                                np.zeros(n_genes),
+                                np.zeros(n_genes),
+                                np.zeros(n_genes),
+                                np.zeros(n_genes),
                             )
                             for i in range(
-                                n
+                                n_genes
                             ):  # can also use the two extreme time points and apply sci-fate like approach.
                                 S, U = (
                                     self.data["su"][i] + self.data["sl"][i],
@@ -994,10 +994,10 @@ class ss_estimation:
                             ) = (U0, S0, beta, gamma)
 
                             ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
-                            alpha = np.zeros(n)
+                            alpha = np.zeros(n_genes)
                             # let us only assume one alpha for each gene in all cells
                             if cores == 1:
-                                for i in tqdm(range(n), desc="estimating alpha"):
+                                for i in tqdm(range(n_genes), desc="estimating alpha"):
                                     # for j in range(len(self.data['ul'][i])):
                                     alpha[i] = fit_alpha_synthesis(
                                         t_uniq,
@@ -1029,8 +1029,8 @@ class ss_estimation:
                             )
                         elif self._exist_data("ul") and self._exist_data("uu"):
                             if one_shot_method in ["sci-fate", "sci_fate"]:
-                                gamma, total0 = np.zeros(n), np.zeros(n)
-                                for i in tqdm(range(n), desc="estimating gamma"):
+                                gamma, total0 = np.zeros(n_genes), np.zeros(n_genes)
+                                for i in tqdm(range(n_genes), desc="estimating gamma"):
                                     total = self.data["uu"][i] + self.data["ul"][i]
                                     total0[i], gamma[i] = (
                                         np.mean(total),
@@ -1047,9 +1047,9 @@ class ss_estimation:
 
                                 ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
                                 # let us only assume one alpha for each gene in all cells
-                                alpha = np.zeros(n)
+                                alpha = np.zeros(n_genes)
                                 if cores == 1:
-                                    for i in tqdm(range(n), desc="estimating alpha"):
+                                    for i in tqdm(range(n_genes), desc="estimating alpha"):
                                         # for j in range(len(self.data['ul'][i])):
                                         alpha[i] = fit_alpha_synthesis(
                                             t_uniq,
@@ -1079,11 +1079,11 @@ class ss_estimation:
                                 )
                                 (t_uniq, gamma, gamma_k, gamma_intercept, gamma_r2, gamma_logLL,) = (
                                     np.unique(self.t),
-                                    np.zeros(n),
-                                    np.zeros(n),
-                                    np.zeros(n),
-                                    np.zeros(n),
-                                    np.zeros(n),
+                                    np.zeros(n_genes),
+                                    np.zeros(n_genes),
+                                    np.zeros(n_genes),
+                                    np.zeros(n_genes),
+                                    np.zeros(n_genes),
                                 )
                                 U, S = (
                                     self.data["ul"],
@@ -1091,7 +1091,7 @@ class ss_estimation:
                                 )
 
                                 if cores == 1:
-                                    for i in tqdm(range(n), desc="estimating gamma"):
+                                    for i in tqdm(range(n_genes), desc="estimating gamma"):
                                         (
                                             gamma_k[i],
                                             gamma_intercept[i],
@@ -1162,14 +1162,14 @@ class ss_estimation:
                                 )
                 elif self.model.lower() == "stochastic":
                     if np.all(self._exist_data("uu", "ul", "su", "sl")):
-                        self.parameters["beta"] = np.ones(n)
+                        self.parameters["beta"] = np.ones(n_genes)
                         k, k_intercept, k_r2, k_logLL, bs, bf = (
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
                         )
                         U = self.data["uu"]
                         S = self.data["uu"] + self.data["ul"]
@@ -1185,7 +1185,7 @@ class ss_estimation:
                         )
                         if cores == 1:
                             for i in tqdm(
-                                range(n),
+                                range(n_genes),
                                 desc="estimating beta and alpha for one-shot experiment",
                             ):
                                 (
@@ -1263,7 +1263,7 @@ class ss_estimation:
                         )
                         if cores == 1:
                             for i in tqdm(
-                                range(n),
+                                range(n_genes),
                                 desc="estimating gamma and alpha for one-shot experiment",
                             ):
                                 (
@@ -1334,12 +1334,12 @@ class ss_estimation:
                         )
                     elif np.all(self._exist_data("uu", "ul")):
                         k, k_intercept, k_r2, k_logLL, bs, bf = (
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
+                            np.zeros(n_genes),
                         )
                         U = self.data["ul"]
                         S = self.data["ul"] + self.data["uu"]
@@ -1354,7 +1354,7 @@ class ss_estimation:
                             else calc_2nd_moment(S.T, S.T, self.conn, mX=S.T, mY=S.T).T
                         )
                         if cores == 1:
-                            for i in tqdm(range(n), desc="estimating gamma"):
+                            for i in tqdm(range(n_genes), desc="estimating gamma"):
                                 (
                                     k[i],
                                     k_intercept[i],
@@ -1425,13 +1425,13 @@ class ss_estimation:
                 t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data("ul", "uu", "su")):
                     gamma, beta, total, U = (
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
-                        np.zeros(n),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
+                        np.zeros(n_genes),
                     )
                     for i in tqdm(
-                        range(n), desc="solving gamma/beta"
+                        range(n_genes), desc="solving gamma/beta"
                     ):  # can also use the two extreme time points and apply sci-fate like approach.
                         tmp = (
                             self.data["uu"][i, self.t == t_max]
@@ -1465,10 +1465,10 @@ class ss_estimation:
                         self.t, self.data["ul"], self.parameters["beta"]
                     )
                 elif np.all(self._exist_data("ul", "uu")):
-                    n = self.data["uu"].shape[0]  # self.get_n_genes(data=U)
-                    gamma, U = np.zeros(n), np.zeros(n)
+                    n_genes = self.data["uu"].shape[0]  # self.get_n_genes(data=U)
+                    gamma, U = np.zeros(n_genes), np.zeros(n_genes)
                     for i in tqdm(
-                        range(n), desc="solving gamma, alpha"
+                        range(n_genes), desc="solving gamma, alpha"
                     ):  # apply sci-fate like approach (can also use one-single time point to estimate gamma)
                         # tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0]
                         tmp_ = self.data["uu"][i, self.t == t_max] + self.data["ul"][i, self.t == t_max]
@@ -1479,11 +1479,11 @@ class ss_estimation:
                         # gamma_3 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == np.max(self.t)], tmp) # sci-fate
                         gamma[i] = gamma_2
                         # print('Steady state, stimulation, sci-fate like gamma values are ', gamma_1, '; ', gamma_2, '; ', gamma_3)
-                    (
-                        self.parameters["gamma"],
-                        self.aux_param["U0"],
-                        self.parameters["beta"],
-                    ) = (gamma, U, np.ones(gamma.shape))
+                    (self.parameters["gamma"], self.aux_param["U0"], self.parameters["beta"],) = (
+                        gamma,
+                        U,
+                        np.ones(gamma.shape),
+                    )
                     # alpha estimation
                     self.parameters["alpha"] = self.solve_alpha_mix_std_stm(
                         self.t, self.data["ul"], self.parameters["gamma"]
@@ -1492,15 +1492,15 @@ class ss_estimation:
         # fit protein
         if np.all(self._exist_data("p", "su")):
             ind_for_proteins = self.ind_for_proteins
-            n = len(ind_for_proteins) if ind_for_proteins is not None else 0
+            n_genes = len(ind_for_proteins) if ind_for_proteins is not None else 0
 
-            if self.asspt_prot.lower() == "ss" and n > 0:
-                self.parameters["eta"] = np.ones(n)
+            if self.asspt_prot.lower() == "ss" and n_genes > 0:
+                self.parameters["eta"] = np.ones(n_genes)
                 (delta, delta_intercept, delta_r2, delta_logLL,) = (
-                    np.zeros(n),
-                    np.zeros(n),
-                    np.zeros(n),
-                    np.zeros(n),
+                    np.zeros(n_genes),
+                    np.zeros(n_genes),
+                    np.zeros(n_genes),
+                    np.zeros(n_genes),
                 )
 
                 s = (
@@ -1509,7 +1509,7 @@ class ss_estimation:
                     else self.data["su"][ind_for_proteins]
                 )
                 if cores == 1:
-                    for i in tqdm(range(n), desc="estimating delta"):
+                    for i in tqdm(range(n_genes), desc="estimating delta"):
                         (
                             delta[i],
                             delta_intercept[i],

@@ -11,6 +11,6 @@ from .velocity import (
     fit_gamma_lsq,
     fit_alpha_synthesis,
     fit_alpha_degradation,
-    velocity,
+    Velocity,
     ss_estimation,
 )

@@ -1,3 +1,5 @@
+from typing import Union
+from anndata._core.anndata import AnnData
 from tqdm import tqdm
 from anndata._core.views import ArrayView
 import numpy as np
@@ -17,6 +19,7 @@ from inspect import signature
 from ..preprocessing.utils import Freeman_Tukey
 from ..utils import areinstance, isarray
 from ..dynamo_logger import (
+    main_debug,
     main_info_insert_adata,
     main_info_verbose_timeit,
     main_tqdm,
@@ -179,6 +182,39 @@ def index_gene(adata, arr, genes):
             raise Exception("The dimension of the input array does not match the number of genes.")
         else:
             return arr[:, mask]
+
+
+def select_genes_by_gamma_r2(
+    adata: AnnData, var_store_key: str, minimal_gene_num: Union[int, None] = 50
+) -> Union[list, pd.Series, np.array]:
+    """When the sum of `adata.var[var_store_key]` is less than `minimal_gene_num`, select the `minimal_gene_num` genes and save to (update) adata.var[var_store_key].
+
+    Parameters
+    ----------
+        adata:
+        var_store_key:
+        minimal_gene_num: int, optional
+            by default 50
+    Returns
+    -------
+        The data stored in `adata.var[var_store_key]`.
+    """
+
+    # already satisfy the requirement
+    if var_store_key in adata.var.columns and adata.var[var_store_key].sum() >= minimal_gene_num:
+        return adata.var[var_store_key]
+
+    if var_store_key not in adata.var.columns:
+        raise ValueError("adata.var.%s does not exists." % (var_store_key))
+
+    gamma_r2_not_na = np.array(adata.var.gamma_r2[adata.var.gamma_r2.notna()])
+    if len(gamma_r2_not_na) < minimal_gene_num:
+        raise ValueError("adata.var.%s does not have enough values that are not NA." % (var_store_key))
+
+    argsort_result = np.argsort(-np.abs(gamma_r2_not_na))
+    adata.var[var_store_key] = False
+    adata.var[var_store_key][argsort_result[:minimal_gene_num]] = True
+    return adata.var[var_store_key]
 
 
 def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format="index"):
@@ -1568,6 +1604,7 @@ def set_transition_genes(
     min_delta=None,
     use_for_dynamics=True,
     store_key="use_for_transition",
+    minimal_gene_num=50,
 ):
     layer = vkey.split("_")[1]
 
@@ -1636,14 +1673,16 @@ def set_transition_genes(
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
         if "gamma_r2" not in adata.var.columns:
-            adata.var["gamma_r2"] = None
+            main_debug("setting all gamma_r2 to 1")
+            adata.var["gamma_r2"] = 1
         if np.all(adata.var.gamma_r2.values is None):
+            main_debug("Since all adata.var.gamma_r2 values are None, setting all gamma_r2 values to 1.")
             adata.var.gamma_r2 = 1
-        adata.var[store_key] = (
-            (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamics
-            if use_for_dynamics
-            else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
-        )
+
+        adata.var[store_key] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
+        if use_for_dynamics:
+            adata.var[store_key] = adata.var[store_key] & adata.var.use_for_dynamics
+
     elif layer == "P":
         if "delta" not in adata.var.columns:
             is_group_delta, is_group_delta_r2 = (
@@ -1692,13 +1731,15 @@ def set_transition_genes(
         )
 
     if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
-        raise Exception(
+        main_warning(
             "Only less than 5 genes satisfies transition gene selection criteria, which may be resulted "
             "from: \n"
             "  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n"
             "  2. Your selection criteria may be set to be too stringent, try loosing those thresholds \n"
-            "  3. Your data has strange expression kinetics. Welcome reporting to dynamo team for more insights."
+            "  3. Your data has strange expression kinetics. Welcome to report to dynamo team for more insights.\n"
+            "We auto correct this behavior by selecting the %d top genes according to gamma_r2 values."
         )
+        select_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
 
     return adata
 
