@@ -50,20 +50,20 @@ class DynamoAdataConfig:
     config_key_to_values = None
 
     def check_config_var(val, key, replace_val=None):
-        """if key is equal to `replace_val`, then a config value will be returned. Otherwise return the original `val` value.
+        """if `val` is equal to `replace_val`, then a config value will be returned according to `key` stored in dynamo configuration. Otherwise return the original `val` value.
 
         Parameters
         ----------
-        val :
-
-        key :
-
-        replace_val :
-            by default None
+            val :
+                The input value to check against.
+            key :
+                `key` stored in the dynamo configuration. E.g DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY
+            replace_val :
+                the target value to replace, by default None
 
         Returns
         -------
-        `val` or config value set in DynamoAdataConfig
+            `val` or config value set in DynamoAdataConfig according to the method description above.
 
         """
         if not key in DynamoAdataConfig.config_key_to_values:
