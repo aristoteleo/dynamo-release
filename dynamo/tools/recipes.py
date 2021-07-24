@@ -5,6 +5,7 @@ from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
 from .utils import set_transition_genes
+from ..preprocessing.utils import pca
 from ..configuration import DynamoAdataConfig
 
 # add recipe_csc_data()
@@ -60,12 +61,9 @@ def recipe_kin_data(
             Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
         keep_raw_layers: `bool` (default: `False`)
             Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
-        del_2nd_moments:
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
-        tkey: `str` (default: `time`)
+       del_2nd_moments: `bool` (default: `None`)
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
+         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
             covariance. `{tkey}` column must exist in your adata object and indicates the labeling time period.
@@ -238,12 +236,9 @@ def recipe_deg_data(
             Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
         keep_raw_layers: `bool` (default: `False`)
             Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
-        del_2nd_moments: `bool` (default: `False`)
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
-        fraction_for_deg: `bool` (default: `False`)
+       del_2nd_moments: `bool` (default: `None`)
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
+         fraction_for_deg: `bool` (default: `False`)
             Whether to use the fraction of labeled RNA instead of the raw labeled RNA to estimate the degradation parameter.
         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
@@ -428,12 +423,9 @@ def recipe_mix_kin_deg_data(
             Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
         keep_raw_layers: `bool` (default: `False`)
             Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
-        del_2nd_moments: `bool` (default: `False`)
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
-        tkey: `str` (default: `time`)
+       del_2nd_moments: `bool` (default: `None`)
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
+         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
             covariance. `{tkey}` column must exist in your adata object and indicates the labeling time period.
@@ -609,11 +601,8 @@ def recipe_onde_shot_data(
             Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
         one_shot_method: `str` (default: `sci-fate`)
             The method to use for calculate the absolute labeling and splicing velocity for the one-shot data of use.
-        del_2nd_moments: `bool` (default: `False`)
-            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
-            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
-            function.
+        del_2nd_moments: `bool` (default: `None`)
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
@@ -734,3 +723,165 @@ def recipe_onde_shot_data(
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
 
     return adata
+
+
+def velocity_N(
+    adata,
+    group=None,
+    recalculate_pca=True,
+    recalculate_umap=True,
+    del_2nd_moments=None,
+):
+    """use new RNA based pca, umap, for velocity calculation and projection for kinetics or one-shot experiment.
+
+    Note that currently velocity_N function only considers labeling data and removes splicing data if they exist.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that stores data for the the kinetics or one-shot experiment, must include `X_new, X_total`
+            layers.
+        group: `str` or None (default: None)
+            The cell group that will be used to calculate velocity in each separate group. This is useful if your data
+            comes from different labeling condition, etc.
+        recalculate_pca: `bool` (default: True)
+            Whether to recalculate pca with the new RNA data. If setting to be False, you need to make sure the pca is
+            already generated via new RNA.
+        recalculate_umap: `bool` (default: True)
+            Whether to recalculate umap with the new RNA data. If setting to be False, you need to make sure the umap is
+            already generated via new RNA.
+        del_2nd_moments: `None` or `bool`
+            Whether to remove second moments or covariances. Default it is `None` rgument used for `dynamics` function.
+
+    Returns
+    -------
+        Nothing but the adata object is updated with the low dimensional (umap or pca) velocity projections with the
+        new RNA or pca based RNA velocities.
+    """
+
+    del_2nd_moments = DynamoAdataConfig.check_config_var(del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
+
+    var_columns = adata.var.columns
+    layer_keys = adata.layers.keys()
+
+    # check velocity_N, velocity_T, X_new, X_total
+    if not np.all([i in layer_keys for i in ["X_new", "X_total"]]):
+        raise Exception(f"The `X_new`, `X_total` has to exist in your data before running velocity_N function.")
+
+    # delete the moments and velocities that generated via total RNA
+    for i in ["M_t", "M_tt", "M_n", "M_tn", "M_nn", "velocity_N", "velocity_T"]:
+        if i in layer_keys:
+            del adata.layers[i]
+
+    # delete the kinetic paraemters that generated via total RNA
+    for i in [
+        "alpha",
+        "beta",
+        "gamma",
+        "half_life",
+        "alpha_b",
+        "alpha_r2",
+        "gamma_b",
+        "gamma_r2",
+        "gamma_logLL",
+        "delta_b",
+        "delta_r2",
+        "bs",
+        "bf",
+        "uu0",
+        "ul0",
+        "su0",
+        "sl0",
+        "U0",
+        "S0",
+        "total0",
+        "beta_k",
+        "gamma_k",
+    ]:
+        if i in var_columns:
+            del adata.var[i]
+
+    if group is not None:
+        group_prefixes = [group + "_" + str(i) + "_" for i in adata.obs[group].unique()]
+        for i in group_prefixes:
+            for j in [
+                "alpha",
+                "beta",
+                "gamma",
+                "half_life",
+                "alpha_b",
+                "alpha_r2",
+                "gamma_b",
+                "gamma_r2",
+                "gamma_logLL",
+                "delta_b",
+                "delta_r2",
+                "bs",
+                "bf",
+                "uu0",
+                "ul0",
+                "su0",
+                "sl0",
+                "U0",
+                "S0",
+                "total0",
+                "beta_k",
+                "gamma_k",
+            ]:
+                if i + j in var_columns:
+                    del adata.var[i + j]
+
+    # now let us first run pca with new RNA
+    if recalculate_pca:
+        pca(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]), pca_key="X_pca")
+
+    # if there are unspliced / spliced data, delete them for now:
+    for i in ["spliced", "unspliced", "X_spliced", "X_unspliced"]:
+        if i in layer_keys:
+            del adata.layers[i]
+
+    # now redo the RNA velocity analysis with moments generated with pca space of new RNA
+    # let us also check whether it is a one-shot or kinetics experiment
+    if adata.uns["pp"]["experiment_type"] == "one-shot":
+        dynamics(
+            adata,
+            one_shot_method="sci_fate",
+            model="deterministic",
+            group=group,
+            del_2nd_moments=del_2nd_moments,
+        )
+    elif adata.uns["pp"]["experiment_type"] == "kin":
+        dynamics(
+            adata,
+            model="deterministic",
+            est_method="twostep",
+            group=group,
+            del_2nd_moments=del_2nd_moments,
+        )
+    else:
+        raise Exception(
+            f"velocity_N function only supports either the one-shot or kinetics (kin) metabolic labeling "
+            f"experiment."
+        )
+
+    # umap based on new RNA
+    if recalculate_umap:
+        reduceDimension(adata, enforce=True)
+
+    # project new RNA velocity to new RNA pca
+    cell_velocities(
+        adata,
+        basis="pca",
+        X=adata.layers["M_n"],
+        V=adata.layers["velocity_N"],
+        enforce=True,
+    )
+
+    # project new RNA velocity to new RNA umap
+    cell_velocities(
+        adata,
+        basis="umap",
+        X=adata.layers["M_n"],
+        V=adata.layers["velocity_N"],
+        enforce=True,
+    )
