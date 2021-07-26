@@ -8,7 +8,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 import warnings
 import anndata
 from typing import Iterable, Union
-from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning
+from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning, main_exception
 from ..utils import areinstance
 
 
@@ -276,10 +276,10 @@ def basic_stats(adata):
     try:
         adata.obs["pMito"] = adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1))
     except:  # noqa E722
-        raise ValueError(
+        main_exception(
             "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
             "include nan values). If you don't believe so, please report to us on github or "
-            "via xqiu@wi.mmit.edu"
+            "via xqiu@wi.mit.edu"
         )
 
 
