@@ -85,7 +85,9 @@ def infomap(adata: AnnData, basis: str = "umap", color: str = "infomap", *args, 
 
 
 @docstrings.with_indent(4)
-def streamline_clusters(adata: AnnData, basis: str = "umap", color_key_cmap: str = "Spectral", *args, **kwargs):
+def streamline_clusters(
+    adata: AnnData, basis: str = "umap", clusters="clusters", color_key_cmap: str = "Spectral", *args, **kwargs
+):
     """\
     Scatter plot for infomap community detection in selected basis.
 
@@ -101,13 +103,13 @@ def streamline_clusters(adata: AnnData, basis: str = "umap", color_key_cmap: str
     """
     import matplotlib.pyplot as plt
 
-    if "streamline_clusters_" + basis in adata.uns_keys():
-        segments = adata.uns["streamline_clusters_" + basis]["segments"]
-        clusters = adata.uns["streamline_clusters_" + basis]["clusters"]
-    else:
+    if "streamline_clusters_" + basis not in adata.uns_keys():
         from ..vectorfield.clustering import streamline_clusters
 
         streamline_clusters(adata, basis=basis)
+
+    segments = adata.uns["streamline_clusters_" + basis]["segments"]
+    clusters = adata.uns["streamline_clusters_" + basis][clusters]
 
     num_labels = len(np.unique(clusters))
 

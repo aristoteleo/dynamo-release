@@ -3,6 +3,7 @@ from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
+from scipy.stats import mode
 from anndata import AnnData
 import pandas as pd
 from anndata import AnnData
@@ -232,6 +233,9 @@ def streamline_clusters(
     curvature_method: int = 1,
     feature_bins: int = 10,
     clustering_method: str = "leiden",
+    assign_fixedpoints: bool = False,
+    reversed_fixedpoints: bool = False,
+    **kwargs,
 ):
     """
 
@@ -432,14 +436,61 @@ def streamline_clusters(
         leiden(feature_adata, obsm_key="X_pca")
     elif clustering_method == "infomap":
         infomap(feature_adata, obsm_key="X_pca")
-    elif clustering_method == "leiden":
-        leiden(feature_adata, obsm_key="X_pca")
+    elif method in ["hdbscan", "kmeans"]:
+        key = "field_hdbscan"
+        hdbscan(feature_adata, X_data=feature_df, result_key=key, **kwargs)
+    elif method == "kmeans":
+        from sklearn.cluster import KMeans
+
+        key = "field_kmeans"
+        kmeans = KMeans(random_state=0, **kwargs).fit(X)
+        feature_adata.obs[key] = kmeans.labels_.astype("str")
+
+        # clusters need to be categorical variables
+        feature_adata.obs[key] = adata.obs.obs[key].astype("category")
+    else:
+        raise ValueError(
+            "only louvain, leiden, infomap, hdbscan and kmeans clustering supported but your requested "
+            f"method is {method}"
+        )
+
+    if assign_fixedpoints:
+        tmp = np.array(strm.lines.get_segments()).reshape((-1, 2))
+        vector_field_class.data["X"] = np.unique(tmp, axis=0)
+        (
+            X,
+            valid_fps_type_assignment,
+            assignment_id,
+        ) = vector_field_class.assign_fixed_points(cores=1)
+
+        if reversed_fixedpoints:
+            # reverse vector field to identify source:
+            vector_field_class.func = lambda x: -vector_field_class.func(x)
+            (
+                X_rev,
+                valid_fps_type_assignment_rev,
+                assignment_id_rev,
+            ) = vector_field_class.assign_fixed_points(cores=1)
+
+        for key, values in line_list.items():
+            indices = [np.where(np.logical_and(X[0] == val[0], X[1] == val[1]))[0] for val in values]
+
+            # assign fixed point to the most frequent point
+            feature_adata.obs.loc[key, "fixed_point"] = mode(assignment_id[indices])
+            if reversed_fixedpoints:
+                feature_adata.obs.loc[key, "rev_fixed_point"] = mode(assignment_id_rev[indices])
 
     adata.uns["streamline_clusters_" + basis] = {
         "feature_df": feature_df,
         "segments": line_list_ori,
         "X_pca": feature_adata.obsm["X_pca"],
         "clustering_method": clustering_method,
-        "graph": feature_adata.obsp["X_pca"],
+        "distances": feature_adata.obsp["X_pca_distances"],
+        "connectivities": feature_adata.obsp["X_pca_connectivities"],
         "clusters": feature_adata.obs[clustering_method],
     }
+
+    if assign_fixedpoints:
+        adata.uns["streamline_clusters_" + basis]["fixed_point"]: feature_adata.obs["fixed_point"]
+    if reversed_fixedpoints:
+        adata.uns["streamline_clusters_" + basis]["rev_fixed_point"]: feature_adata.obs["rev_fixed_point"]
