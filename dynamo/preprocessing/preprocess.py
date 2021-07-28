@@ -1699,7 +1699,7 @@ def recipe_monocle(
                 f"genes for feature selection. Try lowering the gene selection stringency: "
                 f"{select_genes_dict}",
             )
-        logger.info("selecting genes in layer:%s, sort method:%s..." % (feature_selection_layer, feature_selection))
+        logger.info("selecting genes in layer: %s, sort method: %s..." % (feature_selection_layer, feature_selection))
         adata = select_genes(
             adata,
             layer=feature_selection_layer,
