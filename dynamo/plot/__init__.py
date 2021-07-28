@@ -78,7 +78,7 @@ from .ezplots import (
     SchemeDivergeBWR,
 )
 
-from .clustering import louvain, leiden, infomap
+from .clustering import louvain, leiden, infomap, streamline_clusters
 
 # spatial data related
 from .space import space
@@ -148,4 +148,5 @@ __all__ = [
     "plot_X",
     "SchemeDiverge",
     "SchemeDivergeBWR",
+    "streamline_clusters",
 ]

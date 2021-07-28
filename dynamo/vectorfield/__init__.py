@@ -63,3 +63,6 @@ from .stochastic_process import diffusionMatrix
 
 # vfGraph operation related:
 from .vfGraph_deprecated import vfGraph
+
+# vector field clustering related:
+from .clustering import cluster_field, streamline_clusters
