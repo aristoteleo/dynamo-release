@@ -110,7 +110,7 @@ def streamline_clusters(
 
     segments = adata.uns["streamline_clusters_" + basis]["segments"]
     clusters = adata.uns["streamline_clusters_" + basis][clusters]
-
+    clusters[np.isnan(clusters)] = -1
     num_labels = len(np.unique(clusters))
 
     color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))

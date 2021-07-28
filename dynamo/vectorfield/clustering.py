@@ -472,13 +472,14 @@ def streamline_clusters(
                 assignment_id_rev,
             ) = vector_field_class.assign_fixed_points(cores=1)
 
+        data_X = vector_field_class.data["X"]
         for key, values in line_list.items():
-            indices = [np.where(np.logical_and(X[0] == val[0], X[1] == val[1]))[0] for val in values]
+            indices = [np.where(np.logical_and(data_X[:, 0] == val[0], data_X[:, 1] == val[1]))[0][0] for val in values]
 
             # assign fixed point to the most frequent point
-            feature_adata.obs.loc[key, "fixed_point"] = mode(assignment_id[indices])
+            feature_adata.obs.loc[key, "fixed_point"] = mode(assignment_id[indices])[0][0]
             if reversed_fixedpoints:
-                feature_adata.obs.loc[key, "rev_fixed_point"] = mode(assignment_id_rev[indices])
+                feature_adata.obs.loc[key, "rev_fixed_point"] = mode(assignment_id_rev[indices])[0][0]
 
     adata.uns["streamline_clusters_" + basis] = {
         "feature_df": feature_df,
@@ -491,6 +492,6 @@ def streamline_clusters(
     }
 
     if assign_fixedpoints:
-        adata.uns["streamline_clusters_" + basis]["fixed_point"]: feature_adata.obs["fixed_point"]
+        adata.uns["streamline_clusters_" + basis]["fixed_point"] = feature_adata.obs["fixed_point"]
     if reversed_fixedpoints:
-        adata.uns["streamline_clusters_" + basis]["rev_fixed_point"]: feature_adata.obs["rev_fixed_point"]
+        adata.uns["streamline_clusters_" + basis]["rev_fixed_point"] = feature_adata.obs["rev_fixed_point"]
