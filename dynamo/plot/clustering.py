@@ -85,7 +85,7 @@ def infomap(adata: AnnData, basis: str = "umap", color: str = "infomap", *args, 
 
 
 @docstrings.with_indent(4)
-def streamline_clusters(adata: AnnData, basis: str = "umap", color_key_cmap: str = "Sepctral", *args, **kwargs):
+def streamline_clusters(adata: AnnData, basis: str = "umap", color_key_cmap: str = "Spectral", *args, **kwargs):
     """\
     Scatter plot for infomap community detection in selected basis.
 

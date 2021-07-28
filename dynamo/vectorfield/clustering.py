@@ -6,8 +6,9 @@ import numpy as np
 from anndata import AnnData
 import pandas as pd
 from anndata import AnnData
-from ..dynamo_logger import main_info
-from ..utils import LoggerManager, copy_adata
+from .utils import vecfld_from_adata
+
+from ..preprocessing.utils import pca
 from ..tools.clustering import (
     hdbscan,
     leiden,
@@ -19,7 +20,9 @@ from ..tools.Markov import (
     grid_velocity_filter,
     prepare_velocity_grid_data,
 )
-from .utils import vecfld_from_adata
+from ..dynamo_logger import main_info
+from ..utils import LoggerManager, copy_adata
+from .scVectorField import SvcVectorfield
 
 
 def cluster_field(
@@ -28,7 +31,7 @@ def cluster_field(
     features=["speed", "potential", "divergence", "acceleration", "curvature", "curl"],
     add_embedding_basis=True,
     embedding_basis=None,
-    normalize=True,
+    normalize=False,
     method="leiden",
     cores=1,
     copy=False,
@@ -62,8 +65,8 @@ def cluster_field(
         `umap`, etc.
     embedding_basis: `str` or None (default: `None`)
         The embedding basis that will be combined with the vector field feature space for clustering.
-    normalize: `bool` (default: `True`)
-        Whether to mean center and scale the feature across all cells so that the mean
+    normalize: `bool` (default: `False`)
+        Whether to mean center and scale the feature across all cells.
     method: `str` (default: `leiden`)
         The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
         or `leiden` used, you need to have `cdlib` installed.
@@ -97,15 +100,24 @@ def cluster_field(
                 "for clustering."
             )
 
+    features = list(
+        set(features).intersection(["speed", "potential", "divergence", "acceleration", "curvature", "curl"])
+    )
+    if len(features) < 1:
+        raise ValueError(
+            "features has to be selected from ['speed', 'potential', 'divergence', 'acceleration', "
+            f"'curvature', 'curl']. your feature is {features}"
+        )
+
     feature_key = [
-        "speed" + basis,
+        "speed_" + basis,
         basis + "_ddhodge_potential",
         "divergence_" + basis,
         "acceleration_" + basis,
         "curvature_" + basis,
         "curl_" + basis,
     ]
-    feature_list = [i + "_" + basis if i != "potential" else basis + "_" + i for i in features]
+    feature_list = [i + "_" + basis if i != "potential" else basis + "_ddhodge_" + i for i in features]
 
     if feature_key[0] not in adata.obs.keys() and feature_key[0] in feature_list:
         from ..vectorfield import speed
@@ -133,7 +145,7 @@ def cluster_field(
 
         curl(adata, basis=basis)
 
-    feature_data = adata.obs.loc[:, feature_key].values
+    feature_data = adata.obs.loc[:, feature_list].values
     if embedding_basis is None:
         embedding_basis = basis
     if add_embedding_basis:
@@ -158,9 +170,9 @@ def cluster_field(
             adata.obs[key] = kmeans.labels_.astype("str")
 
         # clusters need to be categorical variables
-        adata.obs.obs[key] = adata.obs.obs[key].astype("category")
+        adata.obs[key] = adata.obs.obs[key].astype("category")
 
-    elif method in ["louvain", "leiden"]:
+    elif method in ["louvain", "leiden", "infomap"]:
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
@@ -213,11 +225,33 @@ def cluster_field(
 def streamline_clusters(
     adata: AnnData,
     basis: str = "umap",
-    method: str = "gaussian",
+    features: list = ["speed", "divergence", "acceleration", "curvature", "curl"],
+    method: str = "sparsevfc",
     xy_grid_nums: list = [50, 50],
     density: float = 5,
+    curvature_method: int = 1,
+    feature_bins: int = 10,
     clustering_method: str = "leiden",
 ):
+    """
+
+    Parameters
+    ----------
+    adata
+    basis
+    features
+    method
+    xy_grid_nums
+    density
+    curvature_method
+    feature_bins
+    clustering_method
+
+    Returns
+    -------
+
+    """
+
     import matplotlib.pyplot as plt
 
     if method in ["louvain", "leiden"]:
@@ -232,14 +266,7 @@ def streamline_clusters(
                 "for clustering."
             )
 
-    vf_dict = adata.uns["VecFld_" + basis]
-
-    X_grid, V_grid = (
-        vf_dict["grid"],
-        vf_dict["grid_V"],
-    )
-    N = int(np.sqrt(V_grid.shape[0]))
-
+    vf_dict, func = vecfld_from_adata(adata, basis=basis)
     grid_kwargs_dict = {
         "density": None,
         "smooth": None,
@@ -261,8 +288,6 @@ def streamline_clusters(
         )
         for i in ["density", "smooth", "n_neighbors"]:
             grid_kwargs_dict.pop(i)
-
-        VecFld, func = vecfld_from_adata(adata, basis)
 
         V_emb = func(X)
         V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
@@ -292,14 +317,16 @@ def streamline_clusters(
         V_grid[1],
         density=density,
     )
-    strm_res = strm.lines.get_segments()  # np.array(strm.lines.get_segments()).reshape((-1, 2))
+    strm_res = strm.lines.get_segments()  # get streamline segements
 
+    # split segments into different streamlines
     line_list_ori = {}
     line_ind = 0
     for i, seg in enumerate(strm_res):
         if i == 0:
             line_list_ori[0] = [seg]
         else:
+            # the second point from the previous segment should be the same from the first point in the current segment
             if all(strm_res[i - 1][1] == seg[0]):
                 line_list_ori[line_ind].append(seg)
             else:
@@ -307,57 +334,96 @@ def streamline_clusters(
                 line_list_ori[line_ind] = [seg]
 
     line_list = line_list_ori.copy()
+
+    # convert to list of numpy arrays.
     for key, values in line_list_ori.items():
         line_list_ori[key] = np.array(values).reshape((-1, 2))
 
+    # remove duplicated rows from the numpy arrays.
     for key, values in line_list.items():
         line_list[key] = np.unique(np.array(values).reshape((-1, 2)), axis=0)
-
-    from dynamo.vectorfield.scVectorField import SvcVectorfield
 
     vector_field_class = SvcVectorfield()
     vector_field_class.from_adata(adata, basis=basis)
 
-    acc_dict = {}
-    cur_1_dict = {}
-    cur_2_dict = {}
-    div_dict = {}
-    speed_dict = {}
-    curl_dict = {}
+    has_acc = True if "acceleration" in features else False
+    has_curv = True if "curvature" in features else False
+    has_div = True if "divergence" in features else False
+    has_speed = True if "speed" in features else False
+    has_curl = True if "curl" in features else False
 
-    for key, values in line_list.items():
-        acceleration_val, acceleration_vec = vector_field_class.compute_acceleration(values)
-        curvature_val_1 = vector_field_class.compute_curvature(values, formula=1)
-        curvature_val_2, curvature_vec = vector_field_class.compute_curvature(values)
-        divergence_val = vector_field_class.compute_divergence(values)
-        speed_vec = vector_field_class.func(values)
-        speed_val = np.linalg.norm(speed_vec)
-        curl_val = vector_field_class.compute_curl(values)
+    if has_acc:
+        acc_dict = {}
+    if has_curv:
+        cur_1_dict = {}
+        cur_2_dict = {}
+    if has_div:
+        div_dict = {}
+    if has_speed:
+        speed_dict = {}
+    if has_curl:
+        curl_dict = {}
 
-        acc_dict[key] = acceleration_val
-        cur_1_dict[key] = curvature_val_1
-        cur_2_dict[key] = curvature_val_2
-        div_dict[key] = divergence_val
-        speed_dict[key] = speed_val
-        curl_dict[key] = curl_val
-
-    # create histogram
-    bins = 10  # 10 bins
+    # save features along the streameline and create histogram for each feature
+    bins = feature_bins  # number of feature bins
     line_len = []
-    feature_df = np.zeros((len(line_list), 6 * bins))
+    feature_df = np.zeros((len(line_list), len(features) * bins))
+
     for key, values in line_list.items():
         line_len.append(values.shape[0])
-        _, acc_hist = np.histogram(acc_dict[key], bins=(bins - 1), density=True)
-        _, cur_1_hist = np.histogram(cur_1_dict[key][0], bins=(bins - 1), density=True)
-        _, cur_2_hist = np.histogram(cur_2_dict[key], bins=(bins - 1), density=True)
-        _, div_hist = np.histogram(div_dict[key], bins=(bins - 1), density=True)
-        _, speed_hist = np.histogram(speed_dict[key], bins=(bins - 1), density=True)
-        _, curl_hist = np.histogram(curl_dict[key], bins=(bins - 1), density=True)
+        tmp = None
+        if has_acc:
+            acceleration_val, acceleration_vec = vector_field_class.compute_acceleration(values)
+            acc_dict[key] = acceleration_val
 
-        feature_df[key, :] = np.hstack((acc_hist, cur_1_hist, cur_2_hist, div_hist, speed_hist, curl_hist))
+            _, acc_hist = np.histogram(acceleration_val, bins=(bins - 1), density=True)
+            if tmp is None:
+                tmp = acc_hist
+        if has_curv:
+            curvature_val_1 = vector_field_class.compute_curvature(values, formula=1)[0]
+            cur_1_dict[key] = curvature_val_1
 
-    from ..preprocessing.utils import pca
+            curvature_val_2, curvature_vec = vector_field_class.compute_curvature(values)
+            cur_2_dict[key] = curvature_val_2
 
+            _, cur_1_hist = np.histogram(curvature_val_1, bins=(bins - 1), density=True)
+            _, cur_2_hist = np.histogram(curvature_val_2, bins=(bins - 1), density=True)
+            if tmp is None:
+                tmp = cur_1_hist if curvature_method == 1 else cur_2_hist
+            else:
+                tmp = np.hstack((tmp, cur_1_hist if curvature_method == 1 else cur_2_hist))
+        if has_div:
+            divergence_val = vector_field_class.compute_divergence(values)
+            div_dict[key] = divergence_val
+
+            _, div_hist = np.histogram(divergence_val, bins=(bins - 1), density=True)
+            if tmp is None:
+                tmp = div_hist
+            else:
+                tmp = np.hstack((tmp, div_hist))
+        if has_speed:
+            speed_vec = vector_field_class.func(values)
+            speed_val = np.linalg.norm(speed_vec)
+            speed_dict[key] = speed_val
+
+            _, speed_hist = np.histogram(speed_val, bins=(bins - 1), density=True)
+            if tmp is None:
+                tmp = speed_hist
+            else:
+                tmp = np.hstack((tmp, speed_hist))
+        if has_curl:
+            curl_val = vector_field_class.compute_curl(values)
+            curl_dict[key] = curl_val
+
+            _, curl_hist = np.histogram(curl_val, bins=(bins - 1), density=True)
+            if tmp is None:
+                tmp = curl_hist
+            else:
+                tmp = np.hstack((tmp, curl_hist))
+
+        feature_df[key, :] = tmp
+
+    # clustering
     feature_adata = AnnData(feature_df)
     pca(feature_adata, X_data=feature_df, pca_key="X_pca")
     if clustering_method == "louvain":
@@ -372,6 +438,8 @@ def streamline_clusters(
     adata.uns["streamline_clusters_" + basis] = {
         "feature_df": feature_df,
         "segments": line_list_ori,
+        "X_pca": feature_adata.obsm["X_pca"],
         "clustering_method": clustering_method,
-        "clusters": adata.obs[clustering_method],
+        "graph": feature_adata.obsp["X_pca"],
+        "clusters": feature_adata.obs[clustering_method],
     }
