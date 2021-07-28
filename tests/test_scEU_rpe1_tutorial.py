@@ -39,17 +39,15 @@ def test_run_rpe1_tutorial():
     rpe1_genes = ["UNG", "PCNA", "PLK1", "HPRT1"]
     rpe1_kinetics.obs.time
 
-    # rpe1_kinetics = dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False, copy=True)
-    dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False)
-
     assert np.sum(rpe1_kinetics.var_names.isnull()) == 0
 
     rpe1_kinetics.obs.time = rpe1_kinetics.obs.time.astype("float")
     rpe1_kinetics.obs.time = rpe1_kinetics.obs.time / 60
-
     rpe1_kinetics.obs.time.value_counts()
+    # rpe1_kinetics = dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False, copy=True)
+    dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False)
 
-    dyn.tl.dynamics(rpe1_kinetics, model="deterministic", tkey="time", assumption_mRNA="ss")
+    dyn.tl.dynamics(rpe1_kinetics, model="deterministic", tkey="time", est_method="twostep", cores=16)
     dyn.tl.reduceDimension(rpe1_kinetics, reduction_method="umap")
     dyn.tl.cell_velocities(rpe1_kinetics, enforce=True, vkey="velocity_T", ekey="M_t")
 

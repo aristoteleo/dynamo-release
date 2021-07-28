@@ -585,7 +585,7 @@ def _matplotlib_points(
             ax.legend(
                 handles=legend_elements,
                 bbox_to_anchor=(1.04, 1),
-                loc=show_legend,
+                # loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
     else:

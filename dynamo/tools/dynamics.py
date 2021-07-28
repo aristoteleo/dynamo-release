@@ -12,7 +12,7 @@ from typing import Optional, Union
 import warnings
 
 from .moments import moments
-from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
+from ..estimation.csc.velocity import fit_linreg, Velocity, ss_estimation
 from ..estimation.csc.utils_velocity import solve_alpha_2p_mat
 from ..estimation.tsc.twostep import (
     lin_reg_gamma_synthesis,
@@ -37,6 +37,8 @@ from .moments import (
     prepare_data_mix_no_splicing,
 )
 from ..dynamo_logger import (
+    LoggerManager,
+    main_debug,
     main_warning,
     main_info,
     main_tqdm,
@@ -485,11 +487,11 @@ def dynamics(
         if assumption_mRNA.lower() == "ss" or (experiment_type.lower() in ["one-shot", "mix_std_stm"]):
             if est_method.lower() == "auto":
                 est_method = "gmm" if model.lower() == "stochastic" else "ols"
+
             if experiment_type.lower() == "one-shot":
                 beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
                 gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
                 ss_estimation_kwargs = {"beta": beta, "gamma": gamma}
-
             else:
                 ss_estimation_kwargs = {}
 
@@ -534,7 +536,7 @@ def dynamics(
                 log_unnormalized,
                 NTR_vel,
             )
-            vel = velocity(estimation=est)
+            vel = Velocity(estimation=est)
 
             if experiment_type.lower() in [
                 "one_shot",
@@ -789,7 +791,7 @@ def dynamics(
             extra_params = params.loc[:, params.columns.difference(all_kinetic_params)]
             # if alpha = None, set alpha to be U; N - gamma R
             params = {"alpha": alpha, "beta": beta, "gamma": gamma, "t": t}
-            vel = velocity(**params)
+            vel = Velocity(**params)
             # Fix below:
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
@@ -997,8 +999,9 @@ def kinetic_model(
     **est_kwargs,
 ):
     """est_method can be either `twostep` (two-step model) or `direct`. data_type can either 'sfs' or 'smoothed'."""
+    logger = LoggerManager.gen_logger("dynamo-kinetic-model")
+    logger.info("experiment type: %s, method: %s, model: %s" % (experiment_type.lower(), str(est_method), str(model)))
     time = subset_adata.obs[tkey].astype("float").values
-
     if experiment_type.lower() == "kin":
         if est_method == "twostep":
             if has_splicing:
@@ -1521,6 +1524,7 @@ def kinetic_model(
     if experiment_type:
         popt = [None] * n_genes
 
+    main_debug("model: %s, experiment_type: %s" % (model, experiment_type))
     for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
         if model.lower().startswith("mixture"):
             estm = Est
