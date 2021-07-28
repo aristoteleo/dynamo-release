@@ -109,7 +109,7 @@ def streamline_clusters(
         streamline_clusters(adata, basis=basis)
 
     segments = adata.uns["streamline_clusters_" + basis]["segments"]
-    clusters = adata.uns["streamline_clusters_" + basis][clusters]
+    clusters = adata.uns["streamline_clusters_" + basis][clusters].astype(int)
     clusters[np.isnan(clusters)] = -1
     num_labels = len(np.unique(clusters))
 

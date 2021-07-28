@@ -454,14 +454,18 @@ def streamline_clusters(
             f"method is {method}"
         )
 
-    if assign_fixedpoints:
+    if assign_fixedpoints or reversed_fixedpoints:
         tmp = np.array(strm.lines.get_segments()).reshape((-1, 2))
         vector_field_class.data["X"] = np.unique(tmp, axis=0)
-        (
-            X,
-            valid_fps_type_assignment,
-            assignment_id,
-        ) = vector_field_class.assign_fixed_points(cores=1)
+
+        if assign_fixedpoints:
+            (
+                X,
+                valid_fps_type_assignment,
+                assignment_id,
+            ) = vector_field_class.assign_fixed_points(cores=1)
+
+            feature_adata.obs["fixed_point"] = -1
 
         if reversed_fixedpoints:
             # reverse vector field to identify source:
@@ -472,14 +476,21 @@ def streamline_clusters(
                 assignment_id_rev,
             ) = vector_field_class.assign_fixed_points(cores=1)
 
+            feature_adata.obs["rev_fixed_point"] = -1
+
         data_X = vector_field_class.data["X"]
         for key, values in line_list.items():
             indices = [np.where(np.logical_and(data_X[:, 0] == val[0], data_X[:, 1] == val[1]))[0][0] for val in values]
 
             # assign fixed point to the most frequent point
-            feature_adata.obs.loc[key, "fixed_point"] = mode(assignment_id[indices])[0][0]
+            if assign_fixedpoints:
+                mode_val = mode(assignment_id[indices])[0][0]
+                if not np.isnan(mode_val):
+                    feature_adata.obs.loc[str(key), "fixed_point"] = mode_val
             if reversed_fixedpoints:
-                feature_adata.obs.loc[key, "rev_fixed_point"] = mode(assignment_id_rev[indices])[0][0]
+                mode_val = mode(assignment_id_rev[indices])[0][0]
+                if not np.isnan(mode_val):
+                    feature_adata.obs.loc[str(key), "rev_fixed_point"] = mode_val
 
     adata.uns["streamline_clusters_" + basis] = {
         "feature_df": feature_df,
@@ -488,7 +499,7 @@ def streamline_clusters(
         "clustering_method": clustering_method,
         "distances": feature_adata.obsp["X_pca_distances"],
         "connectivities": feature_adata.obsp["X_pca_connectivities"],
-        "clusters": feature_adata.obs[clustering_method],
+        "clusters": feature_adata.obs[clustering_method].values,
     }
 
     if assign_fixedpoints:
