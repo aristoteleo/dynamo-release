@@ -1058,6 +1058,29 @@ def rank_cell_groups(
     return pd.DataFrame(data=ret_dict)
 
 
+def rank_expression_genes(adata, ekey="M_s", prefix_store="rank", **kwargs):
+    """Rank genes based on their expression values for each cell group.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the gene-wise velocities.
+        ekey: str (default: 'M_s')
+            The expression key, can be any properly normalized layers, e.g. M_s, M_u, M_t, M_n.
+        prefix_store: str (default: 'rank')
+            The prefix added to the key for storing the returned in adata.
+        kwargs:
+            Keyword arguments passed to `vf.rank_genes`.
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object which has the rank dictionary for expression in `.uns`.
+    """
+    rdict = rank_genes(adata, ekey, **kwargs)
+    adata.uns[prefix_store + "_" + ekey] = rdict
+    return adata
+
+
 def rank_velocity_genes(adata, vkey="velocity_S", prefix_store="rank", **kwargs):
     """Rank genes based on their raw and absolute velocities for each cell group.
 

@@ -27,6 +27,7 @@ from .vector_calculus import (
     acceleration,
     curvature,
     torsion,
+    rank_expression_genes,
     rank_velocity_genes,
     rank_divergence_genes,
     rank_s_divergence_genes,
