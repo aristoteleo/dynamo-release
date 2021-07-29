@@ -1064,10 +1064,10 @@ def rank_expression_genes(adata, ekey="M_s", prefix_store="rank", **kwargs):
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the gene-wise velocities.
+            AnnData object that contains the normalized or locally smoothed expression.
         ekey: str (default: 'M_s')
             The expression key, can be any properly normalized layers, e.g. M_s, M_u, M_t, M_n.
-        prefix_store: str (default: 'rank')
+        prefix_store: str (default: 'rank')pression
             The prefix added to the key for storing the returned in adata.
         kwargs:
             Keyword arguments passed to `vf.rank_genes`.
@@ -1076,6 +1076,7 @@ def rank_expression_genes(adata, ekey="M_s", prefix_store="rank", **kwargs):
         adata: :class:`~anndata.AnnData`
             AnnData object which has the rank dictionary for expression in `.uns`.
     """
+
     rdict = rank_genes(adata, ekey, **kwargs)
     adata.uns[prefix_store + "_" + ekey] = rdict
     return adata
@@ -1298,13 +1299,14 @@ def rank_jacobian_genes(
             The key of the stored Jacobians in `.uns`.
         abs: bool (default: False)
             Whether take the absolute value of the Jacobian.
-        mode: {'full reg', 'full eff', 'reg', 'eff', 'int'} (default: 'full_reg')
+        mode: {'full reg', 'full eff', 'reg', 'eff', 'int', 'switch'} (default: 'full_reg')
             The mode of ranking:
             (1) `'full reg'`: top regulators are ranked for each effector for each cell group;
             (2) `'full eff'`: top effectors are ranked for each regulator for each cell group;
             (3) '`reg`': top regulators in each cell group;
             (4) '`eff`': top effectors in each cell group;
             (5) '`int`': top effector-regulator pairs in each cell group.
+            (6) '`switch`': top effector-regulator pairs that show mutual inhibition pattern in each cell group.
         normalize: bool (default: False)
             Whether normalize the Jacobian across all cells before performing the ranking.
         output_values: bool (default: False)
@@ -1326,10 +1328,18 @@ def rank_jacobian_genes(
     J = J_dict["jacobian_gene"]
     if abs:
         J = np.abs(J)
+
     if normalize:
         Jmax = np.max(np.abs(J), axis=2)
         for i in range(J.shape[2]):
             J[:, :, i] /= Jmax
+
+    if mode == "switch":
+        J_mul, J_add = J.copy(), J.copy()
+        for i in np.arange(J.shape[2]):
+            J_mul[:, :, i] = J[:, :, i] * J[:, :, i].T
+            J_add[:, :, i] = J[:, :, i] + J[:, :, i].T
+        J = J_mul * -J_add
 
     if groups is None:
         J_mean = {"all": np.mean(J, axis=2)}
@@ -1382,7 +1392,7 @@ def rank_jacobian_genes(
             else:
                 rank_dict[k] = list_top_genes(j, eff, None, **kwargs)
         rank_dict = pd.DataFrame(data=rank_dict)
-    elif mode == "int":
+    elif mode in ["int", "switch"]:
         for k, J in J_mean.items():
             ints, vals = list_top_interactions(J, eff, reg, **kwargs)
             rank_dict[k] = []
