@@ -1067,7 +1067,7 @@ def rank_expression_genes(adata, ekey="M_s", prefix_store="rank", **kwargs):
             AnnData object that contains the normalized or locally smoothed expression.
         ekey: str (default: 'M_s')
             The expression key, can be any properly normalized layers, e.g. M_s, M_u, M_t, M_n.
-        prefix_store: str (default: 'rank')pression
+        prefix_store: str (default: 'rank')
             The prefix added to the key for storing the returned in adata.
         kwargs:
             Keyword arguments passed to `vf.rank_genes`.
@@ -1282,7 +1282,7 @@ def rank_jacobian_genes(
     mode="full reg",
     exclude_diagonal=False,
     normalize=False,
-    output_values=False,
+    return_df=False,
     **kwargs,
 ):
     """Rank genes or gene-gene interactions based on their Jacobian elements for each cell group.
@@ -1309,7 +1309,7 @@ def rank_jacobian_genes(
             (6) '`switch`': top effector-regulator pairs that show mutual inhibition pattern in each cell group.
         normalize: bool (default: False)
             Whether normalize the Jacobian across all cells before performing the ranking.
-        output_values: bool (default: False)
+        return_df: bool (default: False)
             Whether to return the data, otherwise it will save in adata object via the key `mode` of adata.uns.
         kwargs:
             Keyword arguments passed to ranking functions.
@@ -1338,7 +1338,8 @@ def rank_jacobian_genes(
         J_transpose = J.transpose(1, 0, 2)
         J_mul, J_add = J * J_transpose, J + J_transpose
         # switch genes will have negative Jacobian between any two gene pairs
-        J = J_mul * (-J_add) * np.sign(J) * np.sign(J_transpose)
+        # only True * True = 1, so only the gene pair with both negative Jacobian, this will be non-zero:
+        J = J_mul * (-J_add) * (np.sign(J) == -1) * (np.sign(J_transpose) == -1)
 
     if groups is None:
         J_mean = {"all": np.mean(J, axis=2)}
@@ -1406,7 +1407,7 @@ def rank_jacobian_genes(
     else:
         raise ValueError(f"No such mode as {mode}.")
 
-    if output_values:
+    if return_df:
         return rank_dict
     else:
         adata.uns[mode] = rank_dict
