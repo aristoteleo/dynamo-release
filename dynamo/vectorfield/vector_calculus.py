@@ -1336,10 +1336,10 @@ def rank_jacobian_genes(
 
     if mode == "switch":
         J_transpose = J.transpose(1, 0, 2)
-        J_mul, J_add = J * J_transpose, J + J_transpose
+        J_mul = J * J_transpose
         # switch genes will have negative Jacobian between any two gene pairs
         # only True * True = 1, so only the gene pair with both negative Jacobian, this will be non-zero:
-        J = J_mul * (-J_add) * (np.sign(J) == -1) * (np.sign(J_transpose) == -1)
+        J = J_mul * (np.sign(J) == -1) * (np.sign(J_transpose) == -1)
 
     if groups is None:
         J_mean = {"all": np.mean(J, axis=2)}
