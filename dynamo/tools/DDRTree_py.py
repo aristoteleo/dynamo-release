@@ -117,12 +117,19 @@ def DDRTree(
                 bandwidth parameter	
         gamma:'float'	
                 regularization parameter for k-means	
-        ncenter :(int)	
+        ncenter :(int)
+
     Returns	
     -------	
-        history: 'DataFrame'	
-                the results dataframe of return	
+        1). if `keep_history` is True return history: 'DataFrame'
+                the results dataframe of return
+        2). else return a tuple of Z, Y, stree, R, W, Q, C, objs
+            W is the orthogonal set of d (dimensions) linear basis vector
+            Z is the reduced dimension space
+            stree is the smooth tree graph embedded in the low dimension space
+            Y represents latent points as the center of
     """
+
     X = np.array(X)
     (D, N) = X.shape
 

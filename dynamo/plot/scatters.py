@@ -517,15 +517,16 @@ def scatters(
             else:
                 _adata = adata
 
-            if hasattr(x, "__len__") and hasattr(y, "__len__"):
-                x, y = list(x), list(y)
-            elif (
+            if (
                 type(x) in [anndata._core.views.ArrayView, np.ndarray]
                 and type(y) in [anndata._core.views.ArrayView, np.ndarray]
                 and len(x) == _adata.n_obs
                 and len(y) == _adata.n_obs
             ):
                 x, y = [x], [y]
+            elif hasattr(x, "__len__") and hasattr(y, "__len__"):
+                x, y = list(x), list(y)
+
             for cur_x, cur_y in zip(x, y):  # here x / y are arrays
                 main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
                 if type(cur_x) is int and type(cur_y) is int:
