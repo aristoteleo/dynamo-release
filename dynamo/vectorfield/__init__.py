@@ -7,7 +7,10 @@ from .scVectorField import (
     base_vectorfield,
     SvcVectorfield,
 )  # , evaluate, con_K_div_cur_free
-from .utils import vector_field_function
+from .utils import (
+    vector_field_function,
+    parse_int_df,
+)
 from .topography import (
     FixedPoints,
     VectorField2D,

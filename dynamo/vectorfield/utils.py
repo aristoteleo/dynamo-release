@@ -1064,3 +1064,58 @@ def intersect_sources_targets(regulators, regulators_, effectors, effectors_, De
     )
 
     return Der, regulators, effectors
+
+
+# ---------------------------------------------------------------------------------------------------
+# vector field ranking related utilies
+def parse_int_df(
+    df: pd.DataFrame,
+    self_int: bool = False,
+    genes: bool = None,
+) -> pd.DataFrame:
+    """parse the dataframe produced from vector field ranking for gene interactions or switch gene pairs
+
+    Parameters
+    ----------
+    df:
+        The dataframe that returned from performing the `int` or `switch` mode ranking via dyn.vf.rank_jacobian_genes.
+    self_int:
+        Whether to keep self-interactions pairs.
+    genes:
+        List of genes that are used to filter for gene interactions.
+
+    Returns
+    -------
+    res:
+        The parsed interaction dataframe.
+    """
+
+    df_shape, columns = df.shape, df.columns
+    # first we have second column name ends with "_values", it means the data frame include ranking values.
+    if columns[1].endswith("_values"):
+        col_step = 2
+    else:
+        col_step = 1
+
+    res = {}
+    if genes is not None:
+        genes_set = set(genes)
+    for col in columns[::col_step]:
+        cur_col = df[col]
+        gene_pairs = cur_col.str.split(" - ", expand=True)
+
+        if not self_int:
+            good_int = gene_pairs[0] != gene_pairs[1]
+        else:
+            good_int = np.ones(df_shape[0], dtype=bool)
+
+        if genes is not None:
+            good_int &= np.logical_and([i in genes_set for i in gene_pairs[0]], [i in genes_set for i in gene_pairs[1]])
+
+        if col_step == 1:
+            res[col] = cur_col.loc[good_int].values
+        else:
+            res[col] = cur_col.loc[good_int].values
+            res[col + "_values"] = df[col + "_values"].loc[good_int].values
+
+    return pd.DataFrame(res)
