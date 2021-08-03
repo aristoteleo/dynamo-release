@@ -1355,7 +1355,7 @@ def rank_jacobian_genes(
     eff = np.array([x for x in J_dict["effectors"]])
     reg = np.array([x for x in J_dict["regulators"]])
     rank_dict = {}
-    ov = kwargs.pop("output_values", False)
+    ov = kwargs.pop("output_values", True)
     if mode in ["full reg", "full_reg"]:
         for k, J in J_mean.items():
             rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, output_values=ov, **kwargs)
