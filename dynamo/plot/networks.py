@@ -68,6 +68,8 @@ def nxvizPlot(
         adata.uns["pp"].get("has_labeling"),
     )
     layer = "M_s" if not has_labeling else "M_t"
+    if "layer" in kwargs.keys():
+        layer = kwargs.pop("layer")
 
     import matplotlib.pyplot as plt
 
