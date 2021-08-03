@@ -303,7 +303,6 @@ def arcPlot(
     fig, ax = plt.subplots(figsize=figsize)
     ap = ArcPlot(network=network, c=color, s=node_size, cmap=cmap, **kwargs)
     node_degree = [network.degree[i] for i in network.nodes]
-    print(node_degree)
     ap.draw(node_order=node_degree)
 
     if cbar and color is not None:
