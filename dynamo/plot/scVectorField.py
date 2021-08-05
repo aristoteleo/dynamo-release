@@ -310,6 +310,8 @@ def cell_wise_vectors(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
+    ekey: str = "M_s",
+    vkey: str = "velocity_S",
     color: Union[str, List[str]] = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
@@ -345,6 +347,10 @@ def cell_wise_vectors(
     Parameters
     ----------
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
+        ekey: `str` (default: "M_s")
+            The expression key
+        vkey: `str` (default: "velocity_S")
+            The velocity key
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
         cell_inds: `str` or `list` (default: all)
@@ -392,8 +398,8 @@ def cell_wise_vectors(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
-        X = adata[:, [x, y]].layers["M_s"].A
-        V = adata[:, [x, y]].layers["velocity_S"].A
+        X = adata[:, [x, y]].layers[ekey].A
+        V = adata[:, [x, y]].layers[vkey].A
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
@@ -545,6 +551,8 @@ def grid_vectors(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
+    ekey: str = "M_s",
+    vkey: str = "velocity_S",
     color: Union[str, List[str]] = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
@@ -584,6 +592,10 @@ def grid_vectors(
     Parameters
     ----------
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
+        ekey: `str` (default: "M_s")
+            The expression key
+        vkey: `str` (default: "velocity_S")
+            The velocity key
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
         cell_inds: `str` or `list` (default: all)
@@ -642,8 +654,8 @@ def grid_vectors(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
-        X = adata[:, [x, y]].layers["M_s"].A
-        V = adata[:, [x, y]].layers["velocity_S"].A
+        X = adata[:, [x, y]].layers[ekey].A
+        V = adata[:, [x, y]].layers[vkey].A
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
@@ -847,6 +859,8 @@ def streamline_plot(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
+    ekey: str = "M_s",
+    vkey: str = "velocity_S",
     color: Union[str, List[str]] = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
@@ -886,6 +900,10 @@ def streamline_plot(
     Parameters
     ----------
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
+        ekey: `str` (default: "M_s")
+            The expression key
+        vkey: `str` (default: "velocity_S")
+            The velocity key
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
         cell_inds: `str` or `list` (default: all)
@@ -937,8 +955,8 @@ def streamline_plot(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
-        X = adata[:, [x, y]].layers["M_s"].A
-        V = adata[:, [x, y]].layers["velocity_S"].A
+        X = adata[:, [x, y]].layers[ekey].A
+        V = adata[:, [x, y]].layers[vkey].A
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
