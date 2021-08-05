@@ -841,7 +841,7 @@ def VectorField(
 
         logger.info_insert_adata(key, adata_attr="layers")
         adata.layers[key] = sp.csr_matrix((adata.shape))
-        adata.layers[key][:, valid_genes] = vf_dict["V"]
+        adata.layers[key][:, [adata.var_names.get_loc(i) for i in valid_genes]] = vf_dict["V"]
 
         vf_dict["layer"] = layer
         vf_dict["genes"] = genes

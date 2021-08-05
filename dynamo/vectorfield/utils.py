@@ -223,8 +223,9 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
 
 
 def get_vf_dict(adata, basis="", vf_key="VecFld"):
-    if basis is not None or len(basis) > 0:
-        vf_key = "%s_%s" % (vf_key, basis)
+    if basis is not None:
+        if len(basis) > 0:
+            vf_key = "%s_%s" % (vf_key, basis)
 
     if vf_key not in adata.uns.keys():
         raise ValueError(

@@ -281,19 +281,22 @@ def jacobian(
                 "Either the regulator or the effector gene list provided is not in the dynamics gene list!"
             )
 
-        if Qkey in adata.uns.keys():
-            Q = adata.uns[Qkey]
-        elif Qkey in adata.varm.keys():
-            Q = adata.varm[Qkey]
+        if basis == "pca":
+            if Qkey in adata.uns.keys():
+                Q = adata.uns[Qkey]
+            elif Qkey in adata.varm.keys():
+                Q = adata.varm[Qkey]
+            else:
+                raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
+            Q = Q[:, : X.shape[1]]
+            if len(regulators) == 1 and len(effectors) == 1:
+                Jacobian = elementwise_jacobian_transformation(
+                    Js, Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs
+                )
+            else:
+                Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
         else:
-            raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
-        Q = Q[:, : X.shape[1]]
-        if len(regulators) == 1 and len(effectors) == 1:
-            Jacobian = elementwise_jacobian_transformation(
-                Js, Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs
-            )
-        else:
-            Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
+            Jacobian = Js.copy()
     else:
         Jacobian = None
 
@@ -307,8 +310,10 @@ def jacobian(
         ret_dict["effectors"] = effectors.to_list()
 
     Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
-    adata.obs["jacobian_det_" + basis] = np.nan
-    adata.obs.loc[adata.obs_names[cell_idx], "jacobian_det_" + basis] = Js_det
+    jacobian_det_key = "jacobian_det" if basis is None else "jacobian_det_" + basis
+    adata.obs[jacobian_det_key] = np.nan
+    adata.obs.loc[adata.obs_names[cell_idx], jacobian_det_key] = Js_det
+
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
