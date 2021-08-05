@@ -674,7 +674,7 @@ def curvature(
         create_layer(
             adata,
             curv_mat,
-            layer_key="acceleration",
+            layer_key="curvature",
             genes=adata.var.use_for_pca,
         )
 
