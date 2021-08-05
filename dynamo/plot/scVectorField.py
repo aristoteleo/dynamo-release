@@ -475,8 +475,8 @@ def cell_wise_vectors(
     axes_list, color_list, _ = scatters(
         adata=adata,
         basis=basis,
-        x=X[:, 0],
-        y=X[:, 1],
+        x=x,
+        y=y,
         color=color,
         layer=layer,
         highlights=highlights,
@@ -800,8 +800,8 @@ def grid_vectors(
     axes_list, _, font_color = scatters(
         adata=adata,
         basis=basis,
-        x=X[:, 0],
-        y=X[:, 1],
+        x=x,
+        y=y,
         color=color,
         layer=layer,
         highlights=highlights,
@@ -1098,8 +1098,8 @@ def streamline_plot(
     axes_list, _, _ = scatters(
         adata=adata,
         basis=basis,
-        x=X[:, 0],
-        y=X[:, 1],
+        x=x,
+        y=y,
         color=color,
         layer=layer,
         highlights=highlights,
