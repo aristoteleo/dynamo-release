@@ -46,7 +46,7 @@ from typing import Union, Callable
 from ..dynamo_logger import LoggerManager, main_warning
 
 
-def norm(X, V, T):
+def norm(X, V, T, fix_velocity=True):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
         We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
 
@@ -60,6 +60,8 @@ def norm(X, V, T):
         T: 'np.ndarray'
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state.
+        fix_velocity: 'bool' (default: `True`)
+            Whether to fix velocity and don't transform it.
 
     Returns
     -------
@@ -76,7 +78,7 @@ def norm(X, V, T):
     x, y, t = (
         X - xm[None, :],
         Y - ym[None, :],
-        T - (1 / 2 * (xm[None, :] + ym[None, :])),
+        T - (1 / 2 * (xm[None, :] + ym[None, :])) if T is not None else None,
     )
 
     xscale, yscale = (
@@ -84,10 +86,10 @@ def norm(X, V, T):
         np.sqrt(np.sum(np.sum(y ** 2, 1)) / m),
     )
 
-    X, Y, T = x / xscale, y / yscale, t / (1 / 2 * (xscale + yscale))
+    X, Y, T = x / xscale, y / yscale, t / (1 / 2 * (xscale + yscale)) if T is not None else None
 
-    X, V, T = X, Y - X, T
-    norm_dict = {"xm": xm, "ym": ym, "xscale": xscale, "yscale": yscale}
+    X, V, T = X, V if fix_velocity else Y - X, T
+    norm_dict = {"xm": xm, "ym": ym, "xscale": xscale, "yscale": yscale, "fix_velocity": fix_velocity}
 
     return X, V, T, norm_dict
 
@@ -150,7 +152,7 @@ def denorm(VecFld, X_old, V_old, norm_dict):
     """
 
     Y_old = X_old + V_old
-    X, Y, V, xm, ym, x_scale, y_scale = (
+    X, Y, V, xm, ym, x_scale, y_scale, fix_velocity = (
         VecFld["X"],
         VecFld["Y"],
         VecFld["V"],
@@ -158,6 +160,7 @@ def denorm(VecFld, X_old, V_old, norm_dict):
         norm_dict["ym"],
         norm_dict["xscale"],
         norm_dict["yscale"],
+        norm_dict["fix_velocity"],
     )
     grid, grid_V = VecFld["grid"], VecFld["grid_V"]
     xy_m, xy_scale = (xm + ym) / 2, (x_scale + y_scale) / 2
@@ -165,9 +168,11 @@ def denorm(VecFld, X_old, V_old, norm_dict):
     VecFld["X"] = X_old
     VecFld["Y"] = Y_old
     VecFld["X_ctrl"] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
-    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [X.shape[0], 1])
-    VecFld["grid_V"] = (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [Y.shape[0], 1]) - grid
-    VecFld["V"] = (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
+    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [X.shape[0], 1]) if grid is not None else None
+    VecFld["grid_V"] = (
+        (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [Y.shape[0], 1]) - grid if grid_V is not None else None
+    )
+    VecFld["V"] = V if fix_velocity else (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
     VecFld["norm_dict"] = norm_dict
 
     return VecFld
@@ -924,6 +929,7 @@ class SvcVectorfield(differentiable_vectorfield):
 
         self.func = lambda x: vector_field_function(x, VecFld)
         self.vf_dict["V"] = self.func(self.data["X"])
+        self.vf_dict["normalize"] = normalize
 
         return self.vf_dict
 

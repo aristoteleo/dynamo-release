@@ -52,7 +52,7 @@ def velocities(
     init_cells,
     init_states=None,
     basis=None,
-    VecFld=None,
+    vector_field_class=None,
     layer="X",
     dims=None,
 ):
@@ -72,8 +72,9 @@ def velocities(
             The embedding data to use for calculating velocities. If `basis` is either `umap` or `pca`, the
             reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
             function.
-        VecFld: dict
-            The true ODE function, useful when the data is generated through simulation.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not None, the speed will be computed using this class instead of the vector field stored in adata. You
+            can set up the class with a known ODE function, useful when the data is generated through simulation.
         layer: str or None (default: 'X')
             Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
             The layer once provided, will override the `basis` argument and then predicting cell fate in high
@@ -88,18 +89,25 @@ def velocities(
             AnnData object that is updated with the `"velocities"` related key in the `.uns`.
     """
 
-    if VecFld is None:
-        VecFld, func = vecfld_from_adata(adata, basis)
-    else:
-        func = (
-            lambda x: vector_field_function(x, VecFld)
-            if "velocity_loss_traj" not in VecFld.keys()
-            else dynode_vector_field_function(x, VecFld)
-        )
+    if vector_field_class is None:
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys():
+            vf_dict["method"] = "sparsevfc"
+        if vf_dict["method"].lower() == "sparsevfc":
+            vector_field_class = SvcVectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict["method"].lower() == "dynode":
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     init_states, _, _, _ = fetch_states(adata, init_states, init_cells, basis, layer, False, None)
 
-    vec_mat = func(init_states)
+    if vector_field_class.vf_dict["normalize"]:
+        xm, xscale = vector_field_class.norm_dict["xm"][None, :], vector_field_class.norm_dict["xscale"]
+        init_states = (init_states - xm) / xscale
+    vec_mat = vector_field_class.func(init_states)
     vec_key = "velocities" if basis is None else "velocities_" + basis
 
     if np.isscalar(dims):
@@ -113,7 +121,7 @@ def velocities(
 def speed(
     adata,
     basis="umap",
-    VecFld=None,
+    vector_field_class=None,
     method="analytical",
 ):
     """Calculate the speed for each cell with the reconstructed vector field function.
@@ -124,8 +132,9 @@ def speed(
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         basis: str or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        VecFld: dict
-            The true ODE function, useful when the data is generated through simulation.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not None, the speed will be computed using this class instead of the vector field stored in adata. You
+            can set up the class with a known ODE function, useful when the data is generated through simulation.
         method: str (default: `analytical`)
             The method that will be used for calculating speed, either `analytical` or `numeric`. `analytical`
             method will use the analytical form of the reconstructed vector field for calculating Jacobian. Otherwise,
@@ -137,18 +146,26 @@ def speed(
             AnnData object that is updated with the `'speed'` key in the `.obs`.
     """
 
-    if VecFld is None:
-        VecFld, func = vecfld_from_adata(adata, basis)
+    if vector_field_class is None:
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys():
+            vf_dict["method"] = "sparsevfc"
+        if vf_dict["method"].lower() == "sparsevfc":
+            vector_field_class = SvcVectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict["method"].lower() == "dynode":
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError("current only support two methods, SparseVFC and dynode")
+
+    X, V = vector_field_class.get_data()
+
+    if method == "analytical":
+        vec_mat = vector_field_class.func(X)
     else:
-        func = (
-            lambda x: vector_field_function(x, VecFld)
-            if "velocity_loss_traj" not in VecFld.keys()
-            else dynode_vector_field_function(x, VecFld)
-        )
+        vec_mat = adata.obsm["velocity_" + basis] if basis is not None else vector_field_class.vf_dict["Y"]
 
-    X_data = adata.obsm["X_" + basis]
-
-    vec_mat = func(X_data) if method == "analytical" else adata.obsm["velocity_" + basis]
     speed = np.array([np.linalg.norm(i) for i in vec_mat])
 
     speed_key = "speed" if basis is None else "speed_" + basis
