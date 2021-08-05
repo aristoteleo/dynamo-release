@@ -400,6 +400,7 @@ def cell_wise_vectors(
             )
         X = adata[:, [x, y]].layers[ekey].A
         V = adata[:, [x, y]].layers[vkey].A
+        layer = ekey
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
@@ -474,8 +475,8 @@ def cell_wise_vectors(
     axes_list, color_list, _ = scatters(
         adata=adata,
         basis=basis,
-        x=x,
-        y=y,
+        x=X[:, 0],
+        y=X[:, 1],
         color=color,
         layer=layer,
         highlights=highlights,
@@ -656,6 +657,7 @@ def grid_vectors(
             )
         X = adata[:, [x, y]].layers[ekey].A
         V = adata[:, [x, y]].layers[vkey].A
+        layer = ekey
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
@@ -798,8 +800,8 @@ def grid_vectors(
     axes_list, _, font_color = scatters(
         adata=adata,
         basis=basis,
-        x=x,
-        y=y,
+        x=X[:, 0],
+        y=X[:, 1],
         color=color,
         layer=layer,
         highlights=highlights,
@@ -957,6 +959,7 @@ def streamline_plot(
             )
         X = adata[:, [x, y]].layers[ekey].A
         V = adata[:, [x, y]].layers[vkey].A
+        layer = ekey
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
@@ -1095,8 +1098,8 @@ def streamline_plot(
     axes_list, _, _ = scatters(
         adata=adata,
         basis=basis,
-        x=x,
-        y=y,
+        x=X[:, 0],
+        y=X[:, 1],
         color=color,
         layer=layer,
         highlights=highlights,

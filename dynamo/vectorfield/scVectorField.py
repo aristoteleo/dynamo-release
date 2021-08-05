@@ -168,11 +168,11 @@ def denorm(VecFld, X_old, V_old, norm_dict):
     VecFld["X"] = X_old
     VecFld["Y"] = Y_old
     # VecFld["X_ctrl"] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
-    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [X.shape[0], 1]) if grid is not None else None
+    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [grid.shape[0], 1]) if grid is not None else None
     VecFld["grid_V"] = (
-        (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [Y.shape[0], 1]) - grid if grid_V is not None else None
+        (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [grid_V.shape[0], 1]) - grid if grid_V is not None else None
     )
-    VecFld["V"] = V if fix_velocity else (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
+    VecFld["V"] = V if fix_velocity else (V + X) * y_scale + np.matlib.tile(ym, [V.shape[0], 1]) - X_old
     VecFld["norm_dict"] = norm_dict
 
     return VecFld
