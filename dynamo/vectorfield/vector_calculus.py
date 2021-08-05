@@ -589,6 +589,13 @@ def acceleration(
             layer_key="acceleration",
             genes=adata.var.use_for_pca,
         )
+    elif basis is None:
+        create_layer(
+            adata,
+            acce,
+            layer_key="acceleration",
+            genes=adata.var.use_for_pca,
+        )
 
 
 def curvature(
@@ -663,6 +670,13 @@ def curvature(
     if basis == "pca":
         curv_hi = vector_transformation(curv_mat, adata.uns[Qkey])
         create_layer(adata, curv_hi, layer_key="curvature", genes=adata.var.use_for_pca)
+    elif basis is None:
+        create_layer(
+            adata,
+            curv_mat,
+            layer_key="acceleration",
+            genes=adata.var.use_for_pca,
+        )
 
 
 def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
