@@ -47,6 +47,7 @@ def kde2d(x, y, h=None, n=25, lims=None):
     """Reproduce kde2d function behavior from MASS package in R.
     Two-dimensional kernel density estimation with an axis-aligned
     bivariate normal kernel, evaluated on a square grid.
+
     Arguments
     ---------
         x:  `List`
@@ -60,6 +61,7 @@ def kde2d(x, y, h=None, n=25, lims=None):
             Number of grid points in each direction.  Can be scalar or a length-2 integer list.
         lims: `List` (Default: None)
             The limits of the rectangle covered by the grid as :math:`x_l, x_u, y_l, y_u`.
+
     Returns
     -------
         A list of three components
@@ -106,18 +108,17 @@ def response(
     pairs_mat,
     xkey=None,
     ykey=None,
-    log=False,
+    log=True,
     drop_zero_cells=True,
-    delay=1,
-    k=5,
+    delay=0,
     grid_num=25,
     n_row=None,
     n_col=1,
-    scales="free",
+    cmap=None,
     show_ridge=False,
     show_rug=True,
+    figsize=(4, 4),
     return_data=False,
-    verbose=False,
 ):
     """Plot the lagged DREVI plot pairs of genes across pseudotime.
     This plotting function builds on the original idea of DREVI plot but is extended in the context for causal network.
@@ -128,6 +129,7 @@ def response(
     that this plot tries to demonstrate the potential influence between two variables instead of the factual influence.
     A red line corresponding to the point with maximal density on each :math:`x` value is plot which indicates the maximal possible
     point for :math:`y_t` give the value of :math:`x_{t - d}`. The 2-d density is estimated through the kde2d function.
+
     Arguments
     ---------
         adata: `Anndata`
@@ -136,15 +138,15 @@ def response(
             A matrix where each row is the gene pair and the first column is the hypothetical source or regulator while
             the second column represents the hypothetical target. The name in this matrix should match the name in the
             gene_short_name column of the adata object.
-        log: `bool` (Default: False)
+        log: `bool` (Default: True)
             A logic argument used to determine whether or not you should perform log transformation (using :math:`log(expression + 1)`)
             before calculating density estimates, default to be TRUE.
         drop_zero_cells: `bool` (Default: True)
             Whether to drop cells that with zero expression for either the potential regulator or potential target. This
             can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
             of ignoring strong inhibition effects from certain regulators to targets.
-        delay: `int` (Default: 1)
-            The time delay between the source and target gene.
+        delay: `int` (Default: 0)
+            The time delay between the source and target gene. Always zero because we don't have real time-series.
         k: `int` (Default: 5)
             Number of k-nearest neighbors used in calculating 2-D kernel density
         grid_num: `int` (Default: 25)
@@ -153,11 +155,7 @@ def response(
             number of columns used to layout the faceted cluster panels.
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
-        scales: `str` (Default: 'free')
-            The character string passed to facet function, determines whether or not the scale is fixed or free in
-            different dimensions. (not used)
-        verbose:
-            A logic argument to determine whether or not we should print the detailed running information.
+
     Returns
     -------
         In addition to figure created by matplotlib, it also returns:
@@ -178,13 +176,24 @@ def response(
     from matplotlib.ticker import MaxNLocator
 
     all_genes_in_pair = np.unique(pairs_mat)
+
+    if "pp" not in adata.uns_keys():
+        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
+
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
     if ykey is None:
         ykey = "M_n" if adata.uns["pp"]["has_labeling"] else "M_u"
-    cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-        "response", ["#000000", "#000000", "#000000", "#800080", "#FF0000", "#FFFF00"]
-    )
+
+    if xkey not in adata.layers.keys() or ykey not in adata.layers.keys():
+        raise Exception(
+            f"adata.layers doesn't have {xkey, ykey} layers. Please specify the correct layers or "
+            "perform relevant preprocessing and vector field analyses first."
+        )
+    if cmap is None:
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+            "response", ["#000000", "#000000", "#000000", "#800080", "#FF0000", "#FFFF00"]
+        )
     inset_dict = {
         "width": "5%",  # width = 5% of parent_bbox width
         "height": "50%",  # height : 50%
@@ -204,8 +213,8 @@ def response(
 
     id = 0
     for gene_pairs_ind, gene_pairs in enumerate(pairs_mat):
-        f_ini_ind = (grid_num ** 2) * id - 1
-        r_ini_ind = grid_num * id - 1
+        f_ini_ind = (grid_num ** 2) * id
+        r_ini_ind = grid_num * id
 
         gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
 
@@ -222,7 +231,9 @@ def response(
         x, y_ori = x[valid_ids], y_ori[valid_ids]
 
         if log:
-            x, y_ori = np.log(np.array(x) + 1), np.log(np.array(y_ori) + 1)
+            x, y_ori = x if sum(x < 0) else np.log(np.array(x) + 1), y_ori if sum(y_ori) < 0 else np.log(
+                np.array(y_ori) + 1
+            )
 
         if delay != 0:
             x = x[:-delay]
@@ -232,29 +243,29 @@ def response(
 
         # add LaTex equation in matlibplot
 
-        bandwidth = [bandwidth_nrd(x), bandwidth_nrd(y)]
+        bandwidth = [bandwidth_nrd(x)[0], bandwidth_nrd(y)[0]]
 
         if 0 in bandwidth:
             max_vec = [max(x), max(y)]
             bandwidth[bandwidth == 0] = max_vec[bandwidth == 0] / grid_num
 
+        # den_res[0, 0] is at the lower bottom; dens[1, 4]: is the 2th on x-axis and 5th on y-axis
         x_meshgrid, y_meshgrid, den_res = kde2d(
             x, y, n=[grid_num, grid_num], lims=[min(x), max(x), min(y), max(y)], h=bandwidth
         )
         den_res = np.array(den_res)
 
-        den_x = np.sum(den_res, axis=0)
-        max_ind = 1
-        den_res = den_res.tolist()
+        den_x = np.sum(den_res, axis=1)  # condition on each input x, sum over y
+        max_ind = 0
 
         for i in range(len(x_meshgrid)):
-            tmp = den_res[i] / den_x[i]
+            tmp = den_res[i] / den_x[i]  # condition on each input x, normalize over y
             max_val = max(tmp)
-            min_val = 0
+            min_val = min(tmp)
 
+            rescaled_val = (tmp - min_val) / (max_val - min_val)
             if np.sum(den_x[i] != 0):
-                rescaled_val = (den_res[i] / den_x[i] - min_val) / (max_val - min_val)
-                max_ind = np.argmax(rescaled_val)
+                max_ind = np.argmax(rescaled_val)  # the maximal y ind condition on input x
 
             res_Row = pd.DataFrame(
                 [[x_meshgrid[i], y_meshgrid[max_ind], gene_pair_name]],
@@ -263,32 +274,36 @@ def response(
             )
             ridge_curve = pd.concat([ridge_curve, res_Row])
 
-            for j in range(len(y_meshgrid)):
-                rescaled_val = (den_res[i][j] / den_x[i] - min_val) / (max_val - min_val)
-                res_Row = pd.DataFrame(
-                    [[x_meshgrid[i], y_meshgrid[j], rescaled_val, gene_pair_name]],
-                    columns=["x", "y", "den", "type"],
-                    index=[i * len(x_meshgrid) + j + f_ini_ind],
-                )
-                flat_res = pd.concat([flat_res, res_Row])
+            res_row = pd.DataFrame(
+                {
+                    "x": x_meshgrid[i],
+                    "y": y_meshgrid,
+                    "den": rescaled_val,
+                    "type": gene_pair_name,
+                },
+                index=[i * len(x_meshgrid) + np.arange(len(y_meshgrid)) + f_ini_ind],
+            )
+
+            flat_res = pd.concat([flat_res, res_row])
+
         cur_data = pd.DataFrame({"x": x, "y": y, "type": gene_pair_name})
         xy = pd.concat([xy, cur_data], axis=0)
 
         id = id + 1
 
-    gene_pairs_num = flat_res.type.value_counts().shape[0]
+    gene_pairs_num = len(flat_res.type.unique())
 
     n_row = gene_pairs_num if n_row is None else n_row
 
     if n_row * n_col < gene_pairs_num:
         raise Exception("The number of row or column specified is less than the gene pairs")
+    figsize = (figsize[0] * n_row, figsize[1] * n_col) if figsize is not None else (4 * n_row, 4 * n_col)
+    fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
 
-    fig, axes = plt.subplots(n_row, n_col, figsize=(8, 8), sharex=False, sharey=False, squeeze=False)
+    plt.xlabel(r"${0}$".format(xkey))
+    plt.ylabel(r"${0}$".format(ykey))
 
-    plt.xlabel(r"$x_{t-1}$")
-    plt.ylabel(r"$y_{t}$")
-
-    for x, flat_res_type in enumerate(flat_res.type.value_counts().index.values):
+    for x, flat_res_type in enumerate(flat_res.type.unique()):
         flat_res_subset = flat_res[flat_res["type"] == flat_res_type]
         ridge_curve_subset = ridge_curve[ridge_curve["type"] == flat_res_type]
         xy_subset = xy[xy["type"] == flat_res_type]
@@ -298,11 +313,12 @@ def response(
         i, j = x % n_row, x // n_row  # %: remainder; //: integer division
 
         values = flat_res_subset["den"].values.reshape(grid_num, grid_num).T
+        ext_lim = (min(x_val), max(x_val), min(y_val), max(y_val))
         im = axes[i, j].imshow(
             values,
             interpolation="mitchell",
             origin="lower",
-            extent=(min(x_val), max(x_val), min(y_val), max(y_val)),
+            extent=ext_lim,
             cmap=cmap,
         )
         axes[i, j].title.set_text(flat_res_type)
@@ -318,14 +334,15 @@ def response(
         cb.update_ticks()
 
         if show_ridge:
-            #         ridge_curve_subset = pd.DataFrame(flat_res_subset).loc[pd.DataFrame(flat_res_subset).groupby('x')['den'].idxmax()]
+            # ridge_curve_subset = pd.DataFrame(flat_res_subset).loc[pd.DataFrame(flat_res_subset).groupby('x')['den'].idxmax()]
             axes[i, j].plot(ridge_curve_subset["x"].values, ridge_curve_subset["y"].values, color="red")
             #         axes[i, j].plot(flat_res_subset['x'], [0.01]*len(flat_res_subset['x']), '|', color='white')
             #         axes[i, j].plot([0.01]*len(flat_res_subset['y']), flat_res_subset['y'], '|', color='white')
 
         if show_rug:
-            seaborn.rugplot(xy_subset["x"].values, height=0.05, axis="x", ax=axes[i, j], c="darkred", alpha=0.25)
-            seaborn.rugplot(xy_subset["y"].values, height=0.025, axis="y", ax=axes[i, j], c="darkred", alpha=0.25)
+            xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
+            seaborn.rugplot(xy_subset["x"].values, height=0.01, axis="x", ax=axes[i, j], c="darkred", alpha=0.1)
+            seaborn.rugplot(xy_subset["y"].values, height=0.01, axis="y", ax=axes[i, j], c="darkred", alpha=0.1)
 
     # fig.colorbar(im, ax=axes)
     plt.tight_layout()
@@ -347,19 +364,18 @@ def causality(
     xkey=None,
     ykey=None,
     zkey=None,
-    log=False,
+    log=True,
     drop_zero_cells=False,
-    delay=1,
-    k=5,
+    delay=0,
+    k=30,
     normalize=True,
     grid_num=25,
     n_row=None,
     n_col=1,
-    cmap=None,
-    scales="free",
+    cmap="bwr",
     show_rug=True,
+    figsize=(4, 4),
     return_data=False,
-    verbose=False,
 ):
     """Plot the heatmap for the expected value :math:`y(t)` given :math:`x(t - d)` and :math:`y(t - 1)`.
     This plotting function tries to intuitively visualize the informatioin transfer from :math:`x(t - d)` to :math:`y(t)`
@@ -370,6 +386,7 @@ def causality(
     :math:`y(t - 1)`. This function accepts a matrix where each row is the gene pair and the first column is the hypothetical
     source or regulator while the second column represents the hypothetical target. The name in this matrix should match
     the name in the gene_short_name column of the cds_subset object.
+
     Arguments
     ---------
         adata: `Anndata`
@@ -378,7 +395,7 @@ def causality(
             A matrix where each row is the gene pair and the first column is the hypothetical source or regulator while
             the second column represents the hypothetical target. The name in this matrix should match the name in the
             gene_short_name column of the adata object.
-        log: `bool` (Default: False)
+        log: `bool` (Default: True)
             A logic argument used to determine whether or not you should perform log transformation (using log(expression + 1))
             before calculating density estimates, default to be TRUE.
         drop_zero_cells: `bool` (Default: True)
@@ -386,7 +403,7 @@ def causality(
             can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
             of ignoring strong inhibition effects from certain regulators to targets.
         delay: `int` (Default: 1)
-            The time delay between the source and target gene.
+            The time delay between the source and target gene. Always zero because we don't have real time-series.
         k: `int` (Default: 5)
             Number of k-nearest neighbors used in calculating 2-D kernel density
         grid_num: `int` (Default: 25)
@@ -395,11 +412,7 @@ def causality(
             number of columns used to layout the faceted cluster panels.
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
-        scales: `str` (Default: 'free')
-            The character string passed to facet function, determines whether or not the scale is fixed or free in
-            different dimensions. (not used)
-        verbose:
-            A logic argument to determine whether or not we should print the detailed running information.
+
     Returns
     -------
         A figure created by matplotlib.
@@ -410,6 +423,10 @@ def causality(
     from matplotlib.ticker import MaxNLocator
 
     all_genes_in_pair = np.unique(pairs_mat)
+
+    if "pp" not in adata.uns_keys():
+        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
+
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
     if ykey is None:
@@ -420,6 +437,13 @@ def causality(
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
             "causality", ["#008000", "#ADFF2F", "#FFFF00", "#FFA500", "#FFC0CB", "#FFFFFE"]
         )
+
+    if xkey not in adata.layers.keys() or ykey not in adata.layers.keys() or zkey not in adata.layers.keys():
+        raise Exception(
+            f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
+            "perform relevant preprocessing and vector field analyses first."
+        )
+
     inset_dict = {
         "width": "5%",  # width = 5% of parent_bbox width
         "height": "50%",  # height : 50%
@@ -432,17 +456,11 @@ def causality(
             "adata doesn't include all genes in gene_pairs_mat. Make sure all genes are included in adata.var_names."
         )
 
-    if drop_zero_cells:
-        # sub_data = sub_data.loc[:, (sub_data > 0).sum(0) == 2]
-        pass
-
-    flat_res = pd.DataFrame(columns=["x", "z", "expected_y", "pair"])  ###empty df
+    flat_res = pd.DataFrame(columns=["x", "y", "expected_z", "pair"])
     xy = pd.DataFrame()
 
     id = 0
     for gene_pairs_ind in range(0, len(pairs_mat)):
-        # if verbose:
-        #     info("current gene pair is ", pairs_mat[gene_pairs_ind, 0], " -> ", pairs_mat[gene_pairs_ind, 1])
         gene_pairs = pairs_mat[gene_pairs_ind, :]
         f_ini_ind = (grid_num ** 2) * id
 
@@ -450,7 +468,12 @@ def causality(
 
         x = flatten(adata[:, gene_pairs[0]].layers[xkey])
         y_ori = flatten(adata[:, gene_pairs[1]].layers[ykey])
-        z_ori = flatten(adata[:, gene_pairs[2]].layers[zkey])
+        # if only 2 genes, it is causality plot; otherwise it comb_logic plot.
+        z_ori = (
+            flatten(adata[:, gene_pairs[2]].layers[zkey])
+            if len(gene_pairs) == 3
+            else flatten(adata[:, gene_pairs[1]].layers[zkey])
+        )
         if drop_zero_cells:
             finite = np.isfinite(x + y_ori + z_ori)
             nonzero = np.abs(x) + np.abs(y_ori) + np.abs(z_ori) > 0
@@ -462,7 +485,9 @@ def causality(
         x, y_ori, z_ori = x[valid_ids], y_ori[valid_ids], z_ori[valid_ids]
 
         if log:
-            x, y_ori = np.log(np.array(x) + 1), np.log(np.array(y_ori) + 1)
+            x = x if sum(x < 0) else np.log(np.array(x) + 1)
+            y_ori = y_ori if sum(y_ori) < 0 else np.log(np.array(y_ori) + 1)
+            z_ori = z_ori if sum(z_ori) < 0 else np.log(np.array(z_ori) + 1)
 
         if delay != 0:
             x = x[:-delay]
@@ -477,65 +502,67 @@ def causality(
         xy = pd.concat([xy, cur_data], axis=0)
 
         x_meshgrid = np.linspace(min(x), max(x), grid_num, endpoint=True)
-        z_meshgrid = np.linspace(min(z), max(z), grid_num, endpoint=True)
+        y_meshgrid = np.linspace(min(y), max(y), grid_num, endpoint=True)
 
-        xv, zv = np.meshgrid(x_meshgrid, z_meshgrid)
+        xv, yv = np.meshgrid(x_meshgrid, y_meshgrid)
         xp = xv.reshape((1, -1)).tolist()
-        zp = zv.reshape((1, -1)).tolist()
-        xz_query = np.array(xp + zp).T
-        tree_xz = ss.cKDTree(cur_data[["x", "y"]])
-        dist_mat, idx_mat = tree_xz.query(xz_query, k=k + 1)
+        yp = yv.reshape((1, -1)).tolist()
+        xy_query = np.array(xp + yp).T
+        tree_xy = ss.cKDTree(cur_data[["x", "y"]])
+        dist_mat, idx_mat = tree_xy.query(xy_query, k=k + 1)
 
         for i in range(dist_mat.shape[0]):
-            subset_dat = cur_data.iloc[idx_mat[i, 1:], 1]
-            u = np.exp(-dist_mat[i, 1:] / np.min(dist_mat[i, 1:]))
+            subset_dat = cur_data.iloc[idx_mat[i, 1:], 2]  # get the z value
+            u = np.exp(-dist_mat[i, 1:] / np.min(dist_mat[i][dist_mat[i] > 0]))
             w = u / np.sum(u)
 
             tmp = sum(np.array(w) * np.array(subset_dat))
             res_Row = pd.DataFrame(
-                [[xz_query[i, 0], xz_query[i, 1], tmp, gene_pair_name]],
-                columns=["x", "z", "expected_y", "pair"],
+                [[xy_query[i, 0], xy_query[i, 1], tmp, gene_pair_name]],
+                columns=["x", "y", "expected_z", "pair"],
                 index=[f_ini_ind + i],
             )
             flat_res = pd.concat([flat_res, res_Row])
         if normalize:
-            vals = flat_res["expected_y"][(f_ini_ind) : (f_ini_ind + len(dist_mat))]
+            vals = flat_res["expected_z"][(f_ini_ind) : (f_ini_ind + len(dist_mat))]
             max_val = max(vals.dropna().values.reshape(1, -1)[0])
             if not np.isfinite(max_val):
                 max_val = 1e10
 
-            flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_y"] = (
-                flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_y"] / max_val
+            flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_z"] = (
+                flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_z"] / max_val
             )
 
         id = id + 1
 
-    gene_pairs_num = flat_res.pair.value_counts().shape[0]
+    gene_pairs_num = len(flat_res.pair.unique())
 
     n_row = gene_pairs_num if n_row is None else n_row
 
     if n_row * n_col < gene_pairs_num:
         raise Exception("The number of row or column specified is less than the gene pairs")
 
-    fig, axes = plt.subplots(n_row, n_col, figsize=(8, 8), sharex=False, sharey=False, squeeze=False)
+    figsize = (figsize[0] * n_row, figsize[1] * n_col) if figsize is not None else (4 * n_row, 4 * n_col)
+    fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
 
-    plt.xlabel(r"$x_{t-1}$")
-    plt.ylabel(r"$y_{t}$")
+    plt.xlabel(r"${0}$".format(xkey))
+    plt.ylabel(r"${0}$".format(ykey))
 
-    for x, flat_res_type in enumerate(flat_res.pair.value_counts().index.values):
+    for x, flat_res_type in enumerate(flat_res.pair.unique()):
         flat_res_subset = flat_res[flat_res["pair"] == flat_res_type]
         xy_subset = xy[xy["pair"] == flat_res_type]
 
-        x_val, z_val = flat_res_subset["x"], flat_res_subset["z"]
+        x_val, y_val = flat_res_subset["x"], flat_res_subset["y"]
 
         i, j = x % n_row, x // n_row  # %: remainder; //: integer division
 
-        values = flat_res_subset["expected_y"].values.reshape(xv.shape)
+        values = flat_res_subset["expected_z"].values.reshape(xv.shape)
+        ext_lim = (min(x_val), max(x_val), min(y_val), max(y_val))
         im = axes[i, j].imshow(
             values,
             interpolation="mitchell",
             origin="lower",
-            extent=(min(x_val), max(x_val), min(z_val), max(z_val)),
+            extent=ext_lim,
             cmap=cmap,
         )
         norm = matplotlib.colors.Normalize(vmin=min(flatten(values)), vmax=max(flatten(values)))
@@ -551,11 +578,13 @@ def causality(
         #         axes[i, j].plot(flat_res_subset['x'], [0.01]*len(flat_res_subset['x']), '|', color='k')
         #         axes[i, j].plot([0.01]*len(flat_res_subset['z']), flat_res_subset['z'], '|', color='k')
         if show_rug:
-            seaborn.rugplot(xy_subset["x"].values, height=0.05, axis="x", ax=axes[i, j], c="darkred", alpha=0.25)
-            seaborn.rugplot(xy_subset["z"].values, height=0.025, axis="z", ax=axes[i, j], c="darkred", alpha=0.25)
-        axes[i, j].title.set_text(flat_res_type)
+            xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
+            seaborn.rugplot(xy_subset["x"].values, height=0.01, axis="x", ax=axes[i, j], c="darkred", alpha=0.1)
+            seaborn.rugplot(xy_subset["y"].values, height=0.01, axis="y", ax=axes[i, j], c="darkred", alpha=0.1)
+        axes[i, j].title.set_text(flat_res_type + r"{0}".format(zkey))
 
-    fig.colorbar(im, ax=axes)
+    # fig.colorbar(im, ax=axes)
+    plt.tight_layout()
     plt.show()
 
     if return_data:
@@ -572,17 +601,15 @@ def comb_logic(
     zkey=None,
     log=False,
     drop_zero_cells=False,
-    delay=1,
+    delay=0,
     grid_num=25,
     n_row=None,
     n_col=1,
-    cmap=None,
+    cmap="bwr",
     normalize=True,
-    scales="free",
-    k=5,
+    k=30,
     show_rug=True,
     return_data=False,
-    verbose=False,
 ):
     """Plot the combinatorial influence of two genes :math:`x`, :math:`y` to the target :math:`z`.
     This plotting function tries to intuitively visualize the influence from genes :math:`x` and :math:`y` to the target :math:`z`.
@@ -592,6 +619,7 @@ def comb_logic(
     and the target genes for this pair. The first column is the first hypothetical source or regulator, the second column represents
     the second hypothetical target while the third column represents the hypothetical target gene. The name in this matrix should match
     the name in the gene_short_name column of the cds_subset object.
+
     Arguments
     ---------
         adata: `Anndata`
@@ -608,7 +636,7 @@ def comb_logic(
             can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
             of ignoring strong inhibition effects from certain regulators to targets.
         delay: `int` (Default: 1)
-            The time delay between the source and target gene.
+            The time delay between the source and target gene. Always zero because we don't have real time-series.
         grid_num: `int` (Default: 25)
             The number of grid when creating the lagged DREVI plot.
         n_row: `int` (Default: None)
@@ -617,17 +645,16 @@ def comb_logic(
             Whether to row-scale the data
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
-        scales: `str` (Default: 'free')
-            The character string passed to facet function, determines whether or not the scale is fixed or free in
-            different dimensions. (not used)
-        verbose:
-            A logic argument to determine whether or not we should print the detailed running information.
+
     Returns
     -------
         A figure created by matplotlib.
     """
     import matplotlib
     from matplotlib.colors import ListedColormap
+
+    if "pp" not in adata.uns_keys():
+        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
 
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
@@ -636,8 +663,15 @@ def comb_logic(
     if zkey is None:
         zkey = "velocity_T" if adata.uns["pp"]["has_labeling"] else "velocity_S"
 
+    if xkey not in adata.layers.keys() or ykey not in adata.layers.keys() or zkey not in adata.layers.keys():
+        raise Exception(
+            f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
+            "perform relevant preprocessing and vector field analyses first."
+        )
+
     if cmap is None:
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list("comb_logic", ["#00CF8D", "#FFFF99", "#FF0000"])
+
     flat_res = causality(
         adata,
         pairs_mat,
@@ -653,10 +687,8 @@ def comb_logic(
         n_row=n_row,
         n_col=n_col,
         cmap=cmap,
-        scales=scales,
         show_rug=show_rug,
         return_data=return_data,
-        verbose=verbose,
     )
 
     if return_data:
