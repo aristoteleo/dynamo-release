@@ -599,7 +599,7 @@ def comb_logic(
     xkey=None,
     ykey=None,
     zkey=None,
-    log=False,
+    log=True,
     drop_zero_cells=False,
     delay=0,
     grid_num=25,
@@ -628,7 +628,7 @@ def comb_logic(
             A matrix where each row is the gene pair and the first and second columns are the hypothetical source or regulator while
             the third column represents the hypothetical target. The name in this matrix should match the name in the
             gene_short_name column of the adata object.
-        log: `bool` (Default: False)
+        log: `bool` (Default: True)
             A logic argument used to determine whether or not you should perform log transformation (using log(expression + 1))
             before calculating density estimates, default to be TRUE.
         drop_zero_cells: `bool` (Default: True)
