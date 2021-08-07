@@ -79,6 +79,7 @@ from .ezplots import (
 )
 
 from .clustering import louvain, leiden, infomap, streamline_clusters
+from .heatmaps import response, causality, comb_logic
 
 # spatial data related
 from .space import space
@@ -149,4 +150,7 @@ __all__ = [
     "SchemeDiverge",
     "SchemeDivergeBWR",
     "streamline_clusters",
+    "response",
+    "causality",
+    "comb_logic",
 ]

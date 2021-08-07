@@ -1120,3 +1120,60 @@ def parse_int_df(
             res[col + "_values"] = df[col + "_values"].loc[good_int].values
 
     return pd.DataFrame(res)
+
+
+# ---------------------------------------------------------------------------------------------------
+# jacobian retrival related utilies
+def get_jacobian(
+    adata,
+    regulators,
+    effectors,
+    jkey: str = "jacobian",
+    j_basis: str = "pca",
+):
+
+    regulators, effectors = (
+        list(np.unique(regulators)) if regulators is not None else None,
+        list(np.unique(effectors)) if effectors is not None else None,
+    )
+
+    Jacobian_ = jkey if j_basis is None else jkey + "_" + j_basis
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = (
+        adata.uns[Jacobian_].get(jkey.split("_")[-1]),
+        adata.uns[Jacobian_].get("cell_idx"),
+        adata.uns[Jacobian_].get(jkey.split("_")[-1] + "_gene"),
+        adata.uns[Jacobian_].get("regulators"),
+        adata.uns[Jacobian_].get("effectors"),
+    )
+
+    adata_ = adata[cell_indx, :]
+
+    if regulators is None and effectors is not None:
+        regulators = effectors
+    elif effectors is None and regulators is not None:
+        effectors = regulators
+    # test the simulation data here
+    if regulators_ is None or effectors_ is None:
+        if Der.shape[0] != adata_.n_vars:
+            source_genes = [j_basis + "_" + str(i) for i in range(Der.shape[0])]
+            target_genes = [j_basis + "_" + str(i) for i in range(Der.shape[1])]
+        else:
+            source_genes, target_genes = adata_.var_names, adata_.var_names
+    else:
+        Der, source_genes, target_genes = intersect_sources_targets(
+            regulators,
+            regulators_,
+            effectors,
+            effectors_,
+            Der if jacobian_gene is None else jacobian_gene,
+        )
+
+    df = pd.DataFrame(index=adata.obs_names[cell_indx])
+    for i, source in enumerate(source_genes):
+        for j, target in enumerate(target_genes):
+            J = Der[j, i, :]  # dim 0: target; dim 1: source
+            key = source + "->" + target + "_jacobian"
+            df[key] = np.nan
+            df.loc[:, key] = J
+
+    return df
