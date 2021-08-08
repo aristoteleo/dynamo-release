@@ -360,7 +360,7 @@ def response(
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
-        axes[i, j].title.set_text(gene_pairs[1] + r" ($\rho$)")
+        axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}$ ({ykey})")
         axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
         axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
