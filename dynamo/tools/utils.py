@@ -295,7 +295,9 @@ def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format=
 
 
 def flatten(arr):
-    if sp.issparse(arr):
+    if type(arr) == pd.core.series.Series:
+        ret = arr.values.flatten()
+    elif sp.issparse(arr):
         ret = arr.A.flatten()
     else:
         ret = arr.flatten()

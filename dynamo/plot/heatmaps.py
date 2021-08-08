@@ -7,6 +7,8 @@ from functools import reduce
 
 from ..tools.utils import flatten
 from ..plot.utils import despline_all
+from ..vectorfield.utils import get_jacobian
+from ..dynamo_logger import main_info_insert_adata, main_info, main_warning
 
 
 def bandwidth_nrd(x):
@@ -225,8 +227,29 @@ def response(
 
         gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
 
-        x = flatten(adata[:, gene_pairs[0]].layers[xkey])
-        y_ori = flatten(adata[:, gene_pairs[1]].layers[ykey])
+        if xkey.startswith("jacobian"):
+            J_df = get_jacobian(
+                adata,
+                gene_pairs[0],
+                gene_pairs[1],
+            )
+            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+
+            x = flatten(J_df[jkey])
+        else:
+            x = flatten(adata[:, gene_pairs[0]].layers[xkey])
+        if xkey.startswith("jacobian"):
+            J_df = get_jacobian(
+                adata,
+                gene_pairs[0],
+                gene_pairs[1],
+            )
+            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+
+            y_ori = flatten(J_df[jkey])
+        else:
+            y_ori = flatten(adata[:, gene_pairs[1]].layers[ykey])
+
         if drop_zero_cells:
             finite = np.isfinite(x + y_ori)
             nonzero = np.abs(x) + np.abs(y_ori) > 0
@@ -389,7 +412,7 @@ def causality(
     grid_num=25,
     n_row=1,
     n_col=None,
-    cmap="bwr",
+    cmap="viridis",
     show_rug=True,
     show_extent=False,
     figsize=(6, 4),
@@ -489,14 +512,51 @@ def causality(
 
         gene_pair_name = reduce(lambda a, b: a + "->" + b, gene_pairs)
 
-        x = flatten(adata[:, gene_pairs[0]].layers[xkey])
-        y_ori = flatten(adata[:, gene_pairs[1]].layers[ykey])
+        if xkey.startswith("jacobian"):
+            J_df = get_jacobian(
+                adata,
+                gene_pairs[0],
+                gene_pairs[1],
+            )
+            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+
+            x = flatten(J_df[jkey])
+        else:
+            x = flatten(adata[:, gene_pairs[0]].layers[xkey])
+        if xkey.startswith("jacobian"):
+            J_df = get_jacobian(
+                adata,
+                gene_pairs[0],
+                gene_pairs[1],
+            )
+            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+
+            y_ori = flatten(J_df[jkey])
+        else:
+            y_ori = flatten(adata[:, gene_pairs[1]].layers[ykey])
+
         # if only 2 genes, it is causality plot; otherwise it comb_logic plot.
-        z_ori = (
-            flatten(adata[:, gene_pairs[2]].layers[zkey])
-            if len(gene_pairs) == 3
-            else flatten(adata[:, gene_pairs[1]].layers[zkey])
-        )
+        if xkey.startswith("jacobian"):
+            J_df = get_jacobian(
+                adata,
+                gene_pairs[0],
+                gene_pairs[1],
+            )
+
+            if len(gene_pairs) == 3:
+                main_warning(
+                    "your gene_pair_mat has three column, only the genes from first two columns will be used "
+                    "to retrieve Jacobian."
+                )
+            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+
+            z_ori = flatten(J_df[jkey])
+        else:
+            z_ori = (
+                flatten(adata[:, gene_pairs[2]].layers[zkey])
+                if len(gene_pairs) == 3
+                else flatten(adata[:, gene_pairs[1]].layers[zkey])
+            )
         if drop_zero_cells:
             finite = np.isfinite(x + y_ori + z_ori)
             nonzero = np.abs(x) + np.abs(y_ori) + np.abs(z_ori) > 0
@@ -583,12 +643,15 @@ def causality(
         axins = inset_axes(axes[i, j], bbox_transform=axes[i, j].transAxes, **inset_dict)
 
         ext_lim = (min(x_val), max(x_val), min(y_val), max(y_val))
+        v_min, v_max, v_abs_max = min(values.flatten()), max(values.flatten()), max(abs(values.flatten()))
         im = axes[i, j].imshow(
             values,
             interpolation="mitchell",
             origin="lower",
             extent=ext_lim if show_extent else None,
             cmap=cmap,
+            vmin=v_min if v_min >= 0 else -v_abs_max,
+            vmax=v_max if v_min >= 0 else v_abs_max,
         )
         cb = fig.colorbar(im, cax=axins)
         cb.set_alpha(1)
