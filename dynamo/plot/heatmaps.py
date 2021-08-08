@@ -360,15 +360,12 @@ def response(
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
-        axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ ({ykey})")
+        axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ (${ykey}$)")
         axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
         axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
         if show_ridge:
-            # ridge_curve_subset = pd.DataFrame(flat_res_subset).loc[pd.DataFrame(flat_res_subset).groupby('x')['den'].idxmax()]
             axes[i, j].plot(ridge_curve_subset["x"].values, ridge_curve_subset["y"].values, color="red")
-            #         axes[i, j].plot(flat_res_subset['x'], [0.01]*len(flat_res_subset['x']), '|', color='white')
-            #         axes[i, j].plot([0.01]*len(flat_res_subset['y']), flat_res_subset['y'], '|', color='white')
 
         if show_rug:
             xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
@@ -397,11 +394,6 @@ def response(
             axes[i, j].set_xticklabels(xlabels)
 
         axes[i, j].set_yticklabels(ylabels)
-
-        # axes[i, j].get_xaxis().get_major_formatter().set_useOffset(True)
-        # axes[i, j].get_xaxis().get_major_formatter().set_useOffset(True)
-
-    # plt.ticklabel_format(axis="both", style="sci") # , scilimits=(0, 0)
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
     plt.tight_layout()
