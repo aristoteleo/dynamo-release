@@ -621,7 +621,11 @@ def causality(
 
         for i in range(dist_mat.shape[0]):
             subset_dat = cur_data.iloc[idx_mat[i, 1:], 2]  # get the z value
-            u = np.exp(-dist_mat[i, 1:] / np.min(dist_mat[i][dist_mat[i] > 0]))
+            u = (
+                np.exp(-dist_mat[i, 1:])
+                if sum(dist_mat[i] > 0) == 0
+                else np.exp(-dist_mat[i, 1:] / np.min(dist_mat[i][dist_mat[i] > 0]))
+            )
             w = u / np.sum(u)
 
             tmp = sum(np.array(w) * np.array(subset_dat))
