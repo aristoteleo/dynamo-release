@@ -194,7 +194,7 @@ def response(
     if ykey is None:
         ykey = "M_n" if adata.uns["pp"]["has_labeling"] else "M_u"
 
-    if xkey not in adata.layers.keys() or ykey not in adata.layers.keys():
+    if not set([xkey, ykey]) <= set(adata.layers.keys()).union(set(["jacobian"])):
         raise Exception(
             f"adata.layers doesn't have {xkey, ykey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
@@ -233,7 +233,7 @@ def response(
                 gene_pairs[0],
                 gene_pairs[1],
             )
-            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+            jkey = gene_pairs[0] + "->" + gene_pairs[1] + "_jacobian"
 
             x = flatten(J_df[jkey])
         else:
@@ -245,7 +245,7 @@ def response(
                 gene_pairs[0],
                 gene_pairs[1],
             )
-            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+            jkey = gene_pairs[0] + "->" + gene_pairs[1] + "_jacobian"
 
             y_ori = flatten(J_df[jkey])
         else:
@@ -485,7 +485,7 @@ def causality(
             "causality", ["#008000", "#ADFF2F", "#FFFF00", "#FFA500", "#FFC0CB", "#FFFFFE"]
         )
 
-    if xkey not in adata.layers.keys() or ykey not in adata.layers.keys() or zkey not in adata.layers.keys():
+    if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian"])):
         raise Exception(
             f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
@@ -519,7 +519,7 @@ def causality(
                 gene_pairs[0],
                 gene_pairs[1],
             )
-            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+            jkey = gene_pairs[0] + "->" + gene_pairs[1] + "_jacobian"
 
             x = flatten(J_df[jkey])
         else:
@@ -531,7 +531,7 @@ def causality(
                 gene_pairs[0],
                 gene_pairs[1],
             )
-            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+            jkey = gene_pairs[0] + "->" + gene_pairs[1] + "_jacobian"
 
             y_ori = flatten(J_df[jkey])
         else:
