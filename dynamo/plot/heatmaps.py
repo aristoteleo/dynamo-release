@@ -769,7 +769,7 @@ def comb_logic(
     if zkey is None:
         zkey = "velocity_T" if adata.uns["pp"]["has_labeling"] else "velocity_S"
 
-    if xkey not in adata.layers.keys() or ykey not in adata.layers.keys() or zkey not in adata.layers.keys():
+    if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian"])):
         raise Exception(
             f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
