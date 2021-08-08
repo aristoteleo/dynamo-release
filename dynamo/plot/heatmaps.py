@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import scipy.spatial as ss
 import seaborn
+from functools import reduce
 
 from ..tools.utils import flatten
 from ..plot.utils import despline_all
@@ -486,7 +487,7 @@ def causality(
         gene_pairs = pairs_mat[gene_pairs_ind, :]
         f_ini_ind = (grid_num ** 2) * id
 
-        gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
+        gene_pair_name = reduce(lambda a, b: a + "->" + b, gene_pairs)
 
         x = flatten(adata[:, gene_pairs[0]].layers[xkey])
         y_ori = flatten(adata[:, gene_pairs[1]].layers[ykey])
@@ -596,9 +597,9 @@ def causality(
         cb.update_ticks()
 
         if len(gene_pairs) == 3:
-            axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ ({zkey})")
+            axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
         else:
-            axes[i, j].title.set_text(rf"$E_{{{gene_pairs[1]}}}$({zkey})")
+            axes[i, j].title.set_text(rf"$E_{{{gene_pairs[1]}}}$ (${zkey}$)")
 
         axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
         axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
