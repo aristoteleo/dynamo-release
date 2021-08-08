@@ -238,7 +238,8 @@ def response(
             x = flatten(J_df[jkey])
         else:
             x = flatten(adata[:, gene_pairs[0]].layers[xkey])
-        if xkey.startswith("jacobian"):
+
+        if ykey.startswith("jacobian"):
             J_df = get_jacobian(
                 adata,
                 gene_pairs[0],
@@ -523,7 +524,8 @@ def causality(
             x = flatten(J_df[jkey])
         else:
             x = flatten(adata[:, gene_pairs[0]].layers[xkey])
-        if xkey.startswith("jacobian"):
+
+        if ykey.startswith("jacobian"):
             J_df = get_jacobian(
                 adata,
                 gene_pairs[0],
@@ -536,7 +538,7 @@ def causality(
             y_ori = flatten(adata[:, gene_pairs[1]].layers[ykey])
 
         # if only 2 genes, it is causality plot; otherwise it comb_logic plot.
-        if xkey.startswith("jacobian"):
+        if zkey.startswith("jacobian"):
             J_df = get_jacobian(
                 adata,
                 gene_pairs[0],
@@ -557,6 +559,7 @@ def causality(
                 if len(gene_pairs) == 3
                 else flatten(adata[:, gene_pairs[1]].layers[zkey])
             )
+
         if drop_zero_cells:
             finite = np.isfinite(x + y_ori + z_ori)
             nonzero = np.abs(x) + np.abs(y_ori) + np.abs(z_ori) > 0
