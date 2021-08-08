@@ -365,15 +365,16 @@ def response(
         valid_ids = np.logical_and(closest_x_ind < grid_num, closest_y_ind < grid_num)
         axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
 
-        axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ (${ykey}$)")
         if xkey.startswith("jacobian"):
-            axes[i, j].set_xlabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
+            axes[i, j].set_xlabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$")
         else:
             axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
         if ykey.startswith("jacobian"):
             axes[i, j].set_ylabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
+            axes[i, j].title.set_text(rf"$\rho(J_{{{gene_pairs[0], gene_pairs[1]}}})$")
         else:
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
+            axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ (${ykey}$)")
 
         if show_ridge:
             axes[i, j].plot(ridge_curve_subset["x"].values, ridge_curve_subset["y"].values, color="red")
@@ -689,12 +690,12 @@ def causality(
         axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
 
         if xkey.startswith("jacobian"):
-            axes[i, j].set_xlabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
+            axes[i, j].set_xlabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$")
         else:
             axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
 
         if ykey.startswith("jacobian"):
-            axes[i, j].set_ylabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
+            axes[i, j].set_ylabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$")
         else:
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
