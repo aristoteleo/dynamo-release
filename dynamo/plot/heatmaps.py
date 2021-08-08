@@ -307,6 +307,8 @@ def response(
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
 
     for x, flat_res_type in enumerate(flat_res.type.unique()):
+        gene_pairs = flat_res_type.split("->")
+
         flat_res_subset = flat_res[flat_res["type"] == flat_res_type]
         ridge_curve_subset = ridge_curve[ridge_curve["type"] == flat_res_type]
         xy_subset = xy[xy["type"] == flat_res_type]
@@ -333,9 +335,9 @@ def response(
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
-        axes[i, j].title.set_text(flat_res_type)
-        axes[i, j].set_xlabel(r"${0}$".format(xkey))
-        axes[i, j].set_ylabel(r"${0}$".format(ykey))
+        axes[i, j].title.set_text(gene_pairs[1] + r" ($\rho$)")
+        axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
+        axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
         if show_ridge:
             # ridge_curve_subset = pd.DataFrame(flat_res_subset).loc[pd.DataFrame(flat_res_subset).groupby('x')['den'].idxmax()]
@@ -566,6 +568,8 @@ def causality(
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
 
     for x, flat_res_type in enumerate(flat_res.pair.unique()):
+        gene_pairs = flat_res_type.split("->")
+
         flat_res_subset = flat_res[flat_res["pair"] == flat_res_type]
         xy_subset = xy[xy["pair"] == flat_res_type]
 
@@ -590,10 +594,14 @@ def causality(
         cb.draw_all()
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
-        axes[i, j].set_xlabel(r"${0}$".format(xkey))
-        axes[i, j].set_ylabel(r"${0}$".format(ykey))
 
-        axes[i, j].title.set_text(flat_res_type + r"{0}".format(zkey))
+        if len(gene_pairs) == 3:
+            axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ ({zkey})")
+        else:
+            axes[i, j].title.set_text(rf"$E_{{{gene_pairs[1]}}}$({zkey})")
+
+        axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
+        axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
         if show_rug:
             xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
