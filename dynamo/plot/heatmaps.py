@@ -550,7 +550,7 @@ def causality(
                     "your gene_pair_mat has three column, only the genes from first two columns will be used "
                     "to retrieve Jacobian."
                 )
-            jkey = gene_pairs[0] + "->" + gene_pairs[0] + "_jacobian"
+            jkey = gene_pairs[0] + "->" + gene_pairs[1] + "_jacobian"
 
             z_ori = flatten(J_df[jkey])
         else:
