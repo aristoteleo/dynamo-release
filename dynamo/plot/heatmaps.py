@@ -5,7 +5,7 @@ import scipy.spatial as ss
 import seaborn
 
 from ..tools.utils import flatten
-from ..plot.utils import set_colorbar
+from ..plot.utils import despline_all
 
 
 def bandwidth_nrd(x):
@@ -112,12 +112,13 @@ def response(
     drop_zero_cells=True,
     delay=0,
     grid_num=25,
-    n_row=None,
-    n_col=1,
+    n_row=1,
+    n_col=None,
     cmap=None,
     show_ridge=False,
     show_rug=True,
-    figsize=(4, 4),
+    show_extent=False,
+    figsize=(6, 4),
     return_data=False,
 ):
     """Plot the lagged DREVI plot pairs of genes across pseudotime.
@@ -174,6 +175,11 @@ def response(
     import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap
     from matplotlib.ticker import MaxNLocator
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+    if show_extent is False:
+        show_ridge = False
+        show_rug = False
 
     all_genes_in_pair = np.unique(pairs_mat)
 
@@ -198,7 +204,7 @@ def response(
         "width": "5%",  # width = 5% of parent_bbox width
         "height": "50%",  # height : 50%
         "loc": "lower left",
-        "bbox_to_anchor": (1.05, 0.0, 1, 1),
+        "bbox_to_anchor": (1.0125, 0.0, 1, 1),
         "borderpad": 0,
     }
 
@@ -243,7 +249,7 @@ def response(
 
         # add LaTex equation in matlibplot
 
-        bandwidth = [bandwidth_nrd(x)[0], bandwidth_nrd(y)[0]]
+        bandwidth = [bandwidth_nrd(x), bandwidth_nrd(y)]
 
         if 0 in bandwidth:
             max_vec = [max(x), max(y)]
@@ -293,15 +299,12 @@ def response(
 
     gene_pairs_num = len(flat_res.type.unique())
 
-    n_row = gene_pairs_num if n_row is None else n_row
+    n_col = gene_pairs_num if n_col is None else n_col
 
     if n_row * n_col < gene_pairs_num:
         raise Exception("The number of row or column specified is less than the gene pairs")
-    figsize = (figsize[0] * n_row, figsize[1] * n_col) if figsize is not None else (4 * n_row, 4 * n_col)
+    figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
-
-    plt.xlabel(r"${0}$".format(xkey))
-    plt.ylabel(r"${0}$".format(ykey))
 
     for x, flat_res_type in enumerate(flat_res.type.unique()):
         flat_res_subset = flat_res[flat_res["type"] == flat_res_type]
@@ -313,25 +316,26 @@ def response(
         i, j = x % n_row, x // n_row  # %: remainder; //: integer division
 
         values = flat_res_subset["den"].values.reshape(grid_num, grid_num).T
+
+        axins = inset_axes(axes[i, j], bbox_transform=axes[i, j].transAxes, **inset_dict)
+
         ext_lim = (min(x_val), max(x_val), min(y_val), max(y_val))
         im = axes[i, j].imshow(
             values,
             interpolation="mitchell",
             origin="lower",
-            extent=ext_lim,
+            extent=ext_lim if show_extent else None,
             cmap=cmap,
         )
-        axes[i, j].title.set_text(flat_res_type)
-
-        norm = matplotlib.colors.Normalize(vmin=min(flatten(values)), vmax=min(flatten(values)))
-
-        mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
-        mappable.set_array(values)
-        cb = plt.colorbar(mappable, cax=set_colorbar(axes[i, j], inset_dict), ax=axes[i, j])
+        cb = fig.colorbar(im, cax=axins)
         cb.set_alpha(1)
         cb.draw_all()
-        cb.locator = MaxNLocator(nbins=3, integer=True)
+        cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
+
+        axes[i, j].title.set_text(flat_res_type)
+        axes[i, j].set_xlabel(r"${0}$".format(xkey))
+        axes[i, j].set_ylabel(r"${0}$".format(ykey))
 
         if show_ridge:
             # ridge_curve_subset = pd.DataFrame(flat_res_subset).loc[pd.DataFrame(flat_res_subset).groupby('x')['den'].idxmax()]
@@ -344,7 +348,17 @@ def response(
             seaborn.rugplot(xy_subset["x"].values, height=0.01, axis="x", ax=axes[i, j], c="darkred", alpha=0.1)
             seaborn.rugplot(xy_subset["y"].values, height=0.01, axis="y", ax=axes[i, j], c="darkred", alpha=0.1)
 
-    # fig.colorbar(im, ax=axes)
+        if not show_extent:
+            despline_all(axes[i, j])
+
+        # for some reason,  I have add an extra element at the beginingfor the ticklabels
+        xlabels = [0] + list(np.round(np.linspace(ext_lim[0], ext_lim[1], 5), 2))
+        ylabels = [0] + list(np.round(np.linspace(ext_lim[2], ext_lim[3], 5), 2))
+
+        axes[i, j].set_xticklabels(xlabels)
+        axes[i, j].set_yticklabels(ylabels)
+
+    plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
     plt.tight_layout()
     plt.show()
 
@@ -370,12 +384,14 @@ def causality(
     k=30,
     normalize=True,
     grid_num=25,
-    n_row=None,
-    n_col=1,
+    n_row=1,
+    n_col=None,
     cmap="bwr",
     show_rug=True,
-    figsize=(4, 4),
+    show_extent=False,
+    figsize=(6, 4),
     return_data=False,
+    **kwargs,
 ):
     """Plot the heatmap for the expected value :math:`y(t)` given :math:`x(t - d)` and :math:`y(t - 1)`.
     This plotting function tries to intuitively visualize the informatioin transfer from :math:`x(t - d)` to :math:`y(t)`
@@ -421,6 +437,10 @@ def causality(
     import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap
     from matplotlib.ticker import MaxNLocator
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+    if show_extent is False:
+        show_rug = False
 
     all_genes_in_pair = np.unique(pairs_mat)
 
@@ -448,7 +468,7 @@ def causality(
         "width": "5%",  # width = 5% of parent_bbox width
         "height": "50%",  # height : 50%
         "loc": "lower left",
-        "bbox_to_anchor": (1.05, 0.0, 1, 1),
+        "bbox_to_anchor": (1.0125, 0.0, 1, 1),
         "borderpad": 0,
     }
     if not (set(all_genes_in_pair) <= set(adata.var_names)):
@@ -537,16 +557,13 @@ def causality(
 
     gene_pairs_num = len(flat_res.pair.unique())
 
-    n_row = gene_pairs_num if n_row is None else n_row
+    n_col = gene_pairs_num if n_col is None else n_col
 
     if n_row * n_col < gene_pairs_num:
         raise Exception("The number of row or column specified is less than the gene pairs")
 
-    figsize = (figsize[0] * n_row, figsize[1] * n_col) if figsize is not None else (4 * n_row, 4 * n_col)
+    figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
-
-    plt.xlabel(r"${0}$".format(xkey))
-    plt.ylabel(r"${0}$".format(ykey))
 
     for x, flat_res_type in enumerate(flat_res.pair.unique()):
         flat_res_subset = flat_res[flat_res["pair"] == flat_res_type]
@@ -557,40 +574,52 @@ def causality(
         i, j = x % n_row, x // n_row  # %: remainder; //: integer division
 
         values = flat_res_subset["expected_z"].values.reshape(xv.shape)
+
+        axins = inset_axes(axes[i, j], bbox_transform=axes[i, j].transAxes, **inset_dict)
+
         ext_lim = (min(x_val), max(x_val), min(y_val), max(y_val))
         im = axes[i, j].imshow(
             values,
             interpolation="mitchell",
             origin="lower",
-            extent=ext_lim,
+            extent=ext_lim if show_extent else None,
             cmap=cmap,
         )
-        norm = matplotlib.colors.Normalize(vmin=min(flatten(values)), vmax=max(flatten(values)))
-
-        mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
-        mappable.set_array(values)
-        cb = plt.colorbar(mappable, cax=set_colorbar(axes[i, j], inset_dict), ax=axes[i, j])
+        cb = fig.colorbar(im, cax=axins)
         cb.set_alpha(1)
         cb.draw_all()
-        cb.locator = MaxNLocator(nbins=3, integer=True)
+        cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
+        axes[i, j].set_xlabel(r"${0}$".format(xkey))
+        axes[i, j].set_ylabel(r"${0}$".format(ykey))
 
-        #         axes[i, j].plot(flat_res_subset['x'], [0.01]*len(flat_res_subset['x']), '|', color='k')
-        #         axes[i, j].plot([0.01]*len(flat_res_subset['z']), flat_res_subset['z'], '|', color='k')
+        axes[i, j].title.set_text(flat_res_type + r"{0}".format(zkey))
+
         if show_rug:
             xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
             seaborn.rugplot(xy_subset["x"].values, height=0.01, axis="x", ax=axes[i, j], c="darkred", alpha=0.1)
             seaborn.rugplot(xy_subset["y"].values, height=0.01, axis="y", ax=axes[i, j], c="darkred", alpha=0.1)
-        axes[i, j].title.set_text(flat_res_type + r"{0}".format(zkey))
 
-    # fig.colorbar(im, ax=axes)
+        #         axes[i, j].plot(flat_res_subset['x'], [0.01]*len(flat_res_subset['x']), '|', color='k')
+        #         axes[i, j].plot([0.01]*len(flat_res_subset['z']), flat_res_subset['z'], '|', color='k')
+        if not show_extent:
+            despline_all(axes[i, j])
+
+        # for some reason,  I have add an extra element at the beginingfor the ticklabels
+        xlabels = [0] + list(np.round(np.linspace(ext_lim[0], ext_lim[1], 5), 2))
+        ylabels = [0] + list(np.round(np.linspace(ext_lim[2], ext_lim[3], 5), 2))
+
+        axes[i, j].set_xticklabels(xlabels)
+        axes[i, j].set_yticklabels(ylabels)
+
+    plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
     plt.tight_layout()
     plt.show()
 
     if return_data:
         return flat_res
     else:
-        adata.uns["causality"] = flat_res
+        adata.uns[kwargs.pop("save_key", "causality")] = flat_res
 
 
 def comb_logic(
@@ -603,12 +632,14 @@ def comb_logic(
     drop_zero_cells=False,
     delay=0,
     grid_num=25,
-    n_row=None,
-    n_col=1,
+    n_row=1,
+    n_col=None,
     cmap="bwr",
     normalize=True,
     k=30,
     show_rug=True,
+    show_extent=False,
+    figsize=(6, 4),
     return_data=False,
 ):
     """Plot the combinatorial influence of two genes :math:`x`, :math:`y` to the target :math:`z`.
@@ -672,26 +703,47 @@ def comb_logic(
     if cmap is None:
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list("comb_logic", ["#00CF8D", "#FFFF99", "#FF0000"])
 
-    flat_res = causality(
-        adata,
-        pairs_mat,
-        xkey=xkey,
-        ykey=ykey,
-        zkey=zkey,
-        log=log,
-        drop_zero_cells=drop_zero_cells,
-        delay=delay,
-        k=k,
-        normalize=normalize,
-        grid_num=grid_num,
-        n_row=n_row,
-        n_col=n_col,
-        cmap=cmap,
-        show_rug=show_rug,
-        return_data=return_data,
-    )
-
     if return_data:
+        flat_res = causality(
+            adata,
+            pairs_mat,
+            xkey=xkey,
+            ykey=ykey,
+            zkey=zkey,
+            log=log,
+            drop_zero_cells=drop_zero_cells,
+            delay=delay,
+            k=k,
+            normalize=normalize,
+            grid_num=grid_num,
+            n_row=n_row,
+            n_col=n_col,
+            cmap=cmap,
+            show_rug=show_rug,
+            show_extent=show_extent,
+            figsize=figsize,
+            return_data=return_data,
+        )
         return flat_res
     else:
-        adata.uns["comb_logic"] = adata.uns["causality"]
+        causality(
+            adata,
+            pairs_mat,
+            xkey=xkey,
+            ykey=ykey,
+            zkey=zkey,
+            log=log,
+            drop_zero_cells=drop_zero_cells,
+            delay=delay,
+            k=k,
+            normalize=normalize,
+            grid_num=grid_num,
+            n_row=n_row,
+            n_col=n_col,
+            cmap=cmap,
+            show_rug=show_rug,
+            show_extent=show_extent,
+            figsize=figsize,
+            return_data=return_data,
+            save_key="comb_logic",
+        )
