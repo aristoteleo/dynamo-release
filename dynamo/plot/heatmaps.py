@@ -360,7 +360,7 @@ def response(
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
-        axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}$ ({ykey})")
+        axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ ({ykey})")
         axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
         axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
@@ -379,11 +379,29 @@ def response(
             despline_all(axes[i, j])
 
         # for some reason,  I have add an extra element at the beginingfor the ticklabels
-        xlabels = [0] + list(np.round(np.linspace(ext_lim[0], ext_lim[1], 5), 2))
-        ylabels = [0] + list(np.round(np.linspace(ext_lim[2], ext_lim[3], 5), 2))
+        xlabels = [0] + list(np.linspace(ext_lim[0], ext_lim[1], 5))
+        ylabels = [0] + list(np.linspace(ext_lim[2], ext_lim[3], 5))
 
-        axes[i, j].set_xticklabels(xlabels)
+        if ext_lim[1] < 1e-2:
+            xlabels = ["{:.2e}".format(i) for i in xlabels]
+        else:
+            xlabels = [np.round(i, 2) for i in xlabels]
+        if ext_lim[3] < 1e-2:
+            ylabels = ["{:.2e}".format(i) for i in ylabels]
+        else:
+            ylabels = [np.round(i, 2) for i in ylabels]
+
+        if ext_lim[1] < 1e-2:
+            axes[i, j].set_xticklabels(xlabels, rotation=30, ha="right")
+        else:
+            axes[i, j].set_xticklabels(xlabels)
+
         axes[i, j].set_yticklabels(ylabels)
+
+        # axes[i, j].get_xaxis().get_major_formatter().set_useOffset(True)
+        # axes[i, j].get_xaxis().get_major_formatter().set_useOffset(True)
+
+    # plt.ticklabel_format(axis="both", style="sci") # , scilimits=(0, 0)
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
     plt.tight_layout()
@@ -684,8 +702,23 @@ def causality(
         xlabels = [0] + list(np.round(np.linspace(ext_lim[0], ext_lim[1], 5), 2))
         ylabels = [0] + list(np.round(np.linspace(ext_lim[2], ext_lim[3], 5), 2))
 
-        axes[i, j].set_xticklabels(xlabels)
+        if ext_lim[1] < 1e-2:
+            xlabels = ["{:.2e}".format(i) for i in xlabels]
+        else:
+            xlabels = [np.round(i, 2) for i in xlabels]
+        if ext_lim[3] < 1e-2:
+            ylabels = ["{:.2e}".format(i) for i in ylabels]
+        else:
+            ylabels = [np.round(i, 2) for i in ylabels]
+
+        if ext_lim[1] < 1e-2:
+            axes[i, j].set_xticklabels(xlabels, rotation=30, ha="right")
+        else:
+            axes[i, j].set_xticklabels(xlabels)
+
         axes[i, j].set_yticklabels(ylabels)
+
+    plt.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
     plt.tight_layout()
