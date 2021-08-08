@@ -360,9 +360,20 @@ def response(
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
+        closest_x_ind = np.array([np.searchsorted(x_meshgrid, i) for i in xy_subset["x"].values])
+        closest_y_ind = np.array([np.searchsorted(y_meshgrid, i) for i in xy_subset["y"].values])
+        valid_ids = np.logical_and(closest_x_ind < grid_num, closest_y_ind < grid_num)
+        axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
+
         axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ (${ykey}$)")
-        axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
-        axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
+        if xkey.startswith("jacobian"):
+            axes[i, j].set_xlabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
+        else:
+            axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
+        if ykey.startswith("jacobian"):
+            axes[i, j].set_ylabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
+        else:
+            axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
         if show_ridge:
             axes[i, j].plot(ridge_curve_subset["x"].values, ridge_curve_subset["y"].values, color="red")
@@ -672,13 +683,28 @@ def causality(
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
-        if len(gene_pairs) == 3:
-            axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
-        else:
-            axes[i, j].title.set_text(rf"$E_{{{gene_pairs[1]}}}$ (${zkey}$)")
+        closest_x_ind = np.array([np.searchsorted(x_meshgrid, i) for i in xy_subset["x"].values])
+        closest_y_ind = np.array([np.searchsorted(y_meshgrid, i) for i in xy_subset["y"].values])
+        valid_ids = np.logical_and(closest_x_ind < grid_num, closest_y_ind < grid_num)
+        axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
 
-        axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
-        axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
+        if xkey.startswith("jacobian"):
+            axes[i, j].set_xlabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
+        else:
+            axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
+
+        if ykey.startswith("jacobian"):
+            axes[i, j].set_ylabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
+        else:
+            axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
+
+        if zkey.startswith("jacobian"):
+            axes[i, j].title.set_text(rf"$E(J_{{{gene_pairs[0], gene_pairs[1]}}})$")
+        else:
+            if len(gene_pairs) == 3:
+                axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
+            else:
+                axes[i, j].title.set_text(rf"$E_{{{gene_pairs[1]}}}$ (${zkey}$)")
 
         if show_rug:
             xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
