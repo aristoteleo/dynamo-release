@@ -2,7 +2,7 @@
 """
 
 from .fate import fate, fate_bias
-from .state_graph import state_graph
+from .state_graph import state_graph, tree_model
 from .least_action_path import (
     get_init_path,
     least_action,
@@ -22,6 +22,7 @@ __all__ = [
     "fate",
     "fate_bias",
     "state_graph",
+    "tree_model",
     "get_init_path",
     "least_action",
     "KO",

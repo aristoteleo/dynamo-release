@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from scipy.spatial import cKDTree
 import scipy.sparse as sp
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import shortest_path
 
 # from sklearn.preprocessing import OrdinalEncoder
 
@@ -9,11 +11,14 @@ from ..tools.Markov import DiscreteTimeMarkovChain
 from ..prediction.fate import _fate
 from ..vectorfield import vector_field_function
 from ..tools.utils import fetch_states
+from ..tools.clustering import neighbors
 from .utils import (
     remove_redundant_points_trajectory,
     arclength_sampling,
     integrate_streamline,
 )
+import anndata
+from typing import Optional, Union, Callable
 from ..dynamo_logger import LoggerManager
 
 
@@ -229,3 +234,106 @@ def state_graph(
     adata.uns[group + "_graph"] = {"group_graph": grp_graph, "group_avg_time": grp_avg_time, "group_names": uniq_grp}
     timer_logger.finish_progress(progress_name="State graph estimation")
     return adata
+
+
+def tree_model(
+    adata: anndata.AnnData,
+    group: str,
+    progenitor: str,
+    terminators: list[str],
+    basis: str = "umap",
+    neighbor_key: Union[str, None] = None,
+    state_graph_method: str = "vf",
+) -> pd.DataFrame:
+    """This function learns a tree model based on finding the shortest path from the source to target cells on the
+    vector field based cell-type transition graph that pruning after cell states that are not connected in gene
+    expression space (often low gene expression space).
+
+    The pruning algorithm is done as following: assuming the vf based cell-type transition graph is m (cell type x cell
+    type matrix); the M matrix as the cell to cell-type assignment matrix (row is the cell and column is the cell type;
+    if i-th cell is j-th cell type, the M_{ij} is 1). the knn graph between cells based on the umap (or other embedding)
+    embedding is n (number of cells x number of cells matrix). We can use t(M) n M  to get a cell-type by cell type
+    connectivity graph M' (basically this propagate the cell type to cell matrix to the cell-cell knn graph and then
+    lump the transition down to cell-type). n * M'  will give pruned graph. As you can see the resultant graph considers
+    both vector field based connection and the similarity relationship of cells in expression space.
+
+    Parameters
+    ----------
+    adata:
+        AnnData object.
+    group:
+        cell graph that will be used to build transition graph and lineage tree.
+    progenitor:
+        the source cell type name of the lineage tree.
+    terminators:
+         the terminal cell type names of the lineage tree.
+    basis:
+         The basis that will be used to build the k-nearest neighbor graph when neighbor_key is not set.
+    neighbor_key
+         the nearest neighbor graph key in `adata.obsp`. This nearest neighbor graph will be used to build a
+         gene-expression space based cell-type level connectivity graph.
+    state_graph_method
+         Method that will be used to build the initial state graph.
+
+    Returns
+    -------
+    res:
+        The final tree model of cell groups. See following example on how to visualize the tree via dynamo.
+    using the following code:
+        adata.uns[group + '_graph']['group_graph'] =
+
+    Examples
+    --------
+    >>> import dynamo as dyn
+    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.tl.dynamics(adata)
+    >>> dyn.tl.cell_velocities(adata)
+    >>> dyn.vf.VectorField(adata, basis='umap', pot_curl_div=False)
+    >>> dyn.pd.state_graph(adata, group='clusters', basis='umap')
+    >>> res = dyn.pd.tree_model(adata, group='clusters', basis='umap')
+    >>> # in the following we first copy the state_graph result to a new key and then replace the `group_graph` key of
+    >>> # the state_graph result and visualize tree model via dynamo.
+    >>> adata.obs['clusters2'] = adata.obs['clusters2'].copy()
+    >>> adata.uns['clusters2_graph'] = adata.uns['clusters_graph'].copy()
+    >>> adata.uns['clusters2_graph']['group_graph'] = res
+    >>> dyn.pl.state_graph(adata_labeling, group='cell_type2', keep_only_one_direction=False, transition_threshold=None,
+    >>> color='cell_type2', basis='umap_ori', show_legend='on data')
+    """
+
+    from patsy import dmatrix
+
+    data = adata.obs
+    groups = data[group]
+    uniq_grps, data[group] = data[group].unique(), list(groups)
+    progenitor = list(uniq_grps).index(progenitor)
+    terminators = [list(uniq_grps).index(i) for i in terminators]
+
+    if "group + '_graph'" not in adata.uns_keys():
+        state_graph(adata, group=group, basis=basis, method=state_graph_method)  # the markov method
+
+    if neighbor_key is None:
+        neighbors(adata, basis=basis, result_prefix=basis + "_knn", n_neighbors=80)
+        transition_matrix = adata.obsp[basis + "_knn"]
+    else:
+        transition_matrix = adata.obsp[neighbor_key]
+
+    cell_membership = csr_matrix(dmatrix(f"~{group}+0", data=data))
+    membership_matrix = cell_membership.T.dot(transition_matrix).dot(cell_membership)
+    group_graph = adata.uns[group + "_graph"]["group_graph"]
+
+    M = (group_graph * (membership_matrix > 0) > 0).astype(float)
+    M[M > 0] = 1 - M[M > 0]  # because it is shortest path, so we need to use 1 - M[M > 0]
+
+    D, Pr = shortest_path(M, directed=False, method="FW", return_predecessors=True)
+    res = np.zeros(M.shape)
+
+    # this builds the tree based on each shortest path connecting the source to each target cell type
+    for j in terminators:
+        p = j
+        while Pr[progenitor, p] != -9999:
+            res[Pr[progenitor, p], p] = 1
+            p = Pr[progenitor, p]
+    res = pd.DataFrame(res, index=uniq_grps, columns=uniq_grps)
+
+    return res
