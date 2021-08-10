@@ -114,6 +114,7 @@ def prune_transition(
     membership_matrix = cell_membership.T.dot(transition_matrix).dot(cell_membership)
 
     main_info("prune vf based cell graph transition graph via g' = `M' g")
+    # note that dmatrix will first sort the unique group names and then construct the design matrix, so this is needed.
     membership_df = pd.DataFrame(membership_matrix.A > 0, index=sorted_grps, columns=sorted_grps)
 
     M = (group_graph * (membership_df.loc[uniq_grps, uniq_grps].values > 0) > 0).astype(float)
