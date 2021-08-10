@@ -85,7 +85,7 @@ def prune_transition(
 
     data = adata.obs
     groups = data[group]
-    uniq_grps, data[group] = data[group].unique(), list(groups)
+    uniq_grps, data[group] = groups.unique(), list(groups)
 
     if graph_mat is not None:
         if graph_mat.shape != (len(uniq_grps), len(uniq_grps)):
@@ -131,7 +131,7 @@ def state_graph(
     layer=None,
     arc_sample=False,
     sample_num=100,
-    prune_graph=True,
+    prune_graph=False,
     **kwargs,
 ):
     """Estimate the transition probability between cell types using method of vector field integrations or Markov chain
@@ -163,7 +163,7 @@ def state_graph(
         sample_num: `int` (default: 100)
             The number of cells to sample in each group that will be used for calculating the transitoin graph between
             cell groups. This is required for facilitating the calculation.
-        prune_graph: `bool` (default: `True`)
+        prune_graph: `bool` (default: `False`)
             Whether to prune the transition graph based on cell similarities in `basis` bases.
         kwargs:
             Additional parameters that will be passed to `prune_transition` function.
@@ -395,8 +395,7 @@ def tree_model(
     >>> adata.obs['clusters2'] = adata.obs['clusters'].copy()
     >>> adata.uns['clusters2_graph'] = adata.uns['clusters_graph'].copy()
     >>> adata.uns['clusters2_graph']['group_graph'] = res
-    >>> dyn.pl.state_graph(adata, group='clusters2', keep_only_one_direction=False, transition_threshold=None,
-    >>> color='clusters2', basis='umap', show_legend='on data')
+    >>>
     """
 
     logger = LoggerManager.gen_logger("dynamo-tree_model")
@@ -404,7 +403,7 @@ def tree_model(
 
     data = adata.obs
     groups = data[group]
-    uniq_grps, data[group] = data[group].unique(), list(groups)
+    uniq_grps, data[group] = groups.unique(), list(groups)
 
     progenitor = progenitor[0] if type(progenitor) is not str else progenitor
     if progenitor not in uniq_grps:
@@ -430,7 +429,7 @@ def tree_model(
     if np.any(M < 0):
         main_warning("the transition graph have negative values.")
         M[M < 0] = 0
-        M += 1e-5 - 1e-5
+        M += 1e-5 - 1e-5  # ensure no -0 values existed
 
     M[M > 0] = 1 - M[M > 0]  # because it is shortest path, so we need to use 1 - M[M > 0]
 
