@@ -210,7 +210,7 @@ def divergence(
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.cell_velocities(adata, basis='pca')
     >>> dyn.vf.VectorField(adata, basis='pca')
@@ -279,7 +279,7 @@ def curvature(
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.cell_velocities(adata, basis='pca')
     >>> dyn.vf.VectorField(adata, basis='pca')
@@ -411,7 +411,7 @@ def jacobian(
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.cell_velocities(adata, basis='pca')
     >>> dyn.vf.VectorField(adata, basis='pca')
@@ -661,7 +661,7 @@ def jacobian_heatmap(
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.cell_velocities(adata, basis='pca')
     >>> dyn.vf.VectorField(adata, basis='pca')
@@ -856,7 +856,7 @@ def sensitivity(
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.cell_velocities(adata, basis='pca')
     >>> dyn.vf.VectorField(adata, basis='pca')
@@ -1103,8 +1103,9 @@ def sensitivity_heatmap(
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
+    >>> dyn.tl.reduceDimension(adata)
     >>> dyn.tl.cell_velocities(adata, basis='pca')
     >>> dyn.vf.VectorField(adata, basis='pca')
     >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
