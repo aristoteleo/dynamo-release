@@ -86,6 +86,7 @@ def prune_transition(
     data = adata.obs
     groups = data[group]
     uniq_grps, data[group] = groups.unique(), list(groups)
+    sorted_grps = np.sort(uniq_grps)
 
     if graph_mat is not None:
         if graph_mat.shape != (len(uniq_grps), len(uniq_grps)):
@@ -101,7 +102,7 @@ def prune_transition(
     if neighbor_key is None:
         main_info(f"build knn graph with {n_neighbors} neighbors in {basis} basis.")
         neighbors(adata, basis=basis, result_prefix=basis + "_knn", n_neighbors=n_neighbors)
-        transition_matrix = adata.obsp[basis + "_knn_connectivities"]
+        transition_matrix = adata.obsp[basis + "_knn_distances"]
     else:
         main_info(f"retrieve knn graph via {neighbor_key} ley.")
         transition_matrix = adata.obsp[neighbor_key]
@@ -113,7 +114,9 @@ def prune_transition(
     membership_matrix = cell_membership.T.dot(transition_matrix).dot(cell_membership)
 
     main_info("prune vf based cell graph transition graph via g' = `M' g")
-    M = group_graph * (membership_matrix > 0).A.astype(float)
+    membership_df = pd.DataFrame(membership_matrix.A > 0, index=sorted_grps, columns=sorted_grps)
+
+    M = (group_graph * (membership_df.loc[uniq_grps, uniq_grps].values > 0) > 0).astype(float)
 
     logger.finish_progress(progress_name="prune_transition")
 
@@ -347,6 +350,7 @@ def tree_model(
     neighbor_key: Union[str, None] = None,
     graph_mat: np.ndarray = None,
     state_graph_method: str = "vf",
+    prune_graph: bool = False,
 ) -> pd.DataFrame:
     """This function learns a tree model of cell states (types).
 
@@ -374,6 +378,9 @@ def tree_model(
          gene-expression space based cell-type level connectivity graph.
     state_graph_method:
          Method that will be used to build the initial state graph.
+    prune_graph: `bool` (default: `False`)
+        Whether to prune the transition graph based on cell similarities in `basis` bases first before learning tree
+        model.
 
     Returns
     -------
@@ -395,7 +402,8 @@ def tree_model(
     >>> adata.obs['clusters2'] = adata.obs['clusters'].copy()
     >>> adata.uns['clusters2_graph'] = adata.uns['clusters_graph'].copy()
     >>> adata.uns['clusters2_graph']['group_graph'] = res
-    >>>
+    >>> dyn.pl.state_graph(adata, group='clusters2', keep_only_one_direction=False, transition_threshold=None,
+    >>> color='clusters2', basis='umap', show_legend='on data')
     """
 
     logger = LoggerManager.gen_logger("dynamo-tree_model")
@@ -416,15 +424,18 @@ def tree_model(
     else:
         terminators = [list(uniq_grps).index(i) for i in terminators]
 
-    M = prune_transition(
-        adata,
-        group,
-        basis,
-        n_neighbors,
-        neighbor_key,
-        graph_mat,
-        state_graph_method,
-    )
+    if prune_graph:
+        M = prune_transition(
+            adata,
+            group,
+            basis,
+            n_neighbors,
+            neighbor_key,
+            graph_mat,
+            state_graph_method,
+        )
+    else:
+        M = graph_mat
 
     if np.any(M < 0):
         main_warning("the transition graph have negative values.")
