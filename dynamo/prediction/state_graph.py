@@ -352,6 +352,7 @@ def tree_model(
     graph_mat: np.ndarray = None,
     state_graph_method: str = "vf",
     prune_graph: bool = True,
+    row_norm: bool = True,
 ) -> pd.DataFrame:
     """This function learns a tree model of cell states (types).
 
@@ -382,6 +383,9 @@ def tree_model(
     prune_graph: `bool` (default: `True`)
         Whether to prune the transition graph based on cell similarities in `basis` bases first before learning tree
         model.
+    row_norm: `bool` (default: `True`)
+        Whether to normalize each row so that each row sum up to be 1. Note that row, columns in transition matrix
+        correspond to source and targets in dynamo by default.
 
     Returns
     -------
@@ -442,6 +446,9 @@ def tree_model(
         main_warning("the transition graph have negative values.")
         M[M < 0] = 0
         M += 1e-5 - 1e-5  # ensure no -0 values existed
+
+    if row_norm:
+        M /= M.sum(1)
 
     M[M > 0] = 1 - M[M > 0]  # because it is shortest path, so we need to use 1 - M[M > 0]
 
