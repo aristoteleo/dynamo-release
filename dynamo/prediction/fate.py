@@ -14,8 +14,8 @@ from ..tools.utils import (
 )
 from .utils import integrate_vf_ivp
 from ..vectorfield import vector_field_function
-from ..vectorfield.utils import vector_transformation
-from ..dynamo_logger import main_info, main_warning
+from ..vectorfield.utils import vector_transformation, vecfld_from_adata
+from ..dynamo_logger import LoggerManager, main_info, main_warning, main_info_insert_adata
 
 
 def fate(
@@ -585,3 +585,142 @@ def fate_bias(
 #
 #     adata.uns['prediction'] = gene_exprs
 #     return adata
+
+
+def andecestor(
+    adata: AnnData,
+    init_cells: list,
+    init_states: Optional[np.ndarray] = None,
+    cores: int = 1,
+    t_end: int = 50,
+    basis: str = "umap",
+    n_neighbors: int = 5,
+    direction: str = "forward",
+    interpolation_num: int = 250,
+    last_point_only: bool = False,
+    metric: str = "euclidean",
+    metric_kwds: dict = None,
+    seed: int = 19491001,
+    **kwargs,
+) -> None:
+    """Predict the ancestors or descendants of a group of initial cells (states) with the given vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        init_cells: `list`
+            Cell name or indices of the initial cell states for the historical or future cell state prediction with
+            numerical integration. If the names in init_cells not found in the adata.obs_name, it will be treated as
+            cell indices and must be integers.
+        init_states: `numpy.ndarray` or None (default: None)
+            Initial cell states for the historical or future cell state prediction with numerical integration.
+        basis: `str` or None (default: `None`)
+            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
+            trajectory will be projected back to high dimensional space via the `inverse_transform` function.
+        cores: `int` (default: 1):
+            Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
+            multiprocessing will be used to parallel the fate prediction.
+        t_end: `float` (default None)
+            The length of the time period from which to predict cell state forward or backward over time. This is used
+            by the odeint function.
+        n_neighbors:
+            Number of nearest neighbos.
+        direction: `string` (default: both)
+            The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
+        interpolation_num: `int` (default: 100)
+            The number of uniformly interpolated time points.
+        metric: `str` or callable, default='euclidean'
+            The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
+            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If
+            metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
+            :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
+        metric_kwds : dict, default=None
+            Additional keyword arguments for the metric function.
+        seed: `int` (default `19491001`)
+            Random seed to ensure the reproducibility of each run.
+        kwargs:
+            Additional arguments that will be passed to each nearest neighbor search algorithm.
+
+    Returns
+    -------
+        Nothing but update the adata object with a new column in `.obs` that stores predicted ancestors or descendants.
+    """
+    logger = LoggerManager.gen_logger("dynamo-tree_model")
+    logger.log_time()
+
+    from sklearn.neighbors import NearestNeighbors
+
+    main_info("retrieve vector field function.")
+    vec_dict, vecfld = vecfld_from_adata(adata, basis=basis)
+
+    basis_key = "X_" + basis
+    X = adata.obsm[basis_key].copy()
+
+    main_info("build a kNN graph structure so we can query the nearest cells of the predicted states.")
+    if X.shape[0] > 5000 and X.shape[1] > 2:
+        alg = "NNDescent"
+        from pynndescent import NNDescent
+
+        nbrs = NNDescent(
+            X,
+            metric=metric,
+            metric_kwds=metric_kwds,
+            n_neighbors=n_neighbors,
+            n_jobs=cores,
+            random_state=seed,
+            **kwargs,
+        )
+    else:
+        alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores).fit(X)
+
+    if init_states is None:
+        init_states = adata[init_cells, :].obsm[basis_key]
+    else:
+        if init_states.shape[1] != adata.obsm[basis_key].shape[1]:
+            raise Exception(
+                f"init_states has to have the same columns as adata.obsm[{basis_key}] but you have "
+                f"{init_states.shape[1]}"
+            )
+
+    main_info("predict cell state trajectory via integrating vector field function.")
+    t, pred = _fate(
+        vecfld,
+        init_states,
+        t_end=t_end,
+        interpolation_num=interpolation_num,
+        average=False,
+        sampling="arc_length",
+        cores=cores,
+        direction=direction,
+    )
+
+    nearest_cell_inds = []
+
+    main_info("identify the progenitors/descendants by finding predicted cell states' nearest cells.")
+    for j in range(len(pred)):
+        last_indices = [0, -1] if direction == "both" else [-1]
+        queries = pred[j].T[last_indices] if last_point_only else pred[j].T
+
+        if alg == "NNDescent":
+            knn, distances = nbrs.query(queries, k=n_neighbors)
+        else:
+            distances, knn = nbrs.kneighbors(queries)
+
+        nearest_cell_inds += list(knn.flatten())
+
+    nearest_cell_inds = np.unique(nearest_cell_inds)
+
+    if type(init_cells[0]) is int:
+        init_cells = adata.obs_names[init_cells]
+
+    nearest_cells = list(set(adata.obs_names[nearest_cell_inds]).difference(init_cells))
+
+    obs_key = "descendant" if direction == "forward" else "ancestor" if direction == "backward" else "lineage"
+
+    main_info_insert_adata(obs_key)
+    adata.obs[obs_key] = False
+    adata.obs.loc[nearest_cells, obs_key] = True
+
+    logger.finish_progress(progress_name=f"predict {obs_key}")
