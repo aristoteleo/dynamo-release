@@ -455,6 +455,7 @@ def fate_bias(
     X = adata.obsm[basis_key] if basis_key != "X" else adata.X
 
     if X.shape[0] > 5000 and X.shape[1] > 2:
+        alg = "NNDescent"
         from pynndescent import NNDescent
 
         nbrs = NNDescent(
@@ -502,7 +503,7 @@ def fate_bias(
             main_info("using all steps data")
             indices = np.arange(0, n_steps)
 
-        if hasattr(nbrs, "query"):
+        if alg == "NNDescent":
             knn, distances = nbrs.query(prediction[:, indices].T, k=30)
         else:
             distances, knn = nbrs.kneighbors(prediction[:, indices].T)
@@ -616,11 +617,9 @@ def andecestor(
         init_states: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
         basis: `str` or None (default: `None`)
-            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
-            trajectory will be projected back to high dimensional space via the `inverse_transform` function.
+            The embedding data to use for predicting cell fate.
         cores: `int` (default: 1):
-            Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
-            multiprocessing will be used to parallel the fate prediction.
+            Number of cores to calculate nearest neighbor graph.
         t_end: `float` (default None)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
@@ -646,10 +645,9 @@ def andecestor(
     -------
         Nothing but update the adata object with a new column in `.obs` that stores predicted ancestors or descendants.
     """
-    logger = LoggerManager.gen_logger("dynamo-tree_model")
-    logger.log_time()
 
-    from sklearn.neighbors import NearestNeighbors
+    logger = LoggerManager.gen_logger("dynamo-andecestor")
+    logger.log_time()
 
     main_info("retrieve vector field function.")
     vec_dict, vecfld = vecfld_from_adata(adata, basis=basis)
@@ -712,10 +710,13 @@ def andecestor(
 
     nearest_cell_inds = np.unique(nearest_cell_inds)
 
-    if type(init_cells[0]) is int:
-        init_cells = adata.obs_names[init_cells]
+    if init_cells is not None:
+        if type(init_cells[0]) is int:
+            init_cells = adata.obs_names[init_cells]
 
-    nearest_cells = list(set(adata.obs_names[nearest_cell_inds]).difference(init_cells))
+        nearest_cells = list(set(adata.obs_names[nearest_cell_inds]).difference(init_cells))
+    else:
+        nearest_cells = list(adata.obs_names[nearest_cell_inds])
 
     obs_key = "descendant" if direction == "forward" else "ancestor" if direction == "backward" else "lineage"
 
