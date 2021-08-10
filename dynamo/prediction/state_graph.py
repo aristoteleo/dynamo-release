@@ -351,7 +351,7 @@ def tree_model(
     neighbor_key: Union[str, None] = None,
     graph_mat: np.ndarray = None,
     state_graph_method: str = "vf",
-    prune_graph: bool = False,
+    prune_graph: bool = True,
 ) -> pd.DataFrame:
     """This function learns a tree model of cell states (types).
 
@@ -379,7 +379,7 @@ def tree_model(
          gene-expression space based cell-type level connectivity graph.
     state_graph_method:
          Method that will be used to build the initial state graph.
-    prune_graph: `bool` (default: `False`)
+    prune_graph: `bool` (default: `True`)
         Whether to prune the transition graph based on cell similarities in `basis` bases first before learning tree
         model.
 
