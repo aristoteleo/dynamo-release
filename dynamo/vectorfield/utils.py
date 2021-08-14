@@ -590,13 +590,13 @@ def Hessian_rkhs_gaussian(x, vf_dict):
     return H
 
 
-def elementwise_hessian_transformation(H, qi, qj, qk):
+def hessian_transformation(H, qi, Qj, Qk):
     """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`) back to the
     d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated from
     low dimension (PCs) is:
-                                            :math:`Jac = Q J Q^T`,
-    where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
-    dimensional Jacobian matrix. This function takes only one row from Q to form qi or qj.
+                                            :math:`h = \sum_i\sum_j\sum_k q_i q_j q_k H_ijk`,
+    where `q, H, h` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed element from the high
+    dimensional Jacobian matrix.
 
     Parameters
     ----------
@@ -604,19 +604,20 @@ def elementwise_hessian_transformation(H, qi, qj, qk):
             k x k x k matrix of the Hessian.
         qi: :class:`~numpy.ndarray`
             The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector i.
-        qj: :class:`~numpy.ndarray`
-            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator j.
-        qk: :class:`~numpy.ndarray`
-            The k-th row of the PC loading matrix Q with dimension d x k, corresponding to the co-regulator k.
+        Qj: :class:`~numpy.ndarray`
+            The submatrix of the PC loading matrix Q with dimension d x k, corresponding to regulators j.
+        Qk: :class:`~numpy.ndarray`
+            The submatrix of the PC loading matrix Q with dimension d x k, corresponding to co-regulators k.
 
     Returns
     -------
         h: :class:`~numpy.ndarray`
-            The calculated Hessian elements for each cell.
+            The calculated Hessian matrix for the effector i w.r.t regulators j and co-regulators k.
     """
 
     h = np.einsum("ijk, i -> jk", H, qi)
-    h = qj @ h @ qk
+    Qj, Qk = np.atleast_2d(Qj), np.atleast_2d(Qk)
+    h = Qj @ h @ Qk.T
 
     return h
 
