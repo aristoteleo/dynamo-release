@@ -398,14 +398,14 @@ def elementwise_jacobian_transformation(Js, qi, qj):
         Js: :class:`~numpy.ndarray`
             k x k x n matrices of n k-by-k Jacobians.
         qi: :class:`~numpy.ndarray`
-            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator gene i.
+            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector gene i.
         qj: :class:`~numpy.ndarray`
-            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector gene j.
+            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator gene j.
 
     Returns
     -------
         ret: :class:`~numpy.ndarray`
-            The calculated vector of Jacobian matrix (:math:`\partial F_i / \partial x_j`) for each cell.
+            The calculated Jacobian elements (:math:`\partial F_i / \partial x_j`) for each cell.
     """
 
     Js = np.atleast_3d(Js)
@@ -474,11 +474,11 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
         X: :class:`~numpy.ndarray`
             The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
         Qi: :class:`~numpy.ndarray`
-            Sampled genes' PCA loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix (k x k)
+            PCA loading matrix with dimension n' x n_PCs of the effector genes, from which local dimension Jacobian matrix (k x k)
             will be inverse transformed back to high dimension.
         Qj: :class:`~numpy.ndarray`
-            Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
-            n' x n_PCs, from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
+            PCs loading matrix with dimension n' x n_PCs of the regulator genes, from which local dimension Jacobian matrix (k x k)
+            will be inverse transformed back to high dimension.
         cores: int (default: 1):
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
@@ -536,7 +536,6 @@ def average_jacobian_by_group(Js, group_labels):
     Returns a dictionary of averaged jacobians with group names as the keys.
     No vectorized indexing was used due to its high memory cost.
     """
-    d1, d2, _ = Js.shape
     groups = np.unique(group_labels)
 
     J_mean = {}
@@ -551,6 +550,75 @@ def average_jacobian_by_group(Js, group_labels):
     for g in groups:
         J_mean[g] /= N[g]
     return J_mean
+
+
+# ---------------------------------------------------------------------------------------------------
+# Hessian
+
+
+def Hessian_rkhs_gaussian(x, vf_dict):
+    """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
+
+    Arguments
+    ---------
+    x: :class:`~numpy.ndarray`
+        Coordinates where the Hessian is evaluated. Note that x has to be 1D.
+    vf_dict: dict
+        A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+        and RKHS coefficients.
+        Essential keys: 'X_ctrl', 'beta', 'C'
+
+    Returns
+    -------
+    H: :class:`~numpy.ndarray`
+        Hessian matrix stored as d-by-d-by-d numpy arrays evaluated at x.
+        d is the number of dimensions.
+    """
+    x = np.atleast_2d(x)
+
+    C = vf_dict["C"]
+    beta = vf_dict["beta"]
+    K, D = con_K(x, vf_dict["X_ctrl"], beta, return_d=True)
+
+    K = K * C.T
+
+    D = D.T
+    D = np.eye(x.shape[1]) - 2 * beta * D @ np.transpose(D, axes=(0, 2, 1))
+
+    H = -2 * beta * np.einsum("ij, jlm -> ilm", K, D)
+
+    return H
+
+
+def elementwise_hessian_transformation(H, qi, qj, qk):
+    """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`) back to the
+    d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated from
+    low dimension (PCs) is:
+                                            :math:`Jac = Q J Q^T`,
+    where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
+    dimensional Jacobian matrix. This function takes only one row from Q to form qi or qj.
+
+    Parameters
+    ----------
+        H: :class:`~numpy.ndarray`
+            k x k x k matrix of the Hessian.
+        qi: :class:`~numpy.ndarray`
+            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector i.
+        qj: :class:`~numpy.ndarray`
+            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator j.
+        qk: :class:`~numpy.ndarray`
+            The k-th row of the PC loading matrix Q with dimension d x k, corresponding to the co-regulator k.
+
+    Returns
+    -------
+        h: :class:`~numpy.ndarray`
+            The calculated Hessian elements for each cell.
+    """
+
+    h = np.einsum("ijk, i -> jk", H, qi)
+    h = qj @ h @ qk
+
+    return h
 
 
 # ---------------------------------------------------------------------------------------------------

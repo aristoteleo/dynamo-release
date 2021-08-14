@@ -602,11 +602,17 @@ class base_vectorfield:
         self.vf_dict = vf_dict
         self.func = func
 
-    def get_X(self):
-        return self.data["X"]
+    def get_X(self, idx=None):
+        if idx is None:
+            return self.data["X"]
+        else:
+            return self.data["X"][idx]
 
-    def get_V(self):
-        return self.data["V"]
+    def get_V(self, idx=None):
+        if idx is None:
+            return self.data["V"]
+        else:
+            return self.data["V"][idx]
 
     def get_data(self):
         return self.data["X"], self.data["V"]
