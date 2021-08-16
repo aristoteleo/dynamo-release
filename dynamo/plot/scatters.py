@@ -297,6 +297,7 @@ def scatters(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
+    from matplotlib.colors import rgb2hex
 
     if calpha < 0 or calpha > 1:
         main_warning(
@@ -743,6 +744,13 @@ def scatters(
                         inset_dict=inset_dict,
                         **scatter_kwargs,
                     )
+                    if labels is not None:
+                        color_dict = {}
+                        colors = [rgb2hex(i) for i in color_out]
+                        for i, j in zip(labels, colors):
+                            color_dict[i] = j
+
+                        adata.uns[cur_title + "_colors"] = color_dict
                 else:
                     main_debug("drawing with _datashade_points function")
                     ax = _datashade_points(

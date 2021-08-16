@@ -270,8 +270,8 @@ def filter_genes_by_pattern(
 
 
 def basic_stats(adata):
-    adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1), (adata.X).sum(1))
-    adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T, (adata.X).sum(0).T)
+    adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
+    adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
     try:
         adata.obs["pMito"] = adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1))
