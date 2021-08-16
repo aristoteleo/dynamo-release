@@ -557,7 +557,7 @@ def average_jacobian_by_group(Js, group_labels):
 
 
 def Hessian_rkhs_gaussian(x, vf_dict):
-    """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
+    """analytical Hessian for RKHS vector field functions with Gaussian kernel.
 
     Arguments
     ---------
@@ -591,12 +591,12 @@ def Hessian_rkhs_gaussian(x, vf_dict):
 
 
 def hessian_transformation(H, qi, Qj, Qk):
-    """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`) back to the
-    d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated from
-    low dimension (PCs) is:
+    """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`)
+    back to the d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated
+    from low dimension (PCs) is:
                                             :math:`h = \sum_i\sum_j\sum_k q_i q_j q_k H_ijk`,
-    where `q, H, h` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed element from the high
-    dimensional Jacobian matrix.
+    where `q, H, h` are the PCA loading matrix, low dimensional Hessian matrix and the inverse transformed element from
+    the high dimensional Hessian matrix.
 
     Parameters
     ----------

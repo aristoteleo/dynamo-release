@@ -10,6 +10,7 @@ from .scVectorField import (
 from .utils import (
     vector_field_function,
     parse_int_df,
+    get_jacobian,
 )
 from .topography import (
     FixedPoints,
