@@ -121,6 +121,7 @@ def response(
     show_ridge=False,
     show_rug=True,
     show_extent=False,
+    stacked_fraction=False,
     figsize=(6, 4),
     return_data=False,
 ):
@@ -159,6 +160,9 @@ def response(
             number of columns used to layout the faceted cluster panels.
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
+        stacked_fraction: bool (default: False)
+            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
+            style is used.
 
     Returns
     -------
@@ -366,15 +370,21 @@ def response(
         axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
 
         if xkey.startswith("jacobian"):
-            axes[i, j].set_xlabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+            if stacked_fraction:
+                axes[i, j].set_xlabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+            else:
+                axes[i, j].set_xlabel(r"$\partial f_{%s} / {\partial x_{%s}$" % (gene_pairs[1], gene_pairs[0]))
         else:
             axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
         if ykey.startswith("jacobian"):
-            axes[i, j].set_ylabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
-
-            axes[i, j].title.set_text(
-                r"$\rho(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0])
-            )
+            if stacked_fraction:
+                axes[i, j].set_ylabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].title.set_text(
+                    r"$\rho(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0])
+                )
+            else:
+                axes[i, j].set_ylabel(r"$\partial f_{%s} / \partial x_{%s}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].title.set_text(r"$\rho(\partial f_{%s} / \partial x_{%s})$" % (gene_pairs[1], gene_pairs[0]))
         else:
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
             axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ (${ykey}$)")
@@ -441,6 +451,7 @@ def causality(
     cmap="viridis",
     show_rug=True,
     show_extent=False,
+    stacked_fraction=False,
     figsize=(6, 4),
     return_data=False,
     **kwargs,
@@ -480,6 +491,9 @@ def causality(
             number of columns used to layout the faceted cluster panels.
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
+        stacked_fraction: bool (default: False)
+            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
+            style is used.
 
     Returns
     -------
@@ -697,17 +711,28 @@ def causality(
         axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
 
         if xkey.startswith("jacobian"):
-            axes[i, j].set_xlabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+            if stacked_fraction:
+                axes[i, j].set_xlabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+            else:
+                axes[i, j].set_xlabel(r"$\partial f_{%s} / \partial x_{%s}$" % (gene_pairs[1], gene_pairs[0]))
         else:
             axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
 
         if ykey.startswith("jacobian"):
-            axes[i, j].set_ylabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+            if stacked_fraction:
+                axes[i, j].set_ylabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+            else:
+                axes[i, j].set_ylabel(r"$\partial f_{%s} / \partial x_{%s}$" % (gene_pairs[1], gene_pairs[0]))
         else:
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
         if zkey.startswith("jacobian"):
-            axes[i, j].title.set_text(r"$E(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0]))
+            if stacked_fraction:
+                axes[i, j].title.set_text(
+                    r"$E(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0])
+                )
+            else:
+                axes[i, j].title.set_text(r"$E(\partial f_{%s} / \partial x_{%s})$" % (gene_pairs[1], gene_pairs[0]))
         else:
             if len(gene_pairs) == 3:
                 axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
@@ -773,6 +798,7 @@ def comb_logic(
     k=30,
     show_rug=True,
     show_extent=False,
+    stacked_fraction=False,
     figsize=(6, 4),
     return_data=False,
 ):
@@ -810,6 +836,9 @@ def comb_logic(
             Whether to row-scale the data
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
+        stacked_fraction: bool (default: False)
+            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
+            style is used.
 
     Returns
     -------
@@ -877,6 +906,7 @@ def comb_logic(
             cmap=cmap,
             show_rug=show_rug,
             show_extent=show_extent,
+            stacked_fraction=stacked_fraction,
             figsize=figsize,
             return_data=return_data,
             save_key="comb_logic",
