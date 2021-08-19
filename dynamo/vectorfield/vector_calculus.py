@@ -48,13 +48,7 @@ if use_dynode:
 
 
 def velocities(
-    adata,
-    init_cells,
-    init_states=None,
-    basis=None,
-    vector_field_class=None,
-    layer="X",
-    dims=None,
+    adata, init_cells, init_states=None, basis=None, vector_field_class=None, layer="X", dims=None, Qkey="PCs"
 ):
     """Calculate the velocities for any cell state with the reconstructed vector field function.
 
@@ -81,8 +75,8 @@ def velocities(
             dimensional space.
         dims: int, list, or None (default: None)
             The dimensions that will be selected for velocity calculation.
-
-
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`. Only used when basis is `pca`.
     Returns
     -------
         adata: :class:`~anndata.AnnData`
@@ -114,6 +108,25 @@ def velocities(
         vec_mat = vec_mat[:, :dims]
     elif dims is not None:
         vec_mat = vec_mat[:, dims]
+
+    if basis == "pca":
+        Qkey = "PCs" if Qkey is None else Qkey
+
+        if Qkey in adata.uns.keys():
+            Q = adata.uns[Qkey]
+        elif Qkey in adata.varm.keys():
+            Q = adata.varm[Qkey]
+        else:
+            raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
+
+        vel = adata.uns["velocities_pca"].copy()
+        vel_hi = vector_transformation(vel, Q)
+        create_layer(
+            adata,
+            vel_hi,
+            layer_key="velocity_VecFld",
+            genes=adata.var.use_for_pca,
+        )
 
     adata.uns[vec_key] = vec_mat
 

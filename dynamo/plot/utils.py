@@ -1015,13 +1015,15 @@ def despline(ax=None):
     ax.xaxis.set_ticks_position("bottom")
 
 
-def despline_all(ax=None):
+def despline_all(ax=None, sides=None):
     # removing the default axis on all sides:
     import matplotlib.pyplot as plt
 
     ax = plt.gca() if ax is None else ax
 
-    for side in ["bottom", "right", "top", "left"]:
+    if sides is None:
+        sides = ["bottom", "right", "top", "left"]
+    for side in sides:
         ax.spines[side].set_visible(False)
 
 

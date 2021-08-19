@@ -256,15 +256,15 @@ def gene_wise_confidence(
 ):
     """Diagnostic measure to identify genes contributed to "wrong" directionality of the vector flow.
 
-    In some scenarios, you may find unexpected "wrong vector backflow" from your dynamo analysis, in order to diagnose
-    those cases, we can identify those genes showing up in the wrong phase portrait position. Then we nay remove those
+    In some scenarios, you may find unexpected "wrong vector back-flow" from your dynamo analyses, in order to diagnose
+    those cases, we can identify those genes showing up in the wrong phase portrait position. Then we may remove those
     identified genes to "correct" velocity vectors. This requires us to give some priors about what progenitor and
     terminal cell types are. The rationale behind this basically boils down to understanding the following two
     scenarios:
 
     1). if the progenitor’s expression is low, starting from time point 0, cells should start to increase expression.
     There must be progenitors that are above the steady-state line. However, if most of the progenitors are laying below
-    the line (indicated by the red cells), we will have negative velocity and this will lead to reversed vector flow.
+    the line, we will have negative velocity and this will lead to reversed vector flow.
 
     2). if progenitors start from high expression, starting from time point 0, cells should start to decrease expression.
     There must be progenitors that are below the steady-state line. However, if most of the progenitors are laying above
@@ -275,12 +275,12 @@ def gene_wise_confidence(
     Thus, we design an algorithm to access the confidence of each gene obeying the above two constraints:
     We first check for whether a gene should be in the induction or repression phase from each progenitor to each
     terminal cell states (based on the shift of the median gene expression between these two states). If it is in
-    induction phase, cells should show mostly at >= small negative velocity; otherwise <= small negative velocity.
-    1 - ratio of cells with velocity pass those threshold (defined by `V_threshold`) in each state is then defined as a
-    velocity confidence measure.
+    induction phase, cells should show mostly >= small negative velocities; otherwise <= small negative velocities.
+    1 - ratio of cells with velocities pass those threshold (defined by `V_threshold`) in each state is then defined as
+    a velocity confidence measure.
 
     Note that, this heuristic method requires you provide meaningful `progenitors_groups` and `mature_cells_groups`. In
-    particular, the progentitor groups should in principle have cell going out (transcriptomically) while mature groups
+    particular, the progenitor groups should in principle have cell going out (transcriptomically) while mature groups
     should end up in a different expression state and there are intermediate cells going to the dead end cells in the
     each terminal group (or most terminal groups).
 
