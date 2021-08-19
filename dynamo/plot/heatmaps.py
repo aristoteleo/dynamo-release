@@ -707,7 +707,7 @@ def causality(
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
         if zkey.startswith("jacobian"):
-            axes[i, j].set_ylabel(r"$E(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0]))
+            axes[i, j].title.set_text(r"$E(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0]))
         else:
             if len(gene_pairs) == 3:
                 axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
