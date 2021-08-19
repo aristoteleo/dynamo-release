@@ -366,12 +366,15 @@ def response(
         axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
 
         if xkey.startswith("jacobian"):
-            axes[i, j].set_xlabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$")
+            axes[i, j].set_xlabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
         else:
             axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
         if ykey.startswith("jacobian"):
-            axes[i, j].set_ylabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$)")
-            axes[i, j].title.set_text(rf"$\rho(J_{{{gene_pairs[0], gene_pairs[1]}}})$")
+            axes[i, j].set_ylabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+
+            axes[i, j].title.set_text(
+                r"$\rho(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0])
+            )
         else:
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
             axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ (${ykey}$)")
@@ -694,17 +697,17 @@ def causality(
         axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
 
         if xkey.startswith("jacobian"):
-            axes[i, j].set_xlabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$")
+            axes[i, j].set_xlabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
         else:
             axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
 
         if ykey.startswith("jacobian"):
-            axes[i, j].set_ylabel(rf"$J_{{{gene_pairs[0], gene_pairs[1]}}}$")
+            axes[i, j].set_ylabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
         else:
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
         if zkey.startswith("jacobian"):
-            axes[i, j].title.set_text(rf"$E(J_{{{gene_pairs[0], gene_pairs[1]}}})$")
+            axes[i, j].set_ylabel(r"$E(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0]))
         else:
             if len(gene_pairs) == 3:
                 axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
