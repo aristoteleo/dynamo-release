@@ -4,11 +4,25 @@ import math
 import scipy.spatial as ss
 import seaborn
 from functools import reduce
+import warnings
 
-from ..tools.utils import flatten
+from ..tools.utils import update_dict, flatten
 from ..plot.utils import despline_all
 from ..vectorfield.utils import get_jacobian
 from ..dynamo_logger import main_info_insert_adata, main_info, main_warning
+from .utils import (
+    despline_all,
+    deaxis_all,
+    _select_font_color,
+    arrowed_spines,
+    is_gene_name,
+    is_cell_anno_column,
+    is_list_of_lists,
+    is_layer_keys,
+    _matplotlib_points,
+    _datashade_points,
+    save_fig,
+)
 
 
 def bandwidth_nrd(x):
@@ -123,6 +137,8 @@ def response(
     show_extent=False,
     stacked_fraction=False,
     figsize=(6, 4),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     return_data=False,
 ):
     """Plot the lagged DREVI plot pairs of genes across pseudotime.
@@ -163,6 +179,14 @@ def response(
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
             style is used.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
 
     Returns
     -------
@@ -421,8 +445,25 @@ def response(
         axes[i, j].set_yticklabels(ylabels)
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    plt.tight_layout()
-    plt.show()
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "scatters",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return in ["show", "both", "all"]:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+
+        plt.show()
 
     if return_data:
         return (flat_res, flat_res_subset, ridge_curve_subset)
@@ -453,6 +494,8 @@ def causality(
     show_extent=False,
     stacked_fraction=False,
     figsize=(6, 4),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     return_data=False,
     **kwargs,
 ):
@@ -494,6 +537,14 @@ def causality(
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
             style is used.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
 
     Returns
     -------
@@ -772,8 +823,25 @@ def causality(
     plt.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    plt.tight_layout()
-    plt.show()
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "scatters",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return in ["show", "both", "all"]:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+
+        plt.show()
 
     if return_data:
         return flat_res
@@ -800,6 +868,8 @@ def comb_logic(
     show_extent=False,
     stacked_fraction=False,
     figsize=(6, 4),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     return_data=False,
 ):
     """Plot the combinatorial influence of two genes :math:`x`, :math:`y` to the target :math:`z`.
@@ -839,6 +909,14 @@ def comb_logic(
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
             style is used.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
 
     Returns
     -------
@@ -908,6 +986,8 @@ def comb_logic(
             show_extent=show_extent,
             stacked_fraction=stacked_fraction,
             figsize=figsize,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
             return_data=return_data,
             save_key="comb_logic",
         )
