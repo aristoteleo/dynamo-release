@@ -1246,3 +1246,22 @@ def get_jacobian(
             df.loc[:, key] = J
 
     return df
+
+
+# ---------------------------------------------------------------------------------------------------
+# jacobian subset related utilies
+def subset_jacobian(adata, cells, basis="pca"):
+    """Subset adata object while also subset the jacobian, cells must be a vector of cell indices."""
+
+    adata_subset = adata[cells]
+
+    jkey = "jacobian_" + basis
+    adata_subset.uns[jkey].keys()
+
+    # assume all cells are used to calculate Jacobian for now
+    adata_subset.uns[jkey]["cell_idx"] = np.arange(len(cells))
+
+    adata_subset.uns[jkey]["jacobian_gene"] = adata_subset.uns[jkey]["jacobian_gene"][:, :, cells]
+    adata_subset.uns[jkey]["jacobian"] = adata_subset.uns[jkey]["jacobian"][:, :, cells]
+
+    return adata_subset
