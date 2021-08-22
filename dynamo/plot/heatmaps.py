@@ -450,8 +450,8 @@ def response(
                 xlabels = [ext_format[0].format(i) for i in xlabels] if ext_format[0] is not None else xlabels
                 ylabels = [ext_format[1].format(i) for i in ylabels] if ext_format[1] is not None else ylabels
             else:
-                xlabels = [ext_format.format(i) for i in xlabels]
-                ylabels = [ext_format.format(i) for i in ylabels]
+                xlabels = [ext_format.format(i) for i in xlabels] if ext_format is not None else xlabels
+                ylabels = [ext_format.format(i) for i in ylabels] if ext_format is not None else ylabels
 
         if ext_lim[1] < 1e-2:
             axes[i, j].set_xticklabels(xlabels, rotation=30, ha="right")
