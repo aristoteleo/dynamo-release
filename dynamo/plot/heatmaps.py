@@ -7,7 +7,6 @@ from functools import reduce
 import warnings
 
 from ..tools.utils import update_dict, flatten
-from ..plot.utils import despline_all
 from ..vectorfield.utils import get_jacobian
 from ..dynamo_logger import main_info_insert_adata, main_info, main_warning
 from .utils import (
@@ -135,6 +134,7 @@ def response(
     show_ridge=False,
     show_rug=True,
     show_extent=False,
+    ext_format=None,
     stacked_fraction=False,
     figsize=(6, 4),
     save_show_or_return: str = "show",
@@ -176,6 +176,9 @@ def response(
             number of columns used to layout the faceted cluster panels.
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
+        ext_format: None or `str` or List[str]
+            The string/list of string (the first is for x and second for y labels) that will be used to format the ticks
+            on x or y-axis.
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
             style is used.
@@ -425,17 +428,30 @@ def response(
             despline_all(axes[i, j])
 
         # for some reason,  I have add an extra element at the beginingfor the ticklabels
-        xlabels = [0] + list(np.linspace(ext_lim[0], ext_lim[1], 5))
-        ylabels = [0] + list(np.linspace(ext_lim[2], ext_lim[3], 5))
+        xlabels = list(np.linspace(ext_lim[0], ext_lim[1], 5))
+        ylabels = list(np.linspace(ext_lim[2], ext_lim[3], 5))
 
-        if ext_lim[1] < 1e-2:
-            xlabels = ["{:.2e}".format(i) for i in xlabels]
+        # set the x/y ticks
+        inds = np.linspace(0, grid_num, 5, endpoint=False)
+        axes[i, j].set_xticks(inds)
+        axes[i, j].set_yticks(inds)
+
+        if ext_format is None:
+            if ext_lim[1] < 1e-2:
+                xlabels = ["{:.2e}".format(i) for i in xlabels]
+            else:
+                xlabels = [np.round(i, 2) for i in xlabels]
+            if ext_lim[3] < 1e-2:
+                ylabels = ["{:.2e}".format(i) for i in ylabels]
+            else:
+                ylabels = [np.round(i, 2) for i in ylabels]
         else:
-            xlabels = [np.round(i, 2) for i in xlabels]
-        if ext_lim[3] < 1e-2:
-            ylabels = ["{:.2e}".format(i) for i in ylabels]
-        else:
-            ylabels = [np.round(i, 2) for i in ylabels]
+            if type(ext_format) == list:
+                xlabels = [ext_format[0].format(i) for i in xlabels]
+                ylabels = [ext_format[1].format(i) for i in ylabels]
+            else:
+                xlabels = [ext_format.format(i) for i in xlabels]
+                ylabels = [ext_format.format(i) for i in ylabels]
 
         if ext_lim[1] < 1e-2:
             axes[i, j].set_xticklabels(xlabels, rotation=30, ha="right")
@@ -492,6 +508,7 @@ def causality(
     cmap="viridis",
     show_rug=True,
     show_extent=False,
+    ext_format=None,
     stacked_fraction=False,
     figsize=(6, 4),
     save_show_or_return: str = "show",
@@ -534,6 +551,9 @@ def causality(
             number of columns used to layout the faceted cluster panels.
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
+        ext_format: None or `str` or List[str]
+            The string/list of string (the first is for x and second for y labels) that will be used to format the ticks
+            on x or y-axis.
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
             style is used.
@@ -801,17 +821,30 @@ def causality(
             despline_all(axes[i, j])
 
         # for some reason,  I have add an extra element at the beginingfor the ticklabels
-        xlabels = [0] + list(np.round(np.linspace(ext_lim[0], ext_lim[1], 5), 2))
-        ylabels = [0] + list(np.round(np.linspace(ext_lim[2], ext_lim[3], 5), 2))
+        xlabels = list(np.round(np.linspace(ext_lim[0], ext_lim[1], 5), 2))
+        ylabels = list(np.round(np.linspace(ext_lim[2], ext_lim[3], 5), 2))
 
-        if ext_lim[1] < 1e-2:
-            xlabels = ["{:.2e}".format(i) for i in xlabels]
+        # set the x/y ticks
+        inds = np.linspace(0, grid_num, 5, endpoint=False)
+        axes[i, j].set_xticks(inds)
+        axes[i, j].set_yticks(inds)
+
+        if ext_format is None:
+            if ext_lim[1] < 1e-2:
+                xlabels = ["{:.2e}".format(i) for i in xlabels]
+            else:
+                xlabels = [np.round(i, 2) for i in xlabels]
+            if ext_lim[3] < 1e-2:
+                ylabels = ["{:.2e}".format(i) for i in ylabels]
+            else:
+                ylabels = [np.round(i, 2) for i in ylabels]
         else:
-            xlabels = [np.round(i, 2) for i in xlabels]
-        if ext_lim[3] < 1e-2:
-            ylabels = ["{:.2e}".format(i) for i in ylabels]
-        else:
-            ylabels = [np.round(i, 2) for i in ylabels]
+            if type(ext_format) == list:
+                xlabels = [ext_format[0].format(i) for i in xlabels]
+                ylabels = [ext_format[1].format(i) for i in ylabels]
+            else:
+                xlabels = [ext_format.format(i) for i in xlabels]
+                ylabels = [ext_format.format(i) for i in ylabels]
 
         if ext_lim[1] < 1e-2:
             axes[i, j].set_xticklabels(xlabels, rotation=30, ha="right")
@@ -820,7 +853,7 @@ def causality(
 
         axes[i, j].set_yticklabels(ylabels)
 
-    plt.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
+    # plt.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
     if save_show_or_return in ["save", "both", "all"]:
@@ -866,6 +899,7 @@ def comb_logic(
     k=30,
     show_rug=True,
     show_extent=False,
+    ext_format=None,
     stacked_fraction=False,
     figsize=(6, 4),
     save_show_or_return: str = "show",
@@ -906,6 +940,9 @@ def comb_logic(
             Whether to row-scale the data
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
+        ext_format: None or `str` or List[str]
+            The string/list of string (the first is for x and second for y labels) that will be used to format the ticks
+            on x or y-axis.
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
             style is used.
@@ -962,6 +999,7 @@ def comb_logic(
             cmap=cmap,
             show_rug=show_rug,
             show_extent=show_extent,
+            ext_format=ext_format,
             figsize=figsize,
             return_data=return_data,
         )
@@ -984,6 +1022,7 @@ def comb_logic(
             cmap=cmap,
             show_rug=show_rug,
             show_extent=show_extent,
+            ext_format=ext_format,
             stacked_fraction=stacked_fraction,
             figsize=figsize,
             save_show_or_return=save_show_or_return,
