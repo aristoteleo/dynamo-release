@@ -177,7 +177,7 @@ def response(
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
         ext_format: None or `str` or List[str]
-            The string/list of string (the first is for x and second for y labels) that will be used to format the ticks
+            The string/list of strings (the first is for x and second for y labels) that will be used to format the ticks
             on x or y-axis. If it is None or one of the element in the list is None, the default setting will be used.
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
@@ -565,7 +565,7 @@ def causality(
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
         ext_format: None or `str` or List[str]
-            The string/list of string (the first is for x and second for y labels) that will be used to format the ticks
+            The string/list of strings (the first is for x and second for y labels) that will be used to format the ticks
             on x or y-axis. If it is None or one of the element in the list is None, the default setting will be used.
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
@@ -834,8 +834,8 @@ def causality(
             despline_all(axes[i, j])
 
         # for some reason,  I have add an extra element at the beginingfor the ticklabels
-        xlabels = list(np.round(np.linspace(ext_lim[0], ext_lim[1], 5), 2))
-        ylabels = list(np.round(np.linspace(ext_lim[2], ext_lim[3], 5), 2))
+        xlabels = list(np.linspace(ext_lim[0], ext_lim[1], 5))
+        ylabels = list(np.linspace(ext_lim[2], ext_lim[3], 5))
 
         # set the x/y ticks
         inds = np.linspace(0, grid_num - 1, 5, endpoint=True)
