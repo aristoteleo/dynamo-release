@@ -447,11 +447,24 @@ def response(
                 ylabels = [np.round(i, 2) for i in ylabels]
         else:
             if type(ext_format) == list:
-                xlabels = [ext_format[0].format(i) for i in xlabels] if ext_format[0] is not None else xlabels
-                ylabels = [ext_format[1].format(i) for i in ylabels] if ext_format[1] is not None else ylabels
+                if ext_format[0] is None:
+                    if ext_lim[1] < 1e-2:
+                        xlabels = ["{:.2e}".format(i) for i in xlabels]
+                    else:
+                        xlabels = [np.round(i, 2) for i in xlabels]
+                else:
+                    xlabels = [ext_format[0].format(i) for i in xlabels]
+
+                if ext_format[1] is None:
+                    if ext_lim[3] < 1e-2:
+                        ylabels = ["{:.2e}".format(i) for i in ylabels]
+                    else:
+                        ylabels = [np.round(i, 2) for i in ylabels]
+                else:
+                    ylabels = [ext_format[1].format(i) for i in ylabels]
             else:
-                xlabels = [ext_format.format(i) for i in xlabels] if ext_format is not None else xlabels
-                ylabels = [ext_format.format(i) for i in ylabels] if ext_format is not None else ylabels
+                xlabels = [ext_format.format(i) for i in xlabels]
+                ylabels = [ext_format.format(i) for i in ylabels]
 
         if ext_lim[1] < 1e-2:
             axes[i, j].set_xticklabels(xlabels, rotation=30, ha="right")
@@ -840,11 +853,24 @@ def causality(
                 ylabels = [np.round(i, 2) for i in ylabels]
         else:
             if type(ext_format) == list:
-                xlabels = [ext_format[0].format(i) for i in xlabels] if ext_format[0] is not None else xlabels
-                ylabels = [ext_format[1].format(i) for i in ylabels] if ext_format[1] is not None else ylabels
+                if ext_format[0] is None:
+                    if ext_lim[1] < 1e-2:
+                        xlabels = ["{:.2e}".format(i) for i in xlabels]
+                    else:
+                        xlabels = [np.round(i, 2) for i in xlabels]
+                else:
+                    xlabels = [ext_format[0].format(i) for i in xlabels]
+
+                if ext_format[1] is None:
+                    if ext_lim[3] < 1e-2:
+                        ylabels = ["{:.2e}".format(i) for i in ylabels]
+                    else:
+                        ylabels = [np.round(i, 2) for i in ylabels]
+                else:
+                    ylabels = [ext_format[1].format(i) for i in ylabels]
             else:
-                xlabels = [ext_format.format(i) for i in xlabels] if ext_format is not None else xlabels
-                ylabels = [ext_format.format(i) for i in ylabels] if ext_format is not None else ylabels
+                xlabels = [ext_format.format(i) for i in xlabels]
+                ylabels = [ext_format.format(i) for i in ylabels]
 
         if ext_lim[1] < 1e-2:
             axes[i, j].set_xticklabels(xlabels, rotation=30, ha="right")
@@ -941,7 +967,7 @@ def comb_logic(
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
         ext_format: None or `str` or List[str]
-            The string/list of string (the first is for x and second for y labels) that will be used to format the ticks
+            The string/list of strings (the first is for x and second for y labels) that will be used to format the ticks
             on x or y-axis. If it is None or one of the element in the list is None, the default setting will be used.
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
