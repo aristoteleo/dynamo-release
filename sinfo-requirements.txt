@@ -5,4 +5,4 @@ IPython==7.20.0
 jupyter_client==6.1.11
 jupyter_core==4.7.1
 jupyterlab==3.0.17
-notebook==6.2.0
+notebook==6.4.1
