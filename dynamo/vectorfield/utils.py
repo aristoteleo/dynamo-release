@@ -694,7 +694,7 @@ def compute_acceleration(vf, f_jac, X, Js=None, return_all=False):
     acce_mat = np.zeros((n, X.shape[1]))
 
     v_ = vf(X)
-    J_ = f_jac(X) if J is None else Js
+    J_ = f_jac(X) if Js is None else Js
     temp_logger = LoggerManager.get_temp_timer_logger()
     for i in LoggerManager.progress_logger(range(n), temp_logger, progress_name="Calculating acceleration"):
         v = v_[i]
