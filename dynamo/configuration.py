@@ -10,7 +10,7 @@ from .dynamo_logger import main_info
 class DynamoAdataKeyManager:
     VAR_GENE_MEAN_KEY = "pp_gene_means"
     VAR_GENE_VAR_KEY = "gene_vars"
-    VAR_GENE_HIGHLAY_VARIABLE_KEY = "gene_highly_variable"
+    VAR_GENE_HIGHLY_VARIABLE_KEY = "gene_highly_variable"
     X_LAYER = "X"
     PROTEIN_LAYER = "protein"
 

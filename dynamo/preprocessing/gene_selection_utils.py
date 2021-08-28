@@ -42,13 +42,13 @@ def filter_genes_by_dispersion_svr(adata, layer_mat, n_top_genes) -> None:
     highly_variable_mask = get_highly_variable_mask_by_dispersion_svr(adata, mean, var, n_top_genes)
     adata.var[DynamoAdataKeyManager.VAR_GENE_MEAN_KEY] = mean
     adata.var[DynamoAdataKeyManager.VAR_GENE_VAR_KEY] = var
-    adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLAY_VARIABLE_KEY] = highly_variable_mask
+    adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY] = highly_variable_mask
 
 
 def get_highly_variable_mask_by_dispersion_svr(mean, var, n_top_genes: int, svr_gamma: float = None):
     # normally, select svr_gamma based on #features
     if svr_gamma is None:
-        svr_gamma = svr_gamma / len(mean)
+        svr_gamma = 150.0 / len(mean)
     from sklearn.svm import SVR
 
     mean_log = np.log2(mean)
