@@ -3,7 +3,34 @@ import matplotlib
 from matplotlib import rcParams, cm, colors
 from cycler import cycler
 import matplotlib.pyplot as plt
+import pandas as pd
 from .dynamo_logger import main_info
+
+
+class DynamoAdataKeyManager:
+    VAR_GENE_MEAN_KEY = "pp_gene_means"
+    VAR_GENE_VAR_KEY = "gene_vars"
+    VAR_GENE_HIGHLAY_VARIABLE_KEY = "gene_highly_variable"
+
+    def gen_new_layer_key(layer_name, key, sep="_") -> str:
+        """utility function for returning a new key name for a specific layer. By convention layer_name should not have the separator as the last character."""
+        if layer_name == "":
+            return key
+        if layer_name[-1] == sep:
+            return layer_name + key
+        return sep.join([layer_name, key])
+
+    def select_layer_data(adata, layer, copy=False) -> pd.DataFrame:
+        res_data = None
+        if layer == "X":
+            res_data = adata.X
+        elif layer == "protein":
+            res_data = adata.obsm["protein"]
+        else:
+            res_data = adata.layer[layer]
+        if copy:
+            return res_data.copy()
+        return res_data
 
 
 class DynamoAdataConfig:
