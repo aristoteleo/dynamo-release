@@ -11,6 +11,8 @@ class DynamoAdataKeyManager:
     VAR_GENE_MEAN_KEY = "pp_gene_means"
     VAR_GENE_VAR_KEY = "gene_vars"
     VAR_GENE_HIGHLAY_VARIABLE_KEY = "gene_highly_variable"
+    X_LAYER = "X"
+    PROTEIN_LAYER = "protein"
 
     def gen_new_layer_key(layer_name, key, sep="_") -> str:
         """utility function for returning a new key name for a specific layer. By convention layer_name should not have the separator as the last character."""
@@ -22,9 +24,9 @@ class DynamoAdataKeyManager:
 
     def select_layer_data(adata, layer, copy=False) -> pd.DataFrame:
         res_data = None
-        if layer == "X":
+        if layer == DynamoAdataKeyManager.X_LAYER:
             res_data = adata.X
-        elif layer == "protein":
+        elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
             res_data = adata.obsm["protein"]
         else:
             res_data = adata.layer[layer]

@@ -24,7 +24,7 @@ def calc_mean_var_dispersion(data_mat) -> List[np.ndarray]:
     return mean, var, dispersion
 
 
-def filter_genes_by_dispersion_seurat(adata, layer="X", nan_replace_val=None):
+def filter_genes_by_dispersion_seurat(adata, layer=DynamoAdataKeyManager.X_LAYER, nan_replace_val=None):
     layer_data = DynamoAdataKeyManager.select_layer_data(adata, layer)
     if nan_replace_val:
         mask = get_nan_or_inf_data_bool_mask(layer_data)
