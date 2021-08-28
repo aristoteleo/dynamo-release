@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from ..vectorfield.utils import normalize_vectors, angle
+from ..vectorfield.scVectorField import differentiable_vectorfield
 from .utils import arclength_sampling, remove_redundant_points_trajectory, pca_to_expr, expr_to_pca
 from ..tools.utils import flatten
 from ..dynamo_logger import LoggerManager
@@ -95,6 +96,36 @@ class Trajectory:
             S = S.sum()
         S /= len(self)
         return S
+
+
+class VectorFieldTrajectory(Trajectory):
+    def __init__(self, X, t, vecfld: differentiable_vectorfield) -> None:
+        super().__init__(X, t=t)
+        self.vecfld = vecfld
+
+    def calc_velocities(self, **kwargs):
+        self.Vs = self.vecfld.func(self.X)
+        return self.Vs
+
+    def calc_jacobians(self, method=None):
+        fjac = self.vecfld.get_Jacobian(method=method)
+        self.Js = fjac(self.X)
+        return self.Js
+
+    def calc_acclerations(self, method=None, **kwargs):
+        if self.Js is None:
+            self.Js = self.calc_jacobians(method=method)
+        self.vecfld.compute_acceleration(self.X, Js=self.Js, **kwargs)
+
+    def calc_curvatures(self, method=None, **kwargs):
+        if self.Js is None:
+            self.Js = self.calc_jacobians(method=method)
+        self.vecfld.compute_curvature(self.X, Js=self.Js, **kwargs)
+
+    def calc_divergence(self, method=None, **kwargs):
+        if self.Js is None:
+            self.Js = self.calc_jacobians(method=method)
+        self.vecfld.compute_divergence(self.X, Js=self.Js, **kwargs)
 
 
 class GeneTrajectory(Trajectory):
