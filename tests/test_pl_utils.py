@@ -73,7 +73,7 @@ if __name__ == "__main__":
     # generate data if needed
     adata = gen_or_read_zebrafish_data()
 
-    # To-do: use a fixture in future
+    # TODO use a fixture in future
     # test_space_simple1(adata)
     # test_scatter_contour(adata)
     print("adata shape:", adata.shape)

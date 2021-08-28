@@ -43,7 +43,7 @@ class Logger:
         self.previous_timestamp = time.time()  # in seconds
         self.time_passed = 0
 
-        # To-do: add file handler in future
+        # TODO add file handler in future
         # e.g. logging.StreamHandler(None) if log_file_path is None else logging.FileHandler(name)
 
         # ensure only one stream handler exists in one logger instance
@@ -294,6 +294,14 @@ def main_finish_progress(progress_name=""):
 
 def main_info_insert_adata(key, adata_attr="obsm", indent_level=1, *args, **kwargs):
     LoggerManager.main_logger.info_insert_adata(key, adata_attr=adata_attr, indent_level=indent_level, *args, **kwargs)
+
+
+def main_info_insert_adata_var(key, indent_level=1, *args, **kwargs):
+    main_info_insert_adata(key, "var", indent_level, *args, **kwargs)
+
+
+def main_info_insert_adata_uns(key, indent_level=1, *args, **kwargs):
+    main_info_insert_adata(key, "uns", indent_level, *args, **kwargs)
 
 
 def main_info_verbose_timeit(msg):

@@ -1060,7 +1060,7 @@ def highest_frac_genes(
         adata.uns[store_key]["selected_indices"],
     )
 
-    # To-do: use top genes_df dataframe; however this logic currently
+    # TODO use top genes_df dataframe; however this logic currently
     # does not fit subset logics and may fail tests.
 
     # main_info("Using prexisting top_genes_df in .uns.")

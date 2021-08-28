@@ -1,3 +1,10 @@
+from dynamo.dynamo_logger import (
+    main_finish_progress,
+    main_info,
+    main_info_insert_adata,
+    main_info_insert_adata_var,
+    main_log_time,
+)
 from dynamo.configuration import DynamoAdataKeyManager
 from typing import List
 import numpy as np
@@ -15,31 +22,49 @@ def clip_by_perc(layer_mat):
     return
 
 
-def calc_mean_var_dispersion(data_mat) -> List[np.ndarray]:
+def calc_mean_var_dispersion(data_mat: np.array) -> List[np.ndarray]:
     # per gene mean, var and dispersion
-    # works for both sparse mat and np array
     mean = np.nanmean(data_mat, axis=0)
     var = np.nanvar(data_mat, axis=0)
     dispersion = var / mean
     return mean, var, dispersion
 
 
-def filter_genes_by_dispersion_seurat(adata, layer=DynamoAdataKeyManager.X_LAYER, nan_replace_val=None):
-    layer_data = DynamoAdataKeyManager.select_layer_data(adata, layer)
-    if nan_replace_val:
-        mask = get_nan_or_inf_data_bool_mask(layer_data)
-        layer_data[mask] = nan_replace_val
-    # works for both sparse and np array
-    # per gene mean, var and dispersion
-    mean = np.nanmean(layer_data, axis=0)
-    var = np.nanvar(layer_data, axis=0)
+def calc_mean_var_dispersion_sparse(sparse_mat) -> List[np.ndarray]:
+
+    nan_mask = get_nan_or_inf_data_bool_mask(sparse_mat.data)
+
+    non_nan_count = sparse_mat.shape[0] - nan_mask.sum()
+    mean = (sparse_mat.sum(0) / non_nan_count).A1
+    # same as numpy var behavior: denominator is N, var=(data_arr-mean)/N
+    var = np.power(sparse_mat - mean, 2).sum(0) / non_nan_count
     dispersion = var / mean
-    return mean, var
+    return mean, var, dispersion
+
+
+def filter_genes_by_dispersion_general(
+    adata, layer=DynamoAdataKeyManager.X_LAYER, nan_replace_val=None, n_top_genes=None
+):
+    main_info("filtering genes by dispersion...")
+    main_log_time()
+
+    layer_mat = DynamoAdataKeyManager.select_layer_data(adata, layer)
+    if nan_replace_val:
+        main_info("replacing nan values with: %s" % (nan_replace_val))
+        mask = get_nan_or_inf_data_bool_mask(layer_mat)
+        layer_mat[mask] = nan_replace_val
+    filter_genes_by_dispersion_svr(adata, layer_mat, n_top_genes)
+
+    main_finish_progress("filter genes by dispersion")
 
 
 def filter_genes_by_dispersion_svr(adata, layer_mat, n_top_genes) -> None:
     mean, var, dispersion = calc_mean_var_dispersion(layer_mat)
     highly_variable_mask = get_highly_variable_mask_by_dispersion_svr(adata, mean, var, n_top_genes)
+
+    main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_MEAN_KEY)
+    main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_VAR_KEY)
+    main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY)
     adata.var[DynamoAdataKeyManager.VAR_GENE_MEAN_KEY] = mean
     adata.var[DynamoAdataKeyManager.VAR_GENE_VAR_KEY] = var
     adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY] = highly_variable_mask

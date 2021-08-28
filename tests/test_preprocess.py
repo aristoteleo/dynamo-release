@@ -1,3 +1,5 @@
+from scipy.sparse.csr import csr_matrix
+from dynamo.preprocessing.gene_selection_utils import calc_mean_var_dispersion_sparse
 from utils import *
 import dynamo as dyn
 
@@ -91,11 +93,25 @@ def test_recipe_monocle_feature_selection_layer_simple0():
     dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False, feature_selection_layer="new")
 
 
-if __name__ == "__main__":
-    # generate data if needed
-    # adata = gen_or_read_zebrafish_data()
+def test_filter_by_dispersion_sparse():
+    # TODO add randomize tests
+    sparse_mat = csr_matrix([[1, 2, 0, 1], [0, 0, 3, 1], [4, 0, 5, 1]])
+    mean, var, dispersion = calc_mean_var_dispersion_sparse(sparse_mat)
+    expected_mean = np.mean(sparse_mat.toarray(), axis=0)
+    expected_var = np.var(sparse_mat.toarray(), axis=0)
+    expected_dispersion = expected_var / expected_mean
+    assert np.all((mean - expected_mean) == 0)
+    assert np.all((var - expected_var) == 0)
+    assert np.all((dispersion - expected_dispersion) == 0)
 
-    # # To-do: use a fixture in future
+
+if __name__ == "__main__":
+    test_filter_by_dispersion_sparse()
+
+    # generate data if needed
+    adata = gen_or_read_zebrafish_data()
+
+    # TODO use a fixture in future
     test_highest_frac_genes_plot(adata.copy())
     test_highest_frac_genes_plot_prefix_list(adata.copy())
     test_recipe_monocle_feature_selection_layer_simple0()
