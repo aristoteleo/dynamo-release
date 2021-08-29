@@ -300,15 +300,15 @@ def layers2csr(adata):
 
 
 def merge_adata_attrs(adata_ori, adata, attr):
-    if attr == "var":
-        _columns = set(adata.var.columns).difference(adata_ori.var.columns)
-        var_df = adata_ori.var.merge(adata.var[_columns], how="left", left_index=True, right_index=True)
-        adata_ori.var = var_df.loc[adata_ori.var.index, :]
-    elif attr == "obs":
-        _columns = set(adata.obs.columns).difference(adata_ori.obs.columns)
-        obs_df = adata_ori.obs.merge(adata.obs[_columns], how="left", left_index=True, right_index=True)
-        adata_ori.obs = obs_df.loc[adata_ori.obs.index, :]
+    def _merge_by_diff(origin_df: pd.DataFrame, diff_df: pd.DataFrame):
+        _columns = set(diff_df.columns).difference(origin_df.columns)
+        new_df = origin_df.merge(diff_df[_columns], how="left", left_index=True, right_index=True)
+        return new_df.loc[origin_df.index, :]
 
+    if attr == "var":
+        adata_ori.var = _merge_by_diff(adata_ori.var, adata.var)
+    elif attr == "obs":
+        adata_ori.obs = _merge_by_diff(adata_ori.obs, adata.obs)
     return adata_ori
 
 

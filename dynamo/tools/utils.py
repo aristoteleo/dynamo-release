@@ -184,7 +184,7 @@ def index_gene(adata, arr, genes):
             return arr[:, mask]
 
 
-def select_genes_by_gamma_r2(
+def reserve_minimal_genes_by_gamma_r2(
     adata: AnnData, var_store_key: str, minimal_gene_num: Union[int, None] = 50
 ) -> Union[list, pd.Series, np.array]:
     """When the sum of `adata.var[var_store_key]` is less than `minimal_gene_num`, select the `minimal_gene_num` genes and save to (update) adata.var[var_store_key].
@@ -1741,7 +1741,7 @@ def set_transition_genes(
             "  3. Your data has strange expression kinetics. Welcome to report to dynamo team for more insights.\n"
             "We auto correct this behavior by selecting the %d top genes according to gamma_r2 values."
         )
-        select_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
+        reserve_minimal_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
 
     return adata
 
@@ -1878,26 +1878,23 @@ def get_ekey_vkey_from_adata(adata):
 
 # ---------------------------------------------------------------------------------------------------
 # cell velocities related
-def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):
-    # These codes are borrowed from scvelo. Need to be rewritten later.
-    def iterate_indices(indices, index, n_recurse_neighbors):
-        if n_recurse_neighbors > 1:
-            index = iterate_indices(indices, index, n_recurse_neighbors - 1)
-        ix = np.append(index, indices[index])  # append to also include direct neighbors, otherwise ix = indices[index]
-        if np.isnan(ix).any():
-            ix = ix[~np.isnan(ix)]
-        return ix.astype(int)
-
-    indices = np.unique(iterate_indices(indices, index, n_recurse_neighbors))
-    if max_neighs is not None and len(indices) > max_neighs:
-        indices = np.random.choice(indices, max_neighs, replace=False)
-    return indices
+def get_neighbor_indices(adjacency_list, source_idx, n_order_neighbors=2, max_neighbors_num=None):
+    """returns a list (np.array) of `n_order_neighbors` neighbor indices of source_idx. If `max_neighbors_num` is set and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list of neighbors will be randomly chosen and returned."""
+    _indices = [source_idx]
+    for _ in range(n_order_neighbors):
+        _indices = np.append(_indices, adjacency_list[_indices])
+        if np.isnan(_indices).any():
+            _indices = _indices[~np.isnan(_indices)]
+    _indices = np.unique(_indices)
+    if max_neighbors_num is not None and len(_indices) > max_neighbors_num:
+        _indices = np.random.choice(_indices, max_neighbors_num, replace=False)
+    return _indices
 
 
-def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs=None):
+def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighbors_num=None):
     indices_rec = []
     for i in range(indices.shape[0]):
-        neig = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)
+        neig = get_neighbor_indices(indices, i, n_recurse_neighbors, max_neighbors_num)
         indices_rec.append(neig)
     return indices_rec
 
