@@ -12,7 +12,7 @@ from .Markov import (
     fp_operator,
     ContinuousTimeMarkovChain,
 )
-from .connectivity import adj_to_knn
+from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
 
 from .metric_velocity import gene_wise_confidence
 from .utils import (
@@ -21,7 +21,7 @@ from .utils import (
     get_ekey_vkey_from_adata,
     get_mapper_inverse,
     update_dict,
-    get_iterative_indices,
+    get_neighbor_indices,
     split_velocity_graph,
     norm,
     einsum_correlation,
@@ -62,7 +62,7 @@ def cell_velocities(
     min_gamma: Union[float, None] = None,
     min_delta: Union[float, None] = None,
     basis: str = "umap",
-    neigh_key: str = "neighbors",
+    neighbor_key_prefix: str = "",
     adj_key: str = "distances",
     add_transition_key: str = None,
     add_velocity_key: str = None,
@@ -136,8 +136,8 @@ def cell_velocities(
         basis: str (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
             or `X_total_umap`, etc.
-        neigh_key: str (optional, default `neighbors`)
-            The dictionary key for the neighbor information (stores nearest neighbor `indices`) in .uns.
+        neighbor_key_prefix: str (optional, default `neighbors`)
+            The dictionary key prefix in .uns. Connectivity and distance matrix keys are also generate with this prefix in adata.obsp.
         adj_key: str (optional, default `distances`)
             The dictionary key for the adjacency matrix of the nearest neighbor graph in .obsp.
         add_transition_key: str or None (default: None)
@@ -193,6 +193,7 @@ def cell_velocities(
             Returns an updated :class:`~anndata.AnnData` with projected velocity vectors, and a cell transition matrix
             calculated using either the Itô kernel method or similar methods from (La Manno et al. 2018).
     """
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_key_prefix)
     mapper_r = get_mapper_inverse()
     layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
     ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, layer)
@@ -200,9 +201,10 @@ def cell_velocities(
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if neigh_key is not None and neigh_key in adata.uns.keys() and "indices" in adata.uns[neigh_key]:
-        # use neighbor indices in neigh_key (if available) first for the sake of performance.
-        indices = adata.uns[neigh_key]["indices"]
+    if neighbor_key is not None and neighbor_key in adata.uns.keys() and "indices" in adata.uns[neighbor_key]:
+        check_and_recompute_neighbors(adata, result_prefix=neighbor_key_prefix)
+        # use neighbor indices in neighbor_key (if available) first for the sake of performance.
+        indices = adata.uns[neighbor_key]["indices"]
         if type(indices) is not np.ndarray:
             indices = np.array(indices)
 
@@ -326,13 +328,13 @@ def cell_velocities(
 
         if "_" in basis and any([i in basis for i in ["X_", "spliced_", "unspliced_", "new_", "total"]]):
             basis_layer, basis = basis.rsplit("_", 1)
-            adata = reduceDimension(adata, layer=basis_layer, reduction_method=basis)
+            reduceDimension(adata, layer=basis_layer, reduction_method=basis)
             X_embedding = adata.obsm[basis]
         else:
             if vkey in ["velocity_S", "velocity_T"]:
                 X_embedding = adata.obsm["X_" + basis]
             else:
-                adata = reduceDimension(adata, layer=layer, reduction_method=basis)
+                reduceDimension(adata, layer=layer, reduction_method=basis)
                 X_embedding = adata.obsm[layer + "_" + basis]
 
     if X.shape[0] != X_embedding.shape[0]:
@@ -347,6 +349,11 @@ def cell_velocities(
     X = X.A if sp.issparse(X) else X
     finite_inds = get_finite_inds(V)
     X, V = X[:, finite_inds], V[:, finite_inds]
+
+    if sum(finite_inds) != X.shape[0]:
+        main_info(f"{X.shape[1] - sum(finite_inds)} genes are removed because of nan velocity values.")
+        if transition_genes is not None:  # if X, V is provided by the user, transition_genes will be None
+            adata.var.loc[np.array(transition_genes)[~finite_inds], "use_for_transition"] = False
 
     if finite_inds.sum() < 5 and len(finite_inds) > 100:
         raise Exception(
@@ -613,7 +620,7 @@ def confident_cell_velocities(
     only_transition_genes=False,
 ):
     """Confidently compute transition probability and project high dimension velocity vector to existing low dimension
-    embeddings using progeintors and mature cell groups priors.
+    embeddings using progenitors and mature cell groups priors.
 
     Parameters
     ----------
@@ -623,14 +630,13 @@ def confident_cell_velocities(
             The column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
         lineage_dict: dict
-            A dictionary describes lineage priors. Keys corresponds to the group name from `group` that corresponding
-            to the state of one progenitor type while values correspond to the group names from `group` that
-            corresponding to the states of one or multiple terminal cell states. The best practice for determining
-            terminal cell states are those fully functional cells instead of intermediate cell states. Note that in
-            python a dictionary key cannot be a list, so if you have two progenitor types converge into one terminal
-            cell state, you need to create two records each with the same terminal cell as value but different
-            progenitor as the key. Value can be either a string for one cell group or a list of string for multiple cell
-            groups.
+            A dictionary describes lineage priors. Keys correspond to the group name from `group` that corresponding
+            to the state of one progenitor type while values correspond to the group names from `group` of one or
+            multiple terminal cell states. The best practice for determining terminal cell states are those fully
+            functional cells instead of intermediate cell states. Note that in python a dictionary key cannot be a list,
+            so if you have two progenitor types converge into one terminal cell state, you need to create two records
+            each with the same terminal cell as value but different progenitor as the key. Value can be either a string
+            for one cell group or a list of string for multiple cell groups.
         ekey: str or None (default: `M_s`)
             The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
             each cell state. If `None`, .X is used.
@@ -641,8 +647,8 @@ def confident_cell_velocities(
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         confidence_threshold: float (optional, default 0.85)
             The minimal threshold of the mean of the average progenitors and the average mature cells prior based
-            gene-wise score. Only genes with score larger than this will be considered as confident transition genes for
-            velocity projection.
+            gene-wise velocity confidence score. Only genes with score larger than this will be considered as confident
+            transition genes for velocity projection.
         only_transition_genes: bool (optional, default False)
             Whether only use previous identified transition genes for confident gene selection, followed by velocity
             projection.
@@ -652,8 +658,7 @@ def confident_cell_velocities(
         adata: :class:`~anndata.AnnData`
             Returns an updated `~anndata.AnnData` with only confident genes based transition_matrix and projected
             embedding of high dimension velocity vectors in the existing embeddings of current cell state, calculated
-            using either the Itô kernel method (default) or the diffusion approximation or the method from
-            (La Manno et al. 2018).
+            using either the cosine kernel method from (La Manno et al. 2018) or the Itô kernel for the FP method, etc.
     """
 
     if not any([i.startswith("velocity") for i in adata.layers.keys()]):
@@ -879,11 +884,12 @@ def expected_return_time(M, backward=False):
     return T
 
 
+@jit(nopython=True)
 def kernels_from_velocyto_scvelo(
     X,
     X_embedding,
     V,
-    indices,
+    adj_mat,
     neg_cells_trick,
     xy_grid_nums,
     kernel="pearson",
@@ -896,30 +902,32 @@ def kernels_from_velocyto_scvelo(
     """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
     pearson correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019)."""
     n = X.shape[0]
-    if indices is not None:
+    if adj_mat is not None:
         rows = []
         cols = []
         vals = []
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
-    for i in LoggerManager.progress_logger(
+    for cur_i in LoggerManager.progress_logger(
         range(n),
         progress_name=f"calculating transition matrix via {kernel} kernel with {transform} transform.",
     ):
-        velocity = V[i, :]  # project V to pca space
+        velocity = V[cur_i, :]  # project V to pca space
 
         if velocity.sum() != 0:
-            i_vals = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)  # np.zeros((knn, 1))
-            diff = X[i_vals, :] - X[i, :]
+            neighbor_index_vals = get_neighbor_indices(
+                adj_mat, cur_i, n_recurse_neighbors, max_neighs
+            )  # np.zeros((knn, 1))
+            diff = X[neighbor_index_vals, :] - X[cur_i, :]
 
             if transform == "log":
                 diff_velocity = np.sign(velocity) * np.log1p(np.abs(velocity))
                 diff_rho = np.sign(diff) * np.log1p(np.abs(diff))
             elif transform == "logratio":
-                hi_dim, hi_dim_t = X[i, :], X[i, :] + velocity
+                hi_dim, hi_dim_t = X[cur_i, :], X[cur_i, :] + velocity
                 log2hidim = np.log1p(np.abs(hi_dim))
                 diff_velocity = np.log1p(np.abs(hi_dim_t)) - log2hidim
-                diff_rho = np.log1p(np.abs(X[i_vals, :])) - np.log1p(np.abs(hi_dim))
+                diff_rho = np.log1p(np.abs(X[neighbor_index_vals, :])) - np.log1p(np.abs(hi_dim))
             elif transform == "linear":
                 diff_velocity = velocity
                 diff_rho = diff
@@ -931,9 +939,8 @@ def kernels_from_velocyto_scvelo(
                 vals_ = einsum_correlation(diff_rho, diff_velocity, type="pearson")
             elif kernel == "cosine":
                 vals_ = einsum_correlation(diff_rho, diff_velocity, type="cosine")
-
-            rows.extend([i] * len(i_vals))
-            cols.extend(i_vals)
+            rows.extend([cur_i] * len(neighbor_index_vals))
+            cols.extend(neighbor_index_vals)
             vals.extend(vals_)
     vals = np.hstack(vals)
     vals[np.isnan(vals)] = 0
@@ -987,7 +994,8 @@ def projection_with_transition_matrix(n, T, X_embedding, correct_density=True):
             idx = T[i].indices
             diff_emb = X_embedding[idx] - X_embedding[i, None]
             diff_emb /= norm(diff_emb, axis=1)[:, None]
-            diff_emb[np.isnan(diff_emb)] = 0
+            if np.isnan(diff_emb).sum() != 0:
+                diff_emb[np.isnan(diff_emb)] = 0
             T_i = T[i].data
             delta_X[i] = T_i.dot(diff_emb)
             if correct_density:

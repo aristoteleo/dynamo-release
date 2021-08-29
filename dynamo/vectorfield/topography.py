@@ -12,7 +12,7 @@ import anndata
 from typing import Union
 from ..dynamo_logger import LoggerManager, main_warning, main_info
 
-from .scVectorField import base_vectorfield, svc_vectorfield
+from .scVectorField import base_vectorfield, SvcVectorfield
 from ..tools.utils import (
     update_dict,
     inverse_norm,
@@ -28,8 +28,8 @@ from .utils import (
     is_outside,
     remove_redundant_points,
     find_fixed_points,
-    FixedPoints,
 )
+from .FixedPoints import FixedPoints
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
@@ -532,6 +532,9 @@ def VectorField(
     grid_num: int = 50,
     velocity_key: str = "velocity_S",
     method: str = "SparseVFC",
+    min_vel_corr: float = 0.6,
+    restart_num: int = 5,
+    restart_seed: Union[None, list] = [0, 100, 200, 300, 400],
     model_buffer_path: Union[str, None] = None,
     return_vf_object: bool = False,
     map_topography: bool = False,
@@ -579,6 +582,15 @@ def VectorField(
         method:
             Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but
             other improved approaches are under development.
+        min_vel_corr:
+            The minimal threshold for the cosine correlation between input velocities and learned velocities to consider
+            as a successful vector field reconstruction procedure. If the cosine correlation is less than this
+            threshold and restart_num > 1, `restart_num` trials will be attempted with different seeds to reconstruct
+            the vector field function. This can avoid some reconstructions to be trapped in some local optimal.
+        restart_num:
+            The number of retrials for vector field reconstructions.
+        restart_seed:
+            A list of seeds for each retrial. Must be the same length as `restart_num` or None.
         buffer_path:
                The directory address keeping all the saved/to-be-saved torch variables and NN modules. When `method` is
                set to be `dynode`, buffer_path will set to be
@@ -747,14 +759,63 @@ def VectorField(
 
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
-    if method.lower() == "sparsevfc":
-        VecFld = svc_vectorfield(X, V, Grid, **vf_kwargs)
-        vf_dict = VecFld.train(normalize=normalize, **kwargs)
-    elif method.lower() == "dynode":
-        train_kwargs = update_dict(train_kwargs, kwargs)
-        VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
-        # {"VecFld": VecFld.train(**kwargs)}
-        vf_dict = VecFld.train(**train_kwargs)
+    if restart_num > 0:
+        if len(restart_seed) != restart_num:
+            main_warning(
+                f"the length of {restart_seed} is different from {restart_num}, " f"using `np.range(restart_num) * 100"
+            )
+            restart_seed = np.arange(restart_num) * 100
+        restart_counter, cur_vf_list, res_list = 0, [], []
+        while True:
+            if method.lower() == "sparsevfc":
+                kwargs.update({"seed": restart_seed[restart_counter]})
+                VecFld = SvcVectorfield(X, V, Grid, **vf_kwargs)
+                cur_vf_dict = VecFld.train(normalize=normalize, **kwargs)
+            elif method.lower() == "dynode":
+                train_kwargs = update_dict(train_kwargs, kwargs)
+                VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
+                # {"VecFld": VecFld.train(**kwargs)}
+                cur_vf_dict = VecFld.train(**train_kwargs)
+
+            # consider refactor with .simulation.evaluation.py
+            reference, prediction = (
+                cur_vf_dict["Y"][cur_vf_dict["valid_ind"]],
+                cur_vf_dict["V"][cur_vf_dict["valid_ind"]],
+            )
+            true_normalized = reference / (np.linalg.norm(reference, axis=1).reshape(-1, 1) + 1e-20)
+            predict_normalized = prediction / (np.linalg.norm(prediction, axis=1).reshape(-1, 1) + 1e-20)
+            res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
+
+            cur_vf_list += [cur_vf_dict]
+            res_list += [res]
+            if res < min_vel_corr:
+                restart_counter += 1
+                main_info(
+                    f"current cosine correlation between input velocities and learned velocities is less than "
+                    f"{min_vel_corr}. Make a {restart_counter}-th vector field reconstruction trial.",
+                    indent_level=2,
+                )
+            else:
+                vf_dict = cur_vf_dict
+                break
+
+            if restart_counter > restart_num - 1:
+                main_warning(
+                    f"Cosine correlation between input velocities and learned velocities is less than"
+                    f" {min_vel_corr} after {restart_num} trials of vector field reconstruction."
+                )
+                vf_dict = cur_vf_list[np.argmax(np.array(res_list))]
+
+                break
+    else:
+        if method.lower() == "sparsevfc":
+            VecFld = SvcVectorfield(X, V, Grid, **vf_kwargs)
+            vf_dict = VecFld.train(normalize=normalize, **kwargs)
+        elif method.lower() == "dynode":
+            train_kwargs = update_dict(train_kwargs, kwargs)
+            VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
+            # {"VecFld": VecFld.train(**kwargs)}
+            vf_dict = VecFld.train(**train_kwargs)
 
     if result_key is None:
         vf_key = "VecFld" if basis is None else "VecFld_" + basis
@@ -780,7 +841,7 @@ def VectorField(
 
         logger.info_insert_adata(key, adata_attr="layers")
         adata.layers[key] = sp.csr_matrix((adata.shape))
-        adata.layers[key][:, valid_genes] = vf_dict["V"]
+        adata.layers[key][:, [adata.var_names.get_loc(i) for i in valid_genes]] = vf_dict["V"]
 
         vf_dict["layer"] = layer
         vf_dict["genes"] = genes

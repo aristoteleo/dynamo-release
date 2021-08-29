@@ -29,7 +29,7 @@ def pca(adata: AnnData, *args, **kwargs):
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.pl.pca(
     ...     adata,
@@ -59,7 +59,7 @@ def umap(adata: AnnData, *args, **kwargs):
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.pl.umap(
     ...     adata,
@@ -89,7 +89,7 @@ def trimap(adata: AnnData, *args, **kwargs):
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.pl.trimap(
     ...     adata,
@@ -118,7 +118,7 @@ def tsne(adata: AnnData, *args, **kwargs):
     --------
     >>> import dynamo as dyn
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.pl.tsne(
     ...     adata,

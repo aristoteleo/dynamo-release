@@ -1,3 +1,4 @@
+from anndata._core.anndata import AnnData
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -6,8 +7,8 @@ from sklearn.decomposition import PCA, TruncatedSVD
 
 import warnings
 import anndata
-from typing import Union
-from ..dynamo_logger import LoggerManager, main_info, main_warning
+from typing import Iterable, Union
+from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning, main_exception
 from ..utils import areinstance
 
 
@@ -47,6 +48,8 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
         )
 
     mg = mygene.MyGeneInfo()
+    main_info("Storing myGene name info into local cache db: mygene_cache.sqlite.")
+    mg.set_caching()
 
     ensemble_names = [i.split(".")[0] for i in input_names]
     var_pd = mg.querymany(
@@ -62,7 +65,9 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
     return var_pd
 
 
-def convert2symbol(adata, scopes=None, subset=True):
+def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, subset=True):
+    """This helper function converts unofficial gene names to official gene names."""
+
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
         logger = LoggerManager.gen_logger("dynamo-utils")
         logger.info("convert ensemble name to official gene name", indent_level=1)
@@ -108,6 +113,12 @@ def convert2symbol(adata, scopes=None, subset=True):
             indices[valid_ind] = adata.var.loc[valid_ind, "symbol"].values.copy()
             adata.var.index = indices
 
+        if np.sum(adata.var_names.isnull()) > 0:
+            main_info(
+                "Subsetting adata object and removing Nan columns from adata when converting gene names.",
+                indent_level=1,
+            )
+            adata._inplace_subset_var(adata.var_names.notnull())
     return adata
 
 
@@ -259,17 +270,17 @@ def filter_genes_by_pattern(
 
 
 def basic_stats(adata):
-    adata.obs["nGenes"], adata.obs["nCounts"] = (adata.X > 0).sum(1), (adata.X).sum(1)
-    adata.var["nCells"], adata.var["nCounts"] = (adata.X > 0).sum(0).T, (adata.X).sum(0).T
+    adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
+    adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
     try:
-        adata.obs["pMito"] = (
-            (adata.X[:, mito_genes]).sum(1).A1 / adata.obs["nCounts"]
-            if issparse(adata.X)
-            else (adata.X[:, mito_genes]).sum(1) / adata.obs["nCounts"]
-        )
+        adata.obs["pMito"] = adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1))
     except:  # noqa E722
-        raise ValueError("looks like your var_names may be corrupted (i.e. include nan values)")
+        main_exception(
+            "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
+            "include nan values). If you don't believe so, please report to us on github or "
+            "via xqiu@wi.mit.edu"
+        )
 
 
 def unique_var_obs_adata(adata):
@@ -289,15 +300,15 @@ def layers2csr(adata):
 
 
 def merge_adata_attrs(adata_ori, adata, attr):
-    if attr == "var":
-        _columns = set(adata.var.columns).difference(adata_ori.var.columns)
-        var_df = adata_ori.var.merge(adata.var[_columns], how="left", left_index=True, right_index=True)
-        adata_ori.var = var_df.loc[adata_ori.var.index, :]
-    elif attr == "obs":
-        _columns = set(adata.obs.columns).difference(adata_ori.obs.columns)
-        obs_df = adata_ori.obs.merge(adata.obs[_columns], how="left", left_index=True, right_index=True)
-        adata_ori.obs = obs_df.loc[adata_ori.obs.index, :]
+    def _merge_by_diff(origin_df: pd.DataFrame, diff_df: pd.DataFrame):
+        _columns = set(diff_df.columns).difference(origin_df.columns)
+        new_df = origin_df.merge(diff_df[_columns], how="left", left_index=True, right_index=True)
+        return new_df.loc[origin_df.index, :]
 
+    if attr == "var":
+        adata_ori.var = _merge_by_diff(adata_ori.var, adata.var)
+    elif attr == "obs":
+        adata_ori.obs = _merge_by_diff(adata_ori.obs, adata.obs)
     return adata_ori
 
 
@@ -315,22 +326,6 @@ def allowed_X_layer_names():
     splicing_and_labeling = ["X_uu", "X_ul", "X_su", "X_sl"]
 
     return only_splicing, only_labeling, splicing_and_labeling
-
-
-def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
-    """Get the list of available layers' keys."""
-    layer_keys = list(adata.layers.keys())
-    if remove_normalized:
-        layer_keys = [i for i in layer_keys if not i.startswith("X_")]
-
-    if "protein" in adata.obsm.keys() and include_protein:
-        layer_keys.extend(["X", "protein"])
-    else:
-        layer_keys.extend(["X"])
-    layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
-
-    layers = list(set(layers).difference(["matrix", "ambiguous", "spanning"]))
-    return layers
 
 
 def get_shared_counts(adata, layers, min_shared_count, type="gene"):
@@ -821,7 +816,7 @@ def NTR(adata):
 
 def scale(adata, layers=None, scale_to_layer=None, scale_to=1e6):
     """scale layers to a particular total expression value, similar to `normalize_expr_data` function."""
-    layers = get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
     has_splicing, has_labeling, _ = detect_datatype(adata)
 
     if scale_to_layer is None:

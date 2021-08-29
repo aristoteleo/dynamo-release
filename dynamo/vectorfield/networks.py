@@ -117,9 +117,13 @@ def build_network_per_cluster(
 
     genes = np.unique(genes)
     if full_reg_rank is None:
-        full_reg_rank = rank_jacobian_genes(adata, groups=cluster, mode="full reg", abs=abs, output_values=True)
+        full_reg_rank = rank_jacobian_genes(
+            adata, groups=cluster, mode="full reg", abs=abs, output_values=True, return_df=True
+        )
     if full_eff_rank is None:
-        full_eff_rank = rank_jacobian_genes(adata, groups=cluster, mode="full eff", abs=abs, output_values=True)
+        full_eff_rank = rank_jacobian_genes(
+            adata, groups=cluster, mode="full eff", abs=abs, output_values=True, return_df=True
+        )
 
     edges_list = {}
 

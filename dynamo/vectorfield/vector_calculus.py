@@ -20,7 +20,7 @@ from .utils import (
     average_jacobian_by_group,
     intersect_sources_targets,
 )
-from .scVectorField import svc_vectorfield
+from .scVectorField import SvcVectorfield
 from ..tools.sampling import sample
 from ..tools.utils import (
     list_top_genes,
@@ -48,13 +48,7 @@ if use_dynode:
 
 
 def velocities(
-    adata,
-    init_cells,
-    init_states=None,
-    basis=None,
-    VecFld=None,
-    layer="X",
-    dims=None,
+    adata, init_cells, init_states=None, basis=None, vector_field_class=None, layer="X", dims=None, Qkey="PCs"
 ):
     """Calculate the velocities for any cell state with the reconstructed vector field function.
 
@@ -72,34 +66,42 @@ def velocities(
             The embedding data to use for calculating velocities. If `basis` is either `umap` or `pca`, the
             reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
             function.
-        VecFld: dict
-            The true ODE function, useful when the data is generated through simulation.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not None, the speed will be computed using this class instead of the vector field stored in adata. You
+            can set up the class with a known ODE function, useful when the data is generated through simulation.
         layer: str or None (default: 'X')
             Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
             The layer once provided, will override the `basis` argument and then predicting cell fate in high
             dimensional space.
         dims: int, list, or None (default: None)
             The dimensions that will be selected for velocity calculation.
-
-
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`. Only used when basis is `pca`.
     Returns
     -------
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the `"velocities"` related key in the `.uns`.
     """
 
-    if VecFld is None:
-        VecFld, func = vecfld_from_adata(adata, basis)
-    else:
-        func = (
-            lambda x: vector_field_function(x, VecFld)
-            if "velocity_loss_traj" not in VecFld.keys()
-            else dynode_vector_field_function(x, VecFld)
-        )
+    if vector_field_class is None:
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys():
+            vf_dict["method"] = "sparsevfc"
+        if vf_dict["method"].lower() == "sparsevfc":
+            vector_field_class = SvcVectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict["method"].lower() == "dynode":
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     init_states, _, _, _ = fetch_states(adata, init_states, init_cells, basis, layer, False, None)
 
-    vec_mat = func(init_states)
+    if vector_field_class.vf_dict["normalize"]:
+        xm, xscale = vector_field_class.norm_dict["xm"][None, :], vector_field_class.norm_dict["xscale"]
+        init_states = (init_states - xm) / xscale
+    vec_mat = vector_field_class.func(init_states)
     vec_key = "velocities" if basis is None else "velocities_" + basis
 
     if np.isscalar(dims):
@@ -107,13 +109,32 @@ def velocities(
     elif dims is not None:
         vec_mat = vec_mat[:, dims]
 
+    if basis == "pca":
+        Qkey = "PCs" if Qkey is None else Qkey
+
+        if Qkey in adata.uns.keys():
+            Q = adata.uns[Qkey]
+        elif Qkey in adata.varm.keys():
+            Q = adata.varm[Qkey]
+        else:
+            raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
+
+        vel = adata.uns["velocities_pca"].copy()
+        vel_hi = vector_transformation(vel, Q)
+        create_layer(
+            adata,
+            vel_hi,
+            layer_key="velocity_VecFld",
+            genes=adata.var.use_for_pca,
+        )
+
     adata.uns[vec_key] = vec_mat
 
 
 def speed(
     adata,
     basis="umap",
-    VecFld=None,
+    vector_field_class=None,
     method="analytical",
 ):
     """Calculate the speed for each cell with the reconstructed vector field function.
@@ -124,8 +145,9 @@ def speed(
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         basis: str or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        VecFld: dict
-            The true ODE function, useful when the data is generated through simulation.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not None, the speed will be computed using this class instead of the vector field stored in adata. You
+            can set up the class with a known ODE function, useful when the data is generated through simulation.
         method: str (default: `analytical`)
             The method that will be used for calculating speed, either `analytical` or `numeric`. `analytical`
             method will use the analytical form of the reconstructed vector field for calculating Jacobian. Otherwise,
@@ -137,18 +159,26 @@ def speed(
             AnnData object that is updated with the `'speed'` key in the `.obs`.
     """
 
-    if VecFld is None:
-        VecFld, func = vecfld_from_adata(adata, basis)
+    if vector_field_class is None:
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys():
+            vf_dict["method"] = "sparsevfc"
+        if vf_dict["method"].lower() == "sparsevfc":
+            vector_field_class = SvcVectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict["method"].lower() == "dynode":
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError("current only support two methods, SparseVFC and dynode")
+
+    X, V = vector_field_class.get_data()
+
+    if method == "analytical":
+        vec_mat = vector_field_class.func(X)
     else:
-        func = (
-            lambda x: vector_field_function(x, VecFld)
-            if "velocity_loss_traj" not in VecFld.keys()
-            else dynode_vector_field_function(x, VecFld)
-        )
+        vec_mat = adata.obsm["velocity_" + basis] if basis is not None else vector_field_class.vf_dict["Y"]
 
-    X_data = adata.obsm["X_" + basis]
-
-    vec_mat = func(X_data) if method == "analytical" else adata.obsm["velocity_" + basis]
     speed = np.array([np.linalg.norm(i) for i in vec_mat])
 
     speed_key = "speed" if basis is None else "speed_" + basis
@@ -227,7 +257,7 @@ def jacobian(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = svc_vectorfield()
+            vector_field_class = SvcVectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -281,19 +311,22 @@ def jacobian(
                 "Either the regulator or the effector gene list provided is not in the dynamics gene list!"
             )
 
-        if Qkey in adata.uns.keys():
-            Q = adata.uns[Qkey]
-        elif Qkey in adata.varm.keys():
-            Q = adata.varm[Qkey]
+        if basis == "pca":
+            if Qkey in adata.uns.keys():
+                Q = adata.uns[Qkey]
+            elif Qkey in adata.varm.keys():
+                Q = adata.varm[Qkey]
+            else:
+                raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
+            Q = Q[:, : X.shape[1]]
+            if len(regulators) == 1 and len(effectors) == 1:
+                Jacobian = elementwise_jacobian_transformation(
+                    Js, Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs
+                )
+            else:
+                Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
         else:
-            raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
-        Q = Q[:, : X.shape[1]]
-        if len(regulators) == 1 and len(effectors) == 1:
-            Jacobian = elementwise_jacobian_transformation(
-                Js, Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs
-            )
-        else:
-            Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
+            Jacobian = Js.copy()
     else:
         Jacobian = None
 
@@ -307,8 +340,10 @@ def jacobian(
         ret_dict["effectors"] = effectors.to_list()
 
     Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
-    adata.obs["jacobian_det_" + basis] = np.nan
-    adata.obs.loc[adata.obs_names[cell_idx], "jacobian_det_" + basis] = Js_det
+    jacobian_det_key = "jacobian_det" if basis is None else "jacobian_det_" + basis
+    adata.obs[jacobian_det_key] = np.nan
+    adata.obs.loc[adata.obs_names[cell_idx], jacobian_det_key] = Js_det
+
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
@@ -401,7 +436,7 @@ def sensitivity(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = svc_vectorfield()
+            vector_field_class = SvcVectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -555,7 +590,7 @@ def acceleration(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = svc_vectorfield()
+            vector_field_class = SvcVectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -581,6 +616,13 @@ def acceleration(
         create_layer(
             adata,
             acce_hi,
+            layer_key="acceleration",
+            genes=adata.var.use_for_pca,
+        )
+    elif basis is None:
+        create_layer(
+            adata,
+            acce,
             layer_key="acceleration",
             genes=adata.var.use_for_pca,
         )
@@ -630,7 +672,7 @@ def curvature(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = svc_vectorfield()
+            vector_field_class = SvcVectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -658,6 +700,13 @@ def curvature(
     if basis == "pca":
         curv_hi = vector_transformation(curv_mat, adata.uns[Qkey])
         create_layer(adata, curv_hi, layer_key="curvature", genes=adata.var.use_for_pca)
+    elif basis is None:
+        create_layer(
+            adata,
+            curv_mat,
+            layer_key="curvature",
+            genes=adata.var.use_for_pca,
+        )
 
 
 def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
@@ -685,7 +734,7 @@ def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = svc_vectorfield()
+            vector_field_class = SvcVectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -732,7 +781,7 @@ def curl(adata, basis="umap", vector_field_class=None, method="analytical", **kw
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = svc_vectorfield()
+            vector_field_class = SvcVectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -788,7 +837,7 @@ def divergence(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = svc_vectorfield()
+            vector_field_class = SvcVectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -837,6 +886,7 @@ def rank_genes(
     groups=None,
     genes=None,
     abs=False,
+    normalize=False,
     fcn_pool=lambda x: np.mean(x, axis=0),
     dtype=None,
     output_values=False,
@@ -858,8 +908,12 @@ def rank_genes(
             The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
         abs: bool (default: False)
             When pooling the values in the array (see below), whether to take the absolute values.
+        normalize: bool (default: False)
+            Whether normalize the array across all cells first, if the array is 2d.
         fcn_pool: callable (default: numpy.mean(x, axis=0))
             The function used to pool values in the to-be-ranked array if the array is 2d.
+        output_values: bool (default: False)
+            Whether output the values along with the rankings.
     Returns
     -------
         ret_dict: dict
@@ -875,6 +929,10 @@ def rank_genes(
     )
 
     if arr.ndim > 1:
+        if normalize:
+            arr_max = np.max(np.abs(arr), axis=0)
+            arr = arr / arr_max
+            arr[np.isnan(arr)] = 0
         if groups is not None:
             if type(groups) is str and groups in adata.obs.keys():
                 grps = np.array(adata.obs[groups])
@@ -1047,6 +1105,30 @@ def rank_cell_groups(
         if output_values:
             ret_dict[g + "_values"] = sarr
     return pd.DataFrame(data=ret_dict)
+
+
+def rank_expression_genes(adata, ekey="M_s", prefix_store="rank", **kwargs):
+    """Rank genes based on their expression values for each cell group.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the normalized or locally smoothed expression.
+        ekey: str (default: 'M_s')
+            The expression key, can be any properly normalized layers, e.g. M_s, M_u, M_t, M_n.
+        prefix_store: str (default: 'rank')
+            The prefix added to the key for storing the returned in adata.
+        kwargs:
+            Keyword arguments passed to `vf.rank_genes`.
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object which has the rank dictionary for expression in `.uns`.
+    """
+
+    rdict = rank_genes(adata, ekey, **kwargs)
+    adata.uns[prefix_store + "_" + ekey] = rdict
+    return adata
 
 
 def rank_velocity_genes(adata, vkey="velocity_S", prefix_store="rank", **kwargs):
@@ -1248,6 +1330,8 @@ def rank_jacobian_genes(
     abs=False,
     mode="full reg",
     exclude_diagonal=False,
+    normalize=False,
+    return_df=False,
     **kwargs,
 ):
     """Rank genes or gene-gene interactions based on their Jacobian elements for each cell group.
@@ -1263,14 +1347,19 @@ def rank_jacobian_genes(
         jkey: str (default: 'jacobian_pca')
             The key of the stored Jacobians in `.uns`.
         abs: bool (default: False)
-            Whether or not to take the absolute value of the Jacobian.
-        mode: {'full reg', 'full eff', 'reg', 'eff', 'int'} (default: 'full_reg')
+            Whether take the absolute value of the Jacobian.
+        mode: {'full reg', 'full eff', 'reg', 'eff', 'int', 'switch'} (default: 'full_reg')
             The mode of ranking:
             (1) `'full reg'`: top regulators are ranked for each effector for each cell group;
             (2) `'full eff'`: top effectors are ranked for each regulator for each cell group;
             (3) '`reg`': top regulators in each cell group;
             (4) '`eff`': top effectors in each cell group;
             (5) '`int`': top effector-regulator pairs in each cell group.
+            (6) '`switch`': top effector-regulator pairs that show mutual inhibition pattern in each cell group.
+        normalize: bool (default: False)
+            Whether normalize the Jacobian across all cells before performing the ranking.
+        return_df: bool (default: False)
+            Whether to return the data, otherwise it will save in adata object via the key `mode` of adata.uns.
         kwargs:
             Keyword arguments passed to ranking functions.
 
@@ -1288,6 +1377,19 @@ def rank_jacobian_genes(
     J = J_dict["jacobian_gene"]
     if abs:
         J = np.abs(J)
+
+    if normalize:
+        Jmax = np.max(np.abs(J), axis=2)
+        for i in range(J.shape[2]):
+            J[:, :, i] /= Jmax
+
+    if mode == "switch":
+        J_transpose = J.transpose(1, 0, 2)
+        J_mul = J * J_transpose
+        # switch genes will have negative Jacobian between any two gene pairs
+        # only True * True = 1, so only the gene pair with both negative Jacobian, this will be non-zero:
+        J = J_mul * (np.sign(J) == -1) * (np.sign(J_transpose) == -1)
+
     if groups is None:
         J_mean = {"all": np.mean(J, axis=2)}
     else:
@@ -1302,14 +1404,14 @@ def rank_jacobian_genes(
     eff = np.array([x for x in J_dict["effectors"]])
     reg = np.array([x for x in J_dict["regulators"]])
     rank_dict = {}
+    ov = kwargs.pop("output_values", True)
     if mode in ["full reg", "full_reg"]:
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, **kwargs)
+            rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, output_values=ov, **kwargs)
     elif mode in ["full eff", "full_eff"]:
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(J.T, reg, eff, n_top_genes=None, **kwargs)
+            rank_dict[k] = table_top_genes(J, reg, eff, n_top_genes=None, output_values=ov, **kwargs)
     elif mode == "reg":
-        ov = kwargs.pop("output_values", False)
         for k, J in J_mean.items():
             if exclude_diagonal:
                 for i, ef in enumerate(eff):
@@ -1325,7 +1427,6 @@ def rank_jacobian_genes(
                 rank_dict[k] = list_top_genes(j, reg, None, **kwargs)
         rank_dict = pd.DataFrame(data=rank_dict)
     elif mode == "eff":
-        ov = kwargs.pop("output_values", False)
         for k, J in J_mean.items():
             if exclude_diagonal:
                 for i, re in enumerate(reg):
@@ -1340,8 +1441,7 @@ def rank_jacobian_genes(
             else:
                 rank_dict[k] = list_top_genes(j, eff, None, **kwargs)
         rank_dict = pd.DataFrame(data=rank_dict)
-    elif mode == "int":
-        ov = kwargs.pop("output_values", False)
+    elif mode in ["int", "switch"]:
         for k, J in J_mean.items():
             ints, vals = list_top_interactions(J, eff, reg, **kwargs)
             rank_dict[k] = []
@@ -1355,7 +1455,11 @@ def rank_jacobian_genes(
         rank_dict = pd.DataFrame(data=rank_dict)
     else:
         raise ValueError(f"No such mode as {mode}.")
-    return rank_dict
+
+    if return_df:
+        return rank_dict
+    else:
+        adata.uns[mode] = rank_dict
 
 
 def rank_sensitivity_genes(

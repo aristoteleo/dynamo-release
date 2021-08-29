@@ -1,10 +1,10 @@
+from typing import Callable, Union
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist, pdist
 from scipy.sparse import issparse
 from scipy.optimize import fsolve
-from scipy.linalg import eig
 import numdifftools as nd
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
@@ -17,7 +17,8 @@ from ..tools.utils import (
     timeit,
     subset_dict_with_key_list,
 )
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_info
+from .FixedPoints import FixedPoints
 
 
 def is_outside_domain(x, domain):
@@ -222,8 +223,9 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
 
 
 def get_vf_dict(adata, basis="", vf_key="VecFld"):
-    if basis is not None or len(basis) > 0:
-        vf_key = "%s_%s" % (vf_key, basis)
+    if basis is not None:
+        if len(basis) > 0:
+            vf_key = "%s_%s" % (vf_key, basis)
 
     if vf_key not in adata.uns.keys():
         raise ValueError(
@@ -352,7 +354,7 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     return ret
 
 
-def Jacobian_numerical(f, input_vector_convention="row"):
+def Jacobian_numerical(f: Callable, input_vector_convention: str = "row"):
     """
     Get the numerical Jacobian of the vector field function.
     If the input_vector_convention is 'row', it means that fjac takes row vectors
@@ -396,14 +398,14 @@ def elementwise_jacobian_transformation(Js, qi, qj):
         Js: :class:`~numpy.ndarray`
             k x k x n matrices of n k-by-k Jacobians.
         qi: :class:`~numpy.ndarray`
-            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator gene i.
+            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector gene i.
         qj: :class:`~numpy.ndarray`
-            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector gene j.
+            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator gene j.
 
     Returns
     -------
         ret: :class:`~numpy.ndarray`
-            The calculated vector of Jacobian matrix (:math:`\partial F_i / \partial x_j`) for each cell.
+            The calculated Jacobian elements (:math:`\partial F_i / \partial x_j`) for each cell.
     """
 
     Js = np.atleast_3d(Js)
@@ -413,6 +415,48 @@ def elementwise_jacobian_transformation(Js, qi, qj):
         ret[i] = qi @ Js[:, :, i] @ qj
 
     return ret
+
+
+def Jacobian_kovf(x, fjac_base, K, Q, exact=False, mu=None):
+    """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
+
+    Arguments
+    ---------
+    x: :class:`~numpy.ndarray`
+        Coordinates where the Jacobian is evaluated.
+    vf_dict: dict
+        A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+        and RKHS coefficients.
+        Essential keys: 'X_ctrl', 'beta', 'C'
+
+    Returns
+    -------
+    J: :class:`~numpy.ndarray`
+        Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
+        d is the number of dimensions and n the number of coordinates in x.
+    """
+    if K.ndim == 1:
+        K = np.diag(K)
+
+    if exact:
+        if mu is None:
+            raise Exception("For exact calculations of the Jacobian, the mean of the PCA transformation is needed.")
+
+        s = np.sign(x @ Q.T + mu)
+        if x.ndim > 1:
+            G = np.zeros((Q.shape[1], Q.shape[1], x.shape[0]))
+            KQ = K @ Q
+            # KQ = (np.diag(K) * Q.T).T
+            for i in range(x.shape[0]):
+                G[:, :, i] = s[i] * Q.T @ KQ
+        else:
+            G = s * Q.T @ K @ Q
+    else:
+        G = Q.T @ K @ Q
+        if x.ndim > 1:
+            G = np.repeat(G[:, :, None], x.shape[0], axis=2)
+
+    return fjac_base(x) - G
 
 
 @timeit
@@ -430,11 +474,11 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
         X: :class:`~numpy.ndarray`
             The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
         Qi: :class:`~numpy.ndarray`
-            Sampled genes' PCA loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix (k x k)
+            PCA loading matrix with dimension n' x n_PCs of the effector genes, from which local dimension Jacobian matrix (k x k)
             will be inverse transformed back to high dimension.
         Qj: :class:`~numpy.ndarray`
-            Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
-            n' x n_PCs, from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
+            PCs loading matrix with dimension n' x n_PCs of the regulator genes, from which local dimension Jacobian matrix (k x k)
+            will be inverse transformed back to high dimension.
         cores: int (default: 1):
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
@@ -492,7 +536,6 @@ def average_jacobian_by_group(Js, group_labels):
     Returns a dictionary of averaged jacobians with group names as the keys.
     No vectorized indexing was used due to its high memory cost.
     """
-    d1, d2, _ = Js.shape
     groups = np.unique(group_labels)
 
     J_mean = {}
@@ -510,6 +553,76 @@ def average_jacobian_by_group(Js, group_labels):
 
 
 # ---------------------------------------------------------------------------------------------------
+# Hessian
+
+
+def Hessian_rkhs_gaussian(x, vf_dict):
+    """analytical Hessian for RKHS vector field functions with Gaussian kernel.
+
+    Arguments
+    ---------
+    x: :class:`~numpy.ndarray`
+        Coordinates where the Hessian is evaluated. Note that x has to be 1D.
+    vf_dict: dict
+        A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+        and RKHS coefficients.
+        Essential keys: 'X_ctrl', 'beta', 'C'
+
+    Returns
+    -------
+    H: :class:`~numpy.ndarray`
+        Hessian matrix stored as d-by-d-by-d numpy arrays evaluated at x.
+        d is the number of dimensions.
+    """
+    x = np.atleast_2d(x)
+
+    C = vf_dict["C"]
+    beta = vf_dict["beta"]
+    K, D = con_K(x, vf_dict["X_ctrl"], beta, return_d=True)
+
+    K = K * C.T
+
+    D = D.T
+    D = np.eye(x.shape[1]) - 2 * beta * D @ np.transpose(D, axes=(0, 2, 1))
+
+    H = -2 * beta * np.einsum("ij, jlm -> ilm", K, D)
+
+    return H
+
+
+def hessian_transformation(H, qi, Qj, Qk):
+    """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`)
+    back to the d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated
+    from low dimension (PCs) is:
+                                            :math:`h = \sum_i\sum_j\sum_k q_i q_j q_k H_ijk`,
+    where `q, H, h` are the PCA loading matrix, low dimensional Hessian matrix and the inverse transformed element from
+    the high dimensional Hessian matrix.
+
+    Parameters
+    ----------
+        H: :class:`~numpy.ndarray`
+            k x k x k matrix of the Hessian.
+        qi: :class:`~numpy.ndarray`
+            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector i.
+        Qj: :class:`~numpy.ndarray`
+            The submatrix of the PC loading matrix Q with dimension d x k, corresponding to regulators j.
+        Qk: :class:`~numpy.ndarray`
+            The submatrix of the PC loading matrix Q with dimension d x k, corresponding to co-regulators k.
+
+    Returns
+    -------
+        h: :class:`~numpy.ndarray`
+            The calculated Hessian matrix for the effector i w.r.t regulators j and co-regulators k.
+    """
+
+    h = np.einsum("ijk, i -> jk", H, qi)
+    Qj, Qk = np.atleast_2d(Qj), np.atleast_2d(Qk)
+    h = Qj @ h @ Qk.T
+
+    return h
+
+
+# ---------------------------------------------------------------------------------------------------
 # dynamical properties
 def _divergence(f, x):
     """Divergence of the reconstructed vector field function f evaluated at x"""
@@ -518,7 +631,7 @@ def _divergence(f, x):
 
 
 @timeit
-def compute_divergence(f_jac, X, vectorize_size=1):
+def compute_divergence(f_jac, X, Js=None, vectorize_size=1000):
     """Calculate divergence for many samples by taking the trace of a Jacobian matrix.
 
     vectorize_size is used to control the number of samples computed in each vectorized batch.
@@ -531,7 +644,7 @@ def compute_divergence(f_jac, X, vectorize_size=1):
 
     div = np.zeros(n)
     for i in tqdm(range(0, n, vectorize_size), desc="Calculating divergence"):
-        J = f_jac(X[i : i + vectorize_size])
+        J = f_jac(X[i : i + vectorize_size]) if Js is None else Js[:, :, i : i + vectorize_size]
         div[i : i + vectorize_size] = np.trace(J)
     return div
 
@@ -542,7 +655,7 @@ def acceleration_(v, J):
     return J.dot(v)
 
 
-def curvature_method1(a, v):
+def curvature_method1(a: np.array, v: np.array):
     """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
     if v.ndim == 1:
         v = v[:, None]
@@ -551,7 +664,7 @@ def curvature_method1(a, v):
     return kappa
 
 
-def curvature_method2(a, v):
+def curvature_method2(a: np.array, v: np.array):
     """https://dl.acm.org/doi/10.5555/319351.319441"""
     # if v.ndim == 1: v = v[:, None]
     kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v) ** 4
@@ -569,7 +682,7 @@ def torsion_(v, J, a):
 
 
 @timeit
-def compute_acceleration(vf, f_jac, X, return_all=False):
+def compute_acceleration(vf, f_jac, X, Js=None, return_all=False):
     """Calculate acceleration for many samples via
 
     .. math::
@@ -581,7 +694,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
     acce_mat = np.zeros((n, X.shape[1]))
 
     v_ = vf(X)
-    J_ = f_jac(X)
+    J_ = f_jac(X) if Js is None else Js
     temp_logger = LoggerManager.get_temp_timer_logger()
     for i in LoggerManager.progress_logger(range(n), temp_logger, progress_name="Calculating acceleration"):
         v = v_[i]
@@ -596,7 +709,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
 
 @timeit
-def compute_curvature(vf, f_jac, X, formula=2):
+def compute_curvature(vf, f_jac, X, Js=None, formula=2):
     """Calculate curvature for many samples via
 
     Formula 1:
@@ -610,7 +723,7 @@ def compute_curvature(vf, f_jac, X, formula=2):
     n = len(X)
 
     curv = np.zeros(n)
-    v, _, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
+    v, _, _, a = compute_acceleration(vf, f_jac, X, Js=Js, return_all=True)
     cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
     for i in LoggerManager.progress_logger(range(n), progress_name="Calculating curvature"):
@@ -718,7 +831,7 @@ def compute_curl(f_jac, X):
 
 # ---------------------------------------------------------------------------------------------------
 # ranking related utilies
-def get_metric_gene_in_rank(mat, genes, neg=False):
+def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False):
     metric_in_rank = mat.mean(0).A1 if issparse(mat) else mat.mean(0)
     rank = metric_in_rank.argsort() if neg else metric_in_rank.argsort()[::-1]
     metric_in_rank, genes_in_rank = metric_in_rank[rank], genes[rank]
@@ -726,8 +839,10 @@ def get_metric_gene_in_rank(mat, genes, neg=False):
     return metric_in_rank, genes_in_rank
 
 
-def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
-    mask = groups == grp
+def get_metric_gene_in_rank_by_group(
+    mat: np.mat, genes: list, groups: np.array, selected_group, neg: bool = False
+) -> tuple:
+    mask = groups == selected_group
     if type(mask) == pd.Series:
         mask = mask.values
 
@@ -741,7 +856,7 @@ def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
     return gene_wise_metrics, group_wise_metrics, genes_in_rank
 
 
-def get_sorted_metric_genes_df(df, genes, neg=False):
+def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False) -> tuple:
     sorted_metric = pd.DataFrame(
         {
             key: (sorted(values, reverse=False) if neg else sorted(values, reverse=True))
@@ -757,7 +872,8 @@ def get_sorted_metric_genes_df(df, genes, neg=False):
     return sorted_metric, sorted_genes
 
 
-def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
+def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, uniq_group: list) -> tuple:
+    main_info("split mat to a positive matrix and a negative matrix.")
     if issparse(mat):
         mask = mat.data > 0
         pos_mat, neg_mat = mat.copy(), mat.copy()
@@ -770,6 +886,7 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
         pos_mat[~mask], neg_mat[mask] = 0, 0
 
     if group is None:
+        main_info("ranking vector calculus in group: %s" % (group))
         metric_in_rank, genes_in_rank = get_metric_gene_in_rank(abs(mat), genes)
 
         pos_metric_in_rank, pos_genes_in_rank = get_metric_gene_in_rank(pos_mat, genes)
@@ -801,7 +918,7 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
             group_wise_neg_metrics,
             group_wise_neg_genes,
         ) = ({}, {}, {}, {}, {}, {})
-        for i, grp in tqdm(enumerate(uniq_group), desc="ranking genes across gropus"):
+        for i, grp in tqdm(enumerate(uniq_group), desc="ranking genes across groups"):
             (
                 gene_wise_metrics[grp],
                 group_wise_metrics[grp],
@@ -947,11 +1064,17 @@ def remove_redundant_points(X, tol=1e-4, output_discard=False):
         return X
 
 
-def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4, return_all=False):
+def find_fixed_points(
+    x0_list: Union[list, np.array],
+    func_vf: Callable,
+    domain=None,
+    tol_redundant: float = 1e-4,
+    return_all: bool = False,
+) -> tuple:
     X = []
     J = []
     fval = []
-    for x0 in X0:
+    for x0 in x0_list:
         x, info_dict, _, _ = fsolve(func_vf, x0, full_output=True)
 
         outside = is_outside(x[None, :], domain)[0] if domain is not None else False
@@ -984,77 +1107,6 @@ def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4, return_all=F
             return None, None, None
 
 
-class FixedPoints:
-    def __init__(self, X=None, J=None):
-        self.X = X if X is not None else []
-        self.J = J if J is not None else []
-        self.eigvals = []
-
-    def get_X(self):
-        return np.array(self.X)
-
-    def get_J(self):
-        return np.array(self.J)
-
-    def add_fixed_points(self, X, J, tol_redundant=1e-4):
-        for i, x in enumerate(X):
-            redundant = False
-            if tol_redundant is not None and len(self.X) > 0:
-                for y in self.X:
-                    if np.linalg.norm(x - y) <= tol_redundant:
-                        redundant = True
-            if not redundant:
-                self.X.append(x)
-                self.J.append(J[i])
-
-    def compute_eigvals(self):
-        self.eigvals = []
-        for i in range(len(self.J)):
-            if self.J[i] is None or np.isnan(self.J[i]).any():
-                w = np.nan
-            else:
-                w, _ = eig(self.J[i])
-            self.eigvals.append(w)
-
-    def is_stable(self):
-        if len(self.eigvals) != len(self.X):
-            self.compute_eigvals()
-
-        stable = np.ones(len(self.eigvals), dtype=bool)
-        for i, w in enumerate(self.eigvals):
-            if w is None or np.isnan(w).any():
-                stable[i] = np.nan
-            else:
-                if np.any(np.real(w) >= 0):
-                    stable[i] = False
-        return stable
-
-    def is_saddle(self):
-        is_stable = self.is_stable()
-        saddle = np.zeros(len(self.eigvals), dtype=bool)
-        for i, w in enumerate(self.eigvals):
-            if w is None or np.isnan(w).any():
-                saddle[i] = np.nan
-            else:
-                if not is_stable[i] and np.any(np.real(w) < 0):
-                    saddle[i] = True
-        return saddle, is_stable
-
-    def get_fixed_point_types(self):
-        is_saddle, is_stable = self.is_saddle()
-        # -1 -- stable, 0 -- saddle, 1 -- unstable
-        ftype = np.ones(len(self.X))
-        for i in range(len(ftype)):
-            if self.X[i] is None or np.isnan((self.X[i])).any():
-                ftype[i] = np.nan
-            else:
-                if is_saddle[i]:
-                    ftype[i] = 0
-                elif is_stable[i]:
-                    ftype[i] = -1
-        return ftype
-
-
 # ---------------------------------------------------------------------------------------------------
 # data retrieval related utilies
 def intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der):
@@ -1082,3 +1134,134 @@ def intersect_sources_targets(regulators, regulators_, effectors, effectors_, De
     )
 
     return Der, regulators, effectors
+
+
+# ---------------------------------------------------------------------------------------------------
+# vector field ranking related utilies
+def parse_int_df(
+    df: pd.DataFrame,
+    self_int: bool = False,
+    genes: bool = None,
+) -> pd.DataFrame:
+    """parse the dataframe produced from vector field ranking for gene interactions or switch gene pairs
+
+    Parameters
+    ----------
+    df:
+        The dataframe that returned from performing the `int` or `switch` mode ranking via dyn.vf.rank_jacobian_genes.
+    self_int:
+        Whether to keep self-interactions pairs.
+    genes:
+        List of genes that are used to filter for gene interactions.
+
+    Returns
+    -------
+    res:
+        The parsed interaction dataframe.
+    """
+
+    df_shape, columns = df.shape, df.columns
+    # first we have second column name ends with "_values", it means the data frame include ranking values.
+    if columns[1].endswith("_values"):
+        col_step = 2
+    else:
+        col_step = 1
+
+    res = {}
+    if genes is not None:
+        genes_set = set(genes)
+    for col in columns[::col_step]:
+        cur_col = df[col]
+        gene_pairs = cur_col.str.split(" - ", expand=True)
+
+        if not self_int:
+            good_int = gene_pairs[0] != gene_pairs[1]
+        else:
+            good_int = np.ones(df_shape[0], dtype=bool)
+
+        if genes is not None:
+            good_int &= np.logical_and([i in genes_set for i in gene_pairs[0]], [i in genes_set for i in gene_pairs[1]])
+
+        if col_step == 1:
+            res[col] = cur_col.loc[good_int].values
+        else:
+            res[col] = cur_col.loc[good_int].values
+            res[col + "_values"] = df[col + "_values"].loc[good_int].values
+
+    return pd.DataFrame(res)
+
+
+# ---------------------------------------------------------------------------------------------------
+# jacobian retrival related utilies
+def get_jacobian(
+    adata,
+    regulators,
+    effectors,
+    jkey: str = "jacobian",
+    j_basis: str = "pca",
+):
+
+    regulators, effectors = (
+        list(np.unique(regulators)) if regulators is not None else None,
+        list(np.unique(effectors)) if effectors is not None else None,
+    )
+
+    Jacobian_ = jkey if j_basis is None else jkey + "_" + j_basis
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = (
+        adata.uns[Jacobian_].get(jkey.split("_")[-1]),
+        adata.uns[Jacobian_].get("cell_idx"),
+        adata.uns[Jacobian_].get(jkey.split("_")[-1] + "_gene"),
+        adata.uns[Jacobian_].get("regulators"),
+        adata.uns[Jacobian_].get("effectors"),
+    )
+
+    adata_ = adata[cell_indx, :]
+
+    if regulators is None and effectors is not None:
+        regulators = effectors
+    elif effectors is None and regulators is not None:
+        effectors = regulators
+    # test the simulation data here
+    if regulators_ is None or effectors_ is None:
+        if Der.shape[0] != adata_.n_vars:
+            source_genes = [j_basis + "_" + str(i) for i in range(Der.shape[0])]
+            target_genes = [j_basis + "_" + str(i) for i in range(Der.shape[1])]
+        else:
+            source_genes, target_genes = adata_.var_names, adata_.var_names
+    else:
+        Der, source_genes, target_genes = intersect_sources_targets(
+            regulators,
+            regulators_,
+            effectors,
+            effectors_,
+            Der if jacobian_gene is None else jacobian_gene,
+        )
+
+    df = pd.DataFrame(index=adata.obs_names[cell_indx])
+    for i, source in enumerate(source_genes):
+        for j, target in enumerate(target_genes):
+            J = Der[j, i, :]  # dim 0: target; dim 1: source
+            key = source + "->" + target + "_jacobian"
+            df[key] = np.nan
+            df.loc[:, key] = J
+
+    return df
+
+
+# ---------------------------------------------------------------------------------------------------
+# jacobian subset related utilies
+def subset_jacobian(adata, cells, basis="pca"):
+    """Subset adata object while also subset the jacobian, cells must be a vector of cell indices."""
+
+    adata_subset = adata[cells]
+
+    jkey = "jacobian_" + basis
+    adata_subset.uns[jkey].keys()
+
+    # assume all cells are used to calculate Jacobian for now
+    adata_subset.uns[jkey]["cell_idx"] = np.arange(len(cells))
+
+    adata_subset.uns[jkey]["jacobian_gene"] = adata_subset.uns[jkey]["jacobian_gene"][:, :, cells]
+    adata_subset.uns[jkey]["jacobian"] = adata_subset.uns[jkey]["jacobian"][:, :, cells]
+
+    return adata_subset

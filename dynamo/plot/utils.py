@@ -552,8 +552,14 @@ def _matplotlib_points(
         ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
 
     if show_legend and legend_elements is not None:
-        if len(unique_labels) > 1 and show_legend == "on data":
-            main_debug("unique labels > 1 and show_legend is on data")
+        if len(unique_labels) == 1 and show_legend == "on data":
+            ax.legend(
+                handles=legend_elements,
+                bbox_to_anchor=(1.04, 1),
+                loc=matplotlib.rcParams["legend.loc"],
+                ncol=len(unique_labels) // 15 + 1,
+            )
+        elif len(unique_labels) > 1 and show_legend == "on data":
             font_color = "white" if background in ["black", "#ffffff"] else "black"
             for i in unique_labels:
                 if i == "other":
@@ -576,11 +582,10 @@ def _matplotlib_points(
                     ]
                 )
         else:
-            main_debug("drawing legend")
             ax.legend(
                 handles=legend_elements,
                 bbox_to_anchor=(1.04, 1),
-                loc=show_legend,
+                # loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
     else:
@@ -1010,13 +1015,15 @@ def despline(ax=None):
     ax.xaxis.set_ticks_position("bottom")
 
 
-def despline_all(ax=None):
+def despline_all(ax=None, sides=None):
     # removing the default axis on all sides:
     import matplotlib.pyplot as plt
 
     ax = plt.gca() if ax is None else ax
 
-    for side in ["bottom", "right", "top", "left"]:
+    if sides is None:
+        sides = ["bottom", "right", "top", "left"]
+    for side in sides:
         ax.spines[side].set_visible(False)
 
 

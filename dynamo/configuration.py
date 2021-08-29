@@ -3,17 +3,160 @@ import matplotlib
 from matplotlib import rcParams, cm, colors
 from cycler import cycler
 import matplotlib.pyplot as plt
+import pandas as pd
+from .dynamo_logger import main_info
 
-# set the data store mode.
-# saving memory or storing more results
-# modes: verbose, succint
-data_store_mode = "verbose"
-keep_filtered_genes = True
-keep_raw_layers = True
 
-if data_store_mode == "succint":
-    keep_filtered_genes = False
-    keep_raw_layers = False
+class DynamoAdataKeyManager:
+    VAR_GENE_MEAN_KEY = "pp_gene_means"
+    VAR_GENE_VAR_KEY = "gene_vars"
+    VAR_GENE_HIGHLY_VARIABLE_KEY = "gene_highly_variable"
+    X_LAYER = "X"
+    PROTEIN_LAYER = "protein"
+
+    def gen_new_layer_key(layer_name, key, sep="_") -> str:
+        """utility function for returning a new key name for a specific layer. By convention layer_name should not have the separator as the last character."""
+        if layer_name == "":
+            return key
+        if layer_name[-1] == sep:
+            return layer_name + key
+        return sep.join([layer_name, key])
+
+    def select_layer_data(adata, layer, copy=False) -> pd.DataFrame:
+        res_data = None
+        if layer == DynamoAdataKeyManager.X_LAYER:
+            res_data = adata.X
+        elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
+            res_data = adata.obsm["protein"]
+        else:
+            res_data = adata.layer[layer]
+        if copy:
+            return res_data.copy()
+        return res_data
+
+    def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
+        """Get the list of available layers' keys."""
+        layer_keys = list(adata.layers.keys())
+        if remove_normalized:
+            layer_keys = [i for i in layer_keys if not i.startswith("X_")]
+
+        if "protein" in adata.obsm.keys() and include_protein:
+            layer_keys.extend(["X", "protein"])
+        else:
+            layer_keys.extend(["X"])
+        res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
+        res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
+        return res_layers
+
+
+class DynamoAdataConfig:
+    """dynamo anndata object config class holding static variables to change behaviors of functions globally."""
+
+    # set the adata store mode.
+    # saving memory or storing more results
+    # modes: full, succinct
+    data_store_mode = None
+
+    # save config for recipe_* functions
+    recipe_keep_filtered_genes = None
+    recipe_keep_raw_layers = None
+    recipe_keep_filtered_cells = None
+
+    # save config for recipe_monocle
+    recipe_monocle_keep_filtered_genes = None
+    recipe_monocle_keep_filtered_cells = None
+    recipe_monocle_keep_raw_layers = None
+
+    dynamics_del_2nd_moments = None
+    recipe_del_2nd_moments = None
+
+    (
+        RECIPE_KEEP_FILTERED_CELLS_KEY,
+        RECIPE_KEEP_FILTERED_GENES_KEY,
+        RECIPE_KEEP_RAW_LAYERS_KEY,
+        RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY,
+        RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY,
+        RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY,
+        DYNAMICS_DEL_2ND_MOMENTS_KEY,
+        RECIPE_DEL_2ND_MOMENTS_KEY,
+    ) = [
+        "keep_filtered_cells_key",
+        "keep_filtered_genes_key",
+        "keep_raw_layers_key",
+        "recipe_monocle_keep_filtered_cells_key",
+        "recipe_monocle_keep_filtered_genes_key",
+        "recipe_monocle_keep_raw_layers_key",
+        "dynamics_del_2nd_moments_key",
+        "recipe_del_2nd_moments",
+    ]
+
+    config_key_to_values = None
+
+    def check_config_var(val, key, replace_val=None):
+        """if `val` is equal to `replace_val`, then a config value will be returned according to `key` stored in dynamo configuration. Otherwise return the original `val` value.
+
+        Parameters
+        ----------
+            val :
+                The input value to check against.
+            key :
+                `key` stored in the dynamo configuration. E.g DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY
+            replace_val :
+                the target value to replace, by default None
+
+        Returns
+        -------
+            `val` or config value set in DynamoAdataConfig according to the method description above.
+
+        """
+        if not key in DynamoAdataConfig.config_key_to_values:
+            assert KeyError("Config %s not exist in DynamoAdataConfig." % (key))
+        if val == replace_val:
+            config_val = DynamoAdataConfig.config_key_to_values[key]
+            main_info("%s is None. Using default value from DynamoAdataConfig: %s=%s" % (key, key, config_val))
+            return config_val
+        return val
+
+    def update_data_store_mode(mode):
+        DynamoAdataConfig.data_store_mode = mode
+
+        # default succinct for recipe*, except for recipe_monocle
+        DynamoAdataConfig.recipe_keep_filtered_genes = False
+        DynamoAdataConfig.recipe_keep_raw_layers = False
+        DynamoAdataConfig.recipe_keep_filtered_cells = False
+        DynamoAdataConfig.recipe_del_2nd_moments = True
+
+        if DynamoAdataConfig.data_store_mode == "succinct":
+            DynamoAdataConfig.recipe_monocle_keep_filtered_genes = False
+            DynamoAdataConfig.recipe_monocle_keep_filtered_cells = False
+            DynamoAdataConfig.recipe_monocle_keep_raw_layers = False
+            DynamoAdataConfig.dynamics_del_2nd_moments = True
+        elif DynamoAdataConfig.data_store_mode == "full":
+            DynamoAdataConfig.recipe_monocle_keep_filtered_genes = True
+            DynamoAdataConfig.recipe_monocle_keep_filtered_cells = True
+            DynamoAdataConfig.recipe_monocle_keep_raw_layers = True
+            DynamoAdataConfig.dynamics_del_2nd_moments = False
+        else:
+            raise NotImplementedError
+
+        DynamoAdataConfig.config_key_to_values = {
+            DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY: DynamoAdataConfig.recipe_keep_filtered_cells,
+            DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_keep_filtered_genes,
+            DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY: DynamoAdataConfig.recipe_keep_raw_layers,
+            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_cells,
+            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_genes,
+            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY: DynamoAdataConfig.recipe_monocle_keep_raw_layers,
+            DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.dynamics_del_2nd_moments,
+            DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.recipe_del_2nd_moments,
+        }
+
+
+# initialize DynamoSaveConfig mode as default
+DynamoAdataConfig.update_data_store_mode("full")
+
+
+def update_data_store_mode(mode):
+    DynamoAdataConfig.update_data_store_mode(mode)
 
 
 # create cmap

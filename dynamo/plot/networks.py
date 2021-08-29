@@ -68,6 +68,8 @@ def nxvizPlot(
         adata.uns["pp"].get("has_labeling"),
     )
     layer = "M_s" if not has_labeling else "M_t"
+    if "layer" in kwargs.keys():
+        layer = kwargs.pop("layer")
 
     import matplotlib.pyplot as plt
 
@@ -167,6 +169,10 @@ def nxvizPlot(
             fontfamily=kwargs.pop("fontfamily", "serif"),
             figsize=figsize,
         )
+
+    # recover network edge weights
+    for e in network.edges():
+        network.edges[e]["weight"] /= weight_scale
 
     if save_show_or_return == "save":
         # Draw a to the screen
@@ -297,7 +303,6 @@ def arcPlot(
     fig, ax = plt.subplots(figsize=figsize)
     ap = ArcPlot(network=network, c=color, s=node_size, cmap=cmap, **kwargs)
     node_degree = [network.degree[i] for i in network.nodes]
-    print(node_degree)
     ap.draw(node_order=node_degree)
 
     if cbar and color is not None:

@@ -12,7 +12,7 @@ from numbers import Number
 import matplotlib.cm
 from matplotlib.axes import Axes
 from anndata import AnnData
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 
 from ..configuration import _themes, reset_rcParams
@@ -93,6 +93,9 @@ def scatters(
     stack_colors_threshold=0.001,
     stack_colors_title="stacked colors",
     stack_colors_legend_size=2,
+    despline: bool = True,
+    deaxis: bool = True,
+    despline_sides: Union[None, List[str]] = None,
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -275,7 +278,7 @@ def scatters(
         stack_colors:
             Whether to stack all color on the same ax passed above.
             Currently only support 18 sequential matplotlib default cmaps assigning to different color groups.
-            (#colors should be smaller than 18, reuse if #colors > 18. To-do: generate cmaps according to #colors)
+            (#colors should be smaller than 18, reuse if #colors > 18. TODO generate cmaps according to #colors)
         stack_colors_threshold:
             A threshold for filtering points values < threshold when drawing each color.
             E.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
@@ -283,6 +286,12 @@ def scatters(
             The title for the stack_color plot.
         stack_colors_legend_size:
             Control the legend size in stack color plot.
+        despline:
+            Whether to remove splines of the figure.
+        despline_sides:
+            Which side of splines should be removed. Can be any combination of `["bottom", "right", "top", "left"]`.
+        deaxis:
+            Whether to remove axis ticks of the figure.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -297,6 +306,7 @@ def scatters(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
+    from matplotlib.colors import rgb2hex
 
     if calpha < 0 or calpha > 1:
         main_warning(
@@ -471,7 +481,7 @@ def scatters(
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
-            cmap, sym_c = "bwr", True  # To-do: maybe use other divergent color map in future
+            cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in future
         else:
             if use_smoothed:
                 cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
@@ -517,15 +527,16 @@ def scatters(
             else:
                 _adata = adata
 
-            if hasattr(x, "__len__") and hasattr(y, "__len__"):
-                x, y = list(x), list(y)
-            elif (
+            if (
                 type(x) in [anndata._core.views.ArrayView, np.ndarray]
                 and type(y) in [anndata._core.views.ArrayView, np.ndarray]
                 and len(x) == _adata.n_obs
                 and len(y) == _adata.n_obs
             ):
                 x, y = [x], [y]
+            elif hasattr(x, "__len__") and hasattr(y, "__len__"):
+                x, y = list(x), list(y)
+
             for cur_x, cur_y in zip(x, y):  # here x / y are arrays
                 main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
                 if type(cur_x) is int and type(cur_y) is int:
@@ -742,6 +753,13 @@ def scatters(
                         inset_dict=inset_dict,
                         **scatter_kwargs,
                     )
+                    if labels is not None:
+                        color_dict = {}
+                        colors = [rgb2hex(i) for i in color_out]
+                        for i, j in zip(labels, colors):
+                            color_dict[i] = j
+
+                        adata.uns[cur_title + "_colors"] = color_dict
                 else:
                     main_debug("drawing with _datashade_points function")
                     ax = _datashade_points(
@@ -770,8 +788,10 @@ def scatters(
                 if ax_index == 1 and show_arrowed_spines:
                     arrowed_spines(ax, points.columns[:2], _background)
                 else:
-                    despline_all(ax)
-                    deaxis_all(ax)
+                    if despline:
+                        despline_all(ax, despline_sides)
+                    if deaxis:
+                        deaxis_all(ax)
 
                 ax.set_title(cur_title)
 

@@ -9,7 +9,6 @@ from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import functools
 import warnings
-import time
 from ..tools.sampling import (
     sample_by_velocity,
     sample,
@@ -36,15 +35,18 @@ from .utils import (
     compute_sensitivity,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
+    Jacobian_kovf,
     vecfld_from_adata,
     find_fixed_points,
     FixedPoints,
     remove_redundant_points,
+    vector_transformation,
 )
+from typing import Union, Callable
 from ..dynamo_logger import LoggerManager, main_warning
 
 
-def norm(X, V, T):
+def norm(X, V, T, fix_velocity=True):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
         We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
 
@@ -58,6 +60,8 @@ def norm(X, V, T):
         T: 'np.ndarray'
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state.
+        fix_velocity: 'bool' (default: `True`)
+            Whether to fix velocity and don't transform it.
 
     Returns
     -------
@@ -74,7 +78,7 @@ def norm(X, V, T):
     x, y, t = (
         X - xm[None, :],
         Y - ym[None, :],
-        T - (1 / 2 * (xm[None, :] + ym[None, :])),
+        T - (1 / 2 * (xm[None, :] + ym[None, :])) if T is not None else None,
     )
 
     xscale, yscale = (
@@ -82,10 +86,10 @@ def norm(X, V, T):
         np.sqrt(np.sum(np.sum(y ** 2, 1)) / m),
     )
 
-    X, Y, T = x / xscale, y / yscale, t / (1 / 2 * (xscale + yscale))
+    X, Y, T = x / xscale, y / yscale, t / (1 / 2 * (xscale + yscale)) if T is not None else None
 
-    X, V, T = X, Y - X, T
-    norm_dict = {"xm": xm, "ym": ym, "xscale": xscale, "yscale": yscale}
+    X, V, T = X, V if fix_velocity else Y - X, T
+    norm_dict = {"xm": xm, "ym": ym, "xscale": xscale, "yscale": yscale, "fix_velocity": fix_velocity}
 
     return X, V, T, norm_dict
 
@@ -148,7 +152,7 @@ def denorm(VecFld, X_old, V_old, norm_dict):
     """
 
     Y_old = X_old + V_old
-    X, Y, V, xm, ym, x_scale, y_scale = (
+    X, Y, V, xm, ym, x_scale, y_scale, fix_velocity = (
         VecFld["X"],
         VecFld["Y"],
         VecFld["V"],
@@ -156,16 +160,19 @@ def denorm(VecFld, X_old, V_old, norm_dict):
         norm_dict["ym"],
         norm_dict["xscale"],
         norm_dict["yscale"],
+        norm_dict["fix_velocity"],
     )
     grid, grid_V = VecFld["grid"], VecFld["grid_V"]
     xy_m, xy_scale = (xm + ym) / 2, (x_scale + y_scale) / 2
 
     VecFld["X"] = X_old
     VecFld["Y"] = Y_old
-    VecFld["X_ctrl"] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
-    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [X.shape[0], 1])
-    VecFld["grid_V"] = (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [Y.shape[0], 1]) - grid
-    VecFld["V"] = (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
+    # VecFld["X_ctrl"] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
+    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [grid.shape[0], 1]) if grid is not None else None
+    VecFld["grid_V"] = (
+        (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [grid_V.shape[0], 1]) - grid if grid_V is not None else None
+    )
+    VecFld["V"] = V if fix_velocity else (V + X) * y_scale + np.matlib.tile(ym, [V.shape[0], 1]) - X_old
     VecFld["norm_dict"] = norm_dict
 
     return VecFld
@@ -414,9 +421,12 @@ def SparseVFC(
         point in the gene expression state space).
 
     """
+    logger = LoggerManager.gen_logger("SparseVFC")
+    temp_logger = LoggerManager.get_temp_timer_logger()
+    logger.info("[SparseVFC] begins...")
+    logger.log_time()
 
-    timeit_ = True if verbose > 1 else False
-
+    need_utility_time_measure = verbose > 1
     X_ori, Y_ori = X.copy(), Y.copy()
     valid_ind = np.where(np.isfinite(Y.sum(1)))[0]
     X, Y = X[valid_ind], Y[valid_ind]
@@ -427,10 +437,8 @@ def SparseVFC(
     tmp_X, uid = np.unique(X, axis=0, return_index=True)  # return unique rows
     M = min(M, tmp_X.shape[0])
     if velocity_based_sampling:
-        np.random.seed(seed)
-        if verbose > 1:
-            print("Sampling control points based on data velocity magnitude...")
-        idx = sample_by_velocity(Y[uid], M)
+        logger.info("Sampling control points based on data velocity magnitude...")
+        idx = sample_by_velocity(Y[uid], M, seed=seed)
     else:
         idx = np.random.RandomState(seed=seed).permutation(tmp_X.shape[0])  # rand select some initial points
         idx = idx[range(M)]
@@ -441,20 +449,20 @@ def SparseVFC(
         beta = 1 / h ** 2
 
     K = (
-        con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
+        con_K(ctrl_pts, ctrl_pts, beta, timeit=need_utility_time_measure)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
     )
     U = (
-        con_K(X, ctrl_pts, beta, timeit=timeit_)
+        con_K(X, ctrl_pts, beta, timeit=need_utility_time_measure)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
     )
     if Grid is not None:
         grid_U = (
-            con_K(Grid, ctrl_pts, beta, timeit=timeit_)
+            con_K(Grid, ctrl_pts, beta, timeit=need_utility_time_measure)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
         )
     M = ctrl_pts.shape[0] * D if div_cur_free_kernels else ctrl_pts.shape[0]
 
@@ -482,18 +490,15 @@ def SparseVFC(
         tecr = abs((E - E_old) / E)
         tecr_vec[i] = tecr
 
-        if verbose > 1:
-            print(
-                "\niterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
+        # logger.report_progress(count=i, total=MaxIter, progress_name="E-step iteration")
+        if need_utility_time_measure:
+            logger.info(
+                "iterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
                 % (i, gamma, scinot(tecr, 3), scinot(sigma2, 3))
             )
-        elif verbose > 0:
-            print("\niteration %d" % i)
 
         # M-step. Solve linear system for C.
-        if timeit_:
-            st = time.time()
-
+        temp_logger.log_time()
         P = np.maximum(P, minP)
         if div_cur_free_kernels:
             P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1)))  # np.kron(P, np.ones((D, 1)))
@@ -503,11 +508,11 @@ def SparseVFC(
             UP = U.T * numpy.matlib.repmat(P.T, M, 1)
             lhs = UP.dot(U) + lambda_ * sigma2 * K
             rhs = UP.dot(Y)
+        if need_utility_time_measure:
+            temp_logger.finish_progress(progress_name="computing lhs and rhs")
+        temp_logger.log_time()
 
-        if timeit_:
-            print("Time elapsed for computing lhs and rhs: %f s" % (time.time() - st))
-
-        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=timeit_)
+        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=need_utility_time_measure)
 
         # Update V and sigma**2
         V = U.dot(C)
@@ -559,12 +564,15 @@ def SparseVFC(
             sigma,
             eta,
         )
+        temp_logger.log_time()
         (
             _,
             VecFld["df_kernel"],
             VecFld["cf_kernel"],
-        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)
+        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)
+        temp_logger.finish_progress(progress_name="con_K_div_cur_free")
 
+    logger.finish_progress(progress_name="SparseVFC")
     return VecFld
 
 
@@ -594,11 +602,17 @@ class base_vectorfield:
         self.vf_dict = vf_dict
         self.func = func
 
-    def get_X(self):
-        return self.data["X"]
+    def get_X(self, idx=None):
+        if idx is None:
+            return self.data["X"]
+        else:
+            return self.data["X"][idx]
 
-    def get_V(self):
-        return self.data["V"]
+    def get_V(self, idx=None):
+        if idx is None:
+            return self.data["V"]
+        else:
+            return self.data["V"][idx]
 
     def get_data(self):
         return self.data["X"], self.data["V"]
@@ -751,7 +765,47 @@ class base_vectorfield:
         return t, prediction
 
 
-class svc_vectorfield(base_vectorfield):
+class differentiable_vectorfield(base_vectorfield):
+    def get_Jacobian(self, method=None):
+        # subclasses must implement this function.
+        pass
+
+    def compute_divergence(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_divergence(f_jac, X, **kwargs)
+
+    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
+        X = self.data["X"] if X is None else X
+        if dim3 is None or X.shape[1] < 3:
+            X = X[:, [dim1, dim2]]
+        else:
+            X = X[:, [dim1, dim2, dim3]]
+        f_jac = self.get_Jacobian(method=method, **kwargs)
+        return compute_curl(f_jac, X, **kwargs)
+
+    def compute_acceleration(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_acceleration(self.func, f_jac, X, **kwargs)
+
+    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
+
+    def compute_torsion(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_torsion(self.func, f_jac, X, **kwargs)
+
+    def compute_sensitivity(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_sensitivity(f_jac, X, **kwargs)
+
+
+class SvcVectorfield(differentiable_vectorfield):
     def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
         """Initialize the VectorField class.
 
@@ -881,6 +935,7 @@ class svc_vectorfield(base_vectorfield):
 
         self.func = lambda x: vector_field_function(x, VecFld)
         self.vf_dict["V"] = self.func(self.data["X"])
+        self.vf_dict["normalize"] = normalize
 
         return self.vf_dict
 
@@ -888,40 +943,6 @@ class svc_vectorfield(base_vectorfield):
         from ..plot.scVectorField import plot_energy
 
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
-
-    def compute_divergence(self, X=None, method="analytical", **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_divergence(f_jac, X, **kwargs)
-
-    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
-        X = self.data["X"] if X is None else X
-        if dim3 is None or X.shape[1] < 3:
-            X = X[:, [dim1, dim2]]
-        else:
-            X = X[:, [dim1, dim2, dim3]]
-        f_jac = self.get_Jacobian(method=method, **kwargs)
-        return compute_curl(f_jac, X, **kwargs)
-
-    def compute_acceleration(self, X=None, method="analytical", **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_acceleration(self.func, f_jac, X, **kwargs)
-
-    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
-
-    def compute_torsion(self, X=None, method="analytical", **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_torsion(self.func, f_jac, X, **kwargs)
-
-    def compute_sensitivity(self, X=None, method="analytical", **kwargs):
-        X = self.data["X"] if X is None else X
-        f_jac = self.get_Jacobian(method=method)
-        return compute_sensitivity(f_jac, X, **kwargs)
 
     def get_Jacobian(self, method="analytical", input_vector_convention="row", **kwargs):
         """
@@ -995,6 +1016,66 @@ class svc_vectorfield(base_vectorfield):
         print("recall rate: %d/%d = %f" % (NumVFCCorrect, NumCorrectIndex, recall))
 
         return corrRate, precision, recall
+
+
+class ko_vectorfield(differentiable_vectorfield):
+    def __init__(
+        self, X=None, V=None, Grid=None, K=None, func_base=None, fjac_base=None, PCs=None, mean=None, *args, **kwargs
+    ):
+        super().__init__(X, V, Grid=Grid, *args, **kwargs)
+
+        if K.ndim == 2:
+            K = np.diag(K)
+        self.K = K
+        self.PCs = PCs
+        self.mean = mean
+        self.func_base = func_base
+        self.fjac_base = fjac_base
+
+        if self.K is not None and self.PCs is not None and self.mean is not None and self.func_base is not None:
+            self.setup_perturbed_func()
+
+    def setup_perturbed_func(self):
+        def vf_func_perturb(x):
+            x_gene = np.abs(x @ self.PCs.T + self.mean)
+            v_gene = vector_transformation(self.func_base(x), self.PCs)
+            v_gene = v_gene - self.K * x_gene
+            return v_gene @ self.PCs
+
+        self.func = vf_func_perturb
+
+    def get_Jacobian(self, method="analytical", **kwargs):
+        """
+        Get the Jacobian of the vector field function.
+        If method is 'analytical':
+        The analytical Jacobian will be returned and it always
+        take row vectors as input no matter what input_vector_convention is.
+
+        No matter the method and input vector convention, the returned Jacobian is of the
+        following format:
+                df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
+                df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
+                df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
+                ...         ...         ...         ...
+        """
+        if method == "analytical":
+            exact = kwargs.pop("exact", False)
+            mu = kwargs.pop("mu", None)
+            if exact:
+                if mu is None:
+                    mu = self.mean
+                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, exact=True, mu=mu, **kwargs)
+            else:
+                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, **kwargs)
+        elif method == "numerical":
+            if self.func is not None:
+                return Jacobian_numerical(self.func, **kwargs)
+            else:
+                raise Exception("The perturbed vector field function has not been set up.")
+        else:
+            raise NotImplementedError(
+                f"The method {method} is not implemented. Currently only " f"supports 'analytical'."
+            )
 
 
 try:
@@ -1095,3 +1176,62 @@ if use_dynode:
             }
 
             return self.vf_dict
+
+
+def vector_field_function_knockout(
+    adata,
+    vecfld: Union[Callable, base_vectorfield],
+    ko_genes,
+    k_deg=None,
+    pca_genes="use_for_pca",
+    PCs="PCs",
+    mean="pca_mean",
+    return_vector_field_class=True,
+):
+
+    if type(pca_genes) is str:
+        pca_genes = adata.var[adata.var[pca_genes]].index
+
+    g_mask = np.zeros(len(pca_genes), dtype=bool)
+    for i, g in enumerate(pca_genes):
+        if g in ko_genes:
+            g_mask[i] = True
+    if g_mask.sum() != len(ko_genes):
+        raise ValueError(f"the ko_genes {ko_genes} you provided don't all belong to {pca_genes}.")
+
+    k = np.zeros(len(pca_genes))
+    if k_deg is None:
+        k_deg = np.ones(len(ko_genes))
+    k[g_mask] = k_deg
+
+    if type(PCs) is str:
+        if PCs not in adata.uns.keys():
+            raise Exception(f"The key {PCs} is not in `.uns`.")
+        PCs = adata.uns[PCs]
+
+    if type(mean) is str:
+        if mean not in adata.uns.keys():
+            raise Exception(f"The key {mean} is not in `.uns`.")
+        mean = adata.uns[mean]
+
+    if not callable(vecfld):
+        vf_func = vecfld.func
+    else:
+        vf_func = vecfld
+
+    """def vf_func_perturb(x):
+        x_gene = np.abs(x @ PCs.T + mean)
+        v_gene = vector_transformation(vf_func(x), PCs)
+        v_gene = v_gene - k * x_gene
+        return v_gene @ PCs"""
+
+    vf = ko_vectorfield(K=k, func_base=vf_func, fjac_base=vecfld.get_Jacobian(), PCs=PCs, mean=mean)
+    if not callable(vecfld):
+        vf.data["X"] = vecfld.data["X"]
+        vf.data["V"] = vf.func(vf.data["X"])
+    if return_vector_field_class:
+        # vf = ko_vectorfield(K=k, func_base=vf_func, fjac_base=vecfld.get_Jacobian(), Q=PCs, mean=mean)
+        # vf.func = vf_func_perturb
+        return vf
+    else:
+        return vf.func

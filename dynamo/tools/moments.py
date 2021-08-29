@@ -1,3 +1,4 @@
+from dynamo.configuration import DynamoAdataKeyManager
 import numpy as np
 import warnings
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
@@ -12,7 +13,6 @@ from .connectivity import (
     umap_conn_indices_dist_embedding,
 )
 from ..utils import copy_adata
-from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 from ..dynamo_logger import LoggerManager
 
 
@@ -76,7 +76,7 @@ def moments(
             If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
     logger = LoggerManager.gen_logger("dynamo-moments")
-    logger.info("calculating first/second moments begins...", indent_level=1)
+    logger.info("calculating first/second moments...", indent_level=1)
     logger.log_time()
 
     adata = copy_adata(adata) if copy else adata
@@ -182,7 +182,7 @@ def moments(
                 "the cell number!"
             )
 
-    layers = get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
@@ -582,6 +582,7 @@ def prepare_data_has_splicing(
         )
     else:
         tot_sfs = adata.obs.total_Size_Factor
+        tot_sfs = tot_sfs[:, None]
 
     if T is None:
         T = normalize_util(

@@ -1,3 +1,6 @@
+from dynamo.configuration import DynamoAdataKeyManager
+from anndata import AnnData
+from pynndescent.distances import true_angular
 import numpy as np
 import scipy
 from scipy.sparse import issparse, csr_matrix
@@ -6,13 +9,15 @@ import warnings
 from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
-from ..preprocessing.utils import get_layer_keys
+from anndata import AnnData
 from .utils import (
     log1p_,
     fetch_X_data,
 )
 
 from ..docrep import DocstringProcessor
+from ..dynamo_logger import LoggerManager, main_info, main_warning
+
 
 docstrings = DocstringProcessor()
 
@@ -81,6 +86,19 @@ def knn_to_adj(knn_indices, knn_weights):
 
 
 def get_conn_dist_graph(knn, distances):
+    """Compute connection and distance sparse matrices
+
+    Parameters
+    ----------
+        knn:
+            n_obs x n_neighbors, k nearest neighbor graph
+        distances:
+            KNN dists
+
+    Returns
+    -------
+        distance and connectivity matrices
+    """
     n_obs, n_neighbors = knn.shape
     distances = csr_matrix(
         (
@@ -398,7 +416,7 @@ def mnn(
         else:
             raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
-    layers = get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
@@ -447,6 +465,33 @@ def mnn(
     adata.uns["mnn"] = normalize_knn_graph(mnn)
 
     return adata
+
+
+def _gen_neighbor_keys(result_prefix="") -> tuple:
+    """Generate neighbor keys for other functions to store/access info in adata.
+
+    Parameters
+    ----------
+        result_prefix : str, optional
+            generate keys based on this prefix, by default ""
+
+    Returns
+    -------
+        tuple:
+            A tuple consisting of (conn_key, dist_key, neighbor_key)
+
+    """
+    if result_prefix:
+        result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
+    if result_prefix is None:
+        result_prefix = ""
+
+    conn_key, dist_key, neighbor_key = (
+        result_prefix + "connectivities",
+        result_prefix + "distances",
+        result_prefix + "neighbors",
+    )
+    return conn_key, dist_key, neighbor_key
 
 
 def neighbors(
@@ -512,9 +557,14 @@ def neighbors(
             An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as
             well as a new `neighbors` key in .uns.
     """
+    logger = LoggerManager.gen_logger("neighbors")
+    logger.info("Start computing neighbor graph...")
+    logger.log_time()
 
     if X_data is None:
+        logger.info("X_data is None, fetching or recomputing...", indent_level=2)
         if basis == "pca" and "X_pca" not in adata.obsm_keys():
+            logger.info("PCA as basis not X_pca not found, doing PCAs", indent_level=2)
             from ..preprocessing.utils import pca
 
             CM = adata.X if genes is None else adata[:, genes].X
@@ -526,10 +576,13 @@ def neighbors(
 
             X_data = adata.obsm["X_pca"]
         else:
+            logger.info("fetching X data from layer:%s, basis:%s" % (str(layer), str(basis)))
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
     if method is None:
+        logger.info("method arg is None, choosing methods automatically...")
         if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
+
             from pynndescent import NNDescent
 
             method = "pynn"
@@ -537,6 +590,7 @@ def neighbors(
             method = "ball_tree"
         else:
             method = "kd_tree"
+        logger.info("method %s selected" % (method), indent_level=2)
 
     # may distinguish between umap and pynndescent -- treat them equal for now
     if method.lower() in ["pynn", "umap"]:
@@ -566,19 +620,17 @@ def neighbors(
     else:
         raise ImportError(f"nearest neighbor search method {method} is not supported")
 
-    if result_prefix != "":
-        result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    logger.info_insert_adata(conn_key, adata_attr="obsp")
+    logger.info_insert_adata(dist_key, adata_attr="obsp")
+    adata.obsp[dist_key], adata.obsp[conn_key] = get_conn_dist_graph(knn, distances)
 
-    conn_key, dist_key, neigh_key = (
-        result_prefix + "connectivities",
-        result_prefix + "distances",
-        result_prefix + "neighbors",
-    )
-    adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(knn, distances)
-
-    adata.uns[neigh_key] = {}
-    adata.uns[neigh_key]["indices"] = knn
-    adata.uns[neigh_key]["params"] = {
+    logger.info_insert_adata(neighbor_key, adata_attr="uns")
+    logger.info_insert_adata(neighbor_key + ".indices", adata_attr="uns")
+    logger.info_insert_adata(neighbor_key + ".params", adata_attr="uns")
+    adata.uns[neighbor_key] = {}
+    adata.uns[neighbor_key]["indices"] = knn
+    adata.uns[neighbor_key]["params"] = {
         "n_neighbors": n_neighbors,
         "method": method,
         "metric": metric,
@@ -586,3 +638,107 @@ def neighbors(
     }
 
     return adata
+
+
+def check_neighbors_completeness(
+    adata: AnnData,
+    conn_key="connectivities",
+    dist_key="distances",
+    result_prefix="",
+    check_nonzero_row=True,
+    check_nonzero_col=False,
+) -> bool:
+    """Check if neighbor graph in adata is valid.
+
+    Parameters
+    ----------
+        adata : AnnData
+        conn_key : str, optional
+            connectivity key, by default "connectivities"
+        dist_key : str, optional
+            distance key, by default "distances"
+        result_prefix : str, optional
+            The result prefix in adata.uns for neighbor graph related data, by default ""
+        check_nonzero_row:
+            Whether to check if row sums of neighbor graph distance or connectivity matrix are nonzero. Row sums correspond to out-degrees by convention.
+        check_nonzero_col:
+            Whether to check if column sums of neighbor graph distance or connectivity matrix are nonzero. Column sums correspond to in-degrees by convention.
+
+    Returns
+    -------
+        bool
+            whether the neighbor graph is valid or not. (If valid, return True)
+    """
+    is_valid = True
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    keys = [conn_key, dist_key, neighbor_key]
+
+    # Old anndata version version
+    # conn_mat = adata.uns[neighbor_key]["connectivities"]
+    # dist_mat = adata.uns[neighbor_key]["distances"]
+    if (conn_key not in adata.obsp) or (dist_key not in adata.obsp) or ("indices" not in adata.uns[neighbor_key]):
+        main_info(
+            "incomplete neighbor graph info detected: %s and %s do not exist in adata.obsp, indices not in adata.uns.%s."
+            % (conn_key, dist_key, neighbor_key)
+        )
+        return False
+    # New anndata stores connectivities and distances in obsp
+    conn_mat = adata.obsp[conn_key]
+    dist_mat = adata.obsp[dist_key]
+    n_obs = adata.n_obs
+
+    # check if connection matrix and distance matrix shapes are compatible with adata shape
+    is_valid = is_valid and tuple(conn_mat.shape) == tuple([n_obs, n_obs])
+    is_valid = is_valid and tuple(dist_mat.shape) == tuple([n_obs, n_obs])
+    if not is_valid:
+        main_info("Connection matrix or dist matrix has some invalid shape.")
+        return False
+
+    if neighbor_key not in adata.uns:
+        main_info("%s not in adata.uns" % (neighbor_key))
+        return False
+
+    # check if indices in nearest neighbor matrix are valid
+    neighbor_mat = adata.uns[neighbor_key]["indices"]
+    is_indices_valid = np.all(neighbor_mat < n_obs)
+    if not is_indices_valid:
+        main_warning(
+            "Some indices in %s are larger than the number of observations and thus not valid." % (neighbor_key)
+        )
+        return False
+    is_valid = is_valid and is_indices_valid
+
+    def _check_nonzero_sum(mat, axis):
+        sums = np.sum(mat, axis=axis)
+        return np.all(sums > 0)
+
+    if check_nonzero_row:
+        is_row_valid = _check_nonzero_sum(dist_mat, 1) and _check_nonzero_sum(conn_mat, 1)
+        if not is_row_valid:
+            main_warning("Some row sums(out degree) in adata's neighbor graph are zero.")
+        is_valid = is_valid and is_row_valid
+    if check_nonzero_col:
+        is_col_valid = _check_nonzero_sum(dist_mat, 0) and _check_nonzero_sum(conn_mat, 0)
+        if not is_col_valid:
+            main_warning("Some column sums(in degree) in adata's neighbor graph are zero.")
+        is_valid = is_valid and is_col_valid
+
+    return is_valid
+
+
+def check_and_recompute_neighbors(adata: AnnData, result_prefix: str = ""):
+    """Check if adata's neighbor graph is valid and recompute neighbor graph if necessary.
+
+    Parameters
+    ----------
+        adata:
+        result_prefix : str, optional
+            The result prefix in adata.uns for neighbor graph related data, by default ""
+    """
+    if result_prefix is None:
+        result_prefix = ""
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+
+    if not check_neighbors_completeness(adata, conn_key=conn_key, dist_key=dist_key, result_prefix=result_prefix):
+        main_info("Neighbor graph is broken, recomputing....")
+        neighbors(adata, result_prefix=result_prefix)

@@ -5,10 +5,12 @@ from .scVectorField import (
     SparseVFC,
     graphize_vecfld,
     base_vectorfield,
-    svc_vectorfield,
+    SvcVectorfield,
 )  # , evaluate, con_K_div_cur_free
 from .utils import (
     vector_field_function,
+    parse_int_df,
+    get_jacobian,
 )
 from .topography import (
     FixedPoints,
@@ -29,6 +31,7 @@ from .vector_calculus import (
     acceleration,
     curvature,
     torsion,
+    rank_expression_genes,
     rank_velocity_genes,
     rank_divergence_genes,
     rank_s_divergence_genes,
@@ -64,4 +67,7 @@ from .Ao import Ao_pot_map, solveQ
 from .stochastic_process import diffusionMatrix
 
 # vfGraph operation related:
-from .vfGraph import vfGraph
+from .vfGraph_deprecated import vfGraph
+
+# vector field clustering related:
+from .clustering import cluster_field, streamline_clusters

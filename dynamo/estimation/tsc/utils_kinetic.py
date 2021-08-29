@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.integrate import odeint
 from ..csc.utils_velocity import sol_u, sol_s
+from ...dynamo_logger import main_debug, main_info
 
 
 class LinearODE:
@@ -28,6 +29,8 @@ class LinearODE:
             sol = self.integrate_matrix(t, x0)
         elif method == "numerical":
             sol = self.integrate_numerical(t, x0)
+        else:
+            raise NotImplementedError("The LinearODE integrate operation currently not supports method: %s." % (method))
         self.x = sol
         self.t = t
         return sol

@@ -59,7 +59,6 @@ from .dimension_reduction import reduceDimension  # , run_umap
 # clustering related
 from .clustering import (
     hdbscan,
-    cluster_field,
     cluster_community,
     cluster_community_from_graph,
     louvain,
@@ -68,7 +67,7 @@ from .clustering import (
 )
 
 # mnn related
-from .connectivity import mnn, neighbors
+from .connectivity import mnn, neighbors, check_neighbors_completeness, check_and_recompute_neighbors
 
 # Pseudotime related
 from .DDRTree_py import DDRTree
@@ -105,4 +104,6 @@ from .recipes import (
     recipe_kin_data,
     recipe_deg_data,
     recipe_mix_kin_deg_data,
+    recipe_onde_shot_data,
+    velocity_N,
 )

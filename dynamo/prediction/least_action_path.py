@@ -2,11 +2,13 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.interpolate import interp1d
 import networkx as nx
+from anndata import AnnData
+from typing import Union, Callable
 from ..tools.utils import (
     nearest_neighbors,
     fetch_states,
 )
-from ..vectorfield import svc_vectorfield
+from ..vectorfield import SvcVectorfield
 from .utils import remove_redundant_points_trajectory, arclength_sampling, pca_to_expr
 from .trajectory import Trajectory
 from ..dynamo_logger import LoggerManager
@@ -107,26 +109,78 @@ def get_init_path(G, start, end, coords, interpolation_num=20):
 
 
 def least_action(
-    adata,
-    init_cells,
-    target_cells,
-    init_states=None,
-    target_states=None,
-    paired=True,
-    basis="pca",
-    vf_key="VecFld",
-    vecfld=None,
-    adj_key="pearson_transition_matrix",
-    n_points=25,
-    D=10,
-    PCs=None,
-    expr_func=np.expm1,
+    adata: AnnData,
+    init_cells: [str, list],
+    target_cells: [str, list],
+    init_states: Union[None, np.ndarray] = None,
+    target_states: Union[None, np.ndarray] = None,
+    paired: bool = True,
+    basis: str = "pca",
+    vf_key: str = "VecFld",
+    vecfld: Union[None, Callable] = None,
+    adj_key: str = "pearson_transition_matrix",
+    n_points: int = 25,
+    D: int = 10,
+    PCs: Union[None, str] = None,
+    expr_func: callable = np.expm1,
+    add_key: Union[None, str] = None,
     **kwargs,
 ):
+    """Calculate the optimal paths between any two cell states.
+
+    Parameters
+    ----------
+        adata:
+            Anndata object that has vector field function computed.
+        init_cells:
+          Cell name or indices of the initial cell states, that will be used to find the initial cell state when
+          optimizing for the least action paths. If the names in init_cells not found in the adata.obs_name, it will
+          be treated as cell indices and must be integers.
+        target_cells:
+          Cell name or indices of the terminal cell states , that will be used to find the target cell state when
+          optimizing for the least action paths. If the names in init_cells not found in the adata.obs_name, it will
+          be treated as cell indices and must be integers.
+        init_states:
+            Initial cell states for least action path calculation.
+        target_states:
+            Target cell states for least action path calculation.
+        paired:
+            Whether the initial states and target states will be treated as pairs; if not, all combination of intial and
+            target states will be used to find the least action paths between. When paired is used, the long list is
+            trimmed to the same length of the shorter one.
+        basis:
+            The embedding data to use for predicting the least action path. If `basis` is `pca`, the identified least
+            action paths will be projected back to high dimensional space.
+        vf_key:
+            A key to the vector field functions in adata.uns.
+        vecfld:
+            A function of vector field.
+        adj_key:
+            The key to the adjacency matrix in adata.obsp
+        n_points:
+            Number of way points on the least action paths.
+        D:
+            The diffusion constant. In theory, the diffusion matrix needs to be a function of cell states but we use a
+            constant for the purpose of simplicity.
+        PCs:
+            The key to the PCs loading matrix in adata.uns.
+        expr_func:
+            The function that is applied before performing PCA analysis.
+        add_key:
+            The key name that will be used to store the calculated least action path information.
+        kwargs:
+            Additional argument passed to least_action_path function.
+
+    Returns
+    -------
+        A trajectory class containing the least action paths information. Meanwhile, the anndata object with be updated
+        with newly calculated least action paths information.
+    """
+
     logger = LoggerManager.gen_logger("dynamo-least-action-path")
 
     if vecfld is None:
-        vf = svc_vectorfield()
+        vf = SvcVectorfield()
         vf.from_adata(adata, basis=basis, vf_key=vf_key)
     else:
         vf = vecfld
@@ -136,10 +190,6 @@ def least_action(
     T = adata.obsp[adj_key]
     G = nx.convert_matrix.from_scipy_sparse_matrix(T)
 
-    logger.info(
-        "initializing path with the shortest path in the graph built from the velocity transition matrix...",
-        indent_level=1,
-    )
     init_states, _, _, _ = fetch_states(
         adata,
         init_states,
@@ -181,13 +231,19 @@ def least_action(
 
     t, prediction, action, exprs, mftp, trajectory = [], [], [], [], [], []
 
-    # for init_state in LoggerManager.progress_logger(init_states, progress_name="iterating through init states"):
-    #    for target_state in target_states:
     for (init_state, target_state) in LoggerManager.progress_logger(
-        pairs, progress_name=f"iterating through {len(pairs)} pairs"
+        pairs, progress_name=f"iterating through {len(pairs)} pairs\n"
     ):
+        logger.info(
+            "initializing path with the shortest path in the graph built from the velocity transition matrix...",
+            indent_level=2,
+        )
         init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
 
+        logger.info(
+            "optimizing for least action path...",
+            indent_level=2,
+        )
         path_sol, dt_sol, action_opt, sol_dict = least_action_path(
             init_state, target_state, vf.func, vf.get_Jacobian(), n_points=n_points, init_path=init_path, D=D, **kwargs
         )
@@ -199,8 +255,9 @@ def least_action(
         action.append(traj.action())
         mftp.append(traj.mfpt())
 
-        if PCs is None and basis == "pca":
-            if "PCs" not in adata.uns.keys():
+        if basis == "pca":
+            pc_keys = "PCs" if PCs is None else PCs
+            if pc_keys not in adata.uns.keys():
                 logger.warning("Expressions along the trajectories cannot be retrieved, due to lack of `PCs` in .uns.")
             else:
                 if "pca_mean" not in adata.uns.keys():
@@ -212,7 +269,11 @@ def least_action(
         logger.info(sol_dict["message"], indent_level=1)
         logger.info("optimal action: %f" % action_opt, indent_level=1)
 
-    LAP_key = "LAP" if basis is None else "LAP_" + basis
+    if add_key is None:
+        LAP_key = "LAP" if basis is None else "LAP_" + basis
+    else:
+        LAP_key = add_key
+
     adata.uns[LAP_key] = {
         "init_states": init_states,
         "init_cells": init_cells,

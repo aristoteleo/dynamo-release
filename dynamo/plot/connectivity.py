@@ -9,6 +9,7 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
+
 import scipy
 import pandas as pd
 import numpy as np
@@ -29,6 +30,7 @@ from .utils import (
 from .utils import is_list_of_lists  # is_gene_name
 from ..configuration import _themes
 from ..docrep import DocstringProcessor
+from ..tools.connectivity import check_and_recompute_neighbors
 
 docstrings = DocstringProcessor()
 
@@ -405,7 +407,10 @@ def nneighbors(
     # c_is_gene_name = [is_gene_name(adata, i) for i in list(color)] if n_c > 0 else [False] * n_c
     # cnt, gene_num = 0, sum(c_is_gene_name)
 
-    coo_graph = adata.uns["neighbors"]["connectivities"].tocoo()
+    check_and_recompute_neighbors(adata, result_prefix="")
+    # coo_graph = adata.uns["neighbors"]["connectivities"].tocoo()
+    coo_graph = adata.obsp["connectivities"].tocoo()
+
     edge_df = pd.DataFrame(
         np.vstack([coo_graph.row, coo_graph.col, coo_graph.data]).T,
         columns=("source", "target", "weight"),

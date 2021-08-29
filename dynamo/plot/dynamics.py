@@ -318,8 +318,17 @@ def phase_portraits(
         V_vec = index_gene(adata, adata.layers["velocity_T"], genes)
         if "velocity_P" in adata.obsm.keys():
             P_vec = index_gene(adata, adata.layers["velocity_P"], genes)
+    elif vkey == "velocity_N":
+        V_vec = index_gene(adata, adata.layers["velocity_N"], genes)
+        if "velocity_P" in adata.obsm.keys():
+            P_vec = index_gene(adata, adata.layers["velocity_P"], genes)
     else:
-        raise Exception("adata has no vkey {} in either the layers or the obsm slot".format(vkey))
+        if vkey in adata.layers.keys():
+            V_vec = index_gene(adata, adata.layers[vkey], genes)
+            if "velocity_P" in adata.obsm.keys():
+                P_vec = index_gene(adata, adata.layers["velocity_P"], genes)
+        else:
+            raise Exception("adata has no vkey {} in either the layers or the obsm slot".format(vkey))
 
     E_vec, V_vec = (
         E_vec.A if issparse(E_vec) else E_vec,
@@ -656,7 +665,7 @@ def phase_portraits(
             ax1.set_ylabel("new (1st moment)")
 
         # only linear regression fitting of extreme cells will be plotted together with U-S phase plane.
-        if vkey == "velocity_S":
+        if vkey in ["velocity_S", "velocity_T"]:
             xnew = (
                 np.linspace(cur_pd.loc[:, "S"].min(), cur_pd.loc[:, "S"].max() * 0.80)
                 if vkey == "velocity_S"
@@ -1102,7 +1111,7 @@ def dynamics(
 ):
     """Plot the data and fitting of different metabolic labeling experiments.
     Note that if non-smoothed data was used for kinetic fitting, you often won't see boxplot
-    but only the triangles for the mean values. This is because the raw data has a lot dropout,
+    but only the triangles for the mean values. This is because the raw data has a lot of dropouts,
     thus the median is outside of the whiskers of the boxplot and the boxplot is then not drawn
     by default.
 

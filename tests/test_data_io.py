@@ -11,12 +11,16 @@ def test_save_rank_info(adata):
 
 
 def test_scEU_seq():
-    dyn.sample_data.scEU_seq()
-    os.path.exists("./data/rpe1.h5ad")
+    dynamo.sample_data.scEU_seq()
+    assert os.path.exists("./data/rpe1.h5ad")
+
+
+def test_zebrafish():
+    dynamo.sample_data.zebrafish()
 
 
 if __name__ == "__main__":
-    test_scEU_seq()
+    # test_scEU_seq()
+    test_zebrafish()
     adata = gen_or_read_zebrafish_data()
-    print(adata)
     test_save_rank_info(adata)

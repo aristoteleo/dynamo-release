@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from scipy.spatial import cKDTree
 import scipy.sparse as sp
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import shortest_path
 
 # from sklearn.preprocessing import OrdinalEncoder
 
@@ -9,12 +11,15 @@ from ..tools.Markov import DiscreteTimeMarkovChain
 from ..prediction.fate import _fate
 from ..vectorfield import vector_field_function
 from ..tools.utils import fetch_states
+from ..tools.clustering import neighbors
 from .utils import (
     remove_redundant_points_trajectory,
     arclength_sampling,
     integrate_streamline,
 )
-from ..dynamo_logger import LoggerManager
+import anndata
+from typing import List, Union
+from ..dynamo_logger import LoggerManager, main_info, main_warning
 
 
 def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):
@@ -28,6 +33,97 @@ def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_
     return cell_type
 
 
+def prune_transition(
+    adata: anndata.AnnData,
+    group: str,
+    basis: str = "umap",
+    n_neighbors: int = 30,
+    neighbor_key: Union[str, None] = None,
+    graph_mat: np.ndarray = None,
+    state_graph_method: str = "vf",
+):
+    """This function prune a cell group transiton graph based on cell similarity graph (kNN graph).
+
+    The pruning algorithm is as following: assuming the vf based cell-type transition graph is `m` (cell type x cell
+    type matrix); the `M` matrix as the cell to cell-type assignment matrix (row is the cell and column the cell type;
+    if i-th cell is j-th cell type, the `M_{ij}` is 1). the knn graph between cells based on the umap embedding (or
+    others) is `n` (number of cells x number of cells matrix). We compute `t(M) n M` to get a cell-type by cell type
+    connectivity graph M' (basically this propagates the cell type to cell matrix to the cell-cell knn graph and then
+    lump the transition down to cell-type). Lastly, `g * M'`  will give pruned graph, where `g` is the vector field
+    based cell-type transition graph. As you can see the resultant graph considers both vector field based connection
+    and the similarity relationship of cells in expression space.
+
+    Parameters
+    ----------
+    adata:
+        AnnData object.
+    group:
+        Cell graph that will be used to build transition graph and lineage tree.
+    basis:
+         The basis that will be used to build the k-nearest neighbor graph when neighbor_key is not set.
+    n_neighbors:
+        The number of neighbors that will be used to build the k-nn graph, passed to `dyn.tl.neighbors` function. Not
+        used when neighbor_key provided.
+    neighbor_key:
+         The nearest neighbor graph key in `adata.obsp`. This nearest neighbor graph will be used to build a
+         gene-expression space based cell-type level connectivity graph.
+    state_graph_method:
+         Method that will be used to build the initial state graph.
+
+    Returns
+    -------
+    M:
+        The pruned cell state transition graph.
+    """
+
+    logger = LoggerManager.gen_logger("dynamo-prune_transition")
+    logger.log_time()
+    from patsy import dmatrix
+
+    if group not in adata.obs.columns:
+        raise Exception(f"group has to be in adata.obs.columns, but you have {group}. ")
+
+    data = adata.obs
+    groups = data[group]
+    uniq_grps, data[group] = groups.unique(), list(groups)
+    sorted_grps = np.sort(uniq_grps)
+
+    if graph_mat is not None:
+        if graph_mat.shape != (len(uniq_grps), len(uniq_grps)):
+            raise Exception(f"the input graph_mat has to have the same shape as ({len(uniq_grps), len(uniq_grps)})")
+
+        group_graph = graph_mat
+    else:
+        if group + "_graph" not in adata.uns_keys():
+            main_info(f"build state graph `g` via {state_graph_method}")
+            state_graph(adata, group=group, basis=basis, method=state_graph_method)  # the markov method
+        group_graph = adata.uns[group + "_graph"]["group_graph"]
+
+    if neighbor_key is None:
+        main_info(f"build knn graph with {n_neighbors} neighbors in {basis} basis.")
+        neighbors(adata, basis=basis, result_prefix=basis + "_knn", n_neighbors=n_neighbors)
+        transition_matrix = adata.obsp[basis + "_knn_distances"]
+    else:
+        main_info(f"retrieve knn graph via {neighbor_key} ley.")
+        transition_matrix = adata.obsp[neighbor_key]
+
+    main_info("build cell to cell graph assignment matrix via `dmatrix` from `pasty`")
+    cell_membership = csr_matrix(dmatrix(f"~{group}+0", data=data))
+
+    main_info("build lumped cell group to cell group connectivity matrix via `t(M) n M`.")
+    membership_matrix = cell_membership.T.dot(transition_matrix).dot(cell_membership)
+
+    main_info("prune vf based cell graph transition graph via g' = `M' g")
+    # note that dmatrix will first sort the unique group names and then construct the design matrix, so this is needed.
+    membership_df = pd.DataFrame(membership_matrix.A > 0, index=sorted_grps, columns=sorted_grps)
+
+    M = (group_graph * (membership_df.loc[uniq_grps, uniq_grps].values > 0) > 0).astype(float)
+
+    logger.finish_progress(progress_name="prune_transition")
+
+    return M
+
+
 def state_graph(
     adata,
     group,
@@ -39,6 +135,8 @@ def state_graph(
     layer=None,
     arc_sample=False,
     sample_num=100,
+    prune_graph=False,
+    **kwargs,
 ):
     """Estimate the transition probability between cell types using method of vector field integrations or Markov chain
     lumping.
@@ -69,6 +167,10 @@ def state_graph(
         sample_num: `int` (default: 100)
             The number of cells to sample in each group that will be used for calculating the transitoin graph between
             cell groups. This is required for facilitating the calculation.
+        prune_graph: `bool` (default: `False`)
+            Whether to prune the transition graph based on cell similarities in `basis` bases.
+        kwargs:
+            Additional parameters that will be passed to `prune_transition` function.
 
     Returns
     -------
@@ -226,6 +328,142 @@ def state_graph(
     else:
         raise NotImplementedError("Only vector field (vf) or Markov chain (markov) based lumping are supported.")
 
+    if prune_graph:
+        grp_graph = prune_transition(
+            adata,
+            group,
+            basis,
+            graph_mat=grp_graph,
+            **kwargs,
+        )
     adata.uns[group + "_graph"] = {"group_graph": grp_graph, "group_avg_time": grp_avg_time, "group_names": uniq_grp}
     timer_logger.finish_progress(progress_name="State graph estimation")
     return adata
+
+
+def tree_model(
+    adata: anndata.AnnData,
+    group: str,
+    progenitor: str,
+    terminators: List[str],
+    basis: str = "umap",
+    n_neighbors: int = 30,
+    neighbor_key: Union[str, None] = None,
+    graph_mat: np.ndarray = None,
+    state_graph_method: str = "vf",
+    prune_graph: bool = True,
+    row_norm: bool = True,
+) -> pd.DataFrame:
+    """This function learns a tree model of cell states (types).
+
+    It is based on the shortest path from the source to target cells of the pruned vector field based cell-type
+    transition graph. The pruning was done by restricting cell state transition that are only between cell states that
+    are nearby in gene expression space (often low gene expression space).
+
+    Parameters
+    ----------
+    adata:
+        AnnData object.
+    group:
+        Cell graph that will be used to build transition graph and lineage tree.
+    progenitor:
+        The source cell type name of the lineage tree.
+    terminators:
+         The terminal cell type names of the lineage tree.
+    basis:
+         The basis that will be used to build the k-nearest neighbor graph when neighbor_key is not set.
+    n_neighbors:
+        The number of neighbors that will be used to build the k-nn graph, passed to `dyn.tl.neighbors` function. Not
+        used when neighbor_key provided.
+    neighbor_key:
+         The nearest neighbor graph key in `adata.obsp`. This nearest neighbor graph will be used to build a
+         gene-expression space based cell-type level connectivity graph.
+    state_graph_method:
+         Method that will be used to build the initial state graph.
+    prune_graph: `bool` (default: `True`)
+        Whether to prune the transition graph based on cell similarities in `basis` bases first before learning tree
+        model.
+    row_norm: `bool` (default: `True`)
+        Whether to normalize each row so that each row sum up to be 1. Note that row, columns in transition matrix
+        correspond to source and targets in dynamo by default.
+
+    Returns
+    -------
+    res:
+        The final tree model of cell groups. See following example on how to visualize the tree via dynamo.
+
+    Examples
+    --------
+    >>> import dynamo as dyn
+    >>> adata = dyn.sample_data.pancreatic_endocrinogenesis()
+    >>> dyn.pp.recipe_monocle(adata)
+    >>> dyn.tl.dynamics(adata)
+    >>> dyn.tl.cell_velocities(adata)
+    >>> dyn.vf.VectorField(adata, basis='umap', pot_curl_div=False)
+    >>> dyn.pd.state_graph(adata, group='clusters', basis='umap')
+    >>> res = dyn.pd.tree_model(adata, group='clusters', basis='umap')
+    >>> # in the following we first copy the state_graph result to a new key and then replace the `group_graph` key of
+    >>> # the state_graph result and visualize tree model via dynamo.
+    >>> adata.obs['clusters2'] = adata.obs['clusters'].copy()
+    >>> adata.uns['clusters2_graph'] = adata.uns['clusters_graph'].copy()
+    >>> adata.uns['clusters2_graph']['group_graph'] = res
+    >>> dyn.pl.state_graph(adata, group='clusters2', keep_only_one_direction=False, transition_threshold=None,
+    >>> color='clusters2', basis='umap', show_legend='on data')
+    """
+
+    logger = LoggerManager.gen_logger("dynamo-tree_model")
+    logger.log_time()
+
+    data = adata.obs
+    groups = data[group]
+    uniq_grps, data[group] = groups.unique(), list(groups)
+
+    progenitor = progenitor[0] if type(progenitor) is not str else progenitor
+    if progenitor not in uniq_grps:
+        raise Exception(f"progenitor has to be in adata.obs[{group}], but you have {progenitor}. ")
+    else:
+        progenitor = list(uniq_grps).index(progenitor)
+
+    if not set(terminators) <= set(uniq_grps):
+        raise Exception(f"all terminators have to be in adata.obs[{group}], but you have {terminators}.")
+    else:
+        terminators = [list(uniq_grps).index(i) for i in terminators]
+
+    if prune_graph:
+        M = prune_transition(
+            adata,
+            group,
+            basis,
+            n_neighbors,
+            neighbor_key,
+            graph_mat,
+            state_graph_method,
+        )
+    else:
+        M = graph_mat
+
+    if np.any(M < 0):
+        main_warning("the transition graph have negative values.")
+        M[M < 0] = 0
+        M += 1e-5 - 1e-5  # ensure no -0 values existed
+
+    if row_norm:
+        M /= M.sum(1)
+
+    M[M > 0] = 1 - M[M > 0]  # because it is shortest path, so we need to use 1 - M[M > 0]
+
+    D, Pr = shortest_path(np.copy(M, order="c"), directed=False, method="FW", return_predecessors=True)
+    res = np.zeros(M.shape)
+
+    # this builds the tree based on each shortest path connecting the source to each target cell type
+    main_info("builds the tree model based on each shortest path connecting the source to each target cell type in g'.")
+    for j in terminators:
+        p = j
+        while Pr[progenitor, p] != -9999:
+            res[Pr[progenitor, p], p] = 1
+            p = Pr[progenitor, p]
+    res = pd.DataFrame(res, index=uniq_grps, columns=uniq_grps)
+
+    logger.finish_progress(progress_name="tree_model building")
+
+    return res
