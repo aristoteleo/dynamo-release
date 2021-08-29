@@ -1,4 +1,4 @@
-from anndata._core.anndata import AnnData
+from anndata import AnnData
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -10,6 +10,7 @@ import anndata
 from typing import Iterable, Union
 from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning, main_exception
 from ..utils import areinstance
+from ..configuration import DynamoAdataKeyManager
 
 
 # ---------------------------------------------------------------------------------------------------

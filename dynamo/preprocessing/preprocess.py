@@ -39,7 +39,7 @@ from ..dynamo_logger import (
     LoggerManager,
 )
 from ..utils import copy_adata
-from ..configuration import DynamoAdataConfig
+from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager
 from .gene_selection_utils import filter_genes_by_outliers
 
 
