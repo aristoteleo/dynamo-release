@@ -30,7 +30,7 @@ def test_smallest_distance_simple_random():
         coords.append(np.random.rand(2) * 1000)
     coords = np.array(coords)
 
-    assert smallest_distance_bf(coords) == dynamo.tl.compute_smallest_distance(coords)
+    assert abs(smallest_distance_bf(coords) - dynamo.tl.compute_smallest_distance(coords)) < 1e-8
 
 
 if __name__ == "__main__":
