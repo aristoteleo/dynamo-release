@@ -1,3 +1,5 @@
+from anndata import AnnData
+from dynamo.utils import copy_adata
 from dynamo.dynamo_logger import (
     main_finish_progress,
     main_info,
@@ -31,7 +33,6 @@ def calc_mean_var_dispersion(data_mat: np.array) -> List[np.ndarray]:
 
 
 def calc_mean_var_dispersion_sparse(sparse_mat) -> List[np.ndarray]:
-
     nan_mask = get_nan_or_inf_data_bool_mask(sparse_mat.data)
 
     non_nan_count = sparse_mat.shape[0] - nan_mask.sum()
@@ -89,3 +90,22 @@ def get_highly_variable_mask_by_dispersion_svr(mean, var, n_top_genes: int, svr_
     score_threshold = np.sort(-score)[n_top_genes - 1]
     highly_variable_mask = score >= score_threshold
     return highly_variable_mask
+
+
+def log1p(adata, copy=False) -> AnnData:
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    log1p_inplace(_adata)
+    return _adata
+
+
+def log1p_inplace(adata):
+    if issparse(adata.X):
+        log1p_inplace(adata.X.data)
+    else:
+        log1p_inplace(adata.X)
+
+
+def log1p_inplace(data):
+    np.log1p(data, out=data)

@@ -680,8 +680,9 @@ def feature_genes(
 
     layer = get_layer_keys(adata, layer, include_protein=False)[0]
 
+    uns_store_key = None
     if mode == "dispersion":
-        key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
+        uns_store_key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
 
         table = top_table(adata, layer)
         x_min, x_max = (
@@ -690,7 +691,7 @@ def feature_genes(
         )
     elif mode == "SVR":
         prefix = "" if layer == "X" else layer + "_"
-        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
+        uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
 
         if not np.all(pd.Series([prefix + "log_m", prefix + "score"]).isin(adata.var.columns)):
             raise Exception("Looks like you have not run support vector machine regression yet, try run SVRs first.")
@@ -709,9 +710,9 @@ def feature_genes(
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
     fit = (
-        adata.uns[key]["disp_func"](mu_linspace)
+        adata.uns[uns_store_key]["disp_func"](mu_linspace)
         if mode == "dispersion"
-        else adata.uns[key]["SVR"](mu_linspace.reshape(-1, 1))
+        else adata.uns[uns_store_key]["SVR"](mu_linspace.reshape(-1, 1))
     )
 
     plt.figure(figsize=figsize)
