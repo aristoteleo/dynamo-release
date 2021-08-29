@@ -8,7 +8,6 @@ from matplotlib.axes import Axes
 
 from ..preprocessing import preprocess as pp
 from ..preprocessing.preprocess import top_table
-from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
@@ -678,7 +677,7 @@ def feature_genes(
 
     mode = adata.uns["feature_selection"] if mode is None else mode
 
-    layer = get_layer_keys(adata, layer, include_protein=False)[0]
+    layer = DynamoAdataKeyManager.get_layer_keys(adata, layer, include_protein=False)[0]
 
     uns_store_key = None
     if mode == "dispersion":

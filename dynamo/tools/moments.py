@@ -1,3 +1,4 @@
+from dynamo.configuration import DynamoAdataKeyManager
 import numpy as np
 import warnings
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
@@ -12,7 +13,6 @@ from .connectivity import (
     umap_conn_indices_dist_embedding,
 )
 from ..utils import copy_adata
-from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 from ..dynamo_logger import LoggerManager
 
 
@@ -182,7 +182,7 @@ def moments(
                 "the cell number!"
             )
 
-    layers = get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers

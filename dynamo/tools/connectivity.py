@@ -1,3 +1,4 @@
+from dynamo.configuration import DynamoAdataKeyManager
 from anndata import AnnData
 from pynndescent.distances import true_angular
 import numpy as np
@@ -9,7 +10,6 @@ from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
 from anndata import AnnData
-from ..preprocessing.utils import get_layer_keys
 from .utils import (
     log1p_,
     fetch_X_data,
@@ -416,7 +416,7 @@ def mnn(
         else:
             raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
-    layers = get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers

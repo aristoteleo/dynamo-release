@@ -16,7 +16,6 @@ from .utils import (
     pca,
     clusters_stats,
     cook_dist,
-    get_layer_keys,
     get_shared_counts,
     get_svr_filter,
     Freeman_Tukey,
@@ -41,6 +40,7 @@ from ..dynamo_logger import (
 )
 from ..utils import copy_adata
 from ..configuration import DynamoAdataConfig
+from .gene_selection_utils import filter_genes_by_outliers
 
 
 def szFactor(
@@ -127,7 +127,7 @@ def szFactor(
             adata.layers["_total_"] = total
             layers.extend(["_total_"])
 
-    layers = get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
     if "raw" in layers and adata.raw is None:
         adata.raw = adata.copy()
 
@@ -243,7 +243,7 @@ def normalize_expr_data(
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
-    layers = get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
 
     layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
@@ -336,7 +336,7 @@ def Gini(adata, layers="all"):
     # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
 
-    layers = get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
 
     for layer in layers:
         if layer == "raw":
@@ -446,7 +446,7 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         res: :class:`~pandas.DataFrame`
             A pandas dataframe with mu, dispersion for each gene that passes filters.
     """
-    layers = get_layer_keys(adata, layers=layers, include_protein=False)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers=layers, include_protein=False)
 
     res_list = []
     for layer in layers:
@@ -528,7 +528,7 @@ def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion"
         disp_df: :class:`~pandas.DataFrame`
             The data frame with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
     """
-    layer = get_layer_keys(adata, layers=layer, include_protein=False)[0]
+    layer = DynamoAdataKeyManager.get_layer_keys(adata, layers=layer, include_protein=False)[0]
 
     if layer in ["X"]:
         key = "dispFitInfo"
@@ -758,7 +758,7 @@ def SVRs(
     """
     from sklearn.svm import SVR
 
-    layers = get_layer_keys(adata_ori, layers)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata_ori, layers)
 
     if use_all_genes_cells:
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
@@ -968,7 +968,7 @@ def filter_cells(
         )
 
     if shared_count is not None:
-        layers = get_layer_keys(adata, layer, False)
+        layers = DynamoAdataKeyManager.get_layer_keys(adata, layer, False)
         detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, "cell")
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
@@ -1023,128 +1023,6 @@ def filter_genes_by_clusters_(
     clu_avg_selected = (U_avgs.max(1) > min_avg_U) & (S_avgs.max(1) > min_avg_S)
 
     return clu_avg_selected
-
-
-def filter_genes(
-    adata: anndata.AnnData,
-    filter_bool: Union[np.ndarray, None] = None,
-    layer: str = "all",
-    min_cell_s: int = 1,
-    min_cell_u: int = 1,
-    min_cell_p: int = 1,
-    min_avg_exp_s: float = 1e-10,
-    min_avg_exp_u: float = 0,
-    min_avg_exp_p: float = 0,
-    max_avg_exp: float = np.infty,
-    min_count_s: int = 0,
-    min_count_u: int = 0,
-    min_count_p: int = 0,
-    shared_count: int = 30,
-) -> anndata.AnnData:
-    """Basic filter of genes based a collection of expression filters.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object.
-        filter_bool: :class:`~numpy.ndarray` (default: None)
-            A boolean array from the user to select genes for downstream analysis.
-        layer: `str` (default: `X`)
-            The data from a particular layer (include X) used for feature selection.
-        min_cell_s: `int` (default: `5`)
-            Minimal number of cells with expression for the data in the spliced layer (also used for X).
-        min_cell_u: `int` (default: `5`)
-            Minimal number of cells with expression for the data in the unspliced layer.
-        min_cell_p: `int` (default: `5`)
-            Minimal number of cells with expression for the data in the protein layer.
-        min_avg_exp_s: `float` (default: `1e-2`)
-            Minimal average expression across cells for the data in the spliced layer (also used for X).
-        min_avg_exp_u: `float` (default: `1e-4`)
-            Minimal average expression across cells for the data in the unspliced layer.
-        min_avg_exp_p: `float` (default: `1e-4`)
-            Minimal average expression across cells for the data in the protein layer.
-        max_avg_exp: `float` (default: `100`.)
-            Maximal average expression across cells for the data in all layers (also used for X).
-        min_cell_s: `int` (default: `5`)
-            Minimal number of counts (UMI/expression) for the data in the spliced layer (also used for X).
-        min_cell_u: `int` (default: `5`)
-            Minimal number of counts (UMI/expression) for the data in the unspliced layer.
-        min_cell_p: `int` (default: `5`)
-            Minimal number of counts (UMI/expression) for the data in the protein layer.
-        shared_count: `int` (default: `30`)
-            The minimal shared number of counts for each genes across cell between layers.
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of
-            genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is
-            set to be False.
-    """
-
-    detected_bool = np.ones(adata.shape[1], dtype=bool)
-    detected_bool = (detected_bool) & np.array(
-        ((adata.X > 0).sum(0) >= min_cell_s)
-        & (adata.X.mean(0) >= min_avg_exp_s)
-        & (adata.X.mean(0) <= max_avg_exp)
-        & (adata.X.sum(0) >= min_count_s)
-    ).flatten()
-
-    # add our filtering for labeling data below
-
-    if "spliced" in adata.layers.keys() and (layer == "spliced" or layer == "all"):
-        detected_bool = (
-            detected_bool
-            & np.array(
-                ((adata.layers["spliced"] > 0).sum(0) >= min_cell_s)
-                & (adata.layers["spliced"].mean(0) >= min_avg_exp_s)
-                & (adata.layers["spliced"].mean(0) <= max_avg_exp)
-                & (adata.layers["spliced"].sum(0) >= min_count_s)
-            ).flatten()
-        )
-    if "unspliced" in adata.layers.keys() and (layer == "unspliced" or layer == "all"):
-        detected_bool = (
-            detected_bool
-            & np.array(
-                ((adata.layers["unspliced"] > 0).sum(0) >= min_cell_u)
-                & (adata.layers["unspliced"].mean(0) >= min_avg_exp_u)
-                & (adata.layers["unspliced"].mean(0) <= max_avg_exp)
-                & (adata.layers["unspliced"].sum(0) >= min_count_u)
-            ).flatten()
-        )
-    if shared_count is not None:
-        layers = get_layer_keys(adata, "all", False)
-        tmp = get_shared_counts(adata, layers, shared_count, "gene")
-        if tmp.sum() > 2000:
-            detected_bool &= tmp
-        else:
-            # in case the labeling time is very short for pulse experiment or
-            # chase time is very long for degradation experiment.
-            tmp = get_shared_counts(
-                adata,
-                list(set(layers).difference(["new", "labelled", "labeled"])),
-                shared_count,
-                "gene",
-            )
-            detected_bool &= tmp
-
-    # The following code need to be updated
-    # just remove genes that are not following the protein criteria
-    if "protein" in adata.obsm.keys() and layer == "protein":
-        detected_bool = (
-            detected_bool
-            & np.array(
-                ((adata.obsm["protein"] > 0).sum(0) >= min_cell_p)
-                & (adata.obsm["protein"].mean(0) >= min_avg_exp_p)
-                & (adata.obsm["protein"].mean(0) <= max_avg_exp)
-                & (adata.layers["protein"].sum(0) >= min_count_p)
-            ).flatten()
-        )
-
-    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
-
-    adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
-
-    return adata
 
 
 def select_genes(
@@ -1647,7 +1525,7 @@ def recipe_monocle(
     # set pass_basic_filter for genes
     logger.info("filtering gene...")
     logger.info_insert_adata("pass_basic_filter", "var")
-    adata = filter_genes(
+    adata = filter_genes_by_outliers(
         adata,
         **filter_genes_kwargs,
     )
@@ -1786,7 +1664,7 @@ def recipe_monocle(
             scale_to=scale_to,
         )
     else:
-        layers = get_layer_keys(adata, "all")
+        layers = DynamoAdataKeyManager.get_layer_keys(adata, "all")
         for layer in layers:
             if layer != "X":
                 logger.info_insert_adata("X_" + layer, "layers")
@@ -1947,7 +1825,7 @@ def recipe_velocyto(
 
     adata = filter_cells(adata, filter_bool=np.array(filter_bool).flatten())
 
-    filter_bool = filter_genes(adata, min_cell_s=30, min_count_s=40, shared_count=None)
+    filter_bool = filter_genes_by_outliers(adata, min_cell_s=30, min_count_s=40, shared_count=None)
 
     adata = adata[:, filter_bool]
 
@@ -1962,7 +1840,7 @@ def recipe_velocyto(
     filter_bool = get_svr_filter(adata, layer="spliced", n_top_genes=n_top_genes)
 
     adata = adata[:, filter_bool]
-    filter_bool_gene = filter_genes(
+    filter_bool_gene = filter_genes_by_outliers(
         adata,
         min_cell_s=0,
         min_count_s=0,

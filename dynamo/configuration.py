@@ -34,6 +34,20 @@ class DynamoAdataKeyManager:
             return res_data.copy()
         return res_data
 
+    def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
+        """Get the list of available layers' keys."""
+        layer_keys = list(adata.layers.keys())
+        if remove_normalized:
+            layer_keys = [i for i in layer_keys if not i.startswith("X_")]
+
+        if "protein" in adata.obsm.keys() and include_protein:
+            layer_keys.extend(["X", "protein"])
+        else:
+            layer_keys.extend(["X"])
+        res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
+        res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
+        return res_layers
+
 
 class DynamoAdataConfig:
     """dynamo anndata object config class holding static variables to change behaviors of functions globally."""

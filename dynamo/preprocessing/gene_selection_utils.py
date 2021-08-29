@@ -1,4 +1,5 @@
 from anndata import AnnData
+import anndata
 from dynamo.utils import copy_adata
 from dynamo.dynamo_logger import (
     main_finish_progress,
@@ -8,7 +9,7 @@ from dynamo.dynamo_logger import (
     main_log_time,
 )
 from dynamo.configuration import DynamoAdataKeyManager
-from typing import List
+from typing import List, Union
 import numpy as np
 from scipy.sparse.base import issparse
 import pandas as pd
@@ -109,3 +110,125 @@ def log1p_inplace(adata):
 
 def log1p_inplace(data):
     np.log1p(data, out=data)
+
+
+def filter_genes_by_outliers(
+    adata: anndata.AnnData,
+    filter_bool: Union[np.ndarray, None] = None,
+    layer: str = "all",
+    min_cell_s: int = 1,
+    min_cell_u: int = 1,
+    min_cell_p: int = 1,
+    min_avg_exp_s: float = 1e-10,
+    min_avg_exp_u: float = 0,
+    min_avg_exp_p: float = 0,
+    max_avg_exp: float = np.infty,
+    min_count_s: int = 0,
+    min_count_u: int = 0,
+    min_count_p: int = 0,
+    shared_count: int = 30,
+) -> anndata.AnnData:
+    """Basic filter of genes based a collection of expression filters.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        filter_bool: :class:`~numpy.ndarray` (default: None)
+            A boolean array from the user to select genes for downstream analysis.
+        layer: `str` (default: `X`)
+            The data from a particular layer (include X) used for feature selection.
+        min_cell_s: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the spliced layer (also used for X).
+        min_cell_u: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the unspliced layer.
+        min_cell_p: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the protein layer.
+        min_avg_exp_s: `float` (default: `1e-2`)
+            Minimal average expression across cells for the data in the spliced layer (also used for X).
+        min_avg_exp_u: `float` (default: `1e-4`)
+            Minimal average expression across cells for the data in the unspliced layer.
+        min_avg_exp_p: `float` (default: `1e-4`)
+            Minimal average expression across cells for the data in the protein layer.
+        max_avg_exp: `float` (default: `100`.)
+            Maximal average expression across cells for the data in all layers (also used for X).
+        min_cell_s: `int` (default: `5`)
+            Minimal number of counts (UMI/expression) for the data in the spliced layer (also used for X).
+        min_cell_u: `int` (default: `5`)
+            Minimal number of counts (UMI/expression) for the data in the unspliced layer.
+        min_cell_p: `int` (default: `5`)
+            Minimal number of counts (UMI/expression) for the data in the protein layer.
+        shared_count: `int` (default: `30`)
+            The minimal shared number of counts for each genes across cell between layers.
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of
+            genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is
+            set to be False.
+    """
+
+    detected_bool = np.ones(adata.shape[1], dtype=bool)
+    detected_bool = (detected_bool) & np.array(
+        ((adata.X > 0).sum(0) >= min_cell_s)
+        & (adata.X.mean(0) >= min_avg_exp_s)
+        & (adata.X.mean(0) <= max_avg_exp)
+        & (adata.X.sum(0) >= min_count_s)
+    ).flatten()
+
+    # add our filtering for labeling data below
+
+    if "spliced" in adata.layers.keys() and (layer == "spliced" or layer == "all"):
+        detected_bool = (
+            detected_bool
+            & np.array(
+                ((adata.layers["spliced"] > 0).sum(0) >= min_cell_s)
+                & (adata.layers["spliced"].mean(0) >= min_avg_exp_s)
+                & (adata.layers["spliced"].mean(0) <= max_avg_exp)
+                & (adata.layers["spliced"].sum(0) >= min_count_s)
+            ).flatten()
+        )
+    if "unspliced" in adata.layers.keys() and (layer == "unspliced" or layer == "all"):
+        detected_bool = (
+            detected_bool
+            & np.array(
+                ((adata.layers["unspliced"] > 0).sum(0) >= min_cell_u)
+                & (adata.layers["unspliced"].mean(0) >= min_avg_exp_u)
+                & (adata.layers["unspliced"].mean(0) <= max_avg_exp)
+                & (adata.layers["unspliced"].sum(0) >= min_count_u)
+            ).flatten()
+        )
+    if shared_count is not None:
+        layers = DynamoAdataKeyManager.get_layer_keys(adata, "all", False)
+        tmp = get_shared_counts(adata, layers, shared_count, "gene")
+        if tmp.sum() > 2000:
+            detected_bool &= tmp
+        else:
+            # in case the labeling time is very short for pulse experiment or
+            # chase time is very long for degradation experiment.
+            tmp = get_shared_counts(
+                adata,
+                list(set(layers).difference(["new", "labelled", "labeled"])),
+                shared_count,
+                "gene",
+            )
+            detected_bool &= tmp
+
+    # The following code need to be updated
+    # just remove genes that are not following the protein criteria
+    if "protein" in adata.obsm.keys() and layer == "protein":
+        detected_bool = (
+            detected_bool
+            & np.array(
+                ((adata.obsm["protein"] > 0).sum(0) >= min_cell_p)
+                & (adata.obsm["protein"].mean(0) >= min_avg_exp_p)
+                & (adata.obsm["protein"].mean(0) <= max_avg_exp)
+                & (adata.layers["protein"].sum(0) >= min_count_p)
+            ).flatten()
+        )
+
+    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
+
+    adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
+
+    return adata

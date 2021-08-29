@@ -328,21 +328,6 @@ def allowed_X_layer_names():
     return only_splicing, only_labeling, splicing_and_labeling
 
 
-def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
-    """Get the list of available layers' keys."""
-    layer_keys = list(adata.layers.keys())
-    if remove_normalized:
-        layer_keys = [i for i in layer_keys if not i.startswith("X_")]
-
-    if "protein" in adata.obsm.keys() and include_protein:
-        layer_keys.extend(["X", "protein"])
-    else:
-        layer_keys.extend(["X"])
-    res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
-    res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
-    return res_layers
-
-
 def get_shared_counts(adata, layers, min_shared_count, type="gene"):
     layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
     layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith("X_").values]
@@ -831,7 +816,7 @@ def NTR(adata):
 
 def scale(adata, layers=None, scale_to_layer=None, scale_to=1e6):
     """scale layers to a particular total expression value, similar to `normalize_expr_data` function."""
-    layers = get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
     has_splicing, has_labeling, _ = detect_datatype(adata)
 
     if scale_to_layer is None:
