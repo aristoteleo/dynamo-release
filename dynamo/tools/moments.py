@@ -1,4 +1,4 @@
-from dynamo.configuration import DynamoAdataKeyManager
+from ..configuration import DynamoAdataKeyManager
 import numpy as np
 import warnings
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags

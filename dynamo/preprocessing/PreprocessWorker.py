@@ -15,7 +15,7 @@ class PreprocessWorker:
         self.log1p = log1p
         self.neighbors = neighbors
 
-    def run(self, adata: AnnData):
+    def preprocess_adata(self, adata: AnnData):
         main_info("Running preprocessing pipeline")
         if self.normalize_by_cells:
             main_info("applying normalizing by cells function...")

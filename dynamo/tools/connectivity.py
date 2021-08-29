@@ -1,4 +1,4 @@
-from dynamo.configuration import DynamoAdataKeyManager
+from ..configuration import DynamoAdataKeyManager
 from anndata import AnnData
 from pynndescent.distances import true_angular
 import numpy as np

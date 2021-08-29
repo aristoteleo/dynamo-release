@@ -1,14 +1,14 @@
 from anndata import AnnData
 import anndata
-from dynamo.utils import copy_adata
-from dynamo.dynamo_logger import (
+from ..utils import copy_adata
+from ..dynamo_logger import (
     main_finish_progress,
     main_info,
     main_info_insert_adata,
     main_info_insert_adata_var,
     main_log_time,
 )
-from dynamo.configuration import DynamoAdataKeyManager
+from .. import DynamoAdataKeyManager
 from typing import List, Union
 import numpy as np
 from scipy.sparse.base import issparse
