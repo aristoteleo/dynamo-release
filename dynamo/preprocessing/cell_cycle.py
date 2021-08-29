@@ -125,7 +125,7 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list
         expression_matrix = adata.layers[layer][:, intersect_genes]
         expression_matrix = log1p_(adata, expression_matrix)
 
-    # To-do: FutureWarning: Index.is_all_dates is deprecated, will be removed in a future version.
+    # TODO FutureWarning: Index.is_all_dates is deprecated, will be removed in a future version.
     # check index.inferred_type instead
     if layer is None or layer.startswith("X_"):
         scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) else expression_matrix.sum(1)

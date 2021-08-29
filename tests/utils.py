@@ -43,7 +43,7 @@ def gen_or_read_zebrafish_data():
         gen_zebrafish_test_data()
 
     print("reading test data...")
-    # To-do: use a fixture in future
+    # TODO use a fixture in future
     adata = dyn.read_h5ad(test_zebrafish_data_path)
     return adata
 

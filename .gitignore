@@ -1,3 +1,9 @@
+# docs local build
+**/_build
+
+# mygene package cache
+mygene_cache.sqlite
+
 *.html
 # vscode related
 .vscode/

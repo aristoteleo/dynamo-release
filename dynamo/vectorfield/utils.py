@@ -557,7 +557,7 @@ def average_jacobian_by_group(Js, group_labels):
 
 
 def Hessian_rkhs_gaussian(x, vf_dict):
-    """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
+    """analytical Hessian for RKHS vector field functions with Gaussian kernel.
 
     Arguments
     ---------
@@ -591,12 +591,12 @@ def Hessian_rkhs_gaussian(x, vf_dict):
 
 
 def hessian_transformation(H, qi, Qj, Qk):
-    """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`) back to the
-    d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated from
-    low dimension (PCs) is:
+    """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`)
+    back to the d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated
+    from low dimension (PCs) is:
                                             :math:`h = \sum_i\sum_j\sum_k q_i q_j q_k H_ijk`,
-    where `q, H, h` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed element from the high
-    dimensional Jacobian matrix.
+    where `q, H, h` are the PCA loading matrix, low dimensional Hessian matrix and the inverse transformed element from
+    the high dimensional Hessian matrix.
 
     Parameters
     ----------
@@ -631,7 +631,7 @@ def _divergence(f, x):
 
 
 @timeit
-def compute_divergence(f_jac, X, vectorize_size=1000):
+def compute_divergence(f_jac, X, Js=None, vectorize_size=1000):
     """Calculate divergence for many samples by taking the trace of a Jacobian matrix.
 
     vectorize_size is used to control the number of samples computed in each vectorized batch.
@@ -644,7 +644,7 @@ def compute_divergence(f_jac, X, vectorize_size=1000):
 
     div = np.zeros(n)
     for i in tqdm(range(0, n, vectorize_size), desc="Calculating divergence"):
-        J = f_jac(X[i : i + vectorize_size])
+        J = f_jac(X[i : i + vectorize_size]) if Js is None else Js[:, :, i : i + vectorize_size]
         div[i : i + vectorize_size] = np.trace(J)
     return div
 
@@ -682,7 +682,7 @@ def torsion_(v, J, a):
 
 
 @timeit
-def compute_acceleration(vf, f_jac, X, return_all=False):
+def compute_acceleration(vf, f_jac, X, Js=None, return_all=False):
     """Calculate acceleration for many samples via
 
     .. math::
@@ -694,7 +694,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
     acce_mat = np.zeros((n, X.shape[1]))
 
     v_ = vf(X)
-    J_ = f_jac(X)
+    J_ = f_jac(X) if Js is None else Js
     temp_logger = LoggerManager.get_temp_timer_logger()
     for i in LoggerManager.progress_logger(range(n), temp_logger, progress_name="Calculating acceleration"):
         v = v_[i]
@@ -709,7 +709,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
 
 @timeit
-def compute_curvature(vf, f_jac, X, formula=2):
+def compute_curvature(vf, f_jac, X, Js=None, formula=2):
     """Calculate curvature for many samples via
 
     Formula 1:
@@ -723,7 +723,7 @@ def compute_curvature(vf, f_jac, X, formula=2):
     n = len(X)
 
     curv = np.zeros(n)
-    v, _, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
+    v, _, _, a = compute_acceleration(vf, f_jac, X, Js=Js, return_all=True)
     cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
     for i in LoggerManager.progress_logger(range(n), progress_name="Calculating curvature"):
@@ -1246,3 +1246,22 @@ def get_jacobian(
             df.loc[:, key] = J
 
     return df
+
+
+# ---------------------------------------------------------------------------------------------------
+# jacobian subset related utilies
+def subset_jacobian(adata, cells, basis="pca"):
+    """Subset adata object while also subset the jacobian, cells must be a vector of cell indices."""
+
+    adata_subset = adata[cells]
+
+    jkey = "jacobian_" + basis
+    adata_subset.uns[jkey].keys()
+
+    # assume all cells are used to calculate Jacobian for now
+    adata_subset.uns[jkey]["cell_idx"] = np.arange(len(cells))
+
+    adata_subset.uns[jkey]["jacobian_gene"] = adata_subset.uns[jkey]["jacobian_gene"][:, :, cells]
+    adata_subset.uns[jkey]["jacobian"] = adata_subset.uns[jkey]["jacobian"][:, :, cells]
+
+    return adata_subset

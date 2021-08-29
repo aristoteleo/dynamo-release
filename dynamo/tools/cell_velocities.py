@@ -620,7 +620,7 @@ def confident_cell_velocities(
     only_transition_genes=False,
 ):
     """Confidently compute transition probability and project high dimension velocity vector to existing low dimension
-    embeddings using progeintors and mature cell groups priors.
+    embeddings using progenitors and mature cell groups priors.
 
     Parameters
     ----------
@@ -630,14 +630,13 @@ def confident_cell_velocities(
             The column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
         lineage_dict: dict
-            A dictionary describes lineage priors. Keys corresponds to the group name from `group` that corresponding
-            to the state of one progenitor type while values correspond to the group names from `group` that
-            corresponding to the states of one or multiple terminal cell states. The best practice for determining
-            terminal cell states are those fully functional cells instead of intermediate cell states. Note that in
-            python a dictionary key cannot be a list, so if you have two progenitor types converge into one terminal
-            cell state, you need to create two records each with the same terminal cell as value but different
-            progenitor as the key. Value can be either a string for one cell group or a list of string for multiple cell
-            groups.
+            A dictionary describes lineage priors. Keys correspond to the group name from `group` that corresponding
+            to the state of one progenitor type while values correspond to the group names from `group` of one or
+            multiple terminal cell states. The best practice for determining terminal cell states are those fully
+            functional cells instead of intermediate cell states. Note that in python a dictionary key cannot be a list,
+            so if you have two progenitor types converge into one terminal cell state, you need to create two records
+            each with the same terminal cell as value but different progenitor as the key. Value can be either a string
+            for one cell group or a list of string for multiple cell groups.
         ekey: str or None (default: `M_s`)
             The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
             each cell state. If `None`, .X is used.
@@ -648,8 +647,8 @@ def confident_cell_velocities(
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         confidence_threshold: float (optional, default 0.85)
             The minimal threshold of the mean of the average progenitors and the average mature cells prior based
-            gene-wise score. Only genes with score larger than this will be considered as confident transition genes for
-            velocity projection.
+            gene-wise velocity confidence score. Only genes with score larger than this will be considered as confident
+            transition genes for velocity projection.
         only_transition_genes: bool (optional, default False)
             Whether only use previous identified transition genes for confident gene selection, followed by velocity
             projection.
@@ -659,8 +658,7 @@ def confident_cell_velocities(
         adata: :class:`~anndata.AnnData`
             Returns an updated `~anndata.AnnData` with only confident genes based transition_matrix and projected
             embedding of high dimension velocity vectors in the existing embeddings of current cell state, calculated
-            using either the Itô kernel method (default) or the diffusion approximation or the method from
-            (La Manno et al. 2018).
+            using either the cosine kernel method from (La Manno et al. 2018) or the Itô kernel for the FP method, etc.
     """
 
     if not any([i.startswith("velocity") for i in adata.layers.keys()]):
