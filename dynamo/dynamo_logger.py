@@ -146,6 +146,15 @@ class Logger:
         message = format_logging_message(message, logging.INFO, indent_level=indent_level)
         return self.logger.error(message, *args, **kwargs)
 
+    def info_insert_adata_var(self, key, indent_level=1, *args, **kwargs):
+        return self.info_insert_adata(self, key, adata_attr="var", indent_level=1, *args, **kwargs)
+
+    def info_insert_adata_obsm(self, key, indent_level=1, *args, **kwargs):
+        return self.info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs)
+
+    def info_insert_adata_uns(self, key, indent_level=1, *args, **kwargs):
+        return self.info_insert_adata(self, key, adata_attr="uns", indent_level=1, *args, **kwargs)
+
     def log_time(self):
         now = time.time()
         self.time_passed = now - self.previous_timestamp
@@ -302,6 +311,10 @@ def main_info_insert_adata_var(key, indent_level=1, *args, **kwargs):
 
 def main_info_insert_adata_uns(key, indent_level=1, *args, **kwargs):
     main_info_insert_adata(key, "uns", indent_level, *args, **kwargs)
+
+
+def main_info_insert_adata_obsm(key, indent_level=1, *args, **kwargs):
+    main_info_insert_adata(key, "obsm", indent_level, *args, **kwargs)
 
 
 def main_info_verbose_timeit(msg):
