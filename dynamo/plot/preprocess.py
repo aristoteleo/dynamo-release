@@ -12,6 +12,7 @@ from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
 from ..dynamo_logger import main_warning
+from ..configuration import DynamoAdataKeyManager
 
 
 def basic_stats(
