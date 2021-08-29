@@ -8,8 +8,8 @@ logger = LoggerManager.get_main_logger()
 
 
 def test_scatter_contour(adata):
-    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="show", contour=True)
-    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="show", contour=True, calpha=1)
+    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True)
+    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True, calpha=1)
 
 
 def test_circosPlot(adata):

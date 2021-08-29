@@ -8,7 +8,7 @@ from ..dynamo_logger import (
     main_info_insert_adata_var,
     main_log_time,
 )
-from .. import DynamoAdataKeyManager
+from ..configuration import DynamoAdataKeyManager
 from typing import List, Union
 import numpy as np
 from scipy.sparse.base import issparse
