@@ -1,4 +1,3 @@
-from ..configuration import DynamoAdataKeyManager
 import numpy as np
 import warnings
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
@@ -14,6 +13,8 @@ from .connectivity import (
 )
 from ..utils import copy_adata
 from ..dynamo_logger import LoggerManager
+from ..preprocessing.utils import allowed_X_layer_names, pca
+from ..configuration import DynamoAdataKeyManager
 
 
 # ---------------------------------------------------------------------------------------------------
