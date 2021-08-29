@@ -1,5 +1,10 @@
+from typing import List, Union
+import numpy as np
+from scipy.sparse.base import issparse
+import pandas as pd
 from anndata import AnnData
 import anndata
+
 from ..utils import copy_adata
 from ..dynamo_logger import (
     main_finish_progress,
@@ -9,10 +14,7 @@ from ..dynamo_logger import (
     main_log_time,
 )
 from ..configuration import DynamoAdataKeyManager
-from typing import List, Union
-import numpy as np
-from scipy.sparse.base import issparse
-import pandas as pd
+from .utils import get_shared_counts
 
 
 def get_nan_or_inf_data_bool_mask(arr):
