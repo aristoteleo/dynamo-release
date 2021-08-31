@@ -42,7 +42,7 @@ class Logger:
         self.logger = logging.getLogger(namespace)
         self.previous_timestamp = time.time()  # in seconds
         self.time_passed = 0
-
+        self.report_hook_percent_state = None
         # TODO add file handler in future
         # e.g. logging.StreamHandler(None) if log_file_path is None else logging.FileHandler(name)
 
@@ -209,8 +209,14 @@ class Logger:
         ts :
             total size
         """
-        self.report_progress(count=rs * bn, total=ts)
+        if self.report_hook_percent_state is None:
+            self.report_hook_percent_state = 0
+        cur_percent = rs * bn / ts
+        if cur_percent - self.report_hook_percent_state > 0.01:
+            self.report_progress(count=rs * bn, total=ts)
+            self.report_hook_percent_state = cur_percent
         if rs * bn >= ts:
+            self.report_hook_percent_state = None
             self.finish_progress(progress_name="download")
 
 
