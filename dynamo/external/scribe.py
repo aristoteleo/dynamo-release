@@ -110,8 +110,7 @@ def scribe(
     elif str_format == "lower":
         TF_list = [i.lower() for i in TF_list]
 
-    adata_ = adata.copy()
-    n_obs, n_var = adata_.n_obs, adata_.n_vars
+    n_obs, n_var = adata.n_obs, adata.n_vars
 
     # generate the expression matrix for downstream analysis
     if nt_layers[1] == "old" and "old" not in adata.layers.keys():
@@ -216,9 +215,9 @@ def scribe(
         filtered = TF_link_gene_chip(net_var, df_gene_TF_link_ENCODE, adata.var, cor_thresh=0.02)
         res_dict.update({"filtered": filtered})
 
-    adata_.uns["causal_net"] = res_dict
+    adata.uns["causal_net"] = res_dict
 
-    return adata_
+    return adata
 
 
 def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
