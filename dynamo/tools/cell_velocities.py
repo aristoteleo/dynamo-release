@@ -884,7 +884,6 @@ def expected_return_time(M, backward=False):
     return T
 
 
-@jit(nopython=True)
 def kernels_from_velocyto_scvelo(
     X,
     X_embedding,
