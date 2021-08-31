@@ -115,7 +115,7 @@ def get_highly_variable_mask_by_dispersion_svr(
     return np.array(highly_variable_mask).flatten()
 
 
-def log1p(adata: AnnData, copy: bool = False) -> AnnData:
+def log1p_adata(adata: AnnData, copy: bool = False) -> AnnData:
     _adata = adata
     if copy:
         _adata = copy_adata(adata)
