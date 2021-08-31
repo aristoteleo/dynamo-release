@@ -1,3 +1,4 @@
+from dynamo.preprocessing import PreprocessWorker
 from scipy.sparse.csr import csr_matrix
 from dynamo.preprocessing.gene_selection_utils import calc_mean_var_dispersion_sparse
 from utils import *
@@ -105,13 +106,17 @@ def test_filter_by_dispersion_sparse():
     assert np.all((dispersion - expected_dispersion) == 0)
 
 
+def test_PreprocessWorker_simple_run(adata):
+    preprocess_worker = PreprocessWorker()
+    preprocess_worker.preprocess_adata(adata)
+
+
 if __name__ == "__main__":
-    test_filter_by_dispersion_sparse()
-
-    # generate data if needed
+    # # generate data if needed
     adata = gen_or_read_zebrafish_data()
-
-    # TODO use a fixture in future
+    test_PreprocessWorker_simple_run(adata)
+    test_filter_by_dispersion_sparse()
+    # # TODO use a fixture in future
     test_highest_frac_genes_plot(adata.copy())
     test_highest_frac_genes_plot_prefix_list(adata.copy())
     test_recipe_monocle_feature_selection_layer_simple0()

@@ -3,7 +3,11 @@ from anndata import AnnData
 
 from ..tools.connectivity import neighbors as default_neighbors
 from ..dynamo_logger import main_info
-from .gene_selection_utils import filter_genes_by_outliers as default_filter_genes_by_outliers, log1p
+from .gene_selection_utils import (
+    filter_genes_by_dispersion_general,
+    filter_genes_by_outliers as default_filter_genes_by_outliers,
+    log1p,
+)
 
 
 class PreprocessWorker:
@@ -11,7 +15,7 @@ class PreprocessWorker:
         self,
         filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
         normalize_by_cells_function: Callable = None,
-        filter_genes_function: Callable = None,
+        filter_genes_function: Callable = filter_genes_by_dispersion_general,
         use_log1p: bool = True,
     ) -> None:
         self.filter_genes_by_outliers = filter_genes_by_outliers_function

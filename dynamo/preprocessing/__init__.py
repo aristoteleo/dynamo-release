@@ -31,6 +31,7 @@ from .utils import (
     filter_genes_by_pattern,
     decode,
 )
+from .PreprocessWorker import PreprocessWorker
 
 __all__ = [
     "lambda_correction",

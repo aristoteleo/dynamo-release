@@ -329,15 +329,22 @@ def allowed_X_layer_names():
     return only_splicing, only_labeling, splicing_and_labeling
 
 
-def get_shared_counts(adata, layers, min_shared_count, type="gene"):
+def get_shared_counts(adata, layers, min_shared_count, count_by="gene"):
     layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
     layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith("X_").values]
 
     _nonzeros, _sum = None, None
+
+    # TODO fix bug: when some layers are sparse and some others are not (mixed sparse and ndarray), if the first one happens to be sparse,
+    # dimension mismatch error will be raised; if the first layer is not sparse, then the following loop works fine.
     for layer in layers:
+        main_debug(adata.layers[layer].shape)
+        main_debug("layer: %s" % layer)
         if issparse(adata.layers[layers[0]]):
             _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros.multiply(adata.layers[layer] > 0)
         else:
+            main_debug("nonzeros type:", str(type(_nonzeros)))
+
             _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros * (adata.layers[layer] > 0)
 
     for layer in layers:
@@ -354,18 +361,20 @@ def get_shared_counts(adata, layers, min_shared_count, type="gene"):
                 else _sum + np.multiply(_nonzeros, adata.layers[layer])
             )
 
-    if type == "gene":
-        return (
-            np.array(_sum.sum(0).A1 >= min_shared_count)
-            if issparse(adata.layers[layers[0]])
-            else np.array(_sum.sum(0) >= min_shared_count)
-        )
-    if type == "cells":
-        return (
-            np.array(_sum.sum(1).A1 >= min_shared_count)
-            if issparse(adata.layers[layers[0]])
-            else np.array(_sum.sum(1) >= min_shared_count)
-        )
+    # choose shared counts sum by row or columns based on type: `gene` or `cells`
+    sum_dim = None
+    if count_by == "gene":
+        sum_dim = 0
+    elif count_by == "cells":
+        sum_dim = 1
+    else:
+        raise ValueError("Not supported shared account type")
+
+    return (
+        np.array(_sum.sum(sum_dim).A1 >= min_shared_count)
+        if issparse(adata.layers[layers[0]])
+        else np.array(_sum.sum(sum_dim) >= min_shared_count)
+    )
 
 
 def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):

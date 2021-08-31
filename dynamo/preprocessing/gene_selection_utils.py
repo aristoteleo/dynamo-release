@@ -7,6 +7,7 @@ import anndata
 import scipy.sparse
 from ..utils import copy_adata
 from ..dynamo_logger import (
+    main_debug,
     main_finish_progress,
     main_info,
     main_info_insert_adata,
@@ -30,9 +31,10 @@ def clip_by_perc(layer_mat):
 def calc_mean_var_dispersion(data_mat: np.array) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     # per gene mean, var and dispersion
     mean = np.nanmean(data_mat, axis=0)
+    mean[mean == 0] += 1e-8  # prevent division by zero
     var = np.nanvar(data_mat, axis=0)
     dispersion = var / mean
-    return mean, var, dispersion
+    return mean.flatten(), var.flatten(), dispersion.flatten()
 
 
 def calc_mean_var_dispersion_sparse(sparse_mat: scipy.sparse.csr_matrix) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -40,37 +42,50 @@ def calc_mean_var_dispersion_sparse(sparse_mat: scipy.sparse.csr_matrix) -> Tupl
 
     non_nan_count = sparse_mat.shape[0] - nan_mask.sum()
     mean = (sparse_mat.sum(0) / non_nan_count).A1
+    mean[mean == 0] += 1e-8  # prevent division by zero
     # same as numpy var behavior: denominator is N, var=(data_arr-mean)/N
     var = np.power(sparse_mat - mean, 2).sum(0) / non_nan_count
     dispersion = var / mean
-    return mean, var, dispersion
+    return mean.flatten(), var.flatten(), dispersion.flatten()
 
 
 def filter_genes_by_dispersion_general(
     adata: AnnData, layer: str = DynamoAdataKeyManager.X_LAYER, nan_replace_val: float = None, n_top_genes: int = None
 ):
+    """A general function for filter genes family. Preprocess adata and dispatch to different filtering methods."""
     main_info("filtering genes by dispersion...")
     main_log_time()
-
+    if n_top_genes is None:
+        main_info("n_top_genes is None, reservie all genes and add filter gene information")
+        n_top_genes = adata.n_vars
     layer_mat = DynamoAdataKeyManager.select_layer_data(adata, layer)
     if nan_replace_val:
         main_info("replacing nan values with: %s" % (nan_replace_val))
         mask = get_nan_or_inf_data_bool_mask(layer_mat)
         layer_mat[mask] = nan_replace_val
+
     filter_genes_by_dispersion_svr(adata, layer_mat, n_top_genes)
 
     main_finish_progress("filter genes by dispersion")
 
 
 def filter_genes_by_dispersion_svr(adata: AnnData, layer_mat, n_top_genes: int) -> None:
-    mean, var, dispersion = calc_mean_var_dispersion(layer_mat)
-    highly_variable_mask = get_highly_variable_mask_by_dispersion_svr(adata, mean, var, n_top_genes)
+    main_debug("type of layer_mat:" + str(type(layer_mat)))
+    if issparse(layer_mat):
+        main_info("layer_mat is sparse, dispatch to sparse calc function...")
+        mean, variance, dispersion = calc_mean_var_dispersion_sparse(layer_mat)
+    else:
+        mean, variance, dispersion = calc_mean_var_dispersion(layer_mat)
 
+    highly_variable_mask = get_highly_variable_mask_by_dispersion_svr(mean, variance, n_top_genes)
+    variance = np.array(variance).flatten()
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_MEAN_KEY)
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_VAR_KEY)
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY)
-    adata.var[DynamoAdataKeyManager.VAR_GENE_MEAN_KEY] = mean
-    adata.var[DynamoAdataKeyManager.VAR_GENE_VAR_KEY] = var
+    main_debug("type of variance:" + str(type(variance)))
+    main_debug("shape of variance:" + str(variance.shape))
+    adata.var[DynamoAdataKeyManager.VAR_GENE_MEAN_KEY] = mean.flatten()
+    adata.var[DynamoAdataKeyManager.VAR_GENE_VAR_KEY] = variance
     adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY] = highly_variable_mask
 
 
@@ -82,19 +97,22 @@ def get_highly_variable_mask_by_dispersion_svr(
         svr_gamma = 150.0 / len(mean)
     from sklearn.svm import SVR
 
+    main_debug("mean shape:" + str(mean.shape))
     mean_log = np.log2(mean)
-
-    mean[mean == 0] += 1e-8  # prevent division by zero
     cv_log = np.log2(np.sqrt(var) / mean)
-
-    clf = SVR(gamma=svr_gamma)
-    clf.fit(mean_log[:, None], cv_log)
-    score = cv_log - clf.predict(mean_log[:, None])
+    classifier = SVR(gamma=svr_gamma)
+    main_debug("cv_log shape:" + str(cv_log.shape))
+    main_debug("mean_log shape:" + str(mean_log.shape))
+    classifier.fit(mean_log[:, np.newaxis], cv_log.reshape([-1, 1]))
+    score = cv_log - classifier.predict(mean_log[:, np.newaxis])
+    score = score.reshape([-1, 1])  # shape should be #genes x 1
+    main_debug("score shape:" + str(score.shape))
 
     # score threshold based on n top genes
     score_threshold = np.sort(-score)[n_top_genes - 1]
+    main_debug("score threshold:" + str(score_threshold))
     highly_variable_mask = score >= score_threshold
-    return highly_variable_mask
+    return np.array(highly_variable_mask).flatten()
 
 
 def log1p(adata: AnnData, copy: bool = False) -> AnnData:
