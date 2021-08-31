@@ -49,6 +49,10 @@ class DynamoAdataKeyManager:
         return res_layers
 
 
+# TODO discuss alias naming convention
+Dkm = DynamoAdataKeyManager
+
+
 class DynamoAdataConfig:
     """dynamo anndata object config class holding static variables to change behaviors of functions globally."""
 

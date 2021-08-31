@@ -245,7 +245,7 @@ def filter_genes_by_outliers(
                 ((adata.obsm["protein"] > 0).sum(0) >= min_cell_p)
                 & (adata.obsm["protein"].mean(0) >= min_avg_exp_p)
                 & (adata.obsm["protein"].mean(0) <= max_avg_exp)
-                & (adata.layers["protein"].sum(0) >= min_count_p)
+                & (adata.layers["protein"].sum(0) >= min_count_p)  # TODO potential bug confirmation: obsm?
             ).flatten()
         )
 
