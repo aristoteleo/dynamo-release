@@ -10,7 +10,7 @@ from ..preprocessing import preprocess as pp
 from ..preprocessing.preprocess import top_table
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
-from ..preprocessing.utils import detect_datatype
+from ..preprocessing.utils import detect_experiment_datatype
 from ..dynamo_logger import main_warning
 from ..configuration import DynamoAdataKeyManager
 
@@ -856,7 +856,7 @@ def exp_by_groups(
         has_labeling,
         splicing_labeling,
         has_protein,
-    ) = detect_datatype(adata)
+    ) = detect_experiment_datatype(adata)
     if (has_splicing + has_labeling) == 0:
         layer = "X" if layer is None else layer
     elif has_splicing and not has_labeling:
@@ -881,7 +881,7 @@ def exp_by_groups(
             has_labeling,
             splicing_labeling,
             has_protein,
-        ) = detect_datatype(adata)
+        ) = detect_experiment_datatype(adata)
         if has_labeling:
             if layer.startswith("X_") or layer.startswith("M_"):
                 tot = (

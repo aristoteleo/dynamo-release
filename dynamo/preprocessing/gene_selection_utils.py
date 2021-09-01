@@ -13,9 +13,36 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_info_insert_adata_var,
     main_log_time,
+    main_warning,
 )
 from ..configuration import DynamoAdataKeyManager
 from .utils import get_shared_counts
+
+
+def _infer_labeling_experiment_type(adata, tkey):
+    experiment_type = None
+    t = np.array(adata.obs[tkey], dtype="float")
+    if len(np.unique(t)) == 1:
+        experiment_type = "one-shot"
+    else:
+        labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
+        xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
+
+        yy = t
+        xm, ym = np.mean(xx), np.mean(yy)
+        cov = np.mean(xx * yy) - xm * ym
+        var_x = np.mean(xx * xx) - xm * xm
+
+        k = cov / var_x
+
+        # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
+        experiment_type = "kin" if k > 0 else "deg"
+    main_warning(
+        f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
+        f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
+        f"needed."
+    )
+    return experiment_type
 
 
 def get_nan_or_inf_data_bool_mask(arr: np.ndarray):

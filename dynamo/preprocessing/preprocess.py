@@ -27,7 +27,7 @@ from .utils import (
     layers2csr,
     collapse_adata,
     NTR,
-    detect_datatype,
+    detect_experiment_datatype,
     basic_stats,
     add_noise_to_duplicates,
     gene_exp_fraction,
@@ -40,7 +40,7 @@ from ..dynamo_logger import (
 )
 from ..utils import copy_adata
 from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager
-from .gene_selection_utils import filter_genes_by_outliers
+from .gene_selection_utils import _infer_labeling_experiment_type, filter_genes_by_outliers
 
 
 def szFactor(
@@ -1302,7 +1302,7 @@ def recipe_monocle(
         has_labeling,
         splicing_labeling,
         has_protein,
-    ) = detect_datatype(adata)
+    ) = detect_experiment_datatype(adata)
     logger.info_insert_adata("pp", "uns")
     logger.info_insert_adata("has_splicing", "uns['pp']", indent_level=2)
     logger.info_insert_adata("has_labling", "uns['pp']", indent_level=2)
@@ -1357,31 +1357,6 @@ def recipe_monocle(
     logger.info("ensure all labeling data properly collapased", indent_level=1)
     adata = collapse_adata(adata)
 
-    def _infer_experiment_type(adata):
-        experiment_type = None
-        t = np.array(adata.obs[tkey], dtype="float")
-        if len(np.unique(t)) == 1:
-            experiment_type = "one-shot"
-        else:
-            labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
-            xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
-
-            yy = t
-            xm, ym = np.mean(xx), np.mean(yy)
-            cov = np.mean(xx * yy) - xm * ym
-            var_x = np.mean(xx * xx) - xm * xm
-
-            k = cov / var_x
-
-            # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
-            experiment_type = "kin" if k > 0 else "deg"
-        main_warning(
-            f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
-            f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
-            f"needed."
-        )
-        return experiment_type
-
     # reset adata.X
     if has_labeling:
         if tkey is None:
@@ -1394,7 +1369,7 @@ def recipe_monocle(
         if tkey not in adata.obs.keys():
             raise ValueError(f"`tkey` {tkey} that encodes the labeling time is not existed in your adata.")
         if experiment_type is None:
-            experiment_type = _infer_experiment_type(adata)
+            experiment_type = _infer_labeling_experiment_type(adata, tkey)
 
         main_info("detected experiment type: %s" % experiment_type)
 

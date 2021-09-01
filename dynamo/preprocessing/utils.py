@@ -728,7 +728,7 @@ def collapse_adata(adata):
     return adata
 
 
-def detect_datatype(adata):
+def detect_experiment_datatype(adata):
     has_splicing, has_labeling, splicing_labeling, has_protein = (
         False,
         False,
@@ -762,7 +762,7 @@ def detect_datatype(adata):
 
 
 def default_layer(adata):
-    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
 
     if has_splicing:
         if has_labeling:
@@ -827,7 +827,7 @@ def NTR(adata):
 def scale(adata, layers=None, scale_to_layer=None, scale_to=1e6):
     """scale layers to a particular total expression value, similar to `normalize_expr_data` function."""
     layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
-    has_splicing, has_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, _ = detect_experiment_datatype(adata)
 
     if scale_to_layer is None:
         scale_to_layer = "total" if has_labeling else None

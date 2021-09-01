@@ -85,7 +85,7 @@ def recipe_kin_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import pca, detect_datatype
+    from ..preprocessing.utils import pca, detect_experiment_datatype
 
     keep_filtered_cells = DynamoAdataConfig.check_config_var(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -96,7 +96,7 @@ def recipe_kin_data(
     keep_raw_layers = DynamoAdataConfig.check_config_var(keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
     del_2nd_moments = DynamoAdataConfig.check_config_var(del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
 
-    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
         layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
@@ -263,7 +263,7 @@ def recipe_deg_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import pca, detect_datatype
+    from ..preprocessing.utils import pca, detect_experiment_datatype
 
     keep_filtered_cells = DynamoAdataConfig.check_config_var(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -273,7 +273,7 @@ def recipe_deg_data(
     )
     keep_raw_layers = DynamoAdataConfig.check_config_var(keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
 
-    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
         layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
@@ -447,7 +447,7 @@ def recipe_mix_kin_deg_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import pca, detect_datatype
+    from ..preprocessing.utils import pca, detect_experiment_datatype
 
     keep_filtered_cells = DynamoAdataConfig.check_config_var(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -458,7 +458,7 @@ def recipe_mix_kin_deg_data(
     keep_raw_layers = DynamoAdataConfig.check_config_var(keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
     del_2nd_moments = DynamoAdataConfig.check_config_var(del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
 
-    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
         layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
@@ -625,7 +625,7 @@ def recipe_onde_shot_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import pca, detect_datatype
+    from ..preprocessing.utils import pca, detect_experiment_datatype
 
     keep_filtered_cells = DynamoAdataConfig.check_config_var(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -636,7 +636,7 @@ def recipe_onde_shot_data(
     keep_raw_layers = DynamoAdataConfig.check_config_var(keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY)
     del_2nd_moments = DynamoAdataConfig.check_config_var(del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY)
 
-    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
         layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
