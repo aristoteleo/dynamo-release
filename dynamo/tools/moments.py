@@ -111,7 +111,7 @@ def moments(
                         from ..preprocessing.preprocess import recipe_monocle
 
                         genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
-                        adata = recipe_monocle(
+                        recipe_monocle(
                             adata,
                             genes_to_use=genes_to_use,
                             num_dim=n_pca_components,
