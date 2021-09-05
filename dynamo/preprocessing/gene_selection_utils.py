@@ -20,15 +20,16 @@ from .utils import get_shared_counts
 
 
 def _infer_labeling_experiment_type(adata, tkey):
+    """Returns the experiment type of `adata` according to `tkey`s"""
     experiment_type = None
-    t = np.array(adata.obs[tkey], dtype="float")
-    if len(np.unique(t)) == 1:
+    tkey_val = np.array(adata.obs[tkey], dtype="float")
+    if len(np.unique(tkey_val)) == 1:
         experiment_type = "one-shot"
     else:
         labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
         xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
 
-        yy = t
+        yy = tkey_val
         xm, ym = np.mean(xx), np.mean(yy)
         cov = np.mean(xx * yy) - xm * ym
         var_x = np.mean(xx * xx) - xm * xm
@@ -46,32 +47,38 @@ def _infer_labeling_experiment_type(adata, tkey):
 
 
 def get_nan_or_inf_data_bool_mask(arr: np.ndarray):
+    """Returns the mask of arr with the same shape, indicating whether each index is nan/inf or not."""
     mask = np.isnan(arr) | np.isinf(arr) | np.isneginf(arr)
     return mask
 
 
 def clip_by_perc(layer_mat):
-    # TODO
+    """Returns a new matrix by clipping the layer_mat according to percentage."""
+    # TODO implement this function (currently not used)
     return
 
 
-def calc_mean_var_dispersion(data_mat: np.array) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def calc_mean_var_dispersion(data_mat: np.array, axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate mean, variance and dispersion of data_mat, a numpy array."""
     # per gene mean, var and dispersion
-    mean = np.nanmean(data_mat, axis=0)
+    mean = np.nanmean(data_mat, axis=axis)
     mean[mean == 0] += 1e-8  # prevent division by zero
-    var = np.nanvar(data_mat, axis=0)
+    var = np.nanvar(data_mat, axis=axis)
     dispersion = var / mean
     return mean.flatten(), var.flatten(), dispersion.flatten()
 
 
-def calc_mean_var_dispersion_sparse(sparse_mat: scipy.sparse.csr_matrix) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def calc_mean_var_dispersion_sparse(
+    sparse_mat: scipy.sparse.csr_matrix, axis=0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate mean, variance and dispersion of data_mat, a scipy sparse matrix."""
     nan_mask = get_nan_or_inf_data_bool_mask(sparse_mat.data)
 
-    non_nan_count = sparse_mat.shape[0] - nan_mask.sum()
-    mean = (sparse_mat.sum(0) / non_nan_count).A1
+    non_nan_count = sparse_mat.shape[axis] - nan_mask.sum()
+    mean = (sparse_mat.sum(axis) / non_nan_count).A1
     mean[mean == 0] += 1e-8  # prevent division by zero
     # same as numpy var behavior: denominator is N, var=(data_arr-mean)/N
-    var = np.power(sparse_mat - mean, 2).sum(0) / non_nan_count
+    var = np.power(sparse_mat - mean, 2).sum(axis) / non_nan_count
     dispersion = var / mean
     return mean.flatten(), var.flatten(), dispersion.flatten()
 
@@ -96,7 +103,19 @@ def filter_genes_by_dispersion_general(
     main_finish_progress("filter genes by dispersion")
 
 
-def filter_genes_by_dispersion_svr(adata: AnnData, layer_mat, n_top_genes: int) -> None:
+def filter_genes_by_dispersion_svr(
+    adata: AnnData, layer_mat: Union[np.array, scipy.sparse.csr_matrix], n_top_genes: int
+) -> None:
+    """Filters adata's genes according to layer_mat, and set adata's preprocess keys for downstream analysis
+
+    Parameters
+    ----------
+    adata : AnnData
+    layer_mat :
+        The specific layer matrix used for filtering genes. It can be any matrix with shape of #cells X #genes.
+    n_top_genes : int
+        The number of genes to use.
+    """
     main_debug("type of layer_mat:" + str(type(layer_mat)))
     if issparse(layer_mat):
         main_info("layer_mat is sparse, dispatch to sparse calc function...")
@@ -119,30 +138,27 @@ def filter_genes_by_dispersion_svr(adata: AnnData, layer_mat, n_top_genes: int) 
 def get_highly_variable_mask_by_dispersion_svr(
     mean: np.ndarray, var: np.ndarray, n_top_genes: int, svr_gamma: float = None
 ):
+    """Returns the mask with shape same as mean and var, indicating whether each index is highly variable or not. Each index should represent a gene."""
     # normally, select svr_gamma based on #features
     if svr_gamma is None:
         svr_gamma = 150.0 / len(mean)
     from sklearn.svm import SVR
 
-    main_debug("mean shape:" + str(mean.shape))
     mean_log = np.log2(mean)
     cv_log = np.log2(np.sqrt(var) / mean)
     classifier = SVR(gamma=svr_gamma)
-    main_debug("cv_log shape:" + str(cv_log.shape))
-    main_debug("mean_log shape:" + str(mean_log.shape))
     classifier.fit(mean_log[:, np.newaxis], cv_log.reshape([-1, 1]))
     score = cv_log - classifier.predict(mean_log[:, np.newaxis])
     score = score.reshape([-1, 1])  # shape should be #genes x 1
-    main_debug("score shape:" + str(score.shape))
 
     # score threshold based on n top genes
     score_threshold = np.sort(-score)[n_top_genes - 1]
-    main_debug("score threshold:" + str(score_threshold))
     highly_variable_mask = score >= score_threshold
     return np.array(highly_variable_mask).flatten()
 
 
 def log1p_adata(adata: AnnData, copy: bool = False) -> AnnData:
+    """returns log1p  of adata's data. If copy is true, operates on a copy of adata and returns the copy."""
     _adata = adata
     if copy:
         _adata = copy_adata(adata)
