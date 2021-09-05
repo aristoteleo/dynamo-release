@@ -11,6 +11,17 @@ class DynamoAdataKeyManager:
     VAR_GENE_MEAN_KEY = "pp_gene_means"
     VAR_GENE_VAR_KEY = "gene_vars"
     VAR_GENE_HIGHLY_VARIABLE_KEY = "gene_highly_variable"
+    VAR_GENE_HIGHLY_VARIABLE_SCORES = "gene_highly_variable_scores"
+    VAR_USE_FOR_PCA = "use_for_pca"
+
+    UNS_PP_KEY = "pp"
+
+    UNS_PP_HAS_SPLICING = "has_splicing"
+    UNS_PP_TKEY = "has_splicing"
+    UNS_PP_HAS_LABELING = "has_labeling"
+    UNS_PP_HAS_PROTEIN = "has_protein"
+    UNS_PP_SPLICING_LABELING = "splicing_labeling"
+
     X_LAYER = "X"
     PROTEIN_LAYER = "protein"
 
@@ -96,7 +107,7 @@ class DynamoAdataConfig:
 
     config_key_to_values = None
 
-    def check_config_var(val, key, replace_val=None):
+    def use_default_var_if_none(val, key, replace_val=None):
         """if `val` is equal to `replace_val`, then a config value will be returned according to `key` stored in dynamo configuration. Otherwise return the original `val` value.
 
         Parameters

@@ -295,7 +295,7 @@ def dynamics(
                 log_unnormalized: Whether to log transform unnormalized data.
     """
 
-    del_2nd_moments = DynamoAdataConfig.check_config_var(
+    del_2nd_moments = DynamoAdataConfig.use_default_var_if_none(
         del_2nd_moments, DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY
     )
     if "pp" not in adata.uns_keys():

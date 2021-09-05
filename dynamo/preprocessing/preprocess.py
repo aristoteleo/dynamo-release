@@ -1271,13 +1271,13 @@ def recipe_monocle(
     """
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
-    keep_filtered_cells = DynamoAdataConfig.check_config_var(
+    keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+    keep_filtered_genes = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_genes, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoAdataConfig.check_config_var(
+    keep_raw_layers = DynamoAdataConfig.use_default_var_if_none(
         keep_raw_layers, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY
     )
 
@@ -1789,7 +1789,7 @@ def recipe_velocyto(
                 dimensions, etc.
     """
 
-    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+    keep_filtered_genes = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
 

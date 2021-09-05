@@ -123,7 +123,9 @@ def filter_genes_by_dispersion_svr(
     else:
         mean, variance, dispersion = calc_mean_var_dispersion(layer_mat)
 
-    highly_variable_mask = get_highly_variable_mask_by_dispersion_svr(mean, variance, n_top_genes)
+    highly_variable_mask, highly_variable_scores = get_highly_variable_mask_by_dispersion_svr(
+        mean, variance, n_top_genes
+    )
     variance = np.array(variance).flatten()
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_MEAN_KEY)
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_VAR_KEY)
@@ -133,10 +135,12 @@ def filter_genes_by_dispersion_svr(
     adata.var[DynamoAdataKeyManager.VAR_GENE_MEAN_KEY] = mean.flatten()
     adata.var[DynamoAdataKeyManager.VAR_GENE_VAR_KEY] = variance
     adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY] = highly_variable_mask
+    adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_SCORES] = highly_variable_scores
+    adata.var[DynamoAdataKeyManager.VAR_USE_FOR_PCA] = highly_variable_mask
 
 
 def get_highly_variable_mask_by_dispersion_svr(
-    mean: np.ndarray, var: np.ndarray, n_top_genes: int, svr_gamma: float = None
+    mean: np.ndarray, var: np.ndarray, n_top_genes: int, svr_gamma: float = None, return_scores=True
 ):
     """Returns the mask with shape same as mean and var, indicating whether each index is highly variable or not. Each index should represent a gene."""
     # normally, select svr_gamma based on #features
@@ -148,13 +152,16 @@ def get_highly_variable_mask_by_dispersion_svr(
     cv_log = np.log2(np.sqrt(var) / mean)
     classifier = SVR(gamma=svr_gamma)
     classifier.fit(mean_log[:, np.newaxis], cv_log.reshape([-1, 1]))
-    score = cv_log - classifier.predict(mean_log[:, np.newaxis])
-    score = score.reshape([-1, 1])  # shape should be #genes x 1
+    scores = cv_log - classifier.predict(mean_log[:, np.newaxis])
+    scores = scores.reshape([-1, 1])  # shape should be #genes x 1
 
     # score threshold based on n top genes
-    score_threshold = np.sort(-score)[n_top_genes - 1]
-    highly_variable_mask = score >= score_threshold
-    return np.array(highly_variable_mask).flatten()
+    score_threshold = np.sort(-scores)[n_top_genes - 1]
+    highly_variable_mask = scores >= score_threshold
+    highly_variable_mask = np.array(highly_variable_mask).flatten()
+    if return_scores:
+        return highly_variable_mask, scores
+    return highly_variable_mask
 
 
 def log1p_adata(adata: AnnData, copy: bool = False) -> AnnData:
