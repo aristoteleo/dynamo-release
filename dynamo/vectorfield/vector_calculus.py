@@ -110,6 +110,7 @@ def velocities(
         vec_mat = vec_mat[:, dims]
 
     if basis == "pca":
+        adata.uns["velocities_pca"] = vec_mat
         Qkey = "PCs" if Qkey is None else Qkey
 
         if Qkey in adata.uns.keys():
