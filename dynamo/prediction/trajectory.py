@@ -102,30 +102,50 @@ class VectorFieldTrajectory(Trajectory):
     def __init__(self, X, t, vecfld: differentiable_vectorfield) -> None:
         super().__init__(X, t=t)
         self.vecfld = vecfld
+        self.data = {"velocity": None, "acceleration": None, "curvature": None, "divergence": None}
+        self.Js = None
 
-    def calc_velocities(self, **kwargs):
-        self.Vs = self.vecfld.func(self.X)
-        return self.Vs
+    def get_velocities(self):
+        if self.data["velocity"] is None:
+            self.data["velocity"] = self.vecfld.func(self.X)
+        return self.data["velocity"]
 
-    def calc_jacobians(self, method=None):
-        fjac = self.vecfld.get_Jacobian(method=method)
-        self.Js = fjac(self.X)
+    def get_jacobians(self, method=None):
+        if self.Js is None:
+            fjac = self.vecfld.get_Jacobian(method=method)
+            self.Js = fjac(self.X)
         return self.Js
 
-    def calc_acclerations(self, method=None, **kwargs):
-        if self.Js is None:
-            self.Js = self.calc_jacobians(method=method)
-        self.vecfld.compute_acceleration(self.X, Js=self.Js, **kwargs)
+    def get_acclerations(self, method=None, **kwargs):
+        if self.data["acceleration"] is None:
+            if self.Js is None:
+                self.Js = self.get_jacobians(method=method)
+            self.data["acceleration"] = self.vecfld.compute_acceleration(self.X, Js=self.Js, **kwargs)
+        return self.data["acceleration"]
 
-    def calc_curvatures(self, method=None, **kwargs):
-        if self.Js is None:
-            self.Js = self.calc_jacobians(method=method)
-        self.vecfld.compute_curvature(self.X, Js=self.Js, **kwargs)
+    def get_curvatures(self, method=None, **kwargs):
+        if self.data["curvature"] is None:
+            if self.Js is None:
+                self.Js = self.get_jacobians(method=method)
+            self.data["curvature"] = self.vecfld.compute_curvature(self.X, Js=self.Js, **kwargs)
+        return self.data["curvature"]
 
-    def calc_divergence(self, method=None, **kwargs):
-        if self.Js is None:
-            self.Js = self.calc_jacobians(method=method)
-        self.vecfld.compute_divergence(self.X, Js=self.Js, **kwargs)
+    def get_divergences(self, method=None, **kwargs):
+        if self.data["divergence"] is None:
+            if self.Js is None:
+                self.Js = self.get_jacobians(method=method)
+            self.data["divergence"] = self.vecfld.compute_divergence(self.X, Js=self.Js, **kwargs)
+        return self.data["divergence"]
+
+    def calc_vector_msd(self, key, decomp_dim=True, ref=0):
+        V = self.data[key]
+        S = (V - V[ref]) ** 2
+        if decomp_dim:
+            S = S.sum(axis=0)
+        else:
+            S = S.sum()
+        S /= len(self)
+        return S
 
 
 class GeneTrajectory(Trajectory):
