@@ -83,7 +83,7 @@ def calc_mean_var_dispersion_sparse(
     return mean.flatten(), var.flatten(), dispersion.flatten()
 
 
-def filter_genes_by_dispersion_general(
+def select_genes_by_dispersion_general(
     adata: AnnData, layer: str = DynamoAdataKeyManager.X_LAYER, nan_replace_val: float = None, n_top_genes: int = None
 ):
     """A general function for filter genes family. Preprocess adata and dispatch to different filtering methods."""
@@ -98,12 +98,12 @@ def filter_genes_by_dispersion_general(
         mask = get_nan_or_inf_data_bool_mask(layer_mat)
         layer_mat[mask] = nan_replace_val
 
-    filter_genes_by_dispersion_svr(adata, layer_mat, n_top_genes)
+    select_genes_by_dispersion_svr(adata, layer_mat, n_top_genes)
 
     main_finish_progress("filter genes by dispersion")
 
 
-def filter_genes_by_dispersion_svr(
+def select_genes_by_dispersion_svr(
     adata: AnnData, layer_mat: Union[np.array, scipy.sparse.csr_matrix], n_top_genes: int
 ) -> None:
     """Filters adata's genes according to layer_mat, and set adata's preprocess keys for downstream analysis

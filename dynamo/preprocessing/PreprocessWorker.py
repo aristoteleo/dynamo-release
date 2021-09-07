@@ -4,7 +4,7 @@ from anndata import AnnData
 
 from .gene_selection_utils import (
     _infer_labeling_experiment_type,
-    filter_genes_by_dispersion_general,
+    select_genes_by_dispersion_general,
     filter_genes_by_outliers as default_filter_genes_by_outliers,
     log1p_adata,
 )
@@ -18,7 +18,7 @@ class PreprocessWorker:
         self,
         filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
         normalize_by_cells_function: Callable = None,
-        filter_genes_function: Callable = filter_genes_by_dispersion_general,
+        select_genes_function: Callable = select_genes_by_dispersion_general,
         use_log1p: bool = True,
         convert_gene_name_function: Callable = convert2symbol,
         n_top_genes=2000,
@@ -40,7 +40,7 @@ class PreprocessWorker:
         """
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
         self.normalize_by_cells = normalize_by_cells_function
-        self.filter_genes = filter_genes_function
+        self.filter_genes = select_genes_function
         self.use_log1p = use_log1p
         self.log1p = log1p_adata
         self.n_top_genes = n_top_genes

@@ -5,7 +5,7 @@ from .dynast import lambda_correction
 
 from .preprocess import (
     szFactor,
-    normalize_expr_data,
+    normalize_cell_expr_by_size_factors,
     recipe_monocle,
     recipe_velocyto,
     Gini,
@@ -36,7 +36,7 @@ from .PreprocessWorker import PreprocessWorker
 __all__ = [
     "lambda_correction",
     "szFactor",
-    "normalize_expr_data",
+    "normalize_cell_expr_by_size_factors",
     "recipe_monocle",
     "recipe_velocyto",
     "Gini",

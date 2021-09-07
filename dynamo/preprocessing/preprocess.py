@@ -180,7 +180,7 @@ def szFactor(
     return adata_ori
 
 
-def normalize_expr_data(
+def normalize_cell_expr_by_size_factors(
     adata: anndata.AnnData,
     layers: str = "all",
     total_szfactor: str = "total_Size_Factor",
@@ -1315,6 +1315,7 @@ def recipe_monocle(
         adata.uns["pp"]["has_protein"],
     ) = (has_splicing, has_labeling, splicing_labeling, has_protein)
 
+    # new/total, splicing/unsplicing
     if has_splicing and has_labeling and splicing_labeling:
         layer = (
             [
@@ -1430,30 +1431,30 @@ def recipe_monocle(
     adata.uns["pp"]["tkey"] = tkey
     adata.uns["pp"]["experiment_type"] = "conventional" if experiment_type is None else experiment_type
 
-    _szFactor, _logged = (True, True) if normalized else (False, False)
+    _has_szFactor_normalized, _has_log1p_tranformed = (True, True) if normalized else (False, False)
     if normalized is None and not has_labeling:
         if "raw_data" in adata.uns_keys():
-            _szFactor, _logged = (
+            _has_szFactor_normalized, _has_log1p_tranformed = (
                 not adata.uns["raw_data"],
                 not adata.uns["raw_data"],
             )
         else:
             # automatically detect whether the data is size-factor normalized -- no integers (only works for readcounts
             # / UMI based data).
-            _szFactor = not np.allclose(
+            _has_szFactor_normalized = not np.allclose(
                 (adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1,
                 0,
                 atol=1e-3,
             )
             # check whether total UMI is the same -- if not the same, logged
-            if _szFactor:
-                _logged = not np.allclose(
+            if _has_szFactor_normalized:
+                _has_log1p_tranformed = not np.allclose(
                     np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]),
                     0,
                     atol=1e-1,
                 )
 
-        if _szFactor or _logged:
+        if _has_szFactor_normalized or _has_log1p_tranformed:
             main_warning(
                 "dynamo detects your data is size factor normalized and/or log transformed. If this is not "
                 "right, plese set `normalized = False."
@@ -1517,7 +1518,7 @@ def recipe_monocle(
 
     # calculate sz factor
     logger.info("calculating size factor...")
-    if not _szFactor or "Size_Factor" not in adata.obs_keys():
+    if not _has_szFactor_normalized or "Size_Factor" not in adata.obs_keys():
         adata = szFactor(
             adata,
             total_layers=total_layers,
@@ -1622,10 +1623,10 @@ def recipe_monocle(
         adata._inplace_subset_var(adata.var["use_for_pca"])
 
     # normalized data based on sz factor
-    if not _logged:
+    if not _has_log1p_tranformed:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
         logger.info("size factor normalizing the data, followed by log1p transformation.")
-        adata = normalize_expr_data(
+        adata = normalize_cell_expr_by_size_factors(
             adata,
             layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
@@ -1649,26 +1650,26 @@ def recipe_monocle(
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if layer is None:
-        CM = adata.X[:, adata.var.use_for_pca.values]
+        pca_input = adata.X[:, adata.var.use_for_pca.values]
     else:
         if "X" in layer:
-            CM = adata.X[:, adata.var.use_for_pca.values]
+            pca_input = adata.X[:, adata.var.use_for_pca.values]
         elif "total" in layer:
-            CM = adata.layers["X_total"][:, adata.var.use_for_pca.values]
+            pca_input = adata.layers["X_total"][:, adata.var.use_for_pca.values]
         elif "spliced" in layer:
-            CM = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
+            pca_input = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
         elif "protein" in layer:
-            CM = adata.obsm["X_protein"]
+            pca_input = adata.obsm["X_protein"]
         elif type(layer) is str:
-            CM = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
+            pca_input = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
         else:
             raise ValueError(
                 f"your input layer argument should be either a `str` or a list that includes one of `X`, "
                 f"`total`, `protein` element. `Layer` currently is {layer}."
             )
 
-    cm_genesums = CM.sum(axis=0)
-    valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+    pca_input_genesums = pca_input.sum(axis=0)
+    valid_ind = np.logical_and(np.isfinite(pca_input_genesums), pca_input_genesums != 0)
     valid_ind = np.array(valid_ind).flatten()
 
     bad_genes = np.where(adata.var.use_for_pca)[0][~valid_ind]
@@ -1680,10 +1681,11 @@ def recipe_monocle(
         )
 
     adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
-    CM = CM[:, valid_ind]
+    pca_input = pca_input[:, valid_ind]
     logger.info("applying %s ..." % (method.upper()))
     if method == "pca":
-        adata = pca(adata, CM, num_dim, "X_" + method.lower())
+        adata = pca(adata, pca_input, num_dim, "X_" + method.lower())
+        # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
     elif method == "ica":
@@ -1694,7 +1696,7 @@ def recipe_monocle(
             fun="logcosh",
             max_iter=1000,
         )
-        reduce_dim = fit.fit_transform(CM.toarray())
+        reduce_dim = fit.fit_transform(pca_input.toarray())
 
         adata.obsm["X_" + method.lower()] = reduce_dim
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
@@ -1722,6 +1724,7 @@ def recipe_monocle(
             "you need to set color argument accordingly if confronting errors related to this."
         )
 
+    # flag adata as preprocessed by recipe_monocle
     if "raw_data" in adata.uns_keys():
         logger.info_insert_adata("raw_data", "uns")
         adata.uns["raw_data"] = False
@@ -1827,7 +1830,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool_gene & filter_bool_cluster]
 
-    adata = normalize_expr_data(
+    adata = normalize_cell_expr_by_size_factors(
         adata,
         total_szfactor=None,
         norm_method=norm_method,

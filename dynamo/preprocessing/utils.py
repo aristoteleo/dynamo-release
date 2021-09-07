@@ -337,6 +337,7 @@ def get_shared_counts(adata, layers, min_shared_count, count_by="gene"):
 
     # TODO fix bug: when some layers are sparse and some others are not (mixed sparse and ndarray), if the first one happens to be sparse,
     # dimension mismatch error will be raised; if the first layer is not sparse, then the following loop works fine.
+    # also check if layers2csr() function works
     for layer in layers:
         main_debug(adata.layers[layer].shape)
         main_debug("layer: %s" % layer)
