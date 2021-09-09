@@ -3,3 +3,4 @@
 
 from .csc import *
 from .tsc import *
+from .fit_jacobian import *
