@@ -15,7 +15,7 @@ from ..vectorfield.topography import (
     VectorField2D,
     VectorField,
 )  # , compute_separatrices
-from ..vectorfield.scVectorField import base_vectorfield
+from ..vectorfield.scVectorField import BaseVectorField
 from ..vectorfield.utils import vecfld_from_adata
 from ..tools.utils import update_dict, nearest_neighbors
 from ..external.hodge import ddhodge
@@ -509,7 +509,7 @@ def plot_fixed_points(
                 confidence = vecfld.get_Xss_confidence()
             else:
                 confidence = None
-                vecfld = base_vectorfield(
+                vecfld = BaseVectorField(
                     X=vecfld_dict["X"][vecfld_dict["valid_ind"], :],
                     V=vecfld_dict["Y"][vecfld_dict["valid_ind"], :],
                     func=vecfld,

@@ -20,7 +20,7 @@ from ..vectorfield.vector_calculus import (
     vector_transformation,
 )
 from ..vectorfield.scVectorField import vector_field_function_knockout
-from ..vectorfield import SvcVectorfield
+from ..vectorfield import SvcVectorField
 
 from ..dynamo_logger import LoggerManager
 
@@ -86,7 +86,7 @@ def KO(
         raise ValueError()
 
     if vecfld is None:
-        vf = SvcVectorfield()
+        vf = SvcVectorField()
         vf.from_adata(adata, basis=basis, vf_key=vf_key)
     else:
         vf = vecfld

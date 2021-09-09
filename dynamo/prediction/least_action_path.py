@@ -8,7 +8,7 @@ from ..tools.utils import (
     nearest_neighbors,
     fetch_states,
 )
-from ..vectorfield import SvcVectorfield
+from ..vectorfield import SvcVectorField
 from .utils import remove_redundant_points_trajectory, arclength_sampling, pca_to_expr
 from .trajectory import Trajectory
 from ..dynamo_logger import LoggerManager
@@ -91,6 +91,25 @@ def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None
     return path_sol, dt_sol, action_opt, sol_dict
 
 
+def lap_T(path_0, T, vf_func, jac_func, D=1):
+    n = len(path_0)
+    dt = T / n
+    dim = len(path_0[0])
+
+    def fun(x):
+        return action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt)
+
+    def jac(x):
+        return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt)
+
+    sol_dict = minimize(fun, path_0[1:-1], jac=jac)
+    path_0 = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
+
+    path_sol = path_0
+    action_opt = sol_dict["fun"]
+    return path_sol, action_opt
+
+
 def get_init_path(G, start, end, coords, interpolation_num=20):
     source_ind = nearest_neighbors(start, coords, k=1)[0][0]
     target_ind = nearest_neighbors(end, coords, k=1)[0][0]
@@ -110,8 +129,8 @@ def get_init_path(G, start, end, coords, interpolation_num=20):
 
 def least_action(
     adata: AnnData,
-    init_cells: [str, list],
-    target_cells: [str, list],
+    init_cells: Union[str, list],
+    target_cells: Union[str, list],
     init_states: Union[None, np.ndarray] = None,
     target_states: Union[None, np.ndarray] = None,
     paired: bool = True,
@@ -180,7 +199,7 @@ def least_action(
     logger = LoggerManager.gen_logger("dynamo-least-action-path")
 
     if vecfld is None:
-        vf = SvcVectorfield()
+        vf = SvcVectorField()
         vf.from_adata(adata, basis=basis, vf_key=vf_key)
     else:
         vf = vecfld
