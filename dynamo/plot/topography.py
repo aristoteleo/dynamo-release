@@ -1199,7 +1199,7 @@ def topography(
 
         axes_list[i].set_xlabel(basis + "_1")
         axes_list[i].set_ylabel(basis + "_2")
-        axes_list[i].set_aspect("equal")
+        # axes_list[i].set_aspect("equal")
 
         # Build the plot
         axes_list[i].set_xlim(xlim)
