@@ -9,7 +9,7 @@ from ..tools.utils import (
     fetch_states,
 )
 from ..vectorfield import SvcVectorField
-from .utils import remove_redundant_points_trajectory, arclength_sampling, pca_to_expr
+from .utils import remove_redundant_points_trajectory, arclength_sampling, pca_to_expr, find_elbow
 from .trajectory import Trajectory
 from ..dynamo_logger import LoggerManager
 
@@ -57,40 +57,6 @@ def reshape_path(path_flatten, dim, start=None, end=None):
     return path
 
 
-def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1, dt_0=1, EM_steps=2):
-    dim = len(start)
-    if init_path is None:
-        path_0 = (
-            np.tile(start, (n_points + 1, 1))
-            + (np.linspace(0, 1, n_points + 1, endpoint=True) * np.tile(end - start, (n_points + 1, 1)).T).T
-        )
-    else:
-        path_0 = init_path
-
-    while EM_steps > 0:
-        EM_steps -= 1
-
-        # E-step:
-        t_dict = minimize(lambda t: action(path_0, vf_func, D=D, dt=t), dt_0)
-        dt_sol = t_dict["x"][0]
-
-        # M-step:
-        def fun(x):
-            return action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_sol)
-
-        def jac(x):
-            return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_sol)
-
-        sol_dict = minimize(fun, path_0[1:-1], jac=jac)
-        path_0 = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
-
-    path_sol = path_0
-    t_dict = minimize(lambda t: action(path_sol, vf_func, D=D, dt=t), dt_sol)
-    action_opt = t_dict["fun"]
-    dt_sol = t_dict["x"][0]
-    return path_sol, dt_sol, action_opt, sol_dict
-
-
 def lap_T(path_0, T, vf_func, jac_func, D=1):
     n = len(path_0)
     dt = T / n
@@ -103,11 +69,51 @@ def lap_T(path_0, T, vf_func, jac_func, D=1):
         return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt)
 
     sol_dict = minimize(fun, path_0[1:-1], jac=jac)
-    path_0 = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
+    path_sol = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
 
-    path_sol = path_0
-    action_opt = sol_dict["fun"]
-    return path_sol, action_opt
+    # further optimization by varying dt
+    t_dict = minimize(lambda t: action(path_sol, vf_func, D=D, dt=t), dt)
+    action_opt = t_dict["fun"]
+    dt_sol = t_dict["x"][0]
+
+    return path_sol, dt_sol, action_opt
+
+
+def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1, dt_0=1, EM_steps=2):
+    if init_path is None:
+        path = (
+            np.tile(start, (n_points + 1, 1))
+            + (np.linspace(0, 1, n_points + 1, endpoint=True) * np.tile(end - start, (n_points + 1, 1)).T).T
+        )
+    else:
+        path = np.array(init_path, copy=True)
+
+    # initial dt estimation:
+    t_dict = minimize(lambda t: action(path, vf_func, D=D, dt=t), dt_0)
+    dt = t_dict["x"][0]
+
+    while EM_steps > 0:
+        EM_steps -= 1
+        path, dt, action_opt = lap_T(path, dt * len(path), vf_func, jac_func, D=D)
+
+    return path, dt, action_opt
+
+
+def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, hes_tol=2e-4):
+    T = np.linspace(t_min, t0, num_t)
+    A = np.zeros(num_t)
+    opt_T = np.zeros(num_t)
+    laps = []
+
+    for i, t in enumerate(T):
+        path, dt, action = lap_T(path_0, t, vf_func, jac_func, D=D)
+        A[i] = action
+        opt_T[i] = dt * len(path_0)
+        laps.append(path)
+
+    i_elbow = find_elbow(opt_T, A, order=-1, tol=hes_tol)
+
+    return i_elbow, laps, A, opt_T
 
 
 def get_init_path(G, start, end, coords, interpolation_num=20):
@@ -134,6 +140,7 @@ def least_action(
     init_states: Union[None, np.ndarray] = None,
     target_states: Union[None, np.ndarray] = None,
     paired: bool = True,
+    min_lap_t=False,
     basis: str = "pca",
     vf_key: str = "VecFld",
     vecfld: Union[None, Callable] = None,
@@ -263,9 +270,12 @@ def least_action(
             "optimizing for least action path...",
             indent_level=2,
         )
-        path_sol, dt_sol, action_opt, sol_dict = least_action_path(
+        path_sol, dt_sol, action_opt = least_action_path(
             init_state, target_state, vf.func, vf.get_Jacobian(), n_points=n_points, init_path=init_path, D=D, **kwargs
         )
+
+        if min_lap_t:
+            pass  # work in progress
 
         traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol)
         trajectory.append(traj)
@@ -285,7 +295,7 @@ def least_action(
                     pca_mean = adata.uns["pca_mean"]
                 exprs.append(pca_to_expr(traj.X, adata.uns["PCs"], pca_mean, func=expr_func))
 
-        logger.info(sol_dict["message"], indent_level=1)
+        # logger.info(sol_dict["message"], indent_level=1)
         logger.info("optimal action: %f" % action_opt, indent_level=1)
 
     if add_key is None:

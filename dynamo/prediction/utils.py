@@ -13,6 +13,8 @@ from ..tools.utils import log1p_
 from ..utils import isarray
 from ..tools.utils import nearest_neighbors
 
+from ..dynamo_logger import main_warning
+
 
 # ---------------------------------------------------------------------------------------------------
 # initial state related
@@ -584,3 +586,47 @@ def get_path(Pr, i, j):
         path.append(Pr[i, k])
         k = Pr[i, k]
     return path[::-1]
+
+
+# ---------------------------------------------------------------------------------------------------
+# least action path related
+
+
+def interp_second_derivative(t, f, num=1e2, interp_kind="cubic", **interp_kwargs):
+    """
+    interpolate f(t) and calculate the discrete second derivative using:
+        d^2 f / dt^2 = (f(x+h1) - 2f(x) + f(x-h2)) / (h1 * h2)
+    """
+    t_ = np.linspace(t[0], t[-1], int(num))
+    f_ = interpolate.interp1d(t, f, kind=interp_kind, **interp_kwargs)(t_)
+
+    dt = np.diff(t_)
+    df = np.diff(f_)
+    t_ = t[1:-1]
+
+    d2fdt2 = np.zeros(len(t_))
+    for i in range(len(t_)):
+        d2fdt2[i] = (df[i + 1] - df[i]) / (dt[i + 1] * dt[i])
+
+    return t_, d2fdt2
+
+
+def find_elbow(T, F, method="2nd", order=1, **kwargs):
+    if method == "2nd":
+        t_, der = interp_second_derivative(T, F, **kwargs)
+        tol = kwargs.pop("tol", 2e-4)
+
+        found = False
+        for i, t in enumerate(t_[::order]):
+            if der[::order][i] > tol:
+                i_elbow = np.argmin(np.abs(T - t))
+                found = True
+                break
+
+        if not found:
+            main_warning("The elbow was not found.")
+
+    else:
+        raise NotImplementedError(f"The method {method} is not supported.")
+
+    return i_elbow
