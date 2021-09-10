@@ -329,7 +329,7 @@ def allowed_X_layer_names():
     return only_splicing, only_labeling, splicing_and_labeling
 
 
-def get_shared_counts(adata, layers, min_shared_count, count_by="gene"):
+def get_inrange_shared_counts_mask(adata, layers, min_shared_count, count_by="gene"):
     layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
     layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith("X_").values]
 
@@ -827,7 +827,7 @@ def NTR(adata):
 
 def scale(adata, layers=None, scale_to_layer=None, scale_to=1e6):
     """scale layers to a particular total expression value, similar to `normalize_expr_data` function."""
-    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
     has_splicing, has_labeling, _ = detect_experiment_datatype(adata)
 
     if scale_to_layer is None:

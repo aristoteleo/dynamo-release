@@ -7,6 +7,7 @@ from .gene_selection_utils import (
     select_genes_by_dispersion_general,
     filter_genes_by_outliers as default_filter_genes_by_outliers,
     log1p_adata,
+    filter_cells_by_outliers as default_filter_cells_by_outliers,
 )
 from .utils import detect_experiment_datatype, convert2symbol
 from ..tools.connectivity import neighbors as default_neighbors
@@ -16,6 +17,7 @@ from ..dynamo_logger import main_info, main_info_insert_adata
 class PreprocessWorker:
     def __init__(
         self,
+        filter_cells_by_outliers_function: Callable = default_filter_cells_by_outliers,
         filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
         normalize_by_cells_function: Callable = None,
         select_genes_function: Callable = select_genes_by_dispersion_general,
@@ -38,6 +40,7 @@ class PreprocessWorker:
         n_top_genes : int, optional
             keep at most `n_top_genes` in adata for downstream analysis, by default 2000
         """
+        self.filter_cells_by_outliers = filter_cells_by_outliers_function
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
         self.normalize_by_cells = normalize_by_cells_function
         self.filter_genes = select_genes_function
@@ -75,6 +78,11 @@ class PreprocessWorker:
         if self.convert_gene_name:
             main_info("applying filter genes function...")
             self.convert_gene_name(adata)
+
+        if self.filter_cells_by_outliers:
+            main_info("filtering outlier cells...")
+            self.filter_cells_by_outliers(adata)
+
         if self.filter_genes_by_outliers:
             main_info("filtering outlier genes...")
             self.filter_genes_by_outliers(adata)

@@ -11,12 +11,13 @@ from ..dynamo_logger import (
     main_finish_progress,
     main_info,
     main_info_insert_adata,
+    main_info_insert_adata_obs,
     main_info_insert_adata_var,
     main_log_time,
     main_warning,
 )
 from ..configuration import DynamoAdataKeyManager
-from .utils import get_shared_counts
+from .utils import get_inrange_shared_counts_mask
 
 
 def _infer_labeling_experiment_type(adata, tkey):
@@ -271,14 +272,14 @@ def filter_genes_by_outliers(
             ).flatten()
         )
     if shared_count is not None:
-        layers = DynamoAdataKeyManager.get_layer_keys(adata, "all", False)
-        tmp = get_shared_counts(adata, layers, shared_count, "gene")
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all", False)
+        tmp = get_inrange_shared_counts_mask(adata, layers, shared_count, "gene")
         if tmp.sum() > 2000:
             detected_bool &= tmp
         else:
             # in case the labeling time is very short for pulse experiment or
             # chase time is very long for degradation experiment.
-            tmp = get_shared_counts(
+            tmp = get_inrange_shared_counts_mask(
                 adata,
                 list(set(layers).difference(["new", "labelled", "labeled"])),
                 shared_count,
@@ -304,3 +305,151 @@ def filter_genes_by_outliers(
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
     return adata
+
+
+def get_in_range_mask(data_mat, min_val, max_val, axis=0, sum_min_val_threshold=0):
+    return (
+        ((data_mat > sum_min_val_threshold).sum(axis) >= min_val)
+        & ((data_mat > sum_min_val_threshold).sum(axis) <= max_val)
+    ).flatten()
+
+
+def filter_cells_by_outliers(
+    adata: anndata.AnnData,
+    filter_bool: Union[np.ndarray, None] = None,
+    layer: str = "all",
+    keep_filtered: bool = False,
+    min_expr_genes_s: int = 50,
+    min_expr_genes_u: int = 25,
+    min_expr_genes_p: int = 1,
+    max_expr_genes_s: float = np.inf,
+    max_expr_genes_u: float = np.inf,
+    max_expr_genes_p: float = np.inf,
+    shared_count: Union[int, None] = None,
+    spliced_key="spliced",
+    unspliced_key="unspliced",
+    protein_key="protein",
+    obs_store_key="pass_basic_filter",
+) -> anndata.AnnData:
+    """Select valid cells based on a collection of filters including spliced, unspliced and protein min/max vals.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        filter_bool: :class:`~numpy.ndarray` (default: `None`)
+            A boolean array from the user to select cells for downstream analysis.
+        layer: `str` (default: `all`)
+            The data from a particular layer (include X) used for feature selection. Use 'all' or a set/list to filter by shared counts of a set/list of layers.
+        keep_filtered: `bool` (default: `False`)
+            Whether to keep cells that don't pass the filtering in the adata object.
+        min_expr_genes_s: `int` (default: `50`)
+            Minimal number of genes with expression for a cell in the data from the spliced layer (also used for X).
+        min_expr_genes_u: `int` (default: `25`)
+            Minimal number of genes with expression for a cell in the data from the unspliced layer.
+        min_expr_genes_p: `int` (default: `1`)
+            Minimal number of genes with expression for a cell in the data from in the protein layer.
+        max_expr_genes_s: `float` (default: `np.inf`)
+            Maximal number of genes with expression for a cell in the data from the spliced layer (also used for X).
+        max_expr_genes_u: `float` (default: `np.inf`)
+            Maximal number of genes with expression for a cell in the data from the unspliced layer.
+        max_expr_genes_p: `float` (default: `np.inf`)
+            Maximal number of protein with expression for a cell in the data from the protein layer.
+        shared_count: `int` or `None` (default: `None`)
+            The minimal shared number of counts for each cell across genes between layers.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated AnnData object with use_for_pca as a new column in obs to indicate the selection of cells for
+            downstream analysis. adata will be subsetted with only the cells pass filtering if keep_filtered is set to
+            be False.
+    """
+
+    predefined_layers_for_filtering = [DynamoAdataKeyManager.X_LAYER, spliced_key, unspliced_key, protein_key]
+    predefined_range_dict = {
+        DynamoAdataKeyManager.X_LAYER: (min_expr_genes_s, max_expr_genes_s),
+        spliced_key: (min_expr_genes_s, max_expr_genes_s),
+        unspliced_key: (min_expr_genes_u, max_expr_genes_u),
+        protein_key: (min_expr_genes_p, max_expr_genes_p),
+    }
+    layer_keys_used_for_filtering = []
+    if layer == "all":
+        layer_keys_used_for_filtering = predefined_layers_for_filtering
+    elif type(layer) == str and layer in predefined_layers_for_filtering:
+        layer_keys_used_for_filtering = [layer]
+
+    detected_bool = get_filter_mask_cells_by_outliers(
+        adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
+    )
+
+    if filter_bool is None:
+        filter_bool = detected_bool
+    else:
+        filter_bool = np.array(filter_bool) & detected_bool
+
+    main_info_insert_adata_obs(obs_store_key)
+    if keep_filtered:
+        main_info("keep filtered genes", indent_level=2)
+        adata.obs[obs_store_key] = filter_bool
+    else:
+        main_info("inplace subsetting adata by filtered genes", indent_level=2)
+        adata._inplace_subset_obs(filter_bool)
+        adata.obs[obs_store_key] = True
+
+    return adata
+
+
+def get_filter_mask_cells_by_outliers(
+    adata: anndata.AnnData,
+    layers: list = None,
+    layer2range: dict = None,
+    shared_count: Union[int, None] = None,
+) -> anndata.AnnData:
+    """Select valid cells based on a collection of filters including spliced, unspliced and protein min/max vals.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        layers:
+            a list of layers
+        ranges:
+            a dict of ranges, with shape of #layers x 2
+        shared_count: `int` or `None` (default: `None`)
+            The minimal shared number of counts for each cell across genes between layers.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated AnnData object with use_for_pca as a new column in obs to indicate the selection of cells for
+            downstream analysis. adata will be subsetted with only the cells pass filtering if keep_filtered is set to
+            be False.
+    """
+    detected_mask = np.full(adata.n_obs, True)
+    if layers is None:
+        main_info("layers for filtering cells are None, reserve all cells.")
+        return detected_mask
+
+    for i, layer in enumerate(layers):
+        if layer not in layer2range:
+            main_info(
+                "skip filtering cells by layer: %s as it is not in predefined range list:" % layer, indent_level=2
+            )
+            continue
+        if not DynamoAdataKeyManager.check_if_layer_exist(adata, layer):
+            main_info("skip filtering by layer:%s as it is not in adata." % layer)
+            continue
+        main_info("filtering cells by layer:%s" % layer, indent_level=2)
+        layer_data = DynamoAdataKeyManager.select_layer_data(adata, layer)
+        detected_mask = detected_mask & get_in_range_mask(
+            layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, sum_min_val_threshold=0
+        )
+
+    if shared_count is not None:
+        main_info("filtering cells by shared counts from all layers", indent_level=2)
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False)
+        detected_mask = detected_mask & get_inrange_shared_counts_mask(adata, layers, shared_count, "cell")
+
+    detected_mask = np.array(detected_mask).flatten()
+    return detected_mask

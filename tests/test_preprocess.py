@@ -115,8 +115,8 @@ if __name__ == "__main__":
     # # generate data if needed
     adata = gen_or_read_zebrafish_data()
     test_PreprocessWorker_simple_run(adata)
-    test_filter_by_dispersion_sparse()
-    # # TODO use a fixture in future
-    test_highest_frac_genes_plot(adata.copy())
-    test_highest_frac_genes_plot_prefix_list(adata.copy())
-    test_recipe_monocle_feature_selection_layer_simple0()
+    # test_filter_by_dispersion_sparse()
+    # # # TODO use a fixture in future
+    # test_highest_frac_genes_plot(adata.copy())
+    # test_highest_frac_genes_plot_prefix_list(adata.copy())
+    # test_recipe_monocle_feature_selection_layer_simple0()

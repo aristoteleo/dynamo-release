@@ -16,7 +16,7 @@ from .utils import (
     pca,
     clusters_stats,
     cook_dist,
-    get_shared_counts,
+    get_inrange_shared_counts_mask,
     get_svr_filter,
     Freeman_Tukey,
     merge_adata_attrs,
@@ -40,7 +40,7 @@ from ..dynamo_logger import (
 )
 from ..utils import copy_adata
 from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager
-from .gene_selection_utils import _infer_labeling_experiment_type, filter_genes_by_outliers
+from .gene_selection_utils import _infer_labeling_experiment_type, filter_genes_by_outliers, filter_cells_by_outliers
 
 
 def szFactor(
@@ -127,7 +127,7 @@ def szFactor(
             adata.layers["_total_"] = total
             layers.extend(["_total_"])
 
-    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
     if "raw" in layers and adata.raw is None:
         adata.raw = adata.copy()
 
@@ -243,7 +243,7 @@ def normalize_cell_expr_by_size_factors(
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
-    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
 
     layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
@@ -336,7 +336,7 @@ def Gini(adata, layers="all"):
     # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
 
-    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
 
     for layer in layers:
         if layer == "raw":
@@ -446,7 +446,7 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         res: :class:`~pandas.DataFrame`
             A pandas dataframe with mu, dispersion for each gene that passes filters.
     """
-    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers=layers, include_protein=False)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
 
     res_list = []
     for layer in layers:
@@ -528,7 +528,7 @@ def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion"
         disp_df: :class:`~pandas.DataFrame`
             The data frame with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
     """
-    layer = DynamoAdataKeyManager.get_layer_keys(adata, layers=layer, include_protein=False)[0]
+    layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
 
     if layer in ["X"]:
         key = "dispFitInfo"
@@ -758,7 +758,7 @@ def SVRs(
     """
     from sklearn.svm import SVR
 
-    layers = DynamoAdataKeyManager.get_layer_keys(adata_ori, layers)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata_ori, layers)
 
     if use_all_genes_cells:
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
@@ -889,7 +889,7 @@ def SVRs(
     return adata_ori
 
 
-def filter_cells(
+def filter_cells_legacy(
     adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
@@ -968,8 +968,8 @@ def filter_cells(
         )
 
     if shared_count is not None:
-        layers = DynamoAdataKeyManager.get_layer_keys(adata, layer, False)
-        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, "cell")
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, False)
+        detected_bool = detected_bool & get_inrange_shared_counts_mask(adata, layers, shared_count, "cell")
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
@@ -1477,7 +1477,7 @@ def recipe_monocle(
 
     logger.info("filtering cells...")
     logger.info_insert_adata("pass_basic_filter", "obs")
-    adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
+    adata = filter_cells_legacy(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
     logger.info(f"{adata.obs.pass_basic_filter.sum()} cells passed basic filters.")
 
     filter_genes_kwargs = {
@@ -1640,7 +1640,7 @@ def recipe_monocle(
             scale_to=scale_to,
         )
     else:
-        layers = DynamoAdataKeyManager.get_layer_keys(adata, "all")
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all")
         for layer in layers:
             if layer != "X":
                 logger.info_insert_adata("X_" + layer, "layers")
@@ -1801,7 +1801,7 @@ def recipe_velocyto(
 
     filter_bool = initial_Ucell_size > np.percentile(initial_Ucell_size, 0.4)
 
-    adata = filter_cells(adata, filter_bool=np.array(filter_bool).flatten())
+    adata = filter_cells_legacy(adata, filter_bool=np.array(filter_bool).flatten())
 
     filter_bool = filter_genes_by_outliers(adata, min_cell_s=30, min_count_s=40, shared_count=None)
 

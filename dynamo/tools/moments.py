@@ -183,7 +183,7 @@ def moments(
                 "the cell number!"
             )
 
-    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers

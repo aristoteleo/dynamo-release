@@ -40,15 +40,23 @@ class DynamoAdataKeyManager:
         elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
             res_data = adata.obsm["protein"]
         else:
-            res_data = adata.layer[layer]
+            res_data = adata.layers[layer]
         if copy:
             return res_data.copy()
         return res_data
 
-    def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
-        """Get the list of available layers' keys."""
+    def check_if_layer_exist(adata, layer) -> bool:
+        if layer == DynamoAdataKeyManager.X_LAYER:
+            # assume always exist
+            return True
+        if layer == DynamoAdataKeyManager.PROTEIN_LAYER:
+            return DynamoAdataKeyManager.PROTEIN_LAYER in adata.obsm
+        return layer in adata.layers
+
+    def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True):
+        """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
         layer_keys = list(adata.layers.keys())
-        if remove_normalized:
+        if remove_pp_layers:
             layer_keys = [i for i in layer_keys if not i.startswith("X_")]
 
         if "protein" in adata.obsm.keys() and include_protein:
