@@ -678,7 +678,7 @@ def feature_genes(
 
     mode = adata.uns["feature_selection"] if mode is None else mode
 
-    layer = DynamoAdataKeyManager.get_layer_keys(adata, layer, include_protein=False)[0]
+    layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, include_protein=False)[0]
 
     uns_store_key = None
     if mode == "dispersion":

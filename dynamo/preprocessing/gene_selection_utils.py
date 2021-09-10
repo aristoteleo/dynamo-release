@@ -39,8 +39,8 @@ def _infer_labeling_experiment_type(adata, tkey):
 
         # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
         experiment_type = "kin" if k > 0 else "deg"
-    main_warning(
-        f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
+    main_info(
+        f"\nDynamo detects your labeling data is from a {experiment_type} experiment. If experiment type is not corrent, please correct "
         f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
         f"needed."
     )

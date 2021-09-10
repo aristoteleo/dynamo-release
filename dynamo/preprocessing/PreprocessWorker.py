@@ -11,7 +11,7 @@ from .gene_selection_utils import (
 )
 from .utils import detect_experiment_datatype, convert2symbol
 from ..tools.connectivity import neighbors as default_neighbors
-from ..dynamo_logger import main_info, main_info_insert_adata
+from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
 
 
 class PreprocessWorker:
@@ -51,6 +51,12 @@ class PreprocessWorker:
 
     def preprocess_adata(self, adata: AnnData, tkey: str = "time", experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
+        if tkey is not None and adata.obs[tkey].max() > 60:
+            main_warning(
+                "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                "we recommend using hour as the time unit."
+            )
+
         adata.uns["pp"] = {}
         main_info_insert_adata("%s" % adata.uns["pp"], "uns['pp']", indent_level=2)
 

@@ -416,7 +416,7 @@ def mnn(
         else:
             raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
-    layers = DynamoAdataKeyManager.get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
