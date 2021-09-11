@@ -73,3 +73,8 @@ def copy_adata(adata, logger=None):
     )
     data = adata.copy()
     return data
+
+
+def normalize(x):
+    x_min = np.min(x)
+    return (x - x_min) / (np.max(x) - x_min)

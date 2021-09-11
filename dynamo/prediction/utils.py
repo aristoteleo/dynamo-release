@@ -10,7 +10,7 @@ from scipy.integrate import solve_ivp
 from ..vectorfield.topography import dup_osc_idx_iter
 from ..tools.utils import log1p_
 
-from ..utils import isarray
+from ..utils import isarray, normalize
 from ..tools.utils import nearest_neighbors
 
 from ..dynamo_logger import main_warning
@@ -592,7 +592,7 @@ def get_path(Pr, i, j):
 # least action path related
 
 
-def interp_second_derivative(t, f, num=1e2, interp_kind="cubic", **interp_kwargs):
+def interp_second_derivative(t, f, num=5e2, interp_kind="cubic", **interp_kwargs):
     """
     interpolate f(t) and calculate the discrete second derivative using:
         d^2 f / dt^2 = (f(x+h1) - 2f(x) + f(x-h2)) / (h1 * h2)
@@ -602,7 +602,7 @@ def interp_second_derivative(t, f, num=1e2, interp_kind="cubic", **interp_kwargs
 
     dt = np.diff(t_)
     df = np.diff(f_)
-    t_ = t[1:-1]
+    t_ = t_[1:-1]
 
     d2fdt2 = np.zeros(len(t_))
     for i in range(len(t_)):
@@ -611,21 +611,63 @@ def interp_second_derivative(t, f, num=1e2, interp_kind="cubic", **interp_kwargs
     return t_, d2fdt2
 
 
-def find_elbow(T, F, method="2nd", order=1, **kwargs):
-    if method == "2nd":
-        t_, der = interp_second_derivative(T, F, **kwargs)
-        tol = kwargs.pop("tol", 2e-4)
+def interp_curvature(t, f, num=5e2, interp_kind="cubic", **interp_kwargs):
+    """"""
+    t_ = np.linspace(t[0], t[-1], int(num))
+    f_ = interpolate.interp1d(t, f, kind=interp_kind, **interp_kwargs)(t_)
+
+    dt = np.diff(t_)
+    df = np.diff(f_)
+    dfdt_ = df / dt
+
+    t_ = t_[1:-1]
+    d2fdt2 = np.zeros(len(t_))
+    dfdt = np.zeros(len(t_))
+    for i in range(len(t_)):
+        dfdt[i] = (dfdt_[i] + dfdt_[i + 1]) / 2
+        d2fdt2[i] = (df[i + 1] - df[i]) / (dt[i + 1] * dt[i])
+
+    cur = d2fdt2 / (1 + dfdt * dfdt) ** 1.5
+
+    return t_, cur
+
+
+def kneedle_difference(t, f, type="decrease"):
+    if type == "decrease":
+        diag_line = lambda x: -x + 1
+    elif type == "increase":
+        diag_line = lambda x: x
+    else:
+        raise NotImplementedError(f"Unsupported function type {type}")
+
+    t_ = normalize(t)
+    f_ = normalize(f)
+    res = np.abs(f_ - diag_line(t_))
+    return res
+
+
+def find_elbow(T, F, method="kneedle", order=1, **kwargs):
+    i_elbow = None
+    if method == "hes":
+        T_ = normalize(T)
+        F_ = normalize(F)
+        tol = kwargs.pop("tol", 2)
+        t_, der = interp_second_derivative(T_, F_, **kwargs)
 
         found = False
         for i, t in enumerate(t_[::order]):
             if der[::order][i] > tol:
-                i_elbow = np.argmin(np.abs(T - t))
+                i_elbow = np.argmin(np.abs(T_ - t))
                 found = True
                 break
 
         if not found:
             main_warning("The elbow was not found.")
 
+    elif method == "kneedle":
+        type = "decrease" if order == -1 else "increase"
+        res = kneedle_difference(T, F, type=type)
+        i_elbow = np.argmax(res)
     else:
         raise NotImplementedError(f"The method {method} is not supported.")
 

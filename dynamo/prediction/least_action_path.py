@@ -59,7 +59,7 @@ def reshape_path(path_flatten, dim, start=None, end=None):
 
 def lap_T(path_0, T, vf_func, jac_func, D=1):
     n = len(path_0)
-    dt = T / n
+    dt = T / (n - 1)
     dim = len(path_0[0])
 
     def fun(x):
@@ -99,7 +99,7 @@ def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None
     return path, dt, action_opt
 
 
-def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, hes_tol=2e-4):
+def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, elbow_method="hes", hes_tol=3):
     T = np.linspace(t_min, t0, num_t)
     A = np.zeros(num_t)
     opt_T = np.zeros(num_t)
@@ -108,10 +108,10 @@ def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, hes_t
     for i, t in enumerate(T):
         path, dt, action = lap_T(path_0, t, vf_func, jac_func, D=D)
         A[i] = action
-        opt_T[i] = dt * len(path_0)
+        opt_T[i] = dt * (len(path_0) - 1)
         laps.append(path)
 
-    i_elbow = find_elbow(opt_T, A, order=-1, tol=hes_tol)
+    i_elbow = find_elbow(opt_T, A, method=elbow_method, order=-1, tol=hes_tol)
 
     return i_elbow, laps, A, opt_T
 
@@ -141,6 +141,7 @@ def least_action(
     target_states: Union[None, np.ndarray] = None,
     paired: bool = True,
     min_lap_t=False,
+    num_t=20,
     basis: str = "pca",
     vf_key: str = "VecFld",
     vecfld: Union[None, Callable] = None,
@@ -256,6 +257,11 @@ def least_action(
         )
 
     t, prediction, action, exprs, mftp, trajectory = [], [], [], [], [], []
+    if min_lap_t:
+        i_elbow = []
+        laps = []
+        opt_T = []
+        A = []
 
     for (init_state, target_state) in LoggerManager.progress_logger(
         pairs, progress_name=f"iterating through {len(pairs)} pairs\n"
@@ -274,8 +280,24 @@ def least_action(
             init_state, target_state, vf.func, vf.get_Jacobian(), n_points=n_points, init_path=init_path, D=D, **kwargs
         )
 
+        n_points = len(path_sol)  # the actual #points due to arclength resampling
+
         if min_lap_t:
-            pass  # work in progress
+            print(f"dt_sol: {dt_sol}")
+            t_sol = dt_sol * (n_points - 1)
+            t_min = 0.3 * t_sol
+            i_elbow_, laps_, A_, opt_T_ = minimize_lap_time(
+                path_sol, t_sol, t_min, vf.func, vf.get_Jacobian(), D=D, num_t=num_t
+            )
+            if i_elbow_ is None:
+                i_elbow_ = 0
+            path_sol = laps_[i_elbow_]
+            dt_sol = opt_T_[i_elbow_] / (n_points - 1)
+
+            i_elbow.append(i_elbow_)
+            laps.append(laps_)
+            A.append(A_)
+            opt_T.append(opt_T_)
 
         traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol)
         trajectory.append(traj)
@@ -312,7 +334,11 @@ def least_action(
         "action": action,
         "genes": adata.var_names[adata.var.use_for_pca],
         "exprs": exprs,
+        "vf_key": vf_key,
     }
+
+    if min_lap_t:
+        adata.uns[LAP_key]["min_t"] = {"A": A, "T": opt_T, "i_elbow": i_elbow, "paths": laps}
 
     logger.finish_progress(progress_name="least action path")
 
