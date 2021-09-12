@@ -14,14 +14,15 @@ class DynamoAdataKeyManager:
     VAR_GENE_HIGHLY_VARIABLE_SCORES = "gene_highly_variable_scores"
     VAR_USE_FOR_PCA = "use_for_pca"
 
+    # a set of preprocessing keys to label dataset properties
     UNS_PP_KEY = "pp"
-
     UNS_PP_HAS_SPLICING = "has_splicing"
     UNS_PP_TKEY = "has_splicing"
     UNS_PP_HAS_LABELING = "has_labeling"
     UNS_PP_HAS_PROTEIN = "has_protein"
     UNS_PP_SPLICING_LABELING = "splicing_labeling"
 
+    # special key names frequently used in dynamo
     X_LAYER = "X"
     PROTEIN_LAYER = "protein"
 
@@ -67,9 +68,23 @@ class DynamoAdataKeyManager:
         res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
         return res_layers
 
+    def allowed_layer_raw_names():
+        only_splicing = ["spliced", "unspliced"]
+        only_labeling = ["new", "total"]
+        splicing_and_labeling = ["uu", "ul", "su", "sl"]
+
+        return only_splicing, only_labeling, splicing_and_labeling
+
+    def allowed_X_layer_names():
+        only_splicing = ["X_spliced", "X_unspliced"]
+        only_labeling = ["X_new", "X_total"]
+        splicing_and_labeling = ["X_uu", "X_ul", "X_su", "X_sl"]
+
+        return only_splicing, only_labeling, splicing_and_labeling
+
 
 # TODO discuss alias naming convention
-Dkm = DynamoAdataKeyManager
+DKM = DynamoAdataKeyManager
 
 
 class DynamoAdataConfig:

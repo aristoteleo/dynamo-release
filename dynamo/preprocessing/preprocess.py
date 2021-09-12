@@ -25,7 +25,7 @@ from .utils import (
     get_sz_exprs,
     unique_var_obs_adata,
     layers2csr,
-    collapse_adata,
+    collapse_species_adata,
     NTR,
     detect_experiment_datatype,
     basic_stats,
@@ -1356,7 +1356,7 @@ def recipe_monocle(
     )
     adata = layers2csr(adata)
     logger.info("ensure all labeling data properly collapased", indent_level=1)
-    adata = collapse_adata(adata)
+    adata = collapse_species_adata(adata)
 
     # reset adata.X
     if has_labeling:

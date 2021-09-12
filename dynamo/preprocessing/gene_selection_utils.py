@@ -376,7 +376,7 @@ def filter_cells_by_outliers(
     layer_keys_used_for_filtering = []
     if layer == "all":
         layer_keys_used_for_filtering = predefined_layers_for_filtering
-    elif type(layer) == str and layer in predefined_layers_for_filtering:
+    elif isinstance(layer, str) and layer in predefined_layers_for_filtering:
         layer_keys_used_for_filtering = [layer]
 
     detected_bool = get_filter_mask_cells_by_outliers(
@@ -414,8 +414,8 @@ def get_filter_mask_cells_by_outliers(
             AnnData object.
         layers:
             a list of layers
-        ranges:
-            a dict of ranges, with shape of #layers x 2
+        layer2ranges:
+            a dict of ranges, layer str to range tuple
         shared_count: `int` or `None` (default: `None`)
             The minimal shared number of counts for each cell across genes between layers.
 

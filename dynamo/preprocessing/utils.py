@@ -10,7 +10,7 @@ import anndata
 from typing import Iterable, Union
 from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning, main_exception
 from ..utils import areinstance
-from ..configuration import DynamoAdataKeyManager
+from ..configuration import DKM, DynamoAdataKeyManager
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -311,22 +311,6 @@ def merge_adata_attrs(adata_ori, adata, attr):
     elif attr == "obs":
         adata_ori.obs = _merge_by_diff(adata_ori.obs, adata.obs)
     return adata_ori
-
-
-def allowed_layer_raw_names():
-    only_splicing = ["spliced", "unspliced"]
-    only_labeling = ["new", "total"]
-    splicing_and_labeling = ["uu", "ul", "su", "sl"]
-
-    return only_splicing, only_labeling, splicing_and_labeling
-
-
-def allowed_X_layer_names():
-    only_splicing = ["X_spliced", "X_unspliced"]
-    only_labeling = ["X_new", "X_total"]
-    splicing_and_labeling = ["X_uu", "X_ul", "X_su", "X_sl"]
-
-    return only_splicing, only_labeling, splicing_and_labeling
 
 
 def get_inrange_shared_counts_mask(adata, layers, min_shared_count, count_by="gene"):
@@ -708,13 +692,13 @@ def add_noise_to_duplicates(adata, basis="pca"):
 # labeling related
 
 
-def collapse_adata(adata):
+def collapse_species_adata(adata):
     """Function to collapse the four species data, will be generalized to handle dual-datasets"""
     (
         only_splicing,
         only_labeling,
         splicing_and_labeling,
-    ) = allowed_layer_raw_names()
+    ) = DKM.allowed_layer_raw_names()
 
     if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
         if only_splicing[0] not in adata.layers.keys():
@@ -768,7 +752,7 @@ def default_layer(adata):
     if has_splicing:
         if has_labeling:
             if len(set(adata.layers.keys()).intersection(["new", "total", "spliced", "unspliced"])) == 4:
-                adata = collapse_adata(adata)
+                adata = collapse_species_adata(adata)
             default_layer = (
                 "M_t" if "M_t" in adata.layers.keys() else "X_total" if "X_total" in adata.layers.keys() else "total"
             )

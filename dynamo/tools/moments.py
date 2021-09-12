@@ -14,7 +14,7 @@ from .connectivity import (
 from ..utils import copy_adata
 from ..dynamo_logger import LoggerManager
 from ..preprocessing.utils import allowed_X_layer_names, pca
-from ..configuration import DynamoAdataKeyManager
+from ..configuration import DKM, DynamoAdataKeyManager
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -83,11 +83,12 @@ def moments(
     adata = copy_adata(adata) if copy else adata
 
     mapper = get_mapper()
+
     (
         only_splicing,
         only_labeling,
         splicing_and_labeling,
-    ) = allowed_X_layer_names()
+    ) = DKM.allowed_X_layer_names()
 
     if conn is None:
         if genes is None and "use_for_pca" in adata.var.keys():
