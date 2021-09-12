@@ -13,7 +13,7 @@ from .connectivity import (
 )
 from ..utils import copy_adata
 from ..dynamo_logger import LoggerManager
-from ..preprocessing.utils import allowed_X_layer_names, pca
+from ..preprocessing.utils import pca
 from ..configuration import DKM, DynamoAdataKeyManager
 
 

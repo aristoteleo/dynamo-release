@@ -4,12 +4,13 @@ from anndata import AnnData
 
 from .gene_selection_utils import (
     _infer_labeling_experiment_type,
+    is_log1p_transformed_adata,
     select_genes_by_dispersion_general,
     filter_genes_by_outliers as default_filter_genes_by_outliers,
     log1p_adata,
     filter_cells_by_outliers as default_filter_cells_by_outliers,
 )
-from .utils import detect_experiment_datatype, convert2symbol
+from .utils import collapse_species_adata, detect_experiment_datatype, convert2symbol
 from ..tools.connectivity import neighbors as default_neighbors
 from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
 
@@ -17,12 +18,13 @@ from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
 class PreprocessWorker:
     def __init__(
         self,
+        collapse_speicies_adata_function: Callable = collapse_species_adata,
+        convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = default_filter_cells_by_outliers,
         filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
         normalize_by_cells_function: Callable = None,
         select_genes_function: Callable = select_genes_by_dispersion_general,
         use_log1p: bool = True,
-        convert_gene_name_function: Callable = convert2symbol,
         n_top_genes=2000,
     ) -> None:
         """Initialize the worker.
@@ -48,6 +50,7 @@ class PreprocessWorker:
         self.log1p = log1p_adata
         self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
+        self.collapse_species_adata = collapse_speicies_adata_function
 
     def preprocess_adata(self, adata: AnnData, tkey: str = "time", experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
@@ -81,6 +84,10 @@ class PreprocessWorker:
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
         main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
 
+        if self.collapse_species_adata:
+            main_info("applying collapse species adata...")
+            self.convert_gene_name(adata)
+
         if self.convert_gene_name:
             main_info("applying filter genes function...")
             self.convert_gene_name(adata)
@@ -98,7 +105,11 @@ class PreprocessWorker:
             self.normalize_by_cells(adata)
 
         if self.use_log1p:
-            main_info("applying log1p transformation on data...")
+            if is_log1p_transformed_adata(adata):
+                main_warning(
+                    "Your adata.X maybe log1p transformed before. If you are sure that your adata is not log1p transformed, please ignore this warning. Dynamo will do log1p transformation still."
+                )
+            main_info("applying log1p transformation on expression matrix data (adata.X)...")
             log1p_adata(adata)
 
         if self.filter_genes:

@@ -20,6 +20,17 @@ from ..configuration import DynamoAdataKeyManager
 from .utils import get_inrange_shared_counts_mask
 
 
+def is_log1p_transformed_adata(adata):
+    """check if adata data is log transformed by checking a small subset of adata observations."""
+    chosen_gene_indices = np.random.choice(adata.n_obs, 10)
+    _has_log1p_transformed = not np.allclose(
+        adata.X[:, chosen_gene_indices].sum(1) - adata.layers["spliced"][:, chosen_gene_indices].sum(1),
+        0,
+        atol=1e-4,
+    )
+    return _has_log1p_transformed
+
+
 def _infer_labeling_experiment_type(adata, tkey):
     """Returns the experiment type of `adata` according to `tkey`s"""
     experiment_type = None

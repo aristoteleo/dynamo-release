@@ -1431,10 +1431,11 @@ def recipe_monocle(
     adata.uns["pp"]["tkey"] = tkey
     adata.uns["pp"]["experiment_type"] = "conventional" if experiment_type is None else experiment_type
 
-    _has_szFactor_normalized, _has_log1p_tranformed = (True, True) if normalized else (False, False)
+    _has_szFactor_normalized, _has_log1p_transformed = (True, True) if normalized else (False, False)
     if normalized is None and not has_labeling:
+        # if has been flagged as preprocessed or not
         if "raw_data" in adata.uns_keys():
-            _has_szFactor_normalized, _has_log1p_tranformed = (
+            _has_szFactor_normalized, _has_log1p_transformed = (
                 not adata.uns["raw_data"],
                 not adata.uns["raw_data"],
             )
@@ -1448,13 +1449,13 @@ def recipe_monocle(
             )
             # check whether total UMI is the same -- if not the same, logged
             if _has_szFactor_normalized:
-                _has_log1p_tranformed = not np.allclose(
+                _has_log1p_transformed = not np.allclose(
                     np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]),
                     0,
                     atol=1e-1,
                 )
 
-        if _has_szFactor_normalized or _has_log1p_tranformed:
+        if _has_szFactor_normalized or _has_log1p_transformed:
             main_warning(
                 "dynamo detects your data is size factor normalized and/or log transformed. If this is not "
                 "right, plese set `normalized = False."
@@ -1623,7 +1624,7 @@ def recipe_monocle(
         adata._inplace_subset_var(adata.var["use_for_pca"])
 
     # normalized data based on sz factor
-    if not _has_log1p_tranformed:
+    if not _has_log1p_transformed:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
         logger.info("size factor normalizing the data, followed by log1p transformation.")
         adata = normalize_cell_expr_by_size_factors(

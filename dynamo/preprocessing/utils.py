@@ -700,7 +700,7 @@ def collapse_species_adata(adata):
         splicing_and_labeling,
     ) = DKM.allowed_layer_raw_names()
 
-    if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
+    if np.all([name in adata.layers.keys() for name in splicing_and_labeling]):
         if only_splicing[0] not in adata.layers.keys():
             adata.layers[only_splicing[0]] = adata.layers["su"] + adata.layers["sl"]
         if only_splicing[1] not in adata.layers.keys():
