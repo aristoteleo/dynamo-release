@@ -23,7 +23,7 @@ from ..tools.Markov import (
 )
 from ..dynamo_logger import main_info
 from ..utils import LoggerManager, copy_adata
-from .scVectorField import SvcVectorfield
+from .scVectorField import SvcVectorField
 
 
 def cluster_field(
@@ -347,7 +347,7 @@ def streamline_clusters(
     for key, values in line_list.items():
         line_list[key] = np.unique(np.array(values).reshape((-1, 2)), axis=0)
 
-    vector_field_class = SvcVectorfield()
+    vector_field_class = SvcVectorField()
     vector_field_class.from_adata(adata, basis=basis)
 
     has_acc = True if "acceleration" in features else False

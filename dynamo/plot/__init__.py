@@ -64,7 +64,7 @@ from .networks import (
 
 from .fate import fate_bias, fate
 from .state_graph import state_graph
-from .least_action_path import least_action
+from .least_action_path import least_action, lap_min_time
 
 from .scPotential import show_landscape
 
@@ -137,6 +137,7 @@ __all__ = [
     "fate",
     "state_graph",
     "least_action",
+    "lap_min_time",
     "show_landscape",
     "louvain",
     "leiden",

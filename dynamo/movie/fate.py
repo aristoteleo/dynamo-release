@@ -5,7 +5,7 @@ import warnings
 from scipy.integrate import odeint
 from anndata import AnnData
 
-from ..vectorfield.scVectorField import SvcVectorfield
+from ..vectorfield.scVectorField import SvcVectorField
 from ..plot.topography import topography
 from .utils import remove_particles
 from ..dynamo_logger import main_warning, main_info, main_tqdm
@@ -165,7 +165,7 @@ class StreamFuncAnim:
                 self.init_states = self.init_states
 
         # vf = lambda x: vector_field_function(x=x, vf_dict=VecFld)
-        vf = SvcVectorfield()
+        vf = SvcVectorField()
         vf.from_adata(adata, basis=basis)
         # Initialize velocity field and displace *functions*
         self.f = lambda x, _: vf.func(x)  # scale *

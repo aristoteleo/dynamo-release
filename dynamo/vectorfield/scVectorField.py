@@ -576,7 +576,7 @@ def SparseVFC(
     return VecFld
 
 
-class base_vectorfield:
+class BaseVectorField:
     def __init__(
         self,
         X=None,
@@ -765,7 +765,7 @@ class base_vectorfield:
         return t, prediction
 
 
-class differentiable_vectorfield(base_vectorfield):
+class DifferentiableVectorField(BaseVectorField):
     def get_Jacobian(self, method=None):
         # subclasses must implement this function.
         pass
@@ -805,7 +805,7 @@ class differentiable_vectorfield(base_vectorfield):
         return compute_sensitivity(f_jac, X, **kwargs)
 
 
-class SvcVectorfield(differentiable_vectorfield):
+class SvcVectorField(DifferentiableVectorField):
     def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
         """Initialize the VectorField class.
 
@@ -1018,7 +1018,7 @@ class SvcVectorfield(differentiable_vectorfield):
         return corrRate, precision, recall
 
 
-class ko_vectorfield(differentiable_vectorfield):
+class KOVectorField(DifferentiableVectorField):
     def __init__(
         self, X=None, V=None, Grid=None, K=None, func_base=None, fjac_base=None, PCs=None, mean=None, *args, **kwargs
     ):
@@ -1087,7 +1087,7 @@ except ImportError:
 
 if use_dynode:
 
-    class dynode_vectorfield(base_vectorfield, Dynode):  #
+    class dynode_vectorfield(BaseVectorField, Dynode):  #
         def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
             self.norm_dict = {}
 
@@ -1180,7 +1180,7 @@ if use_dynode:
 
 def vector_field_function_knockout(
     adata,
-    vecfld: Union[Callable, base_vectorfield],
+    vecfld: Union[Callable, BaseVectorField],
     ko_genes,
     k_deg=None,
     pca_genes="use_for_pca",
@@ -1225,7 +1225,7 @@ def vector_field_function_knockout(
         v_gene = v_gene - k * x_gene
         return v_gene @ PCs"""
 
-    vf = ko_vectorfield(K=k, func_base=vf_func, fjac_base=vecfld.get_Jacobian(), PCs=PCs, mean=mean)
+    vf = KOVectorField(K=k, func_base=vf_func, fjac_base=vecfld.get_Jacobian(), PCs=PCs, mean=mean)
     if not callable(vecfld):
         vf.data["X"] = vecfld.data["X"]
         vf.data["V"] = vf.func(vf.data["X"])

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from ..vectorfield.utils import normalize_vectors, angle
-from ..vectorfield.scVectorField import differentiable_vectorfield
+from ..vectorfield.scVectorField import DifferentiableVectorField
 from .utils import arclength_sampling, remove_redundant_points_trajectory, pca_to_expr, expr_to_pca
 from ..tools.utils import flatten
 from ..dynamo_logger import LoggerManager
@@ -99,7 +99,7 @@ class Trajectory:
 
 
 class VectorFieldTrajectory(Trajectory):
-    def __init__(self, X, t, vecfld: differentiable_vectorfield) -> None:
+    def __init__(self, X, t, vecfld: DifferentiableVectorField) -> None:
         super().__init__(X, t=t)
         self.vecfld = vecfld
         self.data = {"velocity": None, "acceleration": None, "curvature": None, "divergence": None}
