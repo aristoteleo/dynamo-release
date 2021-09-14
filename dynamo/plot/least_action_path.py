@@ -4,7 +4,8 @@ from ..tools.utils import update_dict
 from .scatters import scatters, save_fig
 from .ezplots import plot_X, zscatter
 from .utils import map2color
-from ..prediction.utils import interp_second_derivative
+from ..prediction.utils import interp_second_derivative, interp_curvature, kneedle_difference
+from ..utils import normalize, denormalize
 
 
 def least_action(
@@ -80,6 +81,8 @@ def lap_min_time(
     adata,
     basis="pca",
     show_paths=False,
+    show_elbow=True,
+    show_elbow_func=False,
     color="ntr",
     figsize=(6, 4),
     n_col=3,
@@ -92,15 +95,28 @@ def lap_min_time(
 
     LAP_key = "LAP" if basis is None else "LAP_" + basis
     min_t_dict = adata.uns[LAP_key]["min_t"]
+    method = min_t_dict["method"]
 
     for k in range(len(min_t_dict["A"])):
         A = min_t_dict["A"][k]
         T = min_t_dict["T"][k]
         i_elbow = min_t_dict["i_elbow"][k]
         paths = min_t_dict["paths"][k]
-        num_t = len(A)
 
-        # T_, der = interp_second_derivative(T, A)
+        num_t = len(A)
+        if method == "hessian":
+            T_, A_ = normalize(T), normalize(A)
+            T_, der = interp_second_derivative(T_, A_)
+            T_ = denormalize(T_, np.min(T), np.max(T))
+        elif method == "curvature":
+            T_, A_ = normalize(T), normalize(A)
+            T_, der = interp_curvature(T_, A_)
+            T_ = denormalize(T_, np.min(T), np.max(T))
+        elif method == "kneedle":
+            der = kneedle_difference(T, A)
+            T_ = T
+        else:
+            raise NotImplementedError(f"Unsupported method {method}.")
 
         if show_paths:
             n_row = int(np.ceil((num_t + 1) / n_col))
@@ -116,14 +132,17 @@ def lap_min_time(
 
             if c == 0:
                 axes[i, j].plot(T, A)
-                axes[i, j].plot([T[i_elbow], T[i_elbow]], [np.max(A), np.min(A)], "--")
+                if show_elbow:
+                    axes[i, j].plot([T[i_elbow], T[i_elbow]], [np.max(A), np.min(A)], "--")
                 axes[i, j].set_xlabel("LAP time")
                 axes[i, j].set_ylabel("action")
                 # axes[i, j].set_title(f'pair {i}')
 
-                """ax2 = axes[i, j].twinx()
-                ax2.plot(T_, der, c='r')
-                ax2.tick_params(axis='y', labelcolor='r')"""
+                if show_elbow_func:
+                    ax2 = axes[i, j].twinx()
+                    ax2.plot(T_, der, c="r")
+                    ax2.tick_params(axis="y", labelcolor="r")
+                    ax2.set_ylabel(method)
 
             elif show_paths:
                 plt.sca(axes[i, j])

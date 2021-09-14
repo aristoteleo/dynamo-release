@@ -142,6 +142,7 @@ def least_action(
     target_states: Union[None, np.ndarray] = None,
     paired: bool = True,
     min_lap_t=False,
+    elbow_method="hessian",
     num_t=20,
     basis: str = "pca",
     vf_key: str = "VecFld",
@@ -288,7 +289,7 @@ def least_action(
             t_sol = dt_sol * (n_points - 1)
             t_min = 0.3 * t_sol
             i_elbow_, laps_, A_, opt_T_ = minimize_lap_time(
-                path_sol, t_sol, t_min, vf.func, vf.get_Jacobian(), D=D, num_t=num_t
+                path_sol, t_sol, t_min, vf.func, vf.get_Jacobian(), D=D, num_t=num_t, elbow_method=elbow_method
             )
             if i_elbow_ is None:
                 i_elbow_ = 0
@@ -339,7 +340,7 @@ def least_action(
     }
 
     if min_lap_t:
-        adata.uns[LAP_key]["min_t"] = {"A": A, "T": opt_T, "i_elbow": i_elbow, "paths": laps}
+        adata.uns[LAP_key]["min_t"] = {"A": A, "T": opt_T, "i_elbow": i_elbow, "paths": laps, "method": elbow_method}
 
     logger.finish_progress(progress_name="least action path")
 
