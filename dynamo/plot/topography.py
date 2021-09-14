@@ -1245,6 +1245,7 @@ def topography(
                     density=density,
                     linewidth=linewidth,
                     streamline_color=streamline_color,
+                    streamline_alpha=streamline_alpha,
                     color_start_points=color_start_points,
                     ax=axes_list[i],
                     **streamline_kwargs_dict,
