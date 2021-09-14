@@ -9,7 +9,7 @@ from ..tools.utils import (
     fetch_states,
 )
 from ..vectorfield import SvcVectorField
-from .utils import remove_redundant_points_trajectory, arclength_sampling, pca_to_expr, find_elbow
+from .utils import remove_redundant_points_trajectory, arclength_sampling_n, pca_to_expr, find_elbow
 from .trajectory import Trajectory
 from ..dynamo_logger import LoggerManager
 
@@ -99,7 +99,7 @@ def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None
     return path, dt, action_opt
 
 
-def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, elbow_method="hes", hes_tol=3):
+def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, elbow_method="hessian", hes_tol=3):
     T = np.linspace(t_min, t0, num_t)
     A = np.zeros(num_t)
     opt_T = np.zeros(num_t)
@@ -123,9 +123,10 @@ def get_init_path(G, start, end, coords, interpolation_num=20):
     path = nx.shortest_path(G, source_ind, target_ind)
     init_path = coords[path, :]
 
-    _, arclen, _ = remove_redundant_points_trajectory(init_path, tol=1e-4, output_discard=True)
-    arc_stepsize = arclen / (interpolation_num - 1)
-    init_path_final, _, _ = arclength_sampling(init_path, step_length=arc_stepsize, t=np.arange(len(init_path)))
+    # _, arclen, _ = remove_redundant_points_trajectory(init_path, tol=1e-4, output_discard=True)
+    # arc_stepsize = arclen / (interpolation_num - 1)
+    # init_path_final, _, _ = arclength_sampling(init_path, step_length=arc_stepsize, t=np.arange(len(init_path)))
+    init_path_final, _, _ = arclength_sampling_n(init_path, interpolation_num, t=np.arange(len(init_path)))
 
     # add the beginning and end point
     init_path_final = np.vstack((start, init_path_final, end))
