@@ -478,6 +478,19 @@ def arclength_sampling(X, step_length, t=None):
         return np.array(Y), arclength
 
 
+def arclength_sampling_n(X, num, t=None):
+    arclen = np.cumsum(np.linalg.norm(np.diff(X, axis=0), axis=1))
+    arclen = np.hstack((0, arclen))
+
+    z = np.linspace(arclen[0], arclen[-1], num)
+    X_ = interpolate.interp1d(arclen, X, axis=0)(z)
+    if t is not None:
+        t_ = interpolate.interp1d(arclen, t)(z)
+        return X_, arclen[-1], t_
+    else:
+        return X_, arclen[-1]
+
+
 # ---------------------------------------------------------------------------------------------------
 # trajectory related
 def pca_to_expr(X, PCs, mean=0, func=None):
@@ -648,7 +661,7 @@ def kneedle_difference(t, f, type="decrease"):
 
 def find_elbow(T, F, method="kneedle", order=1, **kwargs):
     i_elbow = None
-    if method == "hes":
+    if method == "hessian":
         T_ = normalize(T)
         F_ = normalize(F)
         tol = kwargs.pop("tol", 2)
@@ -663,6 +676,13 @@ def find_elbow(T, F, method="kneedle", order=1, **kwargs):
 
         if not found:
             main_warning("The elbow was not found.")
+
+    elif method == "curvature":
+        T_ = normalize(T)
+        F_ = normalize(F)
+        t_, cur = interp_curvature(T_, F_, **kwargs)
+
+        i_elbow = np.argmax(cur)
 
     elif method == "kneedle":
         type = "decrease" if order == -1 else "increase"
