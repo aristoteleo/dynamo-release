@@ -1,12 +1,14 @@
+from dynamo.preprocessing.utils import convert_layers2csr
 from dynamo.preprocessing import PreprocessWorker
 from scipy.sparse.csr import csr_matrix
-from dynamo.preprocessing.gene_selection_utils import (
+from dynamo.preprocessing.pp_worker_utils import (
     calc_mean_var_dispersion_sparse,
     is_log1p_transformed_adata,
     log1p_adata,
 )
 from utils import *
 import dynamo as dyn
+import anndata
 
 logger = LoggerManager.get_main_logger()
 SHOW_FIG = True
@@ -122,7 +124,18 @@ def test_is_log_transformed():
     assert is_log1p_transformed_adata(adata)
 
 
+def test_layers2csr_matrix():
+    adata = dyn.sample_data.zebrafish()
+    adata = adata[100:]
+    convert_layers2csr(adata)
+    for key in adata.layers.keys():
+        print("layer:", key, "type:", type(adata.layers[key]))
+        assert type(adata.layers[key]) is anndata._core.views.SparseCSRView
+
+
 if __name__ == "__main__":
+    # test_layers2csr_matrix()
+
     # generate data if needed
     adata = gen_or_read_zebrafish_data()
     test_is_log_transformed()

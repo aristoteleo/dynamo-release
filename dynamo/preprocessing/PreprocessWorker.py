@@ -1,10 +1,11 @@
-from typing import Callable
+from typing import Callable, Optional
 from anndata import AnnData
 
 
-from .gene_selection_utils import (
+from .pp_worker_utils import (
     _infer_labeling_experiment_type,
     is_log1p_transformed_adata,
+    normalize_cell_expr_by_size_factors,
     select_genes_by_dispersion_general,
     filter_genes_by_outliers as default_filter_genes_by_outliers,
     log1p_adata,
@@ -22,7 +23,7 @@ class PreprocessWorker:
         convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = default_filter_cells_by_outliers,
         filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
-        normalize_by_cells_function: Callable = None,
+        normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
         select_genes_function: Callable = select_genes_by_dispersion_general,
         use_log1p: bool = True,
         n_top_genes=2000,
@@ -52,13 +53,8 @@ class PreprocessWorker:
         self.convert_gene_name = convert_gene_name_function
         self.collapse_species_adata = collapse_speicies_adata_function
 
-    def preprocess_adata(self, adata: AnnData, tkey: str = "time", experiment_type: str = None):
+    def preprocess_adata(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
-        if tkey is not None and adata.obs[tkey].max() > 60:
-            main_warning(
-                "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
-                "we recommend using hour as the time unit."
-            )
 
         adata.uns["pp"] = {}
         main_info_insert_adata("%s" % adata.uns["pp"], "uns['pp']", indent_level=2)
@@ -69,6 +65,17 @@ class PreprocessWorker:
             splicing_labeling,
             has_protein,
         ) = detect_experiment_datatype(adata)
+        # check whether tkey info exists if has_labeling
+        if has_labeling:
+            main_info("data contains labeling info, checking tkey:" + str(tkey))
+            if tkey not in adata.obs.keys():
+                raise ValueError("tkey:%s encoding the labeling time is not existed in your adata." % (str(tkey)))
+            if tkey is not None and adata.obs[tkey].max() > 60:
+                main_warning(
+                    "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                    "we recommend using hour as the time unit."
+                )
+
         adata.uns["pp"]["tkey"] = tkey
         adata.uns["pp"]["has_splicing"] = has_splicing
         adata.uns["pp"]["has_labeling"] = has_labeling

@@ -292,10 +292,10 @@ def unique_var_obs_adata(adata):
     return adata
 
 
-def layers2csr(adata):
+def convert_layers2csr(adata):
     """Function to make the obs and var attribute's index unique"""
-    for i in adata.layers.keys():
-        adata.layers[i] = csr_matrix(adata.layers[i]) if not issparse(adata.layers[i]) else adata.layers[i]
+    for key in adata.layers.keys():
+        adata.layers[key] = csr_matrix(adata.layers[key]) if not issparse(adata.layers[key]) else adata.layers[key]
 
     return adata
 
@@ -326,9 +326,10 @@ def get_inrange_shared_counts_mask(adata, layers, min_shared_count, count_by="ge
         main_debug(adata.layers[layer].shape)
         main_debug("layer: %s" % layer)
         if issparse(adata.layers[layers[0]]):
+            main_debug("when sparse, layer type:" + str(type(adata.layers[layer])))
             _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros.multiply(adata.layers[layer] > 0)
         else:
-            main_debug("nonzeros type:", str(type(_nonzeros)))
+            main_debug("when not sparse, layer type:" + str(type(adata.layers[layer])))
 
             _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros * (adata.layers[layer] > 0)
 

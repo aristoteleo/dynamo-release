@@ -4,8 +4,8 @@
 from .dynast import lambda_correction
 
 from .preprocess import (
-    szFactor,
-    normalize_cell_expr_by_size_factors,
+    calc_sz_factor_legacy,
+    normalize_cell_expr_by_size_factors_legacy,
     recipe_monocle,
     recipe_velocyto,
     Gini,
@@ -32,11 +32,12 @@ from .utils import (
     filter_genes_by_pattern,
     decode,
 )
+from .pp_worker_utils import *
 from .PreprocessWorker import PreprocessWorker
 
 __all__ = [
     "lambda_correction",
-    "szFactor",
+    "calc_sz_factor_legacy",
     "normalize_cell_expr_by_size_factors",
     "recipe_monocle",
     "recipe_velocyto",

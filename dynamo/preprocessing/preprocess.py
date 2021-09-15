@@ -24,7 +24,7 @@ from .utils import (
     normalize_util,
     get_sz_exprs,
     unique_var_obs_adata,
-    layers2csr,
+    convert_layers2csr,
     collapse_species_adata,
     NTR,
     detect_experiment_datatype,
@@ -40,10 +40,10 @@ from ..dynamo_logger import (
 )
 from ..utils import copy_adata
 from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager
-from .gene_selection_utils import _infer_labeling_experiment_type, filter_genes_by_outliers, filter_cells_by_outliers
+from .pp_worker_utils import _infer_labeling_experiment_type, filter_genes_by_outliers, filter_cells_by_outliers
 
 
-def szFactor(
+def calc_sz_factor_legacy(
     adata_ori: anndata.AnnData,
     layers: Union[str, list] = "all",
     total_layers: Union[list, None] = None,
@@ -180,7 +180,7 @@ def szFactor(
     return adata_ori
 
 
-def normalize_cell_expr_by_size_factors(
+def normalize_cell_expr_by_size_factors_legacy(
     adata: anndata.AnnData,
     layers: str = "all",
     total_szfactor: str = "total_Size_Factor",
@@ -253,7 +253,7 @@ def normalize_cell_expr_by_size_factors(
         layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
         if "Size_Factor" in layers:
             layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
-        szFactor(
+        calc_sz_factor_legacy(
             adata,
             layers=layers,
             locfunc=np.nanmean,
@@ -1354,7 +1354,7 @@ def recipe_monocle(
         "ensure all data in different layers in csr sparse matrix format.",
         indent_level=1,
     )
-    adata = layers2csr(adata)
+    adata = convert_layers2csr(adata)
     logger.info("ensure all labeling data properly collapased", indent_level=1)
     adata = collapse_species_adata(adata)
 
@@ -1520,7 +1520,7 @@ def recipe_monocle(
     # calculate sz factor
     logger.info("calculating size factor...")
     if not _has_szFactor_normalized or "Size_Factor" not in adata.obs_keys():
-        adata = szFactor(
+        adata = calc_sz_factor_legacy(
             adata,
             total_layers=total_layers,
             scale_to=scale_to,
@@ -1627,7 +1627,7 @@ def recipe_monocle(
     if not _has_log1p_transformed:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
         logger.info("size factor normalizing the data, followed by log1p transformation.")
-        adata = normalize_cell_expr_by_size_factors(
+        adata = normalize_cell_expr_by_size_factors_legacy(
             adata,
             layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
@@ -1797,7 +1797,7 @@ def recipe_velocyto(
         keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
 
-    adata = szFactor(adata, method="mean", total_layers=total_layers)
+    adata = calc_sz_factor_legacy(adata, method="mean", total_layers=total_layers)
     initial_Ucell_size = adata.layers["unspliced"].sum(1)
 
     filter_bool = initial_Ucell_size > np.percentile(initial_Ucell_size, 0.4)
@@ -1831,7 +1831,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool_gene & filter_bool_cluster]
 
-    adata = normalize_cell_expr_by_size_factors(
+    adata = normalize_cell_expr_by_size_factors_legacy(
         adata,
         total_szfactor=None,
         norm_method=norm_method,
