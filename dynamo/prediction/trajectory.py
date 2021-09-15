@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from ..vectorfield.utils import normalize_vectors, angle
-from ..vectorfield.scVectorField import differentiable_vectorfield
-from .utils import arclength_sampling, remove_redundant_points_trajectory, pca_to_expr, expr_to_pca
+from ..vectorfield.scVectorField import DifferentiableVectorField
+from .utils import arclength_sampling_n, remove_redundant_points_trajectory, pca_to_expr, expr_to_pca
 from ..tools.utils import flatten
 from ..dynamo_logger import LoggerManager
 
@@ -40,9 +40,9 @@ class Trajectory:
             kappa[i] = angle(tvec[i - 1], tvec[i]) / (np.linalg.norm(tvec[i - 1] / 2) + np.linalg.norm(tvec[i] / 2))
         return kappa
 
-    def resample(self, n_points, tol=1e-4, overwrite=True):
+    def resample(self, n_points, tol=1e-4, inplace=True):
         # remove redundant points
-        if tol is not None:
+        """if tol is not None:
             X, arclen, discard = remove_redundant_points_trajectory(self.X, tol=tol, output_discard=True)
             if self.t is not None:
                 t = np.array(self.t[~discard], copy=True)
@@ -51,15 +51,16 @@ class Trajectory:
         else:
             X = np.array(self.X, copy=True)
             t = np.array(self.t, copy=True) if self.t is not None else None
-            arclen = self.calc_arclength()
+            arclen = self.calc_arclength()"""
 
         # resample using the arclength sampling
-        ret = arclength_sampling(X, arclen / n_points, t=t)
+        # ret = arclength_sampling(X, arclen / n_points, t=t)
+        ret = arclength_sampling_n(self.X, n_points, t=self.t)
         X = ret[0]
-        if t is not None:
+        if self.t is not None:
             t = ret[2]
 
-        if overwrite:
+        if inplace:
             self.X, self.t = X, t
 
         return X, t
@@ -99,7 +100,7 @@ class Trajectory:
 
 
 class VectorFieldTrajectory(Trajectory):
-    def __init__(self, X, t, vecfld: differentiable_vectorfield) -> None:
+    def __init__(self, X, t, vecfld: DifferentiableVectorField) -> None:
         super().__init__(X, t=t)
         self.vecfld = vecfld
         self.data = {"velocity": None, "acceleration": None, "curvature": None, "divergence": None}

@@ -12,7 +12,7 @@ import anndata
 from typing import Union
 from ..dynamo_logger import LoggerManager, main_warning, main_info
 
-from .scVectorField import base_vectorfield, SvcVectorfield
+from .scVectorField import BaseVectorField, SvcVectorField
 from ..tools.utils import (
     update_dict,
     inverse_norm,
@@ -400,7 +400,7 @@ def util_topology(adata, basis, X, dims, func, VecFld, n=25, **kwargs):
     else:
         fp_ind = None
         xlim, ylim, confidence, NCx, NCy = None, None, None, None, None
-        vecfld = base_vectorfield(
+        vecfld = BaseVectorField(
             X=VecFld["X"][VecFld["valid_ind"], :],
             V=VecFld["Y"][VecFld["valid_ind"], :],
             func=func,
@@ -543,7 +543,7 @@ def VectorField(
     result_key: Union[str, None] = None,
     copy: bool = False,
     **kwargs,
-) -> Union[anndata.AnnData, base_vectorfield]:
+) -> Union[anndata.AnnData, BaseVectorField]:
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
 
     Parameters
@@ -769,7 +769,7 @@ def VectorField(
         while True:
             if method.lower() == "sparsevfc":
                 kwargs.update({"seed": restart_seed[restart_counter]})
-                VecFld = SvcVectorfield(X, V, Grid, **vf_kwargs)
+                VecFld = SvcVectorField(X, V, Grid, **vf_kwargs)
                 cur_vf_dict = VecFld.train(normalize=normalize, **kwargs)
             elif method.lower() == "dynode":
                 train_kwargs = update_dict(train_kwargs, kwargs)
@@ -809,7 +809,7 @@ def VectorField(
                 break
     else:
         if method.lower() == "sparsevfc":
-            VecFld = SvcVectorfield(X, V, Grid, **vf_kwargs)
+            VecFld = SvcVectorField(X, V, Grid, **vf_kwargs)
             vf_dict = VecFld.train(normalize=normalize, **kwargs)
         elif method.lower() == "dynode":
             train_kwargs = update_dict(train_kwargs, kwargs)
@@ -949,7 +949,7 @@ def assign_fixedpoints(
 
     VecFld, func = vecfld_from_adata(adata, basis=basis)
 
-    vecfld_class = base_vectorfield(
+    vecfld_class = BaseVectorField(
         X=VecFld["X"],
         V=VecFld["Y"],
         func=func,
