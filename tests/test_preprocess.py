@@ -139,7 +139,7 @@ if __name__ == "__main__":
     # generate data if needed
     adata = gen_or_read_zebrafish_data()
     test_is_log_transformed()
-    test_PreprocessWorker_simple_run(adata)
+    test_PreprocessWorker_simple_run(dyn.sample_data.zebrafish())
 
     test_filter_by_dispersion_sparse()
     # TODO use a fixture in future

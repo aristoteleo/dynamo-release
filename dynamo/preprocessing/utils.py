@@ -320,7 +320,7 @@ def get_inrange_shared_counts_mask(adata, layers, min_shared_count, count_by="ge
     _nonzeros, _sum = None, None
 
     # TODO fix bug: when some layers are sparse and some others are not (mixed sparse and ndarray), if the first one happens to be sparse,
-    # dimension mismatch error will be raised; if the first layer is not sparse, then the following loop works fine.
+    # dimension mismatch error will be raised; if the first layer (layers[0]) is not sparse, then the following loop works fine.
     # also check if layers2csr() function works
     for layer in layers:
         main_debug(adata.layers[layer].shape)
