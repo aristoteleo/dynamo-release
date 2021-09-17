@@ -11,7 +11,7 @@ from .pp_worker_utils import (
     log1p_adata,
     filter_cells_by_outliers as default_filter_cells_by_outliers,
 )
-from .utils import collapse_species_adata, detect_experiment_datatype, convert2symbol
+from .utils import collapse_species_adata, detect_experiment_datatype, convert2symbol, unique_var_obs_adata
 from ..tools.connectivity import neighbors as default_neighbors
 from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
 
@@ -91,12 +91,14 @@ class PreprocessWorker:
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
         main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
 
+        main_info("making adata observation index unique...")
+        adata = unique_var_obs_adata(adata)
         if self.collapse_species_adata:
             main_info("applying collapse species adata...")
-            self.convert_gene_name(adata)
+            self.collapse_species_adata(adata)
 
         if self.convert_gene_name:
-            main_info("applying filter genes function...")
+            main_info("applying convert_gene_name function...")
             self.convert_gene_name(adata)
 
         if self.filter_cells_by_outliers:
