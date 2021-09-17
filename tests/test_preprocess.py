@@ -134,7 +134,7 @@ def test_layers2csr_matrix():
 
 
 if __name__ == "__main__":
-    # test_layers2csr_matrix()
+    test_layers2csr_matrix()
 
     # generate data if needed
     adata = gen_or_read_zebrafish_data()

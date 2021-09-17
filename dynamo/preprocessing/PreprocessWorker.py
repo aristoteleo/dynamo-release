@@ -30,6 +30,7 @@ class PreprocessWorker:
         n_top_genes=2000,
         gene_append_list: List = [],
         gene_exclude_list: List = [],
+        force_gene_list: Optional[List] = None,
     ) -> None:
         """Initialize the worker.
 
@@ -55,8 +56,9 @@ class PreprocessWorker:
         self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
         self.collapse_species_adata = collapse_speicies_adata_function
-        self.gene_append_list = (gene_append_list,)
+        self.gene_append_list = gene_append_list
         self.gene_exclude_list = gene_exclude_list
+        self.force_gene_list = force_gene_list
 
     def preprocess_adata(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
@@ -129,12 +131,23 @@ class PreprocessWorker:
         if self.select_genes:
             main_info("applying filter genes function...")
             self.select_genes(adata, n_top_genes=self.n_top_genes)
-            if self.gene_append_list is not None:
-                append_genes = adata.var.index.intersection(self.gene_append_list)
-                adata.var.loc[append_genes, DKM.VAR_USE_FOR_PCA] = True
-                main_info("appended %d extra genes as required..." % len(append_genes))
 
-            if self.gene_exclude_list is not None:
-                exclude_genes = adata.var.index.intersection(self.gene_exclude_list)
-                adata.var.loc[exclude_genes, DKM.VAR_USE_FOR_PCA] = False
-                main_info("excluded %d genes as required..." % len(exclude_genes))
+        # gene selection has been completed above. Now we need to append/delete/force gene list required by users.
+        if self.gene_append_list is not None:
+            append_genes = adata.var.index.intersection(self.gene_append_list)
+            adata.var.loc[append_genes, DKM.VAR_USE_FOR_PCA] = True
+            main_info("appended %d extra genes as required..." % len(append_genes))
+
+        if self.gene_exclude_list is not None:
+            exclude_genes = adata.var.index.intersection(self.gene_exclude_list)
+            adata.var.loc[exclude_genes, DKM.VAR_USE_FOR_PCA] = False
+            main_info("excluded %d genes as required..." % len(exclude_genes))
+
+        if self.force_gene_list is not None:
+            adata.var.loc[:, DKM.VAR_USE_FOR_PCA] = False
+            forced_genes = adata.var.index.intersection(self.force_gene_list)
+            adata.var.loc[forced_genes, DKM.VAR_USE_FOR_PCA] = True
+            main_info(
+                "OVERWRITE all gene selection results above according to user gene list inputs. %d genes in use."
+                % len(forced_genes)
+            )
