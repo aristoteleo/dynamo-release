@@ -1132,7 +1132,7 @@ def recipe_monocle(
     genes_to_use: Union[list, None] = None,
     genes_to_append: Union[list, None] = None,
     genes_to_exclude: Union[list, None] = None,
-    exprs_frac_max: float = 1,
+    exprs_frac_for_gene_exclusion: float = 1,
     method: str = "pca",
     num_dim: int = 30,
     sz_method: str = "median",
@@ -1213,7 +1213,7 @@ def recipe_monocle(
             A list of gene names that will be appended to the feature genes list for downstream analysis.
         genes_to_exclude: `list` (default: `None`)
             A list of gene names that will be excluded to the feature genes list for downstream analysis.
-        exprs_frac_max: `float` (default: `1`)
+        exprs_frac_for_gene_exclusion: `float` (default: `1`)
             The minimal fraction of gene counts to the total counts across cells that will used to filter genes. By
             default it is 1 which means we don't filter any genes, but we need to change it to 0.005 or something in
             order to remove some highly expressed housekeeping genes.
@@ -1574,7 +1574,7 @@ def recipe_monocle(
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
 
     logger.info_insert_adata("frac", "var")
-    adata.var["frac"], invalid_ids = gene_exp_fraction(X=adata.X, threshold=exprs_frac_max)
+    adata.var["frac"], invalid_ids = gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
     genes_to_exclude = (
         list(adata.var_names[invalid_ids])
         if genes_to_exclude is None
@@ -1587,9 +1587,9 @@ def recipe_monocle(
             adata.var.loc[valid_genes, "use_for_pca"] = True
 
     if genes_to_exclude is not None:
-        valid_genes = adata.var.index.intersection(genes_to_exclude)
-        if len(valid_genes) > 0:
-            adata.var.loc[valid_genes, "use_for_pca"] = False
+        exclude_genes = adata.var.index.intersection(genes_to_exclude)
+        if len(exclude_genes) > 0:
+            adata.var.loc[exclude_genes, "use_for_pca"] = False
 
         if adata.var.use_for_pca.sum() < 50 and not maintain_n_top_genes:
             main_warning(

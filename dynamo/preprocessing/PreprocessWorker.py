@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 from anndata import AnnData
 
 
@@ -14,6 +14,7 @@ from .pp_worker_utils import (
 from .utils import collapse_species_adata, detect_experiment_datatype, convert2symbol, unique_var_obs_adata
 from ..tools.connectivity import neighbors as default_neighbors
 from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
+from ..configuration import DKM
 
 
 class PreprocessWorker:
@@ -27,6 +28,8 @@ class PreprocessWorker:
         select_genes_function: Callable = select_genes_by_dispersion_general,
         use_log1p: bool = True,
         n_top_genes=2000,
+        gene_append_list: List = [],
+        gene_exclude_list: List = [],
     ) -> None:
         """Initialize the worker.
 
@@ -46,12 +49,14 @@ class PreprocessWorker:
         self.filter_cells_by_outliers = filter_cells_by_outliers_function
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
         self.normalize_by_cells = normalize_by_cells_function
-        self.filter_genes = select_genes_function
+        self.select_genes = select_genes_function
         self.use_log1p = use_log1p
         self.log1p = log1p_adata
         self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
         self.collapse_species_adata = collapse_speicies_adata_function
+        self.gene_append_list = (gene_append_list,)
+        self.gene_exclude_list = gene_exclude_list
 
     def preprocess_adata(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
@@ -121,6 +126,15 @@ class PreprocessWorker:
             main_info("applying log1p transformation on expression matrix data (adata.X)...")
             log1p_adata(adata)
 
-        if self.filter_genes:
+        if self.select_genes:
             main_info("applying filter genes function...")
-            self.filter_genes(adata, n_top_genes=self.n_top_genes)
+            self.select_genes(adata, n_top_genes=self.n_top_genes)
+            if self.gene_append_list is not None:
+                append_genes = adata.var.index.intersection(self.gene_append_list)
+                adata.var.loc[append_genes, DKM.VAR_USE_FOR_PCA] = True
+                main_info("appended %d extra genes as required..." % len(append_genes))
+
+            if self.gene_exclude_list is not None:
+                exclude_genes = adata.var.index.intersection(self.gene_exclude_list)
+                adata.var.loc[exclude_genes, DKM.VAR_USE_FOR_PCA] = False
+                main_info("excluded %d genes as required..." % len(exclude_genes))

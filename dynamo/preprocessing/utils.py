@@ -124,7 +124,7 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
 
 
 def gene_exp_fraction(X, threshold=0.001):
-    """Calculate fraction of each gene's coun to total counts across cells and identify high fraction genes."""
+    """Calculate fraction of each gene's count to total counts across cells and identify high fraction genes."""
 
     frac = X.sum(0) / X.sum()
     if issparse(X):
