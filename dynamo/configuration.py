@@ -35,6 +35,7 @@ class DynamoAdataKeyManager:
         return sep.join([layer_name, key])
 
     def select_layer_data(adata, layer, copy=False) -> pd.DataFrame:
+        """select layer data based on layer key. For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo convention, this utility provides an unified interface for selecting layer data with shape n_obs x n_var."""
         res_data = None
         if layer == DynamoAdataKeyManager.X_LAYER:
             res_data = adata.X
@@ -52,6 +53,7 @@ class DynamoAdataKeyManager:
             return True
         if layer == DynamoAdataKeyManager.PROTEIN_LAYER:
             return DynamoAdataKeyManager.PROTEIN_LAYER in adata.obsm
+
         return layer in adata.layers
 
     def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True):

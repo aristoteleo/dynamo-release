@@ -26,7 +26,7 @@ from .utils import (
     unique_var_obs_adata,
     convert_layers2csr,
     collapse_species_adata,
-    NTR,
+    calc_new_to_total_ratio,
     detect_experiment_datatype,
     basic_stats,
     add_noise_to_duplicates,
@@ -1708,7 +1708,7 @@ def recipe_monocle(
         feature_selection,
     )
     # calculate NTR for every cell:
-    ntr, var_ntr = NTR(adata)
+    ntr, var_ntr = calc_new_to_total_ratio(adata)
     if ntr is not None:
         logger.info_insert_adata("ntr", "obs")
         logger.info_insert_adata("ntr", "var")
@@ -1875,7 +1875,7 @@ def recipe_velocyto(
     )
 
     # calculate NTR for every cell:
-    ntr = NTR(adata)
+    ntr = calc_new_to_total_ratio(adata)
     if ntr is not None:
         adata.obs["ntr"] = ntr
 

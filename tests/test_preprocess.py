@@ -11,7 +11,7 @@ import dynamo as dyn
 import anndata
 
 logger = LoggerManager.get_main_logger()
-SHOW_FIG = True
+SHOW_FIG = False
 
 
 def test_highest_frac_genes_plot(adata, is_X_sparse=True):
@@ -107,9 +107,9 @@ def test_filter_by_dispersion_sparse():
     expected_mean = np.mean(sparse_mat.toarray(), axis=0)
     expected_var = np.var(sparse_mat.toarray(), axis=0)
     expected_dispersion = expected_var / expected_mean
-    assert np.all((mean - expected_mean) == 0)
-    assert np.all((var - expected_var) == 0)
-    assert np.all((dispersion - expected_dispersion) == 0)
+    assert np.all(np.isclose(mean, expected_mean))
+    assert np.all(np.isclose(var, expected_var))
+    assert np.all(np.isclose(dispersion, expected_dispersion))
 
 
 def test_PreprocessWorker_simple_run(adata):

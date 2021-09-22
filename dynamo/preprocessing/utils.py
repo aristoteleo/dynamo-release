@@ -773,7 +773,7 @@ def default_layer(adata):
     return default_layer
 
 
-def NTR(adata):
+def calc_new_to_total_ratio(adata):
     """calculate the new to total ratio across cells. Note that
     NTR for the first time point in degradation approximates gamma/beta."""
 
