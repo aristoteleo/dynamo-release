@@ -22,6 +22,13 @@ from .utils import (
     _datashade_points,
     save_fig,
 )
+from ..estimation.fit_jacobian import (
+    fit_hill_grad,
+    hill_act_func,
+    hill_inh_func,
+    hill_inh_grad,
+    hill_act_grad,
+)
 
 
 def bandwidth_nrd(x):
@@ -119,6 +126,21 @@ def kde2d(x, y, h=None, n=25, lims=None):
     return gx, gy, z
 
 
+def kde2d_to_mean_and_sigma(gx, gy, dens):
+    x_grid = np.unique(gx)
+    y_mean = np.zeros(len(x_grid))
+    y_sigm = np.zeros(len(x_grid))
+    for i, x in enumerate(x_grid):
+        mask = gx == x
+        den = dens[mask]
+        Y_ = gy[mask]
+        mean = np.average(Y_, weights=den)
+        sigm = np.sqrt(np.average((Y_ - mean) ** 2, weights=den))
+        y_mean[i] = mean
+        y_sigm[i] = sigm
+    return x_grid, y_mean, y_sigm
+
+
 def response(
     adata,
     pairs_mat,
@@ -133,6 +155,15 @@ def response(
     cmap=None,
     show_ridge=False,
     show_rug=True,
+    zero_indicator=False,
+    zero_line_style="w--",
+    zero_line_width=2.5,
+    mean_style="c*",
+    fit_curve=False,
+    fit_mode="hill",
+    curve_style="c-",
+    curve_lw=2.5,
+    no_degradation=True,
     show_extent=False,
     ext_format=None,
     stacked_fraction=False,
@@ -311,7 +342,7 @@ def response(
             max_vec = [max(x), max(y)]
             bandwidth[bandwidth == 0] = max_vec[bandwidth == 0] / grid_num
 
-        # den_res[0, 0] is at the lower bottom; dens[1, 4]: is the 2th on x-axis and 5th on y-axis
+        # den_res[0, 0] is at the lower bottom; dens[1, 4]: is the 2nd on x-axis and 5th on y-axis
         x_meshgrid, y_meshgrid, den_res = kde2d(
             x, y, n=[grid_num, grid_num], lims=[min(x), max(x), min(y), max(y)], h=bandwidth
         )
@@ -361,6 +392,12 @@ def response(
         raise Exception("The number of row or column specified is less than the gene pairs")
     figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
+
+    if fit_curve:
+        fit_dict = {}
+
+    def scale_func(x, X, grid_num):
+        return grid_num * (x - np.min(X)) / (np.max(X) - np.min(X))
 
     for x, flat_res_type in enumerate(flat_res.type.unique()):
         gene_pairs = flat_res_type.split("->")
@@ -427,9 +464,66 @@ def response(
         if not show_extent:
             despline_all(axes[i, j])
 
-        # for some reason,  I have add an extra element at the beginingfor the ticklabels
+        # for some reason,  I have add an extra element at the begining for the ticklabels
         xlabels = list(np.linspace(ext_lim[0], ext_lim[1], 5))
         ylabels = list(np.linspace(ext_lim[2], ext_lim[3], 5))
+
+        # zero indicator
+        if zero_indicator:
+            axes[i, j].plot(
+                scale_func([np.min(xlabels), np.max(xlabels)], xlabels, grid_num),
+                scale_func(np.zeros(2), ylabels, grid_num),
+                zero_line_style,
+                linewidth=zero_line_width,
+            )
+
+        # curve fitting
+        if fit_curve:
+            if fit_mode == "hill":
+                if ykey.startswith("jacobian"):
+                    x_grid, y_mean, y_sigm = kde2d_to_mean_and_sigma(
+                        np.array(x_val), np.array(y_val), flat_res_subset["den"].values
+                    )
+                    fix_g = 0 if no_degradation else None
+
+                    pdict_act, msd_act = fit_hill_grad(x_grid, y_mean, "act", y_sigm=y_sigm, fix_g=fix_g)
+                    pdict_inh, msd_inh = fit_hill_grad(x_grid, y_mean, "inh", y_sigm=y_sigm, fix_g=fix_g, x_shift=1e-4)
+
+                    if msd_act < msd_inh:
+                        fit_type = "act"
+                        pdict = pdict_act
+                        msd = msd_act
+                    else:
+                        fit_type = "inh"
+                        pdict = pdict_inh
+                        msd = msd_inh
+
+                    # adata.uns[f'jacobian_response_fit_{gene_pairs[0]}_{gene_pairs[1]}'] = {
+                    fit_dict[f"{gene_pairs[0]}_{gene_pairs[1]}"] = {
+                        "genes": gene_pairs,
+                        "mode": "hill",
+                        "type": fit_type,
+                        "msd": msd,
+                        "param": pdict,
+                        "x_grid": x_grid,
+                    }
+
+                    xs = np.linspace(x_grid[0], x_grid[-1], 100)
+                    func = hill_act_grad if fit_type == "act" else hill_inh_grad
+
+                    xplot = scale_func(xs, xlabels, grid_num)
+                    if mean_style is not None:
+                        axes[i, j].plot(
+                            scale_func(x_grid, xlabels, grid_num), scale_func(y_mean, ylabels, grid_num), mean_style
+                        )
+                    axes[i, j].plot(
+                        xplot,
+                        scale_func(func(xs, pdict["A"], pdict["K"], pdict["n"], pdict["g"]), ylabels, grid_num),
+                        curve_style,
+                        linewidth=curve_lw,
+                    )
+                else:
+                    raise NotImplementedError("The hill function can be applied to the Jacobian response heatmap only.")
 
         # set the x/y ticks
         inds = np.linspace(0, grid_num - 1, 5, endpoint=True)
@@ -495,13 +589,119 @@ def response(
         plt.show()
 
     if return_data:
-        return (flat_res, flat_res_subset, ridge_curve_subset)
+        if fit_dict is None:
+            return (flat_res, flat_res_subset, ridge_curve_subset)
+        else:
+            return (flat_res, flat_res_subset, ridge_curve_subset, fit_dict)
     else:
         adata.uns["response"] = {
             "flat_res": flat_res,
             "flat_res_subset": flat_res_subset,
             "ridge_curve_subset": ridge_curve_subset,
         }
+        if fit_dict is not None:
+            adata.uns["response"]["fit_curve"] = fit_dict
+
+
+def plot_hill_function(
+    adata,
+    pairs_mat=None,
+    normalize=True,
+    n_row=1,
+    n_col=None,
+    figsize=(6, 4),
+    linewidth=2,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    **plot_kwargs,
+):
+
+    import matplotlib.pyplot as plt
+
+    if "response" not in adata.uns.keys():
+        raise Exception("`response` is not found in `.uns`. Run `pl.response` first.")
+    if "fit_curve" not in adata.uns["response"].keys():
+        raise Exception("`fit_curve` is not found. Run `pl.response` with `fit_curve=True` first.")
+
+    fit_dict = adata.uns["response"]["fit_curve"]
+    if pairs_mat is None:
+        pairs_mat = []
+        for pairs in fit_dict.keys():
+            genes = pairs.split("_")
+            pairs_mat.append([genes[0], genes[1]])
+
+    all_genes_in_pair = np.unique(pairs_mat)
+
+    if not (set(all_genes_in_pair) <= set(adata.var_names)):
+        raise Exception(
+            "adata doesn't include all genes in gene_pairs_mat. Make sure all genes are included in adata.var_names."
+        )
+
+    gene_pairs_num = len(pairs_mat)
+    n_col = gene_pairs_num if n_col is None else n_col
+
+    if n_row * n_col < gene_pairs_num:
+        raise Exception("The number of row or column specified is less than the gene pairs")
+    figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
+    fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
+
+    for pair_i, gene_pairs in enumerate(pairs_mat):
+        i, j = pair_i % n_row, pair_i // n_row  # %: remainder; //: integer division
+
+        gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
+
+        key = f"{gene_pairs[0]}_{gene_pairs[1]}"
+        if key not in fit_dict.keys():
+            raise Exception(f"The gene pair {key} is not found in the dictionary.")
+
+        mode = fit_dict[key]["mode"]
+        x_grid = fit_dict[key]["x_grid"]
+        fit_type = fit_dict[key]["type"]
+        A, K, n, g = (
+            fit_dict[key]["param"]["A"],
+            fit_dict[key]["param"]["K"],
+            fit_dict[key]["param"]["n"],
+            fit_dict[key]["param"]["g"],
+        )
+        if normalize:
+            A = 1.0
+
+        if mode == "hill":
+            xs = np.linspace(x_grid[0], x_grid[-1], 100)
+            if fit_type == "act":
+                func = hill_act_func
+            elif fit_type == "inh":
+                func = hill_inh_func
+            else:
+                raise NotImplementedError(f"Unknown hill function type `{fit_type}`")
+
+            axes[i, j].plot(xs, func(xs, A, K, n, g), linewidth=linewidth, **plot_kwargs)
+            axes[i, j].set_xlabel(gene_pairs[0])
+            axes[i, j].set_ylabel(r"$f_{%s}$" % gene_pairs[1])
+            axes[i, j].set_title(gene_pair_name)
+        else:
+            raise NotImplementedError(f"The fit mode `{mode}` is not supported.")
+
+    plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "scatters",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return in ["show", "both", "all"]:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+
+        plt.show()
 
 
 def causality(

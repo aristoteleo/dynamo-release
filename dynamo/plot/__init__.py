@@ -64,7 +64,7 @@ from .networks import (
 
 from .fate import fate_bias, fate
 from .state_graph import state_graph
-from .least_action_path import least_action
+from .least_action_path import least_action, lap_min_time
 
 from .scPotential import show_landscape
 
@@ -79,7 +79,7 @@ from .ezplots import (
 )
 
 from .clustering import louvain, leiden, infomap, streamline_clusters
-from .heatmaps import response, causality, comb_logic
+from .heatmaps import response, plot_hill_function, causality, comb_logic
 
 # spatial data related
 from .space import space
@@ -137,6 +137,7 @@ __all__ = [
     "fate",
     "state_graph",
     "least_action",
+    "lap_min_time",
     "show_landscape",
     "louvain",
     "leiden",
@@ -151,6 +152,7 @@ __all__ = [
     "SchemeDivergeBWR",
     "streamline_clusters",
     "response",
+    "plot_hill_function",
     "causality",
     "comb_logic",
 ]

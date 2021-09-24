@@ -20,7 +20,7 @@ from .utils import (
     average_jacobian_by_group,
     intersect_sources_targets,
 )
-from .scVectorField import SvcVectorfield
+from .scVectorField import SvcVectorField
 from ..tools.sampling import sample
 from ..tools.utils import (
     list_top_genes,
@@ -88,7 +88,7 @@ def velocities(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -110,6 +110,7 @@ def velocities(
         vec_mat = vec_mat[:, dims]
 
     if basis == "pca":
+        adata.uns["velocities_pca"] = vec_mat
         Qkey = "PCs" if Qkey is None else Qkey
 
         if Qkey in adata.uns.keys():
@@ -164,7 +165,7 @@ def speed(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -257,7 +258,7 @@ def jacobian(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -436,7 +437,7 @@ def sensitivity(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -590,7 +591,7 @@ def acceleration(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -631,7 +632,7 @@ def acceleration(
 def curvature(
     adata: AnnData,
     basis: str = "pca",
-    vector_field_class: scVectorField.base_vectorfield = None,
+    vector_field_class: scVectorField.BaseVectorField = None,
     formula: int = 2,
     Qkey: str = "PCs",
     method: str = "analytical",
@@ -672,7 +673,7 @@ def curvature(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -734,7 +735,7 @@ def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -781,7 +782,7 @@ def curl(adata, basis="umap", vector_field_class=None, method="analytical", **kw
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
@@ -837,7 +838,7 @@ def divergence(
         if "method" not in vf_dict.keys():
             vf_dict["method"] = "sparsevfc"
         if vf_dict["method"].lower() == "sparsevfc":
-            vector_field_class = SvcVectorfield()
+            vector_field_class = SvcVectorField()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
