@@ -293,7 +293,6 @@ def least_action(
         n_points = len(path_sol)  # the actual #points due to arclength resampling
 
         if min_lap_t:
-            print(f"dt_sol: {dt_sol}")
             t_sol = dt_sol * (n_points - 1)
             t_min = 0.3 * t_sol
             i_elbow_, laps_, A_, opt_T_ = minimize_lap_time(
