@@ -33,14 +33,7 @@ Because :math:`\mathbf f` is a vector-valued multivariate function, a
 *Jacobian*, plays a fundamental role in differential geometry analysis
 of vector fields:
 
-:raw-latex:`\begin{align*}
-    \mathbf J &= \begin{bmatrix}
-        &\dfrac{\partial f_1}{\partial x_1} & \dfrac{\partial f_1}{\partial x_2} & \cdots & \dfrac{\partial f_1}{\partial x_d} &\ \\[3ex]
-        &\dfrac{\partial f_2}{\partial x_1} & \dfrac{\partial f_2}{\partial x_2} & \cdots & \dfrac{\partial f_2}{\partial x_d} &\ \\[1.5ex]
-        &\vdots & \vdots & \ddots & \vdots &\ \\[1.5ex]
-        &\dfrac{\partial f_d}{\partial x_1} & \dfrac{\partial f_d}{\partial x_2} & \cdots & \dfrac{\partial f_d}{\partial x_d} &\ 
-    \end{bmatrix} \ .
-\end{align*}`
+:math:`\begin{align*}  \mathbf J &= \begin{bmatrix}  &\dfrac{\partial f_1}{\partial x_1} & \dfrac{\partial f_1}{\partial x_2} & \cdots & \dfrac{\partial f_1}{\partial x_d} &\ \\[3ex]  &\dfrac{\partial f_2}{\partial x_1} & \dfrac{\partial f_2}{\partial x_2} & \cdots & \dfrac{\partial f_2}{\partial x_d} &\ \\[1.5ex]  &\vdots & \vdots & \ddots & \vdots &\ \\[1.5ex]  &\dfrac{\partial f_d}{\partial x_1} & \dfrac{\partial f_d}{\partial x_2} & \cdots & \dfrac{\partial f_d}{\partial x_d} &\   \end{bmatrix} \ . \end{align*}`
 
 A Jacobian element :math:`\partial f_i/\partial x_j` reflects how the
 velocity of :math:`x_i` is impacted by changes in :math:`x_j`.
@@ -64,9 +57,8 @@ field.
 
    </h1>
 
-The trace of the Jacobian is divergence: :raw-latex:`\begin{align*}
-    \nabla \cdot \mathbf f = \sum_{i=1}^{d}\dfrac{\partial f_i}{\partial x_i} = \mathrm{tr} \mathbf J \ .
-\end{align*}`
+The trace of the Jacobian is divergence:
+:math:`\begin{align*}  \nabla \cdot \mathbf f = \sum_{i=1}^{d}\dfrac{\partial f_i}{\partial x_i} = \mathrm{tr} \mathbf J \ . \end{align*}`
 
 Divergence measures the degree of “outgoingness” at any point,
 summarized in **Box Fig. 1A**.
@@ -81,13 +73,7 @@ not necessarily hold.
 *Curl* is a quantity measuring the degree of rotation at a given point
 in the vector field. It is well-defined only in two or three dimensions
 (e.g. two or three reduced principal components or UMAP components):
-:raw-latex:`\begin{align*}
-    \nabla \times \mathbf f &= \begin{bmatrix}
-        \dfrac{\partial f_z}{\partial y} - \dfrac{\partial f_y}{\partial z} \\[2.5ex]
-        \dfrac{\partial f_x}{\partial z} - \dfrac{\partial f_z}{\partial x} \\[2.5ex]
-        \dfrac{\partial f_y}{\partial x} - \dfrac{\partial f_x}{\partial y}
-    \end{bmatrix}\ .
-\end{align*}`
+:math:`\begin{align*}  \nabla \times \mathbf f &= \begin{bmatrix}  \dfrac{\partial f_z}{\partial y} - \dfrac{\partial f_y}{\partial z} \\[2.5ex]  \dfrac{\partial f_x}{\partial z} - \dfrac{\partial f_z}{\partial x} \\[2.5ex]  \dfrac{\partial f_y}{\partial x} - \dfrac{\partial f_x}{\partial y}  \end{bmatrix}\ . \end{align*}`
 
 The behavior of curl is summarized in **Box Fig. 1B**.
 
@@ -100,18 +86,14 @@ integration methods, e.g., the Runge–Kutta algorithm. The *acceleration*
 is the time derivative of the velocity, as shown in **Box Fig. 1C**
 (orange shade), and can be defined as:
 
-:raw-latex:`\begin{align*}
-    \mathbf a = \dfrac{\mathrm d \mathbf v}{\mathrm d t} = \dfrac{\mathrm d}{\mathrm d t}\mathbf f\Big(\mathbf x(t)\Big) = \sum_{i=1}^{d} \dfrac{\partial \mathbf f}{\partial x_i}\dfrac{\partial x_i}{\partial t} = \mathbf J \mathbf v \ .
-\end{align*}`
+:math:`\begin{align*}  \mathbf a = \dfrac{\mathrm d \mathbf v}{\mathrm d t} = \dfrac{\mathrm d}{\mathrm d t}\mathbf f\Big(\mathbf x(t)\Big) = \sum_{i=1}^{d} \dfrac{\partial \mathbf f}{\partial x_i}\dfrac{\partial x_i}{\partial t} = \mathbf J \mathbf v \ . \end{align*}`
 
 The curvature vector (**Box Fig. 1C**, green shade) of a curve is
 defined as the derivative of the unit tangent vector
 (:math:`\frac{\mathrm d}{\mathrm dt}\frac{\mathrm v}{|\mathrm v|}`),
 divided by the length of the tangent (:math:`|\mathrm v|`):
 
-:raw-latex:`\begin{align*}
-    \mathrm \kappa = \dfrac{1}{|\mathrm v|}\dfrac{\mathrm d}{\mathrm d t}\dfrac{\mathrm v}{|\mathrm v|} = \dfrac{\mathrm J\mathrm v(\mathrm v\cdot \mathrm v) - \mathrm v(\mathrm v\cdot \mathrm J\mathrm v)}{|\mathrm v|^4} \ .
-\end{align*}`
+:math:`\begin{align*}  \mathrm \kappa = \dfrac{1}{|\mathrm v|}\dfrac{\mathrm d}{\mathrm d t}\dfrac{\mathrm v}{|\mathrm v|} = \dfrac{\mathrm J\mathrm v(\mathrm v\cdot \mathrm v) - \mathrm v(\mathrm v\cdot \mathrm J\mathrm v)}{|\mathrm v|^4} \ . \end{align*}`
 
 In the context of velocity vector fields and streamlines, the unit
 tangent vector is the normalized velocity.
@@ -123,9 +105,7 @@ normalized. **Box Fig. 1C** (green shade) illustrates how the
 acceleration can be decomposed into a tangential and a radial component,
 and the latter is connected to the curvature:
 
-:raw-latex:`\begin{align*}
-    \mathbf a = \mathbf a_t + |\mathbf v|^2\mathbf \kappa \ .
-\end{align*}`
+:math:`\begin{align*}  \mathbf a = \mathbf a_t + |\mathbf v|^2\mathbf \kappa \ . \end{align*}`
 
 Although acceleration and curvature are mathematically defined on
 streamlines, the actual calculation, as shown above, can be done
