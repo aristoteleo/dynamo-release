@@ -28,7 +28,7 @@ tutorial for details on how to analyze the cell cycle dataset.
 
 .. raw:: html
 
-    <div>
+    <div style="overflow: scroll;">
     <style scoped>
         .dataframe tbody tr th:only-of-type {
             vertical-align: middle;
@@ -163,7 +163,7 @@ typical dynamo analysis workflow
 
 .. raw:: html
 
-    <div>
+    <div style="overflow: scroll;">
     <style scoped>
         .dataframe tbody tr th:only-of-type {
             vertical-align: middle;
@@ -413,7 +413,7 @@ typical dynamo analysis workflow
 
 .. raw:: html
 
-    <div>
+    <div style="overflow: scroll;">
     <style scoped>
         .dataframe tbody tr th:only-of-type {
             vertical-align: middle;
@@ -752,8 +752,8 @@ Visualize time-resolved vector flow learned with dynamo
 
 
 .. image:: scEU_seq_organoid_analysis_kinetic_files/scEU_seq_organoid_analysis_kinetic_16_4.png
-   :width: 586px
-   :height: 390px
+   :width: 100%
+   
 
 
 .. code:: ipython3
@@ -770,8 +770,8 @@ Visualize time-resolved vector flow learned with dynamo
 
 
 .. image:: scEU_seq_organoid_analysis_kinetic_files/scEU_seq_organoid_analysis_kinetic_17_1.png
-   :width: 589px
-   :height: 390px
+   :width: 100%
+   
 
 
 .. code:: ipython3
@@ -796,8 +796,8 @@ Visualize time-resolved vector flow learned with dynamo
 
 
 .. image:: scEU_seq_organoid_analysis_kinetic_files/scEU_seq_organoid_analysis_kinetic_19_0.png
-   :width: 1509px
-   :height: 1624px
+   :width: 100%
+   
 
 
 Animate intestine organoid differentiation
