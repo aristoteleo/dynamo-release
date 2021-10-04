@@ -69,7 +69,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    :maxdepth: 1
    :hidden:
 
-   zebrafish
+   notebooks/zebrafish
 
 
 .. toctree::
@@ -77,9 +77,9 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    :maxdepth: 1
    :hidden:
 
-   scNT_seq_readthedocs
-   scEU_seq_rpe1_analysis_kinetic
-   scEU_seq_organoid_analysis_kinetic
+   notebooks/scNT_seq_readthedocs
+   notebooks/scEU_seq_rpe1_analysis_kinetic
+   notebooks/scEU_seq_organoid_analysis_kinetic
 
 
 .. toctree::
@@ -87,7 +87,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    :maxdepth: 1
    :hidden:
 
-   Differential_geometry
+   notebooks/Differential_geometry
 
 
 Indices and tables
