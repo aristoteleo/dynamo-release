@@ -60,6 +60,7 @@ docs = [
   'nbsphinx',
   'mock',
   'readthedocs-sphinx-ext',
+  'GitPython'
 ]
 network = ["networkx", "nxviz", "hiveplotlib", "python-igraph", "leidenalg", "wurlitzer"]
 spatial = ['pysal>2.0.0']
