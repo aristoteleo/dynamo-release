@@ -149,6 +149,7 @@ def least_action(
     vecfld: Union[None, Callable] = None,
     adj_key: str = "pearson_transition_matrix",
     n_points: int = 25,
+    init_paths: Union[None, np.ndarray, list] = None,
     D: int = 10,
     PCs: Union[None, str] = None,
     expr_func: callable = np.expm1,
@@ -188,6 +189,8 @@ def least_action(
             The key to the adjacency matrix in adata.obsp
         n_points:
             Number of way points on the least action paths.
+        init_paths:
+            Initial paths that will be used for optimization.
         D:
             The diffusion constant. In theory, the diffusion matrix needs to be a function of cell states but we use a
             constant for the purpose of simplicity.
@@ -265,6 +268,7 @@ def least_action(
         opt_T = []
         A = []
 
+    path_ind = 0
     for (init_state, target_state) in LoggerManager.progress_logger(
         pairs, progress_name=f"iterating through {len(pairs)} pairs\n"
     ):
@@ -272,8 +276,12 @@ def least_action(
             "initializing path with the shortest path in the graph built from the velocity transition matrix...",
             indent_level=2,
         )
-        init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
+        if init_paths is None:
+            init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
+        else:
+            init_path = init_paths if type(init_paths) == np.ndarray else init_paths[path_ind]
 
+        path_ind += 1
         logger.info(
             "optimizing for least action path...",
             indent_level=2,
