@@ -35,23 +35,23 @@ master_doc = "index"
 
 # the following are borrowed from scvelo
 # -- Retrieve notebooks ------------------------------------------------
-notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
-notebooks = [
-    "Introduction.ipynb",
-    "Primer.ipynb",
-    "Differential_geometry.ipynb",
-    "zebrafish.ipynb",
-    # "dentategyrus_subset_scvelo.ipynb",
-    # "pancreatic_endocrinogenesis.ipynb",
-    "scNT_seq_readthedocs.ipynb",
-    "scEU_seq_rpe1_analysis_kinetic.ipynb",
-    "scEU_seq_organoid_analysis_kinetic.ipynb",
-]
-for nb in notebooks:
-    try:
-        urlretrieve(notebooks_url + nb, nb)
-    except:
-        pass
+# notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
+# notebooks = [
+#     "Introduction.ipynb",
+#     "Primer.ipynb",
+#     "Differential_geometry.ipynb",
+#     "zebrafish.ipynb",
+#     # "dentategyrus_subset_scvelo.ipynb",
+#     # "pancreatic_endocrinogenesis.ipynb",
+#     "scNT_seq_readthedocs.ipynb",
+#     "scEU_seq_rpe1_analysis_kinetic.ipynb",
+#     "scEU_seq_organoid_analysis_kinetic.ipynb",
+# ]
+# for nb in notebooks:
+#     try:
+#         urlretrieve(notebooks_url + nb, nb)
+#     except:
+#         pass
 
 github_org = "aristoteleo"
 github_code_repo = "dynamo-release"
