@@ -47,8 +47,8 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    :maxdepth: 1
    :hidden:
 
-   Introduction
-   Primer
+   notebooks/Introduction
+   notebooks/Primer
 
 
 .. toctree::
