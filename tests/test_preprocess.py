@@ -5,6 +5,7 @@ from dynamo.preprocessing.pp_worker_utils import (
     calc_mean_var_dispersion_sparse,
     is_log1p_transformed_adata,
     log1p_adata,
+    select_genes_by_dispersion_general,
 )
 from utils import *
 import dynamo as dyn
@@ -101,7 +102,7 @@ def test_recipe_monocle_feature_selection_layer_simple0():
     dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False, feature_selection_layer="new")
 
 
-def test_filter_by_dispersion_sparse():
+def test_calc_dispersion_sparse():
     # TODO add randomize tests
     sparse_mat = csr_matrix([[1, 2, 0, 1], [0, 0, 3, 1], [4, 0, 5, 1]])
     mean, var, dispersion = calc_mean_var_dispersion_sparse(sparse_mat)
@@ -141,7 +142,13 @@ def test_compute_gene_exp_fraction():
     print("frac:", list(frac))
     assert np.all(np.isclose(frac, [2/5, 3/5]))
 
+def test_select_genes_seurat(adata):
+    select_genes_by_dispersion_general(adata, recipe="seurat")
+
 if __name__ == "__main__":
+
+    test_select_genes_seurat(gen_or_read_zebrafish_data())
+
     test_compute_gene_exp_fraction()
     test_layers2csr_matrix()
 
@@ -150,7 +157,7 @@ if __name__ == "__main__":
     test_is_log_transformed()
     test_PreprocessWorker_simple_run(dyn.sample_data.zebrafish())
 
-    test_filter_by_dispersion_sparse()
+    test_calc_dispersion_sparse()
     # TODO use a fixture in future
     test_highest_frac_genes_plot(adata.copy())
     test_highest_frac_genes_plot_prefix_list(adata.copy())
