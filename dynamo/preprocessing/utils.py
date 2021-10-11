@@ -275,7 +275,7 @@ def basic_stats(adata):
     adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
     try:
-        adata.obs["pMito"] = adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1))
+        adata.obs["pMito"] = np.array(adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1)))
     except:  # noqa E722
         main_exception(
             "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
