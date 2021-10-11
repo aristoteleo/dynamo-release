@@ -31,6 +31,7 @@ from .utils import (
     convert2symbol,
     filter_genes_by_pattern,
     decode,
+    compute_gene_exp_fraction,
 )
 from .pp_worker_utils import *
 from .PreprocessWorker import PreprocessWorker

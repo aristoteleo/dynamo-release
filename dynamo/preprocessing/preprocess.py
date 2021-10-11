@@ -30,7 +30,7 @@ from .utils import (
     detect_experiment_datatype,
     basic_stats,
     add_noise_to_duplicates,
-    gene_exp_fraction,
+    compute_gene_exp_fraction,
 )
 from ..dynamo_logger import (
     main_info,

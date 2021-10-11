@@ -9,6 +9,7 @@ from dynamo.preprocessing.pp_worker_utils import (
 from utils import *
 import dynamo as dyn
 import anndata
+import pandas as pd
 
 logger = LoggerManager.get_main_logger()
 SHOW_FIG = False
@@ -133,7 +134,15 @@ def test_layers2csr_matrix():
         assert type(adata.layers[key]) is anndata._core.views.SparseCSRView
 
 
+def test_compute_gene_exp_fraction():
+    # TODO fix compute_gene_exp_fraction: discuss with Xiaojie
+    df = pd.DataFrame([[1, 2], [1, 1]])
+    frac, indices = dyn.preprocessing.compute_gene_exp_fraction(df)
+    print("frac:", list(frac))
+    assert np.all(np.isclose(frac, [2/5, 3/5]))
+
 if __name__ == "__main__":
+    test_compute_gene_exp_fraction()
     test_layers2csr_matrix()
 
     # generate data if needed
