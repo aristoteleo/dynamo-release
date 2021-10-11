@@ -189,7 +189,7 @@ def select_genes_by_seurat_recipe(adata: AnnData,
                                   max_disp=None,
                                   min_mean=None,
                                   max_mean=None):
-    """"""
+    """Apply seurat's gene selection therapy by cutoffs. https://satijalab.org/seurat/reference/findvariablefeatures"""
     # default values from Seurat
     if min_disp is None:
         min_disp = 0.5
@@ -202,9 +202,6 @@ def select_genes_by_seurat_recipe(adata: AnnData,
 
     mean, variance, dispersion = calc_mean_var_dispersion_sparse(sparse_layer_mat)
 
-    # Cautious: If use copy(deep=False) to save memory in future,
-    # do not modify exprs_matrix's layer_mat part, or underlying data will be modified and layer_mat will be modified together with expr_matrix
-    # It is fine to add columns though. (pandas 1.3.3)
     exprs_matrix = pd.DataFrame()
     exprs_matrix["mean"], exprs_matrix["dispersion"] = mean, dispersion
 
