@@ -337,7 +337,7 @@ def umap_conn_indices_dist_embedding(
         }
         umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
 
-        mapper = umap.UMAP(
+        mapper = umap.umap_.UMAP(
             n_neighbors=n_neighbors,
             n_components=n_components,
             metric=metric,
