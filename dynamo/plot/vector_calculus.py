@@ -245,6 +245,66 @@ def divergence(
 
 
 @docstrings.with_indent(4)
+def acceleration(
+    adata: AnnData,
+    basis: str = "pca",
+    color: Union[str, list, None] = None,
+    frontier: bool = True,
+    *args,
+    **kwargs,
+):
+    """\
+    Scatter plot with cells colored by the estimated acceleration (and other information if provided).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object with curvature estimated.
+        basis: `str` or None (default: `pca`)
+            The embedding data in which the vector field was reconstructed and RNA curvature was estimated.
+        color: `str`, `list` or None:
+            Any column names or gene names, etc. in addition to the `acceleration` to be used for coloring cells.
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
+        %(scatters.parameters.no_adata|color|cmap|frontier)s
+
+    Returns
+    -------
+    Nothing but plots scatterplots with cells colored by the estimated curvature (and other information if provided).
+
+    Examples
+    --------
+    >>> import dynamo as dyn
+    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+    >>> dyn.pp.recipe_monocle(adata)
+    >>> dyn.tl.dynamics(adata)
+    >>> dyn.tl.cell_velocities(adata, basis='pca')
+    >>> dyn.vf.VectorField(adata, basis='pca')
+    >>> dyn.vf.acceleration(adata)
+    >>> dyn.pl.acceleration(adata)
+    """
+
+    acc_key = "acceleration" if basis is None else "acceleration_" + basis
+    color_ = [acc_key]
+    if not np.any(adata.obs.columns.isin(color_)):
+        raise Exception(
+            f"{acc_key} is not existed in .obs, try run dyn.tl.acceleration(adata, basis='{curv_key}') first."
+        )
+
+    adata.obs[acc_key] = adata.obs[acc_key].astype("float")
+    adata_ = adata[~adata.obs[acc_key].isna(), :]
+
+    if color is not None:
+        color = [color] if type(color) == str else color
+        color_.extend(color)
+
+    return scatters(adata_, color=color_, frontier=frontier, *args, **kwargs)
+
+
+@docstrings.with_indent(4)
 def curvature(
     adata: AnnData,
     basis: str = "pca",
