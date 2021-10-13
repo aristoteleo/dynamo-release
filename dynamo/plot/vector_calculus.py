@@ -291,7 +291,7 @@ def acceleration(
     color_ = [acc_key]
     if not np.any(adata.obs.columns.isin(color_)):
         raise Exception(
-            f"{acc_key} is not existed in .obs, try run dyn.tl.acceleration(adata, basis='{curv_key}') first."
+            f"{acc_key} is not existed in .obs, try run dyn.tl.acceleration(adata, basis='{acc_key}') first."
         )
 
     adata.obs[acc_key] = adata.obs[acc_key].astype("float")
