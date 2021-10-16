@@ -625,7 +625,7 @@ def VectorField(
             If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
     logger = LoggerManager.gen_logger("dynamo-topography")
-    logger.info("vectorfield calculation begins...", indent_level=1)
+    logger.info("VectorField reconstruction begins...", indent_level=1)
     logger.log_time()
     adata = copy_adata(adata) if copy else adata
 

@@ -9,8 +9,9 @@ from ..tools.utils import (
     fetch_states,
 )
 from ..vectorfield import SvcVectorField
-from .utils import remove_redundant_points_trajectory, arclength_sampling_n, pca_to_expr, find_elbow
-from .trajectory import Trajectory
+from ..vectorfield.utils import vector_field_function_transformation, vector_transformation
+from .utils import arclength_sampling_n, pca_to_expr, find_elbow
+from .trajectory import Trajectory, GeneTrajectory
 from ..dynamo_logger import LoggerManager
 
 
@@ -149,6 +150,7 @@ def least_action(
     vecfld: Union[None, Callable] = None,
     adj_key: str = "pearson_transition_matrix",
     n_points: int = 25,
+    init_paths: Union[None, np.ndarray, list] = None,
     D: int = 10,
     PCs: Union[None, str] = None,
     expr_func: callable = np.expm1,
@@ -188,6 +190,8 @@ def least_action(
             The key to the adjacency matrix in adata.obsp
         n_points:
             Number of way points on the least action paths.
+        init_paths:
+            Initial paths that will be used for optimization.
         D:
             The diffusion constant. In theory, the diffusion matrix needs to be a function of cell states but we use a
             constant for the purpose of simplicity.
@@ -265,6 +269,7 @@ def least_action(
         opt_T = []
         A = []
 
+    path_ind = 0
     for (init_state, target_state) in LoggerManager.progress_logger(
         pairs, progress_name=f"iterating through {len(pairs)} pairs\n"
     ):
@@ -272,8 +277,12 @@ def least_action(
             "initializing path with the shortest path in the graph built from the velocity transition matrix...",
             indent_level=2,
         )
-        init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
+        if init_paths is None:
+            init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
+        else:
+            init_path = init_paths if type(init_paths) == np.ndarray else init_paths[path_ind]
 
+        path_ind += 1
         logger.info(
             "optimizing for least action path...",
             indent_level=2,
@@ -285,7 +294,6 @@ def least_action(
         n_points = len(path_sol)  # the actual #points due to arclength resampling
 
         if min_lap_t:
-            print(f"dt_sol: {dt_sol}")
             t_sol = dt_sol * (n_points - 1)
             t_min = 0.3 * t_sol
             i_elbow_, laps_, A_, opt_T_ = minimize_lap_time(
@@ -381,3 +389,41 @@ class LeastActionPath(Trajectory):
         dt_sol = t_dict["x"][0]
         self.t = np.arange(self.X.shape[0]) * dt_sol
         return dt_sol
+
+
+class GeneLeastActionPath(GeneTrajectory):
+    def __init__(self, adata, lap: LeastActionPath = None, X_pca=None, vf_func=None, D=1, dt=1, **kwargs) -> None:
+        if lap is not None:
+            self.from_lap(adata, lap, **kwargs)
+        else:
+            super().__init__(X_pca=X_pca, t=np.arange(X_pca.shape[0]) * dt, **kwargs)
+            self.func = vector_field_function_transformation(vf_func, self.PCs, self.to_pca)
+            self.D = D
+
+        self.adata = adata
+        if self.X is not None and self.func is not None:
+            self.action = self.genewise_action()
+
+    def from_lap(self, adata, lap: LeastActionPath, **kwargs):
+        super().__init__(adata, X_pca=lap.X, t=lap.t, **kwargs)
+        self.func = vector_field_function_transformation(lap.func, self.PCs, self.to_pca)
+        self.D = lap.D
+
+    def get_t(self):
+        return self.t
+
+    def get_dt(self):
+        return np.mean(np.diff(self.t))
+
+    def genewise_action(self):
+        dt = self.get_dt()
+        x = (self.X[:-1] + self.X[1:]) * 0.5
+        v = np.diff(self.X, axis=0) / dt
+
+        s = v - self.func(x)
+        s = 0.5 * np.sum(s * s, axis=0) * dt / self.D
+
+        return s
+
+    def select_genewise_action(self, genes):
+        return super().select_gene(genes, arr=self.action)

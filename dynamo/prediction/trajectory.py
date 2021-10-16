@@ -151,7 +151,16 @@ class VectorFieldTrajectory(Trajectory):
 
 class GeneTrajectory(Trajectory):
     def __init__(
-        self, adata, X=None, t=None, X_pca=None, PCs="PCs", mean="pca_mean", genes="use_for_pca", **kwargs
+        self,
+        adata,
+        X=None,
+        t=None,
+        X_pca=None,
+        PCs="PCs",
+        mean="pca_mean",
+        genes="use_for_pca",
+        expr_func=None,
+        **kwargs,
     ) -> None:
         """
         This class is not fully functional yet.
@@ -165,22 +174,26 @@ class GeneTrajectory(Trajectory):
             mean = self.adata.uns[mean]
         self.mean = mean
 
+        self.expr_func = expr_func
+
         if type(genes) is str:
             genes = adata.var_names[adata.var[genes]].to_list()
         self.genes = np.array(genes)
 
         if X_pca is not None:
-            self.from_pca(X_pca, **kwargs)
+            self.from_pca(X_pca, t=t, **kwargs)
 
         if X is not None:
             super().__init__(X, t=t)
 
-    def from_pca(self, X_pca, func=None, t=None):
-        X = pca_to_expr(X_pca, self.PCs, mean=self.mean, func=func)
+    def from_pca(self, X_pca, t=None):
+        X = pca_to_expr(X_pca, self.PCs, mean=self.mean, func=self.expr_func)
         super().__init__(X, t=t)
 
-    def to_pca(self, func=None):
-        return expr_to_pca(self.X, self.PCs, mean=self.mean, func=func)
+    def to_pca(self, x=None):
+        if x is None:
+            x = self.X
+        return expr_to_pca(x, self.PCs, mean=self.mean, func=self.expr_func)
 
     def genes_to_mask(self):
         mask = np.zeros(self.adata.n_vars, dtype=np.bool_)
@@ -188,7 +201,7 @@ class GeneTrajectory(Trajectory):
             mask[self.adata.var_names == g] = True
         return mask
 
-    def calc_msd(self, save_key="lap_msd", **kwargs):
+    def calc_msd(self, save_key="traj_msd", **kwargs):
         msd = super().calc_msd(**kwargs)
 
         LoggerManager.main_logger.info_insert_adata(save_key, "var")
@@ -202,14 +215,24 @@ class GeneTrajectory(Trajectory):
         self.adata.varm[save_key] = np.ones((self.adata.n_vars, self.X.shape[0])) * np.nan
         self.adata.varm[save_key][self.genes_to_mask(), :] = self.X.T
 
-    def select_gene(self, genes):
+    def select_gene(self, genes, arr=None, axis=None):
+        if arr is None:
+            arr = self.X
+        if arr.ndim == 1:
+            axis = 0
+        else:
+            if axis is None:
+                axis = 1
         y = []
         if self.genes is not None:
             for g in genes:
                 if g not in self.genes:
                     LoggerManager.main_logger.warning(f"{g} is not in `self.genes`.")
                 else:
-                    y.append(flatten(self.X[:, self.genes == g]))
+                    if axis == 0:
+                        y.append(flatten(arr[self.genes == g]))
+                    elif axis == 1:
+                        y.append(flatten(arr[:, self.genes == g]))
         else:
             raise Exception("Cannot select genes since `self.genes` is `None`.")
 

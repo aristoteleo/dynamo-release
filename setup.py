@@ -11,7 +11,7 @@ if __name__ == "__main__":
     setup(
         name="dynamo-release",
         version="1.0.0",
-        python_requires=">=3.6",
+        python_requires=">=3.7",
         install_requires=[l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines()],  # 'yt>=3.5.1',
         extras_require={
             "spatial": ["pysal>2.0.0"],

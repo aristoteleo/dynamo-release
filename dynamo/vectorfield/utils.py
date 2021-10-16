@@ -275,7 +275,7 @@ def vector_transformation(V, Q):
     return V @ Q.T
 
 
-def vector_field_function_transformation(vf_func, Q):
+def vector_field_function_transformation(vf_func, Q, func_inv_x):
     """Transform vector field function from PCA space to the original space.
     The formula used for transformation:
                                             :math:`\hat{f} = f Q^T`,
@@ -289,6 +289,8 @@ def vector_field_function_transformation(vf_func, Q):
         Q: :class:`~numpy.ndarray`
             PCA loading matrix with dimension d x k, where d is the dimension of the original space,
             and k the number of leading PCs.
+        func_inv_x: callable
+            The function that transform x back into the PCA space.
 
     Returns
     -------
@@ -296,7 +298,7 @@ def vector_field_function_transformation(vf_func, Q):
             The transformed vector field function.
 
     """
-    return lambda x: vf_func.func(x) @ Q.T
+    return lambda x: vf_func(func_inv_x(x)) @ Q.T
 
 
 # ---------------------------------------------------------------------------------------------------

@@ -64,8 +64,36 @@ def scifate():
     pass
 
 
-def scNT_seq():
-    pass
+def scNT_seq_neuron_splicing(
+    url="https://www.dropbox.com/s/5wk3q2xhgqai2xq/neuron_splicing_4_11.h5ad?dl=1",
+    filename="neuron_splicing.h5ad",
+):
+    """The neuron splicing data is from Qiu, et al (2020).
+    This data consists of 44,021 genes across 13,476 cells.
+
+    Returns
+    -------
+        Returns `adata` object
+    """
+    adata = get_adata(url, filename)
+
+    return adata
+
+
+def scNT_seq_neuron_labeling(
+    url="https://www.dropbox.com/s/5wk3q2xhgqai2xq/neuron_labeling.h5ad?dl=1",
+    filename="neuron_labeling.h5ad",
+):
+    """The neuron splicing data is from Qiu, et al (2020).
+    This data consists of 37,007 genes across 3,060 cells.
+
+    Returns
+    -------
+        Returns `adata` object
+    """
+    adata = get_adata(url, filename)
+
+    return adata
 
 
 def cite_seq():
@@ -77,7 +105,7 @@ def zebrafish(
     filename="zebrafish.h5ad",
 ):
     """The zebrafish is from Saunders, et al (2019).
-    This data consists of 16, 940 genes across 4, 181 cells.
+    This data consists of 16,940 genes across 4,181 cells.
 
     Returns
     -------
@@ -93,7 +121,7 @@ def DentateGyrus(
     filename=None,
 ):
     """The Dentate Gyrus dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb.
-    This data consists of 27, 998 genes across 18, 213 cells.
+    This data consists of 27,998 genes across 18,213 cells.
 
     Note this one http://pklab.med.harvard.edu/velocyto/DG1/10X43_1.loom: a subset of the above data.
 
@@ -111,7 +139,7 @@ def Haber(
     filename=None,
 ):
     """The Haber dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/Haber_et_al.ipynb
-    This data consists of 27, 998 genes across 7, 216 cells.
+    This data consists of 27,998 genes across 7,216 cells.
 
     Returns
     -------
@@ -133,7 +161,7 @@ def hgForebrainGlutamatergic(
     filename=None,
 ):
     """The hgForebrainGlutamatergic dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/hgForebrainGlutamatergic.ipynb
-    This data consists of 32, 738 genes across 1, 720 cells.
+    This data consists of 32,738 genes across 1,720 cells.
 
     Returns
     -------
@@ -155,7 +183,7 @@ def chromaffin(
     filename="onefilepercell_A1_unique_and_others_J2CH1.loom",
 ):  #
     """The chromaffin dataset used in http://pklab.med.harvard.edu/velocyto/notebooks/R/chromaffin2.nb.html
-    This data consists of 32, 738 genes across 1, 720 cells.
+    This data consists of 32,738 genes across 1,720 cells.
 
     Returns
     -------
@@ -173,7 +201,7 @@ def BM(
     filename=None,
 ):
     """The BM dataset used in http://pklab.med.harvard.edu/velocyto/notebooks/R/SCG71.nb.html
-    This data consists of 24, 421genes across 6, 667 cells.
+    This data consists of 24,421genes across 6,667 cells.
 
     Returns
     -------
@@ -209,7 +237,7 @@ def DentateGyrus_scvelo(
     filename="dentategyrus_scv.h5ad",
 ):
     """The Dentate Gyrus dataset used in https://github.com/theislab/scvelo_notebooks/tree/master/data/DentateGyrus.
-    This data consists of 13, 913 genes across 2, 930 cells.
+    This data consists of 13,913 genes across 2,930 cells.
 
     Note this dataset is the same processed dataset from the excellent scVelo package, which is a subset of the DentateGyrus dataset.
 
@@ -222,13 +250,30 @@ def DentateGyrus_scvelo(
     return adata
 
 
-def scEU_seq(
+def scEU_seq_rpe1(
     url: str = "https://www.dropbox.com/s/25enev458c8egn7/rpe1.h5ad?dl=1",
     filename: str = "rpe1.h5ad",
 ):
     """
     Download rpe1 dataset from Battich, et al (2020) via Dropbox link.
-    This data consists of 13, 913 genes across 2, 930 cells.
+    This data consists of 13,913 genes across 2,930 cells.
+
+    Returns
+    -------
+        Returns `adata` object
+    """
+    main_info("Downloading scEU_seq data")
+    adata = get_adata(url, filename)
+    return adata
+
+
+def scEU_seq_organoid(
+    url: str = "https://www.dropbox.com/s/25enev458c8egn7/organoid.h5ad?dl=1",
+    filename: str = "organoid.h5ad",
+):
+    """
+    Download organoid dataset from Battich, et al (2020) via Dropbox link.
+    This data consists of 9,157 genes across 3,831 cells.
 
     Returns
     -------

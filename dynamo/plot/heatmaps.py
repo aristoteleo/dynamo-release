@@ -393,6 +393,7 @@ def response(
     figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
 
+    fit_dict = None
     if fit_curve:
         fit_dict = {}
 
