@@ -17,7 +17,7 @@ from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
 from ..configuration import DKM
 
 
-class PreprocessWorker:
+class Preprocessor:
     def __init__(
         self,
         collapse_speicies_adata_function: Callable = collapse_species_adata,

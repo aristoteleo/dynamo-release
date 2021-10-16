@@ -34,7 +34,7 @@ from .utils import (
     compute_gene_exp_fraction,
 )
 from .pp_worker_utils import *
-from .PreprocessWorker import PreprocessWorker
+from .Preprocessor import Preprocessor
 
 __all__ = [
     "lambda_correction",

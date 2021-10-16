@@ -1,5 +1,5 @@
 from dynamo.preprocessing.utils import convert_layers2csr
-from dynamo.preprocessing import PreprocessWorker
+from dynamo.preprocessing import Preprocessor
 from scipy.sparse.csr import csr_matrix
 from dynamo.preprocessing.pp_worker_utils import (
     calc_mean_var_dispersion_sparse,
@@ -114,8 +114,8 @@ def test_calc_dispersion_sparse():
     assert np.all(np.isclose(dispersion, expected_dispersion))
 
 
-def test_PreprocessWorker_simple_run(adata):
-    preprocess_worker = PreprocessWorker()
+def test_Preprocessor_simple_run(adata):
+    preprocess_worker = Preprocessor()
     preprocess_worker.preprocess_adata(adata)
 
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     # generate data if needed
     adata = gen_or_read_zebrafish_data()
     test_is_log_transformed()
-    test_PreprocessWorker_simple_run(dyn.sample_data.zebrafish())
+    test_Preprocessor_simple_run(dyn.sample_data.zebrafish())
 
     test_calc_dispersion_sparse()
     # TODO use a fixture in future
