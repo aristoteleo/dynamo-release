@@ -110,6 +110,7 @@ class DynamoAdataConfig:
     dynamics_del_2nd_moments = None
     recipe_del_2nd_moments = None
 
+    # add str variables to store key name string here
     (
         RECIPE_KEEP_FILTERED_CELLS_KEY,
         RECIPE_KEEP_FILTERED_GENES_KEY,
@@ -130,6 +131,7 @@ class DynamoAdataConfig:
         "recipe_del_2nd_moments",
     ]
 
+    # config_key_to_values contains _key to values for config values
     config_key_to_values = None
 
     def use_default_var_if_none(val, key, replace_val=None):
@@ -191,7 +193,7 @@ class DynamoAdataConfig:
         }
 
 
-# initialize DynamoSaveConfig mode as default
+# initialize DynamoSaveConfig full mode as default
 DynamoAdataConfig.update_data_store_mode("full")
 
 
