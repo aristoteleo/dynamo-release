@@ -86,7 +86,7 @@ def calc_mean_var_dispersion(
     """Calculate mean, variance and dispersion of data_mat, a numpy array."""
     # per gene mean, var and dispersion
     mean = np.nanmean(data_mat, axis=axis)
-    mean[mean == 0] += 1e-8  # prevent division by zero
+    mean[mean == 0] += 1e-12  # prevent division by zero
     var = np.nanvar(data_mat, axis=axis)
     dispersion = var / mean
     return mean.flatten(), var.flatten(), dispersion.flatten()
@@ -96,15 +96,57 @@ def calc_mean_var_dispersion_sparse(
         sparse_mat: scipy.sparse.csr_matrix,
         axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate mean, variance and dispersion of data_mat, a scipy sparse matrix."""
+    sparse_mat = sparse_mat.copy()
     nan_mask = get_nan_or_inf_data_bool_mask(sparse_mat.data)
+    temp_val = (sparse_mat != 0).sum(axis)
+    sparse_mat.data[nan_mask] = 0
+    nan_count = temp_val - (sparse_mat != 0).sum(axis)
 
-    non_nan_count = sparse_mat.shape[axis] - nan_mask.sum()
-    mean = (sparse_mat.sum(axis) / non_nan_count).A1
-    mean[mean == 0] += 1e-8  # prevent division by zero
+    non_nan_count = sparse_mat.shape[axis] - nan_count
+    mean = (sparse_mat.sum(axis) / sparse_mat.shape[axis]).A1
+    mean[mean == 0] += 1e-12  # prevent division by zero
+
     # same as numpy var behavior: denominator is N, var=(data_arr-mean)/N
-    var = np.power(sparse_mat - mean, 2).sum(axis) / non_nan_count
+    var = np.power(sparse_mat - mean, 2).sum(axis) / sparse_mat.shape[axis]
     dispersion = var / mean
     return np.array(mean).flatten(), np.array(var).flatten(), np.array(dispersion).flatten()
+
+
+def seurat_get_mean_var(X, ignore_zeros=False, perc=None):
+    """Only used in seurat impl to match seurat and scvelo implementation result."""
+    data = X.data if issparse(X) else X
+    mask_nans = np.isnan(data) | np.isinf(data) | np.isneginf(data)
+
+    n_nonzeros = (X != 0).sum(0)
+    n_counts = n_nonzeros if ignore_zeros else X.shape[0]
+
+    if mask_nans.sum() > 0:
+        if issparse(X):
+            data[np.isnan(data) | np.isinf(data) | np.isneginf(data)] = 0
+            n_nans = n_nonzeros - (X != 0).sum(0)
+        else:
+            X[mask_nans] = 0
+            n_nans = mask_nans.sum(0)
+        n_counts -= n_nans
+
+    if perc is not None:
+        if np.size(perc) < 2:
+            perc = [perc, 100] if perc < 50 else [0, perc]
+        lb, ub = np.percentile(data, perc)
+        data = np.clip(data, lb, ub)
+
+    if issparse(X):
+        mean = (X.sum(0) / n_counts).A1
+        mean_sq = (X.multiply(X).sum(0) / n_counts).A1
+    else:
+        mean = X.sum(0) / n_counts
+        mean_sq = np.multiply(X, X).sum(0) / n_counts
+    n_cells = np.clip(X.shape[0], 2, None)  # to avoid division by zero
+    var = (mean_sq - mean ** 2) * (n_cells / (n_cells - 1))
+
+    mean = np.nan_to_num(mean)
+    var = np.nan_to_num(var)
+    return mean, var
 
 
 def select_genes_by_dispersion_general(
@@ -145,21 +187,24 @@ def select_genes_by_dispersion_general(
     main_log_time()
     if n_top_genes is None:
         main_info(
-            "n_top_genes is None, reservie all genes and add filter gene information"
+            "n_top_genes is None, reserve all genes and add filter gene information"
         )
         n_top_genes = adata.n_vars
     layer_mat = DynamoAdataKeyManager.select_layer_data(adata, layer)
     if nan_replace_val:
         main_info("replacing nan values with: %s" % (nan_replace_val))
-        mask = get_nan_or_inf_data_bool_mask(layer_mat)
-        layer_mat[mask] = nan_replace_val
+        _mask = get_nan_or_inf_data_bool_mask(layer_mat)
+        layer_mat[_mask] = nan_replace_val
 
+    main_info("select genes by recipe: " + recipe)
     if recipe == "svr":
         mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_dispersion_svr(
-            adata, layer_mat, n_top_genes, min_disp=seurat_min_disp, max_disp=seurat_max_disp, min_mean=seurat_min_mean, max_min=seurat_max_mean)
-    else:
-        mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_seurat_recipe(
             adata, layer_mat, n_top_genes)
+    elif recipe == "seurat":
+        mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_seurat_recipe(
+            adata, layer_mat, min_disp=seurat_min_disp, max_disp=seurat_max_disp, min_mean=seurat_min_mean, max_mean=seurat_max_mean)
+    else:
+        raise NotImplementedError("Selected gene seletion recipe not supported.")
 
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_MEAN_KEY)
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_VAR_KEY)
@@ -173,7 +218,7 @@ def select_genes_by_dispersion_general(
               VAR_GENE_HIGHLY_VARIABLE_KEY] = highly_variable_mask
 
     adata.var[DynamoAdataKeyManager.VAR_USE_FOR_PCA] = highly_variable_mask
-
+    main_info("number of selected highly variable genes: " + str(highly_variable_mask.sum()))
     if recipe == "svr":
         # SVR can give highly_variable_scores
         adata.var[DynamoAdataKeyManager.
@@ -185,6 +230,7 @@ def select_genes_by_dispersion_general(
 def select_genes_by_seurat_recipe(adata: AnnData,
                                   sparse_layer_mat: csr_matrix,
                                   n_bins: int = 20,
+                                  log_mean_and_dispersion=True,
                                   min_disp=None,
                                   max_disp=None,
                                   min_mean=None,
@@ -201,12 +247,20 @@ def select_genes_by_seurat_recipe(adata: AnnData,
         max_mean = 3
 
     mean, variance, dispersion = calc_mean_var_dispersion_sparse(sparse_layer_mat)
+    sc_mean, sc_var = seurat_get_mean_var(sparse_layer_mat)
+    mean, variance = sc_mean, sc_var
+    dispersion = variance/mean
 
-    exprs_matrix = pd.DataFrame()
-    exprs_matrix["mean"], exprs_matrix["dispersion"] = mean, dispersion
+    if log_mean_and_dispersion:
+        mean = np.log1p(mean)
+        dispersion[np.equal(dispersion, 0)] = np.nan
+        dispersion = np.log(dispersion)
 
-    exprs_matrix["mean_bin"] = pd.cut(exprs_matrix["mean"], bins=n_bins)
-    disp_grouped = exprs_matrix.groupby("mean_bin")["dispersion"]
+    temp_df = pd.DataFrame()
+    temp_df["mean"], temp_df["dispersion"] = mean, dispersion
+
+    temp_df["mean_bin"] = pd.cut(temp_df["mean"], bins=n_bins)
+    disp_grouped = temp_df.groupby("mean_bin")["dispersion"]
     disp_mean_bin = disp_grouped.mean()
     disp_std_bin = disp_grouped.std(ddof=1)
 
@@ -217,12 +271,12 @@ def select_genes_by_seurat_recipe(adata: AnnData,
     disp_mean_bin[one_gene_per_bin] = 0
 
     # normalized dispersion
-    mean = disp_mean_bin[exprs_matrix["mean_bin"].values].values
-    std = disp_std_bin[exprs_matrix["mean_bin"].values].values
+    mean = disp_mean_bin[temp_df["mean_bin"].values].values
+    std = disp_std_bin[temp_df["mean_bin"].values].values
     variance = std**2
-    exprs_matrix["dispersion_norm"] = ((exprs_matrix["dispersion"] - mean) /
+    temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) /
                                        std).fillna(0)
-    dispersion_norm = exprs_matrix["dispersion_norm"]
+    dispersion_norm = temp_df["dispersion_norm"].values
     highly_variable_mask = np.logical_and.reduce((
         mean > min_mean,
         mean < max_mean,

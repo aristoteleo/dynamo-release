@@ -2,7 +2,7 @@ from typing import Callable, List, Optional
 from anndata import AnnData
 
 
-from .pp_worker_utils import (
+from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     is_log1p_transformed_adata,
     normalize_cell_expr_by_size_factors,
@@ -27,7 +27,7 @@ class Preprocessor:
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
         select_genes_function: Callable = select_genes_by_dispersion_general,
         use_log1p: bool = True,
-        n_top_genes=2000,
+        # n_top_genes=2000,
         gene_append_list: List = [],
         gene_exclude_list: List = [],
         force_gene_list: Optional[List] = None,
@@ -44,8 +44,6 @@ class Preprocessor:
             A function to filter genes after previous steps.The function should accept `n_top_genes`  as an argument or wildcard argument match.
         use_log1p : bool, optional
             Whether to apply log1p function to all data in adata, by default True
-        n_top_genes : int, optional
-            keep at most `n_top_genes` in adata for downstream analysis, by default 2000
         """
         self.filter_cells_by_outliers = filter_cells_by_outliers_function
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
@@ -53,7 +51,7 @@ class Preprocessor:
         self.select_genes = select_genes_function
         self.use_log1p = use_log1p
         self.log1p = log1p_adata
-        self.n_top_genes = n_top_genes
+        # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
         self.collapse_species_adata = collapse_speicies_adata_function
         self.gene_append_list = gene_append_list
@@ -130,7 +128,7 @@ class Preprocessor:
 
         if self.select_genes:
             main_info("applying filter genes function...")
-            self.select_genes(adata, n_top_genes=self.n_top_genes)
+            self.select_genes(adata)
 
         # gene selection has been completed above. Now we need to append/delete/force gene list required by users.
         if self.gene_append_list is not None:

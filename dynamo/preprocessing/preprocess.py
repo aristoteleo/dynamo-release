@@ -40,7 +40,7 @@ from ..dynamo_logger import (
 )
 from ..utils import copy_adata
 from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager
-from .pp_worker_utils import _infer_labeling_experiment_type, filter_genes_by_outliers, filter_cells_by_outliers
+from .preprocessor_utils import _infer_labeling_experiment_type, filter_genes_by_outliers, filter_cells_by_outliers
 
 
 def calc_sz_factor_legacy(

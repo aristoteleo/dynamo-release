@@ -33,7 +33,7 @@ from .utils import (
     decode,
     compute_gene_exp_fraction,
 )
-from .pp_worker_utils import *
+from .preprocessor_utils import *
 from .Preprocessor import Preprocessor
 
 __all__ = [

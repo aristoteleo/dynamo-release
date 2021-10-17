@@ -1,7 +1,7 @@
 from dynamo.preprocessing.utils import convert_layers2csr
 from dynamo.preprocessing import Preprocessor
 from scipy.sparse.csr import csr_matrix
-from dynamo.preprocessing.pp_worker_utils import (
+from dynamo.preprocessing.preprocessor_utils import (
     calc_mean_var_dispersion_sparse,
     is_log1p_transformed_adata,
     log1p_adata,
@@ -104,14 +104,27 @@ def test_recipe_monocle_feature_selection_layer_simple0():
 
 def test_calc_dispersion_sparse():
     # TODO add randomize tests
-    sparse_mat = csr_matrix([[1, 2, 0, 1], [0, 0, 3, 1], [4, 0, 5, 1]])
+    sparse_mat = csr_matrix([[1, 2, 0, 1, 5], [0, 0, 3, 1, 299], [4, 0, 5, 1, 399]])
     mean, var, dispersion = calc_mean_var_dispersion_sparse(sparse_mat)
     expected_mean = np.mean(sparse_mat.toarray(), axis=0)
     expected_var = np.var(sparse_mat.toarray(), axis=0)
     expected_dispersion = expected_var / expected_mean
+    print("mean:", mean)
+    print("expected mean:", expected_mean)
+    print("var:", mean)
+    print("expected var:", expected_mean)
     assert np.all(np.isclose(mean, expected_mean))
     assert np.all(np.isclose(var, expected_var))
     assert np.all(np.isclose(dispersion, expected_dispersion))
+
+    # TODO adapt to seurat_get_mean_var test
+    # sc_mean, sc_var = dyn.preprocessing.preprocessor_utils.seurat_get_mean_var(sparse_mat)
+    # print("sc_mean:", sc_mean)
+    # print("expected mean:", sc_mean)
+    # print("sc_var:", sc_var)
+    # print("expected var:", expected_var)
+    # assert np.all(np.isclose(sc_mean, expected_mean))
+    # assert np.all(np.isclose(sc_var, expected_var))
 
 
 def test_Preprocessor_simple_run(adata):
@@ -142,11 +155,13 @@ def test_compute_gene_exp_fraction():
     print("frac:", list(frac))
     assert np.all(np.isclose(frac, [2/5, 3/5]))
 
+
 def test_select_genes_seurat(adata):
     select_genes_by_dispersion_general(adata, recipe="seurat")
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
+    test_calc_dispersion_sparse()
     test_select_genes_seurat(gen_or_read_zebrafish_data())
 
     test_compute_gene_exp_fraction()
