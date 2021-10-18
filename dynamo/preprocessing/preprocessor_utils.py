@@ -79,8 +79,13 @@ def clip_by_perc(layer_mat):
     # TODO implement this function (currently not used)
     return
 
-
-def calc_mean_var_dispersion(
+def calc_mean_var_dispersion_general_mat(data_mat, axis=0):
+    if not issparse(data_mat):
+        return calc_mean_var_dispersion_ndarray(data_mat, axis)
+    else:
+        return calc_mean_var_dispersion_sparse(data_mat, axis)
+    
+def calc_mean_var_dispersion_ndarray(
         data_mat: np.array,
         axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate mean, variance and dispersion of data_mat, a numpy array."""
@@ -306,7 +311,7 @@ def select_genes_by_dispersion_svr(adata: AnnData,
         main_info("layer_mat is sparse, dispatch to sparse calc function...")
         mean, variance, dispersion = calc_mean_var_dispersion_sparse(layer_mat)
     else:
-        mean, variance, dispersion = calc_mean_var_dispersion(layer_mat)
+        mean, variance, dispersion = calc_mean_var_dispersion_ndarray(layer_mat)
 
     highly_variable_mask, highly_variable_scores = get_highly_variable_mask_by_dispersion_svr(
         mean, variance, n_top_genes)
