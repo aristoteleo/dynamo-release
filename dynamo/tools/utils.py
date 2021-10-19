@@ -114,6 +114,43 @@ def nearest_neighbors(coord, coords, k=5):
     return neighs
 
 
+def k_nearest_neighbors(
+    X, k, exclude_self=True, knn_dim=10, pynn_num=2e5, pynn_dim=2, pynn_rand_state=19491001, n_jobs=-1
+):
+    n, d = np.atleast_2d(X).shape
+    if n > int(pynn_num) and d > pynn_dim:
+        from pynndescent import NNDescent
+
+        nbrs = NNDescent(
+            X,
+            metric="euclidean",
+            n_neighbors=k + 1,
+            n_jobs=n_jobs,
+            random_state=pynn_rand_state,
+        )
+        nbrs_idx, dists = nbrs.query(X, k=k + 1)
+    else:
+        alg = "ball_tree" if d > knn_dim else "kd_tree"
+        nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=n_jobs).fit(X)
+        dists, nbrs_idx = nbrs.kneighbors(X)
+
+    nbrs_idx = np.array(nbrs_idx)
+    if exclude_self:
+        nbrs_idx = nbrs_idx[:, 1:]
+        dists = dists[:, 1:]
+    return nbrs_idx, dists
+
+
+def nbrs_to_dists(X, nbrs_idx):
+    dists = []
+    n = X.shape[0]
+    for i in range(n):
+        d = X[nbrs_idx[i]] - X[i]
+        d = np.linalg.norm(d, axis=1)
+        dists.append(d)
+    return dists
+
+
 def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
     all_genes = adata.var.index
     if genes is None:
