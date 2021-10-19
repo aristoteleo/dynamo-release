@@ -50,6 +50,7 @@ from .vector_calculus import (
     speed,
     curl,
     divergence,
+    acceleration,
     curvature,
     jacobian,
     jacobian_heatmap,
