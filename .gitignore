@@ -1,3 +1,6 @@
+# ipynb tutorials notebooks are hosted in other repo
+docs/source/notebooks/**
+
 # docs local build
 **/_build
 
