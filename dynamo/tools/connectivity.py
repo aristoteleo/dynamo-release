@@ -572,7 +572,7 @@ def neighbors(
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, _, _ = pca(adata, CM, n_pca_components=n_pca_components, return_all=True)
+            adata, _, _ = pca(adata, CM, pca_key="X_pca", n_pca_components=n_pca_components, return_all=True)
 
             X_data = adata.obsm["X_pca"]
         else:
