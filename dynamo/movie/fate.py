@@ -18,7 +18,7 @@ class StreamFuncAnim:
         self,
         adata: AnnData,
         basis: str = "umap",
-        fp_basis: str = None,
+        fp_basis: Union[str, None] = None,
         dims: Optional[list] = None,
         n_steps: int = 100,
         cell_states: Union[int, list, None] = None,
@@ -45,11 +45,11 @@ class StreamFuncAnim:
         ----------
             adata: :class:`~anndata.AnnData`
                 AnnData object that already went through the fate prediction.
-            basis: `str` or None (default: `None`)
+            basis: `str` or None (default: `umap`)
                 The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
                 trajectory will be projected back to high dimensional space via the `inverse_transform` function.
                 space.
-            fps_basis: `str`
+            fps_basis: `str` or None (default: `None`)
                 The basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis` is
                 different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and used to
                 visualize the position of the fixed point on `basis` embedding.
