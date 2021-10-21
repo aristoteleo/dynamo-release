@@ -2,7 +2,7 @@ import functools
 import logging
 from contextlib import contextmanager
 import time
-
+import sys
 
 def silence_logger(name):
     """Given a logger name, silence it completely.
@@ -48,7 +48,7 @@ class Logger:
 
         # ensure only one stream handler exists in one logger instance
         if len(self.logger.handlers) == 0:
-            self.logger_stream_handler = logging.StreamHandler()
+            self.logger_stream_handler = logging.StreamHandler(sys.stdout)
             self.logger_stream_handler.setFormatter(logging.Formatter(self.FORMAT))
             self.logger.addHandler(self.logger_stream_handler)
         else:
