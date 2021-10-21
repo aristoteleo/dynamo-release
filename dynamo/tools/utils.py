@@ -1618,6 +1618,7 @@ def set_transition_genes(
     elif adata.uns["dynamics"]["experiment_type"] in [
         "mix_kin_deg",
         "mix_pulse_chase",
+        "kin",
     ]:
         logLL_col = adata.var.columns[adata.var.columns.str.endswith("logLL")]
         if len(logLL_col) > 1:
@@ -1677,8 +1678,8 @@ def set_transition_genes(
         if "gamma_r2" not in adata.var.columns:
             main_debug("setting all gamma_r2 to 1")
             adata.var["gamma_r2"] = 1
-        if np.all(adata.var.gamma_r2.values is None):
-            main_debug("Since all adata.var.gamma_r2 values are None, setting all gamma_r2 values to 1.")
+        if np.all(adata.var.gamma_r2.values is None) or np.all(adata.var.gamma_r2.values == ""):
+            main_debug("Since all adata.var.gamma_r2 values are None or '', setting all gamma_r2 values to 1.")
             adata.var.gamma_r2 = 1
 
         adata.var[store_key] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
