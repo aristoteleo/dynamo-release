@@ -8,9 +8,11 @@ from sklearn.decomposition import PCA
 from .Markov import (
     KernelMarkovChain,
     velocity_on_grid,
+    ContinuousTimeMarkovChain,
+)
+from .graph_calculus import (
     graphize_velocity,
     fp_operator,
-    ContinuousTimeMarkovChain,
 )
 from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
 
@@ -499,7 +501,7 @@ def cell_velocities(
         graph_kwargs = update_dict(graph_kwargs, kernel_kwargs)
 
         fp_kwargs = {
-            "D": 100,
+            "D": 50,
         }
         fp_kwargs = update_dict(fp_kwargs, kernel_kwargs)
 
@@ -520,9 +522,9 @@ def cell_velocities(
                 T = ContinuousTimeMarkovChain(P=R.T).compute_embedded_transition_matrix().T
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
         else:
-            E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
-            W = fp_operator(E, **fp_kwargs)
-            ctmc = ContinuousTimeMarkovChain(P=W, **ctmc_kwargs)
+            E, _, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
+            L = fp_operator(E, **fp_kwargs)
+            ctmc = ContinuousTimeMarkovChain(P=L, **ctmc_kwargs)
             T = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
 
