@@ -62,4 +62,5 @@ __all__ = [
     "convert2symbol",
     "filter_genes_by_pattern",
     "decode",
+    "Preprocessor",
 ]
