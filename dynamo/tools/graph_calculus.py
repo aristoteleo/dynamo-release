@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sp
+from scipy.linalg import qr, solve_triangular
 from .utils import k_nearest_neighbors, nbrs_to_dists, flatten, index_condensed_matrix
 
 
@@ -147,13 +148,56 @@ def fp_operator(E, D, W=None, drift_weight=False, weight_mode="symmetric"):
     return -0.5 * Mu + D * L
 
 
-def divergence(E, tol=1e-5):
-    n = E.shape[0]
-    div = np.zeros(n)
-    # optimize for sparse matrices later...
-    for i in range(n):
-        for j in range(i + 1, n):
-            if np.abs(E[i, j]) > tol:
-                div[i] += E[i, j] - E[j, i]
+def divergence(E, W=None, method="operator"):
+    # support weight in the future
+    if method == "direct":
+        n = E.shape[0]
+        div = np.zeros(n)
+        for i in range(n):
+            div[i] += np.sum(E[i, :]) - np.sum(E[:, i])
+        div *= 0.5
+    elif method == "operator":
+        W = np.abs(np.sign(E)) if W is None else W
+        div = divop(W) @ E[W.nonzero()]
+    else:
+        raise NotImplementedError(f"Unsupported method `{method}`")
 
     return div
+
+
+def gradop(W):
+    e = np.array(W.nonzero())
+    ne = e.shape[1]
+    nv = W.shape[0]
+    i, j, x = np.tile(range(ne), 2), e.flatten(), np.repeat([-1, 1], ne)
+
+    return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
+
+
+def divop(W):
+    return -0.5 * gradop(W).T
+
+
+def potential(E, W=None, div=None, inv_method="inv"):
+    """potential is related to the intrinsic time. Note that the returned value from this function is the negative of
+    potential. Thus small potential is related to smaller intrinsic time and vice versa."""
+
+    W = np.abs(np.sign(E)) if W is None else W
+    div_neg = -divergence(E, W=W) if div is None else -div
+    L = calc_laplacian(W, weight_mode="naive")
+
+    if inv_method == "inv":
+        L_inv = np.linalg.inv(L)
+    elif inv_method == "pinv":
+        L_inv = np.linalg.pinv(L)
+    elif inv_method == "qr_inv":
+        Q, R = qr(L)
+        R_inv = solve_triangular(R, np.identity(R.shape[0]))
+        L_inv = R_inv.dot(Q.T)
+    elif inv_method == "qr_pinv":
+        Q, R = qr(L)
+        L_inv = np.linalg.pinv(R).dot(Q.T)
+
+    p = L_inv.dot(div_neg)
+    res = p - p.min()
+    return res
