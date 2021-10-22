@@ -1,7 +1,9 @@
 import numpy as np
 from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
-from .utils import timeit
+from scipy.cluster.vq import kmeans2
+from .utils import timeit, nearest_neighbors
+from ..dynamo_logger import LoggerManager
 
 
 class TRNET:
@@ -44,7 +46,7 @@ class TRNET:
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
-        for t in tqdm(range(1, tmax + 1), desc="Running TRN"):
+        for t in LoggerManager.progress_logger(range(1, tmax + 1), progress_name="Running TRN"):
             # calc the parameters
             tt = t / tmax
             l = li * np.power(lf / li, tt)
@@ -102,6 +104,16 @@ def sample_by_velocity(V, n, seed=19491001):
     return idx
 
 
+def sample_by_kmeans(X, n, return_index=False):
+    C, _ = kmeans2(X, n)
+    nbrs = nearest_neighbors(C, X, k=1).flatten()
+
+    if return_index:
+        return nbrs
+    else:
+        X[nbrs]
+
+
 def lhsclassic(n_samples, n_dim, seed=19491001):
     # From PyDOE
     # Generate the intervals
@@ -130,9 +142,11 @@ def sample(arr, n, method="random", X=None, V=None, seed=19491001, **kwargs):
         np.random.seed(seed)
         cell_idx = np.random.choice(arr, size=n, replace=False)
     elif method == "velocity" and V is not None:
-        cell_idx = sample_by_velocity(V=V, n=n, seed=seed, **kwargs)
+        cell_idx = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
     elif method == "trn" and X is not None:
-        cell_idx = trn(X=X, n=n, return_index=True, seed=seed, **kwargs)
+        cell_idx = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
+    elif method == "kmeans":
+        cell_idx = arr[sample_by_kmeans(X, n, return_index=True)]
     else:
         raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
     return cell_idx

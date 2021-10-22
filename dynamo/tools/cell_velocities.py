@@ -32,7 +32,6 @@ from .utils import (
 )
 
 from .dimension_reduction import reduceDimension
-from ..dynamo_logger import LoggerManager
 from ..utils import areinstance
 import anndata
 from typing import Union
@@ -40,6 +39,7 @@ import scipy
 
 # dynamo logger related
 from ..dynamo_logger import (
+    LoggerManager,
     main_tqdm,
     main_info,
     main_warning,

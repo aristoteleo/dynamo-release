@@ -7,7 +7,9 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from anndata import AnnData
 from typing import Union
-from ..vectorfield.scVectorField import graphize_vecfld
+
+# from ..vectorfield.scVectorField import graphize_vecfld
+from ..tools.graph_calculus import graphize_velocity, divergence, potential
 from ..vectorfield.utils import (
     vecfld_from_adata,
     vector_field_function,
@@ -16,11 +18,12 @@ from ..tools.sampling import (
     trn,
     sample_by_velocity,
 )
-from ..tools.graph_operators import (
+
+"""from ..tools.graph_operators import (
     build_graph,
     div,
     potential,
-)
+)"""
 from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 
 
@@ -130,6 +133,7 @@ def ddhodge(
         adj_mat = adata_.obsp[prefix + "ddhodge"]
     else:
         if adjmethod == "graphize_vecfld":
+            V_data = func(X_data)
             neighbor_result_prefix = "" if layer is None else layer
             conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
             if neighbor_key not in adata_.uns_keys() or to_downsample:
@@ -139,7 +143,13 @@ def ddhodge(
                 neighbors = adata_.obsp[conn_key]
                 Idx = neighbors.tolil().rows
 
-            adj_mat, nbrs = graphize_vecfld(
+            adj_mat, nbrs, dists = graphize_velocity(
+                V_data,
+                X_data,
+                nbrs_idx=Idx,
+                k=n,
+            )
+            """adj_mat, nbrs = graphize_vecfld(
                 func,
                 X_data,
                 nbrs_idx=Idx,
@@ -147,7 +157,7 @@ def ddhodge(
                 distance_free=distance_free,
                 n_int_steps=20,
                 cores=cores,
-            )
+            )"""
         elif adjmethod == "naive":
             if "transition_matrix" not in adata_.uns.keys():
                 raise Exception(
@@ -164,13 +174,16 @@ def ddhodge(
     if len(np.unique(np.hstack(adj_mat.nonzero()))) != adata.n_obs:
         adj_mat.setdiag(1)
 
-    g = build_graph(adj_mat)
+    # g = build_graph(adj_mat)
+    A = np.abs(np.sign(adj_mat))
 
     if (prefix + "ddhodge" not in adata.obsp.keys() or enforce) and not to_downsample:
         adata.obsp[prefix + "ddhodge"] = adj_mat
 
-    ddhodge_div = div(g)
-    potential_ = potential(g, -ddhodge_div)
+    # ddhodge_div = div(g)
+    # potential_ = potential(g, -ddhodge_div)
+    ddhodge_div = divergence(adj_mat, W=A)
+    potential_ = potential(adj_mat, W=A, div=ddhodge_div)
 
     if up_sampling and to_downsample:
         query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
