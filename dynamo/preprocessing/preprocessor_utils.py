@@ -489,7 +489,7 @@ def filter_genes_by_outliers(
 
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
-    return adata
+    return adata.var["pass_basic_filter"]
 
 
 def get_in_range_mask(data_mat, min_val, max_val, axis=0, sum_min_val_threshold=0):
@@ -929,7 +929,7 @@ def is_float_integer_arr(arr: Union[np.ndarray, scipy.sparse.spmatrix, list]) ->
     return np.all(np.equal(np.mod(arr, 1), 0))
 
 
-def is_nonnegative_integers(mat: Union[np.ndarray, scipy.sparse.spmatrix, list]):
+def is_nonnegative_integer_arr(mat: Union[np.ndarray, scipy.sparse.spmatrix, list]):
     if (not is_integer_arr(mat)) and (not is_float_integer_arr(mat)):
         return False
     return is_nonnegative(mat)
