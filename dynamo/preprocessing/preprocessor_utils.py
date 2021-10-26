@@ -33,8 +33,7 @@ def is_log1p_transformed_adata(adata):
     """check if adata data is log transformed by checking a small subset of adata observations."""
     chosen_gene_indices = np.random.choice(adata.n_obs, 10)
     _has_log1p_transformed = not np.allclose(
-        adata.X[:, chosen_gene_indices].sum(1) -
-        adata.layers["spliced"][:, chosen_gene_indices].sum(1),
+        adata.X[:, chosen_gene_indices].sum(1) - adata.layers["spliced"][:, chosen_gene_indices].sum(1),
         0,
         atol=1e-4,
     )
@@ -48,8 +47,7 @@ def _infer_labeling_experiment_type(adata, tkey):
     if len(np.unique(tkey_val)) == 1:
         experiment_type = "one-shot"
     else:
-        labeled_frac = adata.layers["new"].T.sum(
-            0) / adata.layers["total"].T.sum(0)
+        labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
         xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
 
         yy = tkey_val
@@ -64,7 +62,8 @@ def _infer_labeling_experiment_type(adata, tkey):
     main_info(
         f"\nDynamo detects your labeling data is from a {experiment_type} experiment. If experiment type is not corrent, please correct "
         f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
-        f"needed.")
+        f"needed."
+    )
     return experiment_type
 
 
@@ -79,15 +78,15 @@ def clip_by_perc(layer_mat):
     # TODO implement this function (currently not used)
     return
 
+
 def calc_mean_var_dispersion_general_mat(data_mat, axis=0):
     if not issparse(data_mat):
         return calc_mean_var_dispersion_ndarray(data_mat, axis)
     else:
         return calc_mean_var_dispersion_sparse(data_mat, axis)
-    
-def calc_mean_var_dispersion_ndarray(
-        data_mat: np.array,
-        axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+
+def calc_mean_var_dispersion_ndarray(data_mat: np.array, axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate mean, variance and dispersion of data_mat, a numpy array."""
     # per gene mean, var and dispersion
     mean = np.nanmean(data_mat, axis=axis)
@@ -98,8 +97,8 @@ def calc_mean_var_dispersion_ndarray(
 
 
 def calc_mean_var_dispersion_sparse(
-        sparse_mat: scipy.sparse.csr_matrix,
-        axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    sparse_mat: scipy.sparse.csr_matrix, axis=0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate mean, variance and dispersion of data_mat, a scipy sparse matrix."""
     sparse_mat = sparse_mat.copy()
     nan_mask = get_nan_or_inf_data_bool_mask(sparse_mat.data)
@@ -163,8 +162,9 @@ def select_genes_by_dispersion_general(
     seurat_min_disp=None,
     seurat_max_disp=None,
     seurat_min_mean=None,
-    seurat_max_mean=None):
-    """"A general function for filter genes family. Preprocess adata and dispatch to different filtering methods, and eventually set keys in anndata to denote which genes are wanted in downstream analysis.
+    seurat_max_mean=None,
+):
+    """ "A general function for filter genes family. Preprocess adata and dispatch to different filtering methods, and eventually set keys in anndata to denote which genes are wanted in downstream analysis.
 
     Parameters
     ----------
@@ -178,7 +178,7 @@ def select_genes_by_dispersion_general(
         #genes to preserve as highly variables genes. Note that seurat recipe only uses cutoff and ignores this arg, by default None
     recipe : str, optional
         choose a recipe for selecting genes, either "svr" or "seurat", by default "svr"
-    seurat_min_disp : 
+    seurat_min_disp :
         Seurat dispersion cutoff, by default None
     seurat_max_disp : [type], optional
         Seurat dispersion cutoff, by default None
@@ -191,9 +191,7 @@ def select_genes_by_dispersion_general(
     main_info("filtering genes by dispersion...")
     main_log_time()
     if n_top_genes is None:
-        main_info(
-            "n_top_genes is None, reserve all genes and add filter gene information"
-        )
+        main_info("n_top_genes is None, reserve all genes and add filter gene information")
         n_top_genes = adata.n_vars
     layer_mat = DynamoAdataKeyManager.select_layer_data(adata, layer)
     if nan_replace_val:
@@ -204,42 +202,48 @@ def select_genes_by_dispersion_general(
     main_info("select genes by recipe: " + recipe)
     if recipe == "svr":
         mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_dispersion_svr(
-            adata, layer_mat, n_top_genes)
+            adata, layer_mat, n_top_genes
+        )
     elif recipe == "seurat":
         mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_seurat_recipe(
-            adata, layer_mat, min_disp=seurat_min_disp, max_disp=seurat_max_disp, min_mean=seurat_min_mean, max_mean=seurat_max_mean)
+            adata,
+            layer_mat,
+            min_disp=seurat_min_disp,
+            max_disp=seurat_max_disp,
+            min_mean=seurat_min_mean,
+            max_mean=seurat_max_mean,
+        )
     else:
         raise NotImplementedError("Selected gene seletion recipe not supported.")
 
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_MEAN_KEY)
     main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_VAR_KEY)
-    main_info_insert_adata_var(
-        DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY)
+    main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY)
     main_debug("type of variance:" + str(type(variance)))
     main_debug("shape of variance:" + str(variance.shape))
     adata.var[DynamoAdataKeyManager.VAR_GENE_MEAN_KEY] = mean.flatten()
     adata.var[DynamoAdataKeyManager.VAR_GENE_VAR_KEY] = variance
-    adata.var[DynamoAdataKeyManager.
-              VAR_GENE_HIGHLY_VARIABLE_KEY] = highly_variable_mask
+    adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY] = highly_variable_mask
 
     adata.var[DynamoAdataKeyManager.VAR_USE_FOR_PCA] = highly_variable_mask
     main_info("number of selected highly variable genes: " + str(highly_variable_mask.sum()))
     if recipe == "svr":
         # SVR can give highly_variable_scores
-        adata.var[DynamoAdataKeyManager.
-                  VAR_GENE_HIGHLY_VARIABLE_SCORES] = highly_variable_scores
+        adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_SCORES] = highly_variable_scores
 
     main_finish_progress("filter genes by dispersion")
 
 
-def select_genes_by_seurat_recipe(adata: AnnData,
-                                  sparse_layer_mat: csr_matrix,
-                                  n_bins: int = 20,
-                                  log_mean_and_dispersion=True,
-                                  min_disp=None,
-                                  max_disp=None,
-                                  min_mean=None,
-                                  max_mean=None):
+def select_genes_by_seurat_recipe(
+    adata: AnnData,
+    sparse_layer_mat: csr_matrix,
+    n_bins: int = 20,
+    log_mean_and_dispersion=True,
+    min_disp=None,
+    max_disp=None,
+    min_mean=None,
+    max_mean=None,
+):
     """Apply seurat's gene selection therapy by cutoffs. https://satijalab.org/seurat/reference/findvariablefeatures"""
     # default values from Seurat
     if min_disp is None:
@@ -254,7 +258,7 @@ def select_genes_by_seurat_recipe(adata: AnnData,
     mean, variance, dispersion = calc_mean_var_dispersion_sparse(sparse_layer_mat)
     sc_mean, sc_var = seurat_get_mean_var(sparse_layer_mat)
     mean, variance = sc_mean, sc_var
-    dispersion = variance/mean
+    dispersion = variance / mean
 
     if log_mean_and_dispersion:
         mean = np.log1p(mean)
@@ -278,24 +282,24 @@ def select_genes_by_seurat_recipe(adata: AnnData,
     # normalized dispersion
     mean = disp_mean_bin[temp_df["mean_bin"].values].values
     std = disp_std_bin[temp_df["mean_bin"].values].values
-    variance = std**2
-    temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) /
-                                       std).fillna(0)
+    variance = std ** 2
+    temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) / std).fillna(0)
     dispersion_norm = temp_df["dispersion_norm"].values
-    highly_variable_mask = np.logical_and.reduce((
-        mean > min_mean,
-        mean < max_mean,
-        dispersion_norm > min_disp,
-        dispersion_norm < max_disp,
-    ))
+    highly_variable_mask = np.logical_and.reduce(
+        (
+            mean > min_mean,
+            mean < max_mean,
+            dispersion_norm > min_disp,
+            dispersion_norm < max_disp,
+        )
+    )
 
     return mean, variance, highly_variable_mask, None
 
 
-def select_genes_by_dispersion_svr(adata: AnnData,
-                                   layer_mat: Union[np.array,
-                                                    scipy.sparse.csr_matrix],
-                                   n_top_genes: int) -> None:
+def select_genes_by_dispersion_svr(
+    adata: AnnData, layer_mat: Union[np.array, scipy.sparse.csr_matrix], n_top_genes: int
+) -> None:
     """Filters adata's genes according to layer_mat, and set adata's preprocess keys for downstream analysis
 
     Parameters
@@ -314,17 +318,16 @@ def select_genes_by_dispersion_svr(adata: AnnData,
         mean, variance, dispersion = calc_mean_var_dispersion_ndarray(layer_mat)
 
     highly_variable_mask, highly_variable_scores = get_highly_variable_mask_by_dispersion_svr(
-        mean, variance, n_top_genes)
+        mean, variance, n_top_genes
+    )
     variance = np.array(variance).flatten()
 
     return mean.flatten(), variance, highly_variable_mask, highly_variable_scores
 
 
-def get_highly_variable_mask_by_dispersion_svr(mean: np.ndarray,
-                                               var: np.ndarray,
-                                               n_top_genes: int,
-                                               svr_gamma: float = None,
-                                               return_scores=True):
+def get_highly_variable_mask_by_dispersion_svr(
+    mean: np.ndarray, var: np.ndarray, n_top_genes: int, svr_gamma: float = None, return_scores=True
+):
     """Returns the mask with shape same as mean and var, indicating whether each index is highly variable or not. Each index should represent a gene."""
     # normally, select svr_gamma based on #features
     if svr_gamma is None:
@@ -428,33 +431,34 @@ def filter_genes_by_outliers(
         ((adata.X > 0).sum(0) >= min_cell_s)
         & (adata.X.mean(0) >= min_avg_exp_s)
         & (adata.X.mean(0) <= max_avg_exp)
-        & (adata.X.sum(0) >= min_count_s)).flatten()
+        & (adata.X.sum(0) >= min_count_s)
+    ).flatten()
 
     # add our filtering for labeling data below
 
-    if "spliced" in adata.layers.keys() and (layer == "spliced"
-                                             or layer == "all"):
+    if "spliced" in adata.layers.keys() and (layer == "spliced" or layer == "all"):
         detected_bool = (
             detected_bool
             & np.array(
                 ((adata.layers["spliced"] > 0).sum(0) >= min_cell_s)
                 & (adata.layers["spliced"].mean(0) >= min_avg_exp_s)
                 & (adata.layers["spliced"].mean(0) <= max_avg_exp)
-                & (adata.layers["spliced"].sum(0) >= min_count_s)).flatten())
-    if "unspliced" in adata.layers.keys() and (layer == "unspliced"
-                                               or layer == "all"):
+                & (adata.layers["spliced"].sum(0) >= min_count_s)
+            ).flatten()
+        )
+    if "unspliced" in adata.layers.keys() and (layer == "unspliced" or layer == "all"):
         detected_bool = (
             detected_bool
             & np.array(
                 ((adata.layers["unspliced"] > 0).sum(0) >= min_cell_u)
                 & (adata.layers["unspliced"].mean(0) >= min_avg_exp_u)
                 & (adata.layers["unspliced"].mean(0) <= max_avg_exp)
-                & (adata.layers["unspliced"].sum(0) >= min_count_u)).flatten())
+                & (adata.layers["unspliced"].sum(0) >= min_count_u)
+            ).flatten()
+        )
     if shared_count is not None:
-        layers = DynamoAdataKeyManager.get_available_layer_keys(
-            adata, "all", False)
-        tmp = get_inrange_shared_counts_mask(adata, layers, shared_count,
-                                             "gene")
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all", False)
+        tmp = get_inrange_shared_counts_mask(adata, layers, shared_count, "gene")
         if tmp.sum() > 2000:
             detected_bool &= tmp
         else:
@@ -473,12 +477,13 @@ def filter_genes_by_outliers(
     if "protein" in adata.obsm.keys() and layer == "protein":
         detected_bool = (
             detected_bool
-            & np.array(((adata.obsm["protein"] > 0).sum(0) >= min_cell_p)
-                       & (adata.obsm["protein"].mean(0) >= min_avg_exp_p)
-                       & (adata.obsm["protein"].mean(0) <= max_avg_exp)
-                       & (adata.layers["protein"].sum(0) >= min_count_p
-                          )  # TODO potential bug confirmation: obsm?
-                       ).flatten())
+            & np.array(
+                ((adata.obsm["protein"] > 0).sum(0) >= min_cell_p)
+                & (adata.obsm["protein"].mean(0) >= min_avg_exp_p)
+                & (adata.obsm["protein"].mean(0) <= max_avg_exp)
+                & (adata.layers["protein"].sum(0) >= min_count_p)  # TODO potential bug confirmation: obsm?
+            ).flatten()
+        )
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
@@ -487,14 +492,11 @@ def filter_genes_by_outliers(
     return adata
 
 
-def get_in_range_mask(data_mat,
-                      min_val,
-                      max_val,
-                      axis=0,
-                      sum_min_val_threshold=0):
+def get_in_range_mask(data_mat, min_val, max_val, axis=0, sum_min_val_threshold=0):
     return (
         ((data_mat > sum_min_val_threshold).sum(axis) >= min_val)
-        & ((data_mat > sum_min_val_threshold).sum(axis) <= max_val)).flatten()
+        & ((data_mat > sum_min_val_threshold).sum(axis) <= max_val)
+    ).flatten()
 
 
 def filter_cells_by_outliers(
@@ -549,9 +551,7 @@ def filter_cells_by_outliers(
             be False.
     """
 
-    predefined_layers_for_filtering = [
-        DynamoAdataKeyManager.X_LAYER, spliced_key, unspliced_key, protein_key
-    ]
+    predefined_layers_for_filtering = [DynamoAdataKeyManager.X_LAYER, spliced_key, unspliced_key, protein_key]
     predefined_range_dict = {
         DynamoAdataKeyManager.X_LAYER: (min_expr_genes_s, max_expr_genes_s),
         spliced_key: (min_expr_genes_s, max_expr_genes_s),
@@ -565,8 +565,8 @@ def filter_cells_by_outliers(
         layer_keys_used_for_filtering = [layer]
 
     detected_bool = get_filter_mask_cells_by_outliers(
-        adata, layer_keys_used_for_filtering, predefined_range_dict,
-        shared_count)
+        adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
+    )
 
     if filter_bool is None:
         filter_bool = detected_bool
@@ -619,30 +619,22 @@ def get_filter_mask_cells_by_outliers(
     for i, layer in enumerate(layers):
         if layer not in layer2range:
             main_info(
-                "skip filtering cells by layer: %s as it is not in predefined range list:"
-                % layer,
-                indent_level=2)
+                "skip filtering cells by layer: %s as it is not in predefined range list:" % layer, indent_level=2
+            )
             continue
         if not DynamoAdataKeyManager.check_if_layer_exist(adata, layer):
-            main_info("skip filtering by layer:%s as it is not in adata." %
-                      layer)
+            main_info("skip filtering by layer:%s as it is not in adata." % layer)
             continue
         main_info("filtering cells by layer:%s" % layer, indent_level=2)
         layer_data = DynamoAdataKeyManager.select_layer_data(adata, layer)
         detected_mask = detected_mask & get_in_range_mask(
-            layer_data,
-            layer2range[layer][0],
-            layer2range[layer][1],
-            axis=1,
-            sum_min_val_threshold=0)
+            layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, sum_min_val_threshold=0
+        )
 
     if shared_count is not None:
-        main_info("filtering cells by shared counts from all layers",
-                  indent_level=2)
-        layers = DynamoAdataKeyManager.get_available_layer_keys(
-            adata, layers, False)
-        detected_mask = detected_mask & get_inrange_shared_counts_mask(
-            adata, layers, shared_count, "cell")
+        main_info("filtering cells by shared counts from all layers", indent_level=2)
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False)
+        detected_mask = detected_mask & get_inrange_shared_counts_mask(adata, layers, shared_count, "cell")
 
     detected_mask = np.array(detected_mask).flatten()
     return detected_mask
@@ -705,16 +697,14 @@ def calc_sz_factor(
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            _adata = adata_ori if genes_use_for_norm is None else adata_ori[:,
-                                                                            genes_use_for_norm]
+            _adata = adata_ori if genes_use_for_norm is None else adata_ori[:, genes_use_for_norm]
     else:
         cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
         filter_list = ["use_for_pca", "pass_basic_filter"]
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
-        gene_inds = adata_ori.var[filter_list[
-            which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
+        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
         _adata = adata_ori[cell_inds, :][:, gene_inds]
 
@@ -723,9 +713,7 @@ def calc_sz_factor(
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
 
-                _adata = _adata[:,
-                                _adata.var_names.
-                                intersection(genes_use_for_norm)]
+                _adata = _adata[:, _adata.var_names.intersection(genes_use_for_norm)]
 
     if total_layers is not None:
         if not isinstance(total_layers, list):
@@ -733,8 +721,7 @@ def calc_sz_factor(
         if len(set(total_layers).difference(_adata.layers.keys())) == 0:
             total = None
             for t_key in total_layers:
-                total = _adata.layers[
-                    t_key] if total is None else total + _adata.layers[t_key]
+                total = _adata.layers[t_key] if total is None else total + _adata.layers[t_key]
             _adata.layers["_total_"] = total
             layers.extend(["_total_"])
 
@@ -853,21 +840,16 @@ def normalize_cell_expr_by_size_factors(
         if "use_for_pca" in adata.var.columns and keep_filtered is False:
             adata = adata[:, adata.var.loc[:, "use_for_pca"]]
 
-        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.
-                                  contains("Size_Factor")]
+        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
 
-    layer_sz_column_names = [
-        i + "_Size_Factor" for i in set(layers).difference("X")
-    ]
+    layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
-    layers_to_sz = list(
-        set(layer_sz_column_names).difference(adata.obs.keys()))
+    layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
 
     if len(layers_to_sz) > 0:
-        layers = pd.Series(layers_to_sz).str.split(
-            "_Size_Factor", expand=True).iloc[:, 0].tolist()
+        layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
         if "Size_Factor" in layers:
             layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
         calc_sz_factor(
@@ -889,17 +871,12 @@ def normalize_cell_expr_by_size_factors(
         if layer in excluded_layers:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
         else:
-            szfactors, CM = get_sz_exprs(adata,
-                                         layer,
-                                         total_szfactor=total_szfactor)
+            szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
         if norm_method is None and layer == "X":
-            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr,
-                                np.log1p)
-        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None
-                             ] and layer != "protein":
-            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr,
-                                norm_method)
+            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
+        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
+            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer == "protein":  # norm_method == 'clr':
             if norm_method != "clr":
@@ -914,8 +891,7 @@ def normalize_cell_expr_by_size_factors(
 
             for i in range(CM.shape[0]):
                 x = CM[i].A if issparse(CM) else CM[i]
-                res = np.log1p(
-                    x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
+                res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
                 # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
@@ -932,7 +908,28 @@ def normalize_cell_expr_by_size_factors(
         else:
             adata.layers["X_" + layer] = CM
 
-        adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(
-            norm_method) else norm_method
+        adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
 
     return adata
+
+
+def is_nonnegative(mat: Union[np.ndarray, scipy.sparse.spmatrix, list]):
+    if scipy.sparse.issparse(mat):
+        return np.all(mat.sign().data >= 0)
+    return np.all(np.sign(mat) >= 0)
+
+
+def is_integer_arr(arr: Union[np.ndarray, scipy.sparse.spmatrix, list]) -> bool:
+    return np.issubdtype(arr.dtype, np.integer) or np.issubdtype(arr.dtype, int)
+
+
+def is_float_integer_arr(arr: Union[np.ndarray, scipy.sparse.spmatrix, list]) -> bool:
+    if issparse(arr):
+        arr = arr.data
+    return np.all(np.equal(np.mod(arr, 1), 0))
+
+
+def is_nonnegative_integers(mat: Union[np.ndarray, scipy.sparse.spmatrix, list]):
+    if (not is_integer_arr(mat)) and (not is_float_integer_arr(mat)):
+        return False
+    return is_nonnegative(mat)
