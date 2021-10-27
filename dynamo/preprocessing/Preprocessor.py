@@ -51,6 +51,7 @@ class Preprocessor:
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
         self.normalize_by_cells = normalize_by_cells_function
         self.select_genes = select_genes_function
+        self.normalize_selected_genes = normalize_selected_genes_function
         self.use_log1p = use_log1p
         self.log1p = log1p_adata
         # self.n_top_genes = n_top_genes
@@ -119,6 +120,14 @@ class Preprocessor:
         if self.normalize_by_cells:
             main_info("applying normalizing by cells function...")
             self.normalize_by_cells(adata)
+
+        if self.select_genes:
+            main_info("selecting genes...")
+            self.select_genes(adata)
+
+        if self.normalize_selected_genes:
+            main_info("normalizing selected genes...")
+            self.normalize_selected_genes(adata)
 
         if self.use_log1p:
             if is_log1p_transformed_adata(adata):
