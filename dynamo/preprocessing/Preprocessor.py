@@ -24,13 +24,15 @@ class Preprocessor:
         convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = default_filter_cells_by_outliers,
         filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
+        # compute_highly_variable_genes: Callable = ,
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
-        select_genes_function: Callable = select_genes_by_dispersion_general,
-        use_log1p: bool = True,
-        # n_top_genes=2000,
         gene_append_list: List = [],
         gene_exclude_list: List = [],
         force_gene_list: Optional[List] = None,
+        select_genes_function: Callable = select_genes_by_dispersion_general,
+        normalize_selected_genes_function: Callable = None,
+        use_log1p: bool = True,
+        # n_top_genes=2000,
     ) -> None:
         """Initialize the worker.
 

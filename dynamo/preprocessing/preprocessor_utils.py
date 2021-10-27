@@ -27,6 +27,7 @@ from .utils import (
     normalize_util,
     sz_util,
 )
+from .utils import pca
 
 
 def is_log1p_transformed_adata(adata):
@@ -933,3 +934,7 @@ def is_nonnegative_integer_arr(mat: Union[np.ndarray, scipy.sparse.spmatrix, lis
     if (not is_integer_arr(mat)) and (not is_float_integer_arr(mat)):
         return False
     return is_nonnegative(mat)
+
+
+def pca_selected_genes_wrapper(adata, key="X_pca"):
+    adata = pca(adata, pca_input, num_dim, key)

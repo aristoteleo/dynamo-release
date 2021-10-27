@@ -1,10 +1,11 @@
+from anndata._core.anndata import AnnData
 import colorcet
 import matplotlib
 from matplotlib import rcParams, cm, colors
 from cycler import cycler
 import matplotlib.pyplot as plt
 import pandas as pd
-from .dynamo_logger import main_info
+from .dynamo_logger import main_info, main_warning
 
 
 class DynamoAdataKeyManager:
@@ -21,6 +22,7 @@ class DynamoAdataKeyManager:
     UNS_PP_HAS_LABELING = "has_labeling"
     UNS_PP_HAS_PROTEIN = "has_protein"
     UNS_PP_SPLICING_LABELING = "splicing_labeling"
+    UNS_PP_PEARSON_RESIDUAL_NORMALIZATION = "pearson_residuals_normalization_params"
 
     # special key names frequently used in dynamo
     X_LAYER = "X"
@@ -34,8 +36,12 @@ class DynamoAdataKeyManager:
             return layer_name + key
         return sep.join([layer_name, key])
 
-    def select_layer_data(adata, layer, copy=False) -> pd.DataFrame:
-        """select layer data based on layer key. For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo convention, this utility provides an unified interface for selecting layer data with shape n_obs x n_var."""
+    def select_layer_data(adata: AnnData, layer: str, copy=False) -> pd.DataFrame:
+        """select layer data based on layer key. The default layer is X layer in adata.
+        For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo convention,
+        this utility provides an unified interface for selecting layer data with shape n_obs x n_var."""
+        if layer is None:
+            layer = DynamoAdataKeyManager.X_LAYER
         res_data = None
         if layer == DynamoAdataKeyManager.X_LAYER:
             res_data = adata.X
@@ -46,6 +52,12 @@ class DynamoAdataKeyManager:
         if copy:
             return res_data.copy()
         return res_data
+
+    def set_layer_data(adata, layer, val):
+        if layer == DynamoAdataKeyManager.X_LAYER:
+            adata.X = val
+        else:
+            adata.layers[layer] = val
 
     def check_if_layer_exist(adata, layer) -> bool:
         if layer == DynamoAdataKeyManager.X_LAYER:
@@ -83,6 +95,9 @@ class DynamoAdataKeyManager:
         splicing_and_labeling = ["X_uu", "X_ul", "X_su", "X_sl"]
 
         return only_splicing, only_labeling, splicing_and_labeling
+
+    def init_uns_pp_namespace(adata):
+        adata.uns[DynamoAdataKeyManager.UNS_PP_KEY] = {}
 
 
 # TODO discuss alias naming convention
