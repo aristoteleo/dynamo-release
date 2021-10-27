@@ -938,5 +938,5 @@ def is_nonnegative_integer_arr(mat: Union[np.ndarray, scipy.sparse.spmatrix, lis
     return is_nonnegative(mat)
 
 
-def pca_selected_genes_wrapper(adata, key="X_pca"):
-    adata = pca(adata, pca_input, num_dim, key)
+def pca_selected_genes_wrapper(adata: AnnData, pca_input=None, n_pca_components: int = 30, key: str = "X_pca"):
+    adata = pca(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)

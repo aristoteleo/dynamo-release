@@ -544,13 +544,13 @@ def decode(adata):
 
 
 def pca(
-    adata,
+    adata: AnnData,
     X_data=None,
-    n_pca_components=30,
-    pca_key="X",
-    pcs_key="PCs",
+    n_pca_components: int = 30,
+    pca_key: str = "X",
+    pcs_key: str = "PCs",
     genes_to_append=None,
-    layer=None,
+    layer: str = None,
     return_all=False,
 ):
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
