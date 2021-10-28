@@ -158,7 +158,7 @@ def select_genes_by_dispersion_general(
     adata: AnnData,
     layer: str = DynamoAdataKeyManager.X_LAYER,
     nan_replace_val: float = None,
-    n_top_genes: int = None,
+    n_top_genes: int = 2000,
     recipe: str = "svr",
     seurat_min_disp=None,
     seurat_max_disp=None,
@@ -490,7 +490,7 @@ def filter_genes_by_outliers(
 
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
-    return adata.var["pass_basic_filter"]
+    return adata
 
 
 def get_in_range_mask(data_mat, min_val, max_val, axis=0, sum_min_val_threshold=0):
