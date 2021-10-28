@@ -36,6 +36,16 @@ class DynamoAdataKeyManager:
             return layer_name + key
         return sep.join([layer_name, key])
 
+    def gen_layer_pp_key(*keys):
+        """Generate dynamo style keys for adata.uns.pp.key0_key1_key2..."""
+        return "_".join(keys)
+
+    def gen_layer_pearson_residual_key(layer: str):
+        """Generate dynamo style keys for adata.uns.pp.key0_key1_key2..."""
+        return DynamoAdataKeyManager.gen_layer_pp_key(
+            layer, DynamoAdataKeyManager.UNS_PP_PEARSON_RESIDUAL_NORMALIZATION
+        )
+
     def select_layer_data(adata: AnnData, layer: str, copy=False) -> pd.DataFrame:
         """select layer data based on layer key. The default layer is X layer in adata.
         For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo convention,
@@ -59,7 +69,7 @@ class DynamoAdataKeyManager:
         else:
             adata.layers[layer] = val
 
-    def check_if_layer_exist(adata, layer) -> bool:
+    def check_if_layer_exist(adata: AnnData, layer: str) -> bool:
         if layer == DynamoAdataKeyManager.X_LAYER:
             # assume always exist
             return True
