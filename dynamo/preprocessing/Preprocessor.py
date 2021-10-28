@@ -24,14 +24,13 @@ class Preprocessor:
         convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = default_filter_cells_by_outliers,
         filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
-        # compute_highly_variable_genes: Callable = ,
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
-        gene_append_list: List = [],
-        gene_exclude_list: List = [],
-        force_gene_list: Optional[List] = None,
         select_genes_function: Callable = select_genes_by_dispersion_general,
         normalize_selected_genes_function: Callable = None,
         use_log1p: bool = True,
+        gene_append_list: List = [],
+        gene_exclude_list: List = [],
+        force_gene_list: Optional[List] = None,
         # n_top_genes=2000,
     ) -> None:
         """Initialize the worker.
@@ -61,10 +60,9 @@ class Preprocessor:
         self.gene_exclude_list = gene_exclude_list
         self.force_gene_list = force_gene_list
 
-    def preprocess_adata(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
-        main_info("Running preprocessing pipeline...")
-
-        adata.uns["pp"] = {}
+    def add_experiment_info(adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+        if DKM.UNS_PP_KEY not in adata.uns.keys():
+            adata.uns["pp"] = {}
         main_info_insert_adata("%s" % adata.uns["pp"], "uns['pp']", indent_level=2)
 
         (
@@ -95,6 +93,19 @@ class Preprocessor:
         if experiment_type is None:
             experiment_type = "conventional"
         adata.uns["pp"]["experiment_type"] = experiment_type
+
+    def config_pearson_residual_recipe(self):
+        raise NotImplementedError("test in progress")  # TODO uncomment after integrate
+        # self.select_genes=pearson_residual_normalization_recipe.select_genes_by_pearson_residual,
+        # self.normalize_selected_genes=pearson_residual_normalization_recipe.normalize_layers_pearson_residuals,
+        # self.use_log1p=False
+
+    def preprocess_adata(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+        main_info("Running preprocessing pipeline...")
+
+        adata.uns["pp"] = {}
+
+        Preprocessor.add_experiment_info(adata, tkey, experiment_type)
 
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
         main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
