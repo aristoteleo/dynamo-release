@@ -1,6 +1,6 @@
 from typing import Callable, List, Optional
 from anndata import AnnData
-
+import numpy as np
 
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
@@ -24,6 +24,7 @@ class Preprocessor:
         convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = default_filter_cells_by_outliers,
         filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
+        filter_genes_by_outliers_kwargs: dict = {},
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
         select_genes_function: Callable = select_genes_by_dispersion_general,
         normalize_selected_genes_function: Callable = None,
@@ -59,6 +60,26 @@ class Preprocessor:
         self.gene_append_list = gene_append_list
         self.gene_exclude_list = gene_exclude_list
         self.force_gene_list = force_gene_list
+        self.filter_genes_by_outliers_kwargs = filter_genes_by_outliers_kwargs
+
+    def get_monocle_filter_genes_outliers_kwargs(adata: AnnData):
+        n_obs = adata.n_obs
+        default_filter_genes_by_outliers_kwargs = {
+            "filter_bool": None,
+            "layer": "all",
+            "min_cell_s": max(5, 0.01 * n_obs),
+            "min_cell_u": max(5, 0.005 * n_obs),
+            "min_cell_p": max(5, 0.005 * n_obs),
+            "min_avg_exp_s": 0,
+            "min_avg_exp_u": 0,
+            "min_avg_exp_p": 0,
+            "max_avg_exp": np.inf,
+            "min_count_s": 0,
+            "min_count_u": 0,
+            "min_count_p": 0,
+            "shared_count": 30,
+        }
+        return default_filter_genes_by_outliers_kwargs
 
     def add_experiment_info(adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         if DKM.UNS_PP_KEY not in adata.uns.keys():
@@ -100,6 +121,10 @@ class Preprocessor:
         # self.normalize_selected_genes=pearson_residual_normalization_recipe.normalize_layers_pearson_residuals,
         # self.use_log1p=False
 
+    def config_monocle_recipe(self):
+
+        self.use_log1p = True
+
     def preprocess_adata(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
 
@@ -126,7 +151,8 @@ class Preprocessor:
 
         if self.filter_genes_by_outliers:
             main_info("filtering outlier genes...")
-            self.filter_genes_by_outliers(adata)
+            main_info("extra kwargs:" + str(self.filter_genes_by_outliers_kwargs))
+            self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
 
         if self.normalize_by_cells:
             main_info("applying normalizing by cells function...")
