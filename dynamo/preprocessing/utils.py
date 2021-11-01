@@ -543,7 +543,7 @@ def decode(adata):
 # pca
 
 
-def pca(
+def pca_monocle(
     adata: AnnData,
     X_data=None,
     n_pca_components: int = 30,
@@ -553,6 +553,7 @@ def pca(
     layer: str = None,
     return_all=False,
 ):
+
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if X_data is None:
         if "use_for_pca" not in adata.var.keys():
@@ -592,7 +593,8 @@ def pca(
         adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
         X_data = X_data[:, valid_ind]
 
-    if adata.n_obs < 100000:
+    USE_TRUNCATED_SVD_THRESHOLD = 100000
+    if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
         pca = PCA(
             n_components=min(n_pca_components, X_data.shape[1] - 1),
             svd_solver="arpack",
@@ -668,7 +670,6 @@ def top_pca_genes(adata, pc_key="PCs", n_top_genes=100, pc_components=None, adat
         genes[adata.var["use_for_pca"]] = pcg
     else:
         genes = pcg
-    print("%d top PCA genes found for %d PCs." % (np.sum(pcg), Q.shape[1]))
     adata.var[adata_store_key] = genes
     return adata
 

@@ -1,6 +1,6 @@
 import warnings
 import numpy as np
-from ..preprocessing.utils import pca
+from ..preprocessing.utils import pca_monocle
 from .utils import update_dict, log1p_
 from .connectivity import _gen_neighbor_keys, umap_conn_indices_dist_embedding, knn_to_adj
 from .psl_py import psl
@@ -86,7 +86,7 @@ def prepare_dim_reduction(
                 valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                 valid_ind = np.array(valid_ind).flatten()
                 CM = CM[:, valid_ind]
-                adata, fit, _ = pca(
+                adata, fit, _ = pca_monocle(
                     adata,
                     CM,
                     n_pca_components=n_pca_components,
@@ -116,7 +116,7 @@ def prepare_dim_reduction(
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
+            adata, fit, _ = pca_monocle(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
             adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
             # valid genes used for dimension reduction calculation

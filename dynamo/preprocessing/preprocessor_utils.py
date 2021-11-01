@@ -7,6 +7,7 @@ from anndata import AnnData
 import anndata
 import scipy.sparse
 from scipy.sparse.csr import csr_matrix
+from sklearn.utils import sparsefuncs
 from ..utils import copy_adata
 from ..dynamo_logger import (
     main_debug,
@@ -27,7 +28,28 @@ from .utils import (
     normalize_util,
     sz_util,
 )
-from .utils import pca
+from .utils import (
+    convert2symbol,
+    pca_monocle,
+    clusters_stats,
+    cook_dist,
+    get_inrange_shared_counts_mask,
+    get_svr_filter,
+    Freeman_Tukey,
+    merge_adata_attrs,
+    sz_util,
+    normalize_util,
+    get_sz_exprs,
+    unique_var_obs_adata,
+    convert_layers2csr,
+    collapse_species_adata,
+    calc_new_to_total_ratio,
+    detect_experiment_datatype,
+    basic_stats,
+    add_noise_to_duplicates,
+    compute_gene_exp_fraction,
+)
+from ..tools.utils import update_dict
 
 
 def is_log1p_transformed_adata(adata):
@@ -159,11 +181,12 @@ def select_genes_by_dispersion_general(
     layer: str = DynamoAdataKeyManager.X_LAYER,
     nan_replace_val: float = None,
     n_top_genes: int = 2000,
-    recipe: str = "svr",
+    recipe: str = "dynamo_monocle",
     seurat_min_disp=None,
     seurat_max_disp=None,
     seurat_min_mean=None,
     seurat_max_mean=None,
+    dynamo_monocle_kwargs: dict = {},
 ):
     """ "A general function for filter genes family. Preprocess adata and dispatch to different filtering methods, and eventually set keys in anndata to denote which genes are wanted in downstream analysis.
 
@@ -214,6 +237,12 @@ def select_genes_by_dispersion_general(
             min_mean=seurat_min_mean,
             max_mean=seurat_max_mean,
         )
+    elif recipe == "dynamo_monocle":
+        # TODO refactor dynamo monocle selection genes part code and make it modular (same as the two functions above)
+        # the logics here for dynamo recipe is different from the above recipes
+        select_genes_monocle(adata, **dynamo_monocle_kwargs)
+        adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[DynamoAdataKeyManager.VAR_USE_FOR_PCA]
+        return
     else:
         raise NotImplementedError("Selected gene seletion recipe not supported.")
 
@@ -324,6 +353,307 @@ def select_genes_by_dispersion_svr(
     variance = np.array(variance).flatten()
 
     return mean.flatten(), variance, highly_variable_mask, highly_variable_scores
+
+
+def SVRs(
+    adata_ori: anndata.AnnData,
+    filter_bool: Union[np.ndarray, None] = None,
+    layers: str = "X",
+    relative_expr: bool = True,
+    total_szfactor: str = "total_Size_Factor",
+    min_expr_cells: int = 0,
+    min_expr_avg: int = 0,
+    max_expr_avg: int = 0,
+    svr_gamma: Union[float, None] = None,
+    winsorize: bool = False,
+    winsor_perc: tuple = (1, 99.5),
+    sort_inverse: bool = False,
+    use_all_genes_cells: bool = False,
+) -> anndata.AnnData:
+    """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        filter_bool: :class:`~numpy.ndarray` (default: None)
+            A boolean array from the user to select genes for downstream analysis.
+        layers: `str` (default: 'X')
+            The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X
+            if there is no spliced layers.
+        relative_expr: `bool` (default: `True`)
+            A logic flag to determine whether we need to divide gene expression values first by size factor before run
+            SVR.
+        total_szfactor: `str` (default: `total_Size_Factor`)
+            The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
+        min_expr_cells: `int` (default: `2`)
+            minimum number of cells that express that gene for it to be considered in the fit.
+        min_expr_avg: `int` (default: `0`)
+            The minimum average of genes across cells accepted.
+        max_expr_avg: `float` (defaul: `20`)
+            The maximum average of genes across cells accepted before treating house-keeping/outliers for removal.
+        svr_gamma: `float` or None (default: `None`)
+            the gamma hyper-parameter of the SVR.
+        winsorize: `bool` (default: `False`)
+            Wether to winsorize the data for the cv vs mean model.
+        winsor_perc: `tuple` (default: `(1, 99.5)`)
+            the up and lower bound of the winsorization.
+        sort_inverse: `bool` (default: `False`)
+            if True it sorts genes from less noisy to more noisy (to use for size estimation not for feature selection).
+        use_all_genes_cells: `bool` (default: `False`)
+            A logic flag to determine whether all cells and genes should be used for the size factor calculation.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns
+            attribute as a new key.
+    """
+    from sklearn.svm import SVR
+
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata_ori, layers)
+
+    if use_all_genes_cells:
+        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
+    else:
+        cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
+        filter_list = ["use_for_pca", "pass_basic_filter"]
+        filter_checker = [i in adata_ori.var.columns for i in filter_list]
+        which_filter = np.where(filter_checker)[0]
+
+        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
+
+        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            adata = adata_ori[cell_inds, gene_inds].copy()
+        filter_bool = filter_bool[gene_inds]
+
+    for layer in layers:
+        if layer == "raw":
+            CM = adata.X.copy() if adata.raw is None else adata.raw
+            szfactors = (
+                adata.obs[layer + "_Size_Factor"].values[:, None]
+                if adata.raw.X is not None
+                else adata.obs["Size_Factor"].values[:, None]
+            )
+        elif layer == "X":
+            CM = adata.X.copy()
+            szfactors = adata.obs["Size_Factor"].values[:, None]
+        elif layer == "protein":
+            if "protein" in adata.obsm_keys():
+                CM = adata.obsm["protein"].copy()
+                szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
+            else:
+                continue
+        else:
+            CM = adata.layers[layer].copy()
+            szfactors = (
+                adata.obs[layer + "_Size_Factor"].values[:, None]
+                if layer + "_Size_Factor" in adata.obs.columns
+                else None
+            )
+
+        if total_szfactor is not None and total_szfactor in adata.obs.keys():
+            szfactors = adata.obs[total_szfactor].values[:, None] if total_szfactor in adata.obs.columns else None
+
+        if szfactors is not None and relative_expr:
+            if issparse(CM):
+                sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
+            else:
+                CM /= szfactors
+
+        if winsorize:
+            if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
+                min_expr_cells = int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
+
+        detected_bool = np.array(
+            ((CM > 0).sum(0) >= min_expr_cells) & (CM.mean(0) <= max_expr_avg) & (CM.mean(0) >= min_expr_avg)
+        ).flatten()
+
+        valid_CM = CM[:, detected_bool]
+        if winsorize:
+            down, up = (
+                np.percentile(valid_CM.A, winsor_perc, 0)
+                if issparse(valid_CM)
+                else np.percentile(valid_CM, winsor_perc, 0)
+            )
+            Sfw = (
+                np.clip(valid_CM.A, down[None, :], up[None, :])
+                if issparse(valid_CM)
+                else np.percentile(valid_CM, winsor_perc, 0)
+            )
+            mu = Sfw.mean(0)
+            sigma = Sfw.std(0, ddof=1)
+        else:
+            mu = np.array(valid_CM.mean(0)).flatten()
+            sigma = (
+                np.array(
+                    np.sqrt(
+                        (valid_CM.multiply(valid_CM).mean(0).A1 - (mu) ** 2)
+                        # * (adata.n_obs)
+                        # / (adata.n_obs - 1)
+                    )
+                )
+                if issparse(valid_CM)
+                else valid_CM.std(0, ddof=1)
+            )
+
+        cv = sigma / mu
+        log_m = np.array(np.log2(mu)).flatten()
+        log_cv = np.array(np.log2(cv)).flatten()
+        log_m[mu == 0], log_cv[mu == 0] = 0, 0
+
+        if svr_gamma is None:
+            svr_gamma = 150.0 / len(mu)
+        # Fit the Support Vector Regression
+        clf = SVR(gamma=svr_gamma)
+        clf.fit(log_m[:, None], log_cv)
+        fitted_fun = clf.predict
+        ff = fitted_fun(log_m[:, None])
+        score = log_cv - ff
+        if sort_inverse:
+            score = -score
+
+        prefix = "" if layer == "X" else layer + "_"
+        (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
+            np.nan,
+            np.nan,
+            -np.inf,
+        )
+        (
+            adata.var.loc[detected_bool, prefix + "log_m"],
+            adata.var.loc[detected_bool, prefix + "log_cv"],
+            adata.var.loc[detected_bool, prefix + "score"],
+        ) = (
+            np.array(log_m).flatten(),
+            np.array(log_cv).flatten(),
+            np.array(score).flatten(),
+        )
+
+        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
+        adata_ori.uns[key] = {"SVR": fitted_fun}
+
+    adata_ori = merge_adata_attrs(adata_ori, adata, attr="var")
+
+    return adata_ori
+
+
+def select_genes_monocle(
+    adata: anndata.AnnData,
+    layer: str = "X",
+    total_szfactor: str = "total_Size_Factor",
+    keep_filtered: bool = True,
+    sort_by: str = "SVR",
+    n_top_genes: int = 2000,
+    SVRs_kwargs: dict = {},
+    only_bools: bool = False,
+    exprs_frac_for_gene_exclusion: float = 1,
+    genes_to_exclude: Union[list, None] = None,
+) -> anndata.AnnData:
+    """Select feature genes based on a collection of filters.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        layer: `str` (default: `X`)
+            The data from a particular layer (include X) used for feature selection.
+        total_szfactor: `str` (default: `total_Size_Factor`)
+            The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
+        keep_filtered: `bool` (default: `True`)
+            Whether to keep genes that don't pass the filtering in the adata object.
+        sort_by: `str` (default: `SVR`)
+            Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
+        n_top_genes: `int` (default: `int`)
+            How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        only_bools: `bool` (default: `False`)
+            Only return a vector of bool values.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of
+            genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is
+            set to be False.
+    """
+    adata = calc_sz_factor(
+        adata,
+        total_layers=adata.uns["pp"]["experiment_total_layers"],
+        scale_to=None,
+        splicing_total_layers=False,
+        X_total_layers=False,
+        layers=adata.uns["pp"]["experiment_layers"],
+        genes_use_for_norm=None,
+    )
+
+    filter_bool = (
+        adata.var["pass_basic_filter"]
+        if "pass_basic_filter" in adata.var.columns
+        else np.ones(adata.shape[1], dtype=bool)
+    )
+
+    if adata.shape[1] <= n_top_genes:
+        filter_bool = np.ones(adata.shape[1], dtype=bool)
+    else:
+        if sort_by == "dispersion":
+            table = top_table(adata, layer, mode="dispersion")
+            valid_table = table.query("dispersion_empirical > dispersion_fit")
+            valid_table = valid_table.loc[
+                set(adata.var.index[filter_bool]).intersection(valid_table.index),
+                :,
+            ]
+            gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[:n_top_genes]
+            gene_id = valid_table.iloc[gene_id, :].index
+            filter_bool = adata.var.index.isin(gene_id)
+        elif sort_by == "gini":
+            table = top_table(adata, layer, mode="gini")
+            valid_table = table.loc[filter_bool, :]
+            gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
+            gene_id = valid_table.index[gene_id]
+            filter_bool = gene_id.isin(adata.var.index)
+        elif sort_by == "SVR":
+            SVRs_args = {
+                "min_expr_cells": 0,
+                "min_expr_avg": 0,
+                "max_expr_avg": np.inf,
+                "svr_gamma": None,
+                "winsorize": False,
+                "winsor_perc": (1, 99.5),
+                "sort_inverse": False,
+            }
+            SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
+            adata = SVRs(
+                adata,
+                layers=[layer],
+                total_szfactor=total_szfactor,
+                filter_bool=filter_bool,
+                **SVRs_args,
+            )
+
+            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
+
+    # filter genes by gene expression fraction as well
+    adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
+    genes_to_exclude = (
+        list(adata.var_names[invalid_ids])
+        if genes_to_exclude is None
+        else genes_to_exclude + list(adata.var_names[invalid_ids])
+    )
+    if genes_to_exclude is not None and len(genes_to_exclude) > 0:
+        adata_exclude_genes = adata.var.index.intersection(genes_to_exclude)
+        adata.var.loc[adata_exclude_genes, "use_for_pca"] = False
+
+    if keep_filtered:
+        adata.var["use_for_pca"] = filter_bool
+    else:
+        adata._inplace_subset_var(filter_bool)
+        adata.var["use_for_pca"] = True
+
+    return filter_bool if only_bools else adata
 
 
 def get_highly_variable_mask_by_dispersion_svr(
@@ -490,7 +820,7 @@ def filter_genes_by_outliers(
 
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
-    return adata
+    return adata.var["pass_basic_filter"]
 
 
 def get_in_range_mask(data_mat, min_val, max_val, axis=0, sum_min_val_threshold=0):
@@ -779,7 +1109,7 @@ def calc_sz_factor(
     return adata_ori
 
 
-# refactor the function below
+# TODO refactor the function below
 def normalize_cell_expr_by_size_factors(
     adata: anndata.AnnData,
     layers: str = "all",
@@ -847,8 +1177,8 @@ def normalize_cell_expr_by_size_factors(
 
     layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
-    layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
-
+    # layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
+    layers_to_sz = list(set(layer_sz_column_names))
     if len(layers_to_sz) > 0:
         layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
         if "Size_Factor" in layers:
@@ -937,4 +1267,4 @@ def is_nonnegative_integer_arr(mat: Union[np.ndarray, scipy.sparse.spmatrix, lis
 
 
 def pca_selected_genes_wrapper(adata: AnnData, pca_input=None, n_pca_components: int = 30, key: str = "X_pca"):
-    adata = pca(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
+    adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
