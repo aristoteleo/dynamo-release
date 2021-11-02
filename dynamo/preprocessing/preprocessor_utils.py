@@ -1,4 +1,4 @@
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Tuple, Union, Optional
 import warnings
 import numpy as np
 from scipy.sparse.base import issparse
@@ -236,6 +236,7 @@ def select_genes_by_dispersion_general(
             max_disp=seurat_max_disp,
             min_mean=seurat_min_mean,
             max_mean=seurat_max_mean,
+            n_top_genes=n_top_genes,
         )
     elif recipe == "dynamo_monocle":
         # TODO refactor dynamo monocle selection genes part code and make it modular (same as the two functions above)
@@ -273,6 +274,7 @@ def select_genes_by_seurat_recipe(
     max_disp=None,
     min_mean=None,
     max_mean=None,
+    n_top_genes: Optional[int] = None,
 ):
     """Apply seurat's gene selection therapy by cutoffs. https://satijalab.org/seurat/reference/findvariablefeatures"""
     # default values from Seurat
@@ -315,15 +317,22 @@ def select_genes_by_seurat_recipe(
     variance = std ** 2
     temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) / std).fillna(0)
     dispersion_norm = temp_df["dispersion_norm"].values
-    highly_variable_mask = np.logical_and.reduce(
-        (
-            mean > min_mean,
-            mean < max_mean,
-            dispersion_norm > min_disp,
-            dispersion_norm < max_disp,
-        )
-    )
 
+    highly_variable_mask = None
+    if n_top_genes is not None:
+        main_info("choose %d top genes" % (n_top_genes), indent_level=2)
+        threshold = temp_df["dispersion_norm"].nlargest(n_top_genes).values[-1]
+        highly_variable_mask = temp_df["dispersion_norm"].values >= threshold
+    else:
+        main_info("choose genes by mean and dispersion norm threshold", indent_level=2)
+        highly_variable_mask = np.logical_and.reduce(
+            (
+                mean > min_mean,
+                mean < max_mean,
+                dispersion_norm > min_disp,
+                dispersion_norm < max_disp,
+            )
+        )
     return mean, variance, highly_variable_mask, None
 
 

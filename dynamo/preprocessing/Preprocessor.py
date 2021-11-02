@@ -15,7 +15,7 @@ from .preprocessor_utils import (
 from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
 from .utils import collapse_species_adata, detect_experiment_datatype, convert2symbol, unique_var_obs_adata
 from ..tools.connectivity import neighbors as default_neighbors
-from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
+from ..dynamo_logger import LoggerManager, main_info, main_info_insert_adata, main_warning
 from ..configuration import DKM
 
 
@@ -160,12 +160,18 @@ class Preprocessor:
         # self.normalize_selected_genes=pearson_residual_normalization_recipe.normalize_layers_pearson_residuals,
         # self.use_log1p=False
 
+    def config_seurat_recipe(self):
+        self.select_genes = select_genes_by_dispersion_general
+        self.select_genes_kwargs = {"recipe": "seurat", "n_top_genes": 2000}
+
     def config_monocle_recipe(self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"):
         # TODO
         self.add_experiment_info(adata)
         self.use_log1p = False
         self.filter_cells_by_outliers_kwargs = {"keep_filtered": True}
+        self.select_genes = select_genes_by_dispersion_general
         self.select_genes_kwargs = {
+            "recipe": "dynamo_monocle",
             "dynamo_monocle_kwargs": {
                 "sort_by": gene_selection_method,
                 "n_top_genes": n_top_genes,
@@ -180,9 +186,8 @@ class Preprocessor:
                     "sort_inverse": False,
                 },
                 "only_bools": True,
-            }
+            },
         }
-        self.select_genes = select_genes_by_dispersion_general
         self.normalize_selected_genes = None
         self.normalize_by_cells = normalize_cell_expr_by_size_factors
         self.pca = pca_monocle
@@ -190,7 +195,8 @@ class Preprocessor:
 
     def preprocess_adata(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
-
+        temp_logger = LoggerManager.gen_logger("preprocessor")
+        temp_logger.log_time()
         adata.uns["pp"] = {}
         self.add_experiment_info(adata, tkey, experiment_type)
 
@@ -261,3 +267,5 @@ class Preprocessor:
         if self.pca:
             main_info("reducing dimension by PCA...")
             self.pca(adata, **self.pca_kwargs)
+
+        temp_logger.finish_progress(progress_name="preprocess")

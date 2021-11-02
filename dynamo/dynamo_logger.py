@@ -235,7 +235,7 @@ class LoggerManager:
         return LoggerManager.main_logger
 
     @staticmethod
-    def gen_logger(namespace):
+    def gen_logger(namespace: str):
         return Logger(namespace)
 
     @staticmethod
