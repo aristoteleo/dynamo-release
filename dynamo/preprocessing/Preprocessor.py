@@ -75,25 +75,6 @@ class Preprocessor:
         self.filter_cells_by_outliers_kwargs = filter_cells_by_outliers_kwargs
         self.select_genes_kwargs = select_genes_kwargs
 
-    def get_monocle_filter_genes_outliers_kwargs(adata: AnnData):
-        n_obs = adata.n_obs
-        default_filter_genes_by_outliers_kwargs = {
-            "filter_bool": None,
-            "layer": "all",
-            "min_cell_s": max(5, 0.01 * n_obs),
-            "min_cell_u": max(5, 0.005 * n_obs),
-            "min_cell_p": max(5, 0.005 * n_obs),
-            "min_avg_exp_s": 0,
-            "min_avg_exp_u": 0,
-            "min_avg_exp_p": 0,
-            "max_avg_exp": np.inf,
-            "min_count_s": 0,
-            "min_count_u": 0,
-            "min_count_p": 0,
-            "shared_count": 30,
-        }
-        return default_filter_genes_by_outliers_kwargs
-
     def add_experiment_info(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         if DKM.UNS_PP_KEY not in adata.uns.keys():
             adata.uns[DKM.UNS_PP_KEY] = {}
@@ -166,9 +147,36 @@ class Preprocessor:
 
     def config_monocle_recipe(self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"):
         # TODO
+        n_obs, n_genes = adata.n_obs, adata.n_vars
+        n_cells = n_obs
         self.add_experiment_info(adata)
         self.use_log1p = False
-        self.filter_cells_by_outliers_kwargs = {"keep_filtered": True}
+        self.filter_cells_by_outliers_kwargs = {
+            "filter_bool": None,
+            "layer": "all",
+            "min_expr_genes_s": min(50, 0.01 * n_genes),
+            "min_expr_genes_u": min(25, 0.01 * n_genes),
+            "min_expr_genes_p": min(2, 0.01 * n_genes),
+            "max_expr_genes_s": np.inf,
+            "max_expr_genes_u": np.inf,
+            "max_expr_genes_p": np.inf,
+            "shared_count": None,
+        }
+        self.filter_genes_by_outliers_kwargs = {
+            "filter_bool": None,
+            "layer": "all",
+            "min_cell_s": max(5, 0.01 * n_cells),
+            "min_cell_u": max(5, 0.005 * n_cells),
+            "min_cell_p": max(5, 0.005 * n_cells),
+            "min_avg_exp_s": 0,
+            "min_avg_exp_u": 0,
+            "min_avg_exp_p": 0,
+            "max_avg_exp": np.inf,
+            "min_count_s": 0,
+            "min_count_u": 0,
+            "min_count_p": 0,
+            "shared_count": 30,
+        }
         self.select_genes = select_genes_by_dispersion_general
         self.select_genes_kwargs = {
             "recipe": "dynamo_monocle",
@@ -215,11 +223,12 @@ class Preprocessor:
 
         if self.filter_cells_by_outliers:
             main_info("filtering outlier cells...")
+            main_info("cell filter kwargs:" + str(self.filter_cells_by_outliers_kwargs))
             self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
 
         if self.filter_genes_by_outliers:
             main_info("filtering outlier genes...")
-            main_info("extra kwargs:" + str(self.filter_genes_by_outliers_kwargs))
+            main_info("gene filter kwargs:" + str(self.filter_genes_by_outliers_kwargs))
             self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
 
         if self.select_genes:
@@ -266,6 +275,9 @@ class Preprocessor:
 
         if self.pca:
             main_info("reducing dimension by PCA...")
+
+            print("preprocessor pca inputs:")
+            print(pd.Series(adata.X[:, adata.var[DKM.VAR_USE_FOR_PCA]].data).describe())
             self.pca(adata, **self.pca_kwargs)
 
         temp_logger.finish_progress(progress_name="preprocess")
