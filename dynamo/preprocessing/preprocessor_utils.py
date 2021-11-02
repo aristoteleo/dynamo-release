@@ -589,6 +589,7 @@ def select_genes_monocle(
             genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is
             set to be False.
     """
+    # The following size factor calculation is now a prerequisite for monocle recipe preprocess in preprocessor.
     adata = calc_sz_factor(
         adata,
         total_layers=adata.uns["pp"]["experiment_total_layers"],
