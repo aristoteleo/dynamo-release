@@ -1247,7 +1247,7 @@ def normalize_cell_expr_by_size_factors(
             main_warning(norm_method + " is not implemented yet")
 
         if layer in ["raw", "X"]:
-            main_log("set adata <X> to normalized data.")
+            main_info("set adata <X> to normalized data.")
             adata.X = CM
         elif layer == "protein" and "protein" in adata.obsm_keys():
             main_info_insert_adata_obsm("X_protein")
