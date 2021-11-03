@@ -346,11 +346,13 @@ def dynamics(
 
     if model.lower() == "stochastic" or use_smoothed or re_smooth:
         M_layers = [i for i in adata.layers.keys() if i.startswith("M_")]
-        if re_smooth or len(M_layers) < 2:
-            for i in M_layers:
-                del adata.layers[i]
 
         if len(M_layers) < 2 or re_smooth:
+            main_info("removing existing M layers:%s..." % (str(list(M_layers))), indent_level=2)
+            for i in M_layers:
+                del adata.layers[i]
+            main_info("making adata smooth...", indent_level=2)
+
             if filter_gene_mode.lower() == "final" and "X_pca" in adata.obsm.keys():
                 adata.obsm["X"] = adata.obsm["X_pca"]
 

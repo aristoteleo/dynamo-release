@@ -15,6 +15,8 @@ from ..dynamo_logger import (
     main_info,
     main_info_insert_adata,
     main_info_insert_adata_obs,
+    main_info_insert_adata_obsm,
+    main_info_insert_adata_uns,
     main_info_insert_adata_var,
     main_log_time,
     main_warning,
@@ -1215,8 +1217,10 @@ def normalize_cell_expr_by_size_factors(
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
         if norm_method is None and layer == "X":
+            main_info("applying np.log1p to <X>")
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
         elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
+            main_info("applying %s to layer<%s>" % (norm_method, layer))
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer == "protein":  # norm_method == 'clr':
@@ -1243,12 +1247,16 @@ def normalize_cell_expr_by_size_factors(
             main_warning(norm_method + " is not implemented yet")
 
         if layer in ["raw", "X"]:
+            main_log("set adata <X> to normalized data.")
             adata.X = CM
         elif layer == "protein" and "protein" in adata.obsm_keys():
+            main_info_insert_adata_obsm("X_protein")
             adata.obsm["X_protein"] = CM
         else:
+            main_info_insert_adata_obsm("X_" + layer)
             adata.layers["X_" + layer] = CM
 
+        main_info_insert_adata_uns("pp.norm_method")
         adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
 
     return adata
