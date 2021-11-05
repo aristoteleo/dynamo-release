@@ -13,7 +13,13 @@ from .preprocessor_utils import (
 )
 
 from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
-from .utils import collapse_species_adata, detect_experiment_datatype, convert2symbol, unique_var_obs_adata
+from .utils import (
+    collapse_species_adata,
+    convert_layers2csr,
+    detect_experiment_datatype,
+    convert2symbol,
+    unique_var_obs_adata,
+)
 from ..tools.connectivity import neighbors as default_neighbors
 from ..dynamo_logger import LoggerManager, main_info, main_info_insert_adata, main_warning
 from ..configuration import DKM
@@ -268,8 +274,9 @@ class Preprocessor:
                 main_warning(
                     "Your adata.X maybe log1p transformed before. If you are sure that your adata is not log1p transformed, please ignore this warning. Dynamo will do log1p transformation still."
                 )
+            adata.uns["pp"]["norm_method"] = "log1p"
             main_info("applying log1p transformation on expression matrix data (adata.X)...")
-            log1p_adata(adata)
+            self.log1p(adata)
 
         import pandas as pd
 
@@ -281,3 +288,17 @@ class Preprocessor:
             self.pca(adata, **self.pca_kwargs)
 
         temp_logger.finish_progress(progress_name="preprocess")
+
+    def preprocess_adata_seurat(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+        self.config_seurat_recipe()
+        temp_logger = LoggerManager.gen_logger("preprocessor-seurat")
+        temp_logger.log_time()
+        adata.uns["pp"] = {}
+        self.add_experiment_info(adata, tkey, experiment_type)
+        main_info("making adata obs/var unique...")
+        adata = unique_var_obs_adata(adata)
+        self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
+        self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
+        self.select_genes(adata, **self.select_genes_kwargs)
+        self.log1p(adata)
+        self.pca(adata, **self.pca_kwargs)

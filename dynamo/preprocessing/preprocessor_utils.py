@@ -21,7 +21,7 @@ from ..dynamo_logger import (
     main_log_time,
     main_warning,
 )
-from ..configuration import DynamoAdataKeyManager
+from ..configuration import DynamoAdataKeyManager, DKM
 from .utils import (
     Freeman_Tukey,
     get_inrange_shared_counts_mask,
@@ -693,24 +693,40 @@ def get_highly_variable_mask_by_dispersion_svr(
     return highly_variable_mask
 
 
-def log1p_adata(adata: AnnData, copy: bool = False) -> AnnData:
-    """returns log1p  of adata's data. If copy is true, operates on a copy of adata and returns the copy."""
+def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """returns log1p  of adata's specific layer data. If copy is true, operates on a copy of adata and returns the copy."""
     _adata = adata
     if copy:
         _adata = copy_adata(adata)
-    log1p_inplace(_adata)
+    log1p_inplace(_adata, layer=layer)
+    return _adata
+
+
+def log1p_adata(adata: AnnData, copy: bool = False) -> AnnData:
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    all_layers = DKM.get_available_layer_keys(_adata)
+    main_info("log1p transform applied to layers: %s" % (str(all_layers)))
+    for layer in all_layers:
+        log1p_adata_layer(_adata, layer=layer)
     return _adata
 
 
 def _log1p_inplace(data):
-    np.log1p(data, out=data)
+    return np.log1p(data, out=data)
 
 
-def log1p_inplace(adata: AnnData):
-    if issparse(adata.X):
-        _log1p_inplace(adata.X.data)
+def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER):
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        _log1p_inplace(mat.data)
     else:
-        _log1p_inplace(adata.X)
+        mat = mat.astype(np.float)
+        _log1p_inplace(mat)
 
 
 def filter_genes_by_outliers(
@@ -1218,6 +1234,7 @@ def normalize_cell_expr_by_size_factors(
 
         if norm_method is None and layer == "X":
             main_info("applying np.log1p to <X>")
+            norm_method = np.log1p
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
         elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
             main_info("applying %s to layer<%s>" % (norm_method, layer))
