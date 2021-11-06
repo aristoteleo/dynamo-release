@@ -445,6 +445,7 @@ def sz_util(
         CM = adata.layers[layer] if CM is None else CM
 
     if round_exprs:
+        main_info("rounding mat data")
         if issparse(CM):
             CM.data = np.round(CM.data, 0)
         else:
@@ -484,29 +485,29 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
 
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor][:, None]
-    else:
-        if total_szfactor is not None:
-            main_warning("`total_szfactor` is not `None` and it is not in adata object.")
+    elif total_szfactor is not None:
+        main_warning("`total_szfactor` is not `None` and it is not in adata object.")
 
     return szfactors, CM
 
 
-def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p):
+def normalize_mat_monocle(mat, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p):
     if norm_method == np.log1p:
         pseudo_expr = 0
     if relative_expr:
-        CM = CM.multiply(csr_matrix(1 / szfactors)) if issparse(CM) else CM / szfactors
+        mat = mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
 
     if pseudo_expr is None:
         pseudo_expr = 1
-    if issparse(CM):
-        CM.data = norm_method(CM.data + pseudo_expr) if norm_method is not None else CM.data
-        if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
-            CM.data -= 1
-    else:
-        CM = norm_method(CM + pseudo_expr) if norm_method is not None else CM
 
-    return CM
+    if issparse(mat):
+        mat.data = norm_method(mat.data + pseudo_expr) if norm_method is not None else mat.data
+        if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
+            mat.data -= 1
+    else:
+        mat = norm_method(mat + pseudo_expr) if norm_method is not None else mat
+
+    return mat
 
 
 def Freeman_Tukey(X, inverse=False):

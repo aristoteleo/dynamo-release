@@ -21,7 +21,7 @@ from .utils import (
     Freeman_Tukey,
     merge_adata_attrs,
     sz_util,
-    normalize_util,
+    normalize_mat_monocle,
     get_sz_exprs,
     unique_var_obs_adata,
     convert_layers2csr,
@@ -280,10 +280,9 @@ def normalize_cell_expr_by_size_factors_legacy(
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
         if norm_method is None and layer == "X":
-            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
+            CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
         elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
-            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
-
+            CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, norm_method)
         elif layer == "protein":  # norm_method == 'clr':
             if norm_method != "clr":
                 main_warning(
@@ -1876,7 +1875,6 @@ def select_genes_monocle_legacy(
             genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is
             set to be False.
     """
-
     filter_bool = (
         adata.var["pass_basic_filter"]
         if "pass_basic_filter" in adata.var.columns

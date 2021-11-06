@@ -27,7 +27,7 @@ from .utils import (
     get_inrange_shared_counts_mask,
     get_sz_exprs,
     merge_adata_attrs,
-    normalize_util,
+    normalize_mat_monocle,
     sz_util,
 )
 from .utils import (
@@ -40,7 +40,7 @@ from .utils import (
     Freeman_Tukey,
     merge_adata_attrs,
     sz_util,
-    normalize_util,
+    normalize_mat_monocle,
     get_sz_exprs,
     unique_var_obs_adata,
     convert_layers2csr,
@@ -702,13 +702,16 @@ def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = Fal
     return _adata
 
 
-def log1p_adata(adata: AnnData, copy: bool = False) -> AnnData:
+def log1p_adata(adata: AnnData, layers: list = None, copy: bool = False) -> AnnData:
     _adata = adata
     if copy:
         _adata = copy_adata(adata)
-    all_layers = DKM.get_available_layer_keys(_adata)
-    main_info("log1p transform applied to layers: %s" % (str(all_layers)))
-    for layer in all_layers:
+
+    if layers is None:
+        layers = DKM.get_available_layer_keys(_adata)
+
+    main_info("log1p transform applied to layers: %s" % (str(layers)))
+    for layer in layers:
         log1p_adata_layer(_adata, layer=layer)
     return _adata
 
@@ -744,6 +747,7 @@ def filter_genes_by_outliers(
     min_count_u: int = 0,
     min_count_p: int = 0,
     shared_count: int = 30,
+    inplace: bool = False,
 ) -> anndata.AnnData:
     """Basic filter of genes based a collection of expression filters.
 
@@ -848,6 +852,8 @@ def filter_genes_by_outliers(
 
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
+    if inplace:
+        adata = adata[:, adata.var["pass_basic_filter"]]
     return adata.var["pass_basic_filter"]
 
 
@@ -934,10 +940,10 @@ def filter_cells_by_outliers(
 
     main_info_insert_adata_obs(obs_store_key)
     if keep_filtered:
-        main_info("keep filtered genes", indent_level=2)
+        main_info("keep filtered cell", indent_level=2)
         adata.obs[obs_store_key] = filter_bool
     else:
-        main_info("inplace subsetting adata by filtered genes", indent_level=2)
+        main_info("inplace subsetting adata by filtered cells", indent_level=2)
         adata._inplace_subset_obs(filter_bool)
         adata.obs[obs_store_key] = True
 
@@ -1151,6 +1157,7 @@ def normalize_cell_expr_by_size_factors(
     recalc_sz: bool = False,
     sz_method: str = "median",
     scale_to: Union[float, None] = None,
+    skip_log: bool = False,
 ) -> anndata.AnnData:
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -1226,22 +1233,31 @@ def normalize_cell_expr_by_size_factors(
     if not splicing_total_layers:
         excluded_layers.extend(["spliced", "unspliced"])
 
+    main_info("size factor normalize following layers: " + str(layers))
     for layer in layers:
         if layer in excluded_layers:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
         else:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
+        # log transforms
+
+        # special default norm case for adata.X in monocle logics
         if norm_method is None and layer == "X":
-            main_info("applying np.log1p to <X>")
-            norm_method = np.log1p
-            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
-        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
-            main_info("applying %s to layer<%s>" % (norm_method, layer))
-            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
+            _norm_method = np.log1p
+        else:
+            _norm_method = norm_method
+
+        if skip_log:
+            main_info("skipping log transformation as input requires...")
+            _norm_method = None
+
+        if _norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
+            main_info("applying %s to layer<%s>" % (_norm_method, layer))
+            CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, _norm_method)
 
         elif layer == "protein":  # norm_method == 'clr':
-            if norm_method != "clr":
+            if _norm_method != "clr":
                 main_warning(
                     "For protein data, log transformation is not recommended. Using clr normalization by default."
                 )
@@ -1261,7 +1277,7 @@ def normalize_cell_expr_by_size_factors(
 
             CM = CM.T
         else:
-            main_warning(norm_method + " is not implemented yet")
+            main_warning(_norm_method + " is not implemented yet")
 
         if layer in ["raw", "X"]:
             main_info("set adata <X> to normalized data.")
@@ -1274,7 +1290,7 @@ def normalize_cell_expr_by_size_factors(
             adata.layers["X_" + layer] = CM
 
         main_info_insert_adata_uns("pp.norm_method")
-        adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
 
     return adata
 
