@@ -180,7 +180,7 @@ def seurat_get_mean_var(X, ignore_zeros=False, perc=None):
 
 def select_genes_by_dispersion_general(
     adata: AnnData,
-    layer: str = DynamoAdataKeyManager.X_LAYER,
+    layer: str = DKM.X_LAYER,
     nan_replace_val: float = None,
     n_top_genes: int = 2000,
     recipe: str = "dynamo_monocle",
@@ -189,6 +189,8 @@ def select_genes_by_dispersion_general(
     seurat_min_mean=None,
     seurat_max_mean=None,
     dynamo_monocle_kwargs: dict = {},
+    gene_names: list = None,
+    var_filter_key: str = "pass_basic_filter",
 ):
     """ "A general function for filter genes family. Preprocess adata and dispatch to different filtering methods, and eventually set keys in anndata to denote which genes are wanted in downstream analysis.
 
@@ -197,7 +199,7 @@ def select_genes_by_dispersion_general(
     adata : AnnData
         Anndata object
     layer : str, optional
-        the key of a sparse matrix in adata, by default DynamoAdataKeyManager.X_LAYER
+        the key of a sparse matrix in adata, by default DKM.X_LAYER
     nan_replace_val : float, optional
         your choice of value to replace values in layer, by default None
     n_top_genes : int, optional
@@ -212,14 +214,26 @@ def select_genes_by_dispersion_general(
         Seurat mean cutoff, by default None
     seurat_max_mean : [type], optional
         Seurat mean cutoff, by default None
+    dynamo_monocle_kwargs:
+        Specific argument dictionary passed to monocle recipe
     """
 
     main_info("filtering genes by dispersion...")
     main_log_time()
+
+    pass_filter_genes = adata.var_names
+    if gene_names:
+        main_info("select genes on gene names from arguments <gene_names>")
+        pass_filter_genes = gene_names
+    elif var_filter_key:
+        main_info("select genes on var key: %s" % (var_filter_key))
+        pass_filter_genes = adata.var_names[adata.var[var_filter_key]]
+
+    subset_adata = adata[:, pass_filter_genes]
     if n_top_genes is None:
         main_info("n_top_genes is None, reserve all genes and add filter gene information")
         n_top_genes = adata.n_vars
-    layer_mat = DynamoAdataKeyManager.select_layer_data(adata, layer)
+    layer_mat = DKM.select_layer_data(subset_adata, layer)
     if nan_replace_val:
         main_info("replacing nan values with: %s" % (nan_replace_val))
         _mask = get_nan_or_inf_data_bool_mask(layer_mat)
@@ -228,11 +242,11 @@ def select_genes_by_dispersion_general(
     main_info("select genes by recipe: " + recipe)
     if recipe == "svr":
         mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_dispersion_svr(
-            adata, layer_mat, n_top_genes
+            subset_adata, layer_mat, n_top_genes
         )
     elif recipe == "seurat":
         mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_seurat_recipe(
-            adata,
+            subset_adata,
             layer_mat,
             min_disp=seurat_min_disp,
             max_disp=seurat_max_disp,
@@ -243,26 +257,35 @@ def select_genes_by_dispersion_general(
     elif recipe == "dynamo_monocle":
         # TODO refactor dynamo monocle selection genes part code and make it modular (same as the two functions above)
         # the logics here for dynamo recipe is different from the above recipes
+        # Note we do not need to pass subset_adata here because monocle takes care of everything regarding dynamo convention
         select_genes_monocle(adata, **dynamo_monocle_kwargs)
-        adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[DynamoAdataKeyManager.VAR_USE_FOR_PCA]
+        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[DKM.VAR_USE_FOR_PCA]
         return
     else:
         raise NotImplementedError("Selected gene seletion recipe not supported.")
 
-    main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_MEAN_KEY)
-    main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_VAR_KEY)
-    main_info_insert_adata_var(DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY)
+    main_info_insert_adata_var(DKM.VAR_GENE_MEAN_KEY)
+    main_info_insert_adata_var(DKM.VAR_GENE_VAR_KEY)
+    main_info_insert_adata_var(DKM.VAR_GENE_HIGHLY_VARIABLE_KEY)
     main_debug("type of variance:" + str(type(variance)))
     main_debug("shape of variance:" + str(variance.shape))
-    adata.var[DynamoAdataKeyManager.VAR_GENE_MEAN_KEY] = mean.flatten()
-    adata.var[DynamoAdataKeyManager.VAR_GENE_VAR_KEY] = variance
-    adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_KEY] = highly_variable_mask
+    adata.var[DKM.VAR_GENE_MEAN_KEY] = np.nan
+    adata.var[DKM.VAR_GENE_VAR_KEY] = np.nan
+    adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = False
+    adata.var[DKM.VAR_USE_FOR_PCA] = False
 
-    adata.var[DynamoAdataKeyManager.VAR_USE_FOR_PCA] = highly_variable_mask
-    main_info("number of selected highly variable genes: " + str(highly_variable_mask.sum()))
+    print("len of mean:", mean.shape)
+    print("shape of subset adata:", adata[:, pass_filter_genes].shape)
+
+    adata.var[DKM.VAR_GENE_MEAN_KEY][pass_filter_genes] = mean.flatten()
+    adata.var[DKM.VAR_GENE_VAR_KEY][pass_filter_genes] = variance
+    adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY][pass_filter_genes] = highly_variable_mask
+    adata.var[DKM.VAR_USE_FOR_PCA][pass_filter_genes] = highly_variable_mask
+
+    main_info("number of selected highly variable genes: " + str(adata.var[DKM.VAR_USE_FOR_PCA].sum()))
     if recipe == "svr":
         # SVR can give highly_variable_scores
-        adata.var[DynamoAdataKeyManager.VAR_GENE_HIGHLY_VARIABLE_SCORES] = highly_variable_scores
+        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES] = highly_variable_scores
 
     main_finish_progress("filter genes by dispersion")
 
@@ -422,7 +445,7 @@ def SVRs(
     """
     from sklearn.svm import SVR
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata_ori, layers)
+    layers = DKM.get_available_layer_keys(adata_ori, layers)
 
     if use_all_genes_cells:
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
@@ -820,7 +843,7 @@ def filter_genes_by_outliers(
             ).flatten()
         )
     if shared_count is not None:
-        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all", False)
+        layers = DKM.get_available_layer_keys(adata, "all", False)
         tmp = get_inrange_shared_counts_mask(adata, layers, shared_count, "gene")
         if tmp.sum() > 2000:
             detected_bool &= tmp
@@ -916,9 +939,9 @@ def filter_cells_by_outliers(
             be False.
     """
 
-    predefined_layers_for_filtering = [DynamoAdataKeyManager.X_LAYER, spliced_key, unspliced_key, protein_key]
+    predefined_layers_for_filtering = [DKM.X_LAYER, spliced_key, unspliced_key, protein_key]
     predefined_range_dict = {
-        DynamoAdataKeyManager.X_LAYER: (min_expr_genes_s, max_expr_genes_s),
+        DKM.X_LAYER: (min_expr_genes_s, max_expr_genes_s),
         spliced_key: (min_expr_genes_s, max_expr_genes_s),
         unspliced_key: (min_expr_genes_u, max_expr_genes_u),
         protein_key: (min_expr_genes_p, max_expr_genes_p),
@@ -987,18 +1010,18 @@ def get_filter_mask_cells_by_outliers(
                 "skip filtering cells by layer: %s as it is not in predefined range list:" % layer, indent_level=2
             )
             continue
-        if not DynamoAdataKeyManager.check_if_layer_exist(adata, layer):
+        if not DKM.check_if_layer_exist(adata, layer):
             main_info("skip filtering by layer:%s as it is not in adata." % layer)
             continue
         main_info("filtering cells by layer:%s" % layer, indent_level=2)
-        layer_data = DynamoAdataKeyManager.select_layer_data(adata, layer)
+        layer_data = DKM.select_layer_data(adata, layer)
         detected_mask = detected_mask & get_in_range_mask(
             layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, sum_min_val_threshold=0
         )
 
     if shared_count is not None:
         main_info("filtering cells by shared counts from all layers", indent_level=2)
-        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False)
+        layers = DKM.get_available_layer_keys(adata, layers, False)
         detected_mask = detected_mask & get_inrange_shared_counts_mask(adata, layers, shared_count, "cell")
 
     detected_mask = np.array(detected_mask).flatten()
@@ -1090,7 +1113,7 @@ def calc_sz_factor(
             _adata.layers["_total_"] = total
             layers.extend(["_total_"])
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(_adata, layers)
+    layers = DKM.get_available_layer_keys(_adata, layers)
     if "raw" in layers and _adata.raw is None:
         _adata.raw = _adata.copy()
 
@@ -1208,7 +1231,7 @@ def normalize_cell_expr_by_size_factors(
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
+    layers = DKM.get_available_layer_keys(adata, layers)
 
     layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
