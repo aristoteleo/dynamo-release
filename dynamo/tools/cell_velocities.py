@@ -10,10 +10,7 @@ from .Markov import (
     velocity_on_grid,
     ContinuousTimeMarkovChain,
 )
-from .graph_calculus import (
-    graphize_velocity,
-    fp_operator,
-)
+from .graph_calculus import graphize_velocity, fp_operator, calc_gaussian_weight
 from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
 
 from .metric_velocity import gene_wise_confidence
@@ -497,13 +494,21 @@ def cell_velocities(
             "k": 30,
             "E_func": "sqrt",
             "normalize_v": False,
+            "scale_by_dist": False,
         }
         graph_kwargs = update_dict(graph_kwargs, kernel_kwargs)
 
-        fp_kwargs = {
-            "D": 50,
-        }
+        fp_kwargs = {"D": 50, "drift_weight": False, "weight_mode": "symmetric"}
         fp_kwargs = update_dict(fp_kwargs, kernel_kwargs)
+
+        wgt_kwargs = {
+            "weight": "naive",
+            "sig": None,
+            "auto_sig_func": None,
+            "auto_sig_multiplier": 2,
+        }
+        wgt_kwargs = update_dict(wgt_kwargs, kernel_kwargs)
+        wgt_mode = wgt_kwargs.pop("weight", "naive")
 
         ctmc_kwargs = {
             "eignum": 30,
@@ -522,13 +527,23 @@ def cell_velocities(
                 T = ContinuousTimeMarkovChain(P=R.T).compute_embedded_transition_matrix().T
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
         else:
-            E, _, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
-            L = fp_operator(E, **fp_kwargs)
+            E, nbrs_idx, dists = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
+            if wgt_mode == "naive":
+                W = None
+            elif wgt_mode == "gaussian":
+                main_info("Calculating Gaussian weights with the following parameters:")
+                main_info(f"{wgt_kwargs}")
+                W = calc_gaussian_weight(nbrs_idx, dists, **wgt_kwargs)
+            else:
+                raise NotImplementedError(f"The weight mode `{wgt_mode}` is not supported.")
+
+            L = fp_operator(E, W=W, **fp_kwargs)
             ctmc = ContinuousTimeMarkovChain(P=L, **ctmc_kwargs)
             T = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
 
             adata.obsp["fp_transition_rate"] = ctmc.P.T
+            adata.obsp["discrete_vector_field"] = E
 
     elif method == "transform":
         umap_trans, n_pca_components = (

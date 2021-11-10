@@ -42,6 +42,7 @@ def ddhodge(
     seed: int = 19491001,
     enforce: bool = False,
     cores: int = 1,
+    **kwargs,
 ):
     """Modeling Latent Flow Structure using Hodge Decomposition based on the creation of sparse diffusion graph from the
     reconstructed vector field function. This method is relevant to the curl-free/divergence-free vector field
@@ -183,7 +184,7 @@ def ddhodge(
     # ddhodge_div = div(g)
     # potential_ = potential(g, -ddhodge_div)
     ddhodge_div = divergence(adj_mat, W=A)
-    potential_ = potential(adj_mat, W=A, div=ddhodge_div)
+    potential_ = potential(adj_mat, W=A, div=ddhodge_div, **kwargs)
 
     if up_sampling and to_downsample:
         query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
