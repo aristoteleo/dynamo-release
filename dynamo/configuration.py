@@ -63,11 +63,11 @@ class DynamoAdataKeyManager:
             return res_data.copy()
         return res_data
 
-    def set_layer_data(adata, layer, val):
+    def set_layer_data(adata, layer, vals, var_indices):
         if layer == DynamoAdataKeyManager.X_LAYER:
-            adata.X = val
+            adata.X[:, var_indices] = vals
         else:
-            adata.layers[layer] = val
+            adata.layers[layer][:, var_indices] = vals
 
     def check_if_layer_exist(adata: AnnData, layer: str) -> bool:
         if layer == DynamoAdataKeyManager.X_LAYER:
