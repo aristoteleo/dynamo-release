@@ -7,7 +7,7 @@ from .scatters import (
 )
 
 from ..tl import compute_smallest_distance
-from ..dynamo_logger import main_critical, main_info, main_finish_progress, main_log_time
+from ..dynamo_logger import main_critical, main_info, main_finish_progress, main_log_time, main_warning
 
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
@@ -25,6 +25,7 @@ def space(
     alpha: float = 0.8,
     stack_genes: bool = False,
     stack_genes_threshold: float = 0.01,
+    stack_colors_legend_size: int = 10,
     figsize=None,
     *args,
     **kwargs
@@ -73,6 +74,12 @@ def space(
     """
     main_info("Plotting spatial info on adata")
     main_log_time()
+
+    show_colorbar = True
+    if stack_genes:
+        main_warning("disable side colorbar due to colorbar scale (numeric tick) related issue.")
+        show_colorbar = False
+
     if genes is None or (len(genes) == 0):
         main_critical("No genes provided. Please check your argument passed in.")
         return
@@ -119,6 +126,8 @@ def space(
         stack_colors=stack_genes,
         stack_colors_threshold=stack_genes_threshold,
         stack_colors_title="stacked spatial genes",
+        show_colorbar=show_colorbar,
+        stack_colors_legend_size=stack_colors_legend_size,
         *args,
         **kwargs,
     )
