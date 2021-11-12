@@ -35,15 +35,20 @@ def space(
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`
+        adata:
             an Annodata object that contain the physical coordinates for each bin/cell, etc.
         genes:
             The gene list that will be used to plot the gene expression on the same scatter plot. Each gene will have a
             different color.
         space: `str`
             The key to space coordinates.
+        stack_genes:
+            whether to show all gene plots on the same plot
+        stack_colors_legend_size:
+            control the size of legend when stacking genes
+        alpha: `float`
+            The alpha value of the scatter points.
         width: `int`
-            an Annodata object.
         marker:
             a string representing some marker from matplotlib
             https://matplotlib.org/stable/api/markers_api.html#module-matplotlib.markers
@@ -64,8 +69,7 @@ def space(
             https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
         ps_sample_num: `int`
             The number of bins / cells that will be sampled to estimate the distance between different bin / cells.
-        alpha: `float`
-            The alpha value of the scatter points.
+
         %(scatters.parameters.no_adata|basis|figsize)s
 
     Returns
