@@ -317,7 +317,7 @@ def umap_conn_indices_dist_embedding(
     )
 
     if return_mapper:
-        import umap
+        import umap.umap_ as umap
         from .utils import update_dict
 
         if n_epochs == 0:
@@ -337,7 +337,7 @@ def umap_conn_indices_dist_embedding(
         }
         umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
 
-        mapper = umap.umap_.UMAP(
+        mapper = umap.UMAP(
             n_neighbors=n_neighbors,
             n_components=n_components,
             metric=metric,

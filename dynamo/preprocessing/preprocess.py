@@ -125,6 +125,8 @@ def szFactor(
             for t_key in total_layers:
                 total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
             adata.layers["_total_"] = total
+            if type(layers) is str:
+                layers = [layers]
             layers.extend(["_total_"])
 
     layers = get_layer_keys(adata, layers)
