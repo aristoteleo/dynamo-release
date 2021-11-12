@@ -32,7 +32,7 @@ Alternatively, you can install dynamo when you are in the dynamo-release folder 
 
 from source, using the following script::
 
-    pip install git+https://github.com:aristoteleo/dynamo-release
+    pip install git+https://github.com/aristoteleo/dynamo-release
 
 In order to ensure dynamo run properly, your python environment needs to satisfy dynamo's `dependencies`_. We provide a helper function for you to check the versions of dynamo's all dependencies. ::
 
