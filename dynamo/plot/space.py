@@ -16,6 +16,7 @@ docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 def space(
     adata: anndata.AnnData,
     genes: Union[list, None] = None,
+    gene_cmaps=None,
     space: str = "spatial",
     width: float = 6,
     marker: str = ".",
@@ -132,6 +133,7 @@ def space(
         stack_colors_title="stacked spatial genes",
         show_colorbar=show_colorbar,
         stack_colors_legend_size=stack_colors_legend_size,
+        stack_colors_cmaps=gene_cmaps,
         *args,
         **kwargs,
     )
