@@ -60,6 +60,7 @@ class Preprocessor:
         use_log1p : bool, optional
             Whether to apply log1p function to all data in adata, by default True
         """
+        self.unique_var_obs_adata = unique_var_obs_adata
         self.filter_cells_by_outliers = filter_cells_by_outliers_function
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
         self.normalize_by_cells = normalize_by_cells_function
@@ -218,7 +219,7 @@ class Preprocessor:
         main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
 
         main_info("making adata observation index unique...")
-        adata = unique_var_obs_adata(adata)
+        adata = self.unique_var_obs_adata(adata)
         if self.collapse_species_adata:
             main_info("applying collapse species adata...")
             self.collapse_species_adata(adata)
@@ -296,7 +297,7 @@ class Preprocessor:
         adata.uns["pp"] = {}
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info("making adata obs/var unique...")
-        adata = unique_var_obs_adata(adata)
+        adata = self.unique_var_obs_adata(adata)
         self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
         self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
         self.select_genes(adata, **self.select_genes_kwargs)
