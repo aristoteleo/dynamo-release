@@ -124,7 +124,7 @@ def umap_conn_indices_dist_embedding(
     metric="euclidean",
     min_dist=0.1,
     spread=1.0,
-    n_epochs=0,
+    max_iter=0,
     alpha=1.0,
     gamma=1.0,
     negative_sample_rate=5,
@@ -161,10 +161,11 @@ def umap_conn_indices_dist_embedding(
         spread: `float` (optional, default 1.0)
             The effective scale of embedded points. In combination with min_dist this determines how clustered/clumped
             the embedded points are.
-        n_epochs: 'int' (optional, default 0)
+        max_iter: 'int' or None (optional, default 0 or None)
             The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result
             in more accurate embeddings. If None is specified a value will be selected based on the size of the input
-            dataset (200 for large datasets, 500 for small).
+            dataset (200 for large datasets, 500 for small). This argument was refactored from n_epochs from UMAP-learn
+            to account for recent API changes in UMAP-learn 0.5.2.
         alpha: `float` (optional, default 1.0)
             Initial learning rate for the SGD.
         gamma: `float` (optional, default 1.0)
@@ -221,6 +222,10 @@ def umap_conn_indices_dist_embedding(
         simplicial_set_embedding,
         find_ab_params,
     )
+
+    # also see github issue at: https://github.com/lmcinnes/umap/issues/798
+    default_epochs = 500 if X.shape[0] <= 10000 else 200
+    max_iter = default_epochs if max_iter is None else max_iter
 
     random_state = check_random_state(random_state)
 
@@ -305,7 +310,7 @@ def umap_conn_indices_dist_embedding(
         b=b,
         gamma=gamma,
         negative_sample_rate=negative_sample_rate,
-        n_epochs=n_epochs,
+        n_epochs=max_iter,
         init=init_pos,
         random_state=random_state,
         metric=metric,
@@ -320,8 +325,8 @@ def umap_conn_indices_dist_embedding(
         import umap.umap_ as umap
         from .utils import update_dict
 
-        if n_epochs == 0:
-            n_epochs = None
+        if max_iter == 0:
+            max_iter = None
 
         _umap_kwargs = {
             "angular_rp_forest": False,
@@ -343,7 +348,7 @@ def umap_conn_indices_dist_embedding(
             metric=metric,
             min_dist=min_dist,
             spread=spread,
-            n_epochs=n_epochs,
+            n_epochs=max_iter,
             learning_rate=alpha,
             repulsion_strength=gamma,
             negative_sample_rate=negative_sample_rate,
