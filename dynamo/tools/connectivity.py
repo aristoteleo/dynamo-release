@@ -124,7 +124,7 @@ def umap_conn_indices_dist_embedding(
     metric="euclidean",
     min_dist=0.1,
     spread=1.0,
-    max_iter=0,
+    max_iter=None,
     alpha=1.0,
     gamma=1.0,
     negative_sample_rate=5,
@@ -161,7 +161,7 @@ def umap_conn_indices_dist_embedding(
         spread: `float` (optional, default 1.0)
             The effective scale of embedded points. In combination with min_dist this determines how clustered/clumped
             the embedded points are.
-        max_iter: 'int' or None (optional, default 0 or None)
+        max_iter: 'int' or None (optional, default None)
             The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result
             in more accurate embeddings. If None is specified a value will be selected based on the size of the input
             dataset (200 for large datasets, 500 for small). This argument was refactored from n_epochs from UMAP-learn
@@ -324,9 +324,6 @@ def umap_conn_indices_dist_embedding(
     if return_mapper:
         import umap.umap_ as umap
         from .utils import update_dict
-
-        if max_iter == 0:
-            max_iter = None
 
         _umap_kwargs = {
             "angular_rp_forest": False,
