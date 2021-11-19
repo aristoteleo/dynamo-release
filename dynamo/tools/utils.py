@@ -2229,7 +2229,6 @@ def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None
 
     # Note k=2 here because the nearest query is always a point itself.
     distances, _ = kd_tree.query(coords[selected_estimation_indices, :], k=2)
-    print(distances)
     min_dist = min(distances[:, 1])
 
     return min_dist
