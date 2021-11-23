@@ -7,7 +7,7 @@ from .scatters import (
 )
 
 from ..tl import compute_smallest_distance
-from ..dynamo_logger import main_critical, main_info, main_finish_progress, main_log_time
+from ..dynamo_logger import main_critical, main_info, main_finish_progress, main_log_time, main_warning
 
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
@@ -16,6 +16,7 @@ docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 def space(
     adata: anndata.AnnData,
     genes: Union[list, None] = None,
+    gene_cmaps=None,
     space: str = "spatial",
     width: float = 6,
     marker: str = ".",
@@ -25,6 +26,7 @@ def space(
     alpha: float = 0.8,
     stack_genes: bool = False,
     stack_genes_threshold: float = 0.01,
+    stack_colors_legend_size: int = 10,
     figsize=None,
     *args,
     **kwargs
@@ -34,15 +36,20 @@ def space(
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`
+        adata:
             an Annodata object that contain the physical coordinates for each bin/cell, etc.
         genes:
             The gene list that will be used to plot the gene expression on the same scatter plot. Each gene will have a
             different color.
         space: `str`
             The key to space coordinates.
+        stack_genes:
+            whether to show all gene plots on the same plot
+        stack_colors_legend_size:
+            control the size of legend when stacking genes
+        alpha: `float`
+            The alpha value of the scatter points.
         width: `int`
-            an Annodata object.
         marker:
             a string representing some marker from matplotlib
             https://matplotlib.org/stable/api/markers_api.html#module-matplotlib.markers
@@ -63,8 +70,7 @@ def space(
             https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
         ps_sample_num: `int`
             The number of bins / cells that will be sampled to estimate the distance between different bin / cells.
-        alpha: `float`
-            The alpha value of the scatter points.
+
         %(scatters.parameters.no_adata|basis|figsize)s
 
     Returns
@@ -73,6 +79,12 @@ def space(
     """
     main_info("Plotting spatial info on adata")
     main_log_time()
+
+    show_colorbar = True
+    if stack_genes:
+        main_warning("disable side colorbar due to colorbar scale (numeric tick) related issue.")
+        show_colorbar = False
+
     if genes is None or (len(genes) == 0):
         main_critical("No genes provided. Please check your argument passed in.")
         return
@@ -119,6 +131,9 @@ def space(
         stack_colors=stack_genes,
         stack_colors_threshold=stack_genes_threshold,
         stack_colors_title="stacked spatial genes",
+        show_colorbar=show_colorbar,
+        stack_colors_legend_size=stack_colors_legend_size,
+        stack_colors_cmaps=gene_cmaps,
         *args,
         **kwargs,
     )

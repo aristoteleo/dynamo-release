@@ -93,6 +93,7 @@ def scatters(
     stack_colors_threshold=0.001,
     stack_colors_title="stacked colors",
     stack_colors_legend_size=2,
+    stack_colors_cmaps=None,
     despline: bool = True,
     deaxis: bool = True,
     despline_sides: Union[None, List[str]] = None,
@@ -314,26 +315,29 @@ def scatters(
             % (calpha)
         )
     group_colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
-    sequential_cmaps = [
-        "Greys",
-        "Purples",
-        "Blues",
-        "Greens",
-        "Oranges",
-        "Reds",
-        "YlOrBr",
-        "YlOrRd",
-        "OrRd",
-        "PuRd",
-        "RdPu",
-        "BuPu",
-        "GnBu",
-        "PuBu",
-        "YlGnBu",
-        "PuBuGn",
-        "BuGn",
-        "YlGn",
-    ]
+
+    if stack_colors and stack_colors_cmaps is None:
+        main_info("using default stack colors")
+        stack_colors_cmaps = [
+            "Greys",
+            "Purples",
+            "Blues",
+            "Greens",
+            "Oranges",
+            "Reds",
+            "YlOrBr",
+            "YlOrRd",
+            "OrRd",
+            "PuRd",
+            "RdPu",
+            "BuPu",
+            "GnBu",
+            "PuBu",
+            "YlGnBu",
+            "PuBuGn",
+            "BuGn",
+            "YlGn",
+        ]
     stack_legend_handles = []
     if stack_colors:
         color_key = None
@@ -411,10 +415,10 @@ def scatters(
     if type(basis) is str:
         basis = [basis]
 
-    if stack_colors and len(color) > len(sequential_cmaps):
+    if stack_colors and len(color) > len(stack_colors_cmaps):
         main_warning(
             "#color: %d passed in is greater than #sequential cmaps: %d, will reuse sequential maps"
-            % (len(color), len(sequential_cmaps))
+            % (len(color), len(stack_colors_cmaps))
         )
         main_warning("You should consider decreasing your #color")
 
@@ -683,7 +687,7 @@ def scatters(
                 _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
                 if stack_colors:
                     main_debug("stack colors: changing cmap")
-                    _cmap = sequential_cmaps[ax_index % len(sequential_cmaps)]
+                    _cmap = stack_colors_cmaps[ax_index % len(stack_colors_cmaps)]
                     max_color = matplotlib.cm.get_cmap(_cmap)(float("inf"))
                     legend_circle = Line2D(
                         [0],

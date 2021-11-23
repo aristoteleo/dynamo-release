@@ -274,14 +274,18 @@ def basic_stats(adata):
     adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
     adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
-    try:
-        adata.obs["pMito"] = np.array(adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1)))
-    except:  # noqa E722
-        main_exception(
-            "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
-            "include nan values). If you don't believe so, please report to us on github or "
-            "via xqiu@wi.mit.edu"
-        )
+
+    if sum(mito_genes) > 0:
+        try:
+            adata.obs["pMito"] = np.array(adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1)))
+        except:  # noqa E722
+            main_exception(
+                "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
+                "include nan values). If you don't believe so, please report to us on github or "
+                "via xqiu@wi.mit.edu"
+            )
+    else:
+        adata.obs["pMito"] = 0
 
 
 def unique_var_obs_adata(adata):

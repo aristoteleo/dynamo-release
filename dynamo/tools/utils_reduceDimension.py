@@ -190,7 +190,7 @@ def run_reduce_dim(
             "metric": "euclidean",
             "min_dist": 0.5,
             "spread": 1.0,
-            "n_epochs": 0,
+            "max_iter": None,
             "alpha": 1.0,
             "gamma": 1.0,
             "negative_sample_rate": 5,
