@@ -8,7 +8,7 @@ import anndata
 import scipy.sparse
 from scipy.sparse.csr import csr_matrix
 from sklearn.utils import sparsefuncs
-from ..utils import copy_adata
+from ..utils import copy_adata, top_table
 from ..dynamo_logger import (
     main_debug,
     main_finish_progress,

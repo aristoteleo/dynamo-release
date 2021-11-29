@@ -991,3 +991,49 @@ def gen_rotation_2d(degree: float):
         [sin(rad), cos(rad)],
     ]
     return np.array(R)
+
+
+def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object
+
+    Returns
+    -------
+        disp_df: :class:`~pandas.DataFrame`
+            The data frame with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
+    """
+    layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
+
+    if layer in ["X"]:
+        key = "dispFitInfo"
+    else:
+        key = layer + "_dispFitInfo"
+
+    if mode == "dispersion":
+        if adata.uns[key] is None:
+            estimate_dispersion(adata, layers=[layer])
+
+        if adata.uns[key] is None:
+            raise KeyError(
+                "Error: for adata.uns.key=%s, no dispersion model found. Please call estimate_dispersion() before calling this function"
+                % key
+            )
+
+        top_df = pd.DataFrame(
+            {
+                "gene_id": adata.uns[key]["disp_table"]["gene_id"],
+                "mean_expression": adata.uns[key]["disp_table"]["mu"],
+                "dispersion_fit": adata.uns[key]["disp_func"](adata.uns[key]["disp_table"]["mu"]),
+                "dispersion_empirical": adata.uns[key]["disp_table"]["disp"],
+            }
+        )
+        top_df = top_df.set_index("gene_id")
+
+    elif mode == "gini":
+        top_df = adata.var[layer + "_gini"]
+
+    return top_df
