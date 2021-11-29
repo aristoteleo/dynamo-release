@@ -9,7 +9,6 @@ from .preprocess import (
     recipe_monocle,
     recipe_velocyto,
     Gini,
-    estimate_dispersion,
     filter_cells_legacy,
     select_genes_monocle,
     filter_cells_by_outliers,
@@ -31,9 +30,9 @@ from .utils import (
     filter_genes_by_pattern,
     decode,
     compute_gene_exp_fraction,
-    top_table,
 )
 from .preprocessor_utils import *
+from .preprocess_monocle_utils import top_table, estimate_dispersion
 from .Preprocessor import Preprocessor
 
 __all__ = [

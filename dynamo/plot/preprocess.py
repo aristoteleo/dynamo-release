@@ -7,7 +7,7 @@ import matplotlib
 from matplotlib.axes import Axes
 
 from ..preprocessing import preprocess as pp
-from ..preprocessing.preprocess import top_table
+from ..preprocessing.preprocess_monocle_utils import top_table
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_experiment_datatype

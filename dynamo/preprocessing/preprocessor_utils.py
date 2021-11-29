@@ -8,7 +8,8 @@ import anndata
 import scipy.sparse
 from scipy.sparse.csr import csr_matrix
 from sklearn.utils import sparsefuncs
-from ..utils import copy_adata, top_table
+from ..utils import copy_adata
+from .preprocess_monocle_utils import top_table
 from ..dynamo_logger import (
     main_debug,
     main_finish_progress,
@@ -588,7 +589,7 @@ def select_genes_monocle(
     exprs_frac_for_gene_exclusion: float = 1,
     genes_to_exclude: Union[list, None] = None,
 ) -> anndata.AnnData:
-    """Select feature genes based on a collection of filters.
+    """Select genes based on monocle recipe. This version is here for modularization of preprocessing, so that users may try combinations of different preprocessing procesudres in Preprocessor.
 
     Parameters
     ----------

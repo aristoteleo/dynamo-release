@@ -41,6 +41,7 @@ from ..dynamo_logger import (
 )
 from ..utils import copy_adata
 from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager, DKM
+from .preprocess_monocle_utils import top_table
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
@@ -382,61 +383,6 @@ def Gini(adata, layers="all"):
     return adata
 
 
-def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])):
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Parameters
-    ----------
-        disp_table: :class:`~pandas.DataFrame`
-            AnnData object
-        initial_coefs: :class:`~numpy.ndarray`
-            Initial parameters for the gamma fit of the dispersion parameters.
-
-    Returns
-    -------
-        fit: :class:`~statsmodels.api.formula.glm`
-            A statsmodels fitting object.
-        coefs: :class:`~numpy.ndarray`
-            The two resulting gamma fitting coefficients.
-        good: :class:`~pandas.DataFrame`
-            The subsetted dispersion table that is subjected to Gamma fitting.
-    """
-    import statsmodels.api as sm
-
-    coefs = initial_coefs
-    iter = 0
-    while True:
-        residuals = disp_table["disp"] / (coefs[0] + coefs[1] / disp_table["mu"])
-        good = disp_table.loc[(residuals > initial_coefs[0]) & (residuals < 10000), :]
-        # https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the
-        # -gamma-family
-        fit = sm.formula.glm(
-            "disp ~ I(1 / mu)",
-            data=good,
-            family=sm.families.Gamma(link=sm.genmod.families.links.identity),
-        ).train(start_params=coefs)
-
-        oldcoefs = coefs
-        coefs = fit.params
-
-        if coefs[0] < initial_coefs[0]:
-            coefs[0] = initial_coefs[0]
-        if coefs[1] < 0:
-            main_warning("Parametric dispersion fit may be failed.")
-
-        if np.sum(np.log(coefs / oldcoefs) ** 2 < coefs[0]):
-            break
-        iter += 1
-
-        if iter > 10:
-            main_warning("Dispersion fit didn't converge")
-            break
-        if not np.all(coefs > 0):
-            main_warning("Parametric dispersion fit may be failed.")
-
-    return fit, coefs, good
-
-
 def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1) -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -570,98 +516,6 @@ def vstExprs(
     res = vst(ncounts.toarray()) if issparse(ncounts) else vst(ncounts)
 
     return res
-
-
-def estimate_dispersion(
-    adata: anndata.AnnData,
-    layers: str = "X",
-    modelFormulaStr: str = "~ 1",
-    min_cells_detected: int = 1,
-    removeOutliers: bool = False,
-) -> anndata.AnnData:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        layers: `str` (default: 'X')
-            The layer(s) to be used for calculating dispersion. Default is X if there is no spliced layers.
-        modelFormulaStr: `str`
-            The model formula used to calculate dispersion parameters. Not used.
-        min_cells_detected: `int`
-            The minimum number of cells detected for calculating the dispersion.
-        removeOutliers: `bool` (default: True)
-            Whether to remove outliers when performing dispersion fitting.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated annData object with dispFitInfo added to uns attribute as a new key.
-    """
-    import re
-
-    logger = LoggerManager.gen_logger("dynamo-preprocessing")
-    # mu = None
-    model_terms = [x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)]
-    model_terms = list(set(model_terms) - set([""]))
-
-    cds_pdata = adata.obs  # .loc[:, model_terms]
-    cds_pdata["rowname"] = cds_pdata.index.values
-    layers, disp_tables = disp_calc_helper_NB(adata[:, :], layers, min_cells_detected)
-    # disp_table['disp'] = np.random.uniform(0, 10, 11)
-    # disp_table = cds_pdata.apply(disp_calc_helper_NB(adata[:, :], min_cells_detected))
-
-    # cds_pdata <- dplyr::group_by_(dplyr::select_(rownames_to_column(pData(cds)), "rowname", .dots=model_terms), .dots
-    # =model_terms)
-    # disp_table <- as.data.frame(cds_pdata %>% do(disp_calc_helper_NB(cds[,.$rowname], cds@expressionFamily, min_cells_
-    # detected)))
-    for ind in range(len(layers)):
-        layer, disp_table = layers[ind], disp_tables[ind]
-
-        if disp_table is None:
-            raise Exception("Parametric dispersion fitting failed, please set a different lowerDetectionLimit")
-
-        disp_table = disp_table.loc[np.where(disp_table["mu"] != np.nan)[0], :]
-
-        res = parametric_dispersion_fit(disp_table)
-        fit, coefs, good = res[0], res[1], res[2]
-
-        if removeOutliers:
-            # influence = fit.get_influence().cooks_distance()
-            # #CD is the distance and p is p-value
-            # (CD, p) = influence.cooks_distance
-
-            CD = cook_dist(fit, 1 / good["mu"][:, None], good)
-            cooksCutoff = 4 / good.shape[0]
-            main_info("Removing " + str(len(CD[CD > cooksCutoff])) + " outliers")
-            outliers = CD > cooksCutoff
-            # use CD.index.values? remove genes that lost when doing parameter fitting
-            lost_gene = set(good.index.values).difference(set(range(len(CD))))
-            outliers[lost_gene] = True
-            res = parametric_dispersion_fit(good.loc[~outliers, :])
-
-            fit, coefs = res[0], res[1]
-
-        def ans(q):
-            return coefs[0] + coefs[1] / q
-
-        if layer == "X":
-            logger.info_insert_adata("dispFitInfo", "uns")
-            adata.uns["dispFitInfo"] = {
-                "disp_table": good,
-                "disp_func": ans,
-                "coefs": coefs,
-            }
-        else:
-            logger.info_insert_adata(layer + "_dispFitInfo", "uns")
-            adata.uns[layer + "_dispFitInfo"] = {
-                "disp_table": good,
-                "disp_func": ans,
-                "coefs": coefs,
-            }
-
-    return adata
 
 
 def filter_cells_legacy(
