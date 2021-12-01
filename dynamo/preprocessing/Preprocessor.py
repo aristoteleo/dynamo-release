@@ -148,10 +148,6 @@ class Preprocessor:
         # self.normalize_selected_genes=pearson_residual_normalization_recipe.normalize_layers_pearson_residuals,
         # self.use_log1p=False
 
-    def config_seurat_recipe(self):
-        self.select_genes = select_genes_by_dispersion_general
-        self.select_genes_kwargs = {"recipe": "seurat", "n_top_genes": 2000}
-
     def config_monocle_recipe(self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"):
         # TODO
         n_obs, n_genes = adata.n_obs, adata.n_vars
@@ -290,16 +286,22 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess")
 
+    def config_seurat_recipe(self):
+        self.select_genes = select_genes_by_dispersion_general
+        self.select_genes_kwargs = {"recipe": "seurat", "n_top_genes": 2000}
+        self.normalize_by_cells_function_kwargs = {"skip_log": True}
+        self.pca_kwargs = {"pca_key": "X_pca"}
+
     def preprocess_adata_seurat(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         self.config_seurat_recipe()
         temp_logger = LoggerManager.gen_logger("preprocessor-seurat")
         temp_logger.log_time()
+        main_info("Applying Seurat recipe preprocessing...")
         adata.uns["pp"] = {}
         self.add_experiment_info(adata, tkey, experiment_type)
-        main_info("making adata obs/var unique...")
         adata = self.unique_var_obs_adata(adata)
-        self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
+        self.filter_genes_by_outliers(adata, shared_count=20, **self.filter_genes_by_outliers_kwargs)
         self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
         self.select_genes(adata, **self.select_genes_kwargs)
-        self.log1p(adata)
+        self.log1p(adata, layers=["X"])
         self.pca(adata, **self.pca_kwargs)
