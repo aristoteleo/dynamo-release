@@ -23,7 +23,7 @@ from .utils import (
 from ..tools.connectivity import neighbors as default_neighbors
 from ..dynamo_logger import LoggerManager, main_info, main_info_insert_adata, main_warning
 from ..configuration import DKM
-from ..external import sctransform
+from ..external import sctransform, select_genes_by_pearson_residuals, normalize_layers_pearson_residuals
 
 
 class Preprocessor:
@@ -40,6 +40,7 @@ class Preprocessor:
         select_genes_function: Callable = select_genes_by_dispersion_general,
         select_genes_kwargs: dict = {},
         normalize_selected_genes_function: Callable = None,
+        normalize_selected_genes_kwargs: dict = {},
         use_log1p: bool = True,
         pca_function: bool = pca_monocle,
         pca_kwargs: dict = {},
@@ -90,6 +91,7 @@ class Preprocessor:
         self.filter_cells_by_outliers_kwargs = filter_cells_by_outliers_kwargs
         self.select_genes_kwargs = select_genes_kwargs
         self.sctransform_kwargs = sctransform_kwargs
+        self.normalize_selected_genes_kwargs = normalize_selected_genes_kwargs
 
     def add_experiment_info(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         if DKM.UNS_PP_KEY not in adata.uns.keys():
@@ -150,12 +152,6 @@ class Preprocessor:
             layers = ["X", "spliced", "unspliced"]
         adata.uns["pp"]["experiment_layers"] = layers
         adata.uns["pp"]["experiment_total_layers"] = total_layers
-
-    def config_pearson_residual_recipe(self):
-        raise NotImplementedError("test in progress")  # TODO uncomment after integrate
-        # self.select_genes=pearson_residual_normalization_recipe.select_genes_by_pearson_residual,
-        # self.normalize_selected_genes=pearson_residual_normalization_recipe.normalize_layers_pearson_residuals,
-        # self.use_log1p=False
 
     def config_monocle_recipe(self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"):
         n_obs, n_genes = adata.n_obs, adata.n_vars
@@ -285,9 +281,6 @@ class Preprocessor:
 
         if self.pca:
             main_info("reducing dimension by PCA...")
-
-            print("preprocessor pca inputs:")
-            print(pd.Series(adata.X[:, adata.var[DKM.VAR_USE_FOR_PCA]].data).describe())
             self.pca(adata, **self.pca_kwargs)
 
         temp_logger.finish_progress(progress_name="preprocess")
@@ -314,6 +307,7 @@ class Preprocessor:
         self.select_genes(adata, **self.select_genes_kwargs)
         self.log1p(adata, layers=["X"])
         self.pca(adata, **self.pca_kwargs)
+        temp_logger.finish_progress(progress_name="preprocess by seurat recipe")
 
     def config_sctransform_recipe(self):
         self.use_log1p = False
@@ -333,5 +327,25 @@ class Preprocessor:
         self.filter_genes_by_outliers(adata, inplace=True, min_cell_s=5)
         self.select_genes(adata, n_top_genes=2000)
         adata = adata[:, adata.var["use_for_pca"]]
-        self.sctransform(adata, self.sctransform_kwargs)
+        self.sctransform(adata, **self.sctransform_kwargs)
         self.pca(adata, **self.pca_kwargs)
+
+        temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
+
+    def config_pearson_residuals_recipe(self, adata):
+        self.config_monocle_recipe(adata)
+        self.filter_cells_by_outliers = None
+        self.filter_genes_by_outliers = None
+        self.normalize_by_cells = None
+        self.select_genes = select_genes_by_pearson_residuals
+        self.select_genes_kwargs = {"n_top_genes": 2000}
+        self.normalize_selected_genes = normalize_layers_pearson_residuals
+
+    def preprocess_adata_pearson_residuals(self, adata):
+        temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
+        temp_logger.log_time()
+        self.select_genes(adata, **self.select_genes_kwargs)
+        self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
+        self.pca(adata, **self.pca_kwargs)
+
+        temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")

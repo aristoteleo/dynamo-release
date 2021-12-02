@@ -449,7 +449,7 @@ def sz_util(
         CM = adata.layers[layer] if CM is None else CM
 
     if round_exprs:
-        main_info("rounding mat data")
+        main_info("rounding expression data of layer: %s during size factor calculation" % (layer))
         if issparse(CM):
             CM.data = np.round(CM.data, 0)
         else:
