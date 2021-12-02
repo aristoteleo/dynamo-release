@@ -1,7 +1,7 @@
 from typing import Callable, List, Optional
 from anndata import AnnData
 import numpy as np
-
+import pandas as pd
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     is_log1p_transformed_adata,
@@ -23,6 +23,7 @@ from .utils import (
 from ..tools.connectivity import neighbors as default_neighbors
 from ..dynamo_logger import LoggerManager, main_info, main_info_insert_adata, main_warning
 from ..configuration import DKM
+from ..external import sctransform
 
 
 class Preprocessor:
@@ -45,6 +46,7 @@ class Preprocessor:
         gene_append_list: List = [],
         gene_exclude_list: List = [],
         force_gene_list: Optional[List] = None,
+        sctransform_kwargs={},
         # n_top_genes=2000,
     ) -> None:
         """Initialize the worker.
@@ -60,14 +62,18 @@ class Preprocessor:
         use_log1p : bool, optional
             Whether to apply log1p function to all data in adata, by default True
         """
+        self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
+        self.log1p = log1p_adata
+        self.sctransform = sctransform
+
         self.filter_cells_by_outliers = filter_cells_by_outliers_function
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
         self.normalize_by_cells = normalize_by_cells_function
         self.select_genes = select_genes_function
         self.normalize_selected_genes = normalize_selected_genes_function
         self.use_log1p = use_log1p
-        self.log1p = log1p_adata
+
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
 
@@ -77,10 +83,13 @@ class Preprocessor:
         self.gene_append_list = gene_append_list
         self.gene_exclude_list = gene_exclude_list
         self.force_gene_list = force_gene_list
+
+        # kwargs pass to the functions above
         self.filter_genes_by_outliers_kwargs = filter_genes_by_outliers_kwargs
         self.normalize_by_cells_function_kwargs = normalize_by_cells_function_kwargs
         self.filter_cells_by_outliers_kwargs = filter_cells_by_outliers_kwargs
         self.select_genes_kwargs = select_genes_kwargs
+        self.sctransform_kwargs = sctransform_kwargs
 
     def add_experiment_info(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         if DKM.UNS_PP_KEY not in adata.uns.keys():
@@ -149,7 +158,6 @@ class Preprocessor:
         # self.use_log1p=False
 
     def config_monocle_recipe(self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"):
-        # TODO
         n_obs, n_genes = adata.n_obs, adata.n_vars
         n_cells = n_obs
         self.add_experiment_info(adata)
@@ -238,7 +246,7 @@ class Preprocessor:
             main_info("selecting genes...")
             self.select_genes(adata, **self.select_genes_kwargs)
 
-        # gene selection has been completed above. Now we need to append/delete/force gene list required by users.
+        # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.
         if self.gene_append_list is not None:
             append_genes = adata.var.index.intersection(self.gene_append_list)
             adata.var.loc[append_genes, DKM.VAR_USE_FOR_PCA] = True
@@ -275,8 +283,6 @@ class Preprocessor:
             main_info("applying log1p transformation on expression matrix data (adata.X)...")
             self.log1p(adata)
 
-        import pandas as pd
-
         if self.pca:
             main_info("reducing dimension by PCA...")
 
@@ -291,6 +297,8 @@ class Preprocessor:
         self.select_genes_kwargs = {"recipe": "seurat", "n_top_genes": 2000}
         self.normalize_by_cells_function_kwargs = {"skip_log": True}
         self.pca_kwargs = {"pca_key": "X_pca"}
+        self.filter_genes_by_outliers_kwargs = {"shared_count": 20}
+        self.use_log1p = True
 
     def preprocess_adata_seurat(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         self.config_seurat_recipe()
@@ -299,9 +307,31 @@ class Preprocessor:
         main_info("Applying Seurat recipe preprocessing...")
         adata.uns["pp"] = {}
         self.add_experiment_info(adata, tkey, experiment_type)
+
         adata = self.unique_var_obs_adata(adata)
-        self.filter_genes_by_outliers(adata, shared_count=20, **self.filter_genes_by_outliers_kwargs)
+        self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
         self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
         self.select_genes(adata, **self.select_genes_kwargs)
         self.log1p(adata, layers=["X"])
+        self.pca(adata, **self.pca_kwargs)
+
+    def config_sctransform_recipe(self):
+        self.use_log1p = False
+        self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
+
+    def preprocess_adata_sctransform(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+        self.config_sctransform_recipe()
+        temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
+        temp_logger.log_time()
+        main_info("Applying Sctransform recipe preprocessing...")
+        adata.uns["pp"] = {}
+        self.add_experiment_info(adata, tkey, experiment_type)
+
+        self.convert_layers2csr(adata)
+        self.unique_var_obs_adata(adata)
+        self.filter_cells_by_outliers(adata, keep_filtered=False)
+        self.filter_genes_by_outliers(adata, inplace=True, min_cell_s=5)
+        self.select_genes(adata, n_top_genes=2000)
+        adata = adata[:, adata.var["use_for_pca"]]
+        self.sctransform(adata, self.sctransform_kwargs)
         self.pca(adata, **self.pca_kwargs)

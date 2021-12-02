@@ -18,7 +18,6 @@ from ..vectorfield.topography import (
 from ..vectorfield.scVectorField import BaseVectorField
 from ..vectorfield.utils import vecfld_from_adata
 from ..tools.utils import update_dict, nearest_neighbors
-from ..external.hodge import ddhodge
 from ..vectorfield.vector_calculus import curl, divergence
 from .utils import default_quiver_args
 from .scatters import scatters
@@ -987,6 +986,8 @@ def topography(
 
     See also:: :func:`pp.cell_cycle_scores`
     """
+    from ..external.hodge import ddhodge
+
     logger = LoggerManager.gen_logger("dynamo-topography-plot")
     logger.log_time()
 

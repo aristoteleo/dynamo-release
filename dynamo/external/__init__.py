@@ -9,6 +9,7 @@ from .scribe import (
     coexp_measure_mat,
 )
 from .scifate import scifate_glmnet
+from .sctransform import sctransform
 
 __all__ = [
     "ddhodge",
