@@ -15,7 +15,7 @@ docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 @docstrings.with_indent(4)
 def space(
     adata: anndata.AnnData,
-    color: Union[list, None] = None,
+    color: Union[list, str, None] = None,
     genes: Union[list, None] = [],
     gene_cmaps=None,
     space: str = "spatial",
