@@ -15,7 +15,8 @@ docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 @docstrings.with_indent(4)
 def space(
     adata: anndata.AnnData,
-    genes: Union[list, None] = None,
+    color: Union[list, None] = None,
+    genes: Union[list, None] = [],
     gene_cmaps=None,
     space: str = "spatial",
     width: float = 6,
@@ -40,11 +41,15 @@ def space(
             an Annodata object that contain the physical coordinates for each bin/cell, etc.
         genes:
             The gene list that will be used to plot the gene expression on the same scatter plot. Each gene will have a
-            different color.
+            different color. Can be a single gene name string and we will convert it to a list.
+        color: `string` (default: `ntr`)
+            Any or any list of column names or gene name, etc. that will be used for coloring cells. If `color` is not None, stack_genes will be disabled automatically because `color` can contain non numerical values.
         space: `str`
             The key to space coordinates.
         stack_genes:
             whether to show all gene plots on the same plot
+        stack_genes_threshold:
+            lower bound of gene values that will be drawn on the plot.
         stack_colors_legend_size:
             control the size of legend when stacking genes
         alpha: `float`
@@ -79,6 +84,17 @@ def space(
     """
     main_info("Plotting spatial info on adata")
     main_log_time()
+    if color is not None and stack_genes:
+        main_warning(
+            "Set `stack_genes` to False because `color` argument cannot be used with stack_genes. If you would like to stack genes (or other numeical values), please pass gene expression like column names into `gene` argument."
+        )
+        stack_genes = False
+
+    genes = [genes] if type(genes) is str else list(genes)
+    # concatenate genes and colors for scatters plot
+    if color is not None and genes is not None:
+        color = [color] if type(color) is str else list(color)
+        genes.extend(color)
 
     show_colorbar = True
     if stack_genes:
