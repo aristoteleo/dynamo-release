@@ -275,9 +275,6 @@ def select_genes_by_dispersion_general(
     adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = False
     adata.var[DKM.VAR_USE_FOR_PCA] = False
 
-    print("len of mean:", mean.shape)
-    print("shape of subset adata:", adata[:, pass_filter_genes].shape)
-
     adata.var[DKM.VAR_GENE_MEAN_KEY][pass_filter_genes] = mean.flatten()
     adata.var[DKM.VAR_GENE_VAR_KEY][pass_filter_genes] = variance
     adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY][pass_filter_genes] = highly_variable_mask

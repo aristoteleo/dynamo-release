@@ -9,8 +9,8 @@ from .dynamo_logger import main_info, main_warning
 
 
 class DynamoAdataKeyManager:
-    VAR_GENE_MEAN_KEY = "pp_gene_means"
-    VAR_GENE_VAR_KEY = "gene_vars"
+    VAR_GENE_MEAN_KEY = "pp_gene_mean"
+    VAR_GENE_VAR_KEY = "pp_gene_variance"
     VAR_GENE_HIGHLY_VARIABLE_KEY = "gene_highly_variable"
     VAR_GENE_HIGHLY_VARIABLE_SCORES = "gene_highly_variable_scores"
     VAR_USE_FOR_PCA = "use_for_pca"
