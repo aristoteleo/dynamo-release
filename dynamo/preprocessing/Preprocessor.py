@@ -142,17 +142,12 @@ class Preprocessor:
         adata.uns["pp"]["experiment_layers"] = layers
         adata.uns["pp"]["experiment_total_layers"] = total_layers
 
-    def config_pearson_residual_recipe(self):
-        raise NotImplementedError("test in progress")  # TODO uncomment after integrate
-        # self.select_genes=pearson_residual_normalization_recipe.select_genes_by_pearson_residual,
-        # self.normalize_selected_genes=pearson_residual_normalization_recipe.normalize_layers_pearson_residuals,
-        # self.use_log1p=False
-
-    def config_monocle_recipe(self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"):
-        # TODO
+    def config_monocle_recipe(
+        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR", tkey: Optional[str] = None
+    ):
         n_obs, n_genes = adata.n_obs, adata.n_vars
         n_cells = n_obs
-        self.add_experiment_info(adata)
+        self.add_experiment_info(adata, tkey)
         self.use_log1p = False
         self.filter_cells_by_outliers_kwargs = {
             "filter_bool": None,
@@ -216,6 +211,7 @@ class Preprocessor:
 
         main_info("making adata observation index unique...")
         adata = self.unique_var_obs_adata(adata)
+
         if self.collapse_species_adata:
             main_info("applying collapse species adata...")
             self.collapse_species_adata(adata)
@@ -223,6 +219,8 @@ class Preprocessor:
         if self.convert_gene_name:
             main_info("applying convert_gene_name function...")
             self.convert_gene_name(adata)
+            main_info("making adata observation index unique after gene name conversion...")
+            adata = self.unique_var_obs_adata(adata)
 
         if self.filter_cells_by_outliers:
             main_info("filtering outlier cells...")

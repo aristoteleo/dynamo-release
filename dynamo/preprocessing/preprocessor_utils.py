@@ -115,8 +115,11 @@ def calc_mean_var_dispersion_general_mat(data_mat, axis=0):
 def calc_mean_var_dispersion_ndarray(data_mat: np.array, axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate mean, variance and dispersion of data_mat, a numpy array."""
     # per gene mean, var and dispersion
-    mean = np.nanmean(data_mat, axis=axis)
-    mean[mean == 0] += 1e-12  # prevent division by zero
+    mean = np.nanmean(data_mat, axis=axis).flatten()
+
+    # <class 'anndata._core.views.ArrayView'> has bug after using operator "==" (e.g. mean == 0), which changes mean.
+    mean = np.array(mean)
+    mean[mean == 0] += 1e-7  # prevent division by zero
     var = np.nanvar(data_mat, axis=axis)
     dispersion = var / mean
     return mean.flatten(), var.flatten(), dispersion.flatten()
@@ -134,7 +137,7 @@ def calc_mean_var_dispersion_sparse(
 
     non_nan_count = sparse_mat.shape[axis] - nan_count
     mean = (sparse_mat.sum(axis) / sparse_mat.shape[axis]).A1
-    mean[mean == 0] += 1e-12  # prevent division by zero
+    mean[mean == 0] += 1e-7  # prevent division by zero
 
     # same as numpy var behavior: denominator is N, var=(data_arr-mean)/N
     var = np.power(sparse_mat - mean, 2).sum(axis) / sparse_mat.shape[axis]
@@ -230,6 +233,11 @@ def select_genes_by_dispersion_general(
         main_info("select genes on var key: %s" % (var_filter_key))
         pass_filter_genes = adata.var_names[adata.var[var_filter_key]]
 
+    print("pass_filter_genes:", len(pass_filter_genes))
+    print("pass_filter_genes set:", len(set(pass_filter_genes)))
+    print("pass filter length: ", adata.var[var_filter_key].shape)
+    print("total genes:", adata.n_vars)
+    print("total unique genes:", np.unique(adata.var_names).shape)
     subset_adata = adata[:, pass_filter_genes]
     if n_top_genes is None:
         main_info("n_top_genes is None, reserve all genes and add filter gene information")
@@ -286,7 +294,8 @@ def select_genes_by_dispersion_general(
     main_info("number of selected highly variable genes: " + str(adata.var[DKM.VAR_USE_FOR_PCA].sum()))
     if recipe == "svr":
         # SVR can give highly_variable_scores
-        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES] = highly_variable_scores
+        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES] = np.nan
+        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES][pass_filter_genes] = highly_variable_scores.flatten()
 
     main_finish_progress("filter genes by dispersion")
 
@@ -380,6 +389,7 @@ def select_genes_by_dispersion_svr(
         main_info("layer_mat is sparse, dispatch to sparse calc function...")
         mean, variance, dispersion = calc_mean_var_dispersion_sparse(layer_mat)
     else:
+        main_info("layer_mat is np, dispatch to sparse calc function...")
         mean, variance, dispersion = calc_mean_var_dispersion_ndarray(layer_mat)
 
     highly_variable_mask, highly_variable_scores = get_highly_variable_mask_by_dispersion_svr(
@@ -704,11 +714,21 @@ def get_highly_variable_mask_by_dispersion_svr(
     mean_log = np.log2(mean)
     cv_log = np.log2(np.sqrt(var) / mean)
     classifier = SVR(gamma=svr_gamma)
-    classifier.fit(mean_log[:, np.newaxis], cv_log.reshape([-1, 1]))
-    scores = cv_log - classifier.predict(mean_log[:, np.newaxis])
+    # fit&preidction will complain about nan values if not take cared here
+    is_nan_indices = np.logical_or(np.isnan(mean_log), np.isnan(cv_log))
+    if np.sum(is_nan_indices) > 0:
+        main_warning(
+            "mean and cv_log contain NAN values. We exclude them in SVR training. Please use related gene filtering methods to filter genes with zero means."
+        )
+
+    classifier.fit(mean_log[~is_nan_indices, np.newaxis], cv_log.reshape([-1, 1])[~is_nan_indices])
+    scores = np.repeat(np.nan, len(mean_log))
+    # TODO handle nan values during prediction here
+    scores[~is_nan_indices] = cv_log[~is_nan_indices] - classifier.predict(mean_log[~is_nan_indices, np.newaxis])
     scores = scores.reshape([-1, 1])  # shape should be #genes x 1
 
     # score threshold based on n top genes
+    n_top_genes = min(n_top_genes, len(mean))  # maybe not enough genes there
     score_threshold = np.sort(-scores)[n_top_genes - 1]
     highly_variable_mask = scores >= score_threshold
     highly_variable_mask = np.array(highly_variable_mask).flatten()

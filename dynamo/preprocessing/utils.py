@@ -319,6 +319,22 @@ def merge_adata_attrs(adata_ori, adata, attr):
 
 def get_inrange_shared_counts_mask(adata, layers, min_shared_count, count_by="gene"):
     layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
+    # choose shared counts sum by row or columns based on type: `gene` or `cells`
+    sum_dim_index = None
+    ret_dim_index = None
+    if count_by == "gene":
+        sum_dim_index = 0
+        ret_dim_index = 1
+    elif count_by == "cells":
+        sum_dim_index = 1
+        ret_dim_index = 0
+    else:
+        raise ValueError("Not supported shared account type")
+
+    if len(np.array(layers)) == 0:
+        main_warning("No layers exist in adata, skipp filtering by shared counts")
+        return np.repeat(True, adata.shape[ret_dim_index])
+
     layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith("X_").values]
 
     _nonzeros, _sum = None, None
@@ -351,19 +367,10 @@ def get_inrange_shared_counts_mask(adata, layers, min_shared_count, count_by="ge
                 else _sum + np.multiply(_nonzeros, adata.layers[layer])
             )
 
-    # choose shared counts sum by row or columns based on type: `gene` or `cells`
-    sum_dim = None
-    if count_by == "gene":
-        sum_dim = 0
-    elif count_by == "cells":
-        sum_dim = 1
-    else:
-        raise ValueError("Not supported shared account type")
-
     return (
-        np.array(_sum.sum(sum_dim).A1 >= min_shared_count)
+        np.array(_sum.sum(sum_dim_index).A1 >= min_shared_count)
         if issparse(adata.layers[layers[0]])
-        else np.array(_sum.sum(sum_dim) >= min_shared_count)
+        else np.array(_sum.sum(sum_dim_index) >= min_shared_count)
     )
 
 
