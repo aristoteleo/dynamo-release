@@ -36,6 +36,7 @@ from ..dynamo_logger import (
     main_info,
     main_critical,
     main_info_insert_adata_obsm,
+    main_info_insert_adata_uns,
     main_warning,
     LoggerManager,
 )
@@ -1582,16 +1583,16 @@ def highest_frac_genes(
     cell_expression_sum = gene_mat.sum(axis=1).flatten()
     # get rid of cells that have all zero counts
     not_all_zero = cell_expression_sum != 0
-    adata = adata[not_all_zero, :]
+    filtered_adata = adata[not_all_zero, :]
     cell_expression_sum = cell_expression_sum[not_all_zero]
     main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
 
     valid_gene_set = set()
     prefix_to_genes = {}
-    _adata = adata
+    _adata = filtered_adata
     if gene_prefix_list is not None:
         prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
-        for name in adata.var_names:
+        for name in _adata.var_names:
             for prefix in gene_prefix_list:
                 length = len(prefix)
                 if name[:length] == prefix:
@@ -1603,12 +1604,12 @@ def highest_frac_genes(
             return None
         if not show_individual_prefix_gene:
             # gathering gene prefix set data
-            df = pd.DataFrame(index=adata.obs.index)
+            df = pd.DataFrame(index=_adata.obs.index)
             for prefix in prefix_to_genes:
                 if len(prefix_to_genes[prefix]) == 0:
                     main_info("There is no %s gene prefix in adata." % prefix)
                     continue
-                df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
+                df[prefix] = _adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
             # adata = adata[:, list(valid_gene_set)]
 
             _adata = AnnData(X=df)
@@ -1633,7 +1634,9 @@ def highest_frac_genes(
         index=adata.obs_names,
         columns=gene_names,
     )
+    gene_percents_df = pd.Series(gene_percents, index=_adata.var_names)
 
+    main_info_insert_adata_uns(store_key)
     adata.uns[store_key] = {
         "top_genes_df": top_genes_df,
         "gene_mat": gene_mat,
@@ -1641,7 +1644,7 @@ def highest_frac_genes(
         "selected_indices": selected_indices,
         "gene_prefix_list": gene_prefix_list,
         "show_individual_prefix_gene": show_individual_prefix_gene,
-        "gene_percents": gene_percents,
+        "gene_percents": gene_percents_df,
     }
 
     return adata

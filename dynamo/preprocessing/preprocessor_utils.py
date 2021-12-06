@@ -233,11 +233,8 @@ def select_genes_by_dispersion_general(
         main_info("select genes on var key: %s" % (var_filter_key))
         pass_filter_genes = adata.var_names[adata.var[var_filter_key]]
 
-    print("pass_filter_genes:", len(pass_filter_genes))
-    print("pass_filter_genes set:", len(set(pass_filter_genes)))
-    print("pass filter length: ", adata.var[var_filter_key].shape)
-    print("total genes:", adata.n_vars)
-    print("total unique genes:", np.unique(adata.var_names).shape)
+    if len(pass_filter_genes) != len(set(pass_filter_genes)):
+        main_warning("gene names are not unique, please check your preprocessing procedure.")
     subset_adata = adata[:, pass_filter_genes]
     if n_top_genes is None:
         main_info("n_top_genes is None, reserve all genes and add filter gene information")
