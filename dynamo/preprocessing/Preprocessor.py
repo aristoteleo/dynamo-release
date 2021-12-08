@@ -187,8 +187,8 @@ class Preprocessor:
         }
         self.select_genes = select_genes_by_dispersion_general
         self.select_genes_kwargs = {
-            "recipe": "dynamo_monocle",
-            "dynamo_monocle_kwargs": {
+            "recipe": "monocle",
+            "monocle_kwargs": {
                 "sort_by": gene_selection_method,
                 "n_top_genes": n_top_genes,
                 "keep_filtered": True,
@@ -209,7 +209,7 @@ class Preprocessor:
         self.pca = pca_monocle
         self.pca_kwargs = {"pca_key": "X_pca"}
 
-    def preprocess_adata(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+    def preprocess_adata_monocle(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
         temp_logger = LoggerManager.gen_logger("preprocessor")
         temp_logger.log_time()
@@ -353,3 +353,20 @@ class Preprocessor:
         self.pca(adata, **self.pca_kwargs)
 
         temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
+
+    def preprocess_adata(self, adata: AnnData, recipe="monocle"):
+        preprocessor = self
+        if recipe == "monocle":
+            preprocessor.config_monocle_recipe(adata)
+            preprocessor.preprocess_adata_monocle(adata)
+        elif recipe == "seurat":
+            preprocessor.config_seurat_recipe(adata)
+            preprocessor.preprocess_adata_seurat(adata)
+        elif recipe == "seurat":
+            preprocessor.config_pearson_residuals_recipe(adata)
+            preprocessor.preprocess_adata_pearson_residuals(adata)
+        elif recipe == "pearson_residuals":
+            preprocessor.config_pearson_residuals_recipe(adata)
+            preprocessor.preprocess_adata_pearson_residuals(adata)
+        else:
+            raise NotImplementedError("preprocess recipe chosen not implemented: %s" % (recipe))

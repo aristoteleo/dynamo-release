@@ -187,12 +187,12 @@ def select_genes_by_dispersion_general(
     layer: str = DKM.X_LAYER,
     nan_replace_val: float = None,
     n_top_genes: int = 2000,
-    recipe: str = "dynamo_monocle",
+    recipe: str = "monocle",
     seurat_min_disp=None,
     seurat_max_disp=None,
     seurat_min_mean=None,
     seurat_max_mean=None,
-    dynamo_monocle_kwargs: dict = {},
+    monocle_kwargs: dict = {},
     gene_names: list = None,
     var_filter_key: str = "pass_basic_filter",
 ):
@@ -218,7 +218,7 @@ def select_genes_by_dispersion_general(
         Seurat mean cutoff, by default None
     seurat_max_mean : [type], optional
         Seurat mean cutoff, by default None
-    dynamo_monocle_kwargs:
+    monocle_kwargs:
         Specific argument dictionary passed to monocle recipe
     """
 
@@ -260,11 +260,11 @@ def select_genes_by_dispersion_general(
             max_mean=seurat_max_mean,
             n_top_genes=n_top_genes,
         )
-    elif recipe == "dynamo_monocle":
+    elif recipe == "monocle":
         # TODO refactor dynamo monocle selection genes part code and make it modular (same as the two functions above)
         # the logics here for dynamo recipe is different from the above recipes
         # Note we do not need to pass subset_adata here because monocle takes care of everything regarding dynamo convention
-        select_genes_monocle(adata, **dynamo_monocle_kwargs)
+        select_genes_monocle(adata, **monocle_kwargs)
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[DKM.VAR_USE_FOR_PCA]
         return
     else:

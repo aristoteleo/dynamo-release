@@ -134,7 +134,7 @@ def test_calc_dispersion_sparse():
 
 def test_Preprocessor_simple_run(adata):
     preprocess_worker = Preprocessor()
-    preprocess_worker.preprocess_adata(adata)
+    preprocess_worker.preprocess_adata_monocle(adata)
 
 
 def test_is_log_transformed():
