@@ -336,14 +336,15 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
 
-    def config_pearson_residuals_recipe(self, adata):
-        self.config_monocle_recipe(adata)
+    def config_pearson_residuals_recipe(self):
         self.filter_cells_by_outliers = None
         self.filter_genes_by_outliers = None
         self.normalize_by_cells = None
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
+        self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": "50"}
+        self.use_log1p = False
 
     def preprocess_adata_pearson_residuals(self, adata):
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
@@ -355,18 +356,17 @@ class Preprocessor:
         temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
 
     def preprocess_adata(self, adata: AnnData, recipe="monocle"):
-        preprocessor = self
         if recipe == "monocle":
-            preprocessor.config_monocle_recipe(adata)
-            preprocessor.preprocess_adata_monocle(adata)
+            self.config_monocle_recipe(adata)
+            self.preprocess_adata_monocle(adata)
         elif recipe == "seurat":
-            preprocessor.config_seurat_recipe(adata)
-            preprocessor.preprocess_adata_seurat(adata)
-        elif recipe == "seurat":
-            preprocessor.config_pearson_residuals_recipe(adata)
-            preprocessor.preprocess_adata_pearson_residuals(adata)
+            self.config_seurat_recipe()
+            self.preprocess_adata_seurat(adata)
+        elif recipe == "sctransform":
+            self.config_sctransform_recipe()
+            self.preprocess_adata_sctransform(adata)
         elif recipe == "pearson_residuals":
-            preprocessor.config_pearson_residuals_recipe(adata)
-            preprocessor.preprocess_adata_pearson_residuals(adata)
+            self.config_pearson_residuals_recipe()
+            self.preprocess_adata_pearson_residuals(adata)
         else:
             raise NotImplementedError("preprocess recipe chosen not implemented: %s" % (recipe))
