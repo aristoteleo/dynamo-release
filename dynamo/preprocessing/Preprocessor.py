@@ -48,7 +48,6 @@ class Preprocessor:
         gene_exclude_list: List = [],
         force_gene_list: Optional[List] = None,
         sctransform_kwargs={},
-        # n_top_genes=2000,
     ) -> None:
         """Initialize the worker.
 
