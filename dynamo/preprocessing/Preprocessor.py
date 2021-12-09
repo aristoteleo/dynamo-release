@@ -343,10 +343,13 @@ class Preprocessor:
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
-        self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": "50"}
+        self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
         self.use_log1p = False
 
-    def preprocess_adata_pearson_residuals(self, adata):
+    def preprocess_adata_pearson_residuals(
+        self, adata, tkey: Optional[str] = None, experiment_type: Optional[str] = None
+    ):
+        self.add_experiment_info(adata, tkey, experiment_type)
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
         self.select_genes(adata, **self.select_genes_kwargs)
@@ -355,18 +358,18 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
 
-    def preprocess_adata(self, adata: AnnData, recipe="monocle"):
+    def preprocess_adata(self, adata: AnnData, recipe="monocle", tkey=None):
         if recipe == "monocle":
-            self.config_monocle_recipe(adata)
-            self.preprocess_adata_monocle(adata)
+            self.config_monocle_recipe(adata, tkey=tkey)
+            self.preprocess_adata_monocle(adata, tkey=tkey)
         elif recipe == "seurat":
             self.config_seurat_recipe()
-            self.preprocess_adata_seurat(adata)
+            self.preprocess_adata_seurat(adata, tkey=tkey)
         elif recipe == "sctransform":
             self.config_sctransform_recipe()
-            self.preprocess_adata_sctransform(adata)
+            self.preprocess_adata_sctransform(adata, tkey=tkey)
         elif recipe == "pearson_residuals":
             self.config_pearson_residuals_recipe()
-            self.preprocess_adata_pearson_residuals(adata)
+            self.preprocess_adata_pearson_residuals(adata, tkey=tkey)
         else:
             raise NotImplementedError("preprocess recipe chosen not implemented: %s" % (recipe))
