@@ -30,7 +30,12 @@ def TF_link_gene_chip(raw_glmnet_res_var, df_gene_TF_link_ENCODE, var, cor_thres
     """Filter the raw lasso regression links via chip-seq data based on a Fisher exact test"""
 
     glmnet_res_var_filtered = raw_glmnet_res_var.query("abs(corcoef) > @cor_thresh")
-    print(f"\n Number of possible links: glmnet_res_var_filtered.shape[0]")
+    if glmnet_res_var_filtered.shape[0] < 1000:
+        glmnet_res_var_filtered = raw_glmnet_res_var.query("abs(corcoef) > 0")
+        glmnet_res_var_filtered["abs_corcoef"] = abs(glmnet_res_var_filtered["corcoef"])
+        glmnet_res_var_filtered = glmnet_res_var_filtered.sort_values("abs_corcoef", ascending=False).iloc[:1000, :]
+
+    print(f"\n Number of possible links: {glmnet_res_var_filtered.shape[0]}")
 
     # source - target gene pairs
     df_gene_TF_link_ENCODE["id_gene"] = (
