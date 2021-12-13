@@ -288,6 +288,7 @@ def select_genes_by_dispersion_general(
     main_info("number of selected highly variable genes: " + str(adata.var[DKM.VAR_USE_FOR_PCA].sum()))
     if recipe == "svr":
         # SVR can give highly_variable_scores
+        main_info_insert_adata_var(DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES)
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES] = np.nan
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES][pass_filter_genes] = highly_variable_scores.flatten()
 
