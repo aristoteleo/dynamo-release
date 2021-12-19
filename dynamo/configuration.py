@@ -67,7 +67,9 @@ class DynamoAdataKeyManager:
             return res_data.copy()
         return res_data
 
-    def set_layer_data(adata, layer, vals, var_indices):
+    def set_layer_data(adata, layer, vals, var_indices=None):
+        if var_indices is None:
+            var_indices = slice(None)
         if layer == DynamoAdataKeyManager.X_LAYER:
             adata.X[:, var_indices] = vals
         else:
