@@ -337,14 +337,22 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
 
-    def config_pearson_residuals_recipe(self):
+    def config_pearson_residuals_recipe(self, adata: AnnData):
         self.filter_cells_by_outliers = None
         self.filter_genes_by_outliers = None
         self.normalize_by_cells = None
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
-        self.normalize_selected_genes_kwargs = {"layers": ["X", "spliced", "unspliced"], "copy": False}
+
+        only_splicing, only_labeling, splicing_and_labeling = DKM.allowed_layer_raw_names()
+
+        # select layers in adata to be normalized
+        normalize_layers = only_splicing + only_labeling + splicing_and_labeling
+        normalize_layers = set(normalize_layers).intersection(adata.layers.keys()).union("X")
+        normalize_layers = list(normalize_layers)
+
+        self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": False}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
         self.use_log1p = False
 
@@ -373,7 +381,7 @@ class Preprocessor:
             self.config_sctransform_recipe()
             self.preprocess_adata_sctransform(adata, tkey=tkey)
         elif recipe == "pearson_residuals":
-            self.config_pearson_residuals_recipe()
+            self.config_pearson_residuals_recipe(adata)
             self.preprocess_adata_pearson_residuals(adata, tkey=tkey)
         else:
             raise NotImplementedError("preprocess recipe chosen not implemented: %s" % (recipe))
