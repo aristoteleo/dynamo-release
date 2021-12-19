@@ -40,6 +40,10 @@ class DynamoAdataKeyManager:
         """Generate dynamo style keys for adata.uns.pp.key0_key1_key2..."""
         return "_".join(keys)
 
+    def gen_layer_X_key(key):
+        """Generate dynamo style keys for adata.layer.X_*"""
+        return DynamoAdataKeyManager.gen_new_layer_key("X", key)
+
     def gen_layer_pearson_residual_key(layer: str):
         """Generate dynamo style keys for adata.uns.pp.key0_key1_key2..."""
         return DynamoAdataKeyManager.gen_layer_pp_key(

@@ -8,6 +8,8 @@ import pandas as pd
 import statsmodels.discrete.discrete_model
 from anndata import AnnData
 import scipy as sp
+from ..configuration import DKM
+
 
 _EPS = np.finfo(float).eps
 
@@ -94,16 +96,22 @@ def theta_ml(y, mu):
     return t0
 
 
-def sctransform(adata, min_cells=5, gmean_eps=1, n_genes=2000, n_cells=None, bin_size=500, bw_adjust=3, inplace=True):
+def sctransform(
+    adata,
+    layer=DKM.X_LAYER,
+    min_cells=5,
+    gmean_eps=1,
+    n_genes=2000,
+    n_cells=None,
+    bin_size=500,
+    bw_adjust=3,
+    inplace=True,
+):
     """
-    This is a port of SCTransform from the Satija lab. See the R package for original documentation.
-
-    Currently, only regression against the log UMI counts are supported.
-
-    The only significant modification is that negative Pearson residuals are zero'd out to preserve
-    the sparsity structure of the data.
+    A re-implementation of SCTransform from the Satija lab.
     """
-    X = adata.X.copy()
+
+    X = DKM.select_layer_data(adata, layer).copy()
     X = sp.sparse.csr_matrix(X)
     X.eliminate_zeros()
     gene_names = np.array(list(adata.var_names))
@@ -252,8 +260,9 @@ def sctransform(adata, min_cells=5, gmean_eps=1, n_genes=2000, n_cells=None, bin
         y = np.array([d[i] for i in y])
         data = X.data
         Xnew = sp.sparse.coo_matrix((data, (x, y)), shape=adata.shape).tocsr()
-        adata.X = Xnew  # TODO: add log1p of corrected umi counts to layers
+        DKM.set_layer_data(adata, layer, Xnew)  # TODO: add log1p of corrected umi counts to layers
 
+        # TODO: reformat the following output according to adata key standards in dyn.
         for c in full_model_pars.columns:
             adata.var[c + "_sct"] = full_model_pars[c]
 

@@ -209,18 +209,15 @@ class Preprocessor:
         self.pca = pca_monocle
         self.pca_kwargs = {"pca_key": "X_pca"}
 
-    def preprocess_adata_monocle(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
-        main_info("Running preprocessing pipeline...")
-        temp_logger = LoggerManager.gen_logger("preprocessor")
-        temp_logger.log_time()
+    def standardize_adata(self, adata: AnnData, tkey, experiment_type):
         adata.uns["pp"] = {}
+        adata.uns["pp"]["norm_method"] = None
         self.add_experiment_info(adata, tkey, experiment_type)
-
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
         main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
-
         main_info("making adata observation index unique...")
         adata = self.unique_var_obs_adata(adata)
+        self.convert_layers2csr(adata)
 
         if self.collapse_species_adata:
             main_info("applying collapse species adata...")
@@ -231,6 +228,13 @@ class Preprocessor:
             self.convert_gene_name(adata)
             main_info("making adata observation index unique after gene name conversion...")
             adata = self.unique_var_obs_adata(adata)
+
+    def preprocess_adata_monocle(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+        main_info("Running preprocessing pipeline...")
+        temp_logger = LoggerManager.gen_logger("preprocessor-monocle")
+        temp_logger.log_time()
+
+        self.standardize_adata(adata, tkey, experiment_type)
 
         if self.filter_cells_by_outliers:
             main_info("filtering outlier cells...")
@@ -298,14 +302,13 @@ class Preprocessor:
         self.use_log1p = True
 
     def preprocess_adata_seurat(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
-        self.config_seurat_recipe()
+        # self.config_seurat_recipe()
         temp_logger = LoggerManager.gen_logger("preprocessor-seurat")
         temp_logger.log_time()
         main_info("Applying Seurat recipe preprocessing...")
-        adata.uns["pp"] = {}
-        self.add_experiment_info(adata, tkey, experiment_type)
 
-        adata = self.unique_var_obs_adata(adata)
+        self.standardize_adata(adata, tkey, experiment_type)
+
         self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
         self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
         self.select_genes(adata, **self.select_genes_kwargs)
@@ -322,11 +325,9 @@ class Preprocessor:
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
         main_info("Applying Sctransform recipe preprocessing...")
-        adata.uns["pp"] = {}
-        self.add_experiment_info(adata, tkey, experiment_type)
 
-        self.convert_layers2csr(adata)
-        self.unique_var_obs_adata(adata)
+        self.standardize_adata(adata, tkey, experiment_type)
+
         self.filter_cells_by_outliers(adata, keep_filtered=False)
         self.filter_genes_by_outliers(adata, inplace=True, min_cell_s=5)
         self.select_genes(adata, n_top_genes=2000)
@@ -343,15 +344,18 @@ class Preprocessor:
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
+        self.normalize_selected_genes_kwargs = {"layers": ["X", "spliced", "unspliced"], "copy": False}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
         self.use_log1p = False
 
     def preprocess_adata_pearson_residuals(
         self, adata, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ):
-        self.add_experiment_info(adata, tkey, experiment_type)
+
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
+        self.standardize_adata(adata, tkey, experiment_type)
+
         self.select_genes(adata, **self.select_genes_kwargs)
         self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
         self.pca(adata, **self.pca_kwargs)

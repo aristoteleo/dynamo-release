@@ -9,7 +9,7 @@ import numpy as np
 
 from typing import Optional, Dict
 from warnings import warn
-from ..dynamo_logger import LoggerManager, main_info
+from ..dynamo_logger import LoggerManager, main_info, main_info_insert_adata_layer, main_warning
 from ..preprocessing.utils import pca_monocle
 from ..preprocessing.preprocessor_utils import filter_genes_by_outliers, is_nonnegative_integer_arr
 from ..preprocessing.preprocessor_utils import seurat_get_mean_var
@@ -410,7 +410,7 @@ def _normalize_single_layer_pearson_residuals(
         Whether to modify copied input object. Not compatible with `inplace=False`.
     Returns
     -------
-    Returns dictionary with Pearson residuals and settings, or None based on copy
+        returns adata if `copy` is True, otherwise `None`.
     """
 
     if copy:
@@ -454,12 +454,45 @@ def _normalize_single_layer_pearson_residuals(
 
 
 def normalize_layers_pearson_residuals(
-    adata: AnnData, layers: list = ["X"], selected_genes_key="use_for_pca", **normalize_pearson_residual_args
+    adata: AnnData,
+    layers: list = ["X"],
+    select_genes_layer="X",
+    select_genes_key="use_for_pca",
+    copy=False,
+    **normalize_pearson_residual_args,
 ):
-    for layer in layers:
-        _normalize_single_layer_pearson_residuals(
-            adata, layer=layer, var_select_genes_key=selected_genes_key, **normalize_pearson_residual_args
+    if len(layers) == 0:
+        main_warning("layers arg has zero length. return and do nothing in normalize_layers_pearson_residuals.")
+    if not select_genes_layer in layers:
+        main_warning(
+            "select_genes_layer: %s not in layers, using layer: %s instead to select genes instead."
+            % (select_genes_layer, layers[0])
         )
+        select_genes_layer = layers[0]
+
+    for layer in layers:
+        temp_select_genes_key = None
+
+        # if the current layer is used for selecting genes
+        if select_genes_layer == layer:
+            temp_select_genes_key = select_genes_key
+
+        temp_adata = _normalize_single_layer_pearson_residuals(
+            adata, layer=layer, var_select_genes_key=temp_select_genes_key, copy=copy, **normalize_pearson_residual_args
+        )
+
+        # copy is False
+        if temp_adata is None:
+            temp_adata = adata
+
+        if layer == DKM.X_LAYER:
+            # TODO: discuss if we need X set in layers
+            # X layer will only be used for X_pca
+            main_info("skipping set X as layer in adata.layers", indent_level=2)
+            continue
+        new_X_key = DKM.gen_layer_X_key(layer)
+        main_info_insert_adata_layer(new_X_key, indent_level=2)
+        adata.layers[new_X_key] = DKM.select_layer_data(temp_adata, layer)
 
 
 def select_genes_by_pearson_residuals(
