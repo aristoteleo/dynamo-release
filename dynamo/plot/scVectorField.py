@@ -1121,6 +1121,7 @@ def streamline_plot(
         sort=sort,
         save_show_or_return="return",
         frontier=frontier,
+        projection=projection,
         **s_kwargs_dict,
         return_all=True,
     )
@@ -1143,7 +1144,7 @@ def streamline_plot(
 
     def quiver_3d(ax):
         ax.set_facecolor(background)
-        s = ax.quiver(
+        ax.quiver(
             X[0],
             X[1],
             X[2],
@@ -1151,7 +1152,7 @@ def streamline_plot(
             V[1],
             V[2],
             color=streamline_color,
-            **streamplot_kwargs,
+            # **streamplot_kwargs,
         )
 
     if type(axes_list) == list:
@@ -1178,7 +1179,8 @@ def streamline_plot(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        plt.tight_layout()
+        if projection != "3d":
+            plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
         return axes_list

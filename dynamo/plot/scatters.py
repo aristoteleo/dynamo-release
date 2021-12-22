@@ -96,6 +96,7 @@ def scatters(
     despline: bool = True,
     deaxis: bool = True,
     despline_sides: Union[None, List[str]] = None,
+    projection="2d",
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -703,7 +704,7 @@ def scatters(
                     raise ValueError("Conflicting options; only one of labels or values should be set")
 
                 if total_panels > 1 and not stack_colors:
-                    ax = plt.subplot(gs[ax_index])
+                    ax = plt.subplot(gs[ax_index], projection=projection)
                 ax_index += 1
 
                 # if highligts is a list of lists - each list is relate to each color element
@@ -751,6 +752,7 @@ def scatters(
                         calpha=calpha,
                         sym_c=sym_c,
                         inset_dict=inset_dict,
+                        projection=projection,
                         **scatter_kwargs,
                     )
                     if labels is not None:

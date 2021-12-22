@@ -162,6 +162,7 @@ def _matplotlib_points(
     sym_c=False,
     inset_dict={},
     show_colorbar=True,
+    projection="2d",
     **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -178,7 +179,7 @@ def _matplotlib_points(
     if ax is None:
         dpi = plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot(111, projection=projection)
 
     ax.set_facecolor(background)
 
@@ -610,6 +611,7 @@ def _datashade_points(
     vmin=2,
     vmax=98,
     sort="raw",
+    projection="2d",
     **kwargs,
 ):
     import matplotlib.pyplot as plt
