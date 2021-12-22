@@ -634,4 +634,5 @@ def set_pub_style_mpltex():
 
 # initialize DynamoSaveConfig and DynamoVisConfig mode defaults
 DynamoAdataConfig.update_data_store_mode("full")
+main_info("setting visualization default mode in dynamo. Your customized matplotlib settings might be overritten.")
 DynamoVisConfig.set_default_mode()
