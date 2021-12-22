@@ -308,7 +308,7 @@ def velocity_on_grid(
     V_threshold=None,
     cut_off_velocity=True,
 ):
-    """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted
+    """Function to calculate the velocity vectors on a grid for grid vector field quiver plot and streamplot, adapted
     from scVelo"""
     from ..vectorfield.stochastic_process import diffusionMatrix2D
 

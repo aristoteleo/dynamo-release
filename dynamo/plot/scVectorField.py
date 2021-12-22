@@ -895,6 +895,7 @@ def streamline_plot(
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
     s_kwargs_dict: dict = {},
+    projection="2d",
     **streamline_kwargs,
 ):
     """Plot the velocity vector of each cell.
@@ -1041,7 +1042,6 @@ def streamline_plot(
                 np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
                 np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
             )
-
     elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
             X,
@@ -1124,23 +1124,13 @@ def streamline_plot(
         **s_kwargs_dict,
         return_all=True,
     )
+    # single axis case, convert to list
+    if type(axes_list) != list:
+        axes_list = [axes_list]
 
-    if type(axes_list) == list:
-        for i in range(len(axes_list)):
-            axes_list[i].set_facecolor(background)
-            s = axes_list[i].streamplot(
-                X_grid[0],
-                X_grid[1],
-                V_grid[0],
-                V_grid[1],
-                color=streamline_color,
-                **streamplot_kwargs,
-            )
-            set_arrow_alpha(axes_list[i], streamline_alpha)
-            set_stream_line_alpha(s, streamline_alpha)
-    else:
-        axes_list.set_facecolor(background)
-        s = axes_list.streamplot(
+    def streamplot_2d(ax):
+        ax.set_facecolor(background)
+        s = ax.streamplot(
             X_grid[0],
             X_grid[1],
             V_grid[0],
@@ -1148,8 +1138,31 @@ def streamline_plot(
             color=streamline_color,
             **streamplot_kwargs,
         )
-        set_arrow_alpha(axes_list, streamline_alpha)
+        set_arrow_alpha(ax, streamline_alpha)
         set_stream_line_alpha(s, streamline_alpha)
+
+    def quiver_3d(ax):
+        ax.set_facecolor(background)
+        s = ax.quiver(
+            X[0],
+            X[1],
+            X[2],
+            V[0],
+            V[1],
+            V[2],
+            color=streamline_color,
+            **streamplot_kwargs,
+        )
+
+    if type(axes_list) == list:
+        for i in range(len(axes_list)):
+            ax = axes_list[i]
+            if projection == "2d":
+                streamplot_2d(ax)
+            elif projection == "3d":
+                quiver_3d(ax)
+            else:
+                raise NotImplementedError("projection: %s not supported" % (projection))
 
     if save_show_or_return == "save":
         s_kwargs = {
