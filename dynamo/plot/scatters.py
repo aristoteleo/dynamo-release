@@ -309,6 +309,9 @@ def scatters(
     from matplotlib.colors import to_hex
     from matplotlib.colors import rgb2hex
 
+    # 2d is not a projection in matplotlib, default is None (rectilinear)
+    if projection == "2d":
+        projection = None
     if calpha < 0 or calpha > 1:
         main_warning(
             "calpha=%f is invalid (smaller than 0 or larger than 1) and may cause potential issues. Please check."
