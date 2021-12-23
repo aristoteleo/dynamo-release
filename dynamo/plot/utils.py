@@ -170,7 +170,7 @@ def _matplotlib_points(
 
     dpi = plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
-
+    rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
     # """Use matplotlib to plot points"""
     # point_size = 500.0 / np.sqrt(points.shape[0])
 
@@ -275,7 +275,6 @@ def _matplotlib_points(
 
         if frontier:
             main_debug("drawing frontier")
-            rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
@@ -427,7 +426,6 @@ def _matplotlib_points(
 
         if frontier:
             main_debug("drawing frontier")
-            rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
             ax.scatter(
                 points[:, 0],
                 points[:, 1],

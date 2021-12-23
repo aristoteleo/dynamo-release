@@ -521,6 +521,7 @@ def cell_wise_vectors(
         axes_list = [axes_list]
     x0, x1 = df.iloc[:, 0], df.iloc[:, 1]
     v0, v1 = df.iloc[:, 2], df.iloc[:, 3]
+    
     if projection == "3d":
         x0, x1, x2 = df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2]
         v0, v1, v2 = df.iloc[:, 3], df.iloc[:, 4], df.iloc[:, 5]

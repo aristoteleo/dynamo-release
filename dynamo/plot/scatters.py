@@ -51,6 +51,7 @@ def scatters(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
+    z: int = 2,
     color: str = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
@@ -541,16 +542,31 @@ def scatters(
             elif hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
 
-            for cur_x, cur_y in zip(x, y):  # here x / y are arrays
+            for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
                 main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
                 if type(cur_x) is int and type(cur_y) is int:
+                    x_col_name = cur_b + "_0"
+                    y_col_name = cur_b + "_1"
+                    z_col_name = cur_b + "_2"
+                    points = None
                     points = pd.DataFrame(
                         {
-                            cur_b + "_0": _adata.obsm[prefix + cur_b][:, cur_x],
-                            cur_b + "_1": _adata.obsm[prefix + cur_b][:, cur_y],
+                            x_col_name: _adata.obsm[prefix + cur_b][:, cur_x],
+                            y_col_name: _adata.obsm[prefix + cur_b][:, cur_y],
                         }
                     )
-                    points.columns = [cur_b + "_0", cur_b + "_1"]
+                    points.columns = [x_col_name, y_col_name, z_col_name]
+
+                    if projection == "3d":
+                        points = pd.DataFrame(
+                            {
+                                x_col_name: _adata.obsm[prefix + cur_b][:, cur_x],
+                                y_col_name: _adata.obsm[prefix + cur_b][:, cur_y],
+                                z_col_name: _adata.obsm[prefix + cur_b][:, cur_z],
+                            }
+                        )
+                        points.columns = [x_col_name, y_col_name, z_col_name]
+
                 elif is_gene_name(_adata, cur_x) and is_gene_name(_adata, cur_y):
                     points = pd.DataFrame(
                         {
