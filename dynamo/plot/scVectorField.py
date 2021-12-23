@@ -80,6 +80,7 @@ def cell_wise_vectors_3d(
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
     s_kwargs_dict: dict = {},
+    quiver_3d_kwargs: dict = {"zorder": 3, "linewidth": 1, "arrow_length_ratio": 0.3},
     **cell_wise_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell.
@@ -131,11 +132,11 @@ def cell_wise_vectors_3d(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
-    
+
     projection_dim_indexer = [x, y, z]
     if X is not None and V is not None:
-        X = X[:, [x,y,z]]
-        V = V[:, [x,y,z]]
+        X = X[:, [x, y, z]]
+        V = V[:, [x, y, z]]
     elif type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
@@ -172,7 +173,6 @@ def cell_wise_vectors_3d(
     main_info("X shape: " + str(X.shape) + " V shape: " + str(V.shape))
     df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
 
-
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
@@ -192,8 +192,6 @@ def cell_wise_vectors_3d(
 
     head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)
 
-    quiver_3d_kwargs = {"arrow_length_ratio": scale}
-
     # single axis output
     x0, x1, x2 = df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2]
     v0, v1, v2 = df.iloc[:, 3], df.iloc[:, 4], df.iloc[:, 5]
@@ -208,7 +206,12 @@ def cell_wise_vectors_3d(
     for i in range(len(color)):
         ax = axes_flatten[i]
         ax.quiver(
-            x0, x1, x2, v0, v1, v2,
+            x0,
+            x1,
+            x2,
+            v0,
+            v1,
+            v2,
             # color=color_list[i],
             # facecolors=color_list[i],
             **quiver_3d_kwargs,
@@ -584,7 +587,7 @@ def cell_wise_vectors(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
-    
+
     if projection == "2d":
         projection_dim_indexer = [x, y]
     elif projection == "3d":
@@ -721,14 +724,22 @@ def cell_wise_vectors(
         ax = axes_list[i]
         if projection == "2d":
             ax.quiver(
-                x0, x1, v0, v1,
+                x0,
+                x1,
+                v0,
+                v1,
                 color=color_list[i],
                 facecolors=color_list[i],
                 **quiver_kwargs,
             )
         elif projection == "3d":
             ax.quiver(
-                x0, x1, x2, v0, v1, v2,
+                x0,
+                x1,
+                x2,
+                v0,
+                v1,
+                v2,
                 # color=color_list[i],
                 # facecolors=color_list[i],
                 **quiver_3d_kwargs,
@@ -749,7 +760,7 @@ def cell_wise_vectors(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        # plt.tight_layout()
+        plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
         return axes_list
@@ -1350,7 +1361,6 @@ def streamline_plot(
         )
         set_arrow_alpha(ax, streamline_alpha)
         set_stream_line_alpha(s, streamline_alpha)
-
 
     if type(axes_list) == list:
         for i in range(len(axes_list)):
