@@ -139,6 +139,13 @@ def _select_font_color(background):
     return font_color
 
 
+def _scatter_projection(ax, points, projection, **kwargs):
+    if projection == "3d":
+        ax.scatter(points[:, 0], points[:, 1], points[:, 2], **kwargs)
+    else:
+        ax.scatter(points[:, 0], points[:, 1], **kwargs)
+
+
 def _matplotlib_points(
     points,
     ax=None,
@@ -275,25 +282,28 @@ def _matplotlib_points(
 
         if frontier:
             main_debug("drawing frontier")
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "0.0",
+            _scatter_projection(
+                ax,
+                points,
+                projection,
+                s=kwargs["s"] * 2,
+                c="0.0",
                 lw=2,
                 rasterized=rasterized,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "1.0",
+            _scatter_projection(
+                ax,
+                points,
+                projection,
+                s=kwargs["s"] * 2,
+                c="1.0",
                 lw=0,
                 rasterized=rasterized,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=colors,
                 plotnonfinite=True,
                 **kwargs,
@@ -346,9 +356,10 @@ def _matplotlib_points(
                 levels=100,
             )
             x, y = points[:, :2].T
-            ax.scatter(
-                x,
-                y,
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=colors,
                 plotnonfinite=True,
                 zorder=21,
@@ -356,9 +367,10 @@ def _matplotlib_points(
             )
         else:
             main_debug("drawing without frontiers and contour")
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=colors,
                 plotnonfinite=True,
                 **kwargs,
@@ -426,25 +438,28 @@ def _matplotlib_points(
 
         if frontier:
             main_debug("drawing frontier")
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "0.0",
+            _scatter_projection(
+                ax,
+                points,
+                projection,
+                s=kwargs["s"] * 2,
+                c="0.0",
                 lw=2,
                 rasterized=rasterized,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "1.0",
+            _scatter_projection(
+                ax,
+                points,
+                projection,
+                s=kwargs["s"] * 2,
+                c="1.0",
                 lw=0,
                 rasterized=rasterized,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=values,
                 cmap=cmap,
                 vmin=_vmin,
@@ -485,7 +500,7 @@ def _matplotlib_points(
 
             ccmap = "viridis" if ccmap is None else ccmap
             # # ax.tricontourf(triang, values, cmap=ccmap)
-            # ax.scatter(x, y,
+            # _scatter_projection(x, y,
             #            c=values,
             #            cmap=cmap,
             #            plotnonfinite=True,
@@ -504,9 +519,10 @@ def _matplotlib_points(
                 thresh=0,
                 levels=100,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=values,
                 cmap=cmap,
                 vmin=_vmin,
@@ -517,9 +533,10 @@ def _matplotlib_points(
         else:
             main_debug("drawing without frontiers and contour")
             main_debug("using cmap: %s" % (str(cmap)))
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=values,
                 cmap=cmap,
                 vmin=_vmin,
@@ -548,7 +565,7 @@ def _matplotlib_points(
     else:
         main_debug("drawing points without color passed in args, using midpoint of the cmap")
         colors = plt.get_cmap(cmap)(0.5)
-        ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+        _scatter_projection(ax, points, projection, c=colors, **kwargs)
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) == 1 and show_legend == "on data":

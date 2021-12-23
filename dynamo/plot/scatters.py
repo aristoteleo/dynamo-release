@@ -87,7 +87,7 @@ def scatters(
     marker: str = None,
     group: str = None,
     add_group_gamma_fit=False,
-    affine_transform_degree=0,
+    affine_transform_degree: int=None,
     affine_transform_A=None,
     affine_transform_b=None,
     stack_colors=False,
@@ -366,16 +366,13 @@ def scatters(
     else:
         _background = background
         # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
-    x, y = (
-        [x] if type(x) in [int, str] else x,
-        [y]
-        if type(y)
-        in [
-            int,
-            str,
-        ]
-        else y,
-    )
+    if type(x) in [int, str]:
+        x = [x]
+    if type(y) in [int, str]:
+        y = [y]
+    if type(z) in [int, str]:
+        z = [z]
+
     if all([is_gene_name(adata, i) for i in basis]):
         if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
             "M_u",
@@ -482,7 +479,7 @@ def scatters(
         cur_l :
             current layer
         """
-        nonlocal adata, x, y, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
+        nonlocal adata, x, y, z, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
@@ -539,8 +536,15 @@ def scatters(
                 and len(y) == _adata.n_obs
             ):
                 x, y = [x], [y]
+                if projection == "3d":
+                    z = [z]
             elif hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
+                print("x:", x)
+                print("y:", y)
+                print("z:", z)
+                if projection == "3d":
+                    z = list(z)
 
             for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
                 main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
@@ -555,7 +559,7 @@ def scatters(
                             y_col_name: _adata.obsm[prefix + cur_b][:, cur_y],
                         }
                     )
-                    points.columns = [x_col_name, y_col_name, z_col_name]
+                    points.columns = [x_col_name, y_col_name]
 
                     if projection == "3d":
                         points = pd.DataFrame(
@@ -887,6 +891,7 @@ def scatters(
             main_debug("colors: %s" % (str(color)))
             _plot_basis_layer(cur_b, cur_l)
 
+    main_debug("show, return or save...")
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
