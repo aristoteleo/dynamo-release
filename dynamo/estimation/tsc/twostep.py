@@ -45,8 +45,8 @@ def fit_labeling_synthesis(new, total, t, intercept=False, perc_left=None, perc_
 
 
 def compute_gamma_synthesis(K, T):
-    gamma, _, r2, _ = fit_linreg(T, -np.log(1 - K))
-    return gamma, r2
+    gamma, b, r2, _ = fit_linreg(T, -np.log(1 - K), intercept=True)
+    return gamma, b, r2
 
 
 def compute_velocity_synthesis(N, R, gamma, t):
@@ -67,8 +67,8 @@ def lin_reg_gamma_synthesis(R, N, time, perc_right=100):
         n = n.A.flatten() if issparse(n) else n.flatten()
 
         K_list[i], R2 = fit_labeling_synthesis(n, r, time, perc_right=perc_right)
-        gamma[i], r2[i] = compute_gamma_synthesis(K_list[i], np.unique(time))
-        K_fit_list[i] = np.unique(time) * gamma[i]
+        gamma[i], b, r2[i] = compute_gamma_synthesis(K_list[i], np.unique(time))
+        K_fit_list[i] = np.unique(time) * gamma[i] + b
         mean_R2[i] = np.mean(R2)
 
     return gamma, r2, K_list, mean_R2, K_fit_list

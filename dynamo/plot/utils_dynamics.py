@@ -1768,7 +1768,7 @@ def plot_kin_twostep(
                 ax.scatter(T_uniq, cur_X_fit_data, c="r")
                 ax.plot(
                     T,
-                    T * gamma[i],
+                    cur_X_fit_data,
                     dashes=[6, 2],
                     c="k",
                 )
