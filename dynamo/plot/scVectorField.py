@@ -676,8 +676,7 @@ def cell_wise_vectors(
     }
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
     quiver_3d_kwargs = {"arrow_length_ratio": scale}
-    # if ax is None:
-    #     plt.figure(facecolor=background)
+
     axes_list, color_list, _ = scatters(
         adata=adata,
         basis=basis,
@@ -760,7 +759,7 @@ def cell_wise_vectors(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
         return axes_list
