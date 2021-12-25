@@ -8,8 +8,10 @@ import pandas as pd
 import statsmodels.discrete.discrete_model
 from anndata import AnnData
 import scipy as sp
-from ..configuration import DKM
 
+from dynamo.dynamo_logger import main_info_insert_adata_layer
+from ..configuration import DKM
+from ..dynamo_logger import main_info
 
 _EPS = np.finfo(float).eps
 
@@ -96,7 +98,7 @@ def theta_ml(y, mu):
     return t0
 
 
-def sctransform(
+def sctransform_core(
     adata,
     layer=DKM.X_LAYER,
     min_cells=5,
@@ -110,7 +112,7 @@ def sctransform(
     """
     A re-implementation of SCTransform from the Satija lab.
     """
-
+    main_info("sctransform adata on layer: %s" % (layer))
     X = DKM.select_layer_data(adata, layer).copy()
     X = sp.sparse.csr_matrix(X)
     X.eliminate_zeros()
@@ -260,7 +262,13 @@ def sctransform(
         y = np.array([d[i] for i in y])
         data = X.data
         Xnew = sp.sparse.coo_matrix((data, (x, y)), shape=adata.shape).tocsr()
-        DKM.set_layer_data(adata, layer, Xnew)  # TODO: add log1p of corrected umi counts to layers
+        if layer == DKM.X_LAYER:
+            main_info("set sctransform results to adata.X", indent_level=2)
+            DKM.set_layer_data(adata, layer, Xnew)  # TODO: add log1p of corrected umi counts to layers
+        else:
+            new_X_layer = DKM.gen_layer_X_key(layer)
+            main_info_insert_adata_layer(new_X_layer, indent_level=2)
+            DKM.set_layer_data(adata, new_X_layer, Xnew)  # TODO: add log1p of corrected umi counts to layers
 
         # TODO: reformat the following output according to adata key standards in dyn.
         for c in full_model_pars.columns:
@@ -301,3 +309,9 @@ def sctransform(
         adata_new.var["genes_step1_sct"] = z
         adata_new.var["log10_gmean_sct"] = genes_log_gmean
         return adata_new
+
+
+def sctransform(adata: AnnData, layers: str = [DKM.X_LAYER], output_layer: str = None, **kwargs):
+    """a wrapper calls sctransform_core and set dynamo styel keys in adata"""
+    for layer in layers:
+        sctransform_core(adata, layer=layer, **kwargs)

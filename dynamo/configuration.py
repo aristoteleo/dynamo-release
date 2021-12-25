@@ -41,8 +41,11 @@ class DynamoAdataKeyManager:
         return "_".join(keys)
 
     def gen_layer_X_key(key):
-        """Generate dynamo style keys for adata.layer.X_*"""
+        """Generate dynamo style keys for adata.layer.X_*, used later in dynamics"""
         return DynamoAdataKeyManager.gen_new_layer_key("X", key)
+
+    def is_layer_X_key(key):
+        return key[:2] == "X_"
 
     def gen_layer_pearson_residual_key(layer: str):
         """Generate dynamo style keys for adata.uns.pp.key0_key1_key2..."""
@@ -102,8 +105,15 @@ class DynamoAdataKeyManager:
         only_splicing = ["spliced", "unspliced"]
         only_labeling = ["new", "total"]
         splicing_and_labeling = ["uu", "ul", "su", "sl"]
-
         return only_splicing, only_labeling, splicing_and_labeling
+
+    def get_raw_data_layers(adata: AnnData) -> str:
+        only_splicing, only_labeling, splicing_and_labeling = DKM.allowed_layer_raw_names()
+        # select layers in adata to be normalized
+        res = only_splicing + only_labeling + splicing_and_labeling
+        res = set(res).intersection(adata.layers.keys()).union("X")
+        res = list(res)
+        return res
 
     def allowed_X_layer_names():
         only_splicing = ["X_spliced", "X_unspliced"]

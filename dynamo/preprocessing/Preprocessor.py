@@ -316,20 +316,27 @@ class Preprocessor:
         self.pca(adata, **self.pca_kwargs)
         temp_logger.finish_progress(progress_name="preprocess by seurat recipe")
 
-    def config_sctransform_recipe(self):
+    def config_sctransform_recipe(self, adata: AnnData):
         self.use_log1p = False
+        raw_layers = DKM.get_raw_data_layers(adata)
+        self.filter_cells_by_outliers = {"keep_filtered": False}
+        self.filter_genes_by_outliers_kwargs = {
+            "inplace": True,
+            "min_cell_s": 5,
+            "min_cell_u": 5,
+        }
+        self.sctransform_kwargs = {"layers": raw_layers}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
     def preprocess_adata_sctransform(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
-        self.config_sctransform_recipe()
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
         main_info("Applying Sctransform recipe preprocessing...")
 
         self.standardize_adata(adata, tkey, experiment_type)
 
-        self.filter_cells_by_outliers(adata, keep_filtered=False)
-        self.filter_genes_by_outliers(adata, inplace=True, min_cell_s=5)
+        self.filter_cells_by_outliers(adata)
+        self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
         self.select_genes(adata, n_top_genes=2000)
         adata = adata[:, adata.var["use_for_pca"]]
         self.sctransform(adata, **self.sctransform_kwargs)
@@ -344,13 +351,8 @@ class Preprocessor:
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
-
-        only_splicing, only_labeling, splicing_and_labeling = DKM.allowed_layer_raw_names()
-
         # select layers in adata to be normalized
-        normalize_layers = only_splicing + only_labeling + splicing_and_labeling
-        normalize_layers = set(normalize_layers).intersection(adata.layers.keys()).union("X")
-        normalize_layers = list(normalize_layers)
+        normalize_layers = DKM.get_raw_data_layers(adata)
 
         self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": False}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
@@ -359,7 +361,9 @@ class Preprocessor:
     def preprocess_adata_pearson_residuals(
         self, adata, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ):
-
+        """A pipeline proposed in Pearson residuals (Lause, Berens & Kobak, 2021).
+        Lause J, Berens P, Kobak D. Analytic Pearson residuals for normalization of single-cell RNA-seq UMI data. Genome Biol. 2021 Sep 6;22(1):258. doi: 10.1186/s13059-021-02451-7. PMID: 34488842; PMCID: PMC8419999.
+        """
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
@@ -370,6 +374,42 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
 
+    def config_monocle_pearson_residuals_recipe(self, adata: AnnData):
+        self.filter_cells_by_outliers = None
+        self.filter_genes_by_outliers = None
+        self.normalize_by_cells = normalize_cell_expr_by_size_factors
+        self.select_genes = select_genes_by_pearson_residuals
+        self.select_genes_kwargs = {"n_top_genes": 2000}
+        self.normalize_selected_genes = normalize_layers_pearson_residuals
+
+        self.normalize_selected_genes_kwargs = {"layers": ["X"], "copy": False}
+
+        self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
+        self.use_log1p = False
+
+    def preprocess_adata_monocle_pearson_residuals(
+        self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
+    ):
+        temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
+        temp_logger.log_time()
+        self.standardize_adata(adata, tkey, experiment_type)
+        self.select_genes(adata, **self.select_genes_kwargs)
+        adata_copy = adata.copy()
+        self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
+
+        adata.X = adata_copy.X
+        self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
+        # use monocle to pprocess adata
+        # self.config_monocle_recipe(adata_copy)
+        # self.pca = None # do not do pca in this monocle
+        # self.preprocess_adata_monocle(adata_copy)
+        # for layer in adata_copy.layers:
+        #     if DKM.is_layer_X_key(layer):
+        #         adata.layers[layer] = adata.
+
+        self.pca(adata, **self.pca_kwargs)
+        temp_logger.finish_progress(progress_name="preprocess by monocle pearson residual recipe")
+
     def preprocess_adata(self, adata: AnnData, recipe="monocle", tkey=None):
         if recipe == "monocle":
             self.config_monocle_recipe(adata, tkey=tkey)
@@ -378,10 +418,13 @@ class Preprocessor:
             self.config_seurat_recipe()
             self.preprocess_adata_seurat(adata, tkey=tkey)
         elif recipe == "sctransform":
-            self.config_sctransform_recipe()
+            self.config_sctransform_recipe(adata)
             self.preprocess_adata_sctransform(adata, tkey=tkey)
         elif recipe == "pearson_residuals":
             self.config_pearson_residuals_recipe(adata)
             self.preprocess_adata_pearson_residuals(adata, tkey=tkey)
+        elif recipe == "monocle_pearson_residuals":
+            self.config_monocle_pearson_residuals_recipe(adata)
+            self.preprocess_adata_monocle_pearson_residuals(adata, tkey=tkey)
         else:
             raise NotImplementedError("preprocess recipe chosen not implemented: %s" % (recipe))
