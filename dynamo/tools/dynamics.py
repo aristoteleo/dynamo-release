@@ -1033,7 +1033,7 @@ def kinetic_model(
                     X_data,
                     mean_R2,
                     K_fit,
-                ) = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+                ) = lin_reg_gamma_synthesis(Total, New, time, perc_right=5)
 
                 k = 1 - np.exp(-gamma[:, None] * time[None, :])
                 beta = gamma / gamma_k  # gamma_k = gamma / beta
@@ -1083,7 +1083,7 @@ def kinetic_model(
                     X_data,
                     mean_R2,
                     K_fit,
-                ) = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+                ) = lin_reg_gamma_synthesis(Total, New, time, perc_right=5)
 
                 k = 1 - np.exp(-gamma[:, None] * time[None, :])
                 Estm_df = {
