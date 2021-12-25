@@ -390,6 +390,7 @@ class Preprocessor:
     def preprocess_adata_monocle_pearson_residuals(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ):
+        """Because pearson_residuals results can contain negative values, an undesired attributes of later dyanmics analysis, this function uses monocle recipe to generate X_spliced, X_unspliced, X_new, X_total or other data values for dynamics and other downstream methods."""
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
