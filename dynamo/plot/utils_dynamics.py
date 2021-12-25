@@ -1764,7 +1764,8 @@ def plot_kin_twostep(
                     transform=ax.transAxes,
                 )
             elif j == 1:
-                ax.scatter(T_uniq, cur_X_data, c=color_key)
+                # y-axis should be -np.log(1 - cur_X_data)
+                ax.scatter(T_uniq, -np.log(1 - cur_X_data), c=color_key)
                 ax.scatter(T_uniq, cur_X_fit_data, c="r")
                 ax.plot(
                     T_uniq,
