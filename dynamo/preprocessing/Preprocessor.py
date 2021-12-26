@@ -319,7 +319,7 @@ class Preprocessor:
     def config_sctransform_recipe(self, adata: AnnData):
         self.use_log1p = False
         raw_layers = DKM.get_raw_data_layers(adata)
-        self.filter_cells_by_outliers = {"keep_filtered": False}
+        self.filter_cells_by_outliers_kwargs = {"keep_filtered": False}
         self.filter_genes_by_outliers_kwargs = {
             "inplace": True,
             "min_cell_s": 5,
@@ -412,6 +412,7 @@ class Preprocessor:
         temp_logger.finish_progress(progress_name="preprocess by monocle pearson residual recipe")
 
     def preprocess_adata(self, adata: AnnData, recipe="monocle", tkey=None):
+        """A wrapper and interface entry for all recipes."""
         if recipe == "monocle":
             self.config_monocle_recipe(adata, tkey=tkey)
             self.preprocess_adata_monocle(adata, tkey=tkey)
