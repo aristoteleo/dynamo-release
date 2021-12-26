@@ -66,6 +66,7 @@ def _parallel_wrapper(j):
 def gmean(X, axis=0, eps=1):
     X = X.copy()
     X.data[:] = np.log(X.data + eps)
+    assert np.all(X.data > 0)
     return np.exp(X.mean(axis).A.flatten()) - eps
 
 
