@@ -323,7 +323,9 @@ class Preprocessor:
         self.filter_genes_by_outliers_kwargs = {
             "inplace": True,
             "min_cell_s": 5,
+            "min_count_s": 1,
             "min_cell_u": 5,
+            "min_count_u": 1,
         }
         self.sctransform_kwargs = {"layers": raw_layers}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}

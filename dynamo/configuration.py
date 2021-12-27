@@ -75,8 +75,12 @@ class DynamoAdataKeyManager:
             var_indices = slice(None)
         if layer == DynamoAdataKeyManager.X_LAYER:
             adata.X[:, var_indices] = vals
-        else:
+        elif layer in adata.layers:
             adata.layers[layer][:, var_indices] = vals
+        else:
+            # layer does not exist in adata
+            # ignore var_indices and set values as a new layer
+            adata.layers[layer] = vals
 
     def check_if_layer_exist(adata: AnnData, layer: str) -> bool:
         if layer == DynamoAdataKeyManager.X_LAYER:

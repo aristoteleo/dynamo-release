@@ -812,11 +812,11 @@ def filter_genes_by_outliers(
             Minimal average expression across cells for the data in the protein layer.
         max_avg_exp: `float` (default: `100`.)
             Maximal average expression across cells for the data in all layers (also used for X).
-        min_cell_s: `int` (default: `5`)
+        min_count_s: `int` (default: `5`)
             Minimal number of counts (UMI/expression) for the data in the spliced layer (also used for X).
-        min_cell_u: `int` (default: `5`)
+        min_count_u: `int` (default: `5`)
             Minimal number of counts (UMI/expression) for the data in the unspliced layer.
-        min_cell_p: `int` (default: `5`)
+        min_count_p: `int` (default: `5`)
             Minimal number of counts (UMI/expression) for the data in the protein layer.
         shared_count: `int` (default: `30`)
             The minimal shared number of counts for each genes across cell between layers.
@@ -892,7 +892,8 @@ def filter_genes_by_outliers(
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
     if inplace:
-        adata = adata[:, adata.var["pass_basic_filter"]]
+        adata._inplace_subset_var(adata.var["pass_basic_filter"])
+        return adata
     return adata.var["pass_basic_filter"]
 
 
