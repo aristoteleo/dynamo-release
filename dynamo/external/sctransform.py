@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import statsmodels.discrete.discrete_model
 from anndata import AnnData
+import scipy
 import scipy as sp
 
 from dynamo.dynamo_logger import main_info_insert_adata_layer
@@ -63,11 +64,16 @@ def _parallel_wrapper(j):
     ps[name] = np.append(res.params, theta)
 
 
-def gmean(X, axis=0, eps=1):
+def gmean(X: scipy.sparse.spmatrix, axis=0, eps=1):
     X = X.copy()
-    X.data[:] = np.log(X.data + eps)
+    X = X.asfptype()
+    assert np.all(X.sum(0) > 0)
     assert np.all(X.data > 0)
-    return np.exp(X.mean(axis).A.flatten()) - eps
+    X.data[:] = np.log(X.data + eps)
+    res = np.exp(X.mean(axis).A.flatten()) - eps
+
+    assert np.all(res > 0)
+    return res
 
 
 def theta_ml(y, mu):
@@ -313,6 +319,6 @@ def sctransform_core(
 
 
 def sctransform(adata: AnnData, layers: str = [DKM.X_LAYER], output_layer: str = None, **kwargs):
-    """a wrapper calls sctransform_core and set dynamo styel keys in adata"""
+    """a wrapper calls sctransform_core and set dynamo style keys in adata"""
     for layer in layers:
         sctransform_core(adata, layer=layer, **kwargs)
