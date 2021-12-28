@@ -318,7 +318,7 @@ def sctransform_core(
         return adata_new
 
 
-def sctransform(adata: AnnData, layers: str = [DKM.X_LAYER], output_layer: str = None, **kwargs):
+def sctransform(adata: AnnData, layers: str = [DKM.X_LAYER], output_layer: str = None, n_top_genes=2000, **kwargs):
     """a wrapper calls sctransform_core and set dynamo style keys in adata"""
     for layer in layers:
-        sctransform_core(adata, layer=layer, **kwargs)
+        sctransform_core(adata, layer=layer, n_genes=n_top_genes, **kwargs)
