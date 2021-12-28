@@ -304,6 +304,10 @@ def main_log_time():
     LoggerManager.main_logger.log_time()
 
 
+def main_silence():
+    LoggerManager.main_logger.setLevel(logging.CRITICAL + 100)
+
+
 def main_finish_progress(progress_name=""):
     LoggerManager.main_logger.finish_progress(progress_name=progress_name)
 
