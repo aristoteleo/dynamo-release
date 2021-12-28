@@ -5,6 +5,7 @@ from matplotlib import rcParams, cm, colors
 from cycler import cycler
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from .dynamo_logger import main_info, main_warning
 
 
@@ -70,7 +71,7 @@ class DynamoAdataKeyManager:
             return res_data.copy()
         return res_data
 
-    def set_layer_data(adata, layer, vals, var_indices=None):
+    def set_layer_data(adata: AnnData, layer: str, vals, var_indices: np.array = None):
         if var_indices is None:
             var_indices = slice(None)
         if layer == DynamoAdataKeyManager.X_LAYER:

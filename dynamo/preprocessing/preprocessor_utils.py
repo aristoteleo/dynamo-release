@@ -195,6 +195,7 @@ def select_genes_by_dispersion_general(
     monocle_kwargs: dict = {},
     gene_names: list = None,
     var_filter_key: str = "pass_basic_filter",
+    inplace=False,
 ):
     """ "A general function for filter genes family. Preprocess adata and dispatch to different filtering methods, and eventually set keys in anndata to denote which genes are wanted in downstream analysis.
 
@@ -292,6 +293,9 @@ def select_genes_by_dispersion_general(
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES] = np.nan
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES][pass_filter_genes] = highly_variable_scores.flatten()
 
+    if inplace:
+        main_info("inplace is True, subset adata according to selected genes.")
+        adata = adata[:, adata.var[DKM.VAR_USE_FOR_PCA]]
     main_finish_progress("filter genes by dispersion")
 
 

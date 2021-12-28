@@ -329,7 +329,7 @@ def main_info_insert_adata_obs(key, indent_level=1, *args, **kwargs):
 
 
 def main_info_insert_adata_layer(key, indent_level=1, *args, **kwargs):
-    main_info_insert_adata(key, "layer", indent_level, *args, **kwargs)
+    main_info_insert_adata(key, "layers", indent_level, *args, **kwargs)
 
 
 def main_info_verbose_timeit(msg):

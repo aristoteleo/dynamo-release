@@ -216,7 +216,7 @@ class Preprocessor:
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
         main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
         main_info("making adata observation index unique...")
-        adata = self.unique_var_obs_adata(adata)
+        self.unique_var_obs_adata(adata)
         self.convert_layers2csr(adata)
 
         if self.collapse_species_adata:
@@ -227,7 +227,7 @@ class Preprocessor:
             main_info("applying convert_gene_name function...")
             self.convert_gene_name(adata)
             main_info("making adata observation index unique after gene name conversion...")
-            adata = self.unique_var_obs_adata(adata)
+            self.unique_var_obs_adata(adata)
 
     def preprocess_adata_monocle(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
@@ -327,7 +327,8 @@ class Preprocessor:
             "min_cell_u": 5,
             "min_count_u": 1,
         }
-        self.sctransform_kwargs = {"layers": raw_layers}
+        self.select_genes_kwargs = {"inplace": True}
+        self.sctransform_kwargs = {"layers": raw_layers, "n_top_genes": 2000}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
     def preprocess_adata_sctransform(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
@@ -337,9 +338,10 @@ class Preprocessor:
 
         self.standardize_adata(adata, tkey, experiment_type)
 
-        self.filter_cells_by_outliers(adata)
+        self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
         self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
-        self.select_genes(adata, n_top_genes=2000)
+        self.select_genes(adata, **self.select_genes_kwargs)
+        # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata = adata[:, adata.var["use_for_pca"]]
         self.sctransform(adata, **self.sctransform_kwargs)
         self.pca(adata, **self.pca_kwargs)
