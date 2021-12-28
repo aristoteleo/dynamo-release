@@ -342,7 +342,7 @@ class Preprocessor:
         self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
         self.select_genes(adata, **self.select_genes_kwargs)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
-        adata = adata[:, adata.var["use_for_pca"]]
+        adata._inplace_subset_var(adata.var["use_for_pca"])
         self.sctransform(adata, **self.sctransform_kwargs)
         self.pca(adata, **self.pca_kwargs)
 
