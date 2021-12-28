@@ -87,7 +87,7 @@ def scatters(
     marker: str = None,
     group: str = None,
     add_group_gamma_fit=False,
-    affine_transform_degree: int=None,
+    affine_transform_degree: int = None,
     affine_transform_A=None,
     affine_transform_b=None,
     stack_colors=False,
@@ -456,8 +456,11 @@ def scatters(
     if figsize is None:
         figsize = plt.rcParams["figsize"]
 
-    if total_panels >= 1 and ax is None:
-        plt.figure(
+    figure = None  # possible as argument in future
+
+    # if #total_panel is 1, `_matplotlib_points` will create a figure. No need to create a figure here and generate a blank figure.
+    if total_panels > 1 and ax is None:
+        figure = plt.figure(
             None,
             (figsize[0] * ncol, figsize[1] * nrow),
             facecolor=_background,
