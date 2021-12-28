@@ -169,7 +169,7 @@ def _matplotlib_points(
     sym_c=False,
     inset_dict={},
     show_colorbar=True,
-    projection="2d",
+    projection=None,  # default in matplotlib
     **kwargs,
 ):
     import matplotlib.pyplot as plt
