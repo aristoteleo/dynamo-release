@@ -379,8 +379,9 @@ class Preprocessor:
         temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
 
     def config_monocle_pearson_residuals_recipe(self, adata: AnnData):
-        self.filter_cells_by_outliers = None
-        self.filter_genes_by_outliers = None
+        self.config_monocle_recipe(adata)
+        # self.filter_cells_by_outliers = None
+        # self.filter_genes_by_outliers = None
         self.normalize_by_cells = normalize_cell_expr_by_size_factors
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
@@ -399,10 +400,9 @@ class Preprocessor:
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
         self.select_genes(adata, **self.select_genes_kwargs)
-        adata_copy = adata.copy()
+        X_copy = adata.X.copy()
         self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
-
-        adata.X = adata_copy.X
+        adata.X = X_copy
         self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
         # use monocle to pprocess adata
         # self.config_monocle_recipe(adata_copy)
