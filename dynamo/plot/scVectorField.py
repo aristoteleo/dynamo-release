@@ -1114,7 +1114,6 @@ def streamline_plot(
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
     s_kwargs_dict: dict = {},
-    projection="2d",
     **streamline_kwargs,
 ):
     """Plot the velocity vector of each cell.
