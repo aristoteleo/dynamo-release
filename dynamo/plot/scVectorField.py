@@ -15,6 +15,7 @@ from .utils import (
     save_fig,
     set_arrow_alpha,
     set_stream_line_alpha,
+    _get_adata_color_vec,
 )
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
@@ -52,7 +53,7 @@ def cell_wise_vectors_3d(
     vkey: str = "velocity_S",
     X: Union[np.array, spmatrix] = None,
     V: Union[np.array, spmatrix] = None,
-    color: Union[str, List[str]] = "ntr",
+    color: Union[str, List[str]] = None,
     layer: str = "X",
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
@@ -205,6 +206,9 @@ def cell_wise_vectors_3d(
     axes_flatten = axes.flatten()
     for i in range(len(color)):
         ax = axes_flatten[i]
+        color_vec = _get_adata_color_vec(adata, cur_l=layer, cur_c=color[i])
+        print("color vec len: ", len(color_vec))
+        print("x0 shape:", x0.shape)
         ax.quiver(
             x0,
             x1,
@@ -212,7 +216,7 @@ def cell_wise_vectors_3d(
             v0,
             v1,
             v2,
-            # color=color_list[i],
+            color_vec,
             # facecolors=color_list[i],
             **quiver_3d_kwargs,
         )

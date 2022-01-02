@@ -28,6 +28,7 @@ from .utils import (
     _matplotlib_points,
     _datashade_points,
     save_fig,
+    _get_adata_color_vec,
 )
 from ..preprocessing.utils import (
     gen_rotation_2d,
@@ -343,15 +344,6 @@ def scatters(
     if stack_colors:
         color_key = None
 
-    def _get_adata_color(adata, cur_l, cur_c):
-        if cur_l in ["protein", "X_protein"]:
-            _color = adata.obsm[cur_l].loc[cur_c, :]
-        elif cur_l == "X":
-            _color = adata.obs_vector(cur_c, layer=None)
-        else:
-            _color = adata.obs_vector(cur_c, layer=cur_l)
-        return _color
-
     if not (affine_transform_degree is None):
         affine_transform_A = gen_rotation_2d(affine_transform_degree)
         affine_transform_b = 0
@@ -512,7 +504,7 @@ def scatters(
                 cur_title = cur_c
             else:
                 cur_title = stack_colors_title
-            _color = _get_adata_color(adata, cur_l, cur_c)
+            _color = _get_adata_color_vec(adata, cur_l, cur_c)
 
             # select data rows based on stack color thresholding
             _values = values
@@ -543,9 +535,6 @@ def scatters(
                     z = [z]
             elif hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
-                print("x:", x)
-                print("y:", y)
-                print("z:", z)
                 if projection == "3d":
                     z = list(z)
 

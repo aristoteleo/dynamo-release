@@ -46,6 +46,16 @@ def is_list_of_lists(list_of_lists):
     all(isinstance(elem, list) for elem in list_of_lists)
 
 
+def _get_adata_color_vec(adata, *, cur_l, cur_c):
+    if cur_l in ["protein", "X_protein"]:
+        _color = adata.obsm[cur_l].loc[cur_c, :]
+    elif cur_l == "X":
+        _color = adata.obs_vector(cur_c, layer=None)
+    else:
+        _color = adata.obs_vector(cur_c, layer=cur_l)
+    return np.array(_color).flatten()
+
+
 # ---------------------------------------------------------------------------------------------------
 # plotting utilities that borrowed from umap
 # link: https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
