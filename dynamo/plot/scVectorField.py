@@ -80,7 +80,7 @@ def cell_wise_vectors_3d(
     axis_labels: Optional[list] = None,
     elev: float = None,
     azim: float = None,
-    alpha: float = 0.8,
+    alpha: Optional[float] = None,
     show_magnitude=False,
     titles: list = None,
     **cell_wise_kwargs,
@@ -162,6 +162,10 @@ def cell_wise_vectors_3d(
 
     if grid_color:
         plt.rcParams["grid.color"] = grid_color
+
+    if alpha:
+        quiver_3d_kwargs = dict(quiver_3d_kwargs)
+        quiver_3d_kwargs["alpha"] = alpha
 
     if X is not None and V is not None:
         X = X[:, [x, y, z]]
