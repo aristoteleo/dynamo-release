@@ -232,7 +232,6 @@ def cell_wise_vectors_3d(
         s_kwargs = update_dict(s_kwargs, save_kwargs)
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
         return axes
