@@ -46,13 +46,13 @@ def is_list_of_lists(list_of_lists):
     all(isinstance(elem, list) for elem in list_of_lists)
 
 
-def _get_adata_color_vec(adata, cur_l, cur_c):
-    if cur_l in ["protein", "X_protein"]:
-        _color = adata.obsm[cur_l].loc[cur_c, :]
-    elif cur_l == "X":
-        _color = adata.obs_vector(cur_c, layer=None)
+def _get_adata_color_vec(adata, layer, col):
+    if layer in ["protein", "X_protein"]:
+        _color = adata.obsm[layer].loc[col, :]
+    elif layer == "X":
+        _color = adata.obs_vector(col, layer=None)
     else:
-        _color = adata.obs_vector(cur_c, layer=cur_l)
+        _color = adata.obs_vector(col, layer=layer)
     return np.array(_color).flatten()
 
 

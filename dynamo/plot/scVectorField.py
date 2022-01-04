@@ -50,7 +50,7 @@ def cell_wise_vectors_3d(
     x: int = 0,
     y: int = 1,
     z: int = 2,
-    ekey: str = "M_s",
+    ekey: str = None,
     vkey: str = "velocity_S",
     X: Union[np.array, spmatrix] = None,
     V: Union[np.array, spmatrix] = None,
@@ -76,6 +76,8 @@ def cell_wise_vectors_3d(
         "cmap": cm.PRGn,
     },
     grid_color: Optional[str] = None,
+    axis_label_prefix: Optional[str] = None,
+    axis_labels: Optional[list] = None,
     **cell_wise_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell.
@@ -128,10 +130,30 @@ def cell_wise_vectors_3d(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
+    def add_axis_label(ax, labels):
+
+        ax.set_xlabel(labels[0])
+        ax.set_ylabel(labels[1])
+        ax.set_zlabel(labels[2])
+
+    projection_dim_indexer = [x, y, z]
+
+    # ensure axis_label prefix is not None
+    if ekey is not None and axis_label_prefix is None:
+        axis_label_prefix = ekey
+    elif axis_label_prefix is None:
+        axis_label_prefix = "dim"
+
+    # ensure axis_labels is not None
+    if axis_labels is None:
+        axis_labels = [axis_label_prefix + "_" + str(index) for index in projection_dim_indexer]
+
+    if type(color) is str:
+        color = [color]
+
     if grid_color:
         plt.rcParams["grid.color"] = grid_color
 
-    projection_dim_indexer = [x, y, z]
     if X is not None and V is not None:
         X = X[:, [x, y, z]]
         V = V[:, [x, y, z]]
@@ -201,15 +223,15 @@ def cell_wise_vectors_3d(
     figure, axes = plt.subplots(nrows, ncols, figsize=figsize, subplot_kw=dict(projection="3d"))
     axes = np.array(axes)
     axes_flatten = axes.flatten()
+
     for i in range(len(color)):
         ax = axes_flatten[i]
+        ax.set_title(color[i])
         norm = quiver_3d_kwargs["norm"]
         cmap = quiver_3d_kwargs["cmap"]
-        color_vec = _get_adata_color_vec(adata, cur_l=layer, cur_c=color[i])
+        color_vec = _get_adata_color_vec(adata, layer=layer, col=color[i])
         color_vec = cmap(norm(color_vec))
-
         main_debug("color vec len: " + str(len(color_vec)))
-
         ax.quiver(
             x0,
             x1,
@@ -222,6 +244,7 @@ def cell_wise_vectors_3d(
             **quiver_3d_kwargs,
         )
         ax.set_facecolor(background)
+        add_axis_label(ax, axis_labels)
 
     if save_show_or_return == "save":
         s_kwargs = {
