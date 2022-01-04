@@ -1,3 +1,4 @@
+import matplotlib
 import numpy as np
 import pandas as pd
 
@@ -8,6 +9,7 @@ from anndata import AnnData
 from typing import Union, Optional, List
 from matplotlib.figure import Figure
 from scipy.sparse.base import spmatrix
+import sklearn
 
 from .scatters import scatters
 from .utils import (
@@ -62,8 +64,6 @@ def cell_wise_vectors_3d(
     ax: Optional[Axes] = None,
     inverse: True = False,
     cell_inds: str = "all",
-    quiver_size: Optional[float] = 1,
-    quiver_length: Optional[float] = None,
     vector: str = "velocity",
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
@@ -78,6 +78,11 @@ def cell_wise_vectors_3d(
     grid_color: Optional[str] = None,
     axis_label_prefix: Optional[str] = None,
     axis_labels: Optional[list] = None,
+    elev: float = None,
+    azim: float = None,
+    alpha: float = 0.8,
+    show_magnitude=False,
+    titles: list = None,
     **cell_wise_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell.
@@ -131,7 +136,6 @@ def cell_wise_vectors_3d(
     from matplotlib.colors import to_hex
 
     def add_axis_label(ax, labels):
-
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1])
         ax.set_zlabel(labels[2])
@@ -151,14 +155,20 @@ def cell_wise_vectors_3d(
     if type(color) is str:
         color = [color]
 
+    if titles is None:
+        titles = color
+
+    assert len(color) == len(titles), "#titles does not match #color."
+
     if grid_color:
         plt.rcParams["grid.color"] = grid_color
 
     if X is not None and V is not None:
         X = X[:, [x, y, z]]
         V = V[:, [x, y, z]]
-    elif type(x) == str and type(y) == str:
-        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
+
+    elif type(x) == str and type(y) == str and type(z) == str:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y, z])) != 2:
             raise ValueError(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
@@ -185,6 +195,10 @@ def cell_wise_vectors_3d(
                 adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
+    if not show_magnitude:
+        X = sklearn.preprocessing.normalize(X, axis=0, norm="max")
+        V = sklearn.preprocessing.normalize(V, axis=0, norm="l2")
+        V = sklearn.preprocessing.normalize(V, axis=1, norm="l2")
 
     V /= 3 * quiver_autoscaler(X, V)
     if inverse:
@@ -210,8 +224,6 @@ def cell_wise_vectors_3d(
         _background = rcParams.get("figure.facecolor")
         background = to_hex(_background) if type(_background) is tuple else _background
 
-    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)
-
     # single axis output
     x0, x1, x2 = df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2]
     v0, v1, v2 = df.iloc[:, 3], df.iloc[:, 4], df.iloc[:, 5]
@@ -230,12 +242,21 @@ def cell_wise_vectors_3d(
         norm = quiver_3d_kwargs["norm"]
         cmap = quiver_3d_kwargs["cmap"]
         color_vec = _get_adata_color_vec(adata, layer=layer, col=color[i])
+        assert len(color_vec) > 0, "color vector or data vector size is 0"
+
+        # convet categorical string data colors to labels
+        if type(color_vec[0]) is str:
+            unique_vals, color_vec = np.unique(color_vec, return_inverse=True)
+
+        print("color vec", color_vec)
         color_vec = cmap(norm(color_vec))
 
         # TODO due to matplotlib quiver3 impl, we need to add colors for arrow head segments
         # TODO if matplotlib changes its detailed impl, we may not need the following line
         color_vec = list(color_vec) + [element for element in list(color_vec) for _ in range(2)]
+        # color_vec = matplotlib.colors.to_rgba(color_vec, alpha=alpha)
         main_debug("color vec len: " + str(len(color_vec)))
+        ax.view_init(elev=elev, azim=azim)
         ax.quiver(
             x0,
             x1,
@@ -247,6 +268,7 @@ def cell_wise_vectors_3d(
             # facecolors=color_vec,
             **quiver_3d_kwargs,
         )
+        ax.set_title(titles[i])
         ax.set_facecolor(background)
         add_axis_label(ax, axis_labels)
 
