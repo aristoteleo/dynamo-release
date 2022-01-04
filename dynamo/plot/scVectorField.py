@@ -231,6 +231,10 @@ def cell_wise_vectors_3d(
         cmap = quiver_3d_kwargs["cmap"]
         color_vec = _get_adata_color_vec(adata, layer=layer, col=color[i])
         color_vec = cmap(norm(color_vec))
+
+        # TODO due to matplotlib quiver3 impl, we need to add colors for arrow head segments
+        # TODO if matplotlib changes its detailed impl, we may not need the following line
+        color_vec = list(color_vec) + [element for element in list(color_vec) for _ in range(2)]
         main_debug("color vec len: " + str(len(color_vec)))
         ax.quiver(
             x0,
