@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 # from scipy.sparse import issparse
+from matplotlib import cm
 from matplotlib.axes import Axes
 from anndata import AnnData
 from typing import Union, Optional, List
@@ -55,33 +56,25 @@ def cell_wise_vectors_3d(
     V: Union[np.array, spmatrix] = None,
     color: Union[str, List[str]] = None,
     layer: str = "X",
-    highlights: Optional[list] = None,
-    labels: Optional[list] = None,
-    values: Optional[list] = None,
-    theme: Optional[str] = None,
-    cmap: Optional[str] = None,
-    color_key: Union[dict, list] = None,
-    color_key_cmap: Optional[str] = None,
     background: Optional[str] = "white",
     ncols: int = 4,
-    pointsize: Union[None, float] = None,
     figsize: tuple = (6, 4),
-    show_legend="on data",
-    use_smoothed: bool = True,
     ax: Optional[Axes] = None,
-    sort: str = "raw",
-    aggregate: Optional[str] = None,
-    show_arrowed_spines: bool = False,
     inverse: True = False,
     cell_inds: str = "all",
     quiver_size: Optional[float] = 1,
     quiver_length: Optional[float] = None,
     vector: str = "velocity",
-    frontier: bool = False,
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
-    s_kwargs_dict: dict = {},
-    quiver_3d_kwargs: dict = {"zorder": 3, "linewidth": 1, "arrow_length_ratio": 0.3},
+    quiver_3d_kwargs: dict = {
+        "zorder": 3,
+        "length": 2,
+        "linewidth": 5,
+        "arrow_length_ratio": 5,
+        "norm": cm.colors.Normalize(),
+        "cmap": cm.PRGn,
+    },
     **cell_wise_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell.
@@ -206,9 +199,13 @@ def cell_wise_vectors_3d(
     axes_flatten = axes.flatten()
     for i in range(len(color)):
         ax = axes_flatten[i]
+        norm = quiver_3d_kwargs["norm"]
+        cmap = quiver_3d_kwargs["cmap"]
         color_vec = _get_adata_color_vec(adata, cur_l=layer, cur_c=color[i])
-        print("color vec len: ", len(color_vec))
-        print("x0 shape:", x0.shape)
+        color_vec = cmap(norm(color_vec))
+
+        main_debug("color vec len: " + str(len(color_vec)))
+
         ax.quiver(
             x0,
             x1,
@@ -216,8 +213,8 @@ def cell_wise_vectors_3d(
             v0,
             v1,
             v2,
-            color_vec,
-            # facecolors=color_list[i],
+            color=color_vec,
+            # facecolors=color_vec,
             **quiver_3d_kwargs,
         )
         ax.set_facecolor(background)
@@ -233,7 +230,6 @@ def cell_wise_vectors_3d(
             "verbose": True,
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
-
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
