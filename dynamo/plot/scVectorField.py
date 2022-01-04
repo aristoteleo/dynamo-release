@@ -75,6 +75,7 @@ def cell_wise_vectors_3d(
         "norm": cm.colors.Normalize(),
         "cmap": cm.PRGn,
     },
+    grid_color: Optional[str] = None,
     **cell_wise_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell.
@@ -126,6 +127,9 @@ def cell_wise_vectors_3d(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
+
+    if grid_color:
+        plt.rcParams["grid.color"] = grid_color
 
     projection_dim_indexer = [x, y, z]
     if X is not None and V is not None:
