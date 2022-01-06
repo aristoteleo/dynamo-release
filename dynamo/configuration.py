@@ -6,6 +6,11 @@ import matplotlib.pyplot as plt
 from .dynamo_logger import main_info
 
 
+class DynamoVisConfig:
+    def set_default_mode():
+        set_figure_params("dynamo", background="white")
+
+
 class DynamoAdataConfig:
     """dynamo anndata object config class holding static variables to change behaviors of functions globally."""
 
@@ -106,10 +111,6 @@ class DynamoAdataConfig:
             DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.dynamics_del_2nd_moments,
             DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.recipe_del_2nd_moments,
         }
-
-
-# initialize DynamoSaveConfig mode as default
-DynamoAdataConfig.update_data_store_mode("full")
 
 
 def update_data_store_mode(mode):
@@ -629,3 +630,9 @@ def set_pub_style_mpltex():
         "axes.labelpad": 1,
     }
     matplotlib.rcParams.update(params)
+
+
+# initialize DynamoSaveConfig and DynamoVisConfig mode defaults
+DynamoAdataConfig.update_data_store_mode("full")
+main_info("setting visualization default mode in dynamo. Your customized matplotlib settings might be overritten.")
+DynamoVisConfig.set_default_mode()
