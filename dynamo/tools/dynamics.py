@@ -1026,14 +1026,14 @@ def kinetic_model(
                     gamma_b,
                     gamma_all_r2,
                     gamma_all_logLL,
-                ) = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+                ) = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=100)
                 (
                     gamma,
                     gamma_r2,
                     X_data,
                     mean_R2,
                     K_fit,
-                ) = lin_reg_gamma_synthesis(Total, New, time, perc_right=5)
+                ) = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
 
                 k = 1 - np.exp(-gamma[:, None] * time[None, :])
                 beta = gamma / gamma_k  # gamma_k = gamma / beta
@@ -1083,7 +1083,7 @@ def kinetic_model(
                     X_data,
                     mean_R2,
                     K_fit,
-                ) = lin_reg_gamma_synthesis(Total, New, time, perc_right=5)
+                ) = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
 
                 k = 1 - np.exp(-gamma[:, None] * time[None, :])
                 Estm_df = {
