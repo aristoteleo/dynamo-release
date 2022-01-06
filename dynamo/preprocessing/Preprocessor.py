@@ -154,7 +154,7 @@ class Preprocessor:
         adata.uns["pp"]["experiment_layers"] = layers
         adata.uns["pp"]["experiment_total_layers"] = total_layers
 
-    def standardize_adata(self, adata: AnnData, tkey, experiment_type):
+    def standardize_adata(self, adata: AnnData, tkey: str, experiment_type: str):
         adata.uns["pp"] = {}
         adata.uns["pp"]["norm_method"] = None
         self.add_experiment_info(adata, tkey, experiment_type)
@@ -174,37 +174,37 @@ class Preprocessor:
             main_info("making adata observation index unique after gene name conversion...")
             self.unique_var_obs_adata(adata)
 
-    def _filter_cells_by_outliers(self, adata):
+    def _filter_cells_by_outliers(self, adata: AnnData):
         if self.filter_cells_by_outliers:
             main_info("filtering outlier cells...")
             main_info("cell filter kwargs:" + str(self.filter_cells_by_outliers_kwargs))
             self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
 
-    def _filter_genes_by_outliers(self, adata):
+    def _filter_genes_by_outliers(self, adata: AnnData):
         if self.filter_genes_by_outliers:
             main_info("filtering outlier genes...")
             main_info("gene filter kwargs:" + str(self.filter_genes_by_outliers_kwargs))
             self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
 
-    def _select_genes(self, adata):
+    def _select_genes(self, adata: AnnData):
         if self.select_genes:
             main_info("selecting genes...")
             main_info("select_genes kwargs:" + str(self.select_genes_kwargs))
             self.select_genes(adata, **self.select_genes_kwargs)
 
-    def _append_gene_list(self, adata):
+    def _append_gene_list(self, adata: AnnData):
         if self.gene_append_list is not None:
             append_genes = adata.var.index.intersection(self.gene_append_list)
             adata.var.loc[append_genes, DKM.VAR_USE_FOR_PCA] = True
             main_info("appended %d extra genes as required..." % len(append_genes))
 
-    def _exclude_gene_list(self, adata):
+    def _exclude_gene_list(self, adata: AnnData):
         if self.gene_exclude_list is not None:
             exclude_genes = adata.var.index.intersection(self.gene_exclude_list)
             adata.var.loc[exclude_genes, DKM.VAR_USE_FOR_PCA] = False
             main_info("excluded %d genes as required..." % len(exclude_genes))
 
-    def _force_gene_list(self, adata):
+    def _force_gene_list(self, adata: AnnData):
         if self.force_gene_list is not None:
             adata.var.loc[:, DKM.VAR_USE_FOR_PCA] = False
             forced_genes = adata.var.index.intersection(self.force_gene_list)
@@ -214,7 +214,7 @@ class Preprocessor:
                 % len(forced_genes)
             )
 
-    def _normalize_selected_genes(self, adata):
+    def _normalize_selected_genes(self, adata: AnnData):
         if not callable(self.normalize_selected_genes):
             main_info(
                 "skipping normalize by selected genes as preprocessor normalize_selected_genes is not callable..."
@@ -224,7 +224,7 @@ class Preprocessor:
         main_info("normalizing selected genes...")
         self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
 
-    def _normalize_by_cells(self, adata):
+    def _normalize_by_cells(self, adata: AnnData):
         if not callable(self.normalize_by_cells):
             main_info("skipping normalize by cells as preprocessor normalize_by_cells is not callable...")
             return
@@ -232,7 +232,7 @@ class Preprocessor:
         main_info("applying normalize by cells function...")
         self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
 
-    def _log1p(self, adata):
+    def _log1p(self, adata: AnnData):
         if self.use_log1p:
             if is_log1p_transformed_adata(adata):
                 main_warning(
@@ -249,12 +249,9 @@ class Preprocessor:
             main_info("reducing dimension by PCA...")
             self.pca(adata, **self.pca_kwargs)
 
-    def config_monocle_recipe(
-        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR", tkey: Optional[str] = None
-    ):
+    def config_monocle_recipe(self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"):
         n_obs, n_genes = adata.n_obs, adata.n_vars
         n_cells = n_obs
-        self.add_experiment_info(adata, tkey)
         self.use_log1p = False
         self.filter_cells_by_outliers = monocle_filter_cells_by_outliers
         self.filter_cells_by_outliers_kwargs = {
@@ -334,7 +331,7 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess")
 
-    def config_seurat_recipe(self, adata):
+    def config_seurat_recipe(self, adata: AnnData):
         self.config_monocle_recipe(adata)
         self.select_genes = select_genes_by_dispersion_general
         self.select_genes_kwargs = {"recipe": "seurat", "n_top_genes": 2000}
@@ -403,7 +400,7 @@ class Preprocessor:
         self.use_log1p = False
 
     def preprocess_adata_pearson_residuals(
-        self, adata, tkey: Optional[str] = None, experiment_type: Optional[str] = None
+        self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ):
         """A pipeline proposed in Pearson residuals (Lause, Berens & Kobak, 2021).
         Lause J, Berens P, Kobak D. Analytic Pearson residuals for normalization of single-cell RNA-seq UMI data. Genome Biol. 2021 Sep 6;22(1):258. doi: 10.1186/s13059-021-02451-7. PMID: 34488842; PMCID: PMC8419999.
@@ -455,10 +452,10 @@ class Preprocessor:
         self.pca(adata, **self.pca_kwargs)
         temp_logger.finish_progress(progress_name="preprocess by monocle pearson residual recipe")
 
-    def preprocess_adata(self, adata: AnnData, recipe="monocle", tkey=None):
+    def preprocess_adata(self, adata: AnnData, recipe: str = "monocle", tkey: Optional[str] = None):
         """A wrapper and interface entry for all recipes."""
         if recipe == "monocle":
-            self.config_monocle_recipe(adata, tkey=tkey)
+            self.config_monocle_recipe(adata)
             self.preprocess_adata_monocle(adata, tkey=tkey)
         elif recipe == "seurat":
             self.config_seurat_recipe(adata)
