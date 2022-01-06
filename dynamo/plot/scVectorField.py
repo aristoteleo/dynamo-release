@@ -1439,8 +1439,7 @@ def streamline_plot(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        if projection != "3d":
-            plt.tight_layout()
+        plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
         return axes_list
