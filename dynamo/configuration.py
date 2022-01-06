@@ -7,8 +7,8 @@ from .dynamo_logger import main_info
 
 
 class DynamoVisConfig:
-    def set_default_mode(self):
-        set_figure_params("dynamo", background="white")
+    def set_default_mode(background="white"):
+        set_figure_params("dynamo", background=background)
 
 
 class DynamoAdataConfig:

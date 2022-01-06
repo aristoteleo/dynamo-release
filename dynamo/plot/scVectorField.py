@@ -170,9 +170,9 @@ def cell_wise_vectors_3d(
         V = V[:, [x, y, z]]
 
     elif type(x) == str and type(y) == str and type(z) == str:
-        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y, z])) != 2:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y, z])) != 3:
             raise ValueError(
-                "If you want to plot the vector flow of two genes, please make sure those two genes "
+                "If you want to plot the vector flow of three genes, please make sure those three genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
         X = adata[:, projection_dim_indexer].layers[ekey].A
@@ -252,7 +252,7 @@ def cell_wise_vectors_3d(
         if type(color_vec[0]) is str:
             unique_vals, color_vec = np.unique(color_vec, return_inverse=True)
 
-        print("color vec", color_vec)
+        # print("color vec", color_vec)
         color_vec = cmap(norm(color_vec))
 
         # TODO due to matplotlib quiver3 impl, we need to add colors for arrow head segments
