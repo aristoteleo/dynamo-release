@@ -8,8 +8,8 @@ from matplotlib.axes import Axes
 from anndata import AnnData
 from typing import Union, Optional, List
 from matplotlib.figure import Figure
-from scipy.sparse.base import spmatrix
-import sklearn
+from scipy.sparse import spmatrix
+from sklearn.preprocessing import normalize
 
 from .scatters import scatters
 from .utils import (
@@ -172,9 +172,9 @@ def cell_wise_vectors_3d(
         V = V[:, [x, y, z]]
 
     elif type(x) == str and type(y) == str and type(z) == str:
-        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y, z])) != 2:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y, z])) != 3:
             raise ValueError(
-                "If you want to plot the vector flow of two genes, please make sure those two genes "
+                "If you want to plot the vector flow of three genes, please make sure those three genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
         X = adata[:, projection_dim_indexer].layers[ekey].A
@@ -200,14 +200,14 @@ def cell_wise_vectors_3d(
 
     X, V = X.copy(), V.copy()
     if not show_magnitude:
-        X = sklearn.preprocessing.normalize(X, axis=0, norm="max")
-        V = sklearn.preprocessing.normalize(V, axis=0, norm="l2")
-        V = sklearn.preprocessing.normalize(V, axis=1, norm="l2")
+        X = normalize(X, axis=0, norm="max")
+        V = normalize(V, axis=0, norm="l2")
+        V = normalize(V, axis=1, norm="l2")
 
     V /= 3 * quiver_autoscaler(X, V)
     if inverse:
         V = -V
-    df = None
+
     main_info("X shape: " + str(X.shape) + " V shape: " + str(V.shape))
     df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
 
@@ -221,6 +221,8 @@ def cell_wise_vectors_3d(
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
         ix_choice = cell_inds
+    else:
+        ix_choice = np.arange(adata.shape[0])
 
     df = df.iloc[ix_choice, :]
 
@@ -252,7 +254,6 @@ def cell_wise_vectors_3d(
         if type(color_vec[0]) is str:
             unique_vals, color_vec = np.unique(color_vec, return_inverse=True)
 
-        print("color vec", color_vec)
         color_vec = cmap(norm(color_vec))
 
         # TODO due to matplotlib quiver3 impl, we need to add colors for arrow head segments
@@ -279,7 +280,7 @@ def cell_wise_vectors_3d(
     if save_show_or_return == "save":
         s_kwargs = {
             "path": None,
-            "prefix": "cell_wise_vector",
+            "prefix": "cell_wise_vectors_3d",
             "dpi": None,
             "ext": "pdf",
             "transparent": True,
