@@ -1,3 +1,11 @@
+# =================================================================
+# Original Code Repository Author: Lause, Berens & Kobak
+# Adapted to Dynamo by: dynamo authors
+# Created Date: 12/16/2021
+# Description: pearson residuals based method for preprocessing single cell expression data
+# Original Code Repository: https://github.com/atarashansky/SCTransformPy
+# =================================================================
+
 import statsmodels.nonparametric.kernel_regression
 from KDEpy import FFTKDE
 from multiprocessing import Pool, Manager

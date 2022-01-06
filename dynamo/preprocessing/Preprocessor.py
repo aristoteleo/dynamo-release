@@ -342,6 +342,19 @@ class Preprocessor:
         self.log1p_kwargs = {"layers": ["X"]}
 
     def preprocess_adata_seurat(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+        """
+        The preprocess pipeline in Seurat based on dispersion, implemented by dynamo authors.
+        Stuart and Butler et al. Comprehensive Integration of Single-Cell Data. Cell (2019)
+        Butler et al. Integrating single-cell transcriptomic data across different conditions, technologies, and species. Nat Biotechnol
+
+        Parameters
+        ----------
+        adata : AnnData
+        tkey : Optional[str], optional
+            time key, by default None
+        experiment_type : str, optional
+            experiment type of data, by default None
+        """
         temp_logger = LoggerManager.gen_logger("preprocessor-seurat")
         temp_logger.log_time()
         main_info("Applying Seurat recipe preprocessing...")
@@ -370,6 +383,18 @@ class Preprocessor:
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
     def preprocess_adata_sctransform(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+        """
+        Python implementation of https://github.com/satijalab/sctransform.
+        Hao and Hao et al. Integrated analysis of multimodal single-cell data. Cell (2021)
+
+        Parameters
+        ----------
+        adata : AnnData
+        tkey : Optional[str], optional
+            time key, by default None
+        experiment_type : str, optional
+            experiment type of data, by default None
+        """
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
         main_info("Applying Sctransform recipe preprocessing...")
@@ -403,7 +428,15 @@ class Preprocessor:
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ):
         """A pipeline proposed in Pearson residuals (Lause, Berens & Kobak, 2021).
-        Lause J, Berens P, Kobak D. Analytic Pearson residuals for normalization of single-cell RNA-seq UMI data. Genome Biol. 2021 Sep 6;22(1):258. doi: 10.1186/s13059-021-02451-7. PMID: 34488842; PMCID: PMC8419999.
+        Lause, J., Berens, P. & Kobak, D. Analytic Pearson residuals for normalization of single-cell RNA-seq UMI data. Genome Biol 22, 258 (2021). https://doi.org/10.1186/s13059-021-02451-7
+
+        Parameters
+        ----------
+        adata : AnnData
+        tkey : Optional[str], optional
+            time key, by default None
+        experiment_type : str, optional
+            experiment type of data, by default None
         """
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
@@ -432,7 +465,19 @@ class Preprocessor:
     def preprocess_adata_monocle_pearson_residuals(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ):
-        """Because pearson_residuals results can contain negative values, an undesired attributes of later dyanmics analysis, this function uses monocle recipe to generate X_spliced, X_unspliced, X_new, X_total or other data values for dynamics and other downstream methods."""
+        """
+        A combined pipeline of monocle and pearson_residuals.
+        pearson_residuals results can contain negative values, an undesired attributes of later dyanmics analysis. This function uses monocle recipe to generate X_spliced, X_unspliced, X_new, X_total or other data values for dynamics and other downstream methods.
+
+        Parameters
+        ----------
+        adata : AnnData
+        tkey : Optional[str], optional
+            time key, by default None
+        experiment_type : str, optional
+            experiment type of data, by default None
+
+        """
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)

@@ -1,3 +1,11 @@
+# =================================================================
+# Original Code Repository Author: @atarashansky
+# Adapted to Dynamo by: @dummyindex
+# Created Date: 12/16/2021
+# Description: Sctrasnform for preprocessing single cell expression data adapated from R counterpart implemented in Seurat
+# Reference: https://github.com/atarashansky/SCTransformPy
+# =================================================================
+
 import scipy.sparse as sp_sparse
 from typing import Optional
 import warnings
