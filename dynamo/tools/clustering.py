@@ -1,5 +1,4 @@
 from typing import Union
-from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
@@ -75,6 +74,11 @@ def hdbscan(
             cluster. `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from
             hdbscan run.
     """
+
+    try:
+        from hdbscan import HDBSCAN
+    except ImportError:
+        raise ImportError("You need to install the package `hdbscan`." "install hdbscan via `pip install hdbscan`")
 
     logger = LoggerManager.gen_logger("dynamo-hdbscan")
     logger.log_time()
