@@ -229,38 +229,36 @@ class Preprocessor:
             main_info("making adata observation index unique after gene name conversion...")
             self.unique_var_obs_adata(adata)
 
-    def preprocess_adata_monocle(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
-        main_info("Running preprocessing pipeline...")
-        temp_logger = LoggerManager.gen_logger("preprocessor-monocle")
-        temp_logger.log_time()
-
-        self.standardize_adata(adata, tkey, experiment_type)
-
+    def _filter_cells_by_outliers(self, adata):
         if self.filter_cells_by_outliers:
             main_info("filtering outlier cells...")
             main_info("cell filter kwargs:" + str(self.filter_cells_by_outliers_kwargs))
             self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
 
+    def _filter_genes_by_outliers(self, adata):
         if self.filter_genes_by_outliers:
             main_info("filtering outlier genes...")
             main_info("gene filter kwargs:" + str(self.filter_genes_by_outliers_kwargs))
             self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
 
+    def _select_genes(self, adata):
         if self.select_genes:
             main_info("selecting genes...")
             self.select_genes(adata, **self.select_genes_kwargs)
 
-        # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.
+    def _append_gene_list(self, adata):
         if self.gene_append_list is not None:
             append_genes = adata.var.index.intersection(self.gene_append_list)
             adata.var.loc[append_genes, DKM.VAR_USE_FOR_PCA] = True
             main_info("appended %d extra genes as required..." % len(append_genes))
 
+    def _exclude_gene_list(self, adata):
         if self.gene_exclude_list is not None:
             exclude_genes = adata.var.index.intersection(self.gene_exclude_list)
             adata.var.loc[exclude_genes, DKM.VAR_USE_FOR_PCA] = False
             main_info("excluded %d genes as required..." % len(exclude_genes))
 
+    def _force_gene_list(self, adata):
         if self.force_gene_list is not None:
             adata.var.loc[:, DKM.VAR_USE_FOR_PCA] = False
             forced_genes = adata.var.index.intersection(self.force_gene_list)
@@ -270,14 +268,17 @@ class Preprocessor:
                 % len(forced_genes)
             )
 
+    def _normalize_selected_genes(self, adata):
         if self.normalize_selected_genes:
             main_info("normalizing selected genes...")
             self.normalize_selected_genes(adata)
 
+    def _normalize_by_cells(self, adata):
         if self.normalize_by_cells:
             main_info("applying normalize by cells function...")
             self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
 
+    def _log1p(self, adata):
         if self.use_log1p:
             if is_log1p_transformed_adata(adata):
                 main_warning(
@@ -287,9 +288,33 @@ class Preprocessor:
             main_info("applying log1p transformation on expression matrix data (adata.X)...")
             self.log1p(adata)
 
+    def _pca(self, adata):
         if self.pca:
             main_info("reducing dimension by PCA...")
             self.pca(adata, **self.pca_kwargs)
+
+    def preprocess_adata_monocle(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
+        main_info("Running preprocessing pipeline...")
+        temp_logger = LoggerManager.gen_logger("preprocessor-monocle")
+        temp_logger.log_time()
+
+        self.standardize_adata(adata, tkey, experiment_type)
+
+        self._filter_cells_by_outliers(adata)
+        self._filter_genes_by_outliers(adata)
+        self._filter_cells_by_outliers(adata)
+        self._select_genes(adata)
+
+        # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.
+        self._append_gene_list(adata)
+        self._exclude_gene_list(adata)
+        self._force_gene_list(adata)
+
+        self._normalize_selected_genes(adata)
+        self._normalize_by_cells(adata)
+
+        self._log1p(adata)
+        self._pca(adata)
 
         temp_logger.finish_progress(progress_name="preprocess")
 
@@ -309,11 +334,11 @@ class Preprocessor:
 
         self.standardize_adata(adata, tkey, experiment_type)
 
-        self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
-        self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
-        self.select_genes(adata, **self.select_genes_kwargs)
-        self.log1p(adata, layers=["X"])
-        self.pca(adata, **self.pca_kwargs)
+        self._filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
+        self._normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
+        self._select_genes(adata, **self.select_genes_kwargs)
+        self._log1p(adata, layers=["X"])
+        self._pca(adata, **self.pca_kwargs)
         temp_logger.finish_progress(progress_name="preprocess by seurat recipe")
 
     def config_sctransform_recipe(self, adata: AnnData):
@@ -338,13 +363,13 @@ class Preprocessor:
 
         self.standardize_adata(adata, tkey, experiment_type)
 
-        self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
-        self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
-        self.select_genes(adata, **self.select_genes_kwargs)
+        self._filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
+        self._filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
+        self._select_genes(adata, **self.select_genes_kwargs)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])
         self.sctransform(adata, **self.sctransform_kwargs)
-        self.pca(adata, **self.pca_kwargs)
+        self._pca(adata, **self.pca_kwargs)
 
         temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
 
@@ -372,9 +397,9 @@ class Preprocessor:
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
 
-        self.select_genes(adata, **self.select_genes_kwargs)
-        self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
-        self.pca(adata, **self.pca_kwargs)
+        self._select_genes(adata, **self.select_genes_kwargs)
+        self._normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
+        self._pca(adata, **self.pca_kwargs)
 
         temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
 
@@ -399,11 +424,11 @@ class Preprocessor:
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
-        self.select_genes(adata, **self.select_genes_kwargs)
+        self._select_genes(adata, **self.select_genes_kwargs)
         X_copy = adata.X.copy()
-        self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
+        self._normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
         adata.X = X_copy
-        self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
+        self._normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
         # use monocle to pprocess adata
         # self.config_monocle_recipe(adata_copy)
         # self.pca = None # do not do pca in this monocle
