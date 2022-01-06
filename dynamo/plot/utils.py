@@ -149,6 +149,13 @@ def _select_font_color(background):
     return font_color
 
 
+def _scatter_projection(ax, points, projection, **kwargs):
+    if projection == "3d":
+        ax.scatter(points[:, 0], points[:, 1], points[:, 2], **kwargs)
+    else:
+        ax.scatter(points[:, 0], points[:, 1], **kwargs)
+
+
 def _matplotlib_points(
     points,
     ax=None,
@@ -172,6 +179,7 @@ def _matplotlib_points(
     sym_c=False,
     inset_dict={},
     show_colorbar=True,
+    projection=None,  # default in matplotlib
     **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -179,7 +187,7 @@ def _matplotlib_points(
 
     dpi = plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
-
+    rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
     # """Use matplotlib to plot points"""
     # point_size = 500.0 / np.sqrt(points.shape[0])
 
@@ -188,7 +196,7 @@ def _matplotlib_points(
     if ax is None:
         dpi = plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot(111, projection=projection)
 
     ax.set_facecolor(background)
 
@@ -284,26 +292,28 @@ def _matplotlib_points(
 
         if frontier:
             main_debug("drawing frontier")
-            rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "0.0",
+            _scatter_projection(
+                ax,
+                points,
+                projection,
+                s=kwargs["s"] * 2,
+                c="0.0",
                 lw=2,
                 rasterized=rasterized,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "1.0",
+            _scatter_projection(
+                ax,
+                points,
+                projection,
+                s=kwargs["s"] * 2,
+                c="1.0",
                 lw=0,
                 rasterized=rasterized,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=colors,
                 plotnonfinite=True,
                 **kwargs,
@@ -356,9 +366,10 @@ def _matplotlib_points(
                 levels=100,
             )
             x, y = points[:, :2].T
-            ax.scatter(
-                x,
-                y,
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=colors,
                 plotnonfinite=True,
                 zorder=21,
@@ -366,9 +377,10 @@ def _matplotlib_points(
             )
         else:
             main_debug("drawing without frontiers and contour")
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=colors,
                 plotnonfinite=True,
                 **kwargs,
@@ -436,26 +448,28 @@ def _matplotlib_points(
 
         if frontier:
             main_debug("drawing frontier")
-            rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "0.0",
+            _scatter_projection(
+                ax,
+                points,
+                projection,
+                s=kwargs["s"] * 2,
+                c="0.0",
                 lw=2,
                 rasterized=rasterized,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "1.0",
+            _scatter_projection(
+                ax,
+                points,
+                projection,
+                s=kwargs["s"] * 2,
+                c="1.0",
                 lw=0,
                 rasterized=rasterized,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=values,
                 cmap=cmap,
                 vmin=_vmin,
@@ -496,7 +510,7 @@ def _matplotlib_points(
 
             ccmap = "viridis" if ccmap is None else ccmap
             # # ax.tricontourf(triang, values, cmap=ccmap)
-            # ax.scatter(x, y,
+            # _scatter_projection(x, y,
             #            c=values,
             #            cmap=cmap,
             #            plotnonfinite=True,
@@ -515,9 +529,10 @@ def _matplotlib_points(
                 thresh=0,
                 levels=100,
             )
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=values,
                 cmap=cmap,
                 vmin=_vmin,
@@ -528,9 +543,10 @@ def _matplotlib_points(
         else:
             main_debug("drawing without frontiers and contour")
             main_debug("using cmap: %s" % (str(cmap)))
-            ax.scatter(
-                points[:, 0],
-                points[:, 1],
+            _scatter_projection(
+                ax,
+                points,
+                projection,
                 c=values,
                 cmap=cmap,
                 vmin=_vmin,
@@ -559,7 +575,7 @@ def _matplotlib_points(
     else:
         main_debug("drawing points without color passed in args, using midpoint of the cmap")
         colors = plt.get_cmap(cmap)(0.5)
-        ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+        _scatter_projection(ax, points, projection, c=colors, **kwargs)
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) == 1 and show_legend == "on data":
@@ -620,6 +636,7 @@ def _datashade_points(
     vmin=2,
     vmax=98,
     sort="raw",
+    projection="2d",
     **kwargs,
 ):
     import matplotlib.pyplot as plt

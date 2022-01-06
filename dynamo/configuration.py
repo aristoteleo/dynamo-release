@@ -113,10 +113,6 @@ class DynamoAdataConfig:
         }
 
 
-# initialize DynamoSaveConfig mode as default
-DynamoAdataConfig.update_data_store_mode("full")
-
-
 def update_data_store_mode(mode):
     DynamoAdataConfig.update_data_store_mode(mode)
 

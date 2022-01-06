@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import time
 import sys
 
+
 def silence_logger(name):
     """Given a logger name, silence it completely.
 
@@ -13,6 +14,16 @@ def silence_logger(name):
     package_logger = logging.getLogger(name)
     package_logger.setLevel(logging.CRITICAL + 100)
     package_logger.propagate = False
+
+
+def set_logger_level(name, level):
+    """Given a logger name, silence it completely.
+
+    :param name: name of the logger
+    :type name: str
+    """
+    package_logger = logging.getLogger(name)
+    package_logger.setLevel(level)
 
 
 def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=6):
@@ -298,3 +309,7 @@ def main_info_insert_adata(key, adata_attr="obsm", indent_level=1, *args, **kwar
 
 def main_info_verbose_timeit(msg):
     LoggerManager.main_logger.info(msg)
+
+
+def main_set_level(level):
+    set_logger_level("dynamo", level)

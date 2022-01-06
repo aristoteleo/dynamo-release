@@ -1,3 +1,4 @@
+import matplotlib
 import numpy as np
 import pandas as pd
 
@@ -85,6 +86,7 @@ def cell_wise_vectors_3d(
     **cell_wise_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell.
+
     Parameters
     ----------
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
@@ -252,7 +254,6 @@ def cell_wise_vectors_3d(
         if type(color_vec[0]) is str:
             unique_vals, color_vec = np.unique(color_vec, return_inverse=True)
 
-        # print("color vec", color_vec)
         color_vec = cmap(norm(color_vec))
 
         # TODO due to matplotlib quiver3 impl, we need to add colors for arrow head segments
@@ -827,6 +828,7 @@ def cell_wise_vectors(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
+    z: int = 2,
     ekey: str = "M_s",
     vkey: str = "velocity_S",
     color: Union[str, List[str]] = "ntr",
@@ -850,13 +852,14 @@ def cell_wise_vectors(
     show_arrowed_spines: bool = False,
     inverse: True = False,
     cell_inds: str = "all",
-    quiver_size: Optional[float] = None,
+    quiver_size: Optional[float] = 1,
     quiver_length: Optional[float] = None,
     vector: str = "velocity",
     frontier: bool = False,
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
     s_kwargs_dict: dict = {},
+    projection: str = "2d",
     **cell_wise_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell.
@@ -909,30 +912,37 @@ def cell_wise_vectors(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
+    if projection == "2d":
+        projection_dim_indexer = [x, y]
+    elif projection == "3d":
+        projection_dim_indexer = [x, y, z]
+    else:
+        projection_dim_indexer = [x, y]
+
     if type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
-        X = adata[:, [x, y]].layers[ekey].A
-        V = adata[:, [x, y]].layers[vkey].A
+        X = adata[:, projection_dim_indexer].layers[ekey].A
+        V = adata[:, projection_dim_indexer].layers[vkey].A
         layer = ekey
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
-            X = adata.obsm["X_" + basis][:, [x, y]]
-            V = adata.obsm[vector + "_" + basis][:, [x, y]]
+            X = adata.obsm["X_" + basis][:, projection_dim_indexer]
+            V = adata.obsm[vector + "_" + basis][:, projection_dim_indexer]
         else:
             if "X_" + basis not in adata.obsm.keys():
                 layer, basis = basis.split("_")
                 reduceDimension(adata, layer=layer, reduction_method=basis)
             if "kmc" not in adata.uns_keys():
                 cell_velocities(adata, vkey="velocity_S", basis=basis)
-                X = adata.obsm["X_" + basis][:, [x, y]]
-                V = adata.obsm[vector + "_" + basis][:, [x, y]]
+                X = adata.obsm["X_" + basis][:, projection_dim_indexer]
+                V = adata.obsm[vector + "_" + basis][:, projection_dim_indexer]
             else:
                 kmc = adata.uns["kmc"]
-                X = adata.obsm["X_" + basis][:, [x, y]]
+                X = adata.obsm["X_" + basis][:, projection_dim_indexer]
                 V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + "_" + basis] = V
 
@@ -941,8 +951,14 @@ def cell_wise_vectors(
     V /= 3 * quiver_autoscaler(X, V)
     if inverse:
         V = -V
-
-    df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
+    df = None
+    main_info("X shape: " + str(X.shape) + " V shape: " + str(V.shape))
+    if projection == "2d":
+        df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
+    elif projection == "3d":
+        df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
+    else:
+        raise NotImplementedError
 
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
@@ -986,14 +1002,14 @@ def cell_wise_vectors(
         "zorder": 10,
     }
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
+    quiver_3d_kwargs = {"arrow_length_ratio": scale}
 
-    # if ax is None:
-    #     plt.figure(facecolor=background)
     axes_list, color_list, _ = scatters(
         adata=adata,
         basis=basis,
         x=x,
         y=y,
+        z=z,
         color=color,
         layer=layer,
         highlights=highlights,
@@ -1015,33 +1031,46 @@ def cell_wise_vectors(
         sort=sort,
         save_show_or_return="return",
         frontier=frontier,
+        projection=projection,
         **s_kwargs_dict,
         return_all=True,
     )
 
-    if type(axes_list) == list:
-        for i in range(len(axes_list)):
-            axes_list[i].quiver(
-                df.iloc[:, 0],
-                df.iloc[:, 1],
-                df.iloc[:, 2],
-                df.iloc[:, 3],
+    # single axis output
+    if type(axes_list) != list:
+        axes_list = [axes_list]
+    x0, x1 = df.iloc[:, 0], df.iloc[:, 1]
+    v0, v1 = df.iloc[:, 2], df.iloc[:, 3]
+
+    if projection == "3d":
+        x0, x1, x2 = df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2]
+        v0, v1, v2 = df.iloc[:, 3], df.iloc[:, 4], df.iloc[:, 5]
+
+    for i in range(len(axes_list)):
+        ax = axes_list[i]
+        if projection == "2d":
+            ax.quiver(
+                x0,
+                x1,
+                v0,
+                v1,
                 color=color_list[i],
                 facecolors=color_list[i],
                 **quiver_kwargs,
             )
-            axes_list[i].set_facecolor(background)
-    else:
-        axes_list.quiver(
-            df.iloc[:, 0],
-            df.iloc[:, 1],
-            df.iloc[:, 2],
-            df.iloc[:, 3],
-            color=color_list,
-            facecolors=color_list,
-            **quiver_kwargs,
-        )
-        axes_list.set_facecolor(background)
+        elif projection == "3d":
+            ax.quiver(
+                x0,
+                x1,
+                x2,
+                v0,
+                v1,
+                v2,
+                # color=color_list[i],
+                # facecolors=color_list[i],
+                **quiver_3d_kwargs,
+            )
+        ax.set_facecolor(background)
 
     if save_show_or_return == "save":
         s_kwargs = {
@@ -1057,7 +1086,8 @@ def cell_wise_vectors(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        plt.tight_layout()
+        if projection != "3d":
+            plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
         return axes_list
@@ -1558,7 +1588,6 @@ def streamline_plot(
                 np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
                 np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
             )
-
     elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
             X,
@@ -1641,23 +1670,13 @@ def streamline_plot(
         **s_kwargs_dict,
         return_all=True,
     )
+    # single axis case, convert to list
+    if type(axes_list) != list:
+        axes_list = [axes_list]
 
-    if type(axes_list) == list:
-        for i in range(len(axes_list)):
-            axes_list[i].set_facecolor(background)
-            s = axes_list[i].streamplot(
-                X_grid[0],
-                X_grid[1],
-                V_grid[0],
-                V_grid[1],
-                color=streamline_color,
-                **streamplot_kwargs,
-            )
-            set_arrow_alpha(axes_list[i], streamline_alpha)
-            set_stream_line_alpha(s, streamline_alpha)
-    else:
-        axes_list.set_facecolor(background)
-        s = axes_list.streamplot(
+    def streamplot_2d(ax):
+        ax.set_facecolor(background)
+        s = ax.streamplot(
             X_grid[0],
             X_grid[1],
             V_grid[0],
@@ -1665,8 +1684,13 @@ def streamline_plot(
             color=streamline_color,
             **streamplot_kwargs,
         )
-        set_arrow_alpha(axes_list, streamline_alpha)
+        set_arrow_alpha(ax, streamline_alpha)
         set_stream_line_alpha(s, streamline_alpha)
+
+    if type(axes_list) == list:
+        for i in range(len(axes_list)):
+            ax = axes_list[i]
+            streamplot_2d(ax)
 
     if save_show_or_return == "save":
         s_kwargs = {

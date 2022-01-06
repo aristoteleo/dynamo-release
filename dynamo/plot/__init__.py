@@ -32,6 +32,7 @@ from .connectivity import nneighbors
 from .scVectorField import (
     cell_wise_vectors_3d,
     cell_wise_vectors,
+    cell_wise_vectors_3d,
     grid_vectors,
     streamline_plot,
     line_integral_conv,
@@ -112,6 +113,7 @@ __all__ = [
     "trimap",
     "nneighbors",
     "cell_wise_vectors",
+    "cell_wise_vectors_3d",
     "grid_vectors",
     "streamline_plot",
     "line_integral_conv",
