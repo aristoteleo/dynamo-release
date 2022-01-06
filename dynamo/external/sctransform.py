@@ -18,7 +18,7 @@ from anndata import AnnData
 import scipy
 import scipy as sp
 
-from dynamo.dynamo_logger import main_info_insert_adata_layer
+from ..dynamo_logger import main_info_insert_adata_layer
 from ..configuration import DKM
 from ..dynamo_logger import main_info
 
