@@ -241,21 +241,24 @@ Vector field (vf)
    vf.diffusionMatrix
 
 
-*Vector field graph*
-
-.. autosummary::
-    :toctree: _autosummary
-
-   vf.vfGraph
-
 Prediction (pd)
 ~~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: _autosummary
 
+
+*Vector field lineage fate*
+
    pd.fate
    pd.fate_bias
+
+
+*Vector field state graph*
+
+.. autosummary::
+    :toctree: _autosummary
+
    pd.state_graph
 
 Plotting (pl)

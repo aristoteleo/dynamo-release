@@ -69,9 +69,9 @@ def cell_wise_vectors_3d(
     save_kwargs: dict = {},
     quiver_3d_kwargs: dict = {
         "zorder": 3,
-        "length": 2,
-        "linewidth": 5,
-        "arrow_length_ratio": 5,
+        "length": 10,
+        "linewidth": 1,
+        "arrow_length_ratio": 0.3,
         "norm": cm.colors.Normalize(),
         "cmap": cm.PRGn,
     },
@@ -292,7 +292,7 @@ def cell_wise_vectors_3d(
     elif save_show_or_return == "show":
         plt.show()
     elif save_show_or_return == "return":
-        return axes
+        return axes, (x0, x1, x2, v0, v1, v2)
 
 
 def grid_vectors_3d():
@@ -1687,10 +1687,9 @@ def streamline_plot(
         set_arrow_alpha(ax, streamline_alpha)
         set_stream_line_alpha(s, streamline_alpha)
 
-    if type(axes_list) == list:
-        for i in range(len(axes_list)):
-            ax = axes_list[i]
-            streamplot_2d(ax)
+    for i in range(len(axes_list)):
+        ax = axes_list[i]
+        streamplot_2d(ax)
 
     if save_show_or_return == "save":
         s_kwargs = {
