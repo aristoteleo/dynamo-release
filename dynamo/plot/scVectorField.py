@@ -279,7 +279,7 @@ def cell_wise_vectors_3d(
     if save_show_or_return == "save":
         s_kwargs = {
             "path": None,
-            "prefix": "cell_wise_vector",
+            "prefix": "cell_wise_vectors_3d",
             "dpi": None,
             "ext": "pdf",
             "transparent": True,
