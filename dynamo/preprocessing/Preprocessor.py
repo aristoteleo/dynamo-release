@@ -7,9 +7,9 @@ from .preprocessor_utils import (
     is_log1p_transformed_adata,
     normalize_cell_expr_by_size_factors,
     select_genes_by_dispersion_general,
-    filter_genes_by_outliers as default_filter_genes_by_outliers,
+    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
     log1p_adata,
-    filter_cells_by_outliers as default_filter_cells_by_outliers,
+    filter_cells_by_outliers as monocle_filter_cells_by_outliers,
 )
 
 from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
@@ -31,9 +31,9 @@ class Preprocessor:
         self,
         collapse_speicies_adata_function: Callable = collapse_species_adata,
         convert_gene_name_function: Callable = convert2symbol,
-        filter_cells_by_outliers_function: Callable = default_filter_cells_by_outliers,
+        filter_cells_by_outliers_function: Callable = monocle_filter_cells_by_outliers,
         filter_cells_by_outliers_kwargs: Callable = {},
-        filter_genes_by_outliers_function: Callable = default_filter_genes_by_outliers,
+        filter_genes_by_outliers_function: Callable = monocle_filter_genes_by_outliers,
         filter_genes_by_outliers_kwargs: dict = {},
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
         normalize_by_cells_function_kwargs: Callable = {},
@@ -42,6 +42,7 @@ class Preprocessor:
         normalize_selected_genes_function: Callable = None,
         normalize_selected_genes_kwargs: dict = {},
         use_log1p: bool = True,
+        log1p_kwargs: dict = {},
         pca_function: bool = pca_monocle,
         pca_kwargs: dict = {},
         gene_append_list: List = [],
@@ -65,6 +66,7 @@ class Preprocessor:
         self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
         self.log1p = log1p_adata
+        self.log1p_kwargs = log1p_kwargs
         self.sctransform = sctransform
 
         self.filter_cells_by_outliers = filter_cells_by_outliers_function
@@ -152,63 +154,6 @@ class Preprocessor:
         adata.uns["pp"]["experiment_layers"] = layers
         adata.uns["pp"]["experiment_total_layers"] = total_layers
 
-    def config_monocle_recipe(
-        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR", tkey: Optional[str] = None
-    ):
-        n_obs, n_genes = adata.n_obs, adata.n_vars
-        n_cells = n_obs
-        self.add_experiment_info(adata, tkey)
-        self.use_log1p = False
-        self.filter_cells_by_outliers_kwargs = {
-            "filter_bool": None,
-            "layer": "all",
-            "min_expr_genes_s": min(50, 0.01 * n_genes),
-            "min_expr_genes_u": min(25, 0.01 * n_genes),
-            "min_expr_genes_p": min(2, 0.01 * n_genes),
-            "max_expr_genes_s": np.inf,
-            "max_expr_genes_u": np.inf,
-            "max_expr_genes_p": np.inf,
-            "shared_count": None,
-        }
-        self.filter_genes_by_outliers_kwargs = {
-            "filter_bool": None,
-            "layer": "all",
-            "min_cell_s": max(5, 0.01 * n_cells),
-            "min_cell_u": max(5, 0.005 * n_cells),
-            "min_cell_p": max(5, 0.005 * n_cells),
-            "min_avg_exp_s": 0,
-            "min_avg_exp_u": 0,
-            "min_avg_exp_p": 0,
-            "max_avg_exp": np.inf,
-            "min_count_s": 0,
-            "min_count_u": 0,
-            "min_count_p": 0,
-            "shared_count": 30,
-        }
-        self.select_genes = select_genes_by_dispersion_general
-        self.select_genes_kwargs = {
-            "recipe": "monocle",
-            "monocle_kwargs": {
-                "sort_by": gene_selection_method,
-                "n_top_genes": n_top_genes,
-                "keep_filtered": True,
-                "SVRs_kwargs": {
-                    "min_expr_cells": 0,
-                    "min_expr_avg": 0,
-                    "max_expr_avg": np.inf,
-                    "svr_gamma": None,
-                    "winsorize": False,
-                    "winsor_perc": (1, 99.5),
-                    "sort_inverse": False,
-                },
-                "only_bools": True,
-            },
-        }
-        self.normalize_selected_genes = None
-        self.normalize_by_cells = normalize_cell_expr_by_size_factors
-        self.pca = pca_monocle
-        self.pca_kwargs = {"pca_key": "X_pca"}
-
     def standardize_adata(self, adata: AnnData, tkey, experiment_type):
         adata.uns["pp"] = {}
         adata.uns["pp"]["norm_method"] = None
@@ -284,14 +229,76 @@ class Preprocessor:
                 main_warning(
                     "Your adata.X maybe log1p transformed before. If you are sure that your adata is not log1p transformed, please ignore this warning. Dynamo will do log1p transformation still."
                 )
+            # TODO: the following line is for monocle recipe and later dynamics matrix recovery
+            # refactor with dynamics module
             adata.uns["pp"]["norm_method"] = "log1p"
             main_info("applying log1p transformation on expression matrix data (adata.X)...")
-            self.log1p(adata)
+            self.log1p(adata, **self.log1p_kwargs)
 
     def _pca(self, adata):
         if self.pca:
             main_info("reducing dimension by PCA...")
             self.pca(adata, **self.pca_kwargs)
+
+    def config_monocle_recipe(
+        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR", tkey: Optional[str] = None
+    ):
+        n_obs, n_genes = adata.n_obs, adata.n_vars
+        n_cells = n_obs
+        self.add_experiment_info(adata, tkey)
+        self.use_log1p = False
+        self.filter_cells_by_outliers = monocle_filter_cells_by_outliers
+        self.filter_cells_by_outliers_kwargs = {
+            "filter_bool": None,
+            "layer": "all",
+            "min_expr_genes_s": min(50, 0.01 * n_genes),
+            "min_expr_genes_u": min(25, 0.01 * n_genes),
+            "min_expr_genes_p": min(2, 0.01 * n_genes),
+            "max_expr_genes_s": np.inf,
+            "max_expr_genes_u": np.inf,
+            "max_expr_genes_p": np.inf,
+            "shared_count": None,
+        }
+        self.filter_genes_by_outliers = monocle_filter_genes_by_outliers
+        self.filter_genes_by_outliers_kwargs = {
+            "filter_bool": None,
+            "layer": "all",
+            "min_cell_s": max(5, 0.01 * n_cells),
+            "min_cell_u": max(5, 0.005 * n_cells),
+            "min_cell_p": max(5, 0.005 * n_cells),
+            "min_avg_exp_s": 0,
+            "min_avg_exp_u": 0,
+            "min_avg_exp_p": 0,
+            "max_avg_exp": np.inf,
+            "min_count_s": 0,
+            "min_count_u": 0,
+            "min_count_p": 0,
+            "shared_count": 30,
+        }
+        self.select_genes = select_genes_by_dispersion_general
+        self.select_genes_kwargs = {
+            "recipe": "monocle",
+            "monocle_kwargs": {
+                "sort_by": gene_selection_method,
+                "n_top_genes": n_top_genes,
+                "keep_filtered": True,
+                "SVRs_kwargs": {
+                    "min_expr_cells": 0,
+                    "min_expr_avg": 0,
+                    "max_expr_avg": np.inf,
+                    "svr_gamma": None,
+                    "winsorize": False,
+                    "winsor_perc": (1, 99.5),
+                    "sort_inverse": False,
+                },
+                "only_bools": True,
+            },
+        }
+        self.normalize_selected_genes = None
+        self.normalize_by_cells = normalize_cell_expr_by_size_factors
+        self.use_log1p = False
+        self.pca = pca_monocle
+        self.pca_kwargs = {"pca_key": "X_pca"}
 
     def preprocess_adata_monocle(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
         main_info("Running preprocessing pipeline...")
@@ -318,27 +325,27 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess")
 
-    def config_seurat_recipe(self):
+    def config_seurat_recipe(self, adata):
+        self.config_monocle_recipe(adata)
         self.select_genes = select_genes_by_dispersion_general
         self.select_genes_kwargs = {"recipe": "seurat", "n_top_genes": 2000}
         self.normalize_by_cells_function_kwargs = {"skip_log": True}
         self.pca_kwargs = {"pca_key": "X_pca"}
         self.filter_genes_by_outliers_kwargs = {"shared_count": 20}
         self.use_log1p = True
+        self.log1p_kwargs = {"layers": ["X"]}
 
     def preprocess_adata_seurat(self, adata: AnnData, tkey: Optional[str] = None, experiment_type: str = None):
-        # self.config_seurat_recipe()
         temp_logger = LoggerManager.gen_logger("preprocessor-seurat")
         temp_logger.log_time()
         main_info("Applying Seurat recipe preprocessing...")
 
         self.standardize_adata(adata, tkey, experiment_type)
-
-        self._filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
-        self._normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
-        self._select_genes(adata, **self.select_genes_kwargs)
-        self._log1p(adata, layers=["X"])
-        self._pca(adata, **self.pca_kwargs)
+        self._filter_genes_by_outliers(adata)
+        self._normalize_by_cells(adata)
+        self._select_genes(adata)
+        self._log1p(adata)
+        self._pca(adata)
         temp_logger.finish_progress(progress_name="preprocess by seurat recipe")
 
     def config_sctransform_recipe(self, adata: AnnData):
@@ -363,13 +370,13 @@ class Preprocessor:
 
         self.standardize_adata(adata, tkey, experiment_type)
 
-        self._filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
-        self._filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
-        self._select_genes(adata, **self.select_genes_kwargs)
+        self._filter_cells_by_outliers(adata)
+        self._filter_genes_by_outliers(adata)
+        self._select_genes(adata)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])
         self.sctransform(adata, **self.sctransform_kwargs)
-        self._pca(adata, **self.pca_kwargs)
+        self._pca(adata)
 
         temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
 
@@ -397,9 +404,9 @@ class Preprocessor:
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
 
-        self._select_genes(adata, **self.select_genes_kwargs)
-        self._normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
-        self._pca(adata, **self.pca_kwargs)
+        self._select_genes(adata)
+        self._normalize_selected_genes(adata)
+        self._pca(adata)
 
         temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
 
@@ -424,11 +431,11 @@ class Preprocessor:
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
-        self._select_genes(adata, **self.select_genes_kwargs)
+        self._select_genes(adata)
         X_copy = adata.X.copy()
-        self._normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
+        self._normalize_by_cells(adata)
         adata.X = X_copy
-        self._normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
+        self._normalize_selected_genes(adata)
         # use monocle to pprocess adata
         # self.config_monocle_recipe(adata_copy)
         # self.pca = None # do not do pca in this monocle
@@ -446,7 +453,7 @@ class Preprocessor:
             self.config_monocle_recipe(adata, tkey=tkey)
             self.preprocess_adata_monocle(adata, tkey=tkey)
         elif recipe == "seurat":
-            self.config_seurat_recipe()
+            self.config_seurat_recipe(adata)
             self.preprocess_adata_seurat(adata, tkey=tkey)
         elif recipe == "sctransform":
             self.config_sctransform_recipe(adata)
