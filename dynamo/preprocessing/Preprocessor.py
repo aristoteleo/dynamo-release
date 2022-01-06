@@ -189,6 +189,7 @@ class Preprocessor:
     def _select_genes(self, adata):
         if self.select_genes:
             main_info("selecting genes...")
+            main_info("select_genes kwargs:" + str(self.select_genes_kwargs))
             self.select_genes(adata, **self.select_genes_kwargs)
 
     def _append_gene_list(self, adata):
@@ -214,14 +215,22 @@ class Preprocessor:
             )
 
     def _normalize_selected_genes(self, adata):
-        if self.normalize_selected_genes:
-            main_info("normalizing selected genes...")
-            self.normalize_selected_genes(adata)
+        if not callable(self.normalize_selected_genes):
+            main_info(
+                "skipping normalize by selected genes as preprocessor normalize_selected_genes is not callable..."
+            )
+            return
+
+        main_info("normalizing selected genes...")
+        self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
 
     def _normalize_by_cells(self, adata):
-        if self.normalize_by_cells:
-            main_info("applying normalize by cells function...")
-            self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
+        if not callable(self.normalize_by_cells):
+            main_info("skipping normalize by cells as preprocessor normalize_by_cells is not callable...")
+            return
+
+        main_info("applying normalize by cells function...")
+        self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
 
     def _log1p(self, adata):
         if self.use_log1p:
@@ -389,7 +398,6 @@ class Preprocessor:
         self.normalize_selected_genes = normalize_layers_pearson_residuals
         # select layers in adata to be normalized
         normalize_layers = DKM.get_raw_data_layers(adata)
-
         self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": False}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
         self.use_log1p = False
