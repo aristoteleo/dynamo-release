@@ -863,7 +863,8 @@ def filter_genes_by_outliers(
             ).flatten()
         )
     if shared_count is not None:
-        layers = DKM.get_available_layer_keys(adata, "all", False)
+        # layers = DKM.get_available_layer_keys(adata, "all", False)
+        layers = DKM.get_raw_data_layers(adata)
         tmp = get_inrange_shared_counts_mask(adata, layers, shared_count, "gene")
         if tmp.sum() > 2000:
             detected_bool &= tmp
