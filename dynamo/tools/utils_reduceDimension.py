@@ -161,7 +161,7 @@ def run_reduce_dim(
             # "distances": "distances",
             # "indices": "indices",
         }
-    elif reduction_method == "diffusion_map":
+    elif reduction_method.lower() == "diffusion_map":
         # support Yan's diffusion map here
         pass
     elif reduction_method.lower() == "tsne":

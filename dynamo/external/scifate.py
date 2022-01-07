@@ -114,7 +114,7 @@ def scifate_glmnet(
 
     # link TF and genes based on covariance
     link_result = link_TF_gene_analysis(TF_matrix, new_mat, var_TF, core_num=core_n_lasso)
-    link_result = pd.concat([i if i != "unknown" else None for i in link_result], axis=0)
+    link_result = pd.concat([i if type(i) != str else None for i in link_result], axis=0)
 
     # filtering the links using TF-gene binding data and store the result in the target folder
     # note that currently the motif filtering is not implement
@@ -191,7 +191,11 @@ def adata_processing_TF_link(
     obs = adata.obs
     var = adata.var
     var.loc[:, "gene_short_name"] = make_index_unique(var.loc[:, "gene_short_name"].astype("str"))
-    obs.loc[:, "labeling_rate"] = adata.layers["new"].sum(1) / adata.layers["total"].sum(1)
+    ntr = adata.layers["new"].sum(1).A1 / adata.layers["total"].sum(1).A1
+    if issparse(ntr):
+        obs.loc[:, "labeling_rate"] = ntr.A1
+    else:
+        obs.loc[:, "labeling_rate"] = ntr
 
     # extract the TF matrix
     var_TF = var.query("gene_short_name in @TF_list")
@@ -273,8 +277,8 @@ def lasso_regression_expression(x1, linked_gene, y, seed: int, parallel=1):
 
     # alpha = 1 is required for lasso regression.
     cv_out = cvglmnet(
-        x=x1.values,
-        y=y.values,
+        x=x1.values.astype("float64"),
+        y=y.values.astype("float64"),
         ptype="mse",
         alpha=1,
         lambdau=np.exp(seq),
@@ -317,6 +321,8 @@ def TF_gene_filter_links(raw_glmnet_res: pd.DataFrame, var, core_n, motif_ref, d
     """prepare data for TF-target gene link filtering"""
 
     var_ori = var.copy()
+    if "gene_type" not in var.columns:
+        var["gene_type"] = None
     df_gene = var.loc[:, ["gene_id", "gene_short_name", "gene_type"]]
     df_gene.columns = ["linked_gene", "linked_gene_name", "gene_type"]
 

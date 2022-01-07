@@ -1028,7 +1028,7 @@ def kinetic_model(
                     gamma_b,
                     gamma_all_r2,
                     gamma_all_logLL,
-                ) = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+                ) = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=100)
                 (
                     gamma,
                     gamma_r2,
