@@ -895,7 +895,7 @@ def VectorField(
     cell_angels = np.zeros(adata.n_obs)
     for i, u, v in zip(valid_ids, V[valid_ids], vf_dict["V"]):
         # fix the u, v norm == 0 in angle function
-        cell_angels[i] = angle(u, v)
+        cell_angels[i] = angle(u.astype("float64"), v.astype("float64"))
 
     if basis is not None:
         temp_key = "obs_vf_angle_" + basis
