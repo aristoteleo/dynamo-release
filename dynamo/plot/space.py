@@ -102,8 +102,11 @@ def space(
         show_colorbar = False
 
     if genes is None or (len(genes) == 0):
-        main_critical("No genes provided. Please check your argument passed in.")
-        return
+        if color is not None:
+            genes = color
+        else:
+            main_critical("No genes provided. Please check your argument passed in.")
+            return
     if "X_" + space in adata.obsm_keys():
         space_key = space
     elif space in adata.obsm_keys():
