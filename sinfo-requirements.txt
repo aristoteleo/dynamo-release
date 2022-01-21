@@ -1,7 +1,7 @@
 anndata==0.7.5
 scanpy==1.6.0
 sinfo==0.3.1
-IPython==7.20.0
+IPython==7.31.1
 jupyter_client==6.1.11
 jupyter_core==4.7.1
 jupyterlab==3.0.17
