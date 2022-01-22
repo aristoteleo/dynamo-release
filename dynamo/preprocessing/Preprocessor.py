@@ -337,6 +337,8 @@ class Preprocessor:
         }
         self.normalize_selected_genes = None
         self.normalize_by_cells = normalize_cell_expr_by_size_factors
+
+        # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
         self.pca = pca_monocle
         self.pca_kwargs = {"pca_key": "X_pca"}
