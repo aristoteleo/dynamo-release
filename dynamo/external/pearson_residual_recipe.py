@@ -1,9 +1,9 @@
 # =================================================================
-# Original Code Repository Author: @atarashansky
-# Adapted to Dynamo by: @dummyindex
+# Original Code Repository Author: Lause, J., Berens, P. & Kobak, D.
+# Adapted to Dynamo by: dynamo authors
 # Created Date: 12/16/2021
 # Description: Sctrasnform for preprocessing single cell expression data adapated from R counterpart implemented in Seurat
-# Reference: https://github.com/atarashansky/SCTransformPy
+# Reference: Lause, J., Berens, P. & Kobak, D. Analytic Pearson residuals for normalization of single-cell RNA-seq UMI data. Genome Biol 22, 258 (2021). https://doi.org/10.1186/s13059-021-02451-7
 # =================================================================
 
 import scipy.sparse as sp_sparse
