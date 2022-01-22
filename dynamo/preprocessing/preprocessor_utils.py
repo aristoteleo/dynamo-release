@@ -746,6 +746,20 @@ def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = Fal
 
 
 def log1p_adata(adata: AnnData, layers: list = None, copy: bool = False) -> AnnData:
+    """perform log1p transform on adata selected layers.
+
+    Parameters
+    ----------
+    adata : AnnData
+    layers : list, optional
+        layers to perform log1p on, if None then all raw data layers will be normalized, by default None
+    copy : bool, optional
+        if log1p will be performed on a copy of adata and return it, by default False
+
+    Returns
+    -------
+        a new AnnData Object if `copy` is true
+    """
     _adata = adata
     if copy:
         _adata = copy_adata(adata)
