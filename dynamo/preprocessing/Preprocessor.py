@@ -50,18 +50,53 @@ class Preprocessor:
         force_gene_list: Optional[List] = None,
         sctransform_kwargs={},
     ) -> None:
-        """Initialize the worker.
+        """Preprocessor constructor
+        The default preprocess functions are those of monocle recipe by default.
+        You can pass your own Callable objects (functions) to this constructor directly, which wil be used in the preprocess steps later.
+        These functions parameters are saved into Preprocessor instances. You can set these attributes directly to your own implementation.
 
         Parameters
         ----------
-        filter_genes_by_outliers_function : Callable, optional
-            The first function in pipeline to filter gene outliers.
-        normalize_by_cells_function : Callable, optional
-            Normalize data according to cells (typically rows), by default None
-        filter_genes_function : Callable, optional
-            A function to filter genes after previous steps.The function should accept `n_top_genes`  as an argument or wildcard argument match.
+        collapse_speicies_adata_function :
+            function for collapsing the species data, by default collapse_species_adata
+        convert_gene_name_function :
+            transform gene names, by default convert2symbol, which transforms unofficial gene names to official gene names
+        filter_cells_by_outliers_function :
+            filter cells by thresholds, by default monocle_filter_cells_by_outliers
+        filter_cells_by_outliers_kwargs :
+            arguments that will be passed to filter_cells_by_outliers, by default {}
+        filter_genes_by_outliers_function :
+            filter genes by thresholds, by default monocle_filter_genes_by_outliers
+        filter_genes_by_outliers_kwargs : dict, optional
+            arguments that will be passed to filter_genes_by_outliers, by default {}
+        normalize_by_cells_function :
+            function for performing cell-wise normalization, by default normalize_cell_expr_by_size_factors
+        normalize_by_cells_function_kwargs :
+            arguments that will be passed to normalize_by_cells_function, by default {}
+        select_genes_function :
+            function for selecting gene features, by default select_genes_by_dispersion_general
+        select_genes_kwargs : dict, optional
+            arguments that will be passed to select_genes, by default {}
+        normalize_selected_genes_function :
+            function for normalize selected genes, by default None
+        normalize_selected_genes_kwargs :
+            arguments that will be passed to  normalize_selected_genes, by default {}
         use_log1p : bool, optional
-            Whether to apply log1p function to all data in adata, by default True
+            whether to use log1p to normalize layers in adata, by default True
+        log1p_kwargs :
+            arguments passed to use_log1p, e.g. `layers` that will be normalized, by default {}
+        pca_function :
+            function to perform pca, by default pca_monocle
+        pca_kwargs :
+            arguments that will be passed pca, by default {}
+        gene_append_list :
+            ensure that a list of genes show up in selected genes in monocle recipe pipeline, by default []
+        gene_exclude_list :
+            exclude a list of genes in monocle recipe pipeline, by default []
+        force_gene_list :
+            use this gene list as selected genes in monocle recipe pipeline, by default None
+        sctransform_kwargs :
+            arguments passed into sctransform function, by default {}
         """
         self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
