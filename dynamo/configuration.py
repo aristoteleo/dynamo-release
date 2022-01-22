@@ -19,7 +19,7 @@ class DynamoAdataKeyManager:
     # a set of preprocessing keys to label dataset properties
     UNS_PP_KEY = "pp"
     UNS_PP_HAS_SPLICING = "has_splicing"
-    UNS_PP_TKEY = "has_splicing"
+    UNS_PP_TKEY = "time"
     UNS_PP_HAS_LABELING = "has_labeling"
     UNS_PP_HAS_PROTEIN = "has_protein"
     UNS_PP_SPLICING_LABELING = "splicing_labeling"
@@ -38,18 +38,18 @@ class DynamoAdataKeyManager:
         return sep.join([layer_name, key])
 
     def gen_layer_pp_key(*keys):
-        """Generate dynamo style keys for adata.uns.pp.key0_key1_key2..."""
+        """Generate dynamo style keys for adata.uns[pp][key0_key1_key2...]"""
         return "_".join(keys)
 
     def gen_layer_X_key(key):
-        """Generate dynamo style keys for adata.layer.X_*, used later in dynamics"""
+        """Generate dynamo style keys for adata.layer[X_*], used later in dynamics"""
         return DynamoAdataKeyManager.gen_new_layer_key("X", key)
 
     def is_layer_X_key(key):
         return key[:2] == "X_"
 
     def gen_layer_pearson_residual_key(layer: str):
-        """Generate dynamo style keys for adata.uns.pp.key0_key1_key2..."""
+        """Generate dynamo style keys for adata.uns[pp][key0_key1_key2...]"""
         return DynamoAdataKeyManager.gen_layer_pp_key(
             layer, DynamoAdataKeyManager.UNS_PP_PEARSON_RESIDUAL_NORMALIZATION
         )
@@ -71,7 +71,7 @@ class DynamoAdataKeyManager:
             return res_data.copy()
         return res_data
 
-    def set_layer_data(adata: AnnData, layer: str, vals, var_indices: np.array = None):
+    def set_layer_data(adata: AnnData, layer: str, vals: np.array, var_indices: np.array = None):
         if var_indices is None:
             var_indices = slice(None)
         if layer == DynamoAdataKeyManager.X_LAYER:
@@ -127,7 +127,7 @@ class DynamoAdataKeyManager:
 
         return only_splicing, only_labeling, splicing_and_labeling
 
-    def init_uns_pp_namespace(adata):
+    def init_uns_pp_namespace(adata: AnnData):
         adata.uns[DynamoAdataKeyManager.UNS_PP_KEY] = {}
 
 

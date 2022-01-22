@@ -4,6 +4,7 @@
 # Created Date: 12/16/2021
 # Description: pearson residuals based method for preprocessing single cell expression data
 # Original Code Repository: https://github.com/atarashansky/SCTransformPy
+# Sctransform Paper: Hafemeister, C., Satija, R. Normalization and variance stabilization of single-cell RNA-seq data using regularized negative binomial regression.
 # =================================================================
 
 import statsmodels.nonparametric.kernel_regression
