@@ -282,7 +282,7 @@ def scatters(
         stack_colors:
             Whether to stack all color on the same ax passed above.
             Currently only support 18 sequential matplotlib default cmaps assigning to different color groups.
-            (#colors should be smaller than 18, reuse if #colors > 18. To-do: generate cmaps according to #colors)
+            (#colors should be smaller than 18, reuse if #colors > 18. TODO generate cmaps according to #colors)
         stack_colors_threshold:
             A threshold for filtering points values < threshold when drawing each color.
             E.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
@@ -482,7 +482,7 @@ def scatters(
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
-            cmap, sym_c = "bwr", True  # To-do: maybe use other divergent color map in future
+            cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in future
         else:
             if use_smoothed:
                 cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]

@@ -8,8 +8,8 @@ logger = LoggerManager.get_main_logger()
 
 
 def test_scatter_contour(adata):
-    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="show", contour=True)
-    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="show", contour=True, calpha=1)
+    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True)
+    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True, calpha=1)
 
 
 def test_circosPlot(adata):
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     # generate data if needed
     adata = gen_or_read_zebrafish_data()
 
-    # To-do: use a fixture in future
+    # TODO use a fixture in future
     # test_space_simple1(adata)
     # test_scatter_contour(adata)
     print("adata shape:", adata.shape)

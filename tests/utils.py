@@ -17,7 +17,7 @@ test_spatial_genomics_path = "./test_data/allstage_processed.h5ad"
 def gen_zebrafish_test_data(basis="pca"):
     adata = dyn.sample_data.zebrafish()
     # adata = adata[:3000]
-    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, basis=basis, n_pca_components=30, enforce=True)
     dyn.tl.cell_velocities(adata, basis=basis)
@@ -43,7 +43,7 @@ def gen_or_read_zebrafish_data():
         gen_zebrafish_test_data()
 
     print("reading test data...")
-    # To-do: use a fixture in future
+    # TODO use a fixture in future
     adata = dyn.read_h5ad(test_zebrafish_data_path)
     return adata
 

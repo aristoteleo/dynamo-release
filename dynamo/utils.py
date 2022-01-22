@@ -1,5 +1,6 @@
 """General utility functions
 """
+from anndata import AnnData
 import numpy as np
 import scipy.sparse as sp
 
@@ -37,20 +38,15 @@ def areinstance(arr, dtype, logic_func=all):
     return logic_func(ret)
 
 
-def copy_adata(adata, logger=None):
-    """[summary]
+def copy_adata(adata: AnnData, logger=None) -> AnnData:
+    """wrapper for deep copy adata and log copy operation since it is memory intensive.
 
     Parameters
     ----------
-    adata : [type]
+    adata :
         [description]
     logger : [type], optional
         [description], by default None
-
-    Returns
-    -------
-    [type]
-        [description]
 
     Examples
     --------
@@ -62,7 +58,7 @@ def copy_adata(adata, logger=None):
     >>> adata.X[0, 1] = -999
     >>> # original_adata unchanged
     >>> print(original_adata.X[0, 1])
-    >>> # therefore, we can use adata = copy_adata(adata) inside a dynammo function when we want to create a adata copy
+    >>> # we can use adata = copy_adata(adata) inside a dynammo function when we want to create a adata copy
     >>> # without worrying about changing the original copy.
     """
     if logger is None:

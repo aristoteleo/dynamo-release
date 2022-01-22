@@ -1,4 +1,4 @@
-from anndata._core.anndata import AnnData
+from anndata import AnnData
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -10,6 +10,7 @@ import anndata
 from typing import Iterable, Union
 from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning, main_exception
 from ..utils import areinstance
+from ..configuration import DKM, DynamoAdataKeyManager
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -122,8 +123,8 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
     return adata
 
 
-def gene_exp_fraction(X, threshold=0.001):
-    """Calculate fraction of each gene's coun to total counts across cells and identify high fraction genes."""
+def compute_gene_exp_fraction(X, threshold=0.001):
+    """Calculate fraction of each gene's count to total counts across cells and identify high fraction genes."""
 
     frac = X.sum(0) / X.sum()
     if issparse(X):
@@ -295,67 +296,61 @@ def unique_var_obs_adata(adata):
     return adata
 
 
-def layers2csr(adata):
+def convert_layers2csr(adata):
     """Function to make the obs and var attribute's index unique"""
-    for i in adata.layers.keys():
-        adata.layers[i] = csr_matrix(adata.layers[i]) if not issparse(adata.layers[i]) else adata.layers[i]
+    for key in adata.layers.keys():
+        adata.layers[key] = csr_matrix(adata.layers[key]) if not issparse(adata.layers[key]) else adata.layers[key]
 
     return adata
 
 
 def merge_adata_attrs(adata_ori, adata, attr):
-    if attr == "var":
-        _columns = set(adata.var.columns).difference(adata_ori.var.columns)
-        var_df = adata_ori.var.merge(adata.var[_columns], how="left", left_index=True, right_index=True)
-        adata_ori.var = var_df.loc[adata_ori.var.index, :]
-    elif attr == "obs":
-        _columns = set(adata.obs.columns).difference(adata_ori.obs.columns)
-        obs_df = adata_ori.obs.merge(adata.obs[_columns], how="left", left_index=True, right_index=True)
-        adata_ori.obs = obs_df.loc[adata_ori.obs.index, :]
+    def _merge_by_diff(origin_df: pd.DataFrame, diff_df: pd.DataFrame):
+        _columns = set(diff_df.columns).difference(origin_df.columns)
+        new_df = origin_df.merge(diff_df[_columns], how="left", left_index=True, right_index=True)
+        return new_df.loc[origin_df.index, :]
 
+    if attr == "var":
+        adata_ori.var = _merge_by_diff(adata_ori.var, adata.var)
+    elif attr == "obs":
+        adata_ori.obs = _merge_by_diff(adata_ori.obs, adata.obs)
     return adata_ori
 
 
-def allowed_layer_raw_names():
-    only_splicing = ["spliced", "unspliced"]
-    only_labeling = ["new", "total"]
-    splicing_and_labeling = ["uu", "ul", "su", "sl"]
-
-    return only_splicing, only_labeling, splicing_and_labeling
-
-
-def allowed_X_layer_names():
-    only_splicing = ["X_spliced", "X_unspliced"]
-    only_labeling = ["X_new", "X_total"]
-    splicing_and_labeling = ["X_uu", "X_ul", "X_su", "X_sl"]
-
-    return only_splicing, only_labeling, splicing_and_labeling
-
-
-def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
-    """Get the list of available layers' keys."""
-    layer_keys = list(adata.layers.keys())
-    if remove_normalized:
-        layer_keys = [i for i in layer_keys if not i.startswith("X_")]
-
-    if "protein" in adata.obsm.keys() and include_protein:
-        layer_keys.extend(["X", "protein"])
-    else:
-        layer_keys.extend(["X"])
-    res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
-    res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
-    return res_layers
-
-
-def get_shared_counts(adata, layers, min_shared_count, type="gene"):
+def get_inrange_shared_counts_mask(adata, layers, min_shared_count, count_by="gene"):
     layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
+    # choose shared counts sum by row or columns based on type: `gene` or `cells`
+    sum_dim_index = None
+    ret_dim_index = None
+    if count_by == "gene":
+        sum_dim_index = 0
+        ret_dim_index = 1
+    elif count_by == "cells":
+        sum_dim_index = 1
+        ret_dim_index = 0
+    else:
+        raise ValueError("Not supported shared account type")
+
+    if len(np.array(layers)) == 0:
+        main_warning("No layers exist in adata, skipp filtering by shared counts")
+        return np.repeat(True, adata.shape[ret_dim_index])
+
     layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith("X_").values]
 
     _nonzeros, _sum = None, None
+
+    # TODO fix bug: when some layers are sparse and some others are not (mixed sparse and ndarray), if the first one happens to be sparse,
+    # dimension mismatch error will be raised; if the first layer (layers[0]) is not sparse, then the following loop works fine.
+    # also check if layers2csr() function works
     for layer in layers:
+        main_debug(adata.layers[layer].shape)
+        main_debug("layer: %s" % layer)
         if issparse(adata.layers[layers[0]]):
+            main_debug("when sparse, layer type:" + str(type(adata.layers[layer])))
             _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros.multiply(adata.layers[layer] > 0)
         else:
+            main_debug("when not sparse, layer type:" + str(type(adata.layers[layer])))
+
             _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros * (adata.layers[layer] > 0)
 
     for layer in layers:
@@ -372,18 +367,11 @@ def get_shared_counts(adata, layers, min_shared_count, type="gene"):
                 else _sum + np.multiply(_nonzeros, adata.layers[layer])
             )
 
-    if type == "gene":
-        return (
-            np.array(_sum.sum(0).A1 >= min_shared_count)
-            if issparse(adata.layers[layers[0]])
-            else np.array(_sum.sum(0) >= min_shared_count)
-        )
-    if type == "cells":
-        return (
-            np.array(_sum.sum(1).A1 >= min_shared_count)
-            if issparse(adata.layers[layers[0]])
-            else np.array(_sum.sum(1) >= min_shared_count)
-        )
+    return (
+        np.array(_sum.sum(sum_dim_index).A1 >= min_shared_count)
+        if issparse(adata.layers[layers[0]])
+        else np.array(_sum.sum(sum_dim_index) >= min_shared_count)
+    )
 
 
 def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
@@ -468,6 +456,7 @@ def sz_util(
         CM = adata.layers[layer] if CM is None else CM
 
     if round_exprs:
+        main_info("rounding expression data of layer: %s during size factor calculation" % (layer))
         if issparse(CM):
             CM.data = np.round(CM.data, 0)
         else:
@@ -507,29 +496,29 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
 
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor][:, None]
-    else:
-        if total_szfactor is not None:
-            main_warning("`total_szfactor` is not `None` and it is not in adata object.")
+    elif total_szfactor is not None:
+        main_warning("`total_szfactor` is not `None` and it is not in adata object.")
 
     return szfactors, CM
 
 
-def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p):
+def normalize_mat_monocle(mat, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p):
     if norm_method == np.log1p:
         pseudo_expr = 0
     if relative_expr:
-        CM = CM.multiply(csr_matrix(1 / szfactors)) if issparse(CM) else CM / szfactors
+        mat = mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
 
     if pseudo_expr is None:
         pseudo_expr = 1
-    if issparse(CM):
-        CM.data = norm_method(CM.data + pseudo_expr) if norm_method is not None else CM.data
-        if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
-            CM.data -= 1
-    else:
-        CM = norm_method(CM + pseudo_expr) if norm_method is not None else CM
 
-    return CM
+    if issparse(mat):
+        mat.data = norm_method(mat.data + pseudo_expr) if norm_method is not None else mat.data
+        if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
+            mat.data -= 1
+    else:
+        mat = norm_method(mat + pseudo_expr) if norm_method is not None else mat
+
+    return mat
 
 
 def Freeman_Tukey(X, inverse=False):
@@ -566,16 +555,17 @@ def decode(adata):
 # pca
 
 
-def pca(
-    adata,
+def pca_monocle(
+    adata: AnnData,
     X_data=None,
-    n_pca_components=30,
-    pca_key="X",
-    pcs_key="PCs",
+    n_pca_components: int = 30,
+    pca_key: str = "X",
+    pcs_key: str = "PCs",
     genes_to_append=None,
-    layer=None,
+    layer: str = None,
     return_all=False,
 ):
+
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if X_data is None:
         if "use_for_pca" not in adata.var.keys():
@@ -615,7 +605,8 @@ def pca(
         adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
         X_data = X_data[:, valid_ind]
 
-    if adata.n_obs < 100000:
+    USE_TRUNCATED_SVD_THRESHOLD = 100000
+    if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
         pca = PCA(
             n_components=min(n_pca_components, X_data.shape[1] - 1),
             svd_solver="arpack",
@@ -691,7 +682,6 @@ def top_pca_genes(adata, pc_key="PCs", n_top_genes=100, pc_components=None, adat
         genes[adata.var["use_for_pca"]] = pcg
     else:
         genes = pcg
-    print("%d top PCA genes found for %d PCs." % (np.sum(pcg), Q.shape[1]))
     adata.var[adata_store_key] = genes
     return adata
 
@@ -716,15 +706,15 @@ def add_noise_to_duplicates(adata, basis="pca"):
 # labeling related
 
 
-def collapse_adata(adata):
+def collapse_species_adata(adata):
     """Function to collapse the four species data, will be generalized to handle dual-datasets"""
     (
         only_splicing,
         only_labeling,
         splicing_and_labeling,
-    ) = allowed_layer_raw_names()
+    ) = DKM.allowed_layer_raw_names()
 
-    if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
+    if np.all([name in adata.layers.keys() for name in splicing_and_labeling]):
         if only_splicing[0] not in adata.layers.keys():
             adata.layers[only_splicing[0]] = adata.layers["su"] + adata.layers["sl"]
         if only_splicing[1] not in adata.layers.keys():
@@ -737,7 +727,7 @@ def collapse_adata(adata):
     return adata
 
 
-def detect_datatype(adata):
+def detect_experiment_datatype(adata):
     has_splicing, has_labeling, splicing_labeling, has_protein = (
         False,
         False,
@@ -771,12 +761,12 @@ def detect_datatype(adata):
 
 
 def default_layer(adata):
-    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
 
     if has_splicing:
         if has_labeling:
             if len(set(adata.layers.keys()).intersection(["new", "total", "spliced", "unspliced"])) == 4:
-                adata = collapse_adata(adata)
+                adata = collapse_species_adata(adata)
             default_layer = (
                 "M_t" if "M_t" in adata.layers.keys() else "X_total" if "X_total" in adata.layers.keys() else "total"
             )
@@ -796,7 +786,7 @@ def default_layer(adata):
     return default_layer
 
 
-def NTR(adata):
+def calc_new_to_total_ratio(adata):
     """calculate the new to total ratio across cells. Note that
     NTR for the first time point in degradation approximates gamma/beta."""
 
@@ -835,8 +825,8 @@ def NTR(adata):
 
 def scale(adata, layers=None, scale_to_layer=None, scale_to=1e6):
     """scale layers to a particular total expression value, similar to `normalize_expr_data` function."""
-    layers = get_layer_keys(adata, layers)
-    has_splicing, has_labeling, _ = detect_datatype(adata)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
+    has_splicing, has_labeling, _ = detect_experiment_datatype(adata)
 
     if scale_to_layer is None:
         scale_to_layer = "total" if has_labeling else None

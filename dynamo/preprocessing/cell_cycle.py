@@ -125,7 +125,7 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list
         expression_matrix = adata.layers[layer][:, intersect_genes]
         expression_matrix = log1p_(adata, expression_matrix)
 
-    # To-do: FutureWarning: Index.is_all_dates is deprecated, will be removed in a future version.
+    # TODO FutureWarning: Index.is_all_dates is deprecated, will be removed in a future version.
     # check index.inferred_type instead
     if layer is None or layer.startswith("X_"):
         scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) else expression_matrix.sum(1)
@@ -389,13 +389,13 @@ def get_cell_phase_genes(
 
     if refine:
         for phase in cell_phase_genes:
-            cur_cell_phase_genes = (
-                cell_phase_genes[phase]
-                if adata.var_names[0].isupper()
-                else [i.capitalize() for i in cell_phase_genes[phase]]
-                if adata.var_names[0][0].isupper() and adata.var_names[0][1:].islower()
-                else [i.lower() for i in cell_phase_genes[phase]]
-            )
+            cur_cell_phase_genes = None
+            if adata.var_names[0].isupper():
+                cur_cell_phase_genes = cell_phase_genes[phase]
+            elif adata.var_names[0][0].isupper() and adata.var_names[0][1:].islower():
+                cur_cell_phase_genes = [gene.capitalize() for gene in cell_phase_genes[phase]]
+            else:
+                cur_cell_phase_genes = [gene.lower() for gene in cell_phase_genes[phase]]
 
             cell_phase_genes[phase] = refine_gene_list(adata, layer, cur_cell_phase_genes, threshold)
 

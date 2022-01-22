@@ -1,9 +1,138 @@
+from anndata._core.anndata import AnnData
 import colorcet
 import matplotlib
 from matplotlib import rcParams, cm, colors
 from cycler import cycler
 import matplotlib.pyplot as plt
-from .dynamo_logger import main_info
+import pandas as pd
+import numpy as np
+from .dynamo_logger import main_info, main_warning
+
+
+class DynamoAdataKeyManager:
+    VAR_GENE_MEAN_KEY = "pp_gene_mean"
+    VAR_GENE_VAR_KEY = "pp_gene_variance"
+    VAR_GENE_HIGHLY_VARIABLE_KEY = "gene_highly_variable"
+    VAR_GENE_HIGHLY_VARIABLE_SCORES = "gene_highly_variable_scores"
+    VAR_USE_FOR_PCA = "use_for_pca"
+
+    # a set of preprocessing keys to label dataset properties
+    UNS_PP_KEY = "pp"
+    UNS_PP_HAS_SPLICING = "has_splicing"
+    UNS_PP_TKEY = "time"
+    UNS_PP_HAS_LABELING = "has_labeling"
+    UNS_PP_HAS_PROTEIN = "has_protein"
+    UNS_PP_SPLICING_LABELING = "splicing_labeling"
+    UNS_PP_PEARSON_RESIDUAL_NORMALIZATION = "pearson_residuals_normalization_params"
+
+    # special key names frequently used in dynamo
+    X_LAYER = "X"
+    PROTEIN_LAYER = "protein"
+
+    def gen_new_layer_key(layer_name, key, sep="_") -> str:
+        """utility function for returning a new key name for a specific layer. By convention layer_name should not have the separator as the last character."""
+        if layer_name == "":
+            return key
+        if layer_name[-1] == sep:
+            return layer_name + key
+        return sep.join([layer_name, key])
+
+    def gen_layer_pp_key(*keys):
+        """Generate dynamo style keys for adata.uns[pp][key0_key1_key2...]"""
+        return "_".join(keys)
+
+    def gen_layer_X_key(key):
+        """Generate dynamo style keys for adata.layer[X_*], used later in dynamics"""
+        return DynamoAdataKeyManager.gen_new_layer_key("X", key)
+
+    def is_layer_X_key(key):
+        return key[:2] == "X_"
+
+    def gen_layer_pearson_residual_key(layer: str):
+        """Generate dynamo style keys for adata.uns[pp][key0_key1_key2...]"""
+        return DynamoAdataKeyManager.gen_layer_pp_key(
+            layer, DynamoAdataKeyManager.UNS_PP_PEARSON_RESIDUAL_NORMALIZATION
+        )
+
+    def select_layer_data(adata: AnnData, layer: str, copy=False) -> pd.DataFrame:
+        """select layer data based on layer key. The default layer is X layer in adata.
+        For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo convention,
+        this utility provides an unified interface for selecting layer data with shape n_obs x n_var."""
+        if layer is None:
+            layer = DynamoAdataKeyManager.X_LAYER
+        res_data = None
+        if layer == DynamoAdataKeyManager.X_LAYER:
+            res_data = adata.X
+        elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
+            res_data = adata.obsm["protein"]
+        else:
+            res_data = adata.layers[layer]
+        if copy:
+            return res_data.copy()
+        return res_data
+
+    def set_layer_data(adata: AnnData, layer: str, vals: np.array, var_indices: np.array = None):
+        if var_indices is None:
+            var_indices = slice(None)
+        if layer == DynamoAdataKeyManager.X_LAYER:
+            adata.X[:, var_indices] = vals
+        elif layer in adata.layers:
+            adata.layers[layer][:, var_indices] = vals
+        else:
+            # layer does not exist in adata
+            # ignore var_indices and set values as a new layer
+            adata.layers[layer] = vals
+
+    def check_if_layer_exist(adata: AnnData, layer: str) -> bool:
+        if layer == DynamoAdataKeyManager.X_LAYER:
+            # assume always exist
+            return True
+        if layer == DynamoAdataKeyManager.PROTEIN_LAYER:
+            return DynamoAdataKeyManager.PROTEIN_LAYER in adata.obsm
+
+        return layer in adata.layers
+
+    def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True):
+        """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
+        layer_keys = list(adata.layers.keys())
+        if remove_pp_layers:
+            layer_keys = [i for i in layer_keys if not i.startswith("X_")]
+
+        if "protein" in adata.obsm.keys() and include_protein:
+            layer_keys.extend(["X", "protein"])
+        else:
+            layer_keys.extend(["X"])
+        res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
+        res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
+        return res_layers
+
+    def allowed_layer_raw_names():
+        only_splicing = ["spliced", "unspliced"]
+        only_labeling = ["new", "total"]
+        splicing_and_labeling = ["uu", "ul", "su", "sl"]
+        return only_splicing, only_labeling, splicing_and_labeling
+
+    def get_raw_data_layers(adata: AnnData) -> str:
+        only_splicing, only_labeling, splicing_and_labeling = DKM.allowed_layer_raw_names()
+        # select layers in adata to be normalized
+        res = only_splicing + only_labeling + splicing_and_labeling
+        res = set(res).intersection(adata.layers.keys()).union("X")
+        res = list(res)
+        return res
+
+    def allowed_X_layer_names():
+        only_splicing = ["X_spliced", "X_unspliced"]
+        only_labeling = ["X_new", "X_total"]
+        splicing_and_labeling = ["X_uu", "X_ul", "X_su", "X_sl"]
+
+        return only_splicing, only_labeling, splicing_and_labeling
+
+    def init_uns_pp_namespace(adata: AnnData):
+        adata.uns[DynamoAdataKeyManager.UNS_PP_KEY] = {}
+
+
+# TODO discuss alias naming convention
+DKM = DynamoAdataKeyManager
 
 
 class DynamoVisConfig:
@@ -32,6 +161,7 @@ class DynamoAdataConfig:
     dynamics_del_2nd_moments = None
     recipe_del_2nd_moments = None
 
+    # add str variables to store key name string here
     (
         RECIPE_KEEP_FILTERED_CELLS_KEY,
         RECIPE_KEEP_FILTERED_GENES_KEY,
@@ -52,9 +182,10 @@ class DynamoAdataConfig:
         "recipe_del_2nd_moments",
     ]
 
+    # config_key_to_values contains _key to values for config values
     config_key_to_values = None
 
-    def check_config_var(val, key, replace_val=None):
+    def use_default_var_if_none(val, key, replace_val=None):
         """if `val` is equal to `replace_val`, then a config value will be returned according to `key` stored in dynamo configuration. Otherwise return the original `val` value.
 
         Parameters

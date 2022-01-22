@@ -30,3 +30,4 @@ python-igraph>=0.7.1
 pynndescent>=0.5.2
 gseapy
 GitPython
+KDEpy

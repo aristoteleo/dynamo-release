@@ -60,8 +60,13 @@ def test_run_rpe1_tutorial():
     rpe1_kinetics.obs.Cell_cycle_relativePos = rpe1_kinetics.obs.Cell_cycle_relativePos.astype(float)
     rpe1_kinetics.obs.Cell_cycle_possition = rpe1_kinetics.obs.Cell_cycle_possition.astype(float)
 
-    dyn.pl.streamline_plot(rpe1_kinetics, color=["Cell_cycle_possition", "Cell_cycle_relativePos"], basis="RFP_GFP")
-    dyn.pl.streamline_plot(rpe1_kinetics, color=["cell_cycle_phase"], basis="RFP_GFP")
+    dyn.pl.streamline_plot(
+        rpe1_kinetics,
+        color=["Cell_cycle_possition", "Cell_cycle_relativePos"],
+        basis="RFP_GFP",
+        save_show_or_return="return",
+    )
+    dyn.pl.streamline_plot(rpe1_kinetics, color=["cell_cycle_phase"], basis="RFP_GFP", save_show_or_return="return")
     dyn.vf.VectorField(rpe1_kinetics, basis="RFP_GFP")
     progenitor = rpe1_kinetics.obs_names[rpe1_kinetics.obs.Cell_cycle_relativePos < 0.1]
 

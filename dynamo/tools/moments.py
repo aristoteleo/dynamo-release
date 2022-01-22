@@ -12,8 +12,9 @@ from .connectivity import (
     umap_conn_indices_dist_embedding,
 )
 from ..utils import copy_adata
-from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 from ..dynamo_logger import LoggerManager
+from ..preprocessing.utils import pca_monocle
+from ..configuration import DKM, DynamoAdataKeyManager
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -82,11 +83,12 @@ def moments(
     adata = copy_adata(adata) if copy else adata
 
     mapper = get_mapper()
+
     (
         only_splicing,
         only_labeling,
         splicing_and_labeling,
-    ) = allowed_X_layer_names()
+    ) = DKM.allowed_X_layer_names()
 
     if conn is None:
         if genes is None and "use_for_pca" in adata.var.keys():
@@ -110,7 +112,7 @@ def moments(
                         from ..preprocessing.preprocess import recipe_monocle
 
                         genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
-                        adata = recipe_monocle(
+                        recipe_monocle(
                             adata,
                             genes_to_use=genes_to_use,
                             num_dim=n_pca_components,
@@ -122,7 +124,7 @@ def moments(
                         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                         valid_ind = np.array(valid_ind).flatten()
                         CM = CM[:, valid_ind]
-                        adata, fit, _ = pca(
+                        adata, fit, _ = pca_monocle(
                             adata,
                             CM,
                             n_pca_components=n_pca_components,
@@ -182,7 +184,7 @@ def moments(
                 "the cell number!"
             )
 
-    layers = get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
@@ -325,7 +327,7 @@ def prepare_data_deterministic(
     log=False,
     return_ntr=False,
 ):
-    from ..preprocessing.utils import sz_util, normalize_util
+    from ..preprocessing.utils import sz_util, normalize_mat_monocle
 
     if return_ntr:
         use_total_layers = True
@@ -374,7 +376,12 @@ def prepare_data_deterministic(
                         0 if group_pair_x_layer_ is None else inverse_norm(adata, group_pair_x_layer),
                     )
 
-                t_layer_key = "M_t" if layer.startswith("M_") else "X_total" if layer.startswith("X_") else "total"
+                if layer.startswith("M_"):
+                    t_layer_key = "M_t"
+                elif layer.startswith("X_"):
+                    t_layer_key = "X_total"
+                else:
+                    t_layer_key = "total"
 
                 if not use_total_layers:
                     sfs_x, _ = sz_util(
@@ -397,14 +404,14 @@ def prepare_data_deterministic(
                     )
                     sfs_x, sfs_y = sfs_x[:, None], sfs_y[:, None]
 
-                x_layer = normalize_util(
+                x_layer = normalize_mat_monocle(
                     x_layer[:, adata.var_names.isin(genes)],
                     sfs_x,
                     relative_expr=True,
                     pseudo_expr=0,
                     norm_method=None,
                 )
-                y_layer = normalize_util(
+                y_layer = normalize_mat_monocle(
                     pair_x_layer[:, adata.var_names.isin(genes)],
                     sfs_y,
                     relative_expr=True,
@@ -446,7 +453,7 @@ def prepare_data_deterministic(
                         total_layers=None,
                         CM=x_layer,
                     )
-                x_layer = normalize_util(
+                x_layer = normalize_mat_monocle(
                     x_layer[:, adata.var_names.isin(genes)],
                     szfactors=tot_sfs[:, None],
                     relative_expr=True,
@@ -455,7 +462,7 @@ def prepare_data_deterministic(
                 )
 
                 if return_ntr:
-                    total_layer = normalize_util(
+                    total_layer = normalize_mat_monocle(
                         total_layer[:, adata.var_names.isin(genes)],
                         szfactors=tot_sfs[:, None],
                         relative_expr=True,
@@ -489,7 +496,7 @@ def prepare_data_has_splicing(
     return_ntr=False,
 ):
     """Prepare data when assumption is kinetic and data has splicing"""
-    from ..preprocessing.utils import sz_util, normalize_util
+    from ..preprocessing.utils import sz_util, normalize_mat_monocle
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -554,7 +561,7 @@ def prepare_data_has_splicing(
         sfs_u, sfs_s = sfs_u[:, None], sfs_s[:, None]
 
     if U is None:
-        U = normalize_util(
+        U = normalize_mat_monocle(
             layer_ul_data[:, adata.var_names.isin(genes)],
             sfs_u,
             relative_expr=True,
@@ -562,7 +569,7 @@ def prepare_data_has_splicing(
             norm_method=None,
         )
     if S is None:
-        S = normalize_util(
+        S = normalize_mat_monocle(
             layer_sl_data[:, adata.var_names.isin(genes)],
             sfs_s,
             relative_expr=True,
@@ -585,7 +592,7 @@ def prepare_data_has_splicing(
         tot_sfs = tot_sfs[:, None]
 
     if T is None:
-        T = normalize_util(
+        T = normalize_mat_monocle(
             total_layer_data[:, adata.var_names.isin(genes)],
             tot_sfs,
             relative_expr=True,
@@ -626,7 +633,7 @@ def prepare_data_no_splicing(
     return_ntr=False,
 ):
     """Prepare data when assumption is kinetic and data has no splicing"""
-    from ..preprocessing.utils import sz_util, normalize_util
+    from ..preprocessing.utils import sz_util, normalize_mat_monocle
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -680,7 +687,7 @@ def prepare_data_no_splicing(
         sfs, tot_sfs = sfs[:, None], tot_sfs[:, None]
 
     if U is None:
-        U = normalize_util(
+        U = normalize_mat_monocle(
             layer_data[:, adata.var_names.isin(genes)],
             sfs,
             relative_expr=True,
@@ -688,7 +695,7 @@ def prepare_data_no_splicing(
             norm_method=None,
         )
     if T is None:
-        T = normalize_util(
+        T = normalize_mat_monocle(
             total_layer_data[:, adata.var_names.isin(genes)],
             tot_sfs,
             relative_expr=True,
@@ -726,7 +733,7 @@ def prepare_data_mix_has_splicing(
     Note that the mix_model_indices is indexed on 10 total species, which can be used to specify
     the data required for different mixture models.
     """
-    from ..preprocessing.utils import sz_util, normalize_util
+    from ..preprocessing.utils import sz_util, normalize_mat_monocle
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -791,7 +798,7 @@ def prepare_data_mix_has_splicing(
         sfs_u, sfs_s = sfs_u[:, None], sfs_s[:, None]
 
     if U is None:
-        U = normalize_util(
+        U = normalize_mat_monocle(
             layer_u_data[:, adata.var_names.isin(genes)],
             sfs_u,
             relative_expr=True,
@@ -799,7 +806,7 @@ def prepare_data_mix_has_splicing(
             norm_method=None,
         )
     if S is None:
-        S = normalize_util(
+        S = normalize_mat_monocle(
             layer_s_data[:, adata.var_names.isin(genes)],
             sfs_s,
             relative_expr=True,
@@ -807,7 +814,7 @@ def prepare_data_mix_has_splicing(
             norm_method=None,
         )
     if Ul is None:
-        Ul = normalize_util(
+        Ul = normalize_mat_monocle(
             layer_ul_data[:, adata.var_names.isin(genes)],
             sfs_u,
             relative_expr=True,
@@ -815,7 +822,7 @@ def prepare_data_mix_has_splicing(
             norm_method=None,
         )
     if Sl is None:
-        Sl = normalize_util(
+        Sl = normalize_mat_monocle(
             layer_sl_data[:, adata.var_names.isin(genes)],
             sfs_s,
             relative_expr=True,
@@ -864,7 +871,7 @@ def prepare_data_mix_no_splicing(
     Note that the mix_model_indices is indexed on 4 total species, which can be used to specify
     the data required for different mixture models.
     """
-    from ..preprocessing.utils import sz_util, normalize_util
+    from ..preprocessing.utils import sz_util, normalize_mat_monocle
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -918,7 +925,7 @@ def prepare_data_mix_no_splicing(
         sfs_n, sfs_t = sfs_n[:, None], sfs_t[:, None]
 
     if N is None:
-        N = normalize_util(
+        N = normalize_mat_monocle(
             layer_n_data[:, adata.var_names.isin(genes)],
             sfs_n,
             relative_expr=True,
@@ -926,7 +933,7 @@ def prepare_data_mix_no_splicing(
             norm_method=None,
         )
     if T is None:
-        T = normalize_util(
+        T = normalize_mat_monocle(
             layer_t_data[:, adata.var_names.isin(genes)],
             sfs_t,
             relative_expr=True,

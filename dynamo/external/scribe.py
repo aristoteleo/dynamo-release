@@ -150,9 +150,9 @@ def scribe(
 
     if normalize:
         # recalculate size factor
-        from ..preprocessing import szFactor
+        from ..preprocessing import calc_sz_factor_legacy
 
-        adata = szFactor(
+        adata = calc_sz_factor_legacy(
             adata,
             method="mean-geometric-mean-total",
             round_exprs=True,

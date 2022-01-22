@@ -30,8 +30,6 @@ from .utils import (
     find_fixed_points,
 )
 from .FixedPoints import FixedPoints
-
-from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
 from ..utils import copy_adata
 
@@ -869,6 +867,7 @@ def VectorField(
             )
     if pot_curl_div:
         logger.info(f"Running ddhodge to estimate vector field based pseudotime in {basis} basis...")
+        from ..external.hodge import ddhodge
 
         ddhodge(adata, basis=basis, cores=cores)
         if X.shape[1] == 2:

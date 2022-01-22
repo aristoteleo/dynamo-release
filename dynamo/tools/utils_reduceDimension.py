@@ -1,10 +1,10 @@
 import warnings
 import numpy as np
-from ..preprocessing.utils import pca
+from ..preprocessing.utils import pca_monocle
 from .utils import update_dict, log1p_
 from .connectivity import _gen_neighbor_keys, umap_conn_indices_dist_embedding, knn_to_adj
 from .psl_py import psl
-
+from ..configuration import DKM
 
 # ---------------------------------------------------------------------------------------------------
 def prepare_dim_reduction(
@@ -21,7 +21,7 @@ def prepare_dim_reduction(
         if len(genes) == 0:
             raise ValueError("no genes from your genes list appear in your adata object.")
     if layer is not None:
-        if layer not in adata.layers.keys():
+        if not DKM.check_if_layer_exist(adata, layer):
             raise ValueError(f"the layer {layer} you provided is not included in the adata object!")
 
     prefix = "X_" if layer is None else layer + "_"
@@ -86,7 +86,7 @@ def prepare_dim_reduction(
                 valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                 valid_ind = np.array(valid_ind).flatten()
                 CM = CM[:, valid_ind]
-                adata, fit, _ = pca(
+                adata, fit, _ = pca_monocle(
                     adata,
                     CM,
                     n_pca_components=n_pca_components,
@@ -94,6 +94,9 @@ def prepare_dim_reduction(
                     return_all=True,
                 )
                 adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+
+                # valid genes used for dimension reduction calculation
+                adata.uns["pca_valid_ind"] = valid_ind
 
         if pca_key in adata.obsm.keys():
             X_data = adata.obsm[pca_key]
@@ -113,9 +116,11 @@ def prepare_dim_reduction(
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
+            adata, fit, _ = pca_monocle(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
             adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
+            # valid genes used for dimension reduction calculation
+            adata.uns["pca_valid_ind"] = valid_ind
             X_data = adata.obsm[pca_key]
 
     if dims is not None:
@@ -163,7 +168,7 @@ def run_reduce_dim(
         try:
             from fitsne import FItSNE
         except ImportError:
-            print(
+            raise ImportError(
                 "Please first install fitsne to perform accelerated tSNE method. Install instruction is "
                 "provided here: https://pypi.org/project/fitsne/"
             )

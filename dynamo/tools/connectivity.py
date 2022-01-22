@@ -1,3 +1,4 @@
+from ..configuration import DynamoAdataKeyManager
 from anndata import AnnData
 from pynndescent.distances import true_angular
 import numpy as np
@@ -9,7 +10,6 @@ from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
 from anndata import AnnData
-from ..preprocessing.utils import get_layer_keys
 from .utils import (
     log1p_,
     fetch_X_data,
@@ -418,7 +418,7 @@ def mnn(
         else:
             raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
-    layers = get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
@@ -567,14 +567,14 @@ def neighbors(
         logger.info("X_data is None, fetching or recomputing...", indent_level=2)
         if basis == "pca" and "X_pca" not in adata.obsm_keys():
             logger.info("PCA as basis not X_pca not found, doing PCAs", indent_level=2)
-            from ..preprocessing.utils import pca
+            from ..preprocessing.utils import pca_monocle
 
             CM = adata.X if genes is None else adata[:, genes].X
             cm_genesums = CM.sum(axis=0)
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, _, _ = pca(adata, CM, pca_key="X_pca", n_pca_components=n_pca_components, return_all=True)
+            adata, _, _ = pca_monocle(adata, CM, pca_key="X_pca", n_pca_components=n_pca_components, return_all=True)
 
             X_data = adata.obsm["X_pca"]
         else:

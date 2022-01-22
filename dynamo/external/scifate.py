@@ -167,9 +167,9 @@ def adata_processing_TF_link(
     total = adata.layers[nt_layers[1]]
 
     # recalculate size factor
-    from ..preprocessing import szFactor
+    from ..preprocessing import calc_sz_factor_legacy
 
-    adata = szFactor(
+    adata = calc_sz_factor_legacy(
         adata,
         method="mean-geometric-mean-total",
         round_exprs=True,
