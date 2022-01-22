@@ -751,7 +751,7 @@ def log1p_adata(adata: AnnData, layers: list = None, copy: bool = False) -> AnnD
         _adata = copy_adata(adata)
 
     if layers is None:
-        layers = DKM.get_available_layer_keys(_adata)
+        layers = DKM.get_raw_data_layers(_adata)
 
     main_info("log1p transform applied to layers: %s" % (str(layers)))
     for layer in layers:

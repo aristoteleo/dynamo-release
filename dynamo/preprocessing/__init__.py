@@ -18,6 +18,8 @@ from .preprocess import (
     get_svr_filter,
     highest_frac_genes,
 )
+from .preprocess import filter_genes_by_outliers as filter_genes
+
 from .cell_cycle import cell_cycle_scores
 from .utils import (
     basic_stats,
@@ -32,6 +34,9 @@ from .utils import (
     compute_gene_exp_fraction,
 )
 from .preprocessor_utils import *
+
+log1p = log1p_adata
+
 from .preprocess_monocle_utils import top_table, estimate_dispersion
 from .Preprocessor import Preprocessor
 
@@ -46,6 +51,7 @@ __all__ = [
     "estimate_dispersion",
     "filter_cells_by_outliers",
     "select_genes_monocle",
+    "filter_genes",
     "filter_genes_by_outliers",
     "filter_genes_by_clusters_",
     "SVRs",
@@ -62,4 +68,7 @@ __all__ = [
     "filter_genes_by_pattern",
     "decode",
     "Preprocessor",
+    "log1p",
+    "log1p_adata",
+    "log1p_adata_layer",
 ]
