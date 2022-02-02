@@ -15,6 +15,7 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
     * Improved kernels for transition matrix calculation and velocity projection 
     * Strategies to correct RNA velocity vectors (when your RNA velocity direction is problematic) 
 * Inclusive modeling of time-resolved metabolic labeling based scRNA-seq:
+    * Overcome intrinsic limitation of the conventional splicing based RNA velocity analyses
     * Explicitly model RNA metabolic labeling, in conjunction with RNA bursting, transcription, splicing and degradation
     * Comprehensive RNA kinetic rate estimation for one-shot, pulse, chase and mixture metabolic labeling experiments
 * Move beyond RNA velocity to continuous vector field function for functional and predictive analyses of cell fate transitions:
