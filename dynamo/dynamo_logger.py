@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import time
 import sys
 
+
 def silence_logger(name):
     """Given a logger name, silence it completely.
 
@@ -13,6 +14,16 @@ def silence_logger(name):
     package_logger = logging.getLogger(name)
     package_logger.setLevel(logging.CRITICAL + 100)
     package_logger.propagate = False
+
+
+def set_logger_level(name, level):
+    """Given a logger name, silence it completely.
+
+    :param name: name of the logger
+    :type name: str
+    """
+    package_logger = logging.getLogger(name)
+    package_logger.setLevel(level)
 
 
 def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=6):
@@ -42,8 +53,8 @@ class Logger:
         self.logger = logging.getLogger(namespace)
         self.previous_timestamp = time.time()  # in seconds
         self.time_passed = 0
-
-        # To-do: add file handler in future
+        self.report_hook_percent_state = None
+        # TODO add file handler in future
         # e.g. logging.StreamHandler(None) if log_file_path is None else logging.FileHandler(name)
 
         # ensure only one stream handler exists in one logger instance
@@ -146,6 +157,15 @@ class Logger:
         message = format_logging_message(message, logging.INFO, indent_level=indent_level)
         return self.logger.error(message, *args, **kwargs)
 
+    def info_insert_adata_var(self, key, indent_level=1, *args, **kwargs):
+        return self.info_insert_adata(self, key, adata_attr="var", indent_level=1, *args, **kwargs)
+
+    def info_insert_adata_obsm(self, key, indent_level=1, *args, **kwargs):
+        return self.info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs)
+
+    def info_insert_adata_uns(self, key, indent_level=1, *args, **kwargs):
+        return self.info_insert_adata(self, key, adata_attr="uns", indent_level=1, *args, **kwargs)
+
     def log_time(self):
         now = time.time()
         self.time_passed = now - self.previous_timestamp
@@ -200,8 +220,14 @@ class Logger:
         ts :
             total size
         """
-        self.report_progress(count=rs * bn, total=ts)
+        if self.report_hook_percent_state is None:
+            self.report_hook_percent_state = 0
+        cur_percent = rs * bn / ts
+        if cur_percent - self.report_hook_percent_state > 0.01:
+            self.report_progress(count=rs * bn, total=ts)
+            self.report_hook_percent_state = cur_percent
         if rs * bn >= ts:
+            self.report_hook_percent_state = None
             self.finish_progress(progress_name="download")
 
 
@@ -220,7 +246,7 @@ class LoggerManager:
         return LoggerManager.main_logger
 
     @staticmethod
-    def gen_logger(namespace):
+    def gen_logger(namespace: str):
         return Logger(namespace)
 
     @staticmethod
@@ -288,6 +314,10 @@ def main_log_time():
     LoggerManager.main_logger.log_time()
 
 
+def main_silence():
+    LoggerManager.main_logger.setLevel(logging.CRITICAL + 100)
+
+
 def main_finish_progress(progress_name=""):
     LoggerManager.main_logger.finish_progress(progress_name=progress_name)
 
@@ -296,5 +326,29 @@ def main_info_insert_adata(key, adata_attr="obsm", indent_level=1, *args, **kwar
     LoggerManager.main_logger.info_insert_adata(key, adata_attr=adata_attr, indent_level=indent_level, *args, **kwargs)
 
 
+def main_info_insert_adata_var(key, indent_level=1, *args, **kwargs):
+    main_info_insert_adata(key, "var", indent_level, *args, **kwargs)
+
+
+def main_info_insert_adata_uns(key, indent_level=1, *args, **kwargs):
+    main_info_insert_adata(key, "uns", indent_level, *args, **kwargs)
+
+
+def main_info_insert_adata_obsm(key, indent_level=1, *args, **kwargs):
+    main_info_insert_adata(key, "obsm", indent_level, *args, **kwargs)
+
+
+def main_info_insert_adata_obs(key, indent_level=1, *args, **kwargs):
+    main_info_insert_adata(key, "obs", indent_level, *args, **kwargs)
+
+
+def main_info_insert_adata_layer(key, indent_level=1, *args, **kwargs):
+    main_info_insert_adata(key, "layers", indent_level, *args, **kwargs)
+
+
 def main_info_verbose_timeit(msg):
     LoggerManager.main_logger.info(msg)
+
+
+def main_set_level(level):
+    set_logger_level("dynamo", level)

@@ -49,6 +49,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
    notebooks/Introduction
    notebooks/Primer
+   notebooks/lap_box_introduction.ipynb
 
 
 .. toctree::
@@ -88,6 +89,8 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    :hidden:
 
    notebooks/Differential_geometry
+   notebooks/lap_tutorial/lap_tutorial
+   notebooks/perturbation_tutorial/perturbation_tutorial
 
 
 Indices and tables

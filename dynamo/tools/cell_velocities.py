@@ -8,10 +8,9 @@ from sklearn.decomposition import PCA
 from .Markov import (
     KernelMarkovChain,
     velocity_on_grid,
-    graphize_velocity,
-    fp_operator,
     ContinuousTimeMarkovChain,
 )
+from .graph_calculus import graphize_velocity, fp_operator, calc_gaussian_weight
 from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
 
 from .metric_velocity import gene_wise_confidence
@@ -21,7 +20,7 @@ from .utils import (
     get_ekey_vkey_from_adata,
     get_mapper_inverse,
     update_dict,
-    get_iterative_indices,
+    get_neighbor_indices,
     split_velocity_graph,
     norm,
     einsum_correlation,
@@ -30,7 +29,6 @@ from .utils import (
 )
 
 from .dimension_reduction import reduceDimension
-from ..dynamo_logger import LoggerManager
 from ..utils import areinstance
 import anndata
 from typing import Union
@@ -38,6 +36,7 @@ import scipy
 
 # dynamo logger related
 from ..dynamo_logger import (
+    LoggerManager,
     main_tqdm,
     main_info,
     main_warning,
@@ -370,12 +369,12 @@ def cell_velocities(
         X = log1p_(adata, X)
         X_plus_V = log1p_(adata, X + V)
         if "velocity_pca_fit" not in adata.uns_keys() or type(adata.uns["velocity_pca_fit"]) == str:
-            pca = PCA(
+            pca_monocle = PCA(
                 n_components=min(n_pca_components, X.shape[1] - 1),
                 svd_solver="arpack",
                 random_state=0,
             )
-            pca_fit = pca.fit(X)
+            pca_fit = pca_monocle.fit(X)
             X_pca = pca_fit.transform(X)
 
             adata.uns["velocity_pca_fit"] = pca_fit
@@ -495,13 +494,21 @@ def cell_velocities(
             "k": 30,
             "E_func": "sqrt",
             "normalize_v": False,
+            "scale_by_dist": False,
         }
         graph_kwargs = update_dict(graph_kwargs, kernel_kwargs)
 
-        fp_kwargs = {
-            "D": 100,
-        }
+        fp_kwargs = {"D": 50, "drift_weight": False, "weight_mode": "symmetric"}
         fp_kwargs = update_dict(fp_kwargs, kernel_kwargs)
+
+        wgt_kwargs = {
+            "weight": "naive",
+            "sig": None,
+            "auto_sig_func": None,
+            "auto_sig_multiplier": 2,
+        }
+        wgt_kwargs = update_dict(wgt_kwargs, kernel_kwargs)
+        wgt_mode = wgt_kwargs.pop("weight", "naive")
 
         ctmc_kwargs = {
             "eignum": 30,
@@ -520,13 +527,23 @@ def cell_velocities(
                 T = ContinuousTimeMarkovChain(P=R.T).compute_embedded_transition_matrix().T
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
         else:
-            E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
-            W = fp_operator(E, **fp_kwargs)
-            ctmc = ContinuousTimeMarkovChain(P=W, **ctmc_kwargs)
+            E, nbrs_idx, dists = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
+            if wgt_mode == "naive":
+                W = None
+            elif wgt_mode == "gaussian":
+                main_info("Calculating Gaussian weights with the following parameters:")
+                main_info(f"{wgt_kwargs}")
+                W = calc_gaussian_weight(nbrs_idx, dists, **wgt_kwargs)
+            else:
+                raise NotImplementedError(f"The weight mode `{wgt_mode}` is not supported.")
+
+            L = fp_operator(E, W=W, **fp_kwargs)
+            ctmc = ContinuousTimeMarkovChain(P=L, **ctmc_kwargs)
             T = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
 
             adata.obsp["fp_transition_rate"] = ctmc.P.T
+            adata.obsp["discrete_vector_field"] = E
 
     elif method == "transform":
         umap_trans, n_pca_components = (
@@ -536,9 +553,9 @@ def cell_velocities(
 
         if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
             CM = adata.X[:, adata.var.use_for_dynamics.values]
-            from ..preprocessing.utils import pca
+            from ..preprocessing.utils import pca_monocle
 
-            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X", return_all=True)
+            adata, pca_fit, X_pca = pca_monocle(adata, CM, n_pca_components, "X", return_all=True)
             adata.uns["pca_fit"] = pca_fit
 
         X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
@@ -888,7 +905,7 @@ def kernels_from_velocyto_scvelo(
     X,
     X_embedding,
     V,
-    indices,
+    adj_mat,
     neg_cells_trick,
     xy_grid_nums,
     kernel="pearson",
@@ -901,30 +918,32 @@ def kernels_from_velocyto_scvelo(
     """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
     pearson correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019)."""
     n = X.shape[0]
-    if indices is not None:
+    if adj_mat is not None:
         rows = []
         cols = []
         vals = []
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
-    for i in LoggerManager.progress_logger(
+    for cur_i in LoggerManager.progress_logger(
         range(n),
         progress_name=f"calculating transition matrix via {kernel} kernel with {transform} transform.",
     ):
-        velocity = V[i, :]  # project V to pca space
+        velocity = V[cur_i, :]  # project V to pca space
 
         if velocity.sum() != 0:
-            i_vals = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)  # np.zeros((knn, 1))
-            diff = X[i_vals, :] - X[i, :]
+            neighbor_index_vals = get_neighbor_indices(
+                adj_mat, cur_i, n_recurse_neighbors, max_neighs
+            )  # np.zeros((knn, 1))
+            diff = X[neighbor_index_vals, :] - X[cur_i, :]
 
             if transform == "log":
                 diff_velocity = np.sign(velocity) * np.log1p(np.abs(velocity))
                 diff_rho = np.sign(diff) * np.log1p(np.abs(diff))
             elif transform == "logratio":
-                hi_dim, hi_dim_t = X[i, :], X[i, :] + velocity
+                hi_dim, hi_dim_t = X[cur_i, :], X[cur_i, :] + velocity
                 log2hidim = np.log1p(np.abs(hi_dim))
                 diff_velocity = np.log1p(np.abs(hi_dim_t)) - log2hidim
-                diff_rho = np.log1p(np.abs(X[i_vals, :])) - np.log1p(np.abs(hi_dim))
+                diff_rho = np.log1p(np.abs(X[neighbor_index_vals, :])) - np.log1p(np.abs(hi_dim))
             elif transform == "linear":
                 diff_velocity = velocity
                 diff_rho = diff
@@ -936,9 +955,8 @@ def kernels_from_velocyto_scvelo(
                 vals_ = einsum_correlation(diff_rho, diff_velocity, type="pearson")
             elif kernel == "cosine":
                 vals_ = einsum_correlation(diff_rho, diff_velocity, type="cosine")
-
-            rows.extend([i] * len(i_vals))
-            cols.extend(i_vals)
+            rows.extend([cur_i] * len(neighbor_index_vals))
+            cols.extend(neighbor_index_vals)
             vals.extend(vals_)
     vals = np.hstack(vals)
     vals[np.isnan(vals)] = 0

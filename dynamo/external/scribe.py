@@ -150,9 +150,9 @@ def scribe(
 
     if normalize:
         # recalculate size factor
-        from ..preprocessing import szFactor
+        from ..preprocessing import calc_sz_factor_legacy
 
-        adata = szFactor(
+        adata = calc_sz_factor_legacy(
             adata,
             method="mean-geometric-mean-total",
             round_exprs=True,
@@ -262,33 +262,25 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
         mi_vec = np.zeros(len(genes))
     pearson = np.zeros(len(genes))
 
-    X, Y = adata[:, genes].layers[layer_x], adata[:, genes].layers[layer_y]
+    X, Y = adata[:, genes].layers[layer_x].T, adata[:, genes].layers[layer_y].T
     X, Y = X.A if issparse(X) else X, Y.A if issparse(Y) else Y
 
     k = min(5, int(adata.n_obs / 5 + 1))
-    if cores == 1:
-        for i in tqdm(
-            range(len(genes)),
-            desc=f"calculating mutual information between {layer_x} and {layer_y} data",
-        ):
-            x, y = X[i], Y[i]
-            mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-            pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
-            x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
-
-            if not skip_mi:
-                mi_vec[i] = mi(x, y, k=k)
-    else:
-        for i in tqdm(
-            range(len(genes)),
-            desc=f"calculating mutual information between {layer_x} and {layer_y} data",
-        ):
-            x, y = X[i], Y[i]
-            mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-            pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
+    for i in tqdm(
+        range(len(genes)),
+        desc=f"calculating mutual information between {layer_x} and {layer_y} data",
+    ):
+        x, y = X[i], Y[i]
+        mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+        pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
+        x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
 
         if not skip_mi:
-
+            if cores == 1:
+                 mi_vec[i] = mi(x, y, k=k)
+    if cores != 1:
+        if not skip_mi:
+             
             def pool_mi(x, y, k):
                 mask = np.logical_and(np.isfinite(x), np.isfinite(y))
                 x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]

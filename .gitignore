@@ -1,3 +1,12 @@
+# ipynb tutorials notebooks are hosted in other repo
+docs/source/notebooks/**
+
+# docs local build
+**/_build
+
+# mygene package cache
+mygene_cache.sqlite
+
 *.html
 # vscode related
 .vscode/

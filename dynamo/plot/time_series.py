@@ -246,11 +246,12 @@ def kinetic_heatmap(
         color_map: `str` (default: `BrBG`)
             Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
             color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
-        gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`]
-            Supports two different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
-            or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit groups by the half
-            max ordering algorithm (HA Pliner, et. al, Molecular cell 71 (5), 858-871. e8). While for `maximum`,
-            it will order by the position of the highest gene expression.
+        gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`, `raw`]
+            Supports three different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
+            `maximum` or `raw`. For `half_max_ordering`, it will order genes into up, down and transit groups by the
+            half max ordering algorithm (HA Pliner, et. al, Molecular cell 71 (5), 858-871. e8). While for `maximum`,
+            it will order by the position of the highest gene expression. `raw` means just use the original order from
+            the input gene list.
         show_colorbar: `bool` (default: `False`)
             Whether to show the color bar.
         cluster_row_col: `[bool, bool]` (default: `[False, False]`)
@@ -353,7 +354,7 @@ def kinetic_heatmap(
             )
 
             df = pd.DataFrame(all, index=genes)
-        elif gene_order_method == "maximum":
+        elif gene_order_method in ["maximum", "raw"]:
             exprs = lowess_smoother(time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve)
             exprs = exprs[np.isfinite(exprs.sum(1)), :]
 
@@ -361,7 +362,10 @@ def kinetic_heatmap(
                 exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(exprs, axis=standard_scale)[
                     :, None
                 ]
-            max_sort = np.argsort(np.argmax(exprs, axis=1))
+            if gene_order_method == "maximum":
+                max_sort = np.argsort(np.argmax(exprs, axis=1))
+            else:
+                max_sort = np.arange(exprs.shape[0])
             if spaced_num is None and mode == "pseudotime":
                 df = pd.DataFrame(
                     exprs[max_sort, :],

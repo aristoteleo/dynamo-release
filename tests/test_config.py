@@ -12,27 +12,27 @@ def test_config_change():
 
     # change class static values wont change config variables
     assert dyn.config.DynamoAdataConfig.data_store_mode == "succinct"
-    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells_default == True
-    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells_default == True
-    assert dyn.config.DynamoAdataConfig.recipe_keep_raw_layers_default == False
+    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells == True
+    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells == True
+    assert dyn.config.DynamoAdataConfig.recipe_keep_raw_layers == False
 
     # update data store mode will update config variables as well
 
     # test succint mode
     dyn.config.DynamoAdataConfig.update_data_store_mode("succinct")
-    assert dyn.config.DynamoAdataConfig.recipe_keep_filtered_cells_default == False
-    assert dyn.config.DynamoAdataConfig.recipe_keep_filtered_genes_default == False
-    assert dyn.config.DynamoAdataConfig.recipe_keep_raw_layers_default == False
-    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells_default == False
-    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_genes_default == False
+    assert dyn.config.DynamoAdataConfig.recipe_keep_filtered_cells == False
+    assert dyn.config.DynamoAdataConfig.recipe_keep_filtered_genes == False
+    assert dyn.config.DynamoAdataConfig.recipe_keep_raw_layers == False
+    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells == False
+    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_genes == False
 
     # test full mode
     dyn.config.DynamoAdataConfig.update_data_store_mode("full")
-    assert dyn.config.DynamoAdataConfig.recipe_keep_filtered_cells_default == False
-    assert dyn.config.DynamoAdataConfig.recipe_keep_filtered_genes_default == False
-    assert dyn.config.DynamoAdataConfig.recipe_keep_raw_layers_default == False
-    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells_default == True
-    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells_default == True
+    assert dyn.config.DynamoAdataConfig.recipe_keep_filtered_cells == False
+    assert dyn.config.DynamoAdataConfig.recipe_keep_filtered_genes == False
+    assert dyn.config.DynamoAdataConfig.recipe_keep_raw_layers == False
+    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells == True
+    assert dyn.config.DynamoAdataConfig.recipe_monocle_keep_filtered_cells == True
 
     dyn.config.DynamoAdataConfig.update_data_store_mode("succinct")
     import dynamo.configuration as imported_config

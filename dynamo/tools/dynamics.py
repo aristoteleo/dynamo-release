@@ -295,7 +295,7 @@ def dynamics(
                 log_unnormalized: Whether to log transform unnormalized data.
     """
 
-    del_2nd_moments = DynamoAdataConfig.check_config_var(
+    del_2nd_moments = DynamoAdataConfig.use_default_var_if_none(
         del_2nd_moments, DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY
     )
     if "pp" not in adata.uns_keys():
@@ -346,11 +346,13 @@ def dynamics(
 
     if model.lower() == "stochastic" or use_smoothed or re_smooth:
         M_layers = [i for i in adata.layers.keys() if i.startswith("M_")]
-        if re_smooth or len(M_layers) < 2:
-            for i in M_layers:
-                del adata.layers[i]
 
         if len(M_layers) < 2 or re_smooth:
+            main_info("removing existing M layers:%s..." % (str(list(M_layers))), indent_level=2)
+            for i in M_layers:
+                del adata.layers[i]
+            main_info("making adata smooth...", indent_level=2)
+
             if filter_gene_mode.lower() == "final" and "X_pca" in adata.obsm.keys():
                 adata.obsm["X"] = adata.obsm["X_pca"]
 
@@ -1026,7 +1028,7 @@ def kinetic_model(
                     gamma_b,
                     gamma_all_r2,
                     gamma_all_logLL,
-                ) = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+                ) = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=100)
                 (
                     gamma,
                     gamma_r2,

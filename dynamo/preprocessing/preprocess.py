@@ -13,37 +13,47 @@ from .cell_cycle import cell_cycle_scores
 from ..tools.utils import update_dict
 from .utils import (
     convert2symbol,
-    pca,
+    pca_monocle,
     clusters_stats,
     cook_dist,
-    get_layer_keys,
-    get_shared_counts,
+    get_inrange_shared_counts_mask,
     get_svr_filter,
     Freeman_Tukey,
     merge_adata_attrs,
     sz_util,
-    normalize_util,
+    normalize_mat_monocle,
     get_sz_exprs,
     unique_var_obs_adata,
-    layers2csr,
-    collapse_adata,
-    NTR,
-    detect_datatype,
+    convert_layers2csr,
+    collapse_species_adata,
+    calc_new_to_total_ratio,
+    detect_experiment_datatype,
     basic_stats,
     add_noise_to_duplicates,
-    gene_exp_fraction,
+    compute_gene_exp_fraction,
 )
 from ..dynamo_logger import (
     main_info,
     main_critical,
+    main_info_insert_adata_obsm,
+    main_info_insert_adata_uns,
     main_warning,
     LoggerManager,
 )
 from ..utils import copy_adata
-from ..configuration import DynamoAdataConfig
+from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager, DKM
+from .preprocess_monocle_utils import top_table
+from .preprocessor_utils import (
+    _infer_labeling_experiment_type,
+    filter_cells_by_outliers,
+    filter_genes_by_outliers,
+    select_genes_monocle,
+    SVRs,
+    normalize_cell_expr_by_size_factors,
+)
 
 
-def szFactor(
+def calc_sz_factor_legacy(
     adata_ori: anndata.AnnData,
     layers: Union[str, list] = "all",
     total_layers: Union[list, None] = None,
@@ -125,9 +135,11 @@ def szFactor(
             for t_key in total_layers:
                 total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
             adata.layers["_total_"] = total
+            if type(layers) is str:
+                layers = [layers]
             layers.extend(["_total_"])
 
-    layers = get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
     if "raw" in layers and adata.raw is None:
         adata.raw = adata.copy()
 
@@ -180,7 +192,7 @@ def szFactor(
     return adata_ori
 
 
-def normalize_expr_data(
+def normalize_cell_expr_by_size_factors_legacy(
     adata: anndata.AnnData,
     layers: str = "all",
     total_szfactor: str = "total_Size_Factor",
@@ -243,8 +255,7 @@ def normalize_expr_data(
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
-    layers = get_layer_keys(adata, layers)
-
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
     layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
     layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
@@ -253,7 +264,7 @@ def normalize_expr_data(
         layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
         if "Size_Factor" in layers:
             layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
-        szFactor(
+        calc_sz_factor_legacy(
             adata,
             layers=layers,
             locfunc=np.nanmean,
@@ -261,13 +272,11 @@ def normalize_expr_data(
             method=sz_method,
             scale_to=scale_to,
         )
-
     excluded_layers = []
     if not X_total_layers:
         excluded_layers.extend(["X"])
     if not splicing_total_layers:
         excluded_layers.extend(["spliced", "unspliced"])
-
     for layer in layers:
         if layer in excluded_layers:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
@@ -275,10 +284,9 @@ def normalize_expr_data(
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
         if norm_method is None and layer == "X":
-            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
+            CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
         elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
-            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
-
+            CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, norm_method)
         elif layer == "protein":  # norm_method == 'clr':
             if norm_method != "clr":
                 main_warning(
@@ -303,8 +311,10 @@ def normalize_expr_data(
             main_warning(norm_method + " is not implemented yet")
 
         if layer in ["raw", "X"]:
+            main_info("Set <adata.X> to normalized data")
             adata.X = CM
         elif layer == "protein" and "protein" in adata.obsm_keys():
+            main_info_insert_adata_obsm("X_protein")
             adata.obsm["X_protein"] = CM
         else:
             adata.layers["X_" + layer] = CM
@@ -336,7 +346,7 @@ def Gini(adata, layers="all"):
     # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
 
-    layers = get_layer_keys(adata, layers)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
 
     for layer in layers:
         if layer == "raw":
@@ -374,61 +384,6 @@ def Gini(adata, layers="all"):
     return adata
 
 
-def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])):
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Parameters
-    ----------
-        disp_table: :class:`~pandas.DataFrame`
-            AnnData object
-        initial_coefs: :class:`~numpy.ndarray`
-            Initial parameters for the gamma fit of the dispersion parameters.
-
-    Returns
-    -------
-        fit: :class:`~statsmodels.api.formula.glm`
-            A statsmodels fitting object.
-        coefs: :class:`~numpy.ndarray`
-            The two resulting gamma fitting coefficients.
-        good: :class:`~pandas.DataFrame`
-            The subsetted dispersion table that is subjected to Gamma fitting.
-    """
-    import statsmodels.api as sm
-
-    coefs = initial_coefs
-    iter = 0
-    while True:
-        residuals = disp_table["disp"] / (coefs[0] + coefs[1] / disp_table["mu"])
-        good = disp_table.loc[(residuals > initial_coefs[0]) & (residuals < 10000), :]
-        # https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the
-        # -gamma-family
-        fit = sm.formula.glm(
-            "disp ~ I(1 / mu)",
-            data=good,
-            family=sm.families.Gamma(link=sm.genmod.families.links.identity),
-        ).train(start_params=coefs)
-
-        oldcoefs = coefs
-        coefs = fit.params
-
-        if coefs[0] < initial_coefs[0]:
-            coefs[0] = initial_coefs[0]
-        if coefs[1] < 0:
-            main_warning("Parametric dispersion fit may be failed.")
-
-        if np.sum(np.log(coefs / oldcoefs) ** 2 < coefs[0]):
-            break
-        iter += 1
-
-        if iter > 10:
-            main_warning("Dispersion fit didn't converge")
-            break
-        if not np.all(coefs > 0):
-            main_warning("Parametric dispersion fit may be failed.")
-
-    return fit, coefs, good
-
-
 def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1) -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -446,7 +401,7 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         res: :class:`~pandas.DataFrame`
             A pandas dataframe with mu, dispersion for each gene that passes filters.
     """
-    layers = get_layer_keys(adata, layers=layers, include_protein=False)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
 
     res_list = []
     for layer in layers:
@@ -515,52 +470,6 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
     return layers, res_list
 
 
-def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-
-    Returns
-    -------
-        disp_df: :class:`~pandas.DataFrame`
-            The data frame with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
-    """
-    layer = get_layer_keys(adata, layers=layer, include_protein=False)[0]
-
-    if layer in ["X"]:
-        key = "dispFitInfo"
-    else:
-        key = layer + "_dispFitInfo"
-
-    if mode == "dispersion":
-        if adata.uns[key] is None:
-            estimate_dispersion(adata, layers=[layer])
-
-        if adata.uns[key] is None:
-            raise KeyError(
-                "Error: for adata.uns.key=%s, no dispersion model found. Please call estimate_dispersion() before calling this function"
-                % key
-            )
-
-        top_df = pd.DataFrame(
-            {
-                "gene_id": adata.uns[key]["disp_table"]["gene_id"],
-                "mean_expression": adata.uns[key]["disp_table"]["mu"],
-                "dispersion_fit": adata.uns[key]["disp_func"](adata.uns[key]["disp_table"]["mu"]),
-                "dispersion_empirical": adata.uns[key]["disp_table"]["disp"],
-            }
-        )
-        top_df = top_df.set_index("gene_id")
-
-    elif mode == "gini":
-        top_df = adata.var[layer + "_gini"]
-
-    return top_df
-
-
 def vstExprs(
     adata: anndata.AnnData,
     expr_matrix: Union[np.ndarray, None] = None,
@@ -610,286 +519,7 @@ def vstExprs(
     return res
 
 
-def estimate_dispersion(
-    adata: anndata.AnnData,
-    layers: str = "X",
-    modelFormulaStr: str = "~ 1",
-    min_cells_detected: int = 1,
-    removeOutliers: bool = False,
-) -> anndata.AnnData:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        layers: `str` (default: 'X')
-            The layer(s) to be used for calculating dispersion. Default is X if there is no spliced layers.
-        modelFormulaStr: `str`
-            The model formula used to calculate dispersion parameters. Not used.
-        min_cells_detected: `int`
-            The minimum number of cells detected for calculating the dispersion.
-        removeOutliers: `bool` (default: True)
-            Whether to remove outliers when performing dispersion fitting.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated annData object with dispFitInfo added to uns attribute as a new key.
-    """
-    import re
-
-    logger = LoggerManager.gen_logger("dynamo-preprocessing")
-    # mu = None
-    model_terms = [x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)]
-    model_terms = list(set(model_terms) - set([""]))
-
-    cds_pdata = adata.obs  # .loc[:, model_terms]
-    cds_pdata["rowname"] = cds_pdata.index.values
-    layers, disp_tables = disp_calc_helper_NB(adata[:, :], layers, min_cells_detected)
-    # disp_table['disp'] = np.random.uniform(0, 10, 11)
-    # disp_table = cds_pdata.apply(disp_calc_helper_NB(adata[:, :], min_cells_detected))
-
-    # cds_pdata <- dplyr::group_by_(dplyr::select_(rownames_to_column(pData(cds)), "rowname", .dots=model_terms), .dots
-    # =model_terms)
-    # disp_table <- as.data.frame(cds_pdata %>% do(disp_calc_helper_NB(cds[,.$rowname], cds@expressionFamily, min_cells_
-    # detected)))
-    for ind in range(len(layers)):
-        layer, disp_table = layers[ind], disp_tables[ind]
-
-        if disp_table is None:
-            raise Exception("Parametric dispersion fitting failed, please set a different lowerDetectionLimit")
-
-        disp_table = disp_table.loc[np.where(disp_table["mu"] != np.nan)[0], :]
-
-        res = parametric_dispersion_fit(disp_table)
-        fit, coefs, good = res[0], res[1], res[2]
-
-        if removeOutliers:
-            # influence = fit.get_influence().cooks_distance()
-            # #CD is the distance and p is p-value
-            # (CD, p) = influence.cooks_distance
-
-            CD = cook_dist(fit, 1 / good["mu"][:, None], good)
-            cooksCutoff = 4 / good.shape[0]
-            print("Removing ", len(CD[CD > cooksCutoff]), " outliers")
-            outliers = CD > cooksCutoff
-            # use CD.index.values? remove genes that lost when doing parameter fitting
-            lost_gene = set(good.index.values).difference(set(range(len(CD))))
-            outliers[lost_gene] = True
-            res = parametric_dispersion_fit(good.loc[~outliers, :])
-
-            fit, coefs = res[0], res[1]
-
-        def ans(q):
-            return coefs[0] + coefs[1] / q
-
-        if layer == "X":
-            logger.info_insert_adata("dispFitInfo", "uns")
-            adata.uns["dispFitInfo"] = {
-                "disp_table": good,
-                "disp_func": ans,
-                "coefs": coefs,
-            }
-        else:
-            logger.info_insert_adata(layer + "_dispFitInfo", "uns")
-            adata.uns[layer + "_dispFitInfo"] = {
-                "disp_table": good,
-                "disp_func": ans,
-                "coefs": coefs,
-            }
-
-    return adata
-
-
-def SVRs(
-    adata_ori: anndata.AnnData,
-    filter_bool: Union[np.ndarray, None] = None,
-    layers: str = "X",
-    relative_expr: bool = True,
-    total_szfactor: str = "total_Size_Factor",
-    min_expr_cells: int = 0,
-    min_expr_avg: int = 0,
-    max_expr_avg: int = 0,
-    svr_gamma: Union[float, None] = None,
-    winsorize: bool = False,
-    winsor_perc: tuple = (1, 99.5),
-    sort_inverse: bool = False,
-    use_all_genes_cells: bool = False,
-) -> anndata.AnnData:
-    """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object.
-        filter_bool: :class:`~numpy.ndarray` (default: None)
-            A boolean array from the user to select genes for downstream analysis.
-        layers: `str` (default: 'X')
-            The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X
-            if there is no spliced layers.
-        relative_expr: `bool` (default: `True`)
-            A logic flag to determine whether we need to divide gene expression values first by size factor before run
-            SVR.
-        total_szfactor: `str` (default: `total_Size_Factor`)
-            The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-        min_expr_cells: `int` (default: `2`)
-            minimum number of cells that express that gene for it to be considered in the fit.
-        min_expr_avg: `int` (default: `0`)
-            The minimum average of genes across cells accepted.
-        max_expr_avg: `float` (defaul: `20`)
-            The maximum average of genes across cells accepted before treating house-keeping/outliers for removal.
-        svr_gamma: `float` or None (default: `None`)
-            the gamma hyper-parameter of the SVR.
-        winsorize: `bool` (default: `False`)
-            Wether to winsorize the data for the cv vs mean model.
-        winsor_perc: `tuple` (default: `(1, 99.5)`)
-            the up and lower bound of the winsorization.
-        sort_inverse: `bool` (default: `False`)
-            if True it sorts genes from less noisy to more noisy (to use for size estimation not for feature selection).
-        use_all_genes_cells: `bool` (default: `False`)
-            A logic flag to determine whether all cells and genes should be used for the size factor calculation.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns
-            attribute as a new key.
-    """
-    from sklearn.svm import SVR
-
-    layers = get_layer_keys(adata_ori, layers)
-
-    if use_all_genes_cells:
-        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
-    else:
-        cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
-        filter_list = ["use_for_pca", "pass_basic_filter"]
-        filter_checker = [i in adata_ori.var.columns for i in filter_list]
-        which_filter = np.where(filter_checker)[0]
-
-        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
-
-        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            adata = adata_ori[cell_inds, gene_inds].copy()
-        filter_bool = filter_bool[gene_inds]
-
-    for layer in layers:
-        if layer == "raw":
-            CM = adata.X.copy() if adata.raw is None else adata.raw
-            szfactors = (
-                adata.obs[layer + "_Size_Factor"].values[:, None]
-                if adata.raw.X is not None
-                else adata.obs["Size_Factor"].values[:, None]
-            )
-        elif layer == "X":
-            CM = adata.X.copy()
-            szfactors = adata.obs["Size_Factor"].values[:, None]
-        elif layer == "protein":
-            if "protein" in adata.obsm_keys():
-                CM = adata.obsm["protein"].copy()
-                szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
-            else:
-                continue
-        else:
-            CM = adata.layers[layer].copy()
-            szfactors = (
-                adata.obs[layer + "_Size_Factor"].values[:, None]
-                if layer + "_Size_Factor" in adata.obs.columns
-                else None
-            )
-
-        if total_szfactor is not None and total_szfactor in adata.obs.keys():
-            szfactors = adata.obs[total_szfactor].values[:, None] if total_szfactor in adata.obs.columns else None
-
-        if szfactors is not None and relative_expr:
-            if issparse(CM):
-                sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
-            else:
-                CM /= szfactors
-
-        if winsorize:
-            if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
-                min_expr_cells = int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
-
-        detected_bool = np.array(
-            ((CM > 0).sum(0) >= min_expr_cells) & (CM.mean(0) <= max_expr_avg) & (CM.mean(0) >= min_expr_avg)
-        ).flatten()
-
-        valid_CM = CM[:, detected_bool]
-        if winsorize:
-            down, up = (
-                np.percentile(valid_CM.A, winsor_perc, 0)
-                if issparse(valid_CM)
-                else np.percentile(valid_CM, winsor_perc, 0)
-            )
-            Sfw = (
-                np.clip(valid_CM.A, down[None, :], up[None, :])
-                if issparse(valid_CM)
-                else np.percentile(valid_CM, winsor_perc, 0)
-            )
-            mu = Sfw.mean(0)
-            sigma = Sfw.std(0, ddof=1)
-        else:
-            mu = np.array(valid_CM.mean(0)).flatten()
-            sigma = (
-                np.array(
-                    np.sqrt(
-                        (valid_CM.multiply(valid_CM).mean(0).A1 - (mu) ** 2)
-                        # * (adata.n_obs)
-                        # / (adata.n_obs - 1)
-                    )
-                )
-                if issparse(valid_CM)
-                else valid_CM.std(0, ddof=1)
-            )
-
-        cv = sigma / mu
-        log_m = np.array(np.log2(mu)).flatten()
-        log_cv = np.array(np.log2(cv)).flatten()
-        log_m[mu == 0], log_cv[mu == 0] = 0, 0
-
-        if svr_gamma is None:
-            svr_gamma = 150.0 / len(mu)
-        # Fit the Support Vector Regression
-        clf = SVR(gamma=svr_gamma)
-        clf.fit(log_m[:, None], log_cv)
-        fitted_fun = clf.predict
-        ff = fitted_fun(log_m[:, None])
-        score = log_cv - ff
-        if sort_inverse:
-            score = -score
-
-        prefix = "" if layer == "X" else layer + "_"
-        (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
-            np.nan,
-            np.nan,
-            -np.inf,
-        )
-        (
-            adata.var.loc[detected_bool, prefix + "log_m"],
-            adata.var.loc[detected_bool, prefix + "log_cv"],
-            adata.var.loc[detected_bool, prefix + "score"],
-        ) = (
-            np.array(log_m).flatten(),
-            np.array(log_cv).flatten(),
-            np.array(score).flatten(),
-        )
-
-        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
-        adata_ori.uns[key] = {"SVR": fitted_fun}
-
-    adata_ori = merge_adata_attrs(adata_ori, adata, attr="var")
-
-    return adata_ori
-
-
-def filter_cells(
+def filter_cells_legacy(
     adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
@@ -968,8 +598,8 @@ def filter_cells(
         )
 
     if shared_count is not None:
-        layers = get_layer_keys(adata, layer, False)
-        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, "cell")
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, False)
+        detected_bool = detected_bool & get_inrange_shared_counts_mask(adata, layers, shared_count, "cell")
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
@@ -1025,7 +655,7 @@ def filter_genes_by_clusters_(
     return clu_avg_selected
 
 
-def filter_genes(
+def filter_genes_by_outliers_legacy(
     adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
@@ -1112,14 +742,14 @@ def filter_genes(
             ).flatten()
         )
     if shared_count is not None:
-        layers = get_layer_keys(adata, "all", False)
-        tmp = get_shared_counts(adata, layers, shared_count, "gene")
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all", False)
+        tmp = get_inrange_shared_counts_mask(adata, layers, shared_count, "gene")
         if tmp.sum() > 2000:
             detected_bool &= tmp
         else:
             # in case the labeling time is very short for pulse experiment or
             # chase time is very long for degradation experiment.
-            tmp = get_shared_counts(
+            tmp = get_inrange_shared_counts_mask(
                 adata,
                 list(set(layers).difference(["new", "labelled", "labeled"])),
                 shared_count,
@@ -1136,7 +766,7 @@ def filter_genes(
                 ((adata.obsm["protein"] > 0).sum(0) >= min_cell_p)
                 & (adata.obsm["protein"].mean(0) >= min_avg_exp_p)
                 & (adata.obsm["protein"].mean(0) <= max_avg_exp)
-                & (adata.layers["protein"].sum(0) >= min_count_p)
+                & (adata.layers["protein"].sum(0) >= min_count_p)  # TODO potential bug confirmation: obsm?
             ).flatten()
         )
 
@@ -1145,98 +775,6 @@ def filter_genes(
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
     return adata
-
-
-def select_genes(
-    adata: anndata.AnnData,
-    layer: str = "X",
-    total_szfactor: str = "total_Size_Factor",
-    keep_filtered: bool = True,
-    sort_by: str = "SVR",
-    n_top_genes: int = 2000,
-    SVRs_kwargs: dict = {},
-    only_bools: bool = False,
-) -> anndata.AnnData:
-    """Select feature genes based on a collection of filters.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object.
-        layer: `str` (default: `X`)
-            The data from a particular layer (include X) used for feature selection.
-        total_szfactor: `str` (default: `total_Size_Factor`)
-            The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-        keep_filtered: `bool` (default: `True`)
-            Whether to keep genes that don't pass the filtering in the adata object.
-        sort_by: `str` (default: `SVR`)
-            Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
-        n_top_genes: `int` (default: `int`)
-            How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
-        only_bools: `bool` (default: `False`)
-            Only return a vector of bool values.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of
-            genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is
-            set to be False.
-    """
-
-    filter_bool = (
-        adata.var["pass_basic_filter"]
-        if "pass_basic_filter" in adata.var.columns
-        else np.ones(adata.shape[1], dtype=bool)
-    )
-
-    if adata.shape[1] <= n_top_genes:
-        filter_bool = np.ones(adata.shape[1], dtype=bool)
-    else:
-        if sort_by == "dispersion":
-            table = top_table(adata, layer, mode="dispersion")
-            valid_table = table.query("dispersion_empirical > dispersion_fit")
-            valid_table = valid_table.loc[
-                set(adata.var.index[filter_bool]).intersection(valid_table.index),
-                :,
-            ]
-            gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[:n_top_genes]
-            gene_id = valid_table.iloc[gene_id, :].index
-            filter_bool = adata.var.index.isin(gene_id)
-        elif sort_by == "gini":
-            table = top_table(adata, layer, mode="gini")
-            valid_table = table.loc[filter_bool, :]
-            gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
-            gene_id = valid_table.index[gene_id]
-            filter_bool = gene_id.isin(adata.var.index)
-        elif sort_by == "SVR":
-            SVRs_args = {
-                "min_expr_cells": 0,
-                "min_expr_avg": 0,
-                "max_expr_avg": np.inf,
-                "svr_gamma": None,
-                "winsorize": False,
-                "winsor_perc": (1, 99.5),
-                "sort_inverse": False,
-            }
-            SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = SVRs(
-                adata,
-                layers=[layer],
-                total_szfactor=total_szfactor,
-                filter_bool=filter_bool,
-                **SVRs_args,
-            )
-
-            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
-
-    if keep_filtered:
-        adata.var["use_for_pca"] = filter_bool
-    else:
-        adata._inplace_subset_var(filter_bool)
-        adata.var["use_for_pca"] = True
-
-    return filter_bool if only_bools else adata
 
 
 def recipe_monocle(
@@ -1254,7 +792,7 @@ def recipe_monocle(
     genes_to_use: Union[list, None] = None,
     genes_to_append: Union[list, None] = None,
     genes_to_exclude: Union[list, None] = None,
-    exprs_frac_max: float = 1,
+    exprs_frac_for_gene_exclusion: float = 1,
     method: str = "pca",
     num_dim: int = 30,
     sz_method: str = "median",
@@ -1273,7 +811,7 @@ def recipe_monocle(
     fg_kwargs: Union[dict, None] = None,
     sg_kwargs: Union[dict, None] = None,
     copy: bool = False,
-    feature_selection_layer: Union[list, np.ndarray, np.array, str] = "X",
+    feature_selection_layer: Union[list, np.ndarray, np.array, str] = DKM.X_LAYER,
 ) -> Union[anndata.AnnData, None]:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -1335,7 +873,7 @@ def recipe_monocle(
             A list of gene names that will be appended to the feature genes list for downstream analysis.
         genes_to_exclude: `list` (default: `None`)
             A list of gene names that will be excluded to the feature genes list for downstream analysis.
-        exprs_frac_max: `float` (default: `1`)
+        exprs_frac_for_gene_exclusion: `float` (default: `1`)
             The minimal fraction of gene counts to the total counts across cells that will used to filter genes. By
             default it is 1 which means we don't filter any genes, but we need to change it to 0.005 or something in
             order to remove some highly expressed housekeeping genes.
@@ -1393,13 +931,13 @@ def recipe_monocle(
     """
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
-    keep_filtered_cells = DynamoAdataConfig.check_config_var(
+    keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY
     )
-    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+    keep_filtered_genes = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_genes, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY
     )
-    keep_raw_layers = DynamoAdataConfig.check_config_var(
+    keep_raw_layers = DynamoAdataConfig.use_default_var_if_none(
         keep_raw_layers, DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY
     )
 
@@ -1424,7 +962,7 @@ def recipe_monocle(
         has_labeling,
         splicing_labeling,
         has_protein,
-    ) = detect_datatype(adata)
+    ) = detect_experiment_datatype(adata)
     logger.info_insert_adata("pp", "uns")
     logger.info_insert_adata("has_splicing", "uns['pp']", indent_level=2)
     logger.info_insert_adata("has_labling", "uns['pp']", indent_level=2)
@@ -1437,6 +975,7 @@ def recipe_monocle(
         adata.uns["pp"]["has_protein"],
     ) = (has_splicing, has_labeling, splicing_labeling, has_protein)
 
+    # new/total, splicing/unsplicing
     if has_splicing and has_labeling and splicing_labeling:
         layer = (
             [
@@ -1475,34 +1014,9 @@ def recipe_monocle(
         "ensure all data in different layers in csr sparse matrix format.",
         indent_level=1,
     )
-    adata = layers2csr(adata)
+    adata = convert_layers2csr(adata)
     logger.info("ensure all labeling data properly collapased", indent_level=1)
-    adata = collapse_adata(adata)
-
-    def _infer_experiment_type(adata):
-        experiment_type = None
-        t = np.array(adata.obs[tkey], dtype="float")
-        if len(np.unique(t)) == 1:
-            experiment_type = "one-shot"
-        else:
-            labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
-            xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
-
-            yy = t
-            xm, ym = np.mean(xx), np.mean(yy)
-            cov = np.mean(xx * yy) - xm * ym
-            var_x = np.mean(xx * xx) - xm * xm
-
-            k = cov / var_x
-
-            # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
-            experiment_type = "kin" if k > 0 else "deg"
-        main_warning(
-            f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
-            f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
-            f"needed."
-        )
-        return experiment_type
+    adata = collapse_species_adata(adata)
 
     # reset adata.X
     if has_labeling:
@@ -1516,7 +1030,7 @@ def recipe_monocle(
         if tkey not in adata.obs.keys():
             raise ValueError(f"`tkey` {tkey} that encodes the labeling time is not existed in your adata.")
         if experiment_type is None:
-            experiment_type = _infer_experiment_type(adata)
+            experiment_type = _infer_labeling_experiment_type(adata, tkey)
 
         main_info("detected experiment type: %s" % experiment_type)
 
@@ -1577,30 +1091,31 @@ def recipe_monocle(
     adata.uns["pp"]["tkey"] = tkey
     adata.uns["pp"]["experiment_type"] = "conventional" if experiment_type is None else experiment_type
 
-    _szFactor, _logged = (True, True) if normalized else (False, False)
+    _has_szFactor_normalized, _has_log1p_transformed = (True, True) if normalized else (False, False)
     if normalized is None and not has_labeling:
+        # if has been flagged as preprocessed or not
         if "raw_data" in adata.uns_keys():
-            _szFactor, _logged = (
+            _has_szFactor_normalized, _has_log1p_transformed = (
                 not adata.uns["raw_data"],
                 not adata.uns["raw_data"],
             )
         else:
             # automatically detect whether the data is size-factor normalized -- no integers (only works for readcounts
             # / UMI based data).
-            _szFactor = not np.allclose(
+            _has_szFactor_normalized = not np.allclose(
                 (adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1,
                 0,
                 atol=1e-3,
             )
             # check whether total UMI is the same -- if not the same, logged
-            if _szFactor:
-                _logged = not np.allclose(
+            if _has_szFactor_normalized:
+                _has_log1p_transformed = not np.allclose(
                     np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]),
                     0,
                     atol=1e-1,
                 )
 
-        if _szFactor or _logged:
+        if _has_szFactor_normalized or _has_log1p_transformed:
             main_warning(
                 "dynamo detects your data is size factor normalized and/or log transformed. If this is not "
                 "right, plese set `normalized = False."
@@ -1623,7 +1138,7 @@ def recipe_monocle(
 
     logger.info("filtering cells...")
     logger.info_insert_adata("pass_basic_filter", "obs")
-    adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
+    adata = filter_cells_legacy(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
     logger.info(f"{adata.obs.pass_basic_filter.sum()} cells passed basic filters.")
 
     filter_genes_kwargs = {
@@ -1647,7 +1162,7 @@ def recipe_monocle(
     # set pass_basic_filter for genes
     logger.info("filtering gene...")
     logger.info_insert_adata("pass_basic_filter", "var")
-    adata = filter_genes(
+    adata = filter_genes_by_outliers_legacy(
         adata,
         **filter_genes_kwargs,
     )
@@ -1664,8 +1179,8 @@ def recipe_monocle(
 
     # calculate sz factor
     logger.info("calculating size factor...")
-    if not _szFactor or "Size_Factor" not in adata.obs_keys():
-        adata = szFactor(
+    if not _has_szFactor_normalized or "Size_Factor" not in adata.obs_keys():
+        adata = calc_sz_factor_legacy(
             adata,
             total_layers=total_layers,
             scale_to=scale_to,
@@ -1674,7 +1189,6 @@ def recipe_monocle(
             layers=layer if type(layer) is list else "all",
             genes_use_for_norm=genes_use_for_norm,
         )
-
     # if feature_selection.lower() == "dispersion":
     #     adata = estimate_dispersion(adata)
 
@@ -1700,12 +1214,12 @@ def recipe_monocle(
                 f"{select_genes_dict}",
             )
         logger.info("selecting genes in layer: %s, sort method: %s..." % (feature_selection_layer, feature_selection))
-        adata = select_genes(
+        adata = select_genes_monocle_legacy(
             adata,
             layer=feature_selection_layer,
             sort_by=feature_selection,
             n_top_genes=n_top_genes,
-            keep_filtered=True,
+            keep_filtered=True,  # TODO double check if should comply with the argument keep_filtered_genes
             SVRs_kwargs=select_genes_dict,
         )
     else:
@@ -1719,7 +1233,7 @@ def recipe_monocle(
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
 
     logger.info_insert_adata("frac", "var")
-    adata.var["frac"], invalid_ids = gene_exp_fraction(X=adata.X, threshold=exprs_frac_max)
+    adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
     genes_to_exclude = (
         list(adata.var_names[invalid_ids])
         if genes_to_exclude is None
@@ -1732,9 +1246,9 @@ def recipe_monocle(
             adata.var.loc[valid_genes, "use_for_pca"] = True
 
     if genes_to_exclude is not None:
-        valid_genes = adata.var.index.intersection(genes_to_exclude)
-        if len(valid_genes) > 0:
-            adata.var.loc[valid_genes, "use_for_pca"] = False
+        exclude_genes = adata.var.index.intersection(genes_to_exclude)
+        if len(exclude_genes) > 0:
+            adata.var.loc[exclude_genes, "use_for_pca"] = False
 
         if adata.var.use_for_pca.sum() < 50 and not maintain_n_top_genes:
             main_warning(
@@ -1743,20 +1257,21 @@ def recipe_monocle(
             )
 
     if maintain_n_top_genes:
+        extra_n_top_genes = n_top_genes
         if genes_to_append is not None:
-            n_top_genes = n_top_genes - len(genes_to_append)
+            extra_n_top_genes = n_top_genes - len(genes_to_append)
             valid_ids = adata.var.index.difference(genes_to_exclude + genes_to_append)
         else:
             valid_ids = adata.var.index.difference(genes_to_exclude)
 
-        if n_top_genes > 0:
+        if extra_n_top_genes > 0:
             # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                filter_bool = select_genes(
+                filter_bool = select_genes_monocle_legacy(
                     adata[:, valid_ids],
                     sort_by=feature_selection,
-                    n_top_genes=n_top_genes,
+                    n_top_genes=extra_n_top_genes,
                     keep_filtered=True,  # no effect to adata
                     SVRs_kwargs=select_genes_dict,
                     only_bools=True,
@@ -1769,10 +1284,10 @@ def recipe_monocle(
         adata._inplace_subset_var(adata.var["use_for_pca"])
 
     # normalized data based on sz factor
-    if not _logged:
+    if not _has_log1p_transformed:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
         logger.info("size factor normalizing the data, followed by log1p transformation.")
-        adata = normalize_expr_data(
+        adata = normalize_cell_expr_by_size_factors_legacy(
             adata,
             layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
@@ -1786,7 +1301,7 @@ def recipe_monocle(
             scale_to=scale_to,
         )
     else:
-        layers = get_layer_keys(adata, "all")
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all")
         for layer in layers:
             if layer != "X":
                 logger.info_insert_adata("X_" + layer, "layers")
@@ -1796,26 +1311,26 @@ def recipe_monocle(
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if layer is None:
-        CM = adata.X[:, adata.var.use_for_pca.values]
+        pca_input = adata.X[:, adata.var.use_for_pca.values]
     else:
         if "X" in layer:
-            CM = adata.X[:, adata.var.use_for_pca.values]
+            pca_input = adata.X[:, adata.var.use_for_pca.values]
         elif "total" in layer:
-            CM = adata.layers["X_total"][:, adata.var.use_for_pca.values]
+            pca_input = adata.layers["X_total"][:, adata.var.use_for_pca.values]
         elif "spliced" in layer:
-            CM = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
+            pca_input = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
         elif "protein" in layer:
-            CM = adata.obsm["X_protein"]
+            pca_input = adata.obsm["X_protein"]
         elif type(layer) is str:
-            CM = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
+            pca_input = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
         else:
             raise ValueError(
                 f"your input layer argument should be either a `str` or a list that includes one of `X`, "
                 f"`total`, `protein` element. `Layer` currently is {layer}."
             )
 
-    cm_genesums = CM.sum(axis=0)
-    valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+    pca_input_genesums = pca_input.sum(axis=0)
+    valid_ind = np.logical_and(np.isfinite(pca_input_genesums), pca_input_genesums != 0)
     valid_ind = np.array(valid_ind).flatten()
 
     bad_genes = np.where(adata.var.use_for_pca)[0][~valid_ind]
@@ -1827,10 +1342,13 @@ def recipe_monocle(
         )
 
     adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
-    CM = CM[:, valid_ind]
+    pca_input = pca_input[:, valid_ind]
     logger.info("applying %s ..." % (method.upper()))
+    import pandas as pd
+
     if method == "pca":
-        adata = pca(adata, CM, num_dim, "X_" + method.lower())
+        adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower())
+        # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
     elif method == "ica":
@@ -1841,7 +1359,7 @@ def recipe_monocle(
             fun="logcosh",
             max_iter=1000,
         )
-        reduce_dim = fit.fit_transform(CM.toarray())
+        reduce_dim = fit.fit_transform(pca_input.toarray())
 
         adata.obsm["X_" + method.lower()] = reduce_dim
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
@@ -1852,7 +1370,7 @@ def recipe_monocle(
         feature_selection,
     )
     # calculate NTR for every cell:
-    ntr, var_ntr = NTR(adata)
+    ntr, var_ntr = calc_new_to_total_ratio(adata)
     if ntr is not None:
         logger.info_insert_adata("ntr", "obs")
         logger.info_insert_adata("ntr", "var")
@@ -1869,6 +1387,7 @@ def recipe_monocle(
             "you need to set color argument accordingly if confronting errors related to this."
         )
 
+    # flag adata as preprocessed by recipe_monocle
     if "raw_data" in adata.uns_keys():
         logger.info_insert_adata("raw_data", "uns")
         adata.uns["raw_data"] = False
@@ -1936,18 +1455,18 @@ def recipe_velocyto(
                 dimensions, etc.
     """
 
-    keep_filtered_genes = DynamoAdataConfig.check_config_var(
+    keep_filtered_genes = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_genes, DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY
     )
 
-    adata = szFactor(adata, method="mean", total_layers=total_layers)
+    adata = calc_sz_factor_legacy(adata, method="mean", total_layers=total_layers)
     initial_Ucell_size = adata.layers["unspliced"].sum(1)
 
     filter_bool = initial_Ucell_size > np.percentile(initial_Ucell_size, 0.4)
 
-    adata = filter_cells(adata, filter_bool=np.array(filter_bool).flatten())
+    adata = filter_cells_legacy(adata, filter_bool=np.array(filter_bool).flatten())
 
-    filter_bool = filter_genes(adata, min_cell_s=30, min_count_s=40, shared_count=None)
+    filter_bool = filter_genes_by_outliers(adata, min_cell_s=30, min_count_s=40, shared_count=None)
 
     adata = adata[:, filter_bool]
 
@@ -1962,7 +1481,7 @@ def recipe_velocyto(
     filter_bool = get_svr_filter(adata, layer="spliced", n_top_genes=n_top_genes)
 
     adata = adata[:, filter_bool]
-    filter_bool_gene = filter_genes(
+    filter_bool_gene = filter_genes_by_outliers(
         adata,
         min_cell_s=0,
         min_count_s=0,
@@ -1974,7 +1493,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool_gene & filter_bool_cluster]
 
-    adata = normalize_expr_data(
+    adata = normalize_cell_expr_by_size_factors_legacy(
         adata,
         total_szfactor=None,
         norm_method=norm_method,
@@ -1991,7 +1510,7 @@ def recipe_velocyto(
     CM = CM[:, valid_ind]
 
     if method == "pca":
-        adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower(), return_all=True)
+        adata, fit, _ = pca_monocle(adata, CM, num_dim, "X_" + method.lower(), return_all=True)
         # adata.obsm['X_' + method.lower()] = reduce_dim
 
     elif method == "ica":
@@ -2018,7 +1537,7 @@ def recipe_velocyto(
     )
 
     # calculate NTR for every cell:
-    ntr = NTR(adata)
+    ntr = calc_new_to_total_ratio(adata)
     if ntr is not None:
         adata.obs["ntr"] = ntr
 
@@ -2064,16 +1583,16 @@ def highest_frac_genes(
     cell_expression_sum = gene_mat.sum(axis=1).flatten()
     # get rid of cells that have all zero counts
     not_all_zero = cell_expression_sum != 0
-    adata = adata[not_all_zero, :]
+    filtered_adata = adata[not_all_zero, :]
     cell_expression_sum = cell_expression_sum[not_all_zero]
     main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
 
     valid_gene_set = set()
     prefix_to_genes = {}
-    _adata = adata
+    _adata = filtered_adata
     if gene_prefix_list is not None:
         prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
-        for name in adata.var_names:
+        for name in _adata.var_names:
             for prefix in gene_prefix_list:
                 length = len(prefix)
                 if name[:length] == prefix:
@@ -2085,12 +1604,12 @@ def highest_frac_genes(
             return None
         if not show_individual_prefix_gene:
             # gathering gene prefix set data
-            df = pd.DataFrame(index=adata.obs.index)
+            df = pd.DataFrame(index=_adata.obs.index)
             for prefix in prefix_to_genes:
                 if len(prefix_to_genes[prefix]) == 0:
                     main_info("There is no %s gene prefix in adata." % prefix)
                     continue
-                df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
+                df[prefix] = _adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
             # adata = adata[:, list(valid_gene_set)]
 
             _adata = AnnData(X=df)
@@ -2115,7 +1634,9 @@ def highest_frac_genes(
         index=adata.obs_names,
         columns=gene_names,
     )
+    gene_percents_df = pd.Series(gene_percents, index=_adata.var_names)
 
+    main_info_insert_adata_uns(store_key)
     adata.uns[store_key] = {
         "top_genes_df": top_genes_df,
         "gene_mat": gene_mat,
@@ -2123,7 +1644,111 @@ def highest_frac_genes(
         "selected_indices": selected_indices,
         "gene_prefix_list": gene_prefix_list,
         "show_individual_prefix_gene": show_individual_prefix_gene,
-        "gene_percents": gene_percents,
+        "gene_percents": gene_percents_df,
     }
 
     return adata
+
+
+def select_genes_monocle_legacy(
+    adata: anndata.AnnData,
+    layer: str = "X",
+    total_szfactor: str = "total_Size_Factor",
+    keep_filtered: bool = True,
+    sort_by: str = "SVR",
+    n_top_genes: int = 2000,
+    SVRs_kwargs: dict = {},
+    only_bools: bool = False,
+    exprs_frac_for_gene_exclusion: float = 1,
+    genes_to_exclude: Union[list, None] = None,
+) -> anndata.AnnData:
+    """Select feature genes based on a collection of filters.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        layer: `str` (default: `X`)
+            The data from a particular layer (include X) used for feature selection.
+        total_szfactor: `str` (default: `total_Size_Factor`)
+            The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
+        keep_filtered: `bool` (default: `True`)
+            Whether to keep genes that don't pass the filtering in the adata object.
+        sort_by: `str` (default: `SVR`)
+            Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
+        n_top_genes: `int` (default: `int`)
+            How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        only_bools: `bool` (default: `False`)
+            Only return a vector of bool values.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of
+            genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is
+            set to be False.
+    """
+    filter_bool = (
+        adata.var["pass_basic_filter"]
+        if "pass_basic_filter" in adata.var.columns
+        else np.ones(adata.shape[1], dtype=bool)
+    )
+
+    if adata.shape[1] <= n_top_genes:
+        filter_bool = np.ones(adata.shape[1], dtype=bool)
+    else:
+        if sort_by == "dispersion":
+            table = top_table(adata, layer, mode="dispersion")
+            valid_table = table.query("dispersion_empirical > dispersion_fit")
+            valid_table = valid_table.loc[
+                set(adata.var.index[filter_bool]).intersection(valid_table.index),
+                :,
+            ]
+            gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[:n_top_genes]
+            gene_id = valid_table.iloc[gene_id, :].index
+            filter_bool = adata.var.index.isin(gene_id)
+        elif sort_by == "gini":
+            table = top_table(adata, layer, mode="gini")
+            valid_table = table.loc[filter_bool, :]
+            gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
+            gene_id = valid_table.index[gene_id]
+            filter_bool = gene_id.isin(adata.var.index)
+        elif sort_by == "SVR":
+            SVRs_args = {
+                "min_expr_cells": 0,
+                "min_expr_avg": 0,
+                "max_expr_avg": np.inf,
+                "svr_gamma": None,
+                "winsorize": False,
+                "winsor_perc": (1, 99.5),
+                "sort_inverse": False,
+            }
+            SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
+            adata = SVRs(
+                adata,
+                layers=[layer],
+                total_szfactor=total_szfactor,
+                filter_bool=filter_bool,
+                **SVRs_args,
+            )
+
+            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
+
+    # filter genes by gene expression fraction as well
+    adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
+    genes_to_exclude = (
+        list(adata.var_names[invalid_ids])
+        if genes_to_exclude is None
+        else genes_to_exclude + list(adata.var_names[invalid_ids])
+    )
+    if genes_to_exclude is not None and len(genes_to_exclude) > 0:
+        adata_exclude_genes = adata.var.index.intersection(genes_to_exclude)
+        adata.var.loc[adata_exclude_genes, "use_for_pca"] = False
+
+    if keep_filtered:
+        adata.var["use_for_pca"] = filter_bool
+    else:
+        adata._inplace_subset_var(filter_bool)
+        adata.var["use_for_pca"] = True
+
+    return filter_bool if only_bools else adata

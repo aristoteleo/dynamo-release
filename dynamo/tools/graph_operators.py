@@ -118,8 +118,9 @@ def _triangles(g):
 
 def build_graph(adj_mat):
     """build sparse diffusion graph. The adjacency matrix need to preserves divergence."""
-    sources, targets = adj_mat.nonzero()
-    edgelist = list(zip(sources.tolist(), targets.tolist()))
-    g = Graph(edgelist, edge_attrs={"weight": adj_mat.data.tolist()}, directed=True)
+    # sources, targets = adj_mat.nonzero()
+    # edgelist = list(zip(sources.tolist(), targets.tolist()))
+    # g = Graph(edgelist, edge_attrs={"weight": adj_mat.data.tolist()}, directed=True)
+    g = Graph.Weighted_Adjacency(adj_mat)
 
     return g

@@ -1,3 +1,4 @@
+from ..configuration import DynamoAdataKeyManager
 from anndata import AnnData
 from pynndescent.distances import true_angular
 import numpy as np
@@ -9,7 +10,6 @@ from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
 from anndata import AnnData
-from ..preprocessing.utils import get_layer_keys
 from .utils import (
     log1p_,
     fetch_X_data,
@@ -124,7 +124,7 @@ def umap_conn_indices_dist_embedding(
     metric="euclidean",
     min_dist=0.1,
     spread=1.0,
-    n_epochs=0,
+    max_iter=None,
     alpha=1.0,
     gamma=1.0,
     negative_sample_rate=5,
@@ -161,10 +161,11 @@ def umap_conn_indices_dist_embedding(
         spread: `float` (optional, default 1.0)
             The effective scale of embedded points. In combination with min_dist this determines how clustered/clumped
             the embedded points are.
-        n_epochs: 'int' (optional, default 0)
+        max_iter: 'int' or None (optional, default None)
             The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result
             in more accurate embeddings. If None is specified a value will be selected based on the size of the input
-            dataset (200 for large datasets, 500 for small).
+            dataset (200 for large datasets, 500 for small). This argument was refactored from n_epochs from UMAP-learn
+            to account for recent API changes in UMAP-learn 0.5.2.
         alpha: `float` (optional, default 1.0)
             Initial learning rate for the SGD.
         gamma: `float` (optional, default 1.0)
@@ -221,6 +222,10 @@ def umap_conn_indices_dist_embedding(
         simplicial_set_embedding,
         find_ab_params,
     )
+
+    # also see github issue at: https://github.com/lmcinnes/umap/issues/798
+    default_epochs = 500 if X.shape[0] <= 10000 else 200
+    max_iter = default_epochs if max_iter is None else max_iter
 
     random_state = check_random_state(random_state)
 
@@ -305,7 +310,7 @@ def umap_conn_indices_dist_embedding(
         b=b,
         gamma=gamma,
         negative_sample_rate=negative_sample_rate,
-        n_epochs=n_epochs,
+        n_epochs=max_iter,
         init=init_pos,
         random_state=random_state,
         metric=metric,
@@ -317,11 +322,8 @@ def umap_conn_indices_dist_embedding(
     )
 
     if return_mapper:
-        import umap
+        import umap.umap_ as umap
         from .utils import update_dict
-
-        if n_epochs == 0:
-            n_epochs = None
 
         _umap_kwargs = {
             "angular_rp_forest": False,
@@ -337,13 +339,13 @@ def umap_conn_indices_dist_embedding(
         }
         umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
 
-        mapper = umap.umap_.UMAP(
+        mapper = umap.UMAP(
             n_neighbors=n_neighbors,
             n_components=n_components,
             metric=metric,
             min_dist=min_dist,
             spread=spread,
-            n_epochs=n_epochs,
+            n_epochs=max_iter,
             learning_rate=alpha,
             repulsion_strength=gamma,
             negative_sample_rate=negative_sample_rate,
@@ -416,7 +418,7 @@ def mnn(
         else:
             raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
-    layers = get_layer_keys(adata, layers, False, False)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
@@ -565,14 +567,14 @@ def neighbors(
         logger.info("X_data is None, fetching or recomputing...", indent_level=2)
         if basis == "pca" and "X_pca" not in adata.obsm_keys():
             logger.info("PCA as basis not X_pca not found, doing PCAs", indent_level=2)
-            from ..preprocessing.utils import pca
+            from ..preprocessing.utils import pca_monocle
 
             CM = adata.X if genes is None else adata[:, genes].X
             cm_genesums = CM.sum(axis=0)
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, _, _ = pca(adata, CM, n_pca_components=n_pca_components, return_all=True)
+            adata, _, _ = pca_monocle(adata, CM, pca_key="X_pca", n_pca_components=n_pca_components, return_all=True)
 
             X_data = adata.obsm["X_pca"]
         else:

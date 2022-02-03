@@ -77,7 +77,7 @@ Vector field
 Vector field class
 ~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: dynamo.vf.vectorfield
+.. autoclass:: dynamo.vf.SvcVectorField
     :members:
     :inherited-members:
 

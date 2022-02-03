@@ -10,10 +10,9 @@ Inclusive model of expression dynamics with metabolic labeling based scRNA-seq /
 
 [Installation](https://dynamo-release.readthedocs.io/en/latest/ten_minutes_to_dynamo.html#how-to-install) - [Ten minutes to dynamo](https://dynamo-release.readthedocs.io/en/latest/ten_minutes_to_dynamo.html) - [Tutorials](https://dynamo-release.readthedocs.io/en/latest/notebooks/Differential_geometry.html) - [API](https://dynamo-release.readthedocs.io/en/latest/API.html) - [Citation](https://www.biorxiv.org/content/10.1101/696724v2) - [Theory](https://dynamo-release.readthedocs.io/en/latest/notebooks/Primer.html)
 
-![Dynamo](https://user-images.githubusercontent.com/7456281/93838270-11d8da00-fc57-11ea-94de-d11b529731e1.png)
+![Dynamo](https://user-images.githubusercontent.com/7456281/152110270-7ee1b0ed-1205-495d-9d65-59c7984d2fa2.png)
 
-
-Single-cell RNA-seq, together with RNA velocity and metabolic labeling, reveals cellular states and transitions at unprecedented resolution. Fully exploiting these data, however, requires dynamical models capable of predicting cell fate and unveiling the governing regulatory mechanisms. Here, we introduce dynamo, an analytical framework that reconciles intrinsic splicing and labeling kinetics to estimate absolute RNA velocities, reconstructs velocity vector fields that predict future cell fates, and finally employs differential geometry analyses to elucidate the underlying regulatory networks. We applied dynamo to a wide range of disparate biological processes including prediction of future states of differentiating hematopoietic stem cell lineages, deconvolution of glucocorticoid responses from orthogonal cell-cycle progression, characterization of regulatory networks driving zebrafish pigmentation, and identification of possible routes of resistance to SARS-CoV-2 infection. Our work thus represents an important step in going from qualitative, metaphorical conceptualizations of differentiation, as exemplified by Waddington’s epigenetic landscape, to quantitative and predictive theories.
+Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reveals cellular states and transitions at unprecedented resolution. Fully exploiting these data, however, requires kinetic models capable of unveiling governing regulatory functions. Here, we introduce an analytical framework dynamo, which infers absolute RNA velocity, reconstructs continuous vector fields that predict cell fates, employs differential geometry to extract underlying regulations, and ultimately predicts optimal reprogramming paths and perturbation outcomes. We highlight dynamo’s power to overcome fundamental limitations of conventional splicing-based RNA velocity analyses to enable accurate velocity estimations on a metabolically labeled human hematopoiesis scRNA-seq dataset. Furthermore, differential geometry analyses reveal mechanisms driving early megakaryocyte appearance and elucidate asymmetrical regulation within the PU.1-GATA1 circuit. Leveraging the least-action-path method, dynamo accurately predicts drivers of numerous hematopoietic transitions. Finally, in silico perturbations predict cell-fate diversions induced by gene perturbations. Dynamo, thus, represents an important step in advancing quantitative and predictive theories of cell-state transitions.
 
 ## Highlights of dynamo
 * Robust and accurate estimation of RNA velocities for regular scRNA-seq datasets:
@@ -21,12 +20,19 @@ Single-cell RNA-seq, together with RNA velocity and metabolic labeling, reveals 
     * Improved kernels for transition matrix calculation and velocity projection 
     * Strategies to correct RNA velocity vectors (when your RNA velocity direction is problematic) 
 * Inclusive modeling of time-resolved metabolic labeling based scRNA-seq:
+    * Overcome intrinsic limitation of the conventional splicing based RNA velocity analyses
     * Explicitly model RNA metabolic labeling, in conjunction with RNA bursting, transcription, splicing and degradation
     * Comprehensive RNA kinetic rate estimation for one-shot, pulse, chase and mixture metabolic labeling experiments
 * Move beyond RNA velocity to continuous vector field function for functional and predictive analyses of cell fate transitions:
     * Dynamical systems approaches to identify stable cell types (fixed points), boundaries of cell states (separatrices), etc
     * Calculate RNA acceleration (reveals early drivers), curvature (reveals master regulators of fate decision points), divergence (stability of cell states) and RNA Jacobian (cell-state dependent regulatory networks) 
     * Various downstream differential geometry analyses to rank critical regulators/effectors,  and visualize regulatory networks at key fate decision points    
+* Non-trivial prediction of cell fate transitions:
+    * Least action path approach to predict the optimal paths and transcriptomic factors of cell fate reprogrammings
+    * In silico perturbation to predict the gene-wise perturbation effects and cell fate diversion after genetic perturbations
+
+## News
+* After 3.5+ years of perseverance, our dynamo paper is finally online in [Cell](https://www.sciencedirect.com/science/article/pii/S0092867421015774#tbl1) today!
 
 ## Discussion 
 Please use github issue tracker to report coding related [issues](https://github.com/aristoteleo/dynamo-release/issues) of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: [dynamo-discussion](https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-itnzjdxs-PV~C3Hr9uOArHZcmv622Kg) (Only a working email address is required from the slack side).

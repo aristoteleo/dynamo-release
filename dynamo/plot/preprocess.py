@@ -7,12 +7,12 @@ import matplotlib
 from matplotlib.axes import Axes
 
 from ..preprocessing import preprocess as pp
-from ..preprocessing.preprocess import top_table
-from ..preprocessing.utils import get_layer_keys
+from ..preprocessing.preprocess_monocle_utils import top_table
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
-from ..preprocessing.utils import detect_datatype
+from ..preprocessing.utils import detect_experiment_datatype
 from ..dynamo_logger import main_warning
+from ..configuration import DynamoAdataKeyManager
 
 
 def basic_stats(
@@ -678,10 +678,11 @@ def feature_genes(
 
     mode = adata.uns["feature_selection"] if mode is None else mode
 
-    layer = get_layer_keys(adata, layer, include_protein=False)[0]
+    layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, include_protein=False)[0]
 
+    uns_store_key = None
     if mode == "dispersion":
-        key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
+        uns_store_key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
 
         table = top_table(adata, layer)
         x_min, x_max = (
@@ -690,7 +691,7 @@ def feature_genes(
         )
     elif mode == "SVR":
         prefix = "" if layer == "X" else layer + "_"
-        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
+        uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
 
         if not np.all(pd.Series([prefix + "log_m", prefix + "score"]).isin(adata.var.columns)):
             raise Exception("Looks like you have not run support vector machine regression yet, try run SVRs first.")
@@ -709,9 +710,9 @@ def feature_genes(
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
     fit = (
-        adata.uns[key]["disp_func"](mu_linspace)
+        adata.uns[uns_store_key]["disp_func"](mu_linspace)
         if mode == "dispersion"
-        else adata.uns[key]["SVR"](mu_linspace.reshape(-1, 1))
+        else adata.uns[uns_store_key]["SVR"](mu_linspace.reshape(-1, 1))
     )
 
     plt.figure(figsize=figsize)
@@ -855,7 +856,7 @@ def exp_by_groups(
         has_labeling,
         splicing_labeling,
         has_protein,
-    ) = detect_datatype(adata)
+    ) = detect_experiment_datatype(adata)
     if (has_splicing + has_labeling) == 0:
         layer = "X" if layer is None else layer
     elif has_splicing and not has_labeling:
@@ -880,7 +881,7 @@ def exp_by_groups(
             has_labeling,
             splicing_labeling,
             has_protein,
-        ) = detect_datatype(adata)
+        ) = detect_experiment_datatype(adata)
         if has_labeling:
             if layer.startswith("X_") or layer.startswith("M_"):
                 tot = (
@@ -1060,7 +1061,7 @@ def highest_frac_genes(
         adata.uns[store_key]["selected_indices"],
     )
 
-    # To-do: use top genes_df dataframe; however this logic currently
+    # TODO use top genes_df dataframe; however this logic currently
     # does not fit subset logics and may fail tests.
 
     # main_info("Using prexisting top_genes_df in .uns.")

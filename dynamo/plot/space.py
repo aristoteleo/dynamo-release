@@ -7,7 +7,7 @@ from .scatters import (
 )
 
 from ..tl import compute_smallest_distance
-from ..dynamo_logger import main_critical, main_info, main_finish_progress, main_log_time
+from ..dynamo_logger import main_critical, main_info, main_finish_progress, main_log_time, main_warning
 
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
@@ -15,7 +15,9 @@ docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 @docstrings.with_indent(4)
 def space(
     adata: anndata.AnnData,
-    genes: Union[list, None] = None,
+    color: Union[list, str, None] = None,
+    genes: Union[list, None] = [],
+    gene_cmaps=None,
     space: str = "spatial",
     width: float = 6,
     marker: str = ".",
@@ -25,6 +27,7 @@ def space(
     alpha: float = 0.8,
     stack_genes: bool = False,
     stack_genes_threshold: float = 0.01,
+    stack_colors_legend_size: int = 10,
     figsize=None,
     *args,
     **kwargs
@@ -34,15 +37,24 @@ def space(
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`
+        adata:
             an Annodata object that contain the physical coordinates for each bin/cell, etc.
         genes:
             The gene list that will be used to plot the gene expression on the same scatter plot. Each gene will have a
-            different color.
+            different color. Can be a single gene name string and we will convert it to a list.
+        color: `string` (default: `ntr`)
+            Any or any list of column names or gene name, etc. that will be used for coloring cells. If `color` is not None, stack_genes will be disabled automatically because `color` can contain non numerical values.
         space: `str`
             The key to space coordinates.
+        stack_genes:
+            whether to show all gene plots on the same plot
+        stack_genes_threshold:
+            lower bound of gene values that will be drawn on the plot.
+        stack_colors_legend_size:
+            control the size of legend when stacking genes
+        alpha: `float`
+            The alpha value of the scatter points.
         width: `int`
-            an Annodata object.
         marker:
             a string representing some marker from matplotlib
             https://matplotlib.org/stable/api/markers_api.html#module-matplotlib.markers
@@ -63,8 +75,7 @@ def space(
             https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
         ps_sample_num: `int`
             The number of bins / cells that will be sampled to estimate the distance between different bin / cells.
-        alpha: `float`
-            The alpha value of the scatter points.
+
         %(scatters.parameters.no_adata|basis|figsize)s
 
     Returns
@@ -73,9 +84,29 @@ def space(
     """
     main_info("Plotting spatial info on adata")
     main_log_time()
+    if color is not None and stack_genes:
+        main_warning(
+            "Set `stack_genes` to False because `color` argument cannot be used with stack_genes. If you would like to stack genes (or other numeical values), please pass gene expression like column names into `gene` argument."
+        )
+        stack_genes = False
+
+    genes = [genes] if type(genes) is str else list(genes)
+    # concatenate genes and colors for scatters plot
+    if color is not None and genes is not None:
+        color = [color] if type(color) is str else list(color)
+        genes.extend(color)
+
+    show_colorbar = True
+    if stack_genes:
+        main_warning("disable side colorbar due to colorbar scale (numeric tick) related issue.")
+        show_colorbar = False
+
     if genes is None or (len(genes) == 0):
-        main_critical("No genes provided. Please check your argument passed in.")
-        return
+        if color is not None:
+            genes = color
+        else:
+            main_critical("No genes provided. Please check your argument passed in.")
+            return
     if "X_" + space in adata.obsm_keys():
         space_key = space
     elif space in adata.obsm_keys():
@@ -119,6 +150,9 @@ def space(
         stack_colors=stack_genes,
         stack_colors_threshold=stack_genes_threshold,
         stack_colors_title="stacked spatial genes",
+        show_colorbar=show_colorbar,
+        stack_colors_legend_size=stack_colors_legend_size,
+        stack_colors_cmaps=gene_cmaps,
         *args,
         **kwargs,
     )

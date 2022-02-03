@@ -308,7 +308,7 @@ def velocity_on_grid(
     V_threshold=None,
     cut_off_velocity=True,
 ):
-    """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted
+    """Function to calculate the velocity vectors on a grid for grid vector field quiver plot and streamplot, adapted
     from scVelo"""
     from ..vectorfield.stochastic_process import diffusionMatrix2D
 
@@ -914,12 +914,25 @@ class ContinuousTimeMarkovChain(MarkovChain):
             self.P[Idx[i, 1:], i] = p
             self.P[i, i] = - np.sum(p)"""
 
-    def compute_drift(self, X, t):
+    def compute_drift(self, X, t, n_top=5, normalize_vector=False):
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.compute_transition_matrix(t)
+
         for i in range(n):
-            V[i] = (X - X[i]).T.dot(P[:, i])
+            if n_top is None:
+                d = (X - X[i]).T
+                if normalize_vector:
+                    d = d / np.linalg.norm(d, axis=0)
+                V[i] = d.dot(P[:, i])
+            else:
+                idx = np.argsort(P[:, i])[-n_top:]
+                d = (X[idx] - X[i]).T
+                if normalize_vector:
+                    d = d / np.linalg.norm(d, axis=0)
+                V[i] = d.dot(P[idx, i])
+                # q = P[idx, i] / np.sum(P[idx, i])
+                # V[i] = d.dot(q)
         return V
 
     def compute_density_corrected_drift(self, X, t, k=None, normalize_vector=False):

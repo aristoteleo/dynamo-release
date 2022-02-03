@@ -28,6 +28,7 @@ from .utils import (
     _matplotlib_points,
     _datashade_points,
     save_fig,
+    _get_adata_color_vec,
 )
 from ..preprocessing.utils import (
     gen_rotation_2d,
@@ -51,6 +52,7 @@ def scatters(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
+    z: int = 2,
     color: str = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
@@ -86,16 +88,18 @@ def scatters(
     marker: str = None,
     group: str = None,
     add_group_gamma_fit=False,
-    affine_transform_degree=0,
+    affine_transform_degree: int = None,
     affine_transform_A=None,
     affine_transform_b=None,
     stack_colors=False,
     stack_colors_threshold=0.001,
     stack_colors_title="stacked colors",
     stack_colors_legend_size=2,
+    stack_colors_cmaps=None,
     despline: bool = True,
     deaxis: bool = True,
     despline_sides: Union[None, List[str]] = None,
+    projection="2d",
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -278,7 +282,7 @@ def scatters(
         stack_colors:
             Whether to stack all color on the same ax passed above.
             Currently only support 18 sequential matplotlib default cmaps assigning to different color groups.
-            (#colors should be smaller than 18, reuse if #colors > 18. To-do: generate cmaps according to #colors)
+            (#colors should be smaller than 18, reuse if #colors > 18. TODO generate cmaps according to #colors)
         stack_colors_threshold:
             A threshold for filtering points values < threshold when drawing each color.
             E.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
@@ -308,44 +312,41 @@ def scatters(
     from matplotlib.colors import to_hex
     from matplotlib.colors import rgb2hex
 
+    # 2d is not a projection in matplotlib, default is None (rectilinear)
+    if projection == "2d":
+        projection = None
     if calpha < 0 or calpha > 1:
         main_warning(
             "calpha=%f is invalid (smaller than 0 or larger than 1) and may cause potential issues. Please check."
             % (calpha)
         )
     group_colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
-    sequential_cmaps = [
-        "Greys",
-        "Purples",
-        "Blues",
-        "Greens",
-        "Oranges",
-        "Reds",
-        "YlOrBr",
-        "YlOrRd",
-        "OrRd",
-        "PuRd",
-        "RdPu",
-        "BuPu",
-        "GnBu",
-        "PuBu",
-        "YlGnBu",
-        "PuBuGn",
-        "BuGn",
-        "YlGn",
-    ]
+
+    if stack_colors and stack_colors_cmaps is None:
+        main_info("using default stack colors")
+        stack_colors_cmaps = [
+            "Greys",
+            "Purples",
+            "Blues",
+            "Greens",
+            "Oranges",
+            "Reds",
+            "YlOrBr",
+            "YlOrRd",
+            "OrRd",
+            "PuRd",
+            "RdPu",
+            "BuPu",
+            "GnBu",
+            "PuBu",
+            "YlGnBu",
+            "PuBuGn",
+            "BuGn",
+            "YlGn",
+        ]
     stack_legend_handles = []
     if stack_colors:
         color_key = None
-
-    def _get_adata_color(adata, cur_l, cur_c):
-        if cur_l in ["protein", "X_protein"]:
-            _color = adata.obsm[cur_l].loc[cur_c, :]
-        elif cur_l == "X":
-            _color = adata.obs_vector(cur_c, layer=None)
-        else:
-            _color = adata.obs_vector(cur_c, layer=cur_l)
-        return _color
 
     if not (affine_transform_degree is None):
         affine_transform_A = gen_rotation_2d(affine_transform_degree)
@@ -361,16 +362,13 @@ def scatters(
     else:
         _background = background
         # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
-    x, y = (
-        [x] if type(x) in [int, str] else x,
-        [y]
-        if type(y)
-        in [
-            int,
-            str,
-        ]
-        else y,
-    )
+    if type(x) in [int, str]:
+        x = [x]
+    if type(y) in [int, str]:
+        y = [y]
+    if type(z) in [int, str]:
+        z = [z]
+
     if all([is_gene_name(adata, i) for i in basis]):
         if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
             "M_u",
@@ -411,10 +409,10 @@ def scatters(
     if type(basis) is str:
         basis = [basis]
 
-    if stack_colors and len(color) > len(sequential_cmaps):
+    if stack_colors and len(color) > len(stack_colors_cmaps):
         main_warning(
             "#color: %d passed in is greater than #sequential cmaps: %d, will reuse sequential maps"
-            % (len(color), len(sequential_cmaps))
+            % (len(color), len(stack_colors_cmaps))
         )
         main_warning("You should consider decreasing your #color")
 
@@ -454,8 +452,11 @@ def scatters(
     if figsize is None:
         figsize = plt.rcParams["figsize"]
 
-    if total_panels >= 1 and ax is None:
-        plt.figure(
+    figure = None  # possible as argument in future
+
+    # if #total_panel is 1, `_matplotlib_points` will create a figure. No need to create a figure here and generate a blank figure.
+    if total_panels > 1 and ax is None:
+        figure = plt.figure(
             None,
             (figsize[0] * ncol, figsize[1] * nrow),
             facecolor=_background,
@@ -477,11 +478,11 @@ def scatters(
         cur_l :
             current layer
         """
-        nonlocal adata, x, y, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
+        nonlocal adata, x, y, z, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
-            cmap, sym_c = "bwr", True  # To-do: maybe use other divergent color map in future
+            cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in future
         else:
             if use_smoothed:
                 cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
@@ -507,7 +508,7 @@ def scatters(
                 cur_title = cur_c
             else:
                 cur_title = stack_colors_title
-            _color = _get_adata_color(adata, cur_l, cur_c)
+            _color = _get_adata_color_vec(adata, cur_l, cur_c)
 
             # select data rows based on stack color thresholding
             _values = values
@@ -534,19 +535,38 @@ def scatters(
                 and len(y) == _adata.n_obs
             ):
                 x, y = [x], [y]
+                if projection == "3d":
+                    z = [z]
             elif hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
+                if projection == "3d":
+                    z = list(z)
 
-            for cur_x, cur_y in zip(x, y):  # here x / y are arrays
+            for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
                 main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
                 if type(cur_x) is int and type(cur_y) is int:
+                    x_col_name = cur_b + "_0"
+                    y_col_name = cur_b + "_1"
+                    z_col_name = cur_b + "_2"
+                    points = None
                     points = pd.DataFrame(
                         {
-                            cur_b + "_0": _adata.obsm[prefix + cur_b][:, cur_x],
-                            cur_b + "_1": _adata.obsm[prefix + cur_b][:, cur_y],
+                            x_col_name: _adata.obsm[prefix + cur_b][:, cur_x],
+                            y_col_name: _adata.obsm[prefix + cur_b][:, cur_y],
                         }
                     )
-                    points.columns = [cur_b + "_0", cur_b + "_1"]
+                    points.columns = [x_col_name, y_col_name]
+
+                    if projection == "3d":
+                        points = pd.DataFrame(
+                            {
+                                x_col_name: _adata.obsm[prefix + cur_b][:, cur_x],
+                                y_col_name: _adata.obsm[prefix + cur_b][:, cur_y],
+                                z_col_name: _adata.obsm[prefix + cur_b][:, cur_z],
+                            }
+                        )
+                        points.columns = [x_col_name, y_col_name, z_col_name]
+
                 elif is_gene_name(_adata, cur_x) and is_gene_name(_adata, cur_y):
                     points = pd.DataFrame(
                         {
@@ -683,7 +703,7 @@ def scatters(
                 _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
                 if stack_colors:
                     main_debug("stack colors: changing cmap")
-                    _cmap = sequential_cmaps[ax_index % len(sequential_cmaps)]
+                    _cmap = stack_colors_cmaps[ax_index % len(stack_colors_cmaps)]
                     max_color = matplotlib.cm.get_cmap(_cmap)(float("inf"))
                     legend_circle = Line2D(
                         [0],
@@ -703,7 +723,7 @@ def scatters(
                     raise ValueError("Conflicting options; only one of labels or values should be set")
 
                 if total_panels > 1 and not stack_colors:
-                    ax = plt.subplot(gs[ax_index])
+                    ax = plt.subplot(gs[ax_index], projection=projection)
                 ax_index += 1
 
                 # if highligts is a list of lists - each list is relate to each color element
@@ -751,6 +771,7 @@ def scatters(
                         calpha=calpha,
                         sym_c=sym_c,
                         inset_dict=inset_dict,
+                        projection=projection,
                         **scatter_kwargs,
                     )
                     if labels is not None:
@@ -866,6 +887,7 @@ def scatters(
             main_debug("colors: %s" % (str(color)))
             _plot_basis_layer(cur_b, cur_l)
 
+    main_debug("show, return or save...")
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
@@ -887,7 +909,8 @@ def scatters(
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            plt.tight_layout()
+            # TODO: tight_layout causing "AttributeError: 'AnchoredSizeLocator' object has no attribute 'get_subplotspec'"
+            # plt.tight_layout()
 
         plt.show()
         if background is not None:

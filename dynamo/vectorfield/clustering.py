@@ -1,5 +1,4 @@
 from typing import Union
-from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
@@ -9,7 +8,7 @@ import pandas as pd
 from anndata import AnnData
 from .utils import vecfld_from_adata
 
-from ..preprocessing.utils import pca
+from ..preprocessing.utils import pca_monocle
 from ..tools.clustering import (
     hdbscan,
     leiden,
@@ -429,7 +428,7 @@ def streamline_clusters(
 
     # clustering
     feature_adata = AnnData(feature_df)
-    pca(feature_adata, X_data=feature_df, pca_key="X_pca")
+    pca_monocle(feature_adata, X_data=feature_df, pca_key="X_pca")
     if clustering_method == "louvain":
         louvain(feature_adata, obsm_key="X_pca")
     elif clustering_method == "leiden":

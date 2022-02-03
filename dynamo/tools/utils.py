@@ -114,6 +114,43 @@ def nearest_neighbors(coord, coords, k=5):
     return neighs
 
 
+def k_nearest_neighbors(
+    X, k, exclude_self=True, knn_dim=10, pynn_num=2e5, pynn_dim=2, pynn_rand_state=19491001, n_jobs=-1
+):
+    n, d = np.atleast_2d(X).shape
+    if n > int(pynn_num) and d > pynn_dim:
+        from pynndescent import NNDescent
+
+        nbrs = NNDescent(
+            X,
+            metric="euclidean",
+            n_neighbors=k + 1,
+            n_jobs=n_jobs,
+            random_state=pynn_rand_state,
+        )
+        nbrs_idx, dists = nbrs.query(X, k=k + 1)
+    else:
+        alg = "ball_tree" if d > knn_dim else "kd_tree"
+        nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=n_jobs).fit(X)
+        dists, nbrs_idx = nbrs.kneighbors(X)
+
+    nbrs_idx = np.array(nbrs_idx)
+    if exclude_self:
+        nbrs_idx = nbrs_idx[:, 1:]
+        dists = dists[:, 1:]
+    return nbrs_idx, dists
+
+
+def nbrs_to_dists(X, nbrs_idx):
+    dists = []
+    n = X.shape[0]
+    for i in range(n):
+        d = X[nbrs_idx[i]] - X[i]
+        d = np.linalg.norm(d, axis=1)
+        dists.append(d)
+    return dists
+
+
 def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
     all_genes = adata.var.index
     if genes is None:
@@ -184,7 +221,7 @@ def index_gene(adata, arr, genes):
             return arr[:, mask]
 
 
-def select_genes_by_gamma_r2(
+def reserve_minimal_genes_by_gamma_r2(
     adata: AnnData, var_store_key: str, minimal_gene_num: Union[int, None] = 50
 ) -> Union[list, pd.Series, np.array]:
     """When the sum of `adata.var[var_store_key]` is less than `minimal_gene_num`, select the `minimal_gene_num` genes and save to (update) adata.var[var_store_key].
@@ -1618,6 +1655,7 @@ def set_transition_genes(
     elif adata.uns["dynamics"]["experiment_type"] in [
         "mix_kin_deg",
         "mix_pulse_chase",
+        "kin",
     ]:
         logLL_col = adata.var.columns[adata.var.columns.str.endswith("logLL")]
         if len(logLL_col) > 1:
@@ -1677,8 +1715,8 @@ def set_transition_genes(
         if "gamma_r2" not in adata.var.columns:
             main_debug("setting all gamma_r2 to 1")
             adata.var["gamma_r2"] = 1
-        if np.all(adata.var.gamma_r2.values is None):
-            main_debug("Since all adata.var.gamma_r2 values are None, setting all gamma_r2 values to 1.")
+        if np.all(adata.var.gamma_r2.values is None) or np.all(adata.var.gamma_r2.values == ""):
+            main_debug("Since all adata.var.gamma_r2 values are None or '', setting all gamma_r2 values to 1.")
             adata.var.gamma_r2 = 1
 
         adata.var[store_key] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
@@ -1741,7 +1779,7 @@ def set_transition_genes(
             "  3. Your data has strange expression kinetics. Welcome to report to dynamo team for more insights.\n"
             "We auto correct this behavior by selecting the %d top genes according to gamma_r2 values."
         )
-        select_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
+        reserve_minimal_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
 
     return adata
 
@@ -1878,26 +1916,23 @@ def get_ekey_vkey_from_adata(adata):
 
 # ---------------------------------------------------------------------------------------------------
 # cell velocities related
-def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):
-    # These codes are borrowed from scvelo. Need to be rewritten later.
-    def iterate_indices(indices, index, n_recurse_neighbors):
-        if n_recurse_neighbors > 1:
-            index = iterate_indices(indices, index, n_recurse_neighbors - 1)
-        ix = np.append(index, indices[index])  # append to also include direct neighbors, otherwise ix = indices[index]
-        if np.isnan(ix).any():
-            ix = ix[~np.isnan(ix)]
-        return ix.astype(int)
-
-    indices = np.unique(iterate_indices(indices, index, n_recurse_neighbors))
-    if max_neighs is not None and len(indices) > max_neighs:
-        indices = np.random.choice(indices, max_neighs, replace=False)
-    return indices
+def get_neighbor_indices(adjacency_list, source_idx, n_order_neighbors=2, max_neighbors_num=None):
+    """returns a list (np.array) of `n_order_neighbors` neighbor indices of source_idx. If `max_neighbors_num` is set and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list of neighbors will be randomly chosen and returned."""
+    _indices = [source_idx]
+    for _ in range(n_order_neighbors):
+        _indices = np.append(_indices, adjacency_list[_indices])
+        if np.isnan(_indices).any():
+            _indices = _indices[~np.isnan(_indices)]
+    _indices = np.unique(_indices)
+    if max_neighbors_num is not None and len(_indices) > max_neighbors_num:
+        _indices = np.random.choice(_indices, max_neighbors_num, replace=False)
+    return _indices
 
 
-def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs=None):
+def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighbors_num=None):
     indices_rec = []
     for i in range(indices.shape[0]):
-        neig = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)
+        neig = get_neighbor_indices(indices, i, n_recurse_neighbors, max_neighbors_num)
         indices_rec.append(neig)
     return indices_rec
 
@@ -2191,7 +2226,6 @@ def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None
 
     # Note k=2 here because the nearest query is always a point itself.
     distances, _ = kd_tree.query(coords[selected_estimation_indices, :], k=2)
-    print(distances)
     min_dist = min(distances[:, 1])
 
     return min_dist
