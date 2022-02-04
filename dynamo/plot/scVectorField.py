@@ -1706,7 +1706,8 @@ def streamline_plot(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        plt.tight_layout()
+        # TODO: fix bug: the following line causing plotting issue
+        # plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
         return axes_list

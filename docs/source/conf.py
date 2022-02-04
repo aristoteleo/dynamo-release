@@ -28,7 +28,8 @@ from docs.source.utils import _download_notebook_dirs
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
-source_suffix = [".rst", ".ipynb"]
+source_suffix = [".rst"]
+bibtex_bibfiles = ["./notebooks/lap.bib"]
 
 master_doc = "index"
 
@@ -106,6 +107,7 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     # Automatically document param types (less noise in class signature)
     "sphinx_autodoc_typehints",
+    "sphinxcontrib.bibtex",
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)

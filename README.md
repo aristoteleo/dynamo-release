@@ -1,4 +1,9 @@
-[![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release/runs/950435412) [![package](https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg)](https://pypi.org/project/dynamo-release/) [![documentation](https://readthedocs.org/projects/dynamo-release/badge/?version=latest)](https://dynamo-release.readthedocs.io/en/latest/)
+[![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release/runs/950435412) 
+[![package](https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg)](https://pypi.org/project/dynamo-release/) 
+[![documentation](https://readthedocs.org/projects/dynamo-release/badge/?version=latest)](https://dynamo-release.readthedocs.io/en/latest/)
+![build](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-package.yml/badge.svg)
+![test](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-plain-run-test.yml/badge.svg)
+
 ## **Dynamo**: Mapping Vector Field of Single Cells
 
 Inclusive model of expression dynamics with metabolic labeling based scRNA-seq / multiomics, vector field reconstruction, potential landscape mapping and differential geometry analyses.

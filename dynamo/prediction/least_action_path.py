@@ -271,7 +271,7 @@ def least_action(
 
     path_ind = 0
     for (init_state, target_state) in LoggerManager.progress_logger(
-        pairs, progress_name=f"iterating through {len(pairs)} pairs\n"
+        pairs, progress_name=f"iterating through {len(pairs)} pairs"
     ):
         logger.info(
             "initializing path with the shortest path in the graph built from the velocity transition matrix...",

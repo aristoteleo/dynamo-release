@@ -909,7 +909,8 @@ def scatters(
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            plt.tight_layout()
+            # TODO: tight_layout causing "AttributeError: 'AnchoredSizeLocator' object has no attribute 'get_subplotspec'"
+            # plt.tight_layout()
 
         plt.show()
         if background is not None:

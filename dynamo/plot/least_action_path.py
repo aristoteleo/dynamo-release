@@ -71,7 +71,8 @@ def least_action(
 
         save_fig(**s_kwargs)
     elif save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
+        # TODO: least_action_path.py:74: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+        # plt.tight_layout()
         plt.show()
     elif save_show_or_return in ["return", "all"]:
         return ax

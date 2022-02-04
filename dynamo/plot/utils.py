@@ -1398,6 +1398,7 @@ def save_fig(
     """
     import matplotlib.pyplot as plt
 
+    prefix = os.path.normpath(prefix)
     if path is None:
         path = os.getcwd() + "/"
 
