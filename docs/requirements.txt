@@ -31,3 +31,5 @@ pynndescent>=0.5.2
 gseapy
 GitPython
 KDEpy
+
+sphinxcontrib-bibtex
