@@ -284,5 +284,15 @@ def scEU_seq_organoid(
     return adata
 
 
+def hematopoietic_processed(
+    url: str = "https://pitt.box.com/shared/static/efqa8icu1m6d1ghfcc3s9tj0j91pky1h.h5ad",
+    filename: str = "hematopoietic_processed.h5ad",
+):
+    """https://pitt.box.com/v/hematopoietic-processed"""
+    main_info("Downloading processed hematopoietic adata")
+    adata = get_adata(url, filename)
+    return adata
+
+
 if __name__ == "__main__":
     DentateGyrus()
