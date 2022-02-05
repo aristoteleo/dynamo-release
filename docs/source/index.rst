@@ -3,7 +3,7 @@
 **Dynamo**: Mapping Vector Field of Single Cells
 ===================================================
 
-.. image:: https://user-images.githubusercontent.com/7456281/93838270-11d8da00-fc57-11ea-94de-d11b529731e1.png
+.. image:: https://user-images.githubusercontent.com/7456281/152110270-7ee1b0ed-1205-495d-9d65-59c7984d2fa2.png
    :align: center
 
 Single-cell RNA-seq, together with RNA velocity and metabolic labeling, reveals cellular states and transitions at unprecedented resolution. Fully exploiting these data, however, requires dynamical models capable of predicting cell fate and unveiling the governing regulatory mechanisms. Here, we introduce dynamo, an analytical framework that reconciles intrinsic splicing and labeling kinetics to estimate absolute RNA velocities, reconstructs velocity vector fields that predict future cell fates, and finally employs differential geometry analyses to elucidate the underlying regulatory networks. We applied dynamo to a wide range of disparate biological processes including prediction of future states of differentiating hematopoietic stem cell lineages, deconvolution of glucocorticoid responses from orthogonal cell-cycle progression, characterization of regulatory networks driving zebrafish pigmentation, and identification of possible routes of resistance to SARS-CoV-2 infection. Our work thus represents an important step in going from qualitative, metaphorical conceptualizations of differentiation, as exemplified by Waddington’s epigenetic landscape, to quantitative and predictive theories.
@@ -50,6 +50,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    notebooks/Introduction
    notebooks/Primer
    notebooks/lap_box_introduction.ipynb
+   notebooks/perturbation_introduction_theory.rst
 
 
 .. toctree::
@@ -89,6 +90,13 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    :hidden:
 
    notebooks/Differential_geometry
+
+
+.. toctree::
+   :caption: Vector field predictions
+   :maxdepth: 1
+   :hidden:
+
    notebooks/lap_tutorial/lap_tutorial
    notebooks/perturbation_tutorial/perturbation_tutorial
 
