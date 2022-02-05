@@ -90,6 +90,13 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    :hidden:
 
    notebooks/Differential_geometry
+
+
+.. toctree::
+   :caption: Vector field predictions
+   :maxdepth: 1
+   :hidden:
+
    notebooks/lap_tutorial/lap_tutorial
    notebooks/perturbation_tutorial/perturbation_tutorial
 
