@@ -4,7 +4,7 @@
 # Code adapted from https://github.com/kazumits/ddhodge.
 
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, issparse
 from anndata import AnnData
 from typing import Union
 
@@ -170,6 +170,11 @@ def ddhodge(
             adj_mat = adata_.uns["transition_matrix"][cell_idx, cell_idx]
         else:
             raise ValueError(f"adjmethod can be only one of {'naive', 'graphize_vecfld'}")
+
+    # temporary fix for github issue #263
+    # https://github.com/aristoteleo/dynamo-release/issues/263
+    if not issparse(adj_mat):
+        adj_mat = csr_matrix(adj_mat)
 
     # if not all cells are used in the graphize_vecfld function, set diagnoal to be 1
     if len(np.unique(np.hstack(adj_mat.nonzero()))) != adata.n_obs:
