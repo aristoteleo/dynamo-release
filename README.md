@@ -23,11 +23,11 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
     * Overcome intrinsic limitation of the conventional splicing based RNA velocity analyses
     * Explicitly model RNA metabolic labeling, in conjunction with RNA bursting, transcription, splicing and degradation
     * Comprehensive RNA kinetic rate estimation for one-shot, pulse, chase and mixture metabolic labeling experiments
-* Move beyond RNA velocity to continuous vector field function for functional and predictive analyses of cell fate transitions:
+* Move beyond RNA velocity to continuous vector field function for gaining mechannistic insights of cell fate transitions:
     * Dynamical systems approaches to identify stable cell types (fixed points), boundaries of cell states (separatrices), etc
     * Calculate RNA acceleration (reveals early drivers), curvature (reveals master regulators of fate decision points), divergence (stability of cell states) and RNA Jacobian (cell-state dependent regulatory networks) 
     * Various downstream differential geometry analyses to rank critical regulators/effectors,  and visualize regulatory networks at key fate decision points    
-* Non-trivial prediction of cell fate transitions:
+* Non-trivial vector field prediction of cell fate transitions:
     * Least action path approach to predict the optimal paths and transcriptomic factors of cell fate reprogrammings
     * In silico perturbation to predict the gene-wise perturbation effects and cell fate diversion after genetic perturbations
 
@@ -35,7 +35,7 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
 * After 3.5+ years of perseverance, our dynamo paper is finally online in [Cell](https://www.sciencedirect.com/science/article/pii/S0092867421015774#tbl1) today!
 
 ## Discussion 
-Please use github issue tracker to report coding related [issues](https://github.com/aristoteleo/dynamo-release/issues) of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: [dynamo-discussion](https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-itnzjdxs-PV~C3Hr9uOArHZcmv622Kg) (Only a working email address is required from the slack side).
+Please use github issue tracker to report coding related [issues](https://github.com/aristoteleo/dynamo-release/issues) of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: [dynamo-discussion](https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-itnzjdxs-PV~C3Hr9uOArHZcmv622Kg) (Only a working email address is required from the slack side). 
 
 ## Contribution 
 If you want to contribute to the development of dynamo, please check out CONTRIBUTION instruction: [Contribution](https://github.com/aristoteleo/dynamo-release/blob/master/CONTRIBUTING.md)
