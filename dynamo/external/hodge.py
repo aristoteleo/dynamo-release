@@ -8,7 +8,7 @@ from scipy.sparse import csr_matrix, issparse
 from anndata import AnnData
 from typing import Union
 
-from dynamo.dynamo_logger import main_info
+from ..dynamo_logger import main_info
 
 # from ..vectorfield.scVectorField import graphize_vecfld
 from ..tools.graph_calculus import graphize_velocity, divergence, potential
