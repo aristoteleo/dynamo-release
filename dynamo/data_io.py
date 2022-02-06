@@ -261,6 +261,8 @@ def cleanup(adata, del_prediction=False, del_2nd_moments=False):
         adata.uns["kmc"] = None
     if "kinetics_heatmap" in adata.uns_keys():
         adata.uns.pop("kinetics_heatmap")
+    if "hdbscan" in adata.uns_keys():
+        adata.uns.pop("hdbscan")
 
     VF_keys = [i if i.startswith("VecFld") else None for i in adata.uns_keys()]
     for i in VF_keys:
