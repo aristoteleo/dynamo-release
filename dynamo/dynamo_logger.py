@@ -222,7 +222,12 @@ class Logger:
         """
         if self.report_hook_percent_state is None:
             self.report_hook_percent_state = 0
+
+        if ts == -1:
+            return
+
         cur_percent = rs * bn / ts
+
         if cur_percent - self.report_hook_percent_state > 0.01:
             self.report_progress(count=rs * bn, total=ts)
             self.report_hook_percent_state = cur_percent
