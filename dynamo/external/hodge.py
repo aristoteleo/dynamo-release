@@ -4,9 +4,11 @@
 # Code adapted from https://github.com/kazumits/ddhodge.
 
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, issparse
 from anndata import AnnData
 from typing import Union
+
+from ..dynamo_logger import main_info
 
 # from ..vectorfield.scVectorField import graphize_vecfld
 from ..tools.graph_calculus import graphize_velocity, divergence, potential
@@ -171,11 +173,25 @@ def ddhodge(
         else:
             raise ValueError(f"adjmethod can be only one of {'naive', 'graphize_vecfld'}")
 
+    # TODO transform the type of adj_mat here so that we can maintain one set of API (either sparse or numpy)
+    # if not issparse(adj_mat):
+    #     main_info("adj_mat:%s is not sparse, transforming it to a sparse matrix..." %(str(type(adj_mat))))
+    #     adj_mat = csr_matrix(adj_mat)
+
     # if not all cells are used in the graphize_vecfld function, set diagnoal to be 1
     if len(np.unique(np.hstack(adj_mat.nonzero()))) != adata.n_obs:
-        adj_mat.setdiag(1)
+        main_info("not all cells are used, set diag to 1...", indent_level=2)
+        # temporary fix for github issue #263
+        # https://github.com/aristoteleo/dynamo-release/issues/263
+        # support numpy and sparse matrices here
+        if issparse(adj_mat):
+            adj_mat.setdiag(1)
+        else:
+            np.fill_diagonal(adj_mat, 1)
 
     # g = build_graph(adj_mat)
+
+    # TODO the following line does not work on sparse matrix.
     A = np.abs(np.sign(adj_mat))
 
     if (prefix + "ddhodge" not in adata.obsp.keys() or enforce) and not to_downsample:
