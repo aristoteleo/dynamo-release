@@ -1,5 +1,10 @@
 Reference
 ----------
+.. bibliography::
+
+    QIU2022
+    Yeo2021
+
 .. [QQiu20] Qi Qiu, Peng Hu, Xiaojie Qiu, *et al.* (2020),
    *Massively parallel and time-resolved RNA sequencing in single cells with scNT-seq*,
    `Nature Methods <https://doi.org/10.1038/s41592-020-0935-4>`__.
@@ -39,5 +44,3 @@ Reference
 .. [Wolf18] Wolf *et al.* (2018),
    *Scanpy: large-scale single-cell gene expression data analysis*,
    `Genome Biology <https://doi.org/10.1186/s13059-017-1382-0>`__.
-
-.. bibliography::
