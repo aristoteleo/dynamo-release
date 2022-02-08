@@ -256,6 +256,8 @@ Prediction (pd)
 
    pd.fate
    pd.fate_bias
+   pd.perturbation
+   pd.least_action
    pd.state_graph
 
 Plotting (pl)
