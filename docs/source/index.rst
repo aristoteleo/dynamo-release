@@ -16,7 +16,7 @@ Single-cell RNA-seq, together with RNA velocity and metabolic labeling, reveals 
 
 .. |PyPI| image:: https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg
    :target: https://pypi.org/project/dynamo-release/
-
+   
 
 Highlights of dynamo
 ====================
@@ -31,7 +31,14 @@ Highlights of dynamo
     * Dynamical systems approaches to identify stable cell types (fixed points), boundaries of cell states (separatrices), etc
     * Calculate RNA acceleration (reveals early drivers), curvature (reveals master regulators of fate decision points), divergence (stability of cell states) and RNA Jacobian (cell-state dependent regulatory networks)
     * Various downstream differential geometry analyses to rank critical regulators/effectors,  and visualize regulatory networks at key fate decision points
+#. Non-trivial vector field prediction of cell fate transitions:
+    * Least action path approach to predict the optimal paths and transcriptomic factors of cell fate reprogrammings
+    * In silico perturbation to predict the gene-wise perturbation effects and cell fate diversion after genetic perturbations
 
+
+News
+==========
+#. After 3.5+ years of perseverance, our dynamo paper is finally online in [Cell](https://www.sciencedirect.com/science/article/pii/S0092867421015774#tbl1) today!
 
 Discussion
 ==========
@@ -49,8 +56,9 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
    notebooks/Introduction
    notebooks/Primer
-   notebooks/lap_box_introduction.ipynb
+   notebooks/lap_box_introduction
    notebooks/perturbation_introduction_theory.rst
+
 
 
 .. toctree::
@@ -89,8 +97,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    :maxdepth: 1
    :hidden:
 
-   notebooks/Differential_geometry
-
+   notebooks/Differential_geometry.rst
 
 .. toctree::
    :caption: Vector field predictions
@@ -99,7 +106,6 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
    notebooks/lap_tutorial/lap_tutorial
    notebooks/perturbation_tutorial/perturbation_tutorial
-
 
 Indices and tables
 ==================
