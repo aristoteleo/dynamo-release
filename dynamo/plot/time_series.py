@@ -233,6 +233,7 @@ def kinetic_heatmap(
     vlines_kwargs: dict = {},
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
+    transpose: bool = False,
     **kwargs,
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -403,6 +404,11 @@ def kinetic_heatmap(
         col_colors = adata.obs[cell_group].map(cell_lut)
     else:
         uniq_cell_grps, cell_lut = [], {}
+
+    if transpose:
+        row_colors, col_colors = col_colors, row_colors
+        cluster_row_col[0], cluster_row_col[1] = cluster_row_col[1], cluster_row_col[0]
+        df = df.T
 
     heatmap_kwargs = dict(
         xticklabels=False,
