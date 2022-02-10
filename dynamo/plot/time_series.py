@@ -233,6 +233,7 @@ def kinetic_heatmap(
     vlines_kwargs: dict = {},
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
+    transpose: bool = False,
     **kwargs,
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -299,6 +300,8 @@ def kinetic_heatmap(
             save_fig function will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
             dictionary that properly modify those keys according to your needs.
+        transpose:
+            Whether to transpose the dataframe and swap X-Y in heatmap. In single cell case, `transpose=True` results in gene on the x-axis.
         kwargs:
             All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is
             passed to heatmap() by default.
@@ -403,6 +406,11 @@ def kinetic_heatmap(
         col_colors = adata.obs[cell_group].map(cell_lut)
     else:
         uniq_cell_grps, cell_lut = [], {}
+
+    if transpose:
+        row_colors, col_colors = col_colors, row_colors
+        cluster_row_col[0], cluster_row_col[1] = cluster_row_col[1], cluster_row_col[0]
+        df = df.T
 
     heatmap_kwargs = dict(
         xticklabels=False,

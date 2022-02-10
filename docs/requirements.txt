@@ -32,4 +32,4 @@ gseapy
 GitPython
 KDEpy
 
-sphinxcontrib-bibtex
+sphinxcontrib-bibtex>=2.3
