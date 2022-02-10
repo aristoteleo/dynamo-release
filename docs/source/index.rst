@@ -38,7 +38,9 @@ Highlights of dynamo
 
 News
 ==========
-#. After 3.5+ years of perseverance, our dynamo paper is finally online in [Cell](https://www.sciencedirect.com/science/article/pii/S0092867421015774#tbl1) today!
+.. _Cell: https://www.sciencedirect.com/science/article/pii/S0092867421015774#tbl1
+
+#. After 3.5+ years of perseverance, our dynamo paper :cite:p:`QIU2022` is finally online in Cell_!
 
 Discussion
 ==========
