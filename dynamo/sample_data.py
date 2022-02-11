@@ -3,8 +3,23 @@ from urllib.request import urlretrieve
 from pathlib import Path
 import os
 import ntpath
-
+import pandas as pd
 from .dynamo_logger import LoggerManager, main_info, main_log_time
+
+
+def download_data(url, file_path=None, dir="./data"):
+    file_path = ntpath.basename(url) if file_path is None else file_path
+    file_path = os.path.join(dir, file_path)
+    main_info("Downloading data to " + file_path)
+
+    if not os.path.exists(file_path):
+        if not os.path.exists("./data/"):
+            os.mkdir("data")
+
+        # download the data
+        urlretrieve(url, file_path, reporthook=LoggerManager.get_main_logger().request_report_hook)
+
+    return file_path
 
 
 def get_adata(url, filename=None):
@@ -21,18 +36,7 @@ def get_adata(url, filename=None):
             an Annodata object.
     """
 
-    filename = ntpath.basename(url) if filename is None else filename
-
-    filename = "./data/" + filename
-    main_info("Downloading data to " + filename)
-
-    if not os.path.exists(filename):
-        if not os.path.exists("./data/"):
-            os.mkdir("data")
-
-        # download the data
-        urlretrieve(url, filename, reporthook=LoggerManager.get_main_logger().request_report_hook)
-
+    download_data(url, filename)
     if Path(filename).suffixes[-1][1:] == "loom":
         adata = read_loom(filename=filename)
     elif Path(filename).suffixes[-1][1:] == "h5ad":
@@ -292,6 +296,12 @@ def hematopoietic_processed(
     main_info("Downloading processed hematopoietic adata")
     adata = get_adata(url, filename)
     return adata
+
+
+def human_tfs(url="https://pitt.box.com/shared/static/spr7mi9rl2s7kgstrvrpidg138quuo4c.txt", filename="human_tfs.txt"):
+    file_path = download_data(url, filename)
+    tfs = pd.read_csv(file_path, sep="\t")
+    return tfs
 
 
 if __name__ == "__main__":
