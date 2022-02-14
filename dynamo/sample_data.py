@@ -36,11 +36,11 @@ def get_adata(url, filename=None):
             an Annodata object.
     """
 
-    download_data(url, filename)
-    if Path(filename).suffixes[-1][1:] == "loom":
-        adata = read_loom(filename=filename)
-    elif Path(filename).suffixes[-1][1:] == "h5ad":
-        adata = read_h5ad(filename=filename)
+    file_path = download_data(url, filename)
+    if Path(file_path).suffixes[-1][1:] == "loom":
+        adata = read_loom(filename=file_path)
+    elif Path(file_path).suffixes[-1][1:] == "h5ad":
+        adata = read_h5ad(filename=file_path)
 
     adata.var_names_make_unique()
 
