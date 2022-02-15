@@ -288,12 +288,13 @@ def scEU_seq_organoid(
     return adata
 
 
-def hematopoietic_processed(
-    url: str = "https://pitt.box.com/shared/static/efqa8icu1m6d1ghfcc3s9tj0j91pky1h.h5ad",
-    filename: str = "hematopoietic_processed.h5ad",
+def hematopoiesis(
+    url: str = "https://pitt.box.com/shared/static/kyh3s4wrxdywupn9wk9r2j27vzlvk8vf.h5ad",
+    # url: str = "https://pitt.box.com/shared/static/efqa8icu1m6d1ghfcc3s9tj0j91pky1h.h5ad", # v0: umap_ori version
+    filename: str = "hematopoiesis.h5ad",
 ):
-    """https://pitt.box.com/v/hematopoietic-processed"""
-    main_info("Downloading processed hematopoietic adata")
+    """https://pitt.box.com/v/hematopoiesis-processed"""
+    main_info("Downloading processed hematopoiesis adata")
     adata = get_adata(url, filename)
     return adata
 
