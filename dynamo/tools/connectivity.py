@@ -599,7 +599,6 @@ def neighbors(
         index = NNDescent(
             X_data,
             metric=metric,
-            metric_kwads=metric_kwads,
             n_neighbors=n_neighbors,
             n_jobs=cores,
             random_state=seed,
