@@ -65,6 +65,7 @@ from .clustering import (
     leiden,
     infomap,
     scc,
+    purity,
 )
 
 # mnn related
