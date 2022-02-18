@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
@@ -10,6 +10,7 @@ from .connectivity import _gen_neighbor_keys, neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
 from ..utils import LoggerManager, copy_adata
+from ..preprocessing import filter_genes, normalize_cell_expr_by_size_factors, log1p, pca_monocle
 
 
 def hdbscan(
@@ -489,3 +490,92 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
     logger.finish_progress(progress_name="Community clustering with %s" % (method))
 
     return coms
+
+
+def scc(
+    adata: anndata.AnnData,
+    min_cells: int = 100,
+    spatial_key: str = "spatial",
+    e_neigh: int = 30,
+    s_neigh: int = 6,
+    resolution: Optional[float] = None,
+    copy: bool = False,
+) -> Optional[anndata.AnnData]:
+    """Spatially constrained clustering (scc) to identify continuous tissue domains.
+
+    Args:
+        adata: an Anndata object, after normalization.
+        min_cells: minimal number of cells the gene expressed.
+        spatial_key: the key in `.obsm` that corresponds to the spatial coordinate of each bucket.
+        e_neigh: the number of nearest neighbor in gene expression space.
+        s_neigh: the number of nearest neighbor in physical space.
+        resolution: the resolution parameter of the leiden clustering algorithm.
+        copy: Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
+            Defaults to False.
+
+    Returns:
+        Depends on the argument `copy` return either an `~anndata.AnnData` object with cluster info in "scc_e_{a}_s{b}"
+        or None.
+    """
+
+    filter_genes(adata, min_cells=min_cells)
+    adata.uns["pp"] = {}
+    normalize_cell_expr_by_size_factors(adata, layers="X")
+    log1p(adata)
+    pca_monocle(adata, n_pca_components=30, pca_key="X_pca")
+
+    neighbors(adata, n_neighbors=e_neigh)
+    neighbors(adata, n_neighbors=s_neigh, basis=spatial_key, result_prefix="spatial")
+    conn = adata.obsp["connectivities"].copy()
+    conn.data[conn.data > 0] = 1
+    adj = conn + adata.obsp["spatial_connectivities"]
+    adj.data[adj.data > 0] = 1
+    leiden(adata, adj_matrix=adj, resolution=resolution, result_key="scc_e" + str(e_neigh) + "_s" + str(s_neigh))
+
+    if copy:
+        return adata
+    return None
+
+
+def purity(adata,
+           neighbor: int = 30,
+           resolution: Optional[float] = None,
+           spatial_key: str = "spatial",
+           neighbors_key: str = 'spatial_connectivities',
+           cluster_key: str = 'leiden'
+           ) -> float:
+    """Calculate the puriority of the scc's clustering results.
+
+    Args:
+        adata: an adata object
+        neighbor: the number of nearest neighbor in physical space.
+        resolution: the resolution parameter of the leiden clustering algorithm.
+        spatial_key: the key in `.obsm` that corresponds to the spatial coordinate of each bucket.
+        neighbors_key: the key in `.obsp` that corresponds to the spatial nearest neighbor graph.
+        cluster_key: the key in `.obsm` that corresponds to the clustering identity.
+
+    Returns:
+        purity_score: the average purity score across cells.
+    """
+
+    if "spatial_connectivities" not in adata.obsp.keys():
+        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix="spatial")
+
+    neighbor_graph = adata.obsp[neighbors_key]
+
+    if cluster_key not in adata.obs.columns:
+        leiden(adata, adj_matrix=neighbor_graph, resolution=resolution, result_key=cluster_key)
+
+    cluster = adata.obs[cluster_key]
+
+    purity_score = np.zeros(adata.n_obs)
+    for i in np.arange(adata.n_obs):
+        cur_cluster = cluster[i]
+        other_cluster = neighbor_graph[0].nonzero()[1]
+        other_cluster = cluster[other_cluster]
+
+        purity_score[i] = sum(other_cluster == cur_cluster) / len(other_cluster)
+
+    purity_score = purity_score.mean()
+
+    return purity_score

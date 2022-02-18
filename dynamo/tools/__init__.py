@@ -64,6 +64,7 @@ from .clustering import (
     louvain,
     leiden,
     infomap,
+    scc,
 )
 
 # mnn related
