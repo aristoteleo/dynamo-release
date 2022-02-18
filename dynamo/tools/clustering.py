@@ -10,7 +10,7 @@ from .connectivity import _gen_neighbor_keys, neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
 from ..utils import LoggerManager, copy_adata
-from ..preprocessing.preprocess import filter_genes_by_outliers as filter_genes
+from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
 from ..preprocessing.preprocessor_utils import log1p_adata as log1p
 from ..preprocessing.preprocessor_utils import normalize_cell_expr_by_size_factors
 from ..preprocessing.utils import pca_monocle
