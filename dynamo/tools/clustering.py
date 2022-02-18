@@ -520,13 +520,16 @@ def scc(
         or None.
     """
 
-    filter_genes(adata, min_cells=min_cells)
+    filter_genes(adata, min_cell_s=min_cells)
     adata.uns["pp"] = {}
     normalize_cell_expr_by_size_factors(adata, layers="X")
     log1p(adata)
     pca_monocle(adata, n_pca_components=30, pca_key="X_pca")
 
     neighbors(adata, n_neighbors=e_neigh)
+    if "X_" + spatial_key not in adata.obsm.keys():
+        adata.obsm["X_" + spatial_key] = adata.obsm[spatial_key].copy()
+
     neighbors(adata, n_neighbors=s_neigh, basis=spatial_key, result_prefix="spatial")
     conn = adata.obsp["connectivities"].copy()
     conn.data[conn.data > 0] = 1
@@ -575,6 +578,7 @@ def purity(adata,
         cur_cluster = cluster[i]
         other_cluster = neighbor_graph[0].nonzero()[1]
         other_cluster = cluster[other_cluster]
+        other_cluster = other_cluster[:min([neighbor, len(other_cluster)])]
 
         purity_score[i] = sum(other_cluster == cur_cluster) / len(other_cluster)
 
