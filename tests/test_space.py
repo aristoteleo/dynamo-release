@@ -6,12 +6,12 @@ from dynamo.pl import space
 logger = LoggerManager.get_main_logger()
 
 
-def test_space_simple1(adata):
+def test_space_plot_simple1(adata, color=["Cell_type"]):
     adata = adata.copy()
     adata.obsm["spatial"] = adata.obsm["X_umap"]
     adata.obsm["X_spatial"] = adata.obsm["X_umap"]
     space(adata, marker="p", save_show_or_return="show")
-    space(adata, marker="*", save_show_or_return="show")
+    space(adata, color=color, marker="*", save_show_or_return="show")
 
 
 def test_space_stack_color(adata):
@@ -38,5 +38,5 @@ if __name__ == "__main__":
     adata = gen_or_read_zebrafish_data()
 
     # TODO use a fixture in future
-    # test_space_simple1(adata)
-    test_space_stack_color(adata)
+    test_space_plot_simple1(adata)
+    # test_space_stack_color(adata)

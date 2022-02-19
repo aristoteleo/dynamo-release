@@ -1,6 +1,9 @@
+from pathlib import Path
+from typing import Union
 from dynamo import dynamo_logger
 import dynamo
 from dynamo import LoggerManager
+from dynamo.dynamo_logger import main_info
 import dynamo.preprocessing
 import dynamo as dyn
 import pytest
@@ -10,8 +13,26 @@ import os
 
 LoggerManager.main_logger.setLevel(LoggerManager.DEBUG)
 
-test_zebrafish_data_path = "./test_data/test_zebrafish.h5ad"
-test_spatial_genomics_path = "./test_data/allstage_processed.h5ad"
+test_data_dir = Path("./test_data/")
+test_zebrafish_data_path = test_data_dir / "test_zebrafish.h5ad"
+test_spatial_genomics_path = test_data_dir / "allstage_processed.h5ad"
+
+
+def mkdirs_wrapper(path: Union[str, Path], abort=True):
+    if os.path.exists(path):
+        main_info(str(path) + " : exists")
+        if abort:
+            exit(0)
+        elif os.path.isdir(path):
+            main_info(str(path) + " : is a directory, continue using the old one")
+            return False
+        else:
+            main_info(str(path) + " : is not a directory, creating one")
+            os.makedirs(path)
+            return True
+    else:
+        os.makedirs(path)
+        return True
 
 
 def gen_zebrafish_test_data(basis="pca"):
@@ -33,6 +54,7 @@ def gen_zebrafish_test_data(basis="pca"):
     top_pca_genes = adata.var.index[adata.var.top_pca_genes]
     dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
     dyn.cleanup(adata)
+    mkdirs_wrapper(test_data_dir, abort=False)
     adata.write_h5ad(test_zebrafish_data_path)
 
 

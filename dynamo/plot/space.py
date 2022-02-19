@@ -43,7 +43,7 @@ def space(
             The gene list that will be used to plot the gene expression on the same scatter plot. Each gene will have a
             different color. Can be a single gene name string and we will convert it to a list.
         color: `string` (default: `ntr`)
-            Any or any list of column names or gene name, etc. that will be used for coloring cells. If `color` is not None, stack_genes will be disabled automatically because `color` can contain non numerical values.
+            Any or any list of column names or gene names, etc. that will be used for coloring cells. If `color` is not None, stack_genes will be disabled automatically because `color` can contain non numerical values.
         space: `str`
             The key to space coordinates.
         stack_genes:
