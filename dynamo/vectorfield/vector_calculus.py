@@ -31,7 +31,7 @@ from ..tools.utils import (
 )
 
 from ..utils import isarray, ismatrix
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_info_insert_adata_uns
 from ..vectorfield import scVectorField
 from ..dynamo_logger import main_info_insert_adata, main_info, main_warning
 
@@ -1360,7 +1360,7 @@ def rank_jacobian_genes(
         normalize: bool (default: False)
             Whether normalize the Jacobian across all cells before performing the ranking.
         return_df: bool (default: False)
-            Whether to return the data, otherwise it will save in adata object via the key `mode` of adata.uns.
+            Whether to return the data or to save results in adata object via the key `mode` of adata.uns.
         kwargs:
             Keyword arguments passed to ranking functions.
 
@@ -1460,6 +1460,7 @@ def rank_jacobian_genes(
     if return_df:
         return rank_dict
     else:
+        main_info_insert_adata_uns(mode)
         adata.uns[mode] = rank_dict
 
 
