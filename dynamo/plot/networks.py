@@ -1,4 +1,8 @@
+from matplotlib.axes import Axes
 import numpy as np
+import networkx as nx
+import nxviz as nv
+import nxviz.annotate
 import pandas as pd
 from ..tools.utils import (
     update_dict,
@@ -357,6 +361,57 @@ def arcPlot(
         return ap
 
 
+def circos_plot(
+    network: nx.Graph,
+    node_label_key: str = None,
+    circos_label_layout: str = "rotate",
+    node_color_key: str = None,
+    show_colorbar=True,
+    edge_lw_scale: float = 0.5,
+    edge_alpha_scale: float = 0.5,
+) -> Axes:
+    """wrapper for drawing circos plot via nxviz >= 0.7.3
+
+    Parameters
+    ----------
+    network : nx.Graph
+        a network graph instance
+    node_label_key : str, optional
+        node label (attribute) in network for grouping nodes, by default None
+    circos_label_layout : str, optional
+        layout of circos plot (see nxviz docs for details), by default "rotate"
+    node_color_key : str, optional
+        node attribute in network, corresponding to color values of nodes, by default None
+    show_colorbar : bool, optional
+        whether to show colorbar, by default True
+    edge_lw_scale : float
+        the line width scale of edges drawn in in plot
+    edge_alpha_scale : float
+        the alpha (opacity, transparency) scale of edges
+    """
+    ax = nv.circos(
+        network,
+        group_by=node_label_key,
+        node_color_by=node_color_key,
+        edge_lw_by="weight",
+        edge_alpha_by="weight",
+        edge_enc_kwargs={
+            "lw_scale": edge_lw_scale,
+            "alpha_scale": edge_alpha_scale,
+        },
+    )
+
+    nv.annotate.circos_labels(network, group_by=node_label_key, layout=circos_label_layout)
+    if node_color_key and show_colorbar:
+        nv.annotate.node_colormapping(
+            network,
+            color_by=node_color_key,
+            legend_kwargs={"loc": "upper right", "bbox_to_anchor": (0.0, 1.0)},
+            ax=None,
+        )
+    return ax
+
+
 def circosPlot(
     adata,
     cluster,
@@ -370,7 +425,9 @@ def circosPlot(
     save_kwargs={},
     **kwargs,
 ):
-    """Circos plot of gene regulatory network for a particular cell cluster.
+    """Note: this function is written with nxviz old version (<=0.3.x, or higher) API
+    for the latest nxviz version compatibility, please refer to `dyn.pl.circos_plot`.
+    Circos plot of gene regulatory network for a particular cell cluster.
 
     Parameters
     ----------
