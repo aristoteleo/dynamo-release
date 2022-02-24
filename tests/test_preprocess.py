@@ -1,6 +1,8 @@
 from scipy import sparse
 from dynamo.preprocessing.utils import convert_layers2csr
 from dynamo.preprocessing import Preprocessor
+import scipy
+import scipy.sparse
 from scipy.sparse.csr import csr_matrix
 from dynamo.preprocessing.preprocessor_utils import (
     calc_mean_var_dispersion_sparse,
@@ -12,12 +14,13 @@ from dynamo.preprocessing.preprocessor_utils import (
     log1p_adata,
     select_genes_by_dispersion_general,
 )
-from utils import *
+
+# from utils import *
 import dynamo as dyn
 import anndata
 import pandas as pd
+import numpy as np
 
-logger = LoggerManager.get_main_logger()
 SHOW_FIG = False
 
 
@@ -155,14 +158,17 @@ def test_layers2csr_matrix():
 
 def test_compute_gene_exp_fraction():
     # TODO fix compute_gene_exp_fraction: discuss with Xiaojie
-    df = pd.DataFrame([[1, 2], [1, 1]])
+    # df = pd.DataFrame([[1, 2], [1, 1]]) # input cannot be dataframe
+    df = scipy.sparse.csr_matrix([[1, 2], [1, 1]])
     frac, indices = dyn.preprocessing.compute_gene_exp_fraction(df)
     print("frac:", list(frac))
-    assert np.all(np.isclose(frac, [2 / 5, 3 / 5]))
+    assert np.all(np.isclose(frac.flatten(), [2 / 5, 3 / 5]))
 
 
-def test_select_genes_seurat(adata):
-    select_genes_by_dispersion_general(adata, recipe="seurat")
+def test_preprocessor_seurat(adata):
+    adata = dyn.sample_data.zebrafish()
+    preprocessor = dyn.pp.Preprocessor()
+    preprocessor.preprocess_adata(adata, recipe="seurat")
     # TODO add assert comparison later. Now checked by notebooks only.
 
 
@@ -213,7 +219,7 @@ if __name__ == "__main__":
     test_layers2csr_matrix()
 
     # generate data if needed
-    adata = gen_or_read_zebrafish_data()
+    adata = utils.gen_or_read_zebrafish_data()
     test_is_log_transformed()
     test_Preprocessor_simple_run(dyn.sample_data.zebrafish())
 

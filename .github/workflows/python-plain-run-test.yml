@@ -40,4 +40,5 @@ jobs:
 #        pytest
     - name: Test with plain runs
       run: |
-        bash ./tests/run_plain_tests.sh
+        pytest -v
+        # bash ./tests/run_plain_tests.sh

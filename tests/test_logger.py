@@ -50,10 +50,11 @@ def test_tqdm_style_loops():
         time.sleep(0.1)
 
 
+@pytest.mark.skip(reason="excessive running time")
 def test_vectorField_logger():
     adata = dyn.sample_data.zebrafish()
     adata = adata[:500]
-    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
@@ -68,20 +69,23 @@ def test_vectorField_logger():
     dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
 
 
+@pytest.mark.skip(reason="excessive running time")
 def test_sparseVFC_logger():
     adata = dyn.sample_data.zebrafish()
     adata = adata[:500]
-    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
     dyn.vf.VectorField(adata, basis="pca", M=100, method="SparseVFC", verbose=1)
 
 
+@pytest.mark.skip(reason="need refactor: follow latest differential geometry notebook")
+# TODO: refactor
 def test_zebrafish_topography_tutorial_logger():
     adata = dyn.sample_data.zebrafish()
     adata = adata[:500]
-    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")

@@ -1,10 +1,9 @@
-from utils import *
+# import utils
 import networkx as nx
+import pytest
 import dynamo as dyn
 import matplotlib.pyplot as plt
 import copy
-
-logger = LoggerManager.get_main_logger()
 
 
 def test_scatter_contour(adata):
@@ -12,6 +11,7 @@ def test_scatter_contour(adata):
     dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True, calpha=1)
 
 
+@pytest.mark.skip(reason="nxviz old version")
 def test_circosPlot_deprecated(adata):
     # genes from top acceleration rank
     selected_genes = ["hmgn2", "hmgb2a", "si:ch211-222l21.1", "mbpb", "h2afvb"]
@@ -33,7 +33,7 @@ def test_circosPlot_deprecated(adata):
         create_using=nx.DiGraph(),
     )
     _network = copy.deepcopy(network)
-    dyn.pl.circosPlot(
+    dyn.pl.circosPlotDeprecated(
         adata,
         cluster="Cell_type",
         cluster_name="Unknown",
@@ -45,7 +45,7 @@ def test_circosPlot_deprecated(adata):
 
     for e in network.edges():
         assert network.edges[e]["weight"] == _network.edges[e]["weight"]
-    dyn.pl.circosPlot(
+    dyn.pl.circosPlotDeprecated(
         adata,
         cluster="Cell_type",
         cluster_name="Unknown",
@@ -57,6 +57,7 @@ def test_circosPlot_deprecated(adata):
     pass
 
 
+@pytest.mark.skip(reason="lack viral data")
 def test_scatter_group_gamma():
     dyn.pl.scatters(
         viral_adata,
@@ -69,7 +70,8 @@ def test_scatter_group_gamma():
     )
 
 
-def test_nxviz7_circosplot():
+def test_nxviz7_circosplot(utils):
+    adata = utils.gen_or_read_zebrafish_data()
     selected_genes = ["hmgn2", "hmgb2a", "si:ch211-222l21.1", "mbpb", "h2afvb"]
     edges_list = dyn.vf.build_network_per_cluster(
         adata,
@@ -92,14 +94,14 @@ def test_nxviz7_circosplot():
 
     for node in network.nodes:
         network.nodes[node][adata_layer_key] = adata[:, node].layers[adata_layer_key].mean()
-    dyn.pl.circos_plot(network, node_color_key="M_s", show_colorbar=False, edge_alpha_scale=1, edge_lw_scale=1)
-    dyn.pl.circos_plot(network, node_color_key="M_s", show_colorbar=True, edge_alpha_scale=0.5, edge_lw_scale=0.4)
+    dyn.pl.circosPlot(network, node_color_key="M_s", show_colorbar=False, edge_alpha_scale=1, edge_lw_scale=1)
+    dyn.pl.circosPlot(network, node_color_key="M_s", show_colorbar=True, edge_alpha_scale=0.5, edge_lw_scale=0.4)
     # plt.show() # show via command line run.
 
 
 if __name__ == "__main__":
     # generate data if needed
-    adata = gen_or_read_zebrafish_data()
+    adata = utils.gen_or_read_zebrafish_data()
 
     # TODO use a fixture in future
     # test_space_simple1(adata)
