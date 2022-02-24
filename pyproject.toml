@@ -45,6 +45,7 @@ requires = [
   'joblib',
   'setuptools',
   'KDEpy', # preprocess module: sctransform
+  'nxviz==0.7.3'
 ]
 requires-python = '>=3.7'
 

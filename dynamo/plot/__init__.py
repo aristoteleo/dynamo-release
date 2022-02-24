@@ -61,8 +61,9 @@ from .vector_calculus import (
 )
 from .networks import (
     arcPlot,
-    circosPlot,
+    circosPlotDeprecated,
     hivePlot,
+    circosPlot,
 )
 
 from .fate import fate_bias, fate
@@ -136,6 +137,7 @@ __all__ = [
     "sensitivity_heatmap",
     "arcPlot",
     "circosPlot",
+    "circosPlotDeprecated",
     "hivePlot",
     "fate_bias",
     "fate",

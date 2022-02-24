@@ -13,7 +13,7 @@ from scipy.sparse import csr_matrix
 
 
 def test_run_rpe1_tutorial():
-    rpe1 = dyn.sample_data.scEU_seq()
+    rpe1 = dyn.sample_data.scEU_seq_rpe1()
     # show results
     rpe1.obs.exp_type.value_counts()
     rpe1[rpe1.obs.exp_type == "Chase", :].obs.time.value_counts()
