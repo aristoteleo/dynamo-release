@@ -210,21 +210,22 @@ def test_is_nonnegative():
 
 
 if __name__ == "__main__":
-    test_is_nonnegative()
+    # test_is_nonnegative()
 
-    test_calc_dispersion_sparse()
-    test_select_genes_seurat(gen_or_read_zebrafish_data())
+    # test_calc_dispersion_sparse()
+    # test_select_genes_seurat(gen_or_read_zebrafish_data())
 
-    test_compute_gene_exp_fraction()
-    test_layers2csr_matrix()
+    # test_compute_gene_exp_fraction()
+    # test_layers2csr_matrix()
 
-    # generate data if needed
-    adata = utils.gen_or_read_zebrafish_data()
-    test_is_log_transformed()
-    test_Preprocessor_simple_run(dyn.sample_data.zebrafish())
+    # # generate data if needed
+    # adata = utils.gen_or_read_zebrafish_data()
+    # test_is_log_transformed()
+    # test_Preprocessor_simple_run(dyn.sample_data.zebrafish())
 
-    test_calc_dispersion_sparse()
-    # TODO use a fixture in future
-    test_highest_frac_genes_plot(adata.copy())
-    test_highest_frac_genes_plot_prefix_list(adata.copy())
-    test_recipe_monocle_feature_selection_layer_simple0()
+    # test_calc_dispersion_sparse()
+    # # TODO use a fixture in future
+    # test_highest_frac_genes_plot(adata.copy())
+    # test_highest_frac_genes_plot_prefix_list(adata.copy())
+    # test_recipe_monocle_feature_selection_layer_simple0()
+    pass

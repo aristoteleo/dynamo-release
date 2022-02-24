@@ -36,8 +36,9 @@ def test_space_data():
 
 if __name__ == "__main__":
     # generate data if needed
-    adata = utils.gen_or_read_zebrafish_data()
+    # adata = utils.gen_or_read_zebrafish_data()
 
     # TODO use a fixture in future
-    test_space_plot_simple1(adata)
+    # test_space_plot_simple1(adata)
     # test_space_stack_color(adata)
+    pass

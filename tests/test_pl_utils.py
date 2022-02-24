@@ -101,10 +101,11 @@ def test_nxviz7_circosplot(utils):
 
 if __name__ == "__main__":
     # generate data if needed
-    adata = utils.gen_or_read_zebrafish_data()
+    # adata = utils.gen_or_read_zebrafish_data()
 
     # TODO use a fixture in future
     # test_space_simple1(adata)
     # test_scatter_contour(adata)
     # test_circosPlot_deprecated(adata)
-    test_nxviz7_circosplot()
+    # test_nxviz7_circosplot()
+    pass

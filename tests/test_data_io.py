@@ -21,6 +21,7 @@ def test_zebrafish():
 
 if __name__ == "__main__":
     # test_scEU_seq()
-    test_zebrafish()
-    adata = utils.gen_or_read_zebrafish_data()
-    test_save_rank_info(adata)
+    # test_zebrafish()
+    # adata = utils.gen_or_read_zebrafish_data()
+    # test_save_rank_info(adata)
+    pass

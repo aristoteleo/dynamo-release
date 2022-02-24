@@ -74,11 +74,12 @@ def test_leiden_membership_input(adata):
 
 
 if __name__ == "__main__":
-    adata = utils.gen_or_read_zebrafish_data()
-    print("tests begin...")
+    # adata = utils.gen_or_read_zebrafish_data()
+    # print("tests begin...")
 
-    ######### testing begins here #########
-    test_leiden_membership_input(adata)
-    test_simple_cluster_community_adata(adata)
-    test_simple_cluster_subset(adata)
-    test_simple_cluster_keys(adata)
+    # ######### testing begins here #########
+    # test_leiden_membership_input(adata)
+    # test_simple_cluster_community_adata(adata)
+    # test_simple_cluster_subset(adata)
+    # test_simple_cluster_keys(adata)
+    pass
