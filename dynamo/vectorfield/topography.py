@@ -895,7 +895,7 @@ def VectorField(
     for index in range(len(valid_ids)):
         # fix the u, v norm == 0 in angle function
         i, u, v = valid_ids[index], V[valid_ids][index], vf_dict["V"][index]
-        cell_angels[i] = angle(u.astype("float"), v.astype("float"))
+        cell_angels[i] = angle(u, v)
 
     if basis is not None:
         temp_key = "obs_vf_angle_" + basis
