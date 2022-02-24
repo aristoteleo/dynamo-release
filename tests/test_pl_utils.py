@@ -58,7 +58,7 @@ def test_circosPlot_deprecated(adata):
 
 
 @pytest.mark.skip(reason="require viral data")
-def test_scatter_group_gamma(viral_adata):
+def test_scatter_group_gamma(viral_adata, gene_list_df: list):
     dyn.pl.scatters(
         viral_adata,
         basis=viral_adata.var_names.intersection(gene_list_df.index)[:5],
