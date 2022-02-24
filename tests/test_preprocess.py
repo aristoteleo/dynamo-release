@@ -80,7 +80,7 @@ def test_highest_frac_genes_plot_prefix_list(adata, is_X_sparse=True):
 
 
 def test_recipe_monocle_feature_selection_layer_simple0():
-    rpe1 = dyn.sample_data.scEU_seq()
+    rpe1 = dyn.sample_data.scEU_seq_rpe1()
     # show results
     rpe1.obs.exp_type.value_counts()
 
