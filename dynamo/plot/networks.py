@@ -361,7 +361,7 @@ def arcPlot(
         return ap
 
 
-def circos_plot(
+def circosPlot(
     network: nx.Graph,
     node_label_key: str = None,
     circos_label_layout: str = "rotate",
@@ -412,7 +412,7 @@ def circos_plot(
     return ax
 
 
-def circosPlot(
+def circosPlotDeprecated(
     adata,
     cluster,
     cluster_name,
