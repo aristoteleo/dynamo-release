@@ -387,7 +387,7 @@ def circos_plot(
     edge_lw_scale : float
         the line width scale of edges drawn in in plot
     edge_alpha_scale : float
-        the alpha (opacity, transparency) scale of edges
+        the alpha (opacity, transparency) scale of edges, the value shoud be in [0, 1.0]
     """
     ax = nv.circos(
         network,
