@@ -891,11 +891,11 @@ def VectorField(
         adata.obs.loc[adata.obs_names[valid_ids], inlier_prob] = vf_dict["P"].flatten()
 
     # angles between observed velocity and that predicted by vector field across cells:
-    cell_angels = np.zeros(adata.n_obs)
+    cell_angels = np.zeros(adata.n_obs, dtype=float)
     for index in range(len(valid_ids)):
         # fix the u, v norm == 0 in angle function
         i, u, v = valid_ids[index], V[valid_ids][index], vf_dict["V"][index]
-        cell_angels[i] = angle(u.astype("float64"), v.astype("float64"))
+        cell_angels[i] = angle(u.astype("float"), v.astype("float"))
 
     if basis is not None:
         temp_key = "obs_vf_angle_" + basis
