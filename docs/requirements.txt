@@ -33,3 +33,4 @@ GitPython
 KDEpy
 
 sphinxcontrib-bibtex>=2.3
+sphinx_gallery

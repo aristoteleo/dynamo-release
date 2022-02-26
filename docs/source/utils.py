@@ -18,7 +18,7 @@ def _download_notebook_dirs(repo_url: str) -> None:
     def copy_notebook_dirs(repo_path: Union[str, Path]) -> None:
         repo_path = Path(repo_path)
         print("repo path:", repo_path)
-        for dirname in ["notebooks"]:
+        for dirname in ["notebooks", "gallery"]:
             rmtree(dirname, ignore_errors=True)  # locally re-cloning
             copytree(repo_path / "docs" / "source" / dirname, dirname)
 

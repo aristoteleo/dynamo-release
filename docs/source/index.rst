@@ -62,7 +62,8 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    notebooks/Primer
    notebooks/lap_box_introduction
    notebooks/perturbation_introduction_theory.rst
-
+   .. auto_examples/index.rst
+   gallery/index.rst
 
 
 .. toctree::
