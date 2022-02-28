@@ -218,14 +218,13 @@ def ddhodge(
         query_idx = np.array(list(set(np.arange(adata.n_obs)).difference(cell_idx)))
         query_data = X_data_full[query_idx, :]
 
-        # construct nbrs of query points
+        # construct nbrs of query points based on two types of nbrs: from NNDescent (pynndescent) or NearestNeighbors
         if hasattr(nbrs, "kneighbors"):
             dist, query_nbrs_idx = nbrs.kneighbors(query_data)
         elif hasattr(nbrs, "query"):
             query_nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
 
         k = query_nbrs_idx.shape[1]
-
         query_W_row = np.repeat(np.arange(len(query_idx)), k)
         query_W_col = query_nbrs_idx.flatten()
 

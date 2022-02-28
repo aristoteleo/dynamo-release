@@ -1,3 +1,4 @@
+from typing import Callable, Union
 import numpy as np
 import scipy.sparse as sp
 from scipy.linalg import qr
@@ -10,15 +11,15 @@ from ..dynamo_logger import main_info, main_warning
 def graphize_velocity(
     V,
     X,
-    nbrs_idx=None,
-    dists=None,
-    k=30,
-    normalize_v=False,
-    scale_by_dist=False,
-    E_func=None,
-    use_sparse=False,
-    return_nbrs=False,
-):
+    nbrs_idx: Union[np.array, list] = None,
+    dists: np.array = None,
+    k: int = 30,
+    normalize_v: bool = False,
+    scale_by_dist: bool = False,
+    E_func: Union[str, Callable] = None,
+    use_sparse: bool = False,
+    return_nbrs: bool = False,
+) -> tuple:
     """
         The function generates a graph based on the velocity data. The flow from i- to j-th
         node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
@@ -40,6 +41,8 @@ def graphize_velocity(
             If a string is passed, there are two options:
                 'sqrt': the numpy.sqrt square root function;
                 'exp': the numpy.exp exponential function.
+        return_nbrs:
+            returns a neighbor object if this arg is true. A neighbor object is from k_nearest_neighbors and may be from NNDescent (pynndescent) or NearestNeighbors.
 
     Returns
     -------
