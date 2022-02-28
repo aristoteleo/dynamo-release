@@ -8,7 +8,7 @@ from scipy.sparse import csr_matrix, issparse
 from anndata import AnnData
 from typing import Union
 
-from ..dynamo_logger import main_info
+from ..dynamo_logger import main_finish_progress, main_info, main_log_time
 
 # from ..vectorfield.scVectorField import graphize_vecfld
 from ..tools.graph_calculus import graphize_velocity, divergence, potential
@@ -95,6 +95,7 @@ def ddhodge(
             that corresponds to the sparse diffusion graph. Two columns `potential` and `divergence` corresponds to the
             potential and divergence for each cell will also be added."""
 
+    main_log_time()
     prefix = "" if basis is None else basis + "_"
     to_downsample = adata.n_obs > n_downsamples
 
@@ -133,9 +134,11 @@ def ddhodge(
     adata_ = adata[cell_idx].copy()
 
     if prefix + "ddhodge" in adata_.obsp.keys() and not enforce and not to_downsample:
+        main_info("fetch computation results from adata.obsp[%s]..." % (prefix + "ddhodge"))
         adj_mat = adata_.obsp[prefix + "ddhodge"]
     else:
         if adjmethod == "graphize_vecfld":
+            main_info("graphizing vectorfield...")
             V_data = func(X_data)
             neighbor_result_prefix = "" if layer is None else layer
             conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
@@ -146,11 +149,12 @@ def ddhodge(
                 neighbors = adata_.obsp[conn_key]
                 existing_nbrs_idx = neighbors.tolil().rows
 
-            adj_mat, nbrs_idx, dists = graphize_velocity(
+            adj_mat, nbrs_idx, dists, nbrs = graphize_velocity(
                 V_data,
                 X_data,
                 nbrs_idx=existing_nbrs_idx,
                 k=n,
+                return_nbrs=True,
             )
             """adj_mat, nbrs = graphize_vecfld(
                 func,
@@ -162,6 +166,9 @@ def ddhodge(
                 cores=cores,
             )"""
         elif adjmethod == "naive":
+            main_info(
+                'method=naive, get adj_mat from transition matrix in adata directly (adata.uns["transition_matrix"'
+            )
             if "transition_matrix" not in adata_.uns.keys():
                 raise Exception(
                     "Your adata doesn't have transition matrix created. You need to first "
@@ -211,24 +218,19 @@ def ddhodge(
         query_idx = np.array(list(set(np.arange(adata.n_obs)).difference(cell_idx)))
         query_data = X_data_full[query_idx, :]
 
-        # set nbrs_idx
-        if "nbrs_idx" in locals():
-            pass
+        # construct nbrs of query points
+        if hasattr(nbrs, "kneighbors"):
+            dist, query_nbrs_idx = nbrs.kneighbors(query_data)
+        elif hasattr(nbrs, "query"):
+            query_nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
 
-        # TODO: legacy code below, review and delete in future
-        # elif hasattr(nbrs, "kneighbors"):
-        #     dist, nbrs_idx = nbrs.kneighbors(query_data)
-        # elif hasattr(nbrs, "query"):
-        #     nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
+        k = query_nbrs_idx.shape[1]
 
-        k = nbrs_idx.shape[1]
-
-        # row= np.repeat(np.arange(len(query_idx)), k)
-        row = np.repeat(np.arange(len(cell_idx)), k)
-        col = nbrs_idx.flatten()
+        query_W_row = np.repeat(np.arange(len(query_idx)), k)
+        query_W_col = query_nbrs_idx.flatten()
 
         W = csr_matrix(
-            (np.repeat(1 / k, len(row)), (row, col)),
+            (np.repeat(1 / k, len(query_W_row)), (query_W_row, query_W_col)),
             shape=(len(query_idx), len(cell_idx)),
         )
 
@@ -249,3 +251,5 @@ def ddhodge(
     else:
         adata.obs[prefix + "ddhodge_div"] = ddhodge_div
         adata.obs[prefix + "ddhodge_potential"] = potential_
+
+    main_finish_progress("ddhodge completed")

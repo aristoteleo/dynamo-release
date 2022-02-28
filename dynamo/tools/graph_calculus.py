@@ -2,11 +2,22 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.linalg import qr
 from scipy.optimize import lsq_linear
+
 from .utils import k_nearest_neighbors, nbrs_to_dists, flatten, index_condensed_matrix
+from ..dynamo_logger import main_info, main_warning
 
 
 def graphize_velocity(
-    V, X, nbrs_idx=None, dists=None, k=30, normalize_v=False, scale_by_dist=False, E_func=None, use_sparse=False
+    V,
+    X,
+    nbrs_idx=None,
+    dists=None,
+    k=30,
+    normalize_v=False,
+    scale_by_dist=False,
+    E_func=None,
+    use_sparse=False,
+    return_nbrs=False,
 ):
     """
         The function generates a graph based on the velocity data. The flow from i- to j-th
@@ -39,8 +50,15 @@ def graphize_velocity(
     """
     n = X.shape[0]
 
-    if nbrs_idx is None:
-        nbrs_idx, dists = k_nearest_neighbors(X, k, exclude_self=True)
+    if (nbrs_idx is not None) and return_nbrs:
+        main_warning(
+            "nbrs_idx argument is ignored and recomputed because nbrs_idx is not None and return_nbrs=True",
+            indent_level=2,
+        )
+
+    if nbrs_idx is None or return_nbrs:
+        main_info("calculating neighbor indices...", indent_level=2)
+        nbrs_idx, dists, nbrs = k_nearest_neighbors(X, k, exclude_self=True, return_nbrs=True)
 
     if dists is None:
         dists = nbrs_to_dists(X, nbrs_idx)
@@ -90,6 +108,8 @@ def graphize_velocity(
             E[i, j] = v
             E[j, i] = -v
 
+    if return_nbrs:
+        return E, nbrs_idx, dists, nbrs
     return E, nbrs_idx, dists
 
 
