@@ -63,7 +63,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    notebooks/lap_box_introduction
    notebooks/perturbation_introduction_theory.rst
    .. auto_examples/index.rst
-   gallery/index.rst
+   .. gallery/index.rst
 
 
 .. toctree::
@@ -111,6 +111,13 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
    notebooks/lap_tutorial/lap_tutorial
    notebooks/perturbation_tutorial/perturbation_tutorial
+
+.. toctree::
+   :caption: Miscellaneous tutorials
+   :hidden:
+
+   gallery/index.rst
+
 
 Indices and tables
 ==================

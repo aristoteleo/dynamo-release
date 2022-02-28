@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("../../"))
 
 import dynamo
-from docs.source.utils import _download_notebook_dirs
+from docs.source.utils import _download_docs_dirs
 
 # HERE = Path(__file__).parent
 # sys.path[:0] = [str(HERE.parent)]
@@ -59,7 +59,7 @@ github_org = "aristoteleo"
 github_code_repo = "dynamo-release"
 github_ref = "master"
 github_nb_repo = "dynamo_readthedocs"
-_download_notebook_dirs(repo_url=f"https://github.com/{github_org}/{github_nb_repo}")
+_download_docs_dirs(repo_url=f"https://github.com/{github_org}/{github_nb_repo}")
 
 # Add notebooks prolog to Google Colab and nbviewer
 nbsphinx_prolog = r"""
