@@ -65,6 +65,7 @@ docs = [
   'mock',
   'readthedocs-sphinx-ext',
   'GitPython',
+  'sphinx-gallery'
 ]
 network = ["networkx", "nxviz", "hiveplotlib", "python-igraph", "leidenalg", "wurlitzer"]
 spatial = ['pysal>2.0.0']

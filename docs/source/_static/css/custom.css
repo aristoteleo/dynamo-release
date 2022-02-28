@@ -1,24 +1,33 @@
 .caption-text{
-   padding: 0px;
-}
-
-.rst-content .output_area img {
-   max-width: unset;
-   width: 100% !important;
-   height: auto !important;
-}
-
-
-/* sidebar */
-.rst-content .sidebar {
-    /* margin: 0px 0px 0px 12px; */
-    padding-bottom: 0px;
-}
-.rst-content .sidebar p {
-    margin-bottom: 12px;
-}
-.rst-content .sidebar p,
-.rst-content .sidebar ul,
-.rst-content .sidebar dl {
-    font-size: 13px;
-}
+    padding: 0px;
+ }
+ 
+ .rst-content .output_area img {
+    max-width: unset;
+    width: 100% !important;
+    height: auto !important;
+ }
+ 
+ 
+ /* sidebar */
+ .rst-content .sidebar {
+     /* margin: 0px 0px 0px 12px; */
+     padding-bottom: 0px;
+ }
+ .rst-content .sidebar p {
+     margin-bottom: 12px;
+ }
+ .rst-content .sidebar p,
+ .rst-content .sidebar ul,
+ .rst-content .sidebar dl {
+     font-size: 13px;
+ }
+ 
+ /* Sidebar header (and topbar for mobile) */
+ .wy-side-nav-search, .wy-nav-top {
+     background: #1b1b1b;
+ }
+ /* Sidebar */
+ .wy-nav-side {
+ background: #373737;
+ }

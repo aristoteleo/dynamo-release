@@ -146,7 +146,7 @@ def ddhodge(
                 neighbors = adata_.obsp[conn_key]
                 Idx = neighbors.tolil().rows
 
-            adj_mat, nbrs, dists = graphize_velocity(
+            adj_mat, nbrs_idx, dists = graphize_velocity(
                 V_data,
                 X_data,
                 nbrs_idx=Idx,
@@ -178,6 +178,9 @@ def ddhodge(
     #     main_info("adj_mat:%s is not sparse, transforming it to a sparse matrix..." %(str(type(adj_mat))))
     #     adj_mat = csr_matrix(adj_mat)
 
+    if issparse(adj_mat):
+        adj_mat = adj_mat.toarray()
+
     # if not all cells are used in the graphize_vecfld function, set diagnoal to be 1
     if len(np.unique(np.hstack(adj_mat.nonzero()))) != adata.n_obs:
         main_info("not all cells are used, set diag to 1...", indent_level=2)
@@ -190,7 +193,6 @@ def ddhodge(
             np.fill_diagonal(adj_mat, 1)
 
     # g = build_graph(adj_mat)
-
     # TODO the following line does not work on sparse matrix.
     A = np.abs(np.sign(adj_mat))
 
@@ -206,10 +208,15 @@ def ddhodge(
         query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
         query_data = X_data_full[query_idx, :]
 
-        if hasattr(nbrs, "kneighbors"):
-            dist, nbrs_idx = nbrs.kneighbors(query_data)
-        elif hasattr(nbrs, "query"):
-            nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
+        # set nbrs_idx
+        if nbrs_idx in locals():
+            pass
+
+        # TODO: legacy code below, review and delete in future
+        # elif hasattr(nbrs, "kneighbors"):
+        #     dist, nbrs_idx = nbrs.kneighbors(query_data)
+        # elif hasattr(nbrs, "query"):
+        #     nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
 
         k = nbrs_idx.shape[1]
         row, col = np.repeat(np.arange(len(query_idx)), k), nbrs_idx.flatten()
