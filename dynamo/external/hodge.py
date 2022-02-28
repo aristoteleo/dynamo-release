@@ -140,22 +140,22 @@ def ddhodge(
             neighbor_result_prefix = "" if layer is None else layer
             conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
             if neighbor_key not in adata_.uns_keys() or to_downsample:
-                Idx = None
+                existing_nbrs_idx = None
             else:
                 check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
                 neighbors = adata_.obsp[conn_key]
-                Idx = neighbors.tolil().rows
+                existing_nbrs_idx = neighbors.tolil().rows
 
             adj_mat, nbrs_idx, dists = graphize_velocity(
                 V_data,
                 X_data,
-                nbrs_idx=Idx,
+                nbrs_idx=existing_nbrs_idx,
                 k=n,
             )
             """adj_mat, nbrs = graphize_vecfld(
                 func,
                 X_data,
-                nbrs_idx=Idx,
+                nbrs_idx=existing_nbrs_idx,
                 k=n,
                 distance_free=distance_free,
                 n_int_steps=20,
@@ -206,7 +206,9 @@ def ddhodge(
     potential_ = potential(adj_mat, W=A, div=ddhodge_div, **kwargs)
 
     if up_sampling and to_downsample:
-        query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
+        main_info("Constructing W matrix according upsampling=True and downsampling=True options...", indent_level=2)
+
+        query_idx = np.array(list(set(np.arange(adata.n_obs)).difference(cell_idx)))
         query_data = X_data_full[query_idx, :]
 
         # set nbrs_idx
@@ -220,7 +222,11 @@ def ddhodge(
         #     nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
 
         k = nbrs_idx.shape[1]
-        row, col = np.repeat(np.arange(len(query_idx)), k), nbrs_idx.flatten()
+
+        # row= np.repeat(np.arange(len(query_idx)), k)
+        row = np.repeat(np.arange(len(cell_idx)), k)
+        col = nbrs_idx.flatten()
+
         W = csr_matrix(
             (np.repeat(1 / k, len(row)), (row, col)),
             shape=(len(query_idx), len(cell_idx)),
