@@ -210,7 +210,7 @@ def ddhodge(
         query_data = X_data_full[query_idx, :]
 
         # set nbrs_idx
-        if nbrs_idx in locals():
+        if "nbrs_idx" in locals():
             pass
 
         # TODO: legacy code below, review and delete in future
