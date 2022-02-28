@@ -178,6 +178,7 @@ def ddhodge(
     #     main_info("adj_mat:%s is not sparse, transforming it to a sparse matrix..." %(str(type(adj_mat))))
     #     adj_mat = csr_matrix(adj_mat)
 
+    # TODO temp fix; refactor to make adj_mat sparse and adjust all the function call
     if issparse(adj_mat):
         adj_mat = adj_mat.toarray()
 
