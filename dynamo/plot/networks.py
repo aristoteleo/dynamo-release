@@ -209,7 +209,7 @@ def arcPlot(
     adata,
     cluster,
     cluster_name,
-    edges_list,
+    edges_list=None,
     network=None,
     color=None,
     cmap="viridis",

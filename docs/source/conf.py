@@ -109,6 +109,7 @@ extensions = [
     # Automatically document param types (less noise in class signature)
     "sphinx_autodoc_typehints",
     "sphinxcontrib.bibtex",
+    "sphinx_gallery.load_style",
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
@@ -161,6 +162,7 @@ autodoc_default_flags = [
 html_theme = "sphinx_rtd_theme"
 html_theme_options = dict(
     navigation_depth=4,
+    logo_only=True,
 )
 html_context = dict(
     display_github=True,  # Integrate GitHub
@@ -174,6 +176,8 @@ html_context = dict(
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
+# html_logo = "_static/logo.png"
+html_logo = "_static/logo_with_word.png"
 
 
 def setup(app):

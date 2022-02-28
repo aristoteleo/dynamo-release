@@ -34,7 +34,7 @@ def graphize_velocity(
     -------
         E: :class:`~numpy.ndarray`
             The edge matrix.
-        nbrs_idx: list
+        nbrs_idx: :class:`~numpy.ndarray`
             Neighbor indices.
     """
     n = X.shape[0]
