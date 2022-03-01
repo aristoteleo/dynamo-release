@@ -125,17 +125,12 @@ def k_nearest_neighbors(
     n_jobs: int = -1,
     return_nbrs: bool = False,
 ):
-    """_summary_
+    """Compute k nearest neighbors on X
 
     Parameters
     ----------
     return_nbrs:
         returns a neighbor object if this arg is true, by default False. A neighbor object is from k_nearest_neighbors and may be from NNDescent (pynndescent) or NearestNeighbors.
-
-    Returns
-    -------
-    _type_
-        _description_
     """
     n, d = np.atleast_2d(X).shape
     if n > int(pynn_num) and d > pynn_dim:
