@@ -23,9 +23,9 @@ def _download_docs_dirs(repo_url: str) -> None:
             rmtree(dirname, ignore_errors=True)  # locally re-cloning
             copytree(repo_path / "docs" / "source" / dirname, dirname)
 
-        for file_path in glob.glob(str(repo_path / "docs" / "*.rst")):
-            print("%s copied to source", file_path)
-            copy(file_path, ".")
+        for file_path in glob.glob(str(repo_path / "docs" / "source" / "*.rst")):
+            print("%s copied to source" % file_path)
+            copy(file_path, "./")  # dest: source
 
     def fetch_remote(repo_url: str) -> None:
         info(f"Fetching notebooks from repo `{repo_url}`")
