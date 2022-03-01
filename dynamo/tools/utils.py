@@ -115,8 +115,23 @@ def nearest_neighbors(coord, coords, k=5):
 
 
 def k_nearest_neighbors(
-    X, k, exclude_self=True, knn_dim=10, pynn_num=2e5, pynn_dim=2, pynn_rand_state=19491001, n_jobs=-1
+    X,
+    k: int,
+    exclude_self: bool = True,
+    knn_dim: int = 10,
+    pynn_num: int = int(2e5),
+    pynn_dim: int = 2,
+    pynn_rand_state: int = 19491001,
+    n_jobs: int = -1,
+    return_nbrs: bool = False,
 ):
+    """Compute k nearest neighbors on X
+
+    Parameters
+    ----------
+    return_nbrs:
+        returns a neighbor object if this arg is true, by default False. A neighbor object is from k_nearest_neighbors and may be from NNDescent (pynndescent) or NearestNeighbors.
+    """
     n, d = np.atleast_2d(X).shape
     if n > int(pynn_num) and d > pynn_dim:
         from pynndescent import NNDescent
@@ -138,6 +153,8 @@ def k_nearest_neighbors(
     if exclude_self:
         nbrs_idx = nbrs_idx[:, 1:]
         dists = dists[:, 1:]
+    if return_nbrs:
+        return nbrs_idx, dists, nbrs
     return nbrs_idx, dists
 
 
