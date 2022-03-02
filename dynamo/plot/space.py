@@ -18,7 +18,7 @@ def space(
     color: Union[list, str, None] = None,
     genes: Union[list, None] = [],
     gene_cmaps=None,
-    space: str = "spatial",
+    space_key: str = "spatial",
     width: float = 6,
     marker: str = ".",
     pointsize: Union[float, None] = None,
@@ -107,19 +107,7 @@ def space(
         else:
             main_critical("No genes provided. Please check your argument passed in.")
             return
-    if "X_" + space in adata.obsm_keys():
-        space_key = space
-    elif space in adata.obsm_keys():
-        if space.startswith("X_"):
-            space_key = space.split("X_")[1]
-        else:
-            # scatters currently will append "X_" to the basis, so we need to create the `X_{space}` key.
-            # In future, extend scatters to directly plot coordinates in space key without append "X_"
-            if "X_" + space not in adata.obsm_keys():
-                adata.obsm["X_" + space] = adata.obsm[space]
-                space_key = space
-
-    ptp_vec = adata.obsm["X_" + space_key].ptp(0)
+    ptp_vec = adata.obsm[space_key].ptp(0)
     # calculate the figure size based on the width and the ratio between width and height
     # from the physical coordinate.
     if figsize is None:
@@ -127,7 +115,7 @@ def space(
 
     # calculate point size based on minimum radius
     if pointsize is None:
-        pointsize = compute_smallest_distance(adata.obsm["X_" + space_key], sample_num=ps_sample_num)
+        pointsize = compute_smallest_distance(adata.obsm[space_key], sample_num=ps_sample_num)
         # here we will scale the point size by the dpi and the figure size in inch.
         pointsize *= figsize[0] / ptp_vec[0] * dpi
         # meaning of s in scatters:
