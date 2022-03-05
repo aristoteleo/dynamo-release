@@ -145,7 +145,9 @@ def run_reduce_dim(
         try:
             import trimap
         except ImportError as exception:
-            raise exception
+            raise ImportError(
+                "Please 1) check if trimap is installed in your environment. 2) if you can import trimap successfully in your python console."
+            )
 
         triplemap = trimap.TRIMAP(
             n_inliers=20,
