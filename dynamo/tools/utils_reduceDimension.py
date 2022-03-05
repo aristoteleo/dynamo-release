@@ -142,7 +142,10 @@ def run_reduce_dim(
     **kwargs,
 ):
     if reduction_method == "trimap":
-        import trimap
+        try:
+            import trimap
+        except ImportError as exception:
+            raise exception
 
         triplemap = trimap.TRIMAP(
             n_inliers=20,
