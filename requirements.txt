@@ -6,7 +6,6 @@ cvxopt>=1.2.3
 anndata==0.7.5
 loompy>=3.0.5
 matplotlib>=3.4.1
-trimap>=1.0.11
 setuptools
 numdifftools>=0.9.39
 umap-learn>=0.5.1
@@ -20,3 +19,4 @@ python-igraph>=0.7.1
 pynndescent>=0.5.2
 pre-commit
 networkx
+# trimap>=1.0.11
