@@ -1,5 +1,5 @@
 from git import Repo
-from shutil import rmtree, copytree
+from shutil import rmtree, copytree, copy
 from typing import Dict, List, Union, ForwardRef
 from logging import info, warning
 from pathlib import Path
@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 import os
 import re
 import subprocess
+import glob
 
 CUR_DIR = Path(__file__).parent
 
@@ -14,13 +15,17 @@ NOTEBOOK_BRANCH = "main"
 DYNAMO_NOTEBOOK_PATH_ENV_VAR = "DYNAMO_DOWNLOAD_NOTEBOOKS"
 
 
-def _download_notebook_dirs(repo_url: str) -> None:
-    def copy_notebook_dirs(repo_path: Union[str, Path]) -> None:
+def _download_docs_dirs(repo_url: str) -> None:
+    def copy_docs_dirs(repo_path: Union[str, Path]) -> None:
         repo_path = Path(repo_path)
         print("repo path:", repo_path)
         for dirname in ["notebooks", "gallery"]:
             rmtree(dirname, ignore_errors=True)  # locally re-cloning
             copytree(repo_path / "docs" / "source" / dirname, dirname)
+
+        for file_path in glob.glob(str(repo_path / "docs" / "source" / "*.rst")):
+            print("%s copied to source" % file_path)
+            copy(file_path, "./")  # dest: source
 
     def fetch_remote(repo_url: str) -> None:
         info(f"Fetching notebooks from repo `{repo_url}`")
@@ -28,14 +33,14 @@ def _download_notebook_dirs(repo_url: str) -> None:
             branch = NOTEBOOK_BRANCH
             repo = Repo.clone_from(repo_url, repo_dir, depth=1, branch=branch)
             repo.git.checkout(branch, force=True)
-            copy_notebook_dirs(repo_dir)
+            copy_docs_dirs(repo_dir)
 
     def fetch_local(repo_path: Union[str, Path]) -> None:
         info(f"Fetching notebooks from local path `{repo_path}`")
         repo_path = Path(repo_path)
         if not repo_path.is_dir():
             raise OSError(f"`{repo_path}` is not a directory.")
-        copy_notebook_dirs(repo_path)
+        copy_docs_dirs(repo_path)
 
     notebooks_local_path = Path(
         os.environ.get(DYNAMO_NOTEBOOK_PATH_ENV_VAR, CUR_DIR.absolute().parent.parent.parent / "notebooks")
