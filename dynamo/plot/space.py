@@ -46,7 +46,7 @@ def space(
             A list of cmaps for mapping each gene's values according to a type of cmap when stacking gene colors on the same subplot. The order of each gene's cmap corresponds to the order in genes.
         color: `string` (default: `ntr`)
             Any or any list of column names or gene names, etc. that will be used for coloring cells. If `color` is not None, stack_genes will be disabled automatically because `color` can contain non numerical values.
-        space: `str`
+        space_key: `str`
             The key to space coordinates.
         stack_genes:
             whether to show all gene plots on the same plot
