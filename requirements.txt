@@ -19,4 +19,6 @@ python-igraph>=0.7.1
 pynndescent>=0.5.2
 pre-commit
 networkx
+nxviz
+get_version>=3.5.4
 # trimap>=1.0.11
