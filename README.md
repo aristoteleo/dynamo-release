@@ -1,7 +1,8 @@
-
 <p align="center">
   <img height="200" src="https://dynamo-release.readthedocs.io/en/latest/_static/logo_with_word.png" />
 </p>
+
+##
 
 [![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release/runs/950435412) 
 [![package](https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg)](https://pypi.org/project/dynamo-release/) 
