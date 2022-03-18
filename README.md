@@ -1,5 +1,5 @@
 <p align="center">
-  <img height="200" src="https://dynamo-release.readthedocs.io/en/latest/_static/logo_with_word.png" />
+  <img height="150" src="https://dynamo-release.readthedocs.io/en/latest/_static/logo_with_word.png" />
 </p>
 
 ##
