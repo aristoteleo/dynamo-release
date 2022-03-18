@@ -19,10 +19,11 @@ def _download_docs_dirs(repo_url: str) -> None:
     def copy_docs_dirs(repo_path: Union[str, Path]) -> None:
         repo_path = Path(repo_path)
         print("repo path:", repo_path)
-        for dirname in ["notebooks", "gallery"]:
+        for dirname in ["notebooks", "gallery", "_static"]:
             rmtree(dirname, ignore_errors=True)  # locally re-cloning
             copytree(repo_path / "docs" / "source" / dirname, dirname)
 
+        # copy all rsts in docs/source/*.rst
         for file_path in glob.glob(str(repo_path / "docs" / "source" / "*.rst")):
             print("%s copied to source" % file_path)
             copy(file_path, "./")  # dest: source
