@@ -22,3 +22,4 @@ networkx
 nxviz==0.7.3
 get_version>=3.5.4
 # trimap>=1.0.11
+openpyxl
