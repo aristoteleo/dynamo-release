@@ -563,8 +563,8 @@ def purity(adata,
         purity_score: the average purity score across cells.
     """
 
-    if "spatial_connectivities" not in adata.obsp.keys():
-        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix="spatial")
+    if neighbors_key not in adata.obsp.keys():
+        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix=neighbors_key.split('_')[0])
 
     neighbor_graph = adata.obsp[neighbors_key]
 

@@ -14,7 +14,6 @@ from matplotlib.axes import Axes
 from anndata import AnnData
 from typing import Union, Optional, List
 
-
 from ..configuration import _themes, reset_rcParams
 from .utils import (
     despline_all,
@@ -117,7 +116,7 @@ def scatters(
         adata: :class:`~anndata.AnnData`
             an Annodata object
         basis: `str`
-            The reduced dimension.
+            The reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters` is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`
         x: `int` (default: `0`)
             The column index of the low dimensional embedding for the x-axis.
         y: `int` (default: `1`)
@@ -284,12 +283,14 @@ def scatters(
             Currently only support 18 sequential matplotlib default cmaps assigning to different color groups.
             (#colors should be smaller than 18, reuse if #colors > 18. TODO generate cmaps according to #colors)
         stack_colors_threshold:
-            A threshold for filtering points values < threshold when drawing each color.
+            A threshold for filtering out points values < threshold when drawing each color.
             E.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
         stack_colors_title:
             The title for the stack_color plot.
         stack_colors_legend_size:
             Control the legend size in stack color plot.
+        stack_colors_cmaps:
+            a list of cmaps that will be used to map values to color when stacking colors on the same subplot. The order corresponds to the order of color.
         despline:
             Whether to remove splines of the figure.
         despline_sides:
@@ -482,20 +483,31 @@ def scatters(
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
-            cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in future
+            cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in the future
         else:
             if use_smoothed:
                 cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
                 if cur_l.startswith("velocity"):
                     cmap, sym_c = "bwr", True
 
-        prefix = cur_l + "_" if any([key == cur_l + "_" + cur_b for key in adata.obsm.keys()]) else "X_"
+        if cur_l + "_" + cur_b in adata.obsm.keys():
+            prefix = cur_l + "_"
+        elif ("X_" + cur_b) in adata.obsm.keys():
+            prefix = "X_"
+        elif cur_b in adata.obsm.keys():
+            # special case for spatial for compatibility with other packages
+            prefix = ""
+        else:
+            raise Exception("Please check if basis=%s exists in adata.obsm" % basis)
 
-        # if prefix + cur_b in adata.obsm.keys():
+        basis_key = prefix + cur_b
+        main_info("plotting with basis key=%s" % basis_key, indent_level=2)
+
+        # if basis_key in adata.obsm.keys():
         #     if type(x) != str and type(y) != str:
         #         x_, y_ = (
-        #             adata.obsm[prefix + cur_b][:, int(x)],
-        #             adata.obsm[prefix + cur_b][:, int(y)],
+        #             adata.obsm[basis_key][:, int(x)],
+        #             adata.obsm[basis_key][:, int(y)],
         #         )
         # else:
         #     continue
@@ -511,9 +523,17 @@ def scatters(
             _color = _get_adata_color_vec(adata, cur_l, cur_c)
 
             # select data rows based on stack color thresholding
+            is_numeric_color = np.issubdtype(_color.dtype, np.number)
+            if not is_numeric_color:
+                main_info(
+                    "skip filtering %s by stack threshold when stacking color because it is not a numeric type"
+                    % (cur_c),
+                    indent_level=2,
+                )
             _values = values
-            if stack_colors:
+            if stack_colors and is_numeric_color:
                 main_debug("Subsetting adata by stack_colors")
+                _adata = adata
                 _adata = adata[_color > stack_colors_threshold]
                 _stack_background_adata_indices = np.logical_and(
                     _stack_background_adata_indices, (_color < stack_colors_threshold)
@@ -551,8 +571,8 @@ def scatters(
                     points = None
                     points = pd.DataFrame(
                         {
-                            x_col_name: _adata.obsm[prefix + cur_b][:, cur_x],
-                            y_col_name: _adata.obsm[prefix + cur_b][:, cur_y],
+                            x_col_name: _adata.obsm[basis_key][:, cur_x],
+                            y_col_name: _adata.obsm[basis_key][:, cur_y],
                         }
                     )
                     points.columns = [x_col_name, y_col_name]
@@ -560,9 +580,9 @@ def scatters(
                     if projection == "3d":
                         points = pd.DataFrame(
                             {
-                                x_col_name: _adata.obsm[prefix + cur_b][:, cur_x],
-                                y_col_name: _adata.obsm[prefix + cur_b][:, cur_y],
-                                z_col_name: _adata.obsm[prefix + cur_b][:, cur_z],
+                                x_col_name: _adata.obsm[basis_key][:, cur_x],
+                                y_col_name: _adata.obsm[basis_key][:, cur_y],
+                                z_col_name: _adata.obsm[basis_key][:, cur_z],
                             }
                         )
                         points.columns = [x_col_name, y_col_name, z_col_name]

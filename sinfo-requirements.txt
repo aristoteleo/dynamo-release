@@ -5,3 +5,4 @@ jupyter_client==6.1.11
 jupyter_core==4.7.1
 jupyterlab==3.0.17
 notebook==6.4.1
+get_version>=3.5.4

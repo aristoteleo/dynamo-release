@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("../../"))
 
 import dynamo
-from docs.source.utils import _download_notebook_dirs
+from docs.source.utils import _download_docs_dirs
 
 # HERE = Path(__file__).parent
 # sys.path[:0] = [str(HERE.parent)]
@@ -59,7 +59,7 @@ github_org = "aristoteleo"
 github_code_repo = "dynamo-release"
 github_ref = "master"
 github_nb_repo = "dynamo_readthedocs"
-_download_notebook_dirs(repo_url=f"https://github.com/{github_org}/{github_nb_repo}")
+_download_docs_dirs(repo_url=f"https://github.com/{github_org}/{github_nb_repo}")
 
 # Add notebooks prolog to Google Colab and nbviewer
 nbsphinx_prolog = r"""
@@ -109,6 +109,7 @@ extensions = [
     # Automatically document param types (less noise in class signature)
     "sphinx_autodoc_typehints",
     "sphinxcontrib.bibtex",
+    "sphinx_gallery.load_style",
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
@@ -161,6 +162,7 @@ autodoc_default_flags = [
 html_theme = "sphinx_rtd_theme"
 html_theme_options = dict(
     navigation_depth=4,
+    logo_only=True,
 )
 html_context = dict(
     display_github=True,  # Integrate GitHub
@@ -174,6 +176,8 @@ html_context = dict(
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
+# html_logo = "_static/logo.png"
+html_logo = "_static/logo_with_word.png"
 
 
 def setup(app):

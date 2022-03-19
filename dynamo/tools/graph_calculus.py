@@ -1,13 +1,25 @@
+from typing import Callable, Union
 import numpy as np
 import scipy.sparse as sp
 from scipy.linalg import qr
 from scipy.optimize import lsq_linear
+
 from .utils import k_nearest_neighbors, nbrs_to_dists, flatten, index_condensed_matrix
+from ..dynamo_logger import main_info, main_warning
 
 
 def graphize_velocity(
-    V, X, nbrs_idx=None, dists=None, k=30, normalize_v=False, scale_by_dist=False, E_func=None, use_sparse=False
-):
+    V,
+    X,
+    nbrs_idx: Union[np.array, list] = None,
+    dists: np.array = None,
+    k: int = 30,
+    normalize_v: bool = False,
+    scale_by_dist: bool = False,
+    E_func: Union[str, Callable] = None,
+    use_sparse: bool = False,
+    return_nbrs: bool = False,
+) -> tuple:
     """
         The function generates a graph based on the velocity data. The flow from i- to j-th
         node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
@@ -29,18 +41,27 @@ def graphize_velocity(
             If a string is passed, there are two options:
                 'sqrt': the numpy.sqrt square root function;
                 'exp': the numpy.exp exponential function.
+        return_nbrs:
+            returns a neighbor object if this arg is true. A neighbor object is from k_nearest_neighbors and may be from NNDescent (pynndescent) or NearestNeighbors.
 
     Returns
     -------
         E: :class:`~numpy.ndarray`
             The edge matrix.
-        nbrs_idx: list
+        nbrs_idx: :class:`~numpy.ndarray`
             Neighbor indices.
     """
     n = X.shape[0]
 
-    if nbrs_idx is None:
-        nbrs_idx, dists = k_nearest_neighbors(X, k, exclude_self=True)
+    if (nbrs_idx is not None) and return_nbrs:
+        main_warning(
+            "nbrs_idx argument is ignored and recomputed because nbrs_idx is not None and return_nbrs=True",
+            indent_level=2,
+        )
+
+    if nbrs_idx is None or return_nbrs:
+        main_info("calculating neighbor indices...", indent_level=2)
+        nbrs_idx, dists, nbrs = k_nearest_neighbors(X, k, exclude_self=True, return_nbrs=True)
 
     if dists is None:
         dists = nbrs_to_dists(X, nbrs_idx)
@@ -90,6 +111,8 @@ def graphize_velocity(
             E[i, j] = v
             E[j, i] = -v
 
+    if return_nbrs:
+        return E, nbrs_idx, dists, nbrs
     return E, nbrs_idx, dists
 
 

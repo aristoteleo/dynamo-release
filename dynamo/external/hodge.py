@@ -8,7 +8,7 @@ from scipy.sparse import csr_matrix, issparse
 from anndata import AnnData
 from typing import Union
 
-from ..dynamo_logger import main_info
+from ..dynamo_logger import main_finish_progress, main_info, main_log_time
 
 # from ..vectorfield.scVectorField import graphize_vecfld
 from ..tools.graph_calculus import graphize_velocity, divergence, potential
@@ -95,6 +95,7 @@ def ddhodge(
             that corresponds to the sparse diffusion graph. Two columns `potential` and `divergence` corresponds to the
             potential and divergence for each cell will also be added."""
 
+    main_log_time()
     prefix = "" if basis is None else basis + "_"
     to_downsample = adata.n_obs > n_downsamples
 
@@ -133,35 +134,41 @@ def ddhodge(
     adata_ = adata[cell_idx].copy()
 
     if prefix + "ddhodge" in adata_.obsp.keys() and not enforce and not to_downsample:
+        main_info("fetch computation results from adata.obsp[%s]..." % (prefix + "ddhodge"))
         adj_mat = adata_.obsp[prefix + "ddhodge"]
     else:
         if adjmethod == "graphize_vecfld":
+            main_info("graphizing vectorfield...")
             V_data = func(X_data)
             neighbor_result_prefix = "" if layer is None else layer
             conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
             if neighbor_key not in adata_.uns_keys() or to_downsample:
-                Idx = None
+                existing_nbrs_idx = None
             else:
                 check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
                 neighbors = adata_.obsp[conn_key]
-                Idx = neighbors.tolil().rows
+                existing_nbrs_idx = neighbors.tolil().rows
 
-            adj_mat, nbrs, dists = graphize_velocity(
+            adj_mat, nbrs_idx, dists, nbrs = graphize_velocity(
                 V_data,
                 X_data,
-                nbrs_idx=Idx,
+                nbrs_idx=existing_nbrs_idx,
                 k=n,
+                return_nbrs=True,
             )
             """adj_mat, nbrs = graphize_vecfld(
                 func,
                 X_data,
-                nbrs_idx=Idx,
+                nbrs_idx=existing_nbrs_idx,
                 k=n,
                 distance_free=distance_free,
                 n_int_steps=20,
                 cores=cores,
             )"""
         elif adjmethod == "naive":
+            main_info(
+                'method=naive, get adj_mat from transition matrix in adata directly (adata.uns["transition_matrix"'
+            )
             if "transition_matrix" not in adata_.uns.keys():
                 raise Exception(
                     "Your adata doesn't have transition matrix created. You need to first "
@@ -178,6 +185,10 @@ def ddhodge(
     #     main_info("adj_mat:%s is not sparse, transforming it to a sparse matrix..." %(str(type(adj_mat))))
     #     adj_mat = csr_matrix(adj_mat)
 
+    # TODO temp fix; refactor to make adj_mat sparse and adjust all the function call
+    if issparse(adj_mat):
+        adj_mat = adj_mat.toarray()
+
     # if not all cells are used in the graphize_vecfld function, set diagnoal to be 1
     if len(np.unique(np.hstack(adj_mat.nonzero()))) != adata.n_obs:
         main_info("not all cells are used, set diag to 1...", indent_level=2)
@@ -190,7 +201,6 @@ def ddhodge(
             np.fill_diagonal(adj_mat, 1)
 
     # g = build_graph(adj_mat)
-
     # TODO the following line does not work on sparse matrix.
     A = np.abs(np.sign(adj_mat))
 
@@ -203,18 +213,23 @@ def ddhodge(
     potential_ = potential(adj_mat, W=A, div=ddhodge_div, **kwargs)
 
     if up_sampling and to_downsample:
-        query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
+        main_info("Constructing W matrix according upsampling=True and downsampling=True options...", indent_level=2)
+
+        query_idx = np.array(list(set(np.arange(adata.n_obs)).difference(cell_idx)))
         query_data = X_data_full[query_idx, :]
 
+        # construct nbrs of query points based on two types of nbrs: from NNDescent (pynndescent) or NearestNeighbors
         if hasattr(nbrs, "kneighbors"):
-            dist, nbrs_idx = nbrs.kneighbors(query_data)
+            dist, query_nbrs_idx = nbrs.kneighbors(query_data)
         elif hasattr(nbrs, "query"):
-            nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
+            query_nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
 
-        k = nbrs_idx.shape[1]
-        row, col = np.repeat(np.arange(len(query_idx)), k), nbrs_idx.flatten()
+        k = query_nbrs_idx.shape[1]
+        query_W_row = np.repeat(np.arange(len(query_idx)), k)
+        query_W_col = query_nbrs_idx.flatten()
+
         W = csr_matrix(
-            (np.repeat(1 / k, len(row)), (row, col)),
+            (np.repeat(1 / k, len(query_W_row)), (query_W_row, query_W_col)),
             shape=(len(query_idx), len(cell_idx)),
         )
 
@@ -235,3 +250,5 @@ def ddhodge(
     else:
         adata.obs[prefix + "ddhodge_div"] = ddhodge_div
         adata.obs[prefix + "ddhodge_potential"] = potential_
+
+    main_finish_progress("ddhodge completed")

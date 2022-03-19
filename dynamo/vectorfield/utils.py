@@ -1128,7 +1128,13 @@ def intersect_sources_targets(regulators, regulators_, effectors, effectors_, De
     # subset Der with correct index of selected source / target genes
     valid_source_idx = [i for i, e in enumerate(regulators_) if e in regulators]
     valid_target_idx = [i for i, e in enumerate(effectors_) if e in effectors]
-    Der = Der[valid_target_idx, :, :][:, valid_source_idx, :] if len(regulators_) + len(effectors_) > 2 else Der
+    if len(regulators_) + len(effectors_) > 2:
+        Der = Der[valid_target_idx, :, :][:, valid_source_idx, :]
+
+    # reshape Der: special case for getting Jacobian of two identical genes
+    if len(np.array(Der).shape) == 1:
+        Der = np.array(Der).reshape([1, 1, -1])
+
     regulators, effectors = (
         np.array(regulators_)[valid_source_idx],
         np.array(effectors_)[valid_target_idx],
