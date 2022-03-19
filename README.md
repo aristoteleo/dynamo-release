@@ -1,8 +1,15 @@
+<p align="center">
+  <img height="150" src="https://dynamo-release.readthedocs.io/en/latest/_static/logo_with_word.png" />
+</p>
+
+##
+
 [![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release/runs/950435412) 
 [![package](https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg)](https://pypi.org/project/dynamo-release/) 
 [![documentation](https://readthedocs.org/projects/dynamo-release/badge/?version=latest)](https://dynamo-release.readthedocs.io/en/latest/)
 ![build](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-package.yml/badge.svg)
 ![test](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-plain-run-test.yml/badge.svg)
+
 
 ## **Dynamo**: Mapping Transcriptomic Vector Fields of Single Cells
 
@@ -34,6 +41,7 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
 ## News
 * 1/2/2022: after 3.5+ years of perseverance, our dynamo paper is finally online in [Cell](https://www.sciencedirect.com/science/article/pii/S0092867421015774#tbl1) today!
 * 15/2/2022: primers and tutorials on least action paths and in silico perturbation are released.
+* 14/3/2022: Since today dynamo has its own logo! Here the arrow represents the RNA velocity vector field, while the helix the RNA molecule and the colored dots RNA metabolic labels (4sU labeling). See [readthedocs](https://dynamo-release.readthedocs.io/en/latest/index.html)
 
 ## Discussion 
 Please use github issue tracker to report coding related [issues](https://github.com/aristoteleo/dynamo-release/issues) of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: [dynamo-discussion](https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-itnzjdxs-PV~C3Hr9uOArHZcmv622Kg) (Only a working email address is required from the slack side). 

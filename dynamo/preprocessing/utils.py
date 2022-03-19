@@ -275,6 +275,8 @@ def filter_genes_by_pattern(
 def basic_stats(adata):
     adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
     adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
+    if adata.var_names.inferred_type == "bytes":
+        adata.var_names = adata.var_names.astype("str")
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
 
     if sum(mito_genes) > 0:

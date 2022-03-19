@@ -14,7 +14,6 @@ from matplotlib.axes import Axes
 from anndata import AnnData
 from typing import Union, Optional, List
 
-
 from ..configuration import _themes, reset_rcParams
 from .utils import (
     despline_all,
@@ -284,12 +283,14 @@ def scatters(
             Currently only support 18 sequential matplotlib default cmaps assigning to different color groups.
             (#colors should be smaller than 18, reuse if #colors > 18. TODO generate cmaps according to #colors)
         stack_colors_threshold:
-            A threshold for filtering points values < threshold when drawing each color.
+            A threshold for filtering out points values < threshold when drawing each color.
             E.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
         stack_colors_title:
             The title for the stack_color plot.
         stack_colors_legend_size:
             Control the legend size in stack color plot.
+        stack_colors_cmaps:
+            a list of cmaps that will be used to map values to color when stacking colors on the same subplot. The order corresponds to the order of color.
         despline:
             Whether to remove splines of the figure.
         despline_sides:
@@ -522,9 +523,17 @@ def scatters(
             _color = _get_adata_color_vec(adata, cur_l, cur_c)
 
             # select data rows based on stack color thresholding
+            is_numeric_color = np.issubdtype(_color.dtype, np.number)
+            if not is_numeric_color:
+                main_info(
+                    "skip filtering %s by stack threshold when stacking color because it is not a numeric type"
+                    % (cur_c),
+                    indent_level=2,
+                )
             _values = values
-            if stack_colors:
+            if stack_colors and is_numeric_color:
                 main_debug("Subsetting adata by stack_colors")
+                _adata = adata
                 _adata = adata[_color > stack_colors_threshold]
                 _stack_background_adata_indices = np.logical_and(
                     _stack_background_adata_indices, (_color < stack_colors_threshold)

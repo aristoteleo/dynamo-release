@@ -915,6 +915,7 @@ def rank_genes(
             The function used to pool values in the to-be-ranked array if the array is 2d.
         output_values: bool (default: False)
             Whether output the values along with the rankings.
+
     Returns
     -------
         ret_dict: dict
@@ -1120,7 +1121,20 @@ def rank_expression_genes(adata, ekey="M_s", prefix_store="rank", **kwargs):
         prefix_store: str (default: 'rank')
             The prefix added to the key for storing the returned in adata.
         kwargs:
-            Keyword arguments passed to `vf.rank_genes`.
+            additional keys that will be passed to the `rank_genes` function. It will accept the following arguments:
+            group: str or None (default: None)
+                The cell group that speed ranking will be grouped-by.
+            genes: list or None (default: None)
+                The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+            abs: bool (default: False)
+                When pooling the values in the array (see below), whether to take the absolute values.
+            normalize: bool (default: False)
+                Whether normalize the array across all cells first, if the array is 2d.
+            fcn_pool: callable (default: numpy.mean(x, axis=0))
+                The function used to pool values in the to-be-ranked array if the array is 2d.
+            output_values: bool (default: False)
+                Whether output the values along with the rankings.
+
     Returns
     -------
         adata: :class:`~anndata.AnnData`
@@ -1144,7 +1158,20 @@ def rank_velocity_genes(adata, vkey="velocity_S", prefix_store="rank", **kwargs)
         prefix_store: str (default: 'rank')
             The prefix added to the key for storing the returned in adata.
         kwargs:
-            Keyword arguments passed to `vf.rank_genes`.
+            additional keys that will be passed to the `rank_genes` function. It will accept the following arguments:
+            group: str or None (default: None)
+                The cell group that speed ranking will be grouped-by.
+            genes: list or None (default: None)
+                The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+            abs: bool (default: False)
+                When pooling the values in the array (see below), whether to take the absolute values.
+            normalize: bool (default: False)
+                Whether normalize the array across all cells first, if the array is 2d.
+            fcn_pool: callable (default: numpy.mean(x, axis=0))
+                The function used to pool values in the to-be-ranked array if the array is 2d.
+            output_values: bool (default: False)
+                Whether output the values along with the rankings.
+
     Returns
     -------
         adata: :class:`~anndata.AnnData`
@@ -1181,7 +1208,19 @@ def rank_divergence_genes(
         prefix_store: str (default: 'rank')
             The prefix added to the key for storing the returned ranking info in adata.
         kwargs:
-            Keyword arguments passed to `vf.rank_genes`.
+            additional keys that will be passed to the `rank_genes` function. It will accept the following arguments:
+            group: str or None (default: None)
+                The cell group that speed ranking will be grouped-by.
+            genes: list or None (default: None)
+                The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+            abs: bool (default: False)
+                When pooling the values in the array (see below), whether to take the absolute values.
+            normalize: bool (default: False)
+                Whether normalize the array across all cells first, if the array is 2d.
+            fcn_pool: callable (default: numpy.mean(x, axis=0))
+                The function used to pool values in the to-be-ranked array if the array is 2d.
+            output_values: bool (default: False)
+                Whether output the values along with the rankings.
 
     Returns
     -------
@@ -1240,7 +1279,19 @@ def rank_s_divergence_genes(
         prefix_store: str (default: 'rank')
             The prefix added to the key for storing the returned ranking info in adata.
         kwargs:
-            Keyword arguments passed to `vf.rank_genes`.
+            additional keys that will be passed to the `rank_genes` function. It will accept the following arguments:
+            group: str or None (default: None)
+                The cell group that speed ranking will be grouped-by.
+            genes: list or None (default: None)
+                The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+            abs: bool (default: False)
+                When pooling the values in the array (see below), whether to take the absolute values.
+            normalize: bool (default: False)
+                Whether normalize the array across all cells first, if the array is 2d.
+            fcn_pool: callable (default: numpy.mean(x, axis=0))
+                The function used to pool values in the to-be-ranked array if the array is 2d.
+            output_values: bool (default: False)
+                Whether output the values along with the rankings.
 
     Returns
     -------
@@ -1282,10 +1333,24 @@ def rank_acceleration_genes(adata, akey="acceleration", prefix_store="rank", **k
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        group: str or None (default: None)
-            The cell group that speed ranking will be grouped-by.
         akey: str (default: 'acceleration')
             The acceleration key.
+        prefix_store: str (default: "rank")
+            The prefix of the key that will be used to store the acceleration rank result.
+        kwargs:
+            additional keys that will be passed to the `rank_genes` function. It will accept the following arguments:
+            group: str or None (default: None)
+                The cell group that speed ranking will be grouped-by.
+            genes: list or None (default: None)
+                The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+            abs: bool (default: False)
+                When pooling the values in the array (see below), whether to take the absolute values.
+            normalize: bool (default: False)
+                Whether normalize the array across all cells first, if the array is 2d.
+            fcn_pool: callable (default: numpy.mean(x, axis=0))
+                The function used to pool values in the to-be-ranked array if the array is 2d.
+            output_values: bool (default: False)
+                Whether output the values along with the rankings.
 
     Returns
     -------
@@ -1307,10 +1372,24 @@ def rank_curvature_genes(adata, ckey="curvature", prefix_store="rank", **kwargs)
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `.uns` attribute.
-        groups: `str` or None (default: `None`)
-            The cell group that speed ranking will be grouped-by.
         ckey: `str` (default: `curvature`)
             The curvature key.
+        prefix_store: str (default: "rank")
+            The prefix of the key that will be used to store the acceleration rank result.
+        kwargs:
+            additional keys that will be passed to the `rank_genes` function. It will accept the following arguments:
+            group: str or None (default: None)
+                The cell group that speed ranking will be grouped-by.
+            genes: list or None (default: None)
+                The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+            abs: bool (default: False)
+                When pooling the values in the array (see below), whether to take the absolute values.
+            normalize: bool (default: False)
+                Whether normalize the array across all cells first, if the array is 2d.
+            fcn_pool: callable (default: numpy.mean(x, axis=0))
+                The function used to pool values in the to-be-ranked array if the array is 2d.
+            output_values: bool (default: False)
+                Whether output the values along with the rankings.
 
     Returns
     -------
@@ -1357,6 +1436,8 @@ def rank_jacobian_genes(
             (4) '`eff`': top effectors in each cell group;
             (5) '`int`': top effector-regulator pairs in each cell group.
             (6) '`switch`': top effector-regulator pairs that show mutual inhibition pattern in each cell group.
+        exclude_diagonal: bool (default: False)
+            Whether to consider the self-regulation interactions (diagnoal of the jacobian matrix)
         normalize: bool (default: False)
             Whether normalize the Jacobian across all cells before performing the ranking.
         return_df: bool (default: False)
@@ -1494,6 +1575,8 @@ def rank_sensitivity_genes(
             (3) '`reg`': top regulators in each cell group;
             (4) '`eff`': top effectors in each cell group;
             (5) '`int`': top effector-regulator pairs in each cell group.
+        exclude_diagonal: bool (default: False)
+            Whether to consider the self-regulation interactions (diagnoal of the jacobian matrix)
         kwargs:
             Keyword arguments passed to ranking functions.
 

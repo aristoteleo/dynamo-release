@@ -47,6 +47,7 @@ requires = [
   'KDEpy', # preprocess module: sctransform
   'nxviz==0.7.3',
   'openpyxl', # export dynamics ranking info
+  "get_version>=3.5.4"
 ]
 requires-python = '>=3.7'
 
