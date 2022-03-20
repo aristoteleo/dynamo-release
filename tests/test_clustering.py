@@ -5,14 +5,10 @@ import pytest
 import time
 import numpy as np
 import os
-from utils import *
+
+# import utils
 
 logger = LoggerManager.get_main_logger()
-
-
-@pytest.fixture
-def adata():
-    return gen_or_read_zebrafish_data()
 
 
 def test_simple_cluster_community_adata(adata):
@@ -78,11 +74,12 @@ def test_leiden_membership_input(adata):
 
 
 if __name__ == "__main__":
-    adata = gen_or_read_zebrafish_data()
-    print("tests begin...")
+    # adata = utils.gen_or_read_zebrafish_data()
+    # print("tests begin...")
 
-    ######### testing begins here #########
-    test_leiden_membership_input(adata)
-    test_simple_cluster_community_adata(adata)
-    test_simple_cluster_subset(adata)
-    test_simple_cluster_keys(adata)
+    # ######### testing begins here #########
+    # test_leiden_membership_input(adata)
+    # test_simple_cluster_community_adata(adata)
+    # test_simple_cluster_subset(adata)
+    # test_simple_cluster_keys(adata)
+    pass

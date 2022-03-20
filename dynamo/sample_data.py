@@ -105,7 +105,7 @@ def cite_seq():
 
 
 def zebrafish(
-    url="https://www.dropbox.com/s/5wk3q2xhgqai2xq/zebrafish.h5ad?dl=1",
+    url="https://pitt.box.com/shared/static/w81022hta7lymss36i8m5ughppjjagqw.h5ad",
     filename="zebrafish.h5ad",
 ):
     """The zebrafish is from Saunders, et al (2019).

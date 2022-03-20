@@ -2,6 +2,8 @@ from anndata import AnnData
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+import scipy
+import scipy.sparse
 from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import PCA, TruncatedSVD
 
@@ -123,7 +125,7 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
     return adata
 
 
-def compute_gene_exp_fraction(X, threshold=0.001):
+def compute_gene_exp_fraction(X: scipy.sparse.spmatrix, threshold: float = 0.001) -> tuple:
     """Calculate fraction of each gene's count to total counts across cells and identify high fraction genes."""
 
     frac = X.sum(0) / X.sum()
@@ -273,8 +275,8 @@ def filter_genes_by_pattern(
 def basic_stats(adata):
     adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
     adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
-    if adata.var_names.inferred_type == 'bytes':
-        adata.var_names = adata.var_names.astype('str')
+    if adata.var_names.inferred_type == "bytes":
+        adata.var_names = adata.var_names.astype("str")
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
 
     if sum(mito_genes) > 0:
