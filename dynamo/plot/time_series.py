@@ -331,6 +331,8 @@ def kinetic_heatmap(
             traj_ind,
         )
 
+        valid_genes = [x for x in genes if x in valid_genes]
+
         exprs = exprs.A if issparse(exprs) else exprs
         if mode != "pseudotime":
             exprs = np.log1p(exprs) if log else exprs
