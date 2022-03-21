@@ -548,6 +548,7 @@ def scatters(
             else:
                 _adata = adata
 
+            # make x, y, z lists of list, where each list corresponds to one coordinate set
             if (
                 type(x) in [anndata._core.views.ArrayView, np.ndarray]
                 and type(y) in [anndata._core.views.ArrayView, np.ndarray]
@@ -555,13 +556,16 @@ def scatters(
                 and len(y) == _adata.n_obs
             ):
                 x, y = [x], [y]
+                z = [np.nan]
                 if projection == "3d":
                     z = [z]
             elif hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
+                z = [np.nan] * len(x)
                 if projection == "3d":
                     z = list(z)
 
+            assert len(x) == len(y) and len(x) == len(z), "bug: x, y, z does not have the same shape."
             for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
                 main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
                 if type(cur_x) is int and type(cur_y) is int:
