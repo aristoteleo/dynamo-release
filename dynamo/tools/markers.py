@@ -736,18 +736,19 @@ def diff_test_helper(
     transformed_x_null = dmatrix(reducedModelFormulaStr, data, return_type="dataframe")
 
     expression = data["expression"]
-    poisson_training_results = sm.GLM(expression, transformed_x, family=sm.families.Poisson()).fit()
-    poisson_df = pd.DataFrame({"mu": poisson_training_results.mu, "expression": expression})
-    poisson_df["AUX_OLS_DEP"] = poisson_df.apply(
-        lambda x: ((x["expression"] - x["mu"]) ** 2 - x["expression"]) / x["mu"],
-        axis=1,
-    )
-    ols_expr = """AUX_OLS_DEP ~ mu - 1"""
-    aux_olsr_results = smf.ols(ols_expr, poisson_df).train()
-
-    nb2_family = sm.families.NegativeBinomial(alpha=aux_olsr_results.params[0])
 
     try:
+        # poisson_training_results = sm.GLM(expression, transformed_x, family=sm.families.Poisson()).fit()
+        # poisson_df = pd.DataFrame({"mu": poisson_training_results.mu, "expression": expression})
+        # poisson_df["AUX_OLS_DEP"] = poisson_df.apply(
+        #     lambda x: ((x["expression"] - x["mu"]) ** 2 - x["expression"]) / x["mu"],
+        #     axis=1,
+        # )
+        # ols_expr = """AUX_OLS_DEP ~ mu - 1"""
+        # aux_olsr_results = smf.ols(ols_expr, poisson_df).fit()
+
+        nb2_family = sm.families.NegativeBinomial() # (alpha=aux_olsr_results.params[0])
+
         nb2_full = sm.GLM(expression, transformed_x, family=nb2_family).fit()
         nb2_null = sm.GLM(expression, transformed_x_null, family=nb2_family).fit()
     except:
