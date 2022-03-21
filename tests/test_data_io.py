@@ -3,7 +3,7 @@ import numpy as np
 import dynamo as dyn
 import os
 
-from utils import *
+# import utils
 
 
 def test_save_rank_info(adata):
@@ -11,7 +11,7 @@ def test_save_rank_info(adata):
 
 
 def test_scEU_seq():
-    dynamo.sample_data.scEU_seq()
+    dynamo.sample_data.scEU_seq_rpe1()
     assert os.path.exists("./data/rpe1.h5ad")
 
 
@@ -21,6 +21,7 @@ def test_zebrafish():
 
 if __name__ == "__main__":
     # test_scEU_seq()
-    test_zebrafish()
-    adata = gen_or_read_zebrafish_data()
-    test_save_rank_info(adata)
+    # test_zebrafish()
+    # adata = utils.gen_or_read_zebrafish_data()
+    # test_save_rank_info(adata)
+    pass

@@ -6,12 +6,15 @@ import dynamo as dyn
 import anndata
 import pandas as pd
 import numpy as np
+import pytest
 import scipy.sparse
+
 
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 
+@pytest.mark.skip(reason="excessive running time")
 def test_run_rpe1_tutorial():
     rpe1 = dyn.sample_data.scEU_seq_rpe1()
     # show results

@@ -10,7 +10,6 @@ from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
 import itertools, functools
 import inspect
-from numba import njit
 from ..tools.utils import (
     form_triu_matrix,
     index_condensed_matrix,
@@ -998,7 +997,7 @@ def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, 
 
 # https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python#answer-13849249
 # answer from crizCraig
-@njit(cache=True, nogil=True)
+# @njit(cache=True, nogil=True) # causing numba error_write issue
 def angle(vector1, vector2):
     """ Returns the angle in radians between given vectors"""
     v1_norm, v1_u = unit_vector(vector1)
@@ -1017,7 +1016,7 @@ def angle(vector1, vector2):
         return sign * np.arccos(dot_p)
 
 
-@njit(cache=True, nogil=True)
+# @njit(cache=True, nogil=True) # causing numba error_write issue
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     vec_norm = np.linalg.norm(vector)
