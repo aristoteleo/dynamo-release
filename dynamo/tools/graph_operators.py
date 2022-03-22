@@ -60,7 +60,7 @@ def laplacian1(g):
     return cur_mat.T.dot(cur_mat) - grad_mat.dot(grad_mat.T)
 
 
-def potential(g, div_neg=None):
+def ddhodge_pseudotime(g, div_neg=None):
     """potential is related to the intrinsic time. Note that the returned value from this function is the negative of
     potential. Thus small potential is related to smaller intrinsic time and vice versa."""
 
@@ -76,7 +76,7 @@ def potential(g, div_neg=None):
 
 
 def grad(g, tol=1e-7):
-    return gradop(g).dot(potential(g, tol))
+    return gradop(g).dot(ddhodge_pseudotime(g, tol))
 
 
 def div(g):
