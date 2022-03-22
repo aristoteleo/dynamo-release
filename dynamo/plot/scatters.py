@@ -561,9 +561,10 @@ def scatters(
                     z = [z]
             elif hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
-                z = [np.nan] * len(x)
                 if projection == "3d":
                     z = list(z)
+                else:
+                    z = [np.nan] * len(x)
 
             assert len(x) == len(y) and len(x) == len(z), "bug: x, y, z does not have the same shape."
             for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
