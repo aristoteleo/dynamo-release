@@ -45,7 +45,7 @@ def reduceDimension(
         dims:
             The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
         n_pca_components:
-            Number of PCA components.
+            run dimension reduction on `n_pca_components` PC transformed data. It triggers generating n_pca_components if n_pca_components is larger than the existing #PC in adata.
         n_components:
             The dimension of the space to embed into.
         n_neighbors:
