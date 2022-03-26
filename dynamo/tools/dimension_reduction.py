@@ -45,7 +45,7 @@ def reduceDimension(
         dims:
             The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
         n_pca_components:
-            run dimension reduction on `n_pca_components` PC transformed data. It triggers generating n_pca_components if n_pca_components is larger than the existing #PC in adata.
+            Number of input PC (principle components) that will be used to perform the non-linear dimension reduction on. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested.
         n_components:
             The dimension of the space to embed into.
         n_neighbors:
