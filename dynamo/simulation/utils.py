@@ -1,7 +1,36 @@
 import numpy as np
+from typing import Union, Callable
 
 
-def directMethod(prop_fcn, update_fcn, tspan, C0, record_skip_steps=0, record_max_length=1e5):
+def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_skip_steps=0, record_max_length=1e5):
+    """Gillespie direct method.
+
+    Parameters
+    ----------
+        prop_fcn: Callable
+            a function that calculates the propensity for each reaction.
+            input: an array of copy numbers of all species;
+            output: an array of propensities of all reactions.
+        update_fcn: Callable
+            a function that determines how the copy number of each species increases or decreases after each reaction.
+            input: (1) an array of current copy numbers of all species; (2) the index of the occurred reaction.
+            output: an array of updated of copy numbers of all species.
+        tspan: list
+            a list of starting and end simulation time, e.g. [0, 100].
+        C0: :class:`~numpy.ndarray`
+            transcription rate with active promoter
+        record_skip_steps: int
+            transcription rate with inactive promoter
+        record_max_length: int
+            sigma, degradation rate
+
+    Returns
+    -------
+        retT: :class:`~numpy.ndarray`
+            a 1d numpy array of time points.
+        retC: :class:`~numpy.ndarray`
+            a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
+    """
     retC = np.zeros((len(C0), int(record_max_length)), np.float64)
     retT = np.zeros(int(record_max_length), np.float64)
     c = C0.flatten()
@@ -9,6 +38,7 @@ def directMethod(prop_fcn, update_fcn, tspan, C0, record_skip_steps=0, record_ma
     retC[:, 0] = c
     retT[0] = t
     count = 0
+    count_rec = 0
     while (t <= tspan[-1]) & (count < record_max_length - 1):
         count += 1
 
@@ -21,10 +51,14 @@ def directMethod(prop_fcn, update_fcn, tspan, C0, record_skip_steps=0, record_ma
 
         t += tau
         c = update_fcn(c, mu)
-        retT[count] = t
-        retC[:, count] = c
-    retT = retT[: count + 1]
-    retC = retC[:, : count + 1]
+
+        if record_skip_steps == 0 or count_rec % record_skip_steps == 0:
+            retT[count_rec] = t
+            retC[:, count_rec] = c
+            count_rec += 1
+
+    retT = retT[: count_rec + 1]
+    retC = retC[:, : count_rec + 1]
 
     return retT, retC
 
@@ -101,7 +135,37 @@ def simulate_Gillespie(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=
     return trajs_T, trajs_C
 
 
-def prop_2bifurgenes(C, a1, b1, a2, b2, K, n, be1, ga1, be2, ga2):
+def prop_2bifurgenes(C, a1, b1, a2, b2, K, n, ga1, ga2):
+    # species
+    x = C[0]
+    y = C[1]
+
+    # propensities
+    prop = np.zeros(4)
+    prop[0] = a1 * x ** n / (K ** n + x ** n) + b1 * K ** n / (K ** n + y ** n)  # 0 -> u1
+    prop[1] = ga1 * x  # s1 -> 0
+    prop[2] = a2 * y ** n / (K ** n + y ** n) + b2 * K ** n / (K ** n + x ** n)  # 0 -> u2
+    prop[3] = ga2 * y  # s2 -> 0
+
+    return prop
+
+
+def stoich_2bifurgenes():
+    # species
+    x = 0
+    y = 1
+
+    # stoichiometry matrix
+    stoich = np.zeros((6, 4))
+    stoich[0, x] = 1  # 0 -> x
+    stoich[2, x] = -1  # x -> 0
+    stoich[3, y] = 1  # 0 -> y
+    stoich[5, y] = -1  # y -> 0
+
+    return stoich
+
+
+def prop_2bifurgenes_splicing(C, a1, b1, a2, b2, K, n, be1, ga1, be2, ga2):
     # species
     u1 = C[0]
     s1 = C[1]
@@ -120,7 +184,7 @@ def prop_2bifurgenes(C, a1, b1, a2, b2, K, n, be1, ga1, be2, ga2):
     return prop
 
 
-def stoich_2bifurgenes():
+def stoich_2bifurgenes_splicing():
     # species
     u1 = 0
     s1 = 1
@@ -141,20 +205,36 @@ def stoich_2bifurgenes():
     return stoich
 
 
-def simulate_2bifurgenes(a1, b1, a2, b2, K, n, be1, ga1, be2, ga2, C0, t_span, n_traj, report=False):
-    stoich = stoich_2bifurgenes()
+def simulate_2bifurgenes(C0, t_span, n_traj, param_dict, report=False, **gillespie_kwargs):
+    be1 = param_dict.pop("be1", None)
+    if not be1:
+        be1 = param_dict.pop("beta1", None)
+    be2 = param_dict.pop("be2", None)
+    if not be2:
+        be2 = param_dict.pop("beta2", None)
+    ga1 = param_dict.pop("ga1", None)
+    if not ga1:
+        ga1 = param_dict.pop("gamma1", None)
+    ga2 = param_dict.pop("ga2", None)
+    if not ga2:
+        ga2 = param_dict.pop("gamma2", None)
+
+    if be1 and be2:
+        stoich = stoich_2bifurgenes_splicing()
+    else:
+        stoich = stoich_2bifurgenes()
     update_func = lambda C, mu: C + stoich[mu, :]
 
     trajs_T = [[]] * n_traj
     trajs_C = [[]] * n_traj
 
+    if be1 and be2:
+        prop_func = lambda C: prop_2bifurgenes_splicing(C, be1=be1, ga1=ga1, be2=be2, ga2=ga2, **param_dict)
+    else:
+        prop_func = lambda C: prop_2bifurgenes(C, ga1=ga1, ga2=ga2, **param_dict)
+
     for i in range(n_traj):
-        T, C = directMethod(
-            lambda C: prop_2bifurgenes(C, a1, b1, a2, b2, K, n, be1, ga1, be2, ga2),
-            update_func,
-            t_span,
-            C0,
-        )
+        T, C = directMethod(prop_func, update_func, t_span, C0, **gillespie_kwargs)
         trajs_T[i] = T
         trajs_C[i] = C
         if report:

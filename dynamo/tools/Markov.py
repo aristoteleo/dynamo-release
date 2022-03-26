@@ -8,7 +8,7 @@ from scipy.stats import norm
 from scipy.linalg import eig, null_space
 from numba import jit
 from .utils import append_iterative_neighbor_indices, flatten
-from ..simulation.gillespie_utils import directMethod
+from ..simulation.utils import directMethod
 from ..dynamo_logger import LoggerManager
 
 
