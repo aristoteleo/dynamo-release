@@ -229,4 +229,5 @@ class Differentiation2Genes(AnnDataSimulator):
 
         return param_dict
         
-        
+    def get_param(self, key):
+        return self.param_dict[key]
