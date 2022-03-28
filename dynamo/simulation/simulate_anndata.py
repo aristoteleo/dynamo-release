@@ -105,3 +105,16 @@ class Differentiation2Genes(AnnDataSimulator):
         super().__init__(simulate_2bifurgenes, C0s, param_dict, gene_names, gene_param_names)
 
         self.splicing = True if len(param_dict) > 8 else False
+        r = 20
+        tau = 3
+        beta = 0.5 / tau
+        gamma = 0.2 / tau
+        eta = 0.5 / tau
+        delta = 0.05 / tau
+        zeta = eta * beta / (delta * gamma)
+        a1 = 1.5 * r / tau
+        b1 = 1 * r / tau
+        a2 = 0.5 * r / tau
+        b2 = 2.5 * r / tau
+        K = 2.5 * r
+        n = 10
