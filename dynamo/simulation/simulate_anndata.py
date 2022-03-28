@@ -228,6 +228,3 @@ class Differentiation2Genes(AnnDataSimulator):
             raise Exception('n not defined.')
 
         return param_dict
-        
-    def get_param(self, key):
-        return self.param_dict[key]
