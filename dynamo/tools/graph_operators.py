@@ -75,8 +75,8 @@ def potential(g, div_neg=None):
     return res
 
 
-def grad(g, tol=1e-7):
-    return gradop(g).dot(potential(g, tol))
+def grad(g, div_neg=None):
+    return gradop(g).dot(potential(g, div_neg))
 
 
 def div(g):
