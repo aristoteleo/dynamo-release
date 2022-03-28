@@ -556,9 +556,11 @@ def scatters(
                 and len(y) == _adata.n_obs
             ):
                 x, y = [x], [y]
-                z = [np.nan]
                 if projection == "3d":
                     z = [z]
+                else:
+                    z = [np.nan]
+
             elif hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
                 if projection == "3d":
