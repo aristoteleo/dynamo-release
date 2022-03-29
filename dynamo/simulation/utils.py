@@ -57,8 +57,8 @@ def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_ski
             retC[:, count_rec] = c
             count_rec += 1
 
-    retT = retT[: count_rec + 1]
-    retC = retC[:, : count_rec + 1]
+    retT = retT[:count_rec]
+    retC = retC[:, :count_rec]
 
     return retT, retC
 
@@ -156,11 +156,11 @@ def stoich_2bifurgenes():
     y = 1
 
     # stoichiometry matrix
-    stoich = np.zeros((6, 4))
+    stoich = np.zeros((4, 2))
     stoich[0, x] = 1  # 0 -> x
-    stoich[2, x] = -1  # x -> 0
-    stoich[3, y] = 1  # 0 -> y
-    stoich[5, y] = -1  # y -> 0
+    stoich[1, x] = -1  # x -> 0
+    stoich[2, y] = 1  # 0 -> y
+    stoich[3, y] = -1  # y -> 0
 
     return stoich
 
@@ -206,6 +206,7 @@ def stoich_2bifurgenes_splicing():
 
 
 def simulate_2bifurgenes(C0, t_span, n_traj, param_dict, report=False, **gillespie_kwargs):
+    param_dict = param_dict.copy()
     be1 = param_dict.pop("be1", None)
     if not be1:
         be1 = param_dict.pop("beta1", None)
