@@ -52,15 +52,15 @@ def norm(X, V, T, fix_velocity=True):
 
     Arguments
     ---------
-        X: 'np.ndarray'
+        X: :class:`~numpy.ndarray`
             Current state. This corresponds to, for example, the spliced transcriptomic state.
-        V: 'np.ndarray'
+        V: :class:`~numpy.ndarray`
             Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
             velocity estimated calculated by dynamo or velocyto, scvelo.
-        T: 'np.ndarray'
+        T: :class:`~numpy.ndarray`
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state.
-        fix_velocity: 'bool' (default: `True`)
+        fix_velocity: bool (default: `True`)
             Whether to fix velocity and don't transform it.
 
     Returns

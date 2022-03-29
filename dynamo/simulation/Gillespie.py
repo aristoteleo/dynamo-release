@@ -6,7 +6,7 @@ Created on Wed Jan 30 11:21:25 2019
 @author: xqiu
 """
 
-from .gillespie_utils import *
+from .utils import *
 from .bif_os_inclusive_sim import sim_diff, sim_osc, simulate, osc_diff_dup
 import pandas as pd
 import scipy.sparse
@@ -81,14 +81,14 @@ def Gillespie(
             steps = (t_span[1] - t_span[0]) // dt  # // int; %% remainder
             t_eval = np.linspace(t_span[0], t_span[1], steps)
         trajs_C = simulate_multigene(
-            a=None,
-            b=None,
-            la=None,
-            aa=None,
-            ai=None,
-            si=None,
-            be=None,
-            ga=None,
+            a=a,
+            b=b,
+            la=la,
+            aa=aa,
+            ai=ai,
+            si=si,
+            be=be,
+            ga=ga,
             C0=np.zeros((5, 1)),
             t_span=[0, 50],
             n_traj=1,
