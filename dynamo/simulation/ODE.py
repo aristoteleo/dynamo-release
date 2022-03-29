@@ -32,34 +32,33 @@ def Ying_model(x, t=None):
     return ret
 
 
-def two_genes_motif(x, t=None, a1=1, a2=1, b1=1, b2=1, k1=1, k2=1, S=0.5, n=4):
-    """The ODE model for the famous Pu.1-Gata.1 like network motif with self-activation and mutual inhibition."""
+def ode_2bifurgenes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], n=4, ga=[1, 1]):
+    """The ODE model for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
+    x = np.atleast_2d(x)
     dx = np.nan * np.ones(x.shape)
 
-    if len(x.shape) == 2:
-        dx[:, 0] = a1 * x[:, 0] ** n / (S ** n + x[:, 0] ** n) + b1 * S ** n / (S ** n + x[:, 1] ** n) - k1 * x[:, 0]
-        dx[:, 1] = a2 * x[:, 1] ** n / (S ** n + x[:, 1] ** n) + b2 * S ** n / (S ** n + x[:, 0] ** n) - k2 * x[:, 1]
-    else:
-        dx[0] = a1 * x[0] ** n / (S ** n + x[0] ** n) + b1 * S ** n / (S ** n + x[1] ** n) - k1 * x[0]
-        dx[1] = a2 * x[1] ** n / (S ** n + x[1] ** n) + b2 * S ** n / (S ** n + x[0] ** n) - k2 * x[1]
+    dx[:, 0] = (
+        a[0] * x[:, 0] ** n / (S[0] ** n + x[:, 0] ** n)
+        + b[0] * K[0] ** n / (K[0] ** n + x[:, 1] ** n)
+        - ga[0] * x[:, 0]
+    )
+    dx[:, 1] = (
+        a[1] * x[:, 1] ** n / (S[1] ** n + x[:, 1] ** n)
+        + b[1] * K[1] ** n / (K[1] ** n + x[:, 0] ** n)
+        - ga[1] * x[:, 1]
+    )
 
     return dx
 
 
-def two_genes_motif_jacobian(x1, x2):
-    J = np.array(
-        [
-            [
-                0.25 * x1 ** 3 / (0.0625 + x1 ** 4) ** 2 - 1,
-                -0.25 * x2 ** 3 / (0.0625 + x2 ** 4) ** 2,
-            ],
-            [
-                -0.25 * x1 ** 3 / (0.0625 + x1 ** 4) ** 2,
-                0.25 * x2 ** 3 / (0.0625 + x2 ** 4) ** 2 - 1,
-            ],
-        ]
-    )
+def jacobian_2bifurgenes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], n=4, ga=[1, 1]):
+    """The Jacobian of the toggle switch ODE model."""
+    df1_dx1 = a[0] * n * S[0] ** n * x[:, 0] ** (n - 1) / (S[0] ** n + x[:, 0] ** n) ** 2 - ga[0]
+    df1_dx2 = -b[0] * n * K[0] ** n * x[:, 1] ** (n - 1) / (K[0] ** n + x[:, 1] ** n) ** 2
+    df2_dx1 = a[1] * n * S[1] ** n * x[:, 1] ** (n - 1) / (S[1] ** n + x[:, 1] ** n) ** 2 - ga[1]
+    df2_dx2 = -b[1] * n * K[1] ** n * x[:, 0] ** (n - 1) / (K[1] ** n + x[:, 0] ** n) ** 2
+    J = np.array([[df1_dx1, df1_dx2], [df2_dx1, df2_dx2]])
     return J
 
 
@@ -133,11 +132,11 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
 
     Parameters
     ----------
-    motif: `str` (default: `neurogenesis`)
+    motif: str (default: "neurogenesis")
         Name of the network motif that will be used in the simulation.
-    clip: `bool` (default: `True`)
+    clip: bool (default: True)
         Whether to clip data points that are negative.
-    cell_num: `int` (default: `5000`)
+    cell_num: int (default: 5000)
         Number of cells to simulate.
 
     Returns
@@ -184,7 +183,7 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             ]
         )
     elif motif == "twogenes":
-        X, Y = state_space_sampler(ode=two_genes_motif, dim=2, min_val=0, max_val=4, N=cell_num)
+        X, Y = state_space_sampler(ode=ode_2bifurgenes, dim=2, min_val=0, max_val=4, N=cell_num)
         gene_name = np.array(["Pu.1", "Gata.1"])
     elif motif == "Ying":
         X, Y = state_space_sampler(ode=Ying_model, dim=2, clip=clip, min_val=-3, max_val=3, N=cell_num)

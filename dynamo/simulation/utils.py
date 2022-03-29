@@ -135,17 +135,26 @@ def simulate_Gillespie(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=
     return trajs_T, trajs_C
 
 
-def prop_2bifurgenes(C, a1, b1, a2, b2, K, n, ga1, ga2):
+def prop_2bifurgenes(C, a, b, S, K, m, n, gamma):
     # species
     x = C[0]
     y = C[1]
 
+    # parameters
+    a1, a2 = a[0], a[1]
+    b1, b2 = b[0], b[1]
+    S1, S2 = S[0], S[1]
+    K1, K2 = K[0], K[1]
+    m1, m2 = m[0], m[1]
+    n1, n2 = n[0], n[1]
+    ga1, ga2 = gamma[0], gamma[1]
+
     # propensities
     prop = np.zeros(4)
-    prop[0] = a1 * x ** n / (K ** n + x ** n) + b1 * K ** n / (K ** n + y ** n)  # 0 -> u1
-    prop[1] = ga1 * x  # s1 -> 0
-    prop[2] = a2 * y ** n / (K ** n + y ** n) + b2 * K ** n / (K ** n + x ** n)  # 0 -> u2
-    prop[3] = ga2 * y  # s2 -> 0
+    prop[0] = a1 * x ** m1 / (S1 ** m1 + x ** m1) + b1 * K1 ** n1 / (K1 ** n1 + y ** n1)  # 0 -> x
+    prop[1] = ga1 * x  # x -> 0
+    prop[2] = a2 * y ** m2 / (S2 ** m2 + y ** m2) + b2 * K2 ** n2 / (K2 ** n2 + x ** n2)  # 0 -> y
+    prop[3] = ga2 * y  # y -> 0
 
     return prop
 
@@ -165,19 +174,29 @@ def stoich_2bifurgenes():
     return stoich
 
 
-def prop_2bifurgenes_splicing(C, a1, b1, a2, b2, K, n, be1, ga1, be2, ga2):
+def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
     # species
     u1 = C[0]
     s1 = C[1]
     u2 = C[2]
     s2 = C[3]
 
+    # parameters
+    a1, a2 = a[0], a[1]
+    b1, b2 = b[0], b[1]
+    S1, S2 = S[0], S[1]
+    K1, K2 = K[0], K[1]
+    m1, m2 = m[0], m[1]
+    n1, n2 = n[0], n[1]
+    be1, be2 = beta[0], beta[1]
+    ga1, ga2 = gamma[0], gamma[1]
+
     # propensities
     prop = np.zeros(6)
-    prop[0] = a1 * s1 ** n / (K ** n + s1 ** n) + b1 * K ** n / (K ** n + s2 ** n)  # 0 -> u1
+    prop[0] = a1 * s1 ** m1 / (S1 ** m1 + s1 ** m1) + b1 * K1 ** n1 / (K1 ** n1 + s2 ** n1)  # 0 -> u1
     prop[1] = be1 * u1  # u1 -> s1
     prop[2] = ga1 * s1  # s1 -> 0
-    prop[3] = a2 * s2 ** n / (K ** n + s2 ** n) + b2 * K ** n / (K ** n + s1 ** n)  # 0 -> u2
+    prop[3] = a2 * s2 ** m2 / (S2 ** m2 + s2 ** m2) + b2 * K2 ** n2 / (K2 ** n2 + s1 ** n2)  # 0 -> u2
     prop[4] = be2 * u2  # u2 -> s2
     prop[5] = ga2 * s2  # s2 -> 0
 
@@ -207,32 +226,21 @@ def stoich_2bifurgenes_splicing():
 
 def simulate_2bifurgenes(C0, t_span, n_traj, param_dict, report=False, **gillespie_kwargs):
     param_dict = param_dict.copy()
-    be1 = param_dict.pop("be1", None)
-    if not be1:
-        be1 = param_dict.pop("beta1", None)
-    be2 = param_dict.pop("be2", None)
-    if not be2:
-        be2 = param_dict.pop("beta2", None)
-    ga1 = param_dict.pop("ga1", None)
-    if not ga1:
-        ga1 = param_dict.pop("gamma1", None)
-    ga2 = param_dict.pop("ga2", None)
-    if not ga2:
-        ga2 = param_dict.pop("gamma2", None)
-
-    if be1 and be2:
-        stoich = stoich_2bifurgenes_splicing()
-    else:
+    beta = param_dict.pop("beta", None)
+    if beta is None:
         stoich = stoich_2bifurgenes()
+    else:
+        stoich = stoich_2bifurgenes_splicing()
+
     update_func = lambda C, mu: C + stoich[mu, :]
 
     trajs_T = [[]] * n_traj
     trajs_C = [[]] * n_traj
 
-    if be1 and be2:
-        prop_func = lambda C: prop_2bifurgenes_splicing(C, be1=be1, ga1=ga1, be2=be2, ga2=ga2, **param_dict)
+    if beta is None:
+        prop_func = lambda C: prop_2bifurgenes(C, **param_dict)
     else:
-        prop_func = lambda C: prop_2bifurgenes(C, ga1=ga1, ga2=ga2, **param_dict)
+        prop_func = lambda C: prop_2bifurgenes_splicing(C, beta=beta, **param_dict)
 
     for i in range(n_traj):
         T, C = directMethod(prop_func, update_func, t_span, C0, **gillespie_kwargs)

@@ -14,18 +14,33 @@ from ..dynamo_logger import (
     main_exception,
 )
 
-diff2genes_params = {"gamma": 0.2, "a1": 0.5, "b1": 0.5, "a2": 0.5, "b2": 0.5, "K": 35, "n": 5}
+diff2genes_params = {"gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
 diff2genes_splicing_params = {"beta": 0.5, "gamma": 0.2, "a1": 1.5, "b1": 1, "a2": 0.5, "b2": 2.5, "K": 2.5, "n": 10}
 
 
 class AnnDataSimulator:
-    def __init__(self, simulator, C0s, param_dict, gene_names=None, gene_param_names=None) -> None:
+    def __init__(
+        self,
+        simulator,
+        C0s,
+        param_dict,
+        gene_names=None,
+        species_to_gene=None,
+        gene_param_names=[],
+        required_param_names=[],
+    ) -> None:
         self.simulator = simulator
         self.C0s = np.atleast_2d(C0s)
         self.n_species = self.C0s.shape[1]
-        self.n_genes = self.n_species  # will be changed later
         self.param_dict = param_dict
+        self.gene_param_names = gene_param_names
+        self.required_param_names = required_param_names
+
+        if species_to_gene is None:
+            self.n_genes = self.n_species
+        else:
+            pass  # will be implemented later
 
         if gene_names:
             self.gene_names = gene_names
@@ -34,6 +49,32 @@ class AnnDataSimulator:
 
         self.C = None
         self.T = None
+
+        self.fix_param_dict()
+        main_info(f"The model contains {self.n_genes} genes and {self.n_species} species")
+
+    def fix_param_dict(self):
+        """
+        Fixes parameters in place.
+        """
+        param_dict = self.param_dict.copy()
+
+        # required parameters
+        for param_name in self.required_param_names:
+            if param_name in self.required_param_names and param_name not in param_dict:
+                raise Exception(f"Required parameter `{param_name}` not defined.")
+
+        # gene specific parameters
+        for param_name in self.gene_param_names:
+            if param_name in param_dict.keys():
+                param = np.atleast_1d(param_dict[param_name])
+                if len(param) == 1:
+                    param_dict[param_name] = np.ones(self.n_genes) * param[0]
+                    main_info(f"Universal value for parameter {param_name}: {param[0]}")
+                else:
+                    param_dict[param_name] = param
+
+        self.param_dict = param_dict
 
     def augment_C0_gaussian(self, n, sigma=5, inplace=True):
         C0s = np.array(self.C0s, copy=True)
@@ -109,107 +150,48 @@ class AnnDataSimulator:
 
 
 class Differentiation2Genes(AnnDataSimulator):
-    def __init__(self, param_dict, C0s=None, r=20, tau=3, n_C0s=10, gene_names=None, gene_param_names=None) -> None:
+    def __init__(self, param_dict, C0s=None, r=20, tau=3, n_C0s=10, gene_names=None) -> None:
         """
-        2 gene toggle switch model anndata simulator.
+        Two gene toggle switch model anndata simulator.
         r: controls steady state copy number for x1 and x2. At steady state, x1_s ~ r*(a1+b1)/ga1; x2_s ~ r*(a2+b2)/ga2
+        tau: a time scale parameter which does not affect steady state solutions.
         """
 
-        param_dict = self.fix_param_dict(param_dict)
+        self.splicing = True if "beta" in param_dict.keys() else False
+        if C0s is None:
+            C0s_ = np.zeros(4) if self.splicing else np.zeros(2)
+
+        super().__init__(
+            simulate_2bifurgenes,
+            C0s_,
+            param_dict,
+            gene_names,
+            gene_param_names=["a", "b", "S", "K", "m", "n", "beta", "gamma"],
+            required_param_names=["a", "b", "S", "K", "m", "n", "gamma"],
+        )
 
         main_info("Adjusting parameters based on r and tau...")
 
-        if "be1" in param_dict.keys():
-            param_dict["be1"] /= tau
-        if "be2" in param_dict.keys():
-            param_dict["be2"] /= tau
-
-        param_dict["ga1"] /= tau
-        param_dict["ga2"] /= tau
-        param_dict["a1"] *= r / tau
-        param_dict["a2"] *= r / tau
-        param_dict["b1"] *= r / tau
-        param_dict["b2"] *= r / tau
-        param_dict["K"] *= r
-
-        if "be1" in param_dict.keys() and "be2" in param_dict.keys():
-            self.splicing = True
-        else:
-            self.splicing = False
+        if self.splicing:
+            self.param_dict["beta"] /= tau
+        self.param_dict["gamma"] /= tau
+        self.param_dict["a"] *= r / tau
+        self.param_dict["b"] *= r / tau
+        self.param_dict["S"] *= r
+        self.param_dict["K"] *= r
 
         # calculate C0 if not specified, C0 ~ [x1_s, x2_s]
         if C0s is None:
-            a1, a2, b1, b2 = param_dict["a1"], param_dict["a2"], param_dict["b1"], param_dict["b2"]
-            ga1, ga2 = param_dict["ga1"], param_dict["ga2"]
+            a, b = self.param_dict["a"], self.param_dict["b"]
+            ga = self.param_dict["gamma"]
 
-            x1_s = (a1 + b1) / ga1
-            x2_s = (a2 + b2) / ga2
+            x1_s = (a[0] + b[0]) / ga[0]
+            x2_s = (a[1] + b[1]) / ga[1]
             if self.splicing:
-                be1, be2 = param_dict["be1"], param_dict["be2"]
-                C0s = np.array([ga1 / be1 * x1_s, x1_s, ga2 / be2 * x2_s, x2_s])
+                be = self.param_dict["beta"]
+                C0s = np.array([ga[0] / be[0] * x1_s, x1_s, ga[1] / be[1] * x2_s, x2_s])
             else:
                 C0s = np.array([x1_s, x2_s])
 
-        super().__init__(simulate_2bifurgenes, C0s, param_dict, gene_names, gene_param_names)
+        self.C0s = C0s
         self.augment_C0_gaussian(n_C0s, sigma=5)
-
-    def fix_param_dict(self, param_dict):
-        param_dict = param_dict.copy()
-        # gene specific required parameters
-        if "a" in param_dict.keys():
-            if "a1" not in param_dict.keys():
-                param_dict["a1"] = param_dict["a"]
-            if "a2" not in param_dict.keys():
-                param_dict["a2"] = param_dict["a"]
-            main_info(f"universal values for a1 and a2: {param_dict['a']}")
-            del param_dict["a"]
-        else:
-            if "a1" not in param_dict.keys() and "a2" not in param_dict.keys():
-                raise Exception("a1 or a2 not defined.")
-
-        if "b" in param_dict.keys():
-            if "b1" not in param_dict.keys():
-                param_dict["b1"] = param_dict["b"]
-            if "b2" not in param_dict.keys():
-                param_dict["b2"] = param_dict["b"]
-            main_info(f"universal values for b1 and b2: {param_dict['b']}")
-            del param_dict["b"]
-        else:
-            if "b1" not in param_dict.keys() and "b2" not in param_dict.keys():
-                raise Exception("b1 or b2 not defined.")
-
-        if "gamma" in param_dict.keys() and "ga" not in param_dict.keys():
-            param_dict["ga"] = param_dict["gamma"]
-            del param_dict["gamma"]
-        if "ga" in param_dict.keys():
-            if "ga1" not in param_dict.keys():
-                param_dict["ga1"] = param_dict["ga"]
-            if "ga2" not in param_dict.keys():
-                param_dict["ga2"] = param_dict["ga"]
-            main_info(f"universal values for ga1 and ga2: {param_dict['ga']}")
-            del param_dict["ga"]
-        else:
-            if "ga1" not in param_dict.keys() and "ga2" not in param_dict.keys():
-                raise Exception("ga1 or ga2 not defined.")
-
-        # gene specific optional parameters
-        if "beta" in param_dict.keys() and "be" not in param_dict.keys():
-            param_dict["be"] = param_dict["beta"]
-            del param_dict["beta"]
-
-        if "be" in param_dict.keys():
-            if "be1" not in param_dict.keys():
-                param_dict["be1"] = param_dict["be"]
-            if "be2" not in param_dict.keys():
-                param_dict["be2"] = param_dict["be"]
-            main_info(f"universal values for be1 and be2: {param_dict['be']}")
-            del param_dict["be"]
-
-        # other parameters
-        if "K" not in param_dict.keys():
-            raise Exception("K not defined.")
-
-        if "n" not in param_dict.keys():
-            raise Exception("n not defined.")
-
-        return param_dict
