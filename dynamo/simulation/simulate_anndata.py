@@ -5,6 +5,7 @@ import anndata
 from .utils import simulate_2bifurgenes
 from .ODE import ode_2bifurgenes
 from ..tools.utils import flatten
+from ..utils import areinstance
 
 # dynamo logger related
 from ..dynamo_logger import (
@@ -28,11 +29,13 @@ class AnnDataSimulator:
         C0s,
         param_dict,
         gene_names=None,
-        species_to_gene=None,
+        species_map_dict=None,
         gene_param_names=[],
         required_param_names=[],
         velocity_func=None,
     ) -> None:
+
+        # initialization of variables
         self.simulator = simulator
         self.C0s = np.atleast_2d(C0s)
         self.n_species = self.C0s.shape[1]
@@ -42,21 +45,39 @@ class AnnDataSimulator:
         self.vfunc = velocity_func
         self.V = None
 
-        if species_to_gene is None:
-            self.n_genes = self.n_species
+        # create/check species-to-gene mapping
+        if species_map_dict is None:
+            main_info('No species-to-gene mapping is given: each species is considered a gene in `C0`.')
+            if gene_names is None:
+                self.gene_names = ["gene_%d" % i for i in range(self.n_species)]
+            else:
+                if len(gene_names) != self.n_species:
+                    raise Exception(f"There are {len(gene_names)} gene names but {self.n_species} elements in `C0`.")
+                else:
+                    self.gene_names = gene_names
+            self.species_map_dict = {'x': np.arange(self.n_species)}
         else:
-            pass  # will be implemented later
-
-        if gene_names:
             self.gene_names = gene_names
-        else:
-            self.gene_names = ["gene_%d" % i for i in range(self.n_genes)]
-
+            for k, v in species_map_dict.items():
+                v = np.atleast_1d(v)
+                if self.gene_names is None:
+                    self.gene_names = ["gene_%d" % i for i in range(len(v))]
+                
+                if len(v) != len(self.gene_names):
+                    raise Exception(f"There are {len(self.gene_names)} genes but {len(v)} mappings for species {k}.")
+                species_map_dict[k] = v
+            self.species_map_dict = species_map_dict
+            
+        # initialization of simulation results
         self.X = None
         self.T = None
 
+        # fix parameters
         self.fix_param_dict()
         main_info(f"The model contains {self.n_genes} genes and {self.n_species} species")
+
+    def get_n_genes(self):
+        return len(self.gene_names)
 
     def fix_param_dict(self):
         """
