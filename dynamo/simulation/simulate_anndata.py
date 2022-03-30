@@ -3,6 +3,8 @@ import pandas as pd
 import anndata
 
 from .utils import simulate_2bifurgenes
+from .ODE import ode_2bifurgenes
+from ..tools.utils import flatten
 
 # dynamo logger related
 from ..dynamo_logger import (
@@ -16,7 +18,7 @@ from ..dynamo_logger import (
 
 diff2genes_params = {"gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
-diff2genes_splicing_params = {"beta": 0.5, "gamma": 0.2, "a1": 1.5, "b1": 1, "a2": 0.5, "b2": 2.5, "K": 2.5, "n": 10}
+diff2genes_splicing_params = {"beta": 0.5, "gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
 
 class AnnDataSimulator:
@@ -29,6 +31,7 @@ class AnnDataSimulator:
         species_to_gene=None,
         gene_param_names=[],
         required_param_names=[],
+        velocity_func=None,
     ) -> None:
         self.simulator = simulator
         self.C0s = np.atleast_2d(C0s)
@@ -36,6 +39,8 @@ class AnnDataSimulator:
         self.param_dict = param_dict
         self.gene_param_names = gene_param_names
         self.required_param_names = required_param_names
+        self.vfunc = velocity_func
+        self.V = None
 
         if species_to_gene is None:
             self.n_genes = self.n_species
@@ -47,7 +52,7 @@ class AnnDataSimulator:
         else:
             self.gene_names = ["gene_%d" % i for i in range(self.n_genes)]
 
-        self.C = None
+        self.X = None
         self.T = None
 
         self.fix_param_dict()
@@ -101,12 +106,19 @@ class AnnDataSimulator:
                 count += 1
 
         self.T = Ts
-        self.C = Cs
+        self.X = Cs
         self.traj_id = traj_id
 
+        if self.vfunc is not None:
+            V = []
+            for x in self.X:
+                v = self.vfunc(x)
+                V.append(flatten(v))
+            self.V = np.array(V)
+
     def generate_anndata(self, remove_empty_cells=False, verbose=True):
-        if self.T is not None and self.C is not None:
-            n_cells = self.C.shape[0]
+        if self.T is not None and self.X is not None:
+            n_cells = self.X.shape[0]
 
             obs = pd.DataFrame(
                 {
@@ -120,18 +132,22 @@ class AnnDataSimulator:
             # work on params later
             var = pd.DataFrame(
                 {
-                    "gene_short_name": self.gene_names,
+                    "gene_name": self.gene_names,
                 }
-            )  # use the real name in simulation?
-            var.set_index("gene_short_name", inplace=True)
+            )
+            var.set_index("gene_name", inplace=True)
+            for param_name in self.gene_param_names:
+                var[param_name] = self.param_dict[param_name]
 
             # reserve for species
             layers = {
-                "X": (self.C).astype(int),
+                "X": (self.X).astype(int),
             }
+            if self.V is not None:
+                layers["V"] = self.V
 
             adata = anndata.AnnData(
-                self.C.astype(int),
+                self.X.astype(int),
                 obs.copy(),
                 var.copy(),
                 layers=layers.copy(),
@@ -161,12 +177,17 @@ class Differentiation2Genes(AnnDataSimulator):
         if C0s is None:
             C0s_ = np.zeros(4) if self.splicing else np.zeros(2)
 
+        if self.splicing:
+            gene_param_names = ["a", "b", "S", "K", "m", "n", "beta", "gamma"]
+        else:
+            gene_param_names = ["a", "b", "S", "K", "m", "n", "gamma"]
+
         super().__init__(
             simulate_2bifurgenes,
             C0s_,
             param_dict,
             gene_names,
-            gene_param_names=["a", "b", "S", "K", "m", "n", "beta", "gamma"],
+            gene_param_names=gene_param_names,
             required_param_names=["a", "b", "S", "K", "m", "n", "gamma"],
         )
 
@@ -195,3 +216,6 @@ class Differentiation2Genes(AnnDataSimulator):
 
         self.C0s = C0s
         self.augment_C0_gaussian(n_C0s, sigma=5)
+        main_info(f"{n_C0s} initial conditions have been augmented.")
+
+        self.vfunc = lambda x: ode_2bifurgenes(x, **self.param_dict)
