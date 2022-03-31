@@ -137,36 +137,44 @@ def lhsclassic(n_samples, n_dim, seed=19491001):
     return H
 
 
-def sample(arr:Union[list, np.ndarray], n:int, method:str="random", X:Union[np.ndarray, None]=None, V:Union[np.ndarray, None]=None, seed:int=19491001, **kwargs):
-    '''
-        A collection of various sampling methods.
+def sample(
+    arr: Union[list, np.ndarray],
+    n: int,
+    method: str = "random",
+    X: Union[np.ndarray, None] = None,
+    V: Union[np.ndarray, None] = None,
+    seed: int = 19491001,
+    **kwargs,
+):
+    """
+    A collection of various sampling methods.
 
-        Parameters
-        ----------
-            arr: Callable
-                a function that calculates the propensity for each reaction.
-                input: an array of copy numbers of all species;
-                output: an array of propensities of all reactions.
-            n: Callable
-                a function that determines how the copy number of each species increases or decreases after each reaction.
-                input: (1) an array of current copy numbers of all species; (2) the index of the occurred reaction.
-                output: an array of updated of copy numbers of all species.
-            method: list
-                a list of starting and end simulation time, e.g. [0, 100].
-            C0: :class:`~numpy.ndarray`
-                transcription rate with active promoter
-            record_skip_steps: int
-                transcription rate with inactive promoter
-            record_max_length: int
-                sigma, degradation rate
+    Parameters
+    ----------
+        arr: list or :class:`~numpy.ndarray`
+            The array to be subsampled.
+        n: int
+            The number of samples.
+        method: str
+            Sampling method:
+            "random": randomly choosing `n` elements from `arr`;
+            "velocity": Higher the velocity, higher the chance to be sampled;
+            "trn": Topology Representing Network based sampling;
+            "kmeans": `n` points that are closest to the kmeans centroids on `X` are chosen.
+        X: None or :class:`~numpy.ndarray`
+            Coordinates associated to each element in `arr`
+        V: None or :class:`~numpy.ndarray`
+            Velocity associated to each element in `arr`
+        seed: int
+            sigma, degradation rate
 
-        Returns
-        -------
-            retT: :class:`~numpy.ndarray`
-                a 1d numpy array of time points.
-            retC: :class:`~numpy.ndarray`
-                a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
-    '''
+    Returns
+    -------
+        retT: :class:`~numpy.ndarray`
+            a 1d numpy array of time points.
+        retC: :class:`~numpy.ndarray`
+            a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
+    """
     if method == "random":
         np.random.seed(seed)
         sub_arr = np.random.choice(arr, size=n, replace=False)
