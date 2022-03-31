@@ -29,7 +29,7 @@ class AnnDataSimulator:
         C0s,
         param_dict,
         gene_names=None,
-        species_map_dict=None,
+        gene_species_dict=None,
         gene_param_names=[],
         required_param_names=[],
         velocity_func=None,
@@ -46,8 +46,8 @@ class AnnDataSimulator:
         self.V = None
 
         # create/check species-to-gene mapping
-        if species_map_dict is None:
-            main_info('No species-to-gene mapping is given: each species is considered a gene in `C0`.')
+        if gene_species_dict is None:
+            main_info("No species-to-gene mapping is given: each species is considered a gene in `C0`.")
             if gene_names is None:
                 self.gene_names = ["gene_%d" % i for i in range(self.n_species)]
             else:
@@ -55,29 +55,34 @@ class AnnDataSimulator:
                     raise Exception(f"There are {len(gene_names)} gene names but {self.n_species} elements in `C0`.")
                 else:
                     self.gene_names = gene_names
-            self.species_map_dict = {'x': np.arange(self.n_species)}
+            self.gene_species_dict = {"x": np.arange(self.n_species)}
         else:
             self.gene_names = gene_names
-            for k, v in species_map_dict.items():
+            for k, v in gene_species_dict.items():
                 v = np.atleast_1d(v)
                 if self.gene_names is None:
                     self.gene_names = ["gene_%d" % i for i in range(len(v))]
-                
+
                 if len(v) != len(self.gene_names):
                     raise Exception(f"There are {len(self.gene_names)} genes but {len(v)} mappings for species {k}.")
-                species_map_dict[k] = v
-            self.species_map_dict = species_map_dict
-            
+                gene_species_dict[k] = v
+            self.gene_species_dict = gene_species_dict
+
         # initialization of simulation results
-        self.X = None
+        self.C = None
         self.T = None
 
         # fix parameters
         self.fix_param_dict()
-        main_info(f"The model contains {self.n_genes} genes and {self.n_species} species")
+        main_info(f"The model contains {self.get_n_genes()} genes and {self.n_species} species")
 
     def get_n_genes(self):
         return len(self.gene_names)
+
+    def get_n_cells(self):
+        if self.C is None:
+            raise Exception("Simulation results not found. Run simulation first.")
+        return self.C.shape[0]
 
     def fix_param_dict(self):
         """
@@ -95,7 +100,7 @@ class AnnDataSimulator:
             if param_name in param_dict.keys():
                 param = np.atleast_1d(param_dict[param_name])
                 if len(param) == 1:
-                    param_dict[param_name] = np.ones(self.n_genes) * param[0]
+                    param_dict[param_name] = np.ones(self.get_n_genes()) * param[0]
                     main_info(f"Universal value for parameter {param_name}: {param[0]}")
                 else:
                     param_dict[param_name] = param
@@ -127,23 +132,22 @@ class AnnDataSimulator:
                 count += 1
 
         self.T = Ts
-        self.X = Cs
+        self.C = Cs
         self.traj_id = traj_id
 
         if self.vfunc is not None:
             V = []
-            for x in self.X:
-                v = self.vfunc(x)
+            for c in self.C:
+                v = self.vfunc(c)
                 V.append(flatten(v))
             self.V = np.array(V)
 
     def generate_anndata(self, remove_empty_cells=False, verbose=True):
-        if self.T is not None and self.X is not None:
-            n_cells = self.X.shape[0]
+        if self.T is not None and self.C is not None:
 
             obs = pd.DataFrame(
                 {
-                    "cell_name": np.arange(n_cells),
+                    "cell_name": np.arange(self.get_n_cells()),
                     "trajectory": self.traj_id,
                     "time": self.T,
                 }
@@ -160,15 +164,20 @@ class AnnDataSimulator:
             for param_name in self.gene_param_names:
                 var[param_name] = self.param_dict[param_name]
 
-            # reserve for species
-            layers = {
-                "X": (self.X).astype(int),
-            }
+            # gene species go here
+            layers = {}
             if self.V is not None:
                 layers["V"] = self.V
 
+            X = np.zeros((self.get_n_cells(), self.get_n_genes()))
+            for species, indices in self.gene_species_dict.items():
+                S = self.C[:, indices]
+                layers[species] = S
+                X += S
+            layers["X"] = X
+
             adata = anndata.AnnData(
-                self.X.astype(int),
+                X,
                 obs.copy(),
                 var.copy(),
                 layers=layers.copy(),
@@ -179,7 +188,7 @@ class AnnDataSimulator:
                 adata = adata[np.array(adata.X.sum(1)).flatten() > 0, :]
 
             if verbose:
-                main_info("%s cell with %s genes stored in AnnData." % (n_cells, self.n_genes))
+                main_info("%s cell with %s genes stored in AnnData." % (self.get_n_cells(), self.get_n_genes()))
         else:
             raise Exception("No trajectory has been generated; Run simulation first.")
 
@@ -200,14 +209,17 @@ class Differentiation2Genes(AnnDataSimulator):
 
         if self.splicing:
             gene_param_names = ["a", "b", "S", "K", "m", "n", "beta", "gamma"]
+            gene_species_dict = {"u": [0, 2], "s": [1, 3]}
         else:
             gene_param_names = ["a", "b", "S", "K", "m", "n", "gamma"]
+            gene_species_dict = None
 
         super().__init__(
             simulate_2bifurgenes,
             C0s_,
             param_dict,
             gene_names,
+            gene_species_dict=gene_species_dict,
             gene_param_names=gene_param_names,
             required_param_names=["a", "b", "S", "K", "m", "n", "gamma"],
         )
@@ -239,4 +251,9 @@ class Differentiation2Genes(AnnDataSimulator):
         self.augment_C0_gaussian(n_C0s, sigma=5)
         main_info(f"{n_C0s} initial conditions have been augmented.")
 
-        self.vfunc = lambda x: ode_2bifurgenes(x, **self.param_dict)
+        if self.splicing:
+            param_dict = self.param_dict.copy()
+            del param_dict["beta"]
+            self.vfunc = lambda x: ode_2bifurgenes(x[self.gene_species_dict["s"]], **param_dict)
+        else:
+            self.vfunc = lambda x: ode_2bifurgenes(x, **self.param_dict)
