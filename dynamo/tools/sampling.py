@@ -1,9 +1,9 @@
 import numpy as np
-from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
 from scipy.cluster.vq import kmeans2
 from .utils import timeit, nearest_neighbors
 from ..dynamo_logger import LoggerManager
+from typing import Union, Callable
 
 
 class TRNET:
@@ -137,16 +137,45 @@ def lhsclassic(n_samples, n_dim, seed=19491001):
     return H
 
 
-def sample(arr, n, method="random", X=None, V=None, seed=19491001, **kwargs):
+def sample(arr:Union[list, np.ndarray], n:int, method:str="random", X:Union[np.ndarray, None]=None, V:Union[np.ndarray, None]=None, seed:int=19491001, **kwargs):
+    '''
+        A collection of various sampling methods.
+
+        Parameters
+        ----------
+            arr: Callable
+                a function that calculates the propensity for each reaction.
+                input: an array of copy numbers of all species;
+                output: an array of propensities of all reactions.
+            n: Callable
+                a function that determines how the copy number of each species increases or decreases after each reaction.
+                input: (1) an array of current copy numbers of all species; (2) the index of the occurred reaction.
+                output: an array of updated of copy numbers of all species.
+            method: list
+                a list of starting and end simulation time, e.g. [0, 100].
+            C0: :class:`~numpy.ndarray`
+                transcription rate with active promoter
+            record_skip_steps: int
+                transcription rate with inactive promoter
+            record_max_length: int
+                sigma, degradation rate
+
+        Returns
+        -------
+            retT: :class:`~numpy.ndarray`
+                a 1d numpy array of time points.
+            retC: :class:`~numpy.ndarray`
+                a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
+    '''
     if method == "random":
         np.random.seed(seed)
-        cell_idx = np.random.choice(arr, size=n, replace=False)
+        sub_arr = np.random.choice(arr, size=n, replace=False)
     elif method == "velocity" and V is not None:
-        cell_idx = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
+        sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
     elif method == "trn" and X is not None:
-        cell_idx = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
+        sub_arr = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
     elif method == "kmeans":
-        cell_idx = arr[sample_by_kmeans(X, n, return_index=True)]
+        sub_arr = arr[sample_by_kmeans(X, n, return_index=True)]
     else:
         raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
-    return cell_idx
+    return sub_arr

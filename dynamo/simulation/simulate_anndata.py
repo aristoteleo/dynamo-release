@@ -5,7 +5,7 @@ import anndata
 from .utils import simulate_2bifurgenes
 from .ODE import ode_2bifurgenes
 from ..tools.utils import flatten
-from ..utils import areinstance
+from ..tools.sampling import sample
 
 # dynamo logger related
 from ..dynamo_logger import (
@@ -118,7 +118,7 @@ class AnnDataSimulator:
             self.C0s = C0s
         return C0s
 
-    def simulate(self, t_span, n_traj=1, **simulator_kwargs):
+    def simulate(self, t_span, n_traj=1, n_cells=None, **simulator_kwargs):
         Ts, Cs, traj_id = [], None, []
         count = 0
         for C0 in self.C0s:
@@ -131,6 +131,17 @@ class AnnDataSimulator:
                 traj_id = np.hstack((traj_id, [count] * len(traj_T)))
                 count += 1
 
+        if n_cells is not None:
+            n = Cs.shape[0]
+            if n_cells > n:
+                main_warning(f"Cannot sample {n_cells} from {n} simulated data points. Using all data points instead.")
+            else:
+                main_info(f'Sampling {n_cells} from {n} simulated data points.')
+                cell_idx = sample(np.arange(n), n_cells, method="random")
+                Ts = Ts[cell_idx]
+                Cs = Cs[cell_idx]
+                traj_id = traj_id[cell_idx]
+        
         self.T = Ts
         self.C = Cs
         self.traj_id = traj_id
@@ -257,3 +268,4 @@ class Differentiation2Genes(AnnDataSimulator):
             self.vfunc = lambda x: ode_2bifurgenes(x[self.gene_species_dict["s"]], **param_dict)
         else:
             self.vfunc = lambda x: ode_2bifurgenes(x, **self.param_dict)
+        
