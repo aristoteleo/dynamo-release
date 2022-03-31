@@ -1875,7 +1875,9 @@ class ss_estimation:
         """Get the number of genes."""
         if data is None:
             if key is None:
-                data = self.data[self.get_exist_data_names()[0]]
+                gene_names = self.get_exist_data_names()
+                assert len(gene_names) > 0, "#existing gene is 0."
+                data = self.data[gene_names[0]]
             else:
                 data = self.data[key]
         if type(data) is list:
