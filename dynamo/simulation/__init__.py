@@ -1,8 +1,8 @@
 from .Gillespie import Gillespie
 from .ODE import (
     Simulator,
-    two_genes_motif,
-    two_genes_motif_jacobian,
+    ode_2bifurgenes,
+    jacobian_2bifurgenes,
     neurogenesis,
     toggle,
     Ying_model,

@@ -1,9 +1,9 @@
 import numpy as np
-from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
 from scipy.cluster.vq import kmeans2
 from .utils import timeit, nearest_neighbors
 from ..dynamo_logger import LoggerManager
+from typing import Union, Callable
 
 
 class TRNET:
@@ -137,16 +137,53 @@ def lhsclassic(n_samples, n_dim, seed=19491001):
     return H
 
 
-def sample(arr, n, method="random", X=None, V=None, seed=19491001, **kwargs):
+def sample(
+    arr: Union[list, np.ndarray],
+    n: int,
+    method: str = "random",
+    X: Union[np.ndarray, None] = None,
+    V: Union[np.ndarray, None] = None,
+    seed: int = 19491001,
+    **kwargs,
+):
+    """
+    A collection of various sampling methods.
+
+    Parameters
+    ----------
+        arr: list or :class:`~numpy.ndarray`
+            The array to be subsampled.
+        n: int
+            The number of samples.
+        method: str
+            Sampling method:
+            "random": randomly choosing `n` elements from `arr`;
+            "velocity": Higher the velocity, higher the chance to be sampled;
+            "trn": Topology Representing Network based sampling;
+            "kmeans": `n` points that are closest to the kmeans centroids on `X` are chosen.
+        X: None or :class:`~numpy.ndarray`
+            Coordinates associated to each element in `arr`
+        V: None or :class:`~numpy.ndarray`
+            Velocity associated to each element in `arr`
+        seed: int
+            sigma, degradation rate
+
+    Returns
+    -------
+        retT: :class:`~numpy.ndarray`
+            a 1d numpy array of time points.
+        retC: :class:`~numpy.ndarray`
+            a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
+    """
     if method == "random":
         np.random.seed(seed)
-        cell_idx = np.random.choice(arr, size=n, replace=False)
+        sub_arr = np.random.choice(arr, size=n, replace=False)
     elif method == "velocity" and V is not None:
-        cell_idx = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
+        sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
     elif method == "trn" and X is not None:
-        cell_idx = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
+        sub_arr = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
     elif method == "kmeans":
-        cell_idx = arr[sample_by_kmeans(X, n, return_index=True)]
+        sub_arr = arr[sample_by_kmeans(X, n, return_index=True)]
     else:
         raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
-    return cell_idx
+    return sub_arr
