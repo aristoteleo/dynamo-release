@@ -210,17 +210,30 @@ class BifurcationTwoGenes(AnnDataSimulator):
     def __init__(self, param_dict, C0s=None, r=20, tau=3, n_C0s=10, gene_names=None) -> None:
         """
         Two gene toggle switch model anndata simulator.
-        r: controls steady state copy number for x1 and x2. At steady state, x1_s ~ r*(a1+b1)/ga1; x2_s ~ r*(a2+b2)/ga2
-        tau: a time scale parameter which does not affect steady state solutions.
-        """
 
+        Parameters
+        ----------
+            param_dict: dict
+                The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
+                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
+            C0s: None or :class:`~numpy.ndarray`
+                Initial conditions (# init cond. x # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
+            r: float
+                Controls steady state copy number for x1 and x2. At steady state, x1_s ~ r*(a1+b1)/ga1; x2_s ~ r*(a2+b2)/ga2
+            tau: float
+                A time scale parameter which does not affect steady state solutions.
+            n_C0s: int
+                Number of augmented initial conditions, if C0s is `None`.
+            gene_names: None or list
+                A list of gene names. If `None`, "gene_1", "gene_2", etc., are used.
+        """
         self.splicing = True if "beta" in param_dict.keys() else False
         if C0s is None:
-            C0s_ = np.zeros(4) if self.splicing else np.zeros(2)
+            C0s_ = np.zeros(4) if self.splicing else np.zeros(2)  # splicing: 4 species (u1, s1, u2, s2)
 
         if self.splicing:
             gene_param_names = ["a", "b", "S", "K", "m", "n", "beta", "gamma"]
-            gene_species_dict = {"u": [0, 2], "s": [1, 3]}
+            gene_species_dict = {"u": [0, 2], "s": [1, 3]}  # splicing: 4 species (u1, s1, u2, s2)
         else:
             gene_param_names = ["a", "b", "S", "K", "m", "n", "gamma"]
             gene_species_dict = None
