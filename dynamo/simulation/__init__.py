@@ -8,5 +8,5 @@ from .ODE import (
     Ying_model,
     state_space_sampler,
 )
-from .simulate_anndata import AnnDataSimulator, Differentiation2Genes, diff2genes_params, diff2genes_splicing_params
+from .simulate_anndata import AnnDataSimulator, BifurcationTwoGenes, bifur2genes_params, bifur2genes_splicing_params
 from .evaluation import evaluate

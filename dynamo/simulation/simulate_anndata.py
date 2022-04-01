@@ -17,9 +17,9 @@ from ..dynamo_logger import (
     main_exception,
 )
 
-diff2genes_params = {"gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
+bifur2genes_params = {"gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
-diff2genes_splicing_params = {"beta": 0.5, "gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
+bifur2genes_splicing_params = {"beta": 0.5, "gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
 
 class AnnDataSimulator:
@@ -136,12 +136,12 @@ class AnnDataSimulator:
             if n_cells > n:
                 main_warning(f"Cannot sample {n_cells} from {n} simulated data points. Using all data points instead.")
             else:
-                main_info(f'Sampling {n_cells} from {n} simulated data points.')
+                main_info(f"Sampling {n_cells} from {n} simulated data points.")
                 cell_idx = sample(np.arange(n), n_cells, method="random")
                 Ts = Ts[cell_idx]
                 Cs = Cs[cell_idx]
                 traj_id = traj_id[cell_idx]
-        
+
         self.T = Ts
         self.C = Cs
         self.traj_id = traj_id
@@ -206,7 +206,7 @@ class AnnDataSimulator:
         return adata
 
 
-class Differentiation2Genes(AnnDataSimulator):
+class BifurcationTwoGenes(AnnDataSimulator):
     def __init__(self, param_dict, C0s=None, r=20, tau=3, n_C0s=10, gene_names=None) -> None:
         """
         Two gene toggle switch model anndata simulator.
@@ -268,4 +268,3 @@ class Differentiation2Genes(AnnDataSimulator):
             self.vfunc = lambda x: ode_2bifurgenes(x[self.gene_species_dict["s"]], **param_dict)
         else:
             self.vfunc = lambda x: ode_2bifurgenes(x, **self.param_dict)
-        
