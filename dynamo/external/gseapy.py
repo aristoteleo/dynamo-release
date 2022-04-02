@@ -1,6 +1,7 @@
 from pathlib import Path
-from ..dynamo_logger import LoggerManager
 from typing import Union
+
+from ..dynamo_logger import LoggerManager
 
 
 def enrichr(

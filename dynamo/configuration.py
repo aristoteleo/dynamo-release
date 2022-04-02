@@ -1,11 +1,12 @@
-from anndata._core.anndata import AnnData
 import colorcet
 import matplotlib
-from matplotlib import rcParams, cm, colors
-from cycler import cycler
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
+from anndata._core.anndata import AnnData
+from cycler import cycler
+from matplotlib import cm, colors, rcParams
+
 from .dynamo_logger import main_info, main_warning
 
 

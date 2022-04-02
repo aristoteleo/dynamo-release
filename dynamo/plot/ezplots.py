@@ -1,8 +1,9 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
-from ..tools.utils import flatten, velocity_on_grid, index_gene
+
+from ..tools.utils import flatten, index_gene, velocity_on_grid
 from ..utils import areinstance, isarray
 
 # from ..tools.Markov import smoothen_drift_on_grid

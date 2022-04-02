@@ -2,26 +2,25 @@
 """
 
 from .estimation_kinetic import (
-    Mixture_KinDeg_NoSwitching,
-    kinetic_estimation,
+    Estimation_DeterministicDeg,
+    Estimation_DeterministicDegNosp,
+    Estimation_DeterministicKin,
+    Estimation_DeterministicKinNosp,
     Estimation_MomentDeg,
     Estimation_MomentDegNosp,
     Estimation_MomentKin,
     Estimation_MomentKinNosp,
-    Estimation_DeterministicDeg,
-    Estimation_DeterministicDegNosp,
-    Estimation_DeterministicKinNosp,
-    Estimation_DeterministicKin,
     GoodnessOfFit,
     Lambda_NoSwitching,
+    Mixture_KinDeg_NoSwitching,
+    kinetic_estimation,
 )
-
 from .utils_kinetic import (
+    Deterministic,
+    Deterministic_NoSplicing,
     LinearODE,
     Moments,
     Moments_Nosplicing,
     Moments_NoSwitching,
     Moments_NoSwitchingNoSplicing,
-    Deterministic,
-    Deterministic_NoSplicing,
 )

@@ -1,23 +1,19 @@
-from ..configuration import DynamoAdataKeyManager
-from anndata import AnnData
-from pynndescent.distances import true_angular
-import numpy as np
-import scipy
-from scipy.sparse import issparse, csr_matrix
-from sklearn.decomposition import TruncatedSVD
 import warnings
 from copy import deepcopy
 from inspect import signature
-from sklearn.utils import sparsefuncs
-from anndata import AnnData
-from .utils import (
-    log1p_,
-    fetch_X_data,
-)
 
+import numpy as np
+import scipy
+from anndata import AnnData
+from pynndescent.distances import true_angular
+from scipy.sparse import csr_matrix, issparse
+from sklearn.decomposition import TruncatedSVD
+from sklearn.utils import sparsefuncs
+
+from ..configuration import DynamoAdataKeyManager
 from ..docrep import DocstringProcessor
 from ..dynamo_logger import LoggerManager, main_info, main_warning
-
+from .utils import fetch_X_data, log1p_
 
 docstrings = DocstringProcessor()
 
@@ -214,13 +210,13 @@ def umap_conn_indices_dist_embedding(
             nearest neighbors (knn_dists) and finally the low dimensional embedding (embedding_).
     """
 
-    from sklearn.utils import check_random_state
     from sklearn.metrics import pairwise_distances
+    from sklearn.utils import check_random_state
     from umap.umap_ import (
-        nearest_neighbors,
-        fuzzy_simplicial_set,
-        simplicial_set_embedding,
         find_ab_params,
+        fuzzy_simplicial_set,
+        nearest_neighbors,
+        simplicial_set_embedding,
     )
 
     # also see github issue at: https://github.com/lmcinnes/umap/issues/798
@@ -323,6 +319,7 @@ def umap_conn_indices_dist_embedding(
 
     if return_mapper:
         import umap.umap_ as umap
+
         from .utils import update_dict
 
         _umap_kwargs = {

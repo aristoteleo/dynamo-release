@@ -1,38 +1,37 @@
+from typing import List, Optional, Union
+
 import matplotlib
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 
 # from scipy.sparse import issparse
 from matplotlib import cm
 from matplotlib.axes import Axes
-from anndata import AnnData
-from typing import Union, Optional, List
 from matplotlib.figure import Figure
 from scipy.sparse import spmatrix
 from sklearn.preprocessing import normalize
 
-from .scatters import scatters
+from ..dynamo_logger import main_debug, main_info
+from ..tools.cell_velocities import cell_velocities
+from ..tools.dimension_reduction import reduceDimension
+from ..tools.Markov import (
+    grid_velocity_filter,
+    prepare_velocity_grid_data,
+    velocity_on_grid,
+)
+from ..tools.utils import update_dict
+from ..vectorfield.topography import VectorField
+from ..vectorfield.utils import vecfld_from_adata
+from .scatters import docstrings, scatters
 from .utils import (
-    quiver_autoscaler,
+    _get_adata_color_vec,
     default_quiver_args,
+    quiver_autoscaler,
     save_fig,
     set_arrow_alpha,
     set_stream_line_alpha,
-    _get_adata_color_vec,
 )
-from ..tools.dimension_reduction import reduceDimension
-from ..tools.cell_velocities import cell_velocities
-from ..tools.Markov import (
-    prepare_velocity_grid_data,
-    velocity_on_grid,
-    grid_velocity_filter,
-)
-from ..vectorfield.topography import VectorField
-from ..tools.utils import update_dict
-from ..vectorfield.utils import vecfld_from_adata
-
-from .scatters import docstrings
-from ..dynamo_logger import main_debug, main_info
 
 docstrings.delete_params("scatters.parameters", "show_legend", "kwargs", "save_kwargs")
 

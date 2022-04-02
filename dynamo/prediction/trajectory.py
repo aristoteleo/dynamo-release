@@ -1,10 +1,16 @@
 import numpy as np
 from scipy.interpolate import interp1d
-from ..vectorfield.utils import normalize_vectors, angle
-from ..vectorfield.scVectorField import DifferentiableVectorField
-from .utils import arclength_sampling_n, remove_redundant_points_trajectory, pca_to_expr, expr_to_pca
-from ..tools.utils import flatten
+
 from ..dynamo_logger import LoggerManager
+from ..tools.utils import flatten
+from ..vectorfield.scVectorField import DifferentiableVectorField
+from ..vectorfield.utils import angle, normalize_vectors
+from .utils import (
+    arclength_sampling_n,
+    expr_to_pca,
+    pca_to_expr,
+    remove_redundant_points_trajectory,
+)
 
 
 class Trajectory:

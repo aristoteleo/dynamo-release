@@ -1,18 +1,19 @@
+from typing import Optional, Sequence, Union
+
+import matplotlib
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse, csr_matrix
 from anndata import AnnData
-from typing import Optional, Union, Sequence
-import matplotlib
 from matplotlib.axes import Axes
+from scipy.sparse import csr_matrix, issparse
 
+from ..configuration import DynamoAdataKeyManager
+from ..dynamo_logger import main_warning
 from ..preprocessing import preprocess as pp
 from ..preprocessing.preprocess_monocle_utils import top_table
-from .utils import save_fig
-from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_experiment_datatype
-from ..dynamo_logger import main_warning
-from ..configuration import DynamoAdataKeyManager
+from ..tools.utils import get_mapper, update_dict
+from .utils import save_fig
 
 
 def basic_stats(
@@ -1030,8 +1031,8 @@ def highest_frac_genes(
     [type]
         [description]
     """
-    import seaborn as sns
     import matplotlib.pyplot as plt
+    import seaborn as sns
 
     if ax is None:
         length = n_top * 0.4

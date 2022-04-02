@@ -1,15 +1,15 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
-from ..configuration import _themes
-
-import numpy as np
-import pandas as pd
-import numba
 from warnings import warn
 
-import matplotlib.colors
 import matplotlib.cm
-from matplotlib.patches import Patch
+import matplotlib.colors
 import matplotlib.pyplot as plt
+import numba
+import numpy as np
+import pandas as pd
+from matplotlib.patches import Patch
+
+from ..configuration import _themes
 
 # import bokeh.plotting as bpl
 # import bokeh.transform as btr

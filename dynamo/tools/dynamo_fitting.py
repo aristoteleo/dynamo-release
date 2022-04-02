@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.optimize import least_squares
 from scipy.integrate import odeint
+from scipy.optimize import least_squares
 
 
 def sol_u(t, u0, alpha, beta):

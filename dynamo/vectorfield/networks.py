@@ -1,6 +1,8 @@
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
+
+from ..dynamo_logger import main_debug, main_info, main_tqdm
 from .vector_calculus import rank_jacobian_genes
-from ..dynamo_logger import main_info, main_tqdm, main_debug
 
 
 def get_interaction_in_cluster(

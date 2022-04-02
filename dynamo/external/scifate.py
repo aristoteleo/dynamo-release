@@ -2,15 +2,17 @@
 # the following code is based on Cao, et. al, Nature Biotechnology, 2020 and
 # https://github.com/JunyueC/sci-fate_analysis
 
-from tqdm import tqdm
-import pandas as pd
-import numpy as np
-from anndata.utils import make_index_unique
-from anndata import AnnData
 from typing import Union
+
+import numpy as np
+import pandas as pd
+from anndata import AnnData
+from anndata.utils import make_index_unique
 from scipy.sparse import issparse
-from .utils import normalize_data, TF_link_gene_chip
+from tqdm import tqdm
+
 from ..tools.utils import einsum_correlation
+from .utils import TF_link_gene_chip, normalize_data
 
 
 def scifate_glmnet(

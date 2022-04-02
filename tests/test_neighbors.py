@@ -1,10 +1,15 @@
-from dynamo.tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors, check_neighbors_completeness
+import matplotlib.pyplot as plt
 
 # import utils
 import networkx as nx
-import dynamo as dyn
-import matplotlib.pyplot as plt
 import numpy as np
+
+import dynamo as dyn
+from dynamo.tools.connectivity import (
+    _gen_neighbor_keys,
+    check_and_recompute_neighbors,
+    check_neighbors_completeness,
+)
 
 
 def test_neighbors_subset(adata):

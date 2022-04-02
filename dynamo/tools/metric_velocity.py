@@ -1,26 +1,17 @@
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from scipy.sparse import issparse, csr_matrix
+from scipy.sparse import csr_matrix, issparse
 from sklearn.neighbors import NearestNeighbors
+from tqdm import tqdm
+
+from ..dynamo_logger import LoggerManager, main_critical, main_info, main_warning
 from .connectivity import (
     adj_to_knn,
     check_and_recompute_neighbors,
-    umap_conn_indices_dist_embedding,
     mnn_from_list,
+    umap_conn_indices_dist_embedding,
 )
-from .utils import (
-    get_finite_inds,
-    inverse_norm,
-    einsum_correlation,
-    fetch_X_data,
-)
-from ..dynamo_logger import (
-    main_info,
-    main_critical,
-    main_warning,
-    LoggerManager,
-)
+from .utils import einsum_correlation, fetch_X_data, get_finite_inds, inverse_norm
 
 
 def cell_wise_confidence(

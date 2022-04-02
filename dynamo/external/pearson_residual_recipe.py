@@ -6,22 +6,29 @@
 # Reference: Lause, J., Berens, P. & Kobak, D. Analytic Pearson residuals for normalization of single-cell RNA-seq UMI data. Genome Biol 22, 258 (2021). https://doi.org/10.1186/s13059-021-02451-7
 # =================================================================
 
-import scipy.sparse as sp_sparse
-from typing import Optional
 import warnings
-from scipy.sparse import issparse
-from typing import Optional, Tuple
-from anndata import AnnData
-import pandas as pd
-import numpy as np
-
-from typing import Optional, Dict
+from typing import Dict, Optional, Tuple
 from warnings import warn
-from ..dynamo_logger import LoggerManager, main_info, main_info_insert_adata_layer, main_warning
-from ..preprocessing.utils import pca_monocle
-from ..preprocessing.preprocessor_utils import filter_genes_by_outliers, is_nonnegative_integer_arr
-from ..preprocessing.preprocessor_utils import seurat_get_mean_var
+
+import numpy as np
+import pandas as pd
+import scipy.sparse as sp_sparse
+from anndata import AnnData
+from scipy.sparse import issparse
+
 from ..configuration import DKM
+from ..dynamo_logger import (
+    LoggerManager,
+    main_info,
+    main_info_insert_adata_layer,
+    main_warning,
+)
+from ..preprocessing.preprocessor_utils import (
+    filter_genes_by_outliers,
+    is_nonnegative_integer_arr,
+    seurat_get_mean_var,
+)
+from ..preprocessing.utils import pca_monocle
 
 main_logger = LoggerManager.main_logger
 

@@ -162,14 +162,15 @@
 #     )
 #
 
+
 def get_all_dependencies_version(display=True):
     """
     Adapted from answer 2 in
     https://stackoverflow.com/questions/40428931/package-for-listing-version-of-packages-used-in-a-jupyter-notebook
     """
+    import pandas as pd
     import pkg_resources
     from IPython.display import display
-    import pandas as pd
 
     _package_name = "dynamo-release"
     _package = pkg_resources.working_set.by_key[_package_name]

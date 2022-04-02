@@ -1,14 +1,14 @@
+from typing import List, NamedTuple, Optional, Union
+
+import matplotlib
+import pandas as pd
 import seaborn as sns
 from anndata import AnnData
-from typing import NamedTuple, List, Union, Optional
-import pandas as pd
-import matplotlib
-
-from .scatters import scatters, save_fig
-from .utils import map2color
 
 from ..prediction.fate import fate_bias as fate_bias_pd
 from ..tools.utils import update_dict
+from .scatters import save_fig, scatters
+from .utils import map2color
 
 
 def fate_bias(

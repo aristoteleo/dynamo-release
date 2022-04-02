@@ -1,5 +1,6 @@
-import dynamo
 import numpy as np
+
+import dynamo
 
 
 def smallest_distance_bf(coords):

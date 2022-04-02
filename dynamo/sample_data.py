@@ -1,9 +1,11 @@
-from anndata import read_h5ad, read_loom
-from urllib.request import urlretrieve
-from pathlib import Path
-import os
 import ntpath
+import os
+from pathlib import Path
+from urllib.request import urlretrieve
+
 import pandas as pd
+from anndata import read_h5ad, read_loom
+
 from .dynamo_logger import LoggerManager, main_info, main_log_time
 
 

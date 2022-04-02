@@ -3,23 +3,18 @@
 
 # Code adapted from https://github.com/kazumits/ddhodge.
 
-import numpy as np
-from scipy.sparse import csr_matrix, issparse
-from anndata import AnnData
 from typing import Union
+
+import numpy as np
+from anndata import AnnData
+from scipy.sparse import csr_matrix, issparse
 
 from ..dynamo_logger import main_finish_progress, main_info, main_log_time
 
 # from ..vectorfield.scVectorField import graphize_vecfld
-from ..tools.graph_calculus import graphize_velocity, divergence, potential
-from ..vectorfield.utils import (
-    vecfld_from_adata,
-    vector_field_function,
-)
-from ..tools.sampling import (
-    trn,
-    sample_by_velocity,
-)
+from ..tools.graph_calculus import divergence, graphize_velocity, potential
+from ..tools.sampling import sample_by_velocity, trn
+from ..vectorfield.utils import vecfld_from_adata, vector_field_function
 
 """from ..tools.graph_operators import (
     build_graph,

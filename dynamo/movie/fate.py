@@ -1,14 +1,15 @@
+import warnings
 from typing import Optional, Union
+
 import matplotlib
 import numpy as np
-import warnings
-from scipy.integrate import odeint
 from anndata import AnnData
+from scipy.integrate import odeint
 
-from ..vectorfield.scVectorField import SvcVectorField
+from ..dynamo_logger import main_info, main_tqdm, main_warning
 from ..plot.topography import topography
+from ..vectorfield.scVectorField import SvcVectorField
 from .utils import remove_particles
-from ..dynamo_logger import main_warning, main_info, main_tqdm
 
 
 class StreamFuncAnim:

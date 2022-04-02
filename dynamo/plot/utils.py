@@ -1,23 +1,25 @@
-import os
-import numpy as np
-import pandas as pd
+import copy
 import math
-import numba
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-from matplotlib.lines import Line2D
-import matplotlib.patheffects as PathEffects
+import os
 
 # import matplotlib.tri as tri
 import warnings
-from scipy.spatial import Delaunay
 from warnings import warn
-import copy
+
+import matplotlib
+import matplotlib.patheffects as PathEffects
+import matplotlib.pyplot as plt
+import numba
+import numpy as np
+import pandas as pd
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from scipy.spatial import Delaunay
 
 from ..configuration import _themes
-from ..tools.utils import integrate_vf  # integrate_vf_ivp
 from ..dynamo_logger import main_debug
+from ..tools.utils import integrate_vf  # integrate_vf_ivp
+
 
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
@@ -63,8 +65,8 @@ def _get_adata_color_vec(adata, layer, col):
 
 def map2color(val, min=None, max=None, cmap="viridis"):
     import matplotlib
-    import matplotlib.pyplot as plt
     import matplotlib.cm as cm
+    import matplotlib.pyplot as plt
 
     minima = np.min(val) if min is None else min
     maxima = np.max(val) if max is None else max
@@ -639,10 +641,9 @@ def _datashade_points(
     projection="2d",
     **kwargs,
 ):
-    import matplotlib.pyplot as plt
-
-    import datashader.transfer_functions as tf
     import datashader as ds
+    import datashader.transfer_functions as tf
+    import matplotlib.pyplot as plt
 
     dpi = plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
@@ -903,7 +904,6 @@ def interactive(
 
     # from bokeh.plotting import output_notebook, output_file, show
     import datashader as ds
-
     import holoviews as hv
     import holoviews.operation.datashader as hd
     import matplotlib.pyplot as plt
@@ -1108,8 +1108,8 @@ def scatter_with_colorbar(fig, ax, x, y, c, cmap, **scatter_kwargs):
 
 
 def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatter_kwargs):
-    import seaborn as sns
     import matplotlib.patheffects as PathEffects
+    import seaborn as sns
 
     unique_labels = np.unique(c)
 

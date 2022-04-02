@@ -1,7 +1,9 @@
-import dynamo
-import numpy as np
-import dynamo as dyn
 import os
+
+import numpy as np
+
+import dynamo
+import dynamo as dyn
 
 # import utils
 

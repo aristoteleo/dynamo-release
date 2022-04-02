@@ -4,6 +4,13 @@ repos:
     hooks:
     - id: black
       args: [--line-length=120]
+      exclude: dynamo/tools/DDRTree_py.py|dynamo/tools/psl_py.py
+#      exclude: |
+#        (?x)^(
+#            dynamo/tools/DDRTree_py.py|
+#            dynamo/tools/psl_py.py
+#        )$
+
 
 # -   repo: https://gitlab.com/PyCQA/flake8
 #     rev: 3.9.1

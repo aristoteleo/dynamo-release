@@ -1,31 +1,29 @@
-import pandas as pd
 import sys
 import warnings
-from anndata import AnnData
 from typing import Optional, Union
 
-from .utils_dynamics import *
-from .utils import (
-    despline,
-    _matplotlib_points,
-    _datashade_points,
-    _select_font_color,
-)
-from .utils import arrowed_spines, despline_all, deaxis_all
-from .utils import quiver_autoscaler, default_quiver_args
-from .utils import save_fig
-from .scatters import scatters
-from ..estimation.csc.velocity import sol_u, sol_s, solve_first_order_deg
-from ..estimation.tsc.utils_moments import moments
-from ..tools.utils import (
-    get_mapper,
-    log1p_,
-    update_dict,
-    get_valid_bools,
-    index_gene,
-)
+import pandas as pd
+from anndata import AnnData
+
 from ..configuration import _themes
 from ..dynamo_logger import main_warning
+from ..estimation.csc.velocity import sol_s, sol_u, solve_first_order_deg
+from ..estimation.tsc.utils_moments import moments
+from ..tools.utils import get_mapper, get_valid_bools, index_gene, log1p_, update_dict
+from .scatters import scatters
+from .utils import (
+    _datashade_points,
+    _matplotlib_points,
+    _select_font_color,
+    arrowed_spines,
+    deaxis_all,
+    default_quiver_args,
+    despline,
+    despline_all,
+    quiver_autoscaler,
+    save_fig,
+)
+from .utils_dynamics import *
 
 
 def phase_portraits(
@@ -1162,8 +1160,8 @@ def dynamics(
         Nothing but plot the figure of the metabolic fitting.
     """
 
-    import matplotlib.pyplot as plt
     import matplotlib
+    import matplotlib.pyplot as plt
 
     params = {
         "font.size": 4 * font_size_scale,

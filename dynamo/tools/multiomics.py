@@ -1,7 +1,6 @@
 import anndata
 import numpy as np
 
-
 # 1. concatenate RNA/protein data
 # 2. filter gene/protein for velocity
 # 3. use steady state assumption to calculate protein velocity

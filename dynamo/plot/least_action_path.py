@@ -1,11 +1,15 @@
 import numpy as np
 
+from ..prediction.utils import (
+    interp_curvature,
+    interp_second_derivative,
+    kneedle_difference,
+)
 from ..tools.utils import update_dict
-from .scatters import scatters, save_fig
+from ..utils import denormalize, normalize
 from .ezplots import plot_X, zscatter
+from .scatters import save_fig, scatters
 from .utils import map2color
-from ..prediction.utils import interp_second_derivative, interp_curvature, kneedle_difference
-from ..utils import normalize, denormalize
 
 
 def least_action(

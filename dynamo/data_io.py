@@ -1,20 +1,22 @@
 # Please import relevant packages in corresponding functions to avoid conflicts with dynamo's modules (e.g. dyn.pd.**)
 
-from tqdm import tqdm
 from functools import reduce
+
 from anndata import (
+    AnnData,
     read,
-    read_loom,
     read_csv,
     read_excel,
     read_h5ad,
     read_hdf,
+    read_loom,
     read_mtx,
+    read_text,
     read_umi_tools,
     read_zarr,
-    read_text,
-    AnnData,
 )
+from tqdm import tqdm
+
 from .dynamo_logger import main_info
 
 
@@ -68,11 +70,13 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
             AnnData object with the `new` and `total` layers.
     """
 
-    import os
-    from anndata import AnnData
     import glob
+    import os
+
+    import numpy as np
+    import pandas as pd
+    from anndata import AnnData
     from scipy.sparse import csr_matrix
-    import pandas as pd, numpy as np
 
     if type == "TMM":
         delimiter = "_"

@@ -1,11 +1,12 @@
-import numpy as np
-import scipy
+import re
+
 import matplotlib
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
+import scipy
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
-import re
 
 from .DDRTree_py import DDRTree_py
 
