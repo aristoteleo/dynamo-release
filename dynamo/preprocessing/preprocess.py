@@ -1,55 +1,56 @@
+import warnings
 from collections.abc import Iterable
+from typing import Callable, Optional, Union
+
+import anndata
 import numpy as np
 import pandas as pd
-import warnings
-from scipy.sparse import issparse, csr_matrix
+from anndata import AnnData
+from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
 from sklearn.utils import sparsefuncs
-import anndata
-from anndata import AnnData
-from typing import Optional, Union, Callable
 
-from .cell_cycle import cell_cycle_scores
-from ..tools.utils import update_dict
-from .utils import (
-    convert2symbol,
-    pca_monocle,
-    clusters_stats,
-    cook_dist,
-    get_inrange_shared_counts_mask,
-    get_svr_filter,
-    Freeman_Tukey,
-    merge_adata_attrs,
-    sz_util,
-    normalize_mat_monocle,
-    get_sz_exprs,
-    unique_var_obs_adata,
-    convert_layers2csr,
-    collapse_species_adata,
-    calc_new_to_total_ratio,
-    detect_experiment_datatype,
-    basic_stats,
-    add_noise_to_duplicates,
-    compute_gene_exp_fraction,
-)
+from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
-    main_info,
+    LoggerManager,
     main_critical,
+    main_info,
     main_info_insert_adata_obsm,
     main_info_insert_adata_uns,
     main_warning,
-    LoggerManager,
 )
+from ..tools.utils import update_dict
 from ..utils import copy_adata
-from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager, DKM
+from .cell_cycle import cell_cycle_scores
 from .preprocess_monocle_utils import top_table
 from .preprocessor_utils import (
+    SVRs,
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
     filter_genes_by_outliers,
-    select_genes_monocle,
-    SVRs,
     normalize_cell_expr_by_size_factors,
+    select_genes_monocle,
+)
+from .utils import (
+    Freeman_Tukey,
+    add_noise_to_duplicates,
+    basic_stats,
+    calc_new_to_total_ratio,
+    clusters_stats,
+    collapse_species_adata,
+    compute_gene_exp_fraction,
+    convert2symbol,
+    convert_layers2csr,
+    cook_dist,
+    detect_experiment_datatype,
+    get_inrange_shared_counts_mask,
+    get_svr_filter,
+    get_sz_exprs,
+    merge_adata_attrs,
+    normalize_mat_monocle,
+    pca_monocle,
+    sz_util,
+    unique_var_obs_adata,
 )
 
 
@@ -1549,7 +1550,7 @@ def highest_frac_genes(
     store_key: str = "highest_frac_genes",
     n_top: int = 30,
     gene_prefix_list: list = None,
-    show_individual_prefix_gene: bool = False,
+    gene_prefix_only: bool = False,
     layer: Union[str, None] = None,
 ):
     """
@@ -1559,26 +1560,22 @@ def highest_frac_genes(
     Parameters
     ----------
     adata : AnnData
-        [description]
+        anndata input
     store_key : str, optional
-        [description], by default "highest_frac_genes"
+        key for storing expression percent results, by default "highest_frac_genes"
     n_top : int, optional
-        [description], by default 30
+        #top genes to show, by default 30
     gene_prefix_list : list, optional
-        [description], by default None
-    show_individual_prefix_gene : bool, optional
-        [description], by default False
+        a list of gene prefixes used for gathering/calculating genes percents which are with these prefixes, by default None
+    gene_prefix_only : bool, optional
+        whether to show prefix of genes only. It only takes effect if gene prefix list is provided, by default True
     layer : Union[str, None], optional
-        [description], by default None
+        layer on which the gene percents will be computed, by default None
 
-    Returns
-    -------
-    [type]
-        [description]
     """
     gene_mat = adata.X
     if layer is not None:
-        gene_mat = adata.layers[layer]
+        gene_mat = DKM.select_layer_data(layer)
     # compute gene percents at each cell row
     cell_expression_sum = gene_mat.sum(axis=1).flatten()
     # get rid of cells that have all zero counts
@@ -1602,7 +1599,7 @@ def highest_frac_genes(
         if len(valid_gene_set) == 0:
             main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
             return None
-        if not show_individual_prefix_gene:
+        if gene_prefix_only:
             # gathering gene prefix set data
             df = pd.DataFrame(index=_adata.obs.index)
             for prefix in prefix_to_genes:
@@ -1643,7 +1640,7 @@ def highest_frac_genes(
         "layer": layer,
         "selected_indices": selected_indices,
         "gene_prefix_list": gene_prefix_list,
-        "show_individual_prefix_gene": show_individual_prefix_gene,
+        "show_individual_prefix_gene": gene_prefix_only,
         "gene_percents": gene_percents_df,
     }
 

@@ -1,19 +1,22 @@
-from typing import Union, Optional
-from sklearn.neighbors import NearestNeighbors
-from scipy.sparse import csr_matrix
-import numpy as np
+from typing import Optional, Union
+
 import anndata
+import numpy as np
 import pandas as pd
 from anndata import AnnData
+from scipy.sparse import csr_matrix
+from sklearn.neighbors import NearestNeighbors
+
 from ..dynamo_logger import main_info
-from .connectivity import _gen_neighbor_keys, neighbors
-from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
-from .utils import update_dict
-from ..utils import LoggerManager, copy_adata
 from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
 from ..preprocessing.preprocessor_utils import log1p_adata as log1p
 from ..preprocessing.preprocessor_utils import normalize_cell_expr_by_size_factors
 from ..preprocessing.utils import pca_monocle
+from ..utils import LoggerManager, copy_adata
+from .connectivity import _gen_neighbor_keys, neighbors
+from .utils import update_dict
+from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
+
 
 def hdbscan(
     adata,
@@ -185,6 +188,19 @@ def leiden(
     copy=False,
     **kwargs
 ) -> anndata.AnnData:
+    """Apply leiden clustering to adata.
+    For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
+    "The Leiden algorithm is an improvement of the Louvain algorithm. The Leiden algorithm consists of three phases: (1) local moving of nodes, (2) refinement of the partition (3) aggregation of the network based on the refined partition, using the non-refined partition to create an initial partition for the aggregate network." - cdlib
+
+    Parameters
+    ----------
+    weight :
+         weights of edges. Can be either an iterable or an edge attribute. Default None
+    initial_membership : optional
+        list of int Initial membership for the partition. If None then defaults to a singleton partition. Default None, by default None
+
+    """
+
     kwargs.update(
         {
             "weight": weight,
@@ -225,6 +241,17 @@ def louvain(
     copy=False,
     **kwargs
 ) -> anndata.AnnData:
+    """Louvain implementation from cdlib.
+    For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
+    "Louvain maximizes a modularity score for each community. The algorithm optimises the modularity in two elementary phases: (1) local moving of nodes; (2) aggregation of the network. In the local moving phase, individual nodes are moved to the community that yields the largest increase in the quality function. In the aggregation phase, an aggregate network is created based on the partition obtained in the local moving phase. Each community in this partition becomes a node in the aggregate network. The two phases are repeated until the quality function cannot be increased further." - cdlib
+
+    Parameters
+    ----------
+    resolution : float, optional
+        change the size of the communities, default to 1.
+    randomize : bool, optional
+        "randomState instance or None, optional (default=None). If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is the random number generator; If None, the random number generator is the RandomState instance used by np.random." - cdlib
+    """
     if directed:
         raise ValueError("CDlib does not support directed graph for Louvain community detection for now.")
     kwargs.update(
@@ -265,6 +292,10 @@ def infomap(
     copy=False,
     **kwargs
 ) -> anndata.AnnData:
+    """Apply infomap community detection algorithm to cluster adata.
+    For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
+    "Infomap is based on ideas of information theory. The algorithm uses the probability flow of random walks on a network as a proxy for information flows in the real system and it decomposes the network into modules by compressing a description of the probability flow." - cdlib
+    """
     kwargs.update({})
 
     return cluster_community(
@@ -301,8 +332,8 @@ def cluster_community(
     copy: bool = False,
     **kwargs
 ) -> Union[AnnData, None]:
-    """Detect communities and insert data into adata with methods specified in arguments.
-    Priority: adj_matrix > adj_matrix_key > others
+    """A base function for detecting communities and inserting results into adata with algorithms specified parameters passed in.
+    Adjacent matrix retrieval priority: adj_matrix > adj_matrix_key > others
 
     Parameters
     ----------
@@ -317,7 +348,7 @@ def cluster_community(
     adj_matrix_key
         adj_matrix_key in adata.obsp used for clustering
     use_weight
-        if using weight or not, by default False meaning using connectivities only (0/1 integer values)
+        if using graph weight or not, by default False meaning using connectivities only (0/1 integer values)
     no_community_label
         the label value used for nodes not contained in any community, by default -1
     layer
@@ -542,13 +573,14 @@ def scc(
     return None
 
 
-def purity(adata,
-           neighbor: int = 30,
-           resolution: Optional[float] = None,
-           spatial_key: str = "spatial",
-           neighbors_key: str = 'spatial_connectivities',
-           cluster_key: str = 'leiden'
-           ) -> float:
+def purity(
+    adata,
+    neighbor: int = 30,
+    resolution: Optional[float] = None,
+    spatial_key: str = "spatial",
+    neighbors_key: str = "spatial_connectivities",
+    cluster_key: str = "leiden",
+) -> float:
     """Calculate the puriority of the scc's clustering results.
 
     Args:
@@ -564,7 +596,7 @@ def purity(adata,
     """
 
     if neighbors_key not in adata.obsp.keys():
-        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix=neighbors_key.split('_')[0])
+        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix=neighbors_key.split("_")[0])
 
     neighbor_graph = adata.obsp[neighbors_key]
 
@@ -578,7 +610,7 @@ def purity(adata,
         cur_cluster = cluster[i]
         other_cluster = neighbor_graph[0].nonzero()[1]
         other_cluster = cluster[other_cluster]
-        other_cluster = other_cluster[:min([neighbor, len(other_cluster)])]
+        other_cluster = other_cluster[: min([neighbor, len(other_cluster)])]
 
         purity_score[i] = sum(other_cluster == cur_cluster) / len(other_cluster)
 

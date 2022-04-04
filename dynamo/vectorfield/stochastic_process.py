@@ -1,9 +1,10 @@
-from tqdm import tqdm
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
+from tqdm import tqdm
+
+from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 from ..tools.utils import log1p_
 from .utils import vecfld_from_adata, vector_field_function
-from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 
 
 def diffusionMatrix(
@@ -18,7 +19,7 @@ def diffusionMatrix(
     VecFld=None,
     residual="vector_field",
 ):
-    """ "Calculate the diffusion matrix from the estimated velocity vector and the reconstructed vector field.
+    """Calculate the diffusion matrix from the estimated velocity vector and the reconstructed vector field.
 
     Parameters
     ----------
