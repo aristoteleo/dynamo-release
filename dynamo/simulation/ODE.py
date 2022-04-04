@@ -167,14 +167,14 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
 
         gene_name = np.array(
             [
-                "Pax6",
-                "Mash1",
+                "Pax6",  #
+                "Mash1",  #
                 "Brn2",
                 "Zic1",
                 "Tuj1",
-                "Hes5",
-                "Scl",
-                "Olig2",
+                "Hes5",  #
+                "Scl",  #
+                "Olig2",  #
                 "Stat3",
                 "Myt1L",
                 "Alhd1L",

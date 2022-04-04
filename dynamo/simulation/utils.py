@@ -18,11 +18,11 @@ def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_ski
         tspan: list
             a list of starting and end simulation time, e.g. [0, 100].
         C0: :class:`~numpy.ndarray`
-            transcription rate with active promoter
+            A 1d array of initial conditions.
         record_skip_steps: int
-            transcription rate with inactive promoter
+            The number of reaction steps skipped when recording the trajectories.
         record_max_length: int
-            sigma, degradation rate
+            The maximum length for recording the trajectories.
 
     Returns
     -------
@@ -251,6 +251,85 @@ def simulate_2bifurgenes(C0, t_span, n_traj, param_dict, report=False, **gillesp
     return trajs_T, trajs_C
 
 
+def stoich_syn_labeling():
+    # species
+    u = 0
+    l = 1
+
+    # stoichiometry matrix
+    stoich = np.zeros((4, 2))
+    stoich[0, u] = 1  # 0 -> u
+    stoich[1, u] = 1  # 0 -> l
+    stoich[2, l] = -1  # u -> 0
+    stoich[3, l] = -1  # l -> 0
+
+    return stoich
+
+
+def stoich_syn_labeling_splicing():
+    # species
+    uu = 0
+    ul = 1
+    su = 2
+    sl = 3
+
+    # stoichiometry matrix
+    stoich = np.zeros((6, 4))
+    stoich[0, uu] = 1  # 0 -> uu
+    stoich[1, ul] = 1  # 0 -> ul
+    stoich[2, uu] = -1  # uu -> su
+    stoich[2, su] = 1
+    stoich[3, ul] = -1  # ul -> sl
+    stoich[3, sl] = 1
+    stoich[4, su] = -1  # su -> 0
+    stoich[5, sl] = -1  # sl -> 0
+
+    return stoich
+
+
+def prop_syn_labeling(C, alpha, gamma, label_eff):
+    # concentrations
+    u = C[0]
+    l = C[1]
+
+    # propensities
+    prop = np.zeros(4)
+    prop[0] = (1 - label_eff) * alpha  # 0 -> u
+    prop[1] = label_eff * alpha  # 0 -> l
+    prop[2] = gamma * u  # u -> 0
+    prop[3] = gamma * l  # l -> 0
+
+    return prop
+
+
+def prop_syn_labeling_splicing(C, alpha, beta, gamma, label_eff):
+    # concentrations
+    uu = C[0]
+    ul = C[1]
+    su = C[2]
+    sl = C[3]
+
+    # propensities
+    prop = np.zeros(6)
+    prop[0] = (1 - label_eff) * alpha  # 0 -> uu
+    prop[1] = label_eff * alpha  # 0 -> ul
+    prop[2] = beta * uu  # uu -> su
+    prop[3] = beta * ul  # ul -> sl
+    prop[4] = gamma * su  # su -> 0
+    prop[5] = gamma * sl  # sl -> 0
+
+    return prop
+
+
+def simulate_syn_labeling(C0, t_span, param_dict, **gillespie_kwargs):
+    stoich = stoich_syn_labeling()
+    update_func = lambda C, mu: C + stoich[mu, :]
+    prop_func = lambda C: prop_syn_labeling(C, **param_dict)
+
+    T, C = directMethod(prop_func, update_func, t_span, C0, **gillespie_kwargs)
+    return T, C
+
+
 def temporal_average(t, trajs_T, trajs_C, species, f=lambda x: x):
     n = len(trajs_T)
     y = np.zeros((n, len(t)))
@@ -321,17 +400,3 @@ def simulate_multigene(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval,
         trajs_C_interp = temporal_interp(t_eval, trajs_T, trajs_C)
         ret.append(trajs_C_interp)
     return np.array(ret)
-
-
-class trajectories:
-    def __init__(self, trajs_T=[], trajs_C=[]):
-        # species
-        self.trajs_T = trajs_T
-        self.trajs_C = trajs_C
-
-    def append(self, traj_T, traj_C):
-        self.trajs_T.append(traj_T)
-        self.trajs_C.append(traj_C)
-
-    def interpolate(self, T, round=False):
-        return temporal_interp(T, self.trajs_T, self.trajs_C, round)
