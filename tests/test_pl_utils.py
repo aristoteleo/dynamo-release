@@ -1,9 +1,11 @@
 # import utils
+import copy
+
+import matplotlib.pyplot as plt
 import networkx as nx
 import pytest
+
 import dynamo as dyn
-import matplotlib.pyplot as plt
-import copy
 
 
 def test_scatter_contour(adata):

@@ -1,21 +1,21 @@
+from warnings import warn
+
 import numpy as np
 import scipy as sp
 import scipy.optimize
 
-from .Bhattacharya import path_integral, alignment
+from ..tools.sampling import lhsclassic
 from .Ao import Ao_pot_map
+from .Bhattacharya import alignment, path_integral
+from .topography import FixedPoints
+from .utils import is_outside_domain
+from .Wang import Wang_action, Wang_LAP
 
 # import autograd.numpy as autonp
 # from autograd import grad, jacobian # calculate gradient and jacobian
 
-from .Wang import Wang_action, Wang_LAP
 
 # the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
-
-from .topography import FixedPoints
-from .utils import is_outside_domain
-from ..tools.sampling import lhsclassic
-from warnings import warn
 
 
 def search_fixed_points(
@@ -254,8 +254,8 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
         A matrix consists of the coordinates of the unstable steady state
     """
 
-    from sympy import MatrixSymbol, Identity, symbols, Matrix, simplify
     from StringFunction import StringFunction
+    from sympy import Identity, Matrix, MatrixSymbol, simplify, symbols
 
     N = N + 1
     X = MatrixSymbol("x", dim, N)

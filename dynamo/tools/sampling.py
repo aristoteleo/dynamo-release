@@ -1,9 +1,11 @@
+from typing import Callable, Union
+
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 from scipy.cluster.vq import kmeans2
-from .utils import timeit, nearest_neighbors
+from sklearn.neighbors import NearestNeighbors
+
 from ..dynamo_logger import LoggerManager
-from typing import Union, Callable
+from .utils import nearest_neighbors, timeit
 
 
 class TRNET:

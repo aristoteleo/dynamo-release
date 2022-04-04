@@ -1,21 +1,20 @@
+import anndata
 import numpy as np
 import pandas as pd
-import anndata
-
-from .utils import simulate_2bifurgenes
-from .ODE import ode_2bifurgenes
-from ..tools.utils import flatten
-from ..tools.sampling import sample
 
 # dynamo logger related
 from ..dynamo_logger import (
     LoggerManager,
-    main_tqdm,
-    main_info,
-    main_warning,
     main_critical,
     main_exception,
+    main_info,
+    main_tqdm,
+    main_warning,
 )
+from ..tools.sampling import sample
+from ..tools.utils import flatten
+from .ODE import ode_2bifurgenes
+from .utils import simulate_2bifurgenes
 
 diff2genes_params = {"gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
@@ -136,12 +135,12 @@ class AnnDataSimulator:
             if n_cells > n:
                 main_warning(f"Cannot sample {n_cells} from {n} simulated data points. Using all data points instead.")
             else:
-                main_info(f'Sampling {n_cells} from {n} simulated data points.')
+                main_info(f"Sampling {n_cells} from {n} simulated data points.")
                 cell_idx = sample(np.arange(n), n_cells, method="random")
                 Ts = Ts[cell_idx]
                 Cs = Cs[cell_idx]
                 traj_id = traj_id[cell_idx]
-        
+
         self.T = Ts
         self.C = Cs
         self.traj_id = traj_id
@@ -268,4 +267,3 @@ class Differentiation2Genes(AnnDataSimulator):
             self.vfunc = lambda x: ode_2bifurgenes(x[self.gene_species_dict["s"]], **param_dict)
         else:
             self.vfunc = lambda x: ode_2bifurgenes(x, **self.param_dict)
-        

@@ -1,5 +1,6 @@
+from typing import Callable, Union
+
 import numpy as np
-from typing import Union, Callable
 
 
 def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_skip_steps=0, record_max_length=1e5):

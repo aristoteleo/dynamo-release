@@ -1,14 +1,12 @@
-import numpy as np, pandas as pd
-from scipy.sparse import issparse
 import warnings
-from ..tools.utils import (
-    update_dict,
-    get_mapper,
-)
-from .utils import (
-    save_fig,
-)
-from ..configuration import _themes, set_figure_params, reset_rcParams
+
+import numpy as np
+import pandas as pd
+from scipy.sparse import issparse
+
+from ..configuration import _themes, reset_rcParams, set_figure_params
+from ..tools.utils import get_mapper, update_dict
+from .utils import save_fig
 
 
 def bubble(
@@ -152,10 +150,10 @@ def bubble(
 
     """
     import matplotlib
-    from matplotlib import rcParams
-    from matplotlib.colors import to_hex
     import matplotlib.pyplot as plt
     import seaborn as sns
+    from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     if background is None:
         _background = rcParams.get("figure.facecolor")

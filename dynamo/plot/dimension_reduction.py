@@ -1,11 +1,10 @@
 """plotting utilities that are built based on scSLAM-seq paper"""
 
-from anndata import AnnData
 from typing import Optional, Union
 
+from anndata import AnnData
 
-from .scatters import scatters
-from .scatters import docstrings
+from .scatters import docstrings, scatters
 
 docstrings.delete_params("scatters.parameters", "adata", "basis")
 

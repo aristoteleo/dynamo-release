@@ -1,9 +1,9 @@
-import matplotlib.pyplot as plt
 import matplotlib.patches as pat
-from matplotlib.patches import ConnectionPatch
-from ..utils import areinstance
-
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import ConnectionPatch
+
+from ..utils import areinstance
 
 
 def create_edge_patch(

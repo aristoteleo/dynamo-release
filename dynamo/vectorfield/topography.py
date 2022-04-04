@@ -1,37 +1,32 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
-import os
 import datetime
+import os
 import warnings
+from typing import Union
+
+import anndata
 import numpy as np
 import scipy.sparse as sp
-from scipy.optimize import fsolve
-from scipy.linalg import eig
 from scipy.integrate import odeint
+from scipy.linalg import eig
+from scipy.optimize import fsolve
 from sklearn.neighbors import NearestNeighbors
-import anndata
-from typing import Union
-from ..dynamo_logger import LoggerManager, main_warning, main_info
 
+from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..tools.utils import gaussian_1d, inverse_norm, nearest_neighbors, update_dict
+from ..utils import copy_adata
+from .FixedPoints import FixedPoints
 from .scVectorField import BaseVectorField, SvcVectorField
-from ..tools.utils import (
-    update_dict,
-    inverse_norm,
-    gaussian_1d,
-    nearest_neighbors,
-)
-
 from .utils import (
-    vector_field_function,
-    dynode_vector_field_function,
-    vecfld_from_adata,
     angle,
+    dynode_vector_field_function,
+    find_fixed_points,
     is_outside,
     remove_redundant_points,
-    find_fixed_points,
+    vecfld_from_adata,
+    vector_field_function,
 )
-from .FixedPoints import FixedPoints
 from .vector_calculus import curl, divergence
-from ..utils import copy_adata
 
 
 def pac_onestep(x0, func, v0, ds=0.01):
@@ -700,10 +695,11 @@ def VectorField(
     elif method.lower() == "dynode":
         try:
             from dynode.vectorfield import networkModels
-            from dynode.vectorfield.samplers import VelocityDataSampler
 
             # from dynode.vectorfield.losses_weighted import MAD, BinomialChannel, WassersteinDistance, CosineDistance
             from dynode.vectorfield.losses_weighted import MSE
+            from dynode.vectorfield.samplers import VelocityDataSampler
+
             from .scVectorField import dynode_vectorfield
         except ImportError:
             raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")

@@ -1,12 +1,13 @@
 import numpy as np
-from .moments import moments
-from .connectivity import neighbors, normalize_knn_graph
-from .dynamics import dynamics
-from .dimension_reduction import reduceDimension
-from .cell_velocities import cell_velocities
-from .utils import set_transition_genes
-from ..preprocessing.utils import pca_monocle
+
 from ..configuration import DynamoAdataConfig
+from ..preprocessing.utils import pca_monocle
+from .cell_velocities import cell_velocities
+from .connectivity import neighbors, normalize_knn_graph
+from .dimension_reduction import reduceDimension
+from .dynamics import dynamics
+from .moments import moments
+from .utils import set_transition_genes
 
 # add recipe_csc_data()
 
@@ -85,7 +86,7 @@ def recipe_kin_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import pca_monocle, detect_experiment_datatype
+    from ..preprocessing.utils import detect_experiment_datatype, pca_monocle
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -267,7 +268,7 @@ def recipe_deg_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import pca_monocle, detect_experiment_datatype
+    from ..preprocessing.utils import detect_experiment_datatype, pca_monocle
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -453,7 +454,7 @@ def recipe_mix_kin_deg_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import pca_monocle, detect_experiment_datatype
+    from ..preprocessing.utils import detect_experiment_datatype, pca_monocle
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -635,7 +636,7 @@ def recipe_one_shot_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import pca_monocle, detect_experiment_datatype
+    from ..preprocessing.utils import detect_experiment_datatype, pca_monocle
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY

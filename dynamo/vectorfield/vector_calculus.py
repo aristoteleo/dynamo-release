@@ -2,38 +2,41 @@
 
 # from anndata._core.views import ArrayView
 # import scipy.sparse as sp
-from anndata._core.anndata import AnnData
 import numpy as np
 import pandas as pd
-from ..tools.utils import (
-    get_pd_row_column_idx,
-    fetch_states,
-    get_rank_array,
+from anndata._core.anndata import AnnData
+
+from ..dynamo_logger import (
+    LoggerManager,
+    main_info,
+    main_info_insert_adata,
+    main_info_insert_adata_uns,
+    main_warning,
 )
-from .utils import (
-    vector_field_function,
-    get_vf_dict,
-    vecfld_from_adata,
-    vector_transformation,
-    elementwise_jacobian_transformation,
-    subset_jacobian_transformation,
-    average_jacobian_by_group,
-    intersect_sources_targets,
-)
-from .scVectorField import SvcVectorField
 from ..tools.sampling import sample
 from ..tools.utils import (
-    list_top_genes,
     create_layer,
+    fetch_states,
+    get_pd_row_column_idx,
+    get_rank_array,
     index_gene,
-    table_top_genes,
+    list_top_genes,
     list_top_interactions,
+    table_top_genes,
 )
-
 from ..utils import isarray, ismatrix
-from ..dynamo_logger import LoggerManager, main_info_insert_adata_uns
 from ..vectorfield import scVectorField
-from ..dynamo_logger import main_info_insert_adata, main_info, main_warning
+from .scVectorField import SvcVectorField
+from .utils import (
+    average_jacobian_by_group,
+    elementwise_jacobian_transformation,
+    get_vf_dict,
+    intersect_sources_targets,
+    subset_jacobian_transformation,
+    vecfld_from_adata,
+    vector_field_function,
+    vector_transformation,
+)
 
 try:
     import dynode
@@ -43,8 +46,8 @@ except ImportError:
     use_dynode = False
 
 if use_dynode:
-    from .utils import dynode_vector_field_function
     from .scVectorField import dynode_vectorfield
+    from .utils import dynode_vector_field_function
 
 
 def velocities(

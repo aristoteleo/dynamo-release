@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
 import scipy.stats as stats
+from scipy.sparse import issparse
+
 from ..tools.utils_markers import fdr
 
 

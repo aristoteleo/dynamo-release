@@ -1,27 +1,29 @@
-from tqdm import tqdm
+import warnings
+from collections import Counter
+
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
-from scipy.stats import mannwhitneyu
-from scipy import stats
-from statsmodels.sandbox.stats.multicomp import multipletests
 import patsy
-from patsy import dmatrix, bs, cr
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from collections import Counter
-import warnings
-from .utils import fetch_X_data
-from .utils_markers import specificity, fdr
-from ..preprocessing.utils import Freeman_Tukey
+from patsy import bs, cr, dmatrix
+from scipy import stats
+from scipy.sparse import issparse
+from scipy.stats import mannwhitneyu
+from statsmodels.sandbox.stats.multicomp import multipletests
+from tqdm import tqdm
+
 from ..dynamo_logger import (
-    main_tqdm,
-    main_info,
-    main_warning,
     main_critical,
     main_exception,
+    main_info,
+    main_tqdm,
+    main_warning,
 )
+from ..preprocessing.utils import Freeman_Tukey
 from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
+from .utils import fetch_X_data
+from .utils_markers import fdr, specificity
 
 
 def moran_i(
@@ -747,7 +749,7 @@ def diff_test_helper(
         # ols_expr = """AUX_OLS_DEP ~ mu - 1"""
         # aux_olsr_results = smf.ols(ols_expr, poisson_df).fit()
 
-        nb2_family = sm.families.NegativeBinomial() # (alpha=aux_olsr_results.params[0])
+        nb2_family = sm.families.NegativeBinomial()  # (alpha=aux_olsr_results.params[0])
 
         nb2_full = sm.GLM(expression, transformed_x, family=nb2_family).fit()
         nb2_null = sm.GLM(expression, transformed_x_null, family=nb2_family).fit()

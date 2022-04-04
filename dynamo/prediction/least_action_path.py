@@ -1,18 +1,20 @@
-import numpy as np
-from scipy.optimize import minimize
-from scipy.interpolate import interp1d
+from typing import Callable, Union
+
 import networkx as nx
+import numpy as np
 from anndata import AnnData
-from typing import Union, Callable
-from ..tools.utils import (
-    nearest_neighbors,
-    fetch_states,
-)
-from ..vectorfield import SvcVectorField
-from ..vectorfield.utils import vector_field_function_transformation, vector_transformation
-from .utils import arclength_sampling_n, pca_to_expr, find_elbow
-from .trajectory import Trajectory, GeneTrajectory
+from scipy.interpolate import interp1d
+from scipy.optimize import minimize
+
 from ..dynamo_logger import LoggerManager
+from ..tools.utils import fetch_states, nearest_neighbors
+from ..vectorfield import SvcVectorField
+from ..vectorfield.utils import (
+    vector_field_function_transformation,
+    vector_transformation,
+)
+from .trajectory import GeneTrajectory, Trajectory
+from .utils import arclength_sampling_n, find_elbow, pca_to_expr
 
 
 def action(path, vf_func, D=1, dt=1):

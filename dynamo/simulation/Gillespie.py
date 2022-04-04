@@ -6,11 +6,12 @@ Created on Wed Jan 30 11:21:25 2019
 @author: xqiu
 """
 
-from .utils import *
-from .bif_os_inclusive_sim import sim_diff, sim_osc, simulate, osc_diff_dup
+import anndata
 import pandas as pd
 import scipy.sparse
-import anndata
+
+from .bif_os_inclusive_sim import osc_diff_dup, sim_diff, sim_osc, simulate
+from .utils import *
 
 
 # deterministic as well as noise

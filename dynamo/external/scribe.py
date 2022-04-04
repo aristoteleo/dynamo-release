@@ -1,14 +1,15 @@
-from scipy.sparse import issparse, isspmatrix
-import numpy as np
-import pandas as pd
-from multiprocessing.dummy import Pool as ThreadPool
 import itertools
-from tqdm import tqdm
-from anndata import AnnData
+from multiprocessing.dummy import Pool as ThreadPool
 from typing import Union
 
-from .utils import normalize_data, TF_link_gene_chip
-from ..tools.utils import flatten, einsum_correlation
+import numpy as np
+import pandas as pd
+from anndata import AnnData
+from scipy.sparse import issparse, isspmatrix
+from tqdm import tqdm
+
+from ..tools.utils import einsum_correlation, flatten
+from .utils import TF_link_gene_chip, normalize_data
 
 
 def scribe(
@@ -83,7 +84,7 @@ def scribe(
     """
 
     try:
-        from Scribe.Scribe import causal_net_dynamics_coupling, CLR
+        from Scribe.Scribe import CLR, causal_net_dynamics_coupling
     except ImportError:
         raise ImportError(
             "You need to install the package `Scribe`."
@@ -277,10 +278,10 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
 
         if not skip_mi:
             if cores == 1:
-                 mi_vec[i] = mi(x, y, k=k)
+                mi_vec[i] = mi(x, y, k=k)
     if cores != 1:
         if not skip_mi:
-             
+
             def pool_mi(x, y, k):
                 mask = np.logical_and(np.isfinite(x), np.isfinite(y))
                 x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]

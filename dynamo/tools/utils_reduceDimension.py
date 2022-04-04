@@ -1,10 +1,17 @@
 import warnings
+
 import numpy as np
-from ..preprocessing.utils import pca_monocle
-from .utils import update_dict, log1p_
-from .connectivity import _gen_neighbor_keys, umap_conn_indices_dist_embedding, knn_to_adj
-from .psl_py import psl
+
 from ..configuration import DKM
+from ..preprocessing.utils import pca_monocle
+from .connectivity import (
+    _gen_neighbor_keys,
+    knn_to_adj,
+    umap_conn_indices_dist_embedding,
+)
+from .psl_py import psl
+from .utils import log1p_, update_dict
+
 
 # ---------------------------------------------------------------------------------------------------
 def prepare_dim_reduction(

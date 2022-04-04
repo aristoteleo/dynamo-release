@@ -1,11 +1,12 @@
 from typing import Callable, Union
+
 import numpy as np
 import scipy.sparse as sp
 from scipy.linalg import qr
 from scipy.optimize import lsq_linear
 
-from .utils import k_nearest_neighbors, nbrs_to_dists, flatten, index_condensed_matrix
 from ..dynamo_logger import main_info, main_warning
+from .utils import flatten, index_condensed_matrix, k_nearest_neighbors, nbrs_to_dists
 
 
 def graphize_velocity(

@@ -6,14 +6,15 @@
 
 # -- Path setup --------------------------------------------------------------
 
+import os
+import sys
+from pathlib import Path
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 from urllib.request import urlretrieve
-import os
-import sys
-from pathlib import Path
 
 module_path = os.path.join(os.path.dirname(__file__), "../..")
 sys.path.insert(0, os.path.abspath(module_path))
@@ -81,7 +82,7 @@ copyright = "2020, Xiaojie Qiu, Yan Zhang, Ke Ni"
 author = "Xiaojie Qiu, Yan Zhang, Ke Ni"
 
 # The full version, including alpha/beta/rc tags
-release = "1.0.0"
+release = "1.0.9"
 
 # -- General configuration ---------------------------------------------------
 

@@ -1,15 +1,16 @@
 # This file is adapted from the perturbseq library by Thomas Norman
 # https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/cell_cycle.py
 
-import pandas as pd
-import numpy as np
 from collections import OrderedDict
-from scipy.sparse import issparse
-from ..tools.utils import einsum_correlation, log1p_
+from typing import Union
 
 import anndata
-from typing import Union
-from ..utils import copy_adata, LoggerManager
+import numpy as np
+import pandas as pd
+from scipy.sparse import issparse
+
+from ..tools.utils import einsum_correlation, log1p_
+from ..utils import LoggerManager, copy_adata
 
 
 def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list) -> tuple:

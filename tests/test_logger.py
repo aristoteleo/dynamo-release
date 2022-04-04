@@ -1,10 +1,11 @@
-import dynamo as dyn
-import pytest
 import time
 
-from dynamo import LoggerManager
-from dynamo.dynamo_logger import main_tqdm, main_critical, main_warning, main_info
+import pytest
+
+import dynamo as dyn
 import dynamo.tools
+from dynamo import LoggerManager
+from dynamo.dynamo_logger import main_critical, main_info, main_tqdm, main_warning
 
 
 @pytest.fixture

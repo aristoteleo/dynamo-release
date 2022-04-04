@@ -1,11 +1,12 @@
+from numbers import Number
+
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical_dtype
-from numbers import Number
 
-from .utils import is_gene_name, is_cell_anno_column, _to_hex
-from ..tools.Markov import prepare_velocity_grid_data
 from ..configuration import _themes
+from ..tools.Markov import prepare_velocity_grid_data
+from .utils import _to_hex, is_cell_anno_column, is_gene_name
 
 
 def plot_3d_streamtube(
@@ -68,10 +69,11 @@ def plot_3d_streamtube(
     except ImportError:
         raise ImportError("You need to install the package `plotly`. Install hiveplotlib via `pip install plotly`")
 
-    import matplotlib, matplotlib.pyplot as plt
+    import matplotlib
+    import matplotlib.cm as cm
+    import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
-    import matplotlib.cm as cm
 
     if background is None:
         _background = rcParams.get("figure.facecolor")

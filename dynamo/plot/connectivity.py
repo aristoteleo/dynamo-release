@@ -10,27 +10,28 @@ The code base will be extended extensively to consider the following cases:
 """
 
 
-import scipy
-import pandas as pd
-import numpy as np
-from warnings import warn
 from typing import Optional, Union
-from matplotlib.axes import Axes
+from warnings import warn
+
+import numpy as np
+import pandas as pd
+import scipy
 from anndata import AnnData
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from ..tools.utils import update_dict
-from .utils import (
-    _select_font_color,
-    _get_extent,
-    _embed_datashader_in_an_axis,
-    _datashade_points,
-    save_fig,
-)
-from .utils import is_list_of_lists  # is_gene_name
 from ..configuration import _themes
 from ..docrep import DocstringProcessor
 from ..tools.connectivity import check_and_recompute_neighbors
+from ..tools.utils import update_dict
+from .utils import is_list_of_lists  # is_gene_name
+from .utils import (
+    _datashade_points,
+    _embed_datashader_in_an_axis,
+    _get_extent,
+    _select_font_color,
+    save_fig,
+)
 
 docstrings = DocstringProcessor()
 
@@ -50,8 +51,8 @@ def _plt_connectivity(coord: dict, connectivity: scipy.sparse.csr_matrix):
         Nothing but a connectivity graph plot built upon networkx and matplotlib.
     """
 
-    import networkx as nx
     import matplotlib.pyplot as plt
+    import networkx as nx
 
     if_symmetric = (abs(connectivity - connectivity.T) > 1e-10).nnz == 0
 
@@ -230,10 +231,10 @@ def connectivity_base(
         then this will simply display inline.
     """
 
-    import matplotlib.pyplot as plt
     import datashader as ds
-    import datashader.transfer_functions as tf
     import datashader.bundling as bd
+    import datashader.transfer_functions as tf
+    import matplotlib.pyplot as plt
 
     dpi = plt.rcParams["figure.dpi"]
 
