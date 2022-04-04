@@ -12,7 +12,7 @@ with open("README.md", "r") as fh:
 if __name__ == "__main__":
     setup(
         name="dynamo-release",
-        version="v1.0.0",
+        version="v1.0.9",
         python_requires=">=3.7",
         install_requires=[l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines()],  # 'yt>=3.5.1',
         extras_require={

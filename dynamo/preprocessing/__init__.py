@@ -10,10 +10,7 @@ from .preprocess import (
     filter_cells_by_outliers,
     filter_cells_legacy,
     filter_genes_by_clusters_,
-)
-from .preprocess import filter_genes_by_outliers
-from .preprocess import filter_genes_by_outliers as filter_genes
-from .preprocess import (
+    filter_genes_by_outliers,
     get_svr_filter,
     highest_frac_genes,
     normalize_cell_expr_by_size_factors_legacy,
@@ -35,7 +32,10 @@ from .utils import (
     top_pca_genes,
 )
 
+filter_cells = filter_cells_by_outliers
+filter_genes = filter_genes_by_outliers
 log1p = log1p_adata
+normalize_cells = normalize_cell_expr_by_size_factors
 
 from .preprocess_monocle_utils import estimate_dispersion, top_table
 from .Preprocessor import Preprocessor
