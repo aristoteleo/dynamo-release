@@ -1,18 +1,19 @@
+from typing import Optional, Sequence, Union
+
+import matplotlib
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse, csr_matrix
 from anndata import AnnData
-from typing import Optional, Union, Sequence
-import matplotlib
 from matplotlib.axes import Axes
+from scipy.sparse import csr_matrix, issparse
 
+from ..configuration import DynamoAdataKeyManager
+from ..dynamo_logger import main_warning
 from ..preprocessing import preprocess as pp
 from ..preprocessing.preprocess_monocle_utils import top_table
-from .utils import save_fig
-from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_experiment_datatype
-from ..dynamo_logger import main_warning
-from ..configuration import DynamoAdataKeyManager
+from ..tools.utils import get_mapper, update_dict
+from .utils import save_fig
 
 
 def basic_stats(
@@ -981,7 +982,7 @@ def highest_frac_genes(
     adata: AnnData,
     n_top: int = 30,
     gene_prefix_list: list = None,
-    show_individual_prefix_gene: bool = False,
+    gene_prefix_only: bool = True,
     show: Optional[bool] = True,
     save_path: str = None,
     ax: Optional[Axes] = None,
@@ -996,24 +997,24 @@ def highest_frac_genes(
     v_rotation: float = 35,
     **kwargs,
 ):
-    """[summary]
+    """Plot top genes
 
     Parameters
     ----------
-    adata : AnnData
-        [description]
+    adata:
+        adata input
     n_top : int, optional
-        [description], by default 30
+        #top genes to show, by default 30
     gene_prefix_list : list, optional
         A list of gene name prefix, by default None
-    show_individual_prefix_gene: bool, optional
-        [description], by default False
-    show : Optional[bool], optional
-        [description], by default True
+    gene_prefix_only: bool, optional
+        whether to show prefix of genes only. It only takes effect if gene prefix list is provided, by default True
+    show :
+        whether to show the results, by default True
     save_path : str, optional
-        [description], by default None
-    ax : Optional[Axes], optional
-        [description], by default None
+        path to save the figure, by default None
+    ax :
+        use an existing ax, by default None
     gene_annotations : Optional[list], optional
         Annotations for genes, or annotations for gene prefix subsets, by default None
     gene_annotation_key : str, optional
@@ -1021,17 +1022,14 @@ def highest_frac_genes(
         This option is not available for gene_prefix_list and thus users should
         pass gene_annotations argument for the prefix list.
     log : bool, optional
-        [description], by default False
+        whether to use log scale, by default False
     store_key : str, optional
-        [description], by default "expr_percent"
-
-    Returns
-    -------
-    [type]
-        [description]
+        key for storing expression percent results, by default "highest_frac_genes"
+    v_rotation:
+        rotation of text sticks when the direction is vertical
     """
-    import seaborn as sns
     import matplotlib.pyplot as plt
+    import seaborn as sns
 
     if ax is None:
         length = n_top * 0.4
@@ -1051,7 +1049,7 @@ def highest_frac_genes(
         n_top=n_top,
         layer=layer,
         gene_prefix_list=gene_prefix_list,
-        show_individual_prefix_gene=show_individual_prefix_gene,
+        gene_prefix_only=gene_prefix_only,
     )
     if adata is None:
         # something wrong with user input or compute_top_genes_df
