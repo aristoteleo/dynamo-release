@@ -1,28 +1,23 @@
 from typing import Union
-from sklearn.neighbors import NearestNeighbors
-from scipy.sparse import csr_matrix
+
 import numpy as np
-from scipy.stats import mode
-from anndata import AnnData
 import pandas as pd
 from anndata import AnnData
-from .utils import vecfld_from_adata
+from scipy.sparse import csr_matrix
+from scipy.stats import mode
+from sklearn.neighbors import NearestNeighbors
 
+from ..dynamo_logger import main_info
 from ..preprocessing.utils import pca_monocle
-from ..tools.clustering import (
-    hdbscan,
-    leiden,
-    louvain,
-    infomap,
-)
+from ..tools.clustering import hdbscan, infomap, leiden, louvain
 from ..tools.Markov import (
-    velocity_on_grid,
     grid_velocity_filter,
     prepare_velocity_grid_data,
+    velocity_on_grid,
 )
-from ..dynamo_logger import main_info
 from ..utils import LoggerManager, copy_adata
 from .scVectorField import SvcVectorField
+from .utils import vecfld_from_adata
 
 
 def cluster_field(

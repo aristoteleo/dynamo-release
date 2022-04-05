@@ -2,15 +2,15 @@
 """
 
 from .velocity import (
-    sol_u,
-    sol_s,
-    sol_p,
-    fit_linreg,
-    fit_first_order_deg_lsq,
-    solve_first_order_deg,
-    fit_gamma_lsq,
-    fit_alpha_synthesis,
-    fit_alpha_degradation,
     Velocity,
+    fit_alpha_degradation,
+    fit_alpha_synthesis,
+    fit_first_order_deg_lsq,
+    fit_gamma_lsq,
+    fit_linreg,
+    sol_p,
+    sol_s,
+    sol_u,
+    solve_first_order_deg,
     ss_estimation,
 )

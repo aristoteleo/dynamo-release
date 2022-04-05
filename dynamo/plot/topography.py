@@ -1,37 +1,35 @@
 import warnings
+from typing import Callable, List, Optional, Union
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
-import matplotlib.pyplot as plt
-from typing import List, Union, Optional, Callable
-from matplotlib.axes import Axes
 from anndata import AnnData
+from matplotlib.axes import Axes
 
-from ..tools.cell_velocities import cell_velocities
-from ..vectorfield.topography import (
-    topography as _topology,
-)  # , compute_separatrices
-from ..vectorfield.topography import (
-    VectorField2D,
-    VectorField,
-)  # , compute_separatrices
-from ..vectorfield.scVectorField import BaseVectorField
-from ..vectorfield.utils import vecfld_from_adata
-from ..tools.utils import update_dict, nearest_neighbors
-from ..vectorfield.vector_calculus import curl, divergence
-from .utils import default_quiver_args
-from .scatters import scatters
-from .scatters import docstrings
-from .utils import (
-    set_arrow_alpha,
-    set_stream_line_alpha,
-    _plot_traj,
-    quiver_autoscaler,
-    save_fig,
-    _select_font_color,
-)
 from ..configuration import _themes
 from ..dynamo_logger import LoggerManager
+from ..tools.cell_velocities import cell_velocities
+from ..tools.utils import nearest_neighbors, update_dict
+from ..vectorfield.scVectorField import BaseVectorField
+from ..vectorfield.topography import (  # , compute_separatrices
+    VectorField,
+    VectorField2D,
+)
+from ..vectorfield.topography import topography as _topology  # , compute_separatrices
+from ..vectorfield.utils import vecfld_from_adata
+from ..vectorfield.vector_calculus import curl, divergence
+from .scatters import docstrings, scatters
+from .utils import (
+    _plot_traj,
+    _select_font_color,
+    default_quiver_args,
+    quiver_autoscaler,
+    save_fig,
+    set_arrow_alpha,
+    set_stream_line_alpha,
+)
 
 
 def plot_flow_field(
@@ -98,8 +96,7 @@ def plot_flow_field(
         Axis with streamplot included.
     """
 
-    from matplotlib import rcParams, patches
-
+    from matplotlib import patches, rcParams
     from matplotlib.colors import to_hex
 
     if background is None:
@@ -237,7 +234,6 @@ def plot_nullclines(
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
     from matplotlib import rcParams
-
     from matplotlib.colors import to_hex
 
     if background is None:
@@ -347,8 +343,8 @@ def plot_fixed_points_2d(
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
     import matplotlib
-    from matplotlib import rcParams, markers
     import matplotlib.patheffects as PathEffects
+    from matplotlib import markers, rcParams
     from matplotlib.colors import to_hex
 
     if background is None:
@@ -469,8 +465,8 @@ def plot_fixed_points(
     """
 
     import matplotlib
-    from matplotlib import rcParams, markers
     import matplotlib.patheffects as PathEffects
+    from matplotlib import markers, rcParams
     from matplotlib.colors import to_hex
 
     if background is None:

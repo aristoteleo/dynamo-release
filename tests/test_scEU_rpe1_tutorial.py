@@ -2,16 +2,15 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-import dynamo as dyn
 import anndata
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
 import scipy.sparse
-
-
 from anndata import AnnData
 from scipy.sparse import csr_matrix
+
+import dynamo as dyn
 
 
 @pytest.mark.skip(reason="excessive running time")

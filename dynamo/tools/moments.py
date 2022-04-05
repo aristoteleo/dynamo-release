@@ -1,20 +1,17 @@
-import numpy as np
 import warnings
-from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
-from tqdm import tqdm
-import anndata
 from typing import Union
 
-from .utils import get_mapper, elem_prod, inverse_norm
-from .connectivity import (
-    mnn,
-    normalize_knn_graph,
-    umap_conn_indices_dist_embedding,
-)
-from ..utils import copy_adata
+import anndata
+import numpy as np
+from scipy.sparse import csr_matrix, diags, issparse, lil_matrix
+from tqdm import tqdm
+
+from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
 from ..preprocessing.utils import pca_monocle
-from ..configuration import DKM, DynamoAdataKeyManager
+from ..utils import copy_adata
+from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
+from .utils import elem_prod, get_mapper, inverse_norm
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -327,7 +324,7 @@ def prepare_data_deterministic(
     log=False,
     return_ntr=False,
 ):
-    from ..preprocessing.utils import sz_util, normalize_mat_monocle
+    from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     if return_ntr:
         use_total_layers = True
@@ -496,7 +493,7 @@ def prepare_data_has_splicing(
     return_ntr=False,
 ):
     """Prepare data when assumption is kinetic and data has splicing"""
-    from ..preprocessing.utils import sz_util, normalize_mat_monocle
+    from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -633,7 +630,7 @@ def prepare_data_no_splicing(
     return_ntr=False,
 ):
     """Prepare data when assumption is kinetic and data has no splicing"""
-    from ..preprocessing.utils import sz_util, normalize_mat_monocle
+    from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -733,7 +730,7 @@ def prepare_data_mix_has_splicing(
     Note that the mix_model_indices is indexed on 10 total species, which can be used to specify
     the data required for different mixture models.
     """
-    from ..preprocessing.utils import sz_util, normalize_mat_monocle
+    from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -871,7 +868,7 @@ def prepare_data_mix_no_splicing(
     Note that the mix_model_indices is indexed on 4 total species, which can be used to specify
     the data required for different mixture models.
     """
-    from ..preprocessing.utils import sz_util, normalize_mat_monocle
+    from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)

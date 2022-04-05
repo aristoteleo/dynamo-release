@@ -1,19 +1,16 @@
 # include pseudotime and predict cell trajectory
-import numpy as np
-from scipy.sparse import issparse
-from scipy.interpolate import interp1d
-from anndata import AnnData
 from typing import Optional, Union
 
-from ..tools.utils import update_dict
-from ..prediction.utils import fetch_exprs
-from .utils import (
-    _to_hex,
-    save_fig,
-)
+import numpy as np
+from anndata import AnnData
+from scipy.interpolate import interp1d
+from scipy.sparse import issparse
 
 from ..docrep import DocstringProcessor
 from ..external.hodge import ddhodge
+from ..prediction.utils import fetch_exprs
+from ..tools.utils import update_dict
+from .utils import _to_hex, save_fig
 
 docstrings = DocstringProcessor()
 
@@ -100,9 +97,9 @@ def kinetic_curves(
         Nothing but plots the kinetic curves that shows the gene expression dynamics over time.
     """
 
+    import matplotlib.pyplot as plt
     import pandas as pd
     import seaborn as sns
-    import matplotlib.pyplot as plt
 
     if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
@@ -311,9 +308,9 @@ def kinetic_heatmap(
         Nothing but plots a heatmap that shows the gene expression dynamics over time.
     """
 
+    import matplotlib.pyplot as plt
     import pandas as pd
     import seaborn as sns
-    import matplotlib.pyplot as plt
 
     if enforce or "kinetic_heatmap" not in adata.uns_keys():
 
@@ -739,9 +736,9 @@ def jacobian_kinetics(
     >>> dyn.pl.jacobian_kinetics(adata)
     """
 
+    import matplotlib.pyplot as plt
     import pandas as pd
     import seaborn as sns
-    import matplotlib.pyplot as plt
 
     Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
     Der, cell_indx, _, regulators_, effectors_ = (
@@ -965,9 +962,9 @@ def sensitivity_kinetics(
     >>> dyn.pl.sensitivity_kinetics(adata)
     """
 
+    import matplotlib.pyplot as plt
     import pandas as pd
     import seaborn as sns
-    import matplotlib.pyplot as plt
 
     Sensitivity_ = "sensitivity" if basis is None else "sensitivity_" + basis
     Der, cell_indx, _, regulators_, effectors_ = (

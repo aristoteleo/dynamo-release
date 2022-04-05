@@ -1,47 +1,42 @@
 import warnings
-import numpy as np
-import scipy as scp
-from numba import jit
-import scipy.sparse as sp
-from sklearn.utils import sparsefuncs
-from sklearn.decomposition import PCA
-from .Markov import (
-    KernelMarkovChain,
-    velocity_on_grid,
-    ContinuousTimeMarkovChain,
-)
-from .graph_calculus import graphize_velocity, fp_operator, calc_gaussian_weight
-from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
-
-from .metric_velocity import gene_wise_confidence
-from .utils import (
-    set_transition_genes,
-    get_finite_inds,
-    get_ekey_vkey_from_adata,
-    get_mapper_inverse,
-    update_dict,
-    get_neighbor_indices,
-    split_velocity_graph,
-    norm,
-    einsum_correlation,
-    log1p_,
-    index_gene,
-)
-
-from .dimension_reduction import reduceDimension
-from ..utils import areinstance
-import anndata
 from typing import Union
+
+import anndata
+import numpy as np
 import scipy
+import scipy as scp
+import scipy.sparse as sp
+from numba import jit
+from sklearn.decomposition import PCA
+from sklearn.utils import sparsefuncs
 
 # dynamo logger related
 from ..dynamo_logger import (
     LoggerManager,
-    main_tqdm,
-    main_info,
-    main_warning,
     main_critical,
     main_exception,
+    main_info,
+    main_tqdm,
+    main_warning,
+)
+from ..utils import areinstance
+from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
+from .dimension_reduction import reduceDimension
+from .graph_calculus import calc_gaussian_weight, fp_operator, graphize_velocity
+from .Markov import ContinuousTimeMarkovChain, KernelMarkovChain, velocity_on_grid
+from .metric_velocity import gene_wise_confidence
+from .utils import (
+    einsum_correlation,
+    get_ekey_vkey_from_adata,
+    get_finite_inds,
+    get_mapper_inverse,
+    get_neighbor_indices,
+    index_gene,
+    log1p_,
+    norm,
+    set_transition_genes,
+    split_velocity_graph,
+    update_dict,
 )
 
 

@@ -1,49 +1,48 @@
-import numpy.matlib
-from numpy import format_float_scientific as scinot
+import functools
+import itertools
+import warnings
+from multiprocessing.dummy import Pool as ThreadPool
+from typing import Callable, Union
+
 import numpy as np
+import numpy.matlib
 import scipy.sparse as sp
+from numpy import format_float_scientific as scinot
 from scipy.linalg import lstsq
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
-from multiprocessing.dummy import Pool as ThreadPool
-import itertools
-import functools
-import warnings
-from ..tools.sampling import (
-    sample_by_velocity,
-    sample,
-)
+
+from ..dynamo_logger import LoggerManager, main_warning
+from ..tools.sampling import sample, sample_by_velocity
 from ..tools.utils import (
+    index_condensed_matrix,
+    linear_least_squares,
+    nearest_neighbors,
+    starmap_with_kwargs,
+    timeit,
     update_dict,
     update_n_merge_dict,
-    linear_least_squares,
-    timeit,
-    index_condensed_matrix,
-    starmap_with_kwargs,
-    nearest_neighbors,
 )
 from .utils import (
-    vector_field_function,
-    con_K_div_cur_free,
-    con_K,
+    FixedPoints,
+    Jacobian_kovf,
     Jacobian_numerical,
-    compute_divergence,
-    compute_curl,
-    compute_acceleration,
-    compute_curvature,
-    compute_torsion,
-    compute_sensitivity,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
-    Jacobian_kovf,
-    vecfld_from_adata,
+    compute_acceleration,
+    compute_curl,
+    compute_curvature,
+    compute_divergence,
+    compute_sensitivity,
+    compute_torsion,
+    con_K,
+    con_K_div_cur_free,
     find_fixed_points,
-    FixedPoints,
     remove_redundant_points,
+    vecfld_from_adata,
+    vector_field_function,
     vector_transformation,
 )
-from typing import Union, Callable
-from ..dynamo_logger import LoggerManager, main_warning
 
 
 def norm(X, V, T, fix_velocity=True):
@@ -728,11 +727,8 @@ class BaseVectorField:
         disable=False,
     ):
 
-        from ..tools.utils import (
-            getTend,
-            getTseq,
-        )
         from ..prediction.utils import integrate_vf_ivp
+        from ..tools.utils import getTend, getTseq
 
         if np.isscalar(dims):
             init_states = init_states[:, :dims]
@@ -1095,11 +1091,12 @@ if use_dynode:
                 self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
 
                 import tempfile
+
                 from dynode.vectorfield import networkModels
-                from dynode.vectorfield.samplers import VelocityDataSampler
-                from dynode.vectorfield.losses_weighted import (
+                from dynode.vectorfield.losses_weighted import (  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
                     MSE,
-                )  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
+                )
+                from dynode.vectorfield.samplers import VelocityDataSampler
 
                 good_ind = np.where(~np.isnan(V.sum(1)))[0]
                 good_V = V[good_ind, :]

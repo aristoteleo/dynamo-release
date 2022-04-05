@@ -1,7 +1,5 @@
 import dynamo as dyn
-
-from dynamo.dynamo_logger import main_tqdm, main_critical, main_warning, main_info
-
+from dynamo.dynamo_logger import main_critical, main_info, main_tqdm, main_warning
 
 DEFAULT_MODE = "verbose"
 

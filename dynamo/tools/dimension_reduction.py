@@ -1,10 +1,12 @@
-from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
-from .connectivity import _gen_neighbor_keys, neighbors
-import numpy as np
-import anndata
 from typing import Union
+
+import anndata
+import numpy as np
+
 from ..dynamo_logger import LoggerManager
 from ..utils import copy_adata
+from .connectivity import _gen_neighbor_keys, neighbors
+from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
 
 def reduceDimension(

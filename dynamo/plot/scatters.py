@@ -1,46 +1,38 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 import warnings
-from matplotlib import patches
-from matplotlib.lines import Line2D
-import numpy as np
-import pandas as pd
-from pandas.api.types import is_categorical_dtype
+from numbers import Number
+from typing import List, Optional, Union
 
 import anndata
-from numbers import Number
-
 import matplotlib.cm
-from matplotlib.axes import Axes
+import numpy as np
+import pandas as pd
 from anndata import AnnData
-from typing import Union, Optional, List
+from matplotlib import patches
+from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
+from pandas.api.types import is_categorical_dtype
 
 from ..configuration import _themes, reset_rcParams
+from ..docrep import DocstringProcessor
+from ..dynamo_logger import main_debug, main_info, main_warning
+from ..preprocessing.utils import affine_transform, gen_rotation_2d
+from ..tools.moments import calc_1nd_moment
+from ..tools.utils import flatten, get_mapper, update_dict
 from .utils import (
-    despline_all,
-    deaxis_all,
+    _datashade_points,
+    _get_adata_color_vec,
+    _matplotlib_points,
     _select_font_color,
     arrowed_spines,
-    is_gene_name,
+    deaxis_all,
+    despline_all,
     is_cell_anno_column,
-    is_list_of_lists,
+    is_gene_name,
     is_layer_keys,
-    _matplotlib_points,
-    _datashade_points,
+    is_list_of_lists,
     save_fig,
-    _get_adata_color_vec,
 )
-from ..preprocessing.utils import (
-    gen_rotation_2d,
-    affine_transform,
-)
-from ..tools.utils import (
-    update_dict,
-    get_mapper,
-    flatten,
-)
-from ..tools.moments import calc_1nd_moment
-from ..dynamo_logger import main_info, main_debug, main_warning
-from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
 
@@ -310,8 +302,7 @@ def scatters(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
-    from matplotlib.colors import to_hex
-    from matplotlib.colors import rgb2hex
+    from matplotlib.colors import rgb2hex, to_hex
 
     # 2d is not a projection in matplotlib, default is None (rectilinear)
     if projection == "2d":

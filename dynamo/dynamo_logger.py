@@ -1,8 +1,8 @@
 import functools
 import logging
-from contextlib import contextmanager
-import time
 import sys
+import time
+from contextlib import contextmanager
 
 
 def silence_logger(name):

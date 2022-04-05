@@ -1,21 +1,21 @@
-from tqdm import tqdm
-from multiprocessing.dummy import Pool as ThreadPool
 import itertools
-from scipy.sparse import csr_matrix
+from multiprocessing.dummy import Pool as ThreadPool
 from warnings import warn
+
+from scipy.sparse import csr_matrix
+from tqdm import tqdm
+
+from ...tools.moments import calc_2nd_moment, calc_12_mom_labeling
 from ...tools.utils import (
+    calc_norm_loglikelihood,
+    calc_R2,
     one_shot_alpha,
     one_shot_alpha_matrix,
     one_shot_gamma_alpha,
     one_shot_gamma_alpha_matrix,
-    calc_R2,
-    calc_norm_loglikelihood,
+    update_dict,
 )
-from ...tools.moments import calc_12_mom_labeling
 from .utils_velocity import *
-from ...tools.utils import update_dict
-from ...tools.moments import calc_2nd_moment
-
 
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors

@@ -1,9 +1,9 @@
 import numpy as np
-from scipy.optimize import least_squares
 import scipy.sparse as sp
-from ..tools.utils import squareform, condensed_idx_to_squareform_idx, timeit
+from scipy.optimize import least_squares
 from tqdm import tqdm
 
+from ..tools.utils import condensed_idx_to_squareform_idx, squareform, timeit
 
 # from scPotential import show_landscape
 

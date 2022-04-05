@@ -1,13 +1,14 @@
-from git import Repo
-from shutil import rmtree, copytree, copy
-from typing import Dict, List, Union, ForwardRef
-from logging import info, warning
-from pathlib import Path
-from tempfile import TemporaryDirectory
+import glob
 import os
 import re
 import subprocess
-import glob
+from logging import info, warning
+from pathlib import Path
+from shutil import copy, copytree, rmtree
+from tempfile import TemporaryDirectory
+from typing import Dict, ForwardRef, List, Union
+
+from git import Repo
 
 CUR_DIR = Path(__file__).parent
 

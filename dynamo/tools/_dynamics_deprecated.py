@@ -1,16 +1,21 @@
 import warnings
+
 import numpy as np
-from .utils_moments import moments
-from .velocity import velocity, ss_estimation
-from .utils import (
-    get_mapper,
-    get_valid_bools,
-    get_data_for_kin_params_estimation,
-    get_U_S_for_velocity_estimation,
-)
-from .utils import set_velocity, set_param_ss, set_param_kinetic
+
+from ..dynamo_logger import main_info, main_warning
 from .moments import moment_model
-from ..dynamo_logger import main_warning, main_info
+from .utils import (
+    get_data_for_kin_params_estimation,
+    get_mapper,
+    get_U_S_for_velocity_estimation,
+    get_valid_bools,
+    set_param_kinetic,
+    set_param_ss,
+    set_velocity,
+)
+from .utils_moments import moments
+from .velocity import ss_estimation, velocity
+
 
 # incorporate the model selection code soon
 def _dynamics(

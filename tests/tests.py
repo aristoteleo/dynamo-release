@@ -1,8 +1,8 @@
-import dynamo as dyn
 import numpy as np
 import scipy.io
 from scipy import optimize
 
+import dynamo as dyn
 
 # def VecFnc(
 #     input,

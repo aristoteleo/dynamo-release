@@ -1,6 +1,7 @@
+from typing import Optional, Union
+
 from anndata import AnnData
 from matplotlib.axes import Axes
-from typing import Union, Optional
 
 from ..tools.utils import update_dict
 from .utils import save_fig
@@ -26,10 +27,10 @@ def cell_cycle_scores(
              True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
              properly modify those keys according to your needs.
     """
-    import seaborn as sns
     import matplotlib.pyplot as plt
-    from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
+    import seaborn as sns
     from matplotlib.pyplot import colorbar
+    from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
     if cells is None:
         cell_cycle_scores = adata.obsm["cell_cycle_scores"].dropna()

@@ -1,8 +1,8 @@
 """General utility functions
 """
-from anndata import AnnData
 import numpy as np
 import scipy.sparse as sp
+from anndata import AnnData
 
 from .dynamo_logger import LoggerManager
 
