@@ -7,6 +7,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix
 from sklearn.neighbors import NearestNeighbors
 
+from ..configuration import DKM
 from ..dynamo_logger import main_info
 from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
 from ..preprocessing.preprocessor_utils import log1p_adata as log1p
@@ -324,7 +325,6 @@ def cluster_community(
     use_weight: bool = True,
     no_community_label: int = -1,
     layer: Union[str, None] = None,
-    conn_type: str = "connectivities",
     obsm_key: Union[str, None] = None,
     cell_subsets: list = None,
     cluster_and_subsets: list = None,
@@ -353,11 +353,9 @@ def cluster_community(
         the label value used for nodes not contained in any community, by default -1
     layer
         some adata layer which cluster algorithms will work on, by default None
-    conn_type
-        can be "connectivities" or "distances" for now, by default "connectivities". Note "distances" may not take effect when use_weight is set to False because all data in graph will be set to 0/1 integer values.
     cell_subsets
         cluster only a subset of cells in adata, by default None
-    cluster_key_and_cluster_subsets
+    cluster_and_subsets
         A tuple of 2 elements (cluster_key, allowed_clusters).filtering cells in adata based on cluster_key in adata.obs and only reserve cells in the allowed clusters, by default None
     directed
         if the edges in the graph should be directed, by default False
@@ -366,6 +364,10 @@ def cluster_community(
     adata = copy_adata(adata) if copy else adata
     if (layer is not None) and (adj_matrix_key is not None):
         raise ValueError("Please supply one of adj_matrix_key and layer")
+    if use_weight:
+        conn_type = DKM.OBSP_ADJ_MAT_DIST
+    else:
+        conn_type = DKM.OBSP_ADJ_MAT_CONNECTIVITY
 
     # build adj_matrix_key
     if adj_matrix_key is None:
@@ -398,7 +400,7 @@ def cluster_community(
 
         graph_sparse_matrix = adata.obsp[adj_matrix_key]
     else:
-        main_info("using adj_matrix passed from arg for clustering...")
+        main_info("using adj_matrix from arg for clustering...")
         graph_sparse_matrix = adj_matrix
 
     # build result_key for storing results
