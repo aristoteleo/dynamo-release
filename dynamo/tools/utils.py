@@ -1,33 +1,35 @@
+import itertools
+import time
+import warnings
+from inspect import signature
 from typing import Union
-from anndata._core.anndata import AnnData
-from tqdm import tqdm
-from anndata._core.views import ArrayView
+
 import numpy as np
-import scipy.sparse as sp
 import pandas as pd
+import scipy.sparse as sp
+from anndata._core.anndata import AnnData
+from anndata._core.views import ArrayView
 from scipy import interpolate, stats
-from scipy.spatial.distance import squareform as spsquare
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
 from scipy.spatial import cKDTree
+from scipy.spatial.distance import squareform as spsquare
 from sklearn.neighbors import NearestNeighbors
-import warnings
-import time
-import itertools
-from inspect import signature
+from tqdm import tqdm
 
-from ..preprocessing.utils import Freeman_Tukey
-from ..utils import areinstance, isarray
 from ..dynamo_logger import (
+    main_critical,
     main_debug,
+    main_exception,
+    main_info,
     main_info_insert_adata,
     main_info_verbose_timeit,
     main_tqdm,
-    main_info,
     main_warning,
-    main_critical,
-    main_exception,
 )
+from ..preprocessing.utils import Freeman_Tukey
+from ..utils import areinstance, isarray
+
 
 # ---------------------------------------------------------------------------------------------------
 # others

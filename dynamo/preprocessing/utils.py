@@ -1,18 +1,25 @@
-from anndata import AnnData
+import warnings
+from typing import Iterable, Union
+
+import anndata
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 import scipy
 import scipy.sparse
-from scipy.sparse import issparse, csr_matrix
+import statsmodels.api as sm
+from anndata import AnnData
+from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA, TruncatedSVD
 
-import warnings
-import anndata
-from typing import Iterable, Union
-from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning, main_exception
-from ..utils import areinstance
 from ..configuration import DKM, DynamoAdataKeyManager
+from ..dynamo_logger import (
+    LoggerManager,
+    main_debug,
+    main_exception,
+    main_info,
+    main_warning,
+)
+from ..utils import areinstance
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -994,7 +1001,7 @@ def affine_transform(X, A, b):
 
 
 def gen_rotation_2d(degree: float):
-    from math import cos, sin, radians
+    from math import cos, radians, sin
 
     rad = radians(degree)
     R = [

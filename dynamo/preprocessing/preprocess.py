@@ -1,55 +1,56 @@
+import warnings
 from collections.abc import Iterable
+from typing import Callable, Optional, Union
+
+import anndata
 import numpy as np
 import pandas as pd
-import warnings
-from scipy.sparse import issparse, csr_matrix
+from anndata import AnnData
+from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
 from sklearn.utils import sparsefuncs
-import anndata
-from anndata import AnnData
-from typing import Optional, Union, Callable
 
-from .cell_cycle import cell_cycle_scores
-from ..tools.utils import update_dict
-from .utils import (
-    convert2symbol,
-    pca_monocle,
-    clusters_stats,
-    cook_dist,
-    get_inrange_shared_counts_mask,
-    get_svr_filter,
-    Freeman_Tukey,
-    merge_adata_attrs,
-    sz_util,
-    normalize_mat_monocle,
-    get_sz_exprs,
-    unique_var_obs_adata,
-    convert_layers2csr,
-    collapse_species_adata,
-    calc_new_to_total_ratio,
-    detect_experiment_datatype,
-    basic_stats,
-    add_noise_to_duplicates,
-    compute_gene_exp_fraction,
-)
+from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
-    main_info,
+    LoggerManager,
     main_critical,
+    main_info,
     main_info_insert_adata_obsm,
     main_info_insert_adata_uns,
     main_warning,
-    LoggerManager,
 )
+from ..tools.utils import update_dict
 from ..utils import copy_adata
-from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager, DKM
+from .cell_cycle import cell_cycle_scores
 from .preprocess_monocle_utils import top_table
 from .preprocessor_utils import (
+    SVRs,
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
     filter_genes_by_outliers,
-    select_genes_monocle,
-    SVRs,
     normalize_cell_expr_by_size_factors,
+    select_genes_monocle,
+)
+from .utils import (
+    Freeman_Tukey,
+    add_noise_to_duplicates,
+    basic_stats,
+    calc_new_to_total_ratio,
+    clusters_stats,
+    collapse_species_adata,
+    compute_gene_exp_fraction,
+    convert2symbol,
+    convert_layers2csr,
+    cook_dist,
+    detect_experiment_datatype,
+    get_inrange_shared_counts_mask,
+    get_svr_filter,
+    get_sz_exprs,
+    merge_adata_attrs,
+    normalize_mat_monocle,
+    pca_monocle,
+    sz_util,
+    unique_var_obs_adata,
 )
 
 

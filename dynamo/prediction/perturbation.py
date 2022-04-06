@@ -1,28 +1,22 @@
+from typing import Callable, Union
+
+import anndata
 import numpy as np
 from scipy.sparse import csr_matrix
-import anndata
-from typing import Union, Callable
-
-from ..tools.cell_velocities import cell_velocities
-from .utils import (
-    expr_to_pca,
-    pca_to_expr,
-    z_score,
-    z_score_inv,
-)
-
-from ..vectorfield.vector_calculus import (
-    rank_genes,
-    rank_cells,
-    rank_cell_groups,
-    vecfld_from_adata,
-    jacobian,
-    vector_transformation,
-)
-from ..vectorfield.scVectorField import vector_field_function_knockout
-from ..vectorfield import SvcVectorField
 
 from ..dynamo_logger import LoggerManager
+from ..tools.cell_velocities import cell_velocities
+from ..vectorfield import SvcVectorField
+from ..vectorfield.scVectorField import vector_field_function_knockout
+from ..vectorfield.vector_calculus import (
+    jacobian,
+    rank_cell_groups,
+    rank_cells,
+    rank_genes,
+    vecfld_from_adata,
+    vector_transformation,
+)
+from .utils import expr_to_pca, pca_to_expr, z_score, z_score_inv
 
 
 def KO(

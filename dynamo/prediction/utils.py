@@ -1,20 +1,17 @@
 from typing import Callable
-from tqdm import tqdm
 
 # from anndata._core.views import ArrayView
 import numpy as np
 from scipy import interpolate
 from scipy.integrate import solve_ivp
+from tqdm import tqdm
+
+from ..dynamo_logger import main_warning
+from ..tools.utils import log1p_, nearest_neighbors
+from ..utils import isarray, normalize
 
 # import scipy.sparse as sp
 from ..vectorfield.topography import dup_osc_idx_iter
-from ..tools.utils import log1p_
-
-from ..utils import isarray, normalize
-from ..tools.utils import nearest_neighbors
-
-from ..dynamo_logger import main_warning
-
 
 # ---------------------------------------------------------------------------------------------------
 # initial state related

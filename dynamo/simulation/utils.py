@@ -1,7 +1,8 @@
+from typing import Callable, Union
+
 import enum
 from tkinter.filedialog import SaveFileDialog
 import numpy as np
-from typing import Union, Callable
 
 # dynamo logger related
 from ..dynamo_logger import (

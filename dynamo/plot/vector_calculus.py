@@ -1,29 +1,25 @@
 """plotting utilities that are used to visualize the curl, divergence."""
 
-import numpy as np, pandas as pd
-import anndata
-from anndata import AnnData
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
-from .scatters import scatters
-from .scatters import docstrings
+import anndata
+import numpy as np
+import pandas as pd
+from anndata import AnnData
+
+from ..tools.utils import flatten, update_dict
+from ..vectorfield.utils import intersect_sources_targets
+from .scatters import docstrings, scatters
 from .utils import (
     _matplotlib_points,
-    save_fig,
     arrowed_spines,
     deaxis_all,
     despline_all,
-    is_gene_name,
     is_cell_anno_column,
+    is_gene_name,
     is_layer_keys,
+    save_fig,
 )
-
-from ..tools.utils import (
-    update_dict,
-    flatten,
-)
-
-from ..vectorfield.utils import intersect_sources_targets
 
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c")
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier")

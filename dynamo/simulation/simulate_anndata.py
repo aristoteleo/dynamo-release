@@ -1,6 +1,7 @@
+import anndata
 import numpy as np
 import pandas as pd
-import anndata
+
 from typing import Callable, Union
 
 from .utils import simulate_2bifurgenes, CellularSpecies, GillespieReactions
@@ -8,15 +9,20 @@ from .ODE import ode_2bifurgenes, hill_inh_func, hill_act_func
 from ..tools.utils import flatten
 from ..tools.sampling import sample
 
+
 # dynamo logger related
 from ..dynamo_logger import (
     LoggerManager,
-    main_tqdm,
-    main_info,
-    main_warning,
     main_critical,
     main_exception,
+    main_info,
+    main_tqdm,
+    main_warning,
 )
+from ..tools.sampling import sample
+from ..tools.utils import flatten
+from .ODE import ode_2bifurgenes
+from .utils import simulate_2bifurgenes
 
 bifur2genes_params = {"gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 

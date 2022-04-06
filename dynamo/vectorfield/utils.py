@@ -1,22 +1,25 @@
+import functools
+import inspect
+import itertools
+import multiprocessing as mp
+from multiprocessing.dummy import Pool as ThreadPool
 from typing import Callable, Union
-from tqdm import tqdm
+
+import numdifftools as nd
 import numpy as np
 import pandas as pd
-from scipy.spatial.distance import cdist, pdist
-from scipy.sparse import issparse
 from scipy.optimize import fsolve
-import numdifftools as nd
-from multiprocessing.dummy import Pool as ThreadPool
-import multiprocessing as mp
-import itertools, functools
-import inspect
+from scipy.sparse import issparse
+from scipy.spatial.distance import cdist, pdist
+from tqdm import tqdm
+
+from ..dynamo_logger import LoggerManager, main_info
 from ..tools.utils import (
     form_triu_matrix,
     index_condensed_matrix,
-    timeit,
     subset_dict_with_key_list,
+    timeit,
 )
-from ..dynamo_logger import LoggerManager, main_info
 from .FixedPoints import FixedPoints
 
 

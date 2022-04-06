@@ -3,11 +3,12 @@
 
 # Code adapted from https://github.com/kazumits/ddhodge.
 
-import numpy as np
-from scipy.sparse import csr_matrix
-from scipy.linalg import qr
 from itertools import combinations
+
+import numpy as np
 from igraph import Graph
+from scipy.linalg import qr
+from scipy.sparse import csr_matrix
 
 
 def gradop(g):

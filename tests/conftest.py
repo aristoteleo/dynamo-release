@@ -1,16 +1,16 @@
+import os
+import time
 from pathlib import Path
 from typing import Union
-from dynamo import dynamo_logger
-import dynamo
-from dynamo import LoggerManager
-from dynamo.dynamo_logger import main_info
-import dynamo.preprocessing
-import dynamo as dyn
-import pytest
-import time
-import numpy as np
-import os
 
+import numpy as np
+import pytest
+
+import dynamo
+import dynamo as dyn
+import dynamo.preprocessing
+from dynamo import LoggerManager, dynamo_logger
+from dynamo.dynamo_logger import main_info
 
 LoggerManager.main_logger.setLevel(LoggerManager.DEBUG)
 

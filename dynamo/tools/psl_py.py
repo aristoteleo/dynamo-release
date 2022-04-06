@@ -1,17 +1,16 @@
+# use for convert list of list to a list (https://stackoverflow.com/questions/952914/how-to-make-a-flat-list-out-of-list-of-lists)
+import functools
+import operator
+
 import numpy as np
 import numpy.matlib as matlib
-
-import scipy.spatial as ss
 import scipy.sparse
-
+import scipy.spatial as ss
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigs
 
 # from scikits.sparse.cholmod import cholesky
 
-# use for convert list of list to a list (https://stackoverflow.com/questions/952914/how-to-make-a-flat-list-out-of-list-of-lists)
-import functools
-import operator
 
 
 def sqdist(a, b):

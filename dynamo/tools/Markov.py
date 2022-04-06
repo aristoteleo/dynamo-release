@@ -1,15 +1,16 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
-from tqdm import tqdm
 import numpy as np
 import scipy.sparse as sp
-from sklearn.neighbors import NearestNeighbors
-from sklearn.decomposition import PCA
-from scipy.stats import norm
-from scipy.linalg import eig, null_space
 from numba import jit
-from .utils import append_iterative_neighbor_indices, flatten
-from ..simulation.utils import directMethod
+from scipy.linalg import eig, null_space
+from scipy.stats import norm
+from sklearn.decomposition import PCA
+from sklearn.neighbors import NearestNeighbors
+from tqdm import tqdm
+
 from ..dynamo_logger import LoggerManager
+from ..simulation.utils import directMethod
+from .utils import append_iterative_neighbor_indices, flatten
 
 
 def markov_combination(x, v, X):

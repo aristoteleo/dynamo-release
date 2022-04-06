@@ -1,25 +1,26 @@
-import pandas as pd
+from typing import List, Union
+
+import anndata
 import numpy as np
-from scipy.spatial import cKDTree
+import pandas as pd
 import scipy.sparse as sp
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
+from scipy.spatial import cKDTree
 
-# from sklearn.preprocessing import OrdinalEncoder
-
-from ..tools.Markov import DiscreteTimeMarkovChain
+from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..prediction.fate import _fate
-from ..vectorfield import vector_field_function
-from ..tools.utils import fetch_states
 from ..tools.clustering import neighbors
+from ..tools.Markov import DiscreteTimeMarkovChain
+from ..tools.utils import fetch_states
+from ..vectorfield import vector_field_function
 from .utils import (
-    remove_redundant_points_trajectory,
     arclength_sampling,
     integrate_streamline,
+    remove_redundant_points_trajectory,
 )
-import anndata
-from typing import List, Union
-from ..dynamo_logger import LoggerManager, main_info, main_warning
+
+# from sklearn.preprocessing import OrdinalEncoder
 
 
 def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):

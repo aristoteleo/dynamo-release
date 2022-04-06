@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
 from matplotlib.lines import Line2D
+from scipy.sparse import issparse
+
 from ..tools.moments import (
-    prepare_data_no_splicing,
     prepare_data_has_splicing,
     prepare_data_mix_has_splicing,
     prepare_data_mix_no_splicing,
+    prepare_data_no_splicing,
 )
 from ..tools.utils import get_mapper
 from .utils import _to_hex

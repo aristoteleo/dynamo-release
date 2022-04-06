@@ -1,11 +1,11 @@
 import numpy as np
-import pandas as pd
 import numpy.matlib as matlib
-from scipy.linalg import eig
+import pandas as pd
 from scipy.cluster.vq import kmeans2
+from scipy.linalg import eig
+from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.sparse.linalg import inv
-from scipy.sparse import csr_matrix
 
 
 def cal_ncenter(ncells, ncells_limit=100):

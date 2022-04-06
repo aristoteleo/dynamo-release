@@ -1,19 +1,22 @@
-from typing import Union, Optional
-from sklearn.neighbors import NearestNeighbors
-from scipy.sparse import csr_matrix
-import numpy as np
+from typing import Optional, Union
+
 import anndata
+import numpy as np
 import pandas as pd
 from anndata import AnnData
+from scipy.sparse import csr_matrix
+from sklearn.neighbors import NearestNeighbors
+
 from ..dynamo_logger import main_info
-from .connectivity import _gen_neighbor_keys, neighbors
-from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
-from .utils import update_dict
-from ..utils import LoggerManager, copy_adata
 from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
 from ..preprocessing.preprocessor_utils import log1p_adata as log1p
 from ..preprocessing.preprocessor_utils import normalize_cell_expr_by_size_factors
 from ..preprocessing.utils import pca_monocle
+from ..utils import LoggerManager, copy_adata
+from .connectivity import _gen_neighbor_keys, neighbors
+from .utils import update_dict
+from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
+
 
 def hdbscan(
     adata,
@@ -542,13 +545,14 @@ def scc(
     return None
 
 
-def purity(adata,
-           neighbor: int = 30,
-           resolution: Optional[float] = None,
-           spatial_key: str = "spatial",
-           neighbors_key: str = 'spatial_connectivities',
-           cluster_key: str = 'leiden'
-           ) -> float:
+def purity(
+    adata,
+    neighbor: int = 30,
+    resolution: Optional[float] = None,
+    spatial_key: str = "spatial",
+    neighbors_key: str = "spatial_connectivities",
+    cluster_key: str = "leiden",
+) -> float:
     """Calculate the puriority of the scc's clustering results.
 
     Args:
@@ -564,7 +568,7 @@ def purity(adata,
     """
 
     if neighbors_key not in adata.obsp.keys():
-        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix=neighbors_key.split('_')[0])
+        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix=neighbors_key.split("_")[0])
 
     neighbor_graph = adata.obsp[neighbors_key]
 
@@ -578,7 +582,7 @@ def purity(adata,
         cur_cluster = cluster[i]
         other_cluster = neighbor_graph[0].nonzero()[1]
         other_cluster = cluster[other_cluster]
-        other_cluster = other_cluster[:min([neighbor, len(other_cluster)])]
+        other_cluster = other_cluster[: min([neighbor, len(other_cluster)])]
 
         purity_score[i] = sum(other_cluster == cur_cluster) / len(other_cluster)
 

@@ -50,11 +50,11 @@ def show_landscape(
     Ygrid = Ygrid_ if Ygrid is None else Ygrid
     Zgrid = Zgrid_ if Zgrid is None else Zgrid
 
-    from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
     from matplotlib import cm
-    from matplotlib.ticker import LinearLocator, FormatStrFormatter
     from matplotlib.colors import LightSource
+    from matplotlib.ticker import FormatStrFormatter, LinearLocator
+    from mpl_toolkits.mplot3d import Axes3D
 
     fig = plt.figure()
     ax = fig.gca(projection="3d")

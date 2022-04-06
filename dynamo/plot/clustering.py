@@ -1,8 +1,7 @@
 import numpy as np
 from anndata import AnnData
 
-from .scatters import scatters
-from .scatters import docstrings
+from .scatters import docstrings, scatters
 from .utils import _to_hex
 
 docstrings.delete_params("scatters.parameters", "adata", "basis")

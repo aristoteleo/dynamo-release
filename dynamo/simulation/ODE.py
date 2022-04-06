@@ -1,6 +1,7 @@
-import numpy as np
-from random import uniform, seed
+from random import seed, uniform
+
 import anndata
+import numpy as np
 import pandas as pd
 
 
