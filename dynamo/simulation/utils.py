@@ -1,5 +1,17 @@
+import enum
+from tkinter.filedialog import SaveFileDialog
 import numpy as np
 from typing import Union, Callable
+
+# dynamo logger related
+from ..dynamo_logger import (
+    LoggerManager,
+    main_tqdm,
+    main_info,
+    main_warning,
+    main_critical,
+    main_exception,
+)
 
 
 def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_skip_steps=0, record_max_length=1e5):
@@ -177,8 +189,8 @@ def stoich_2bifurgenes():
 def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
     # species
     u1 = C[0]
-    s1 = C[1]
-    u2 = C[2]
+    u2 = C[1]
+    s1 = C[2]
     s2 = C[3]
 
     # parameters
@@ -206,8 +218,8 @@ def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
 def stoich_2bifurgenes_splicing():
     # species
     u1 = 0
-    s1 = 1
-    u2 = 2
+    u2 = 1
+    s1 = 2
     s2 = 3
 
     # stoichiometry matrix
@@ -400,3 +412,145 @@ def simulate_multigene(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval,
         trajs_C_interp = temporal_interp(t_eval, trajs_T, trajs_C)
         ret.append(trajs_C_interp)
     return np.array(ret)
+
+
+class CellularSpecies:
+    def __init__(self, gene_names: list = []) -> None:
+        """
+        A class to register gene and species for easier implemention of simulations.
+        """
+        self.species_dict = {}
+        self.gene_names = gene_names
+        self._species_names = []
+        self._is_gene_species = []
+        self.num_species = 0
+
+    def get_n_genes(self):
+        return len(self.gene_names)
+
+    def register_species(self, species_name: str, is_gene_species=True):
+        if species_name in self.species_dict:
+            raise Exception(f"You have already registered {species_name}.")
+        else:
+            self._species_names.append(species_name)
+            if not is_gene_species:
+                self._is_gene_species.append(False)
+                self.species_dict[species_name] = self.num_species
+                self.num_species += 1
+            else:
+                self._is_gene_species.append(True)
+                self.species_dict[species_name] = [i + self.num_species for i in range(self.get_n_genes())]
+                self.num_species += self.get_n_genes()
+
+    def get_index(self, species, gene=None):
+        idx = self.species_dict[species]
+        if gene is not None:
+            if type(gene) == str and gene in self.gene_names:
+                idx = next(k for i, k in enumerate(idx) if self.gene_names[i] == gene)
+            elif type(gene) == int and gene < self.get_n_genes():
+                idx = idx[gene]
+            else:
+                raise Exception(f"The gene name {gene} is not found in the registered genes.")
+        return idx
+
+    def get_species(self, index):
+        species = None
+        for k, v in self.species_dict.items():
+            if type(v) == int:
+                if v == index:
+                    species = (k,)
+            elif index in v:
+                gene_idx = next(i for i, g in enumerate(v) if g == index)
+                species = (k, self.gene_names[gene_idx])
+        return species
+
+    def is_gene_species(self, species):
+        if species not in self.species_dict.keys():
+            raise Exception(f"The species {species} is not found in the registered species.")
+        else:
+            for i, k in enumerate(self.species_dict.keys()):
+                if k == species:
+                    return self.is_gene_species[i]
+
+    def iter_gene_species(self):
+        for i, (k, v) in enumerate(self.species_dict.items()):
+            if self._is_gene_species[i]:
+                yield (k, v)
+
+    def __getitem__(self, species):
+        if np.isscalar(species):
+            if type(species) == str:
+                return self.get_index(species)
+            else:
+                return self.get_species(species)
+        else:
+            return self.get_index(species[0], species[1])
+
+    def __len__(self):
+        return self.num_species
+
+
+class GillespieReactions:
+    def __init__(self, species: CellularSpecies) -> None:
+        self.species = species
+        self.stoich = None
+        self.rate_funcs = []
+        self.desc = []
+
+    def __len__(self):
+        return self.stoich.shape[0]
+
+    def register_reaction(
+        self,
+        substrates: list,
+        products: list,
+        rate_func: Callable,
+        stoich_substrates=None,
+        stoich_products=None,
+        desc: str = "",
+    ):
+        # TODO: check if substrates and products are valid species indices
+
+        if stoich_substrates is None:
+            stoich_substrates = -np.ones(len(substrates), dtype=int)
+        if stoich_products is None:
+            stoich_products = np.ones(len(products), dtype=int)
+        stoich = np.zeros(len(self.species), dtype=int)
+        stoich[substrates] = stoich_substrates
+        stoich[products] = stoich_products
+
+        if self.stoich is None:
+            self.stoich = stoich
+        else:
+            self.stoich = np.vstack((self.stoich, stoich))
+
+        self.rate_funcs.append(rate_func)
+
+        if len(desc) == 0:
+            self.desc.append(f"rxn {len(self) + 1}")
+        else:
+            self.desc.append(desc)
+
+    def propensity(self, C):
+        prop = np.zeros(len(self))
+        for i, rate_func in enumerate(self.rate_funcs):
+            prop[i] = rate_func(C)
+        return prop
+
+    def display_stoich(self):
+        import pandas as pd
+
+        species_names = []
+        for i in range(len(self.species)):
+            sp = self.species[i]
+            sp = sp[0] if len(sp) == 1 else f"{sp[0]}_{sp[1]}"
+            species_names.append(sp)
+        df = pd.DataFrame(self.stoich, columns=species_names, index=self.desc)
+        print(df)
+
+    def simulate(self, t_span, C0, **gillespie_kwargs):
+        stoich = self.stoich
+        update_func = lambda C, mu: C + stoich[mu, :]
+
+        T, C = directMethod(self.propensity, update_func, t_span, C0, **gillespie_kwargs)
+        return T, C
