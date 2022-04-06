@@ -60,26 +60,18 @@ def ode_2bifurgenes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4],
     x = np.atleast_2d(x)
     dx = np.zeros(x.shape)
 
-    dx[:, 0] = (
-        a[0] * x[:, 0] ** m[0] / (S[0] ** m[0] + x[:, 0] ** m[0])
-        + b[0] * K[0] ** n[0] / (K[0] ** n[0] + x[:, 1] ** n[0])
-        - gamma[0] * x[:, 0]
-    )
-    dx[:, 1] = (
-        a[1] * x[:, 1] ** m[1] / (S[1] ** m[1] + x[:, 1] ** m[1])
-        + b[1] * K[1] ** n[1] / (K[1] ** n[1] + x[:, 0] ** n[1])
-        - gamma[1] * x[:, 1]
-    )
+    dx[:, 0] = hill_act_func(x[:, 0], a[0], S[0], m[0], g=gamma[0]) + hill_inh_func(x[:, 1], b[0], K[0], n[0])
+    dx[:, 1] = hill_act_func(x[:, 1], a[1], S[1], m[1], g=gamma[1]) + hill_inh_func(x[:, 0], b[1], K[1], n[1])
 
     return dx
 
 
 def jacobian_2bifurgenes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
     """The Jacobian of the toggle switch ODE model."""
-    df1_dx1 = a[0] * m[0] * S[0] ** m[0] * x[:, 0] ** (m[0] - 1) / (S[0] ** m[0] + x[:, 0] ** m[0]) ** 2 - gamma[0]
-    df1_dx2 = -b[0] * n[0] * K[0] ** n[0] * x[:, 1] ** (n[0] - 1) / (K[0] ** n[0] + x[:, 1] ** n[0]) ** 2
-    df2_dx1 = a[1] * m[1] * S[1] ** m[1] * x[:, 1] ** (m[1] - 1) / (S[1] ** m[1] + x[:, 1] ** m[1]) ** 2 - gamma[1]
-    df2_dx2 = -b[1] * n[1] * K[1] ** n[1] * x[:, 0] ** (n[1] - 1) / (K[1] ** n[1] + x[:, 0] ** n[1]) ** 2
+    df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
+    df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
+    df2_dx1 = hill_act_grad(x[:, 1], a[1], S[1], m[1], g=gamma[1])
+    df2_dx2 = hill_inh_grad(x[:, 0], b[1], K[1], n[1])
     J = np.array([[df1_dx1, df1_dx2], [df2_dx1, df2_dx2]])
     return J
 

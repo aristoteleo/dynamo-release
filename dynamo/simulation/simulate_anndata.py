@@ -1,14 +1,8 @@
+from typing import Callable, Union
+
 import anndata
 import numpy as np
 import pandas as pd
-
-from typing import Callable, Union
-
-from .utils import simulate_2bifurgenes, CellularSpecies, GillespieReactions
-from .ODE import ode_2bifurgenes, hill_inh_func, hill_act_func
-from ..tools.utils import flatten
-from ..tools.sampling import sample
-
 
 # dynamo logger related
 from ..dynamo_logger import (
@@ -21,8 +15,8 @@ from ..dynamo_logger import (
 )
 from ..tools.sampling import sample
 from ..tools.utils import flatten
-from .ODE import ode_2bifurgenes
-from .utils import simulate_2bifurgenes
+from .ODE import hill_act_func, hill_inh_func, ode_2bifurgenes
+from .utils import CellularSpecies, GillespieReactions
 
 bifur2genes_params = {"gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
@@ -32,7 +26,7 @@ bifur2genes_splicing_params = {"beta": 0.5, "gamma": 0.2, "a": 0.5, "b": 0.5, "S
 class AnnDataSimulator:
     def __init__(
         self,
-        simulator: Callable,
+        sim_func: Callable,
         C0s,
         param_dict,
         species: Union[None, CellularSpecies] = None,
@@ -42,7 +36,7 @@ class AnnDataSimulator:
     ) -> None:
 
         # initialization of variables
-        self.simulator = simulator
+        self.sim_func = sim_func
         self.C0s = np.atleast_2d(C0s)
         self.param_dict = param_dict
         self.gene_param_names = gene_param_names
@@ -55,7 +49,7 @@ class AnnDataSimulator:
             main_info("No species-to-gene mapping is given: each species is considered a gene in `C0`.")
             gene_names = ["gene_%d" % i for i in range(n_species)]
             species = CellularSpecies(gene_names)
-            species.register_species("x", True)
+            species.register_species("r", True)
         self.species = species
 
         # initialization of simulation results
@@ -116,7 +110,7 @@ class AnnDataSimulator:
         Ts, Cs, traj_id = [], None, []
         count = 0
         for C0 in self.C0s:
-            T, C = self.simulator(t_span=t_span, C0=C0, **simulator_kwargs)
+            T, C = self.sim_func(t_span=t_span, C0=C0, **simulator_kwargs)
             Ts = np.hstack((Ts, T))
             Cs = C.T if Cs is None else np.vstack((Cs, C.T))
             traj_id = np.hstack((traj_id, [count] * len(T)))
@@ -196,8 +190,35 @@ class AnnDataSimulator:
         return adata
 
 
+class LabelingSimulator(AnnDataSimulator):
+    def __init__(self, genes: list, param_dict: dict, label_suffix: str = "l") -> None:
+        self.splicing = True if "beta" in param_dict.keys() else False
+
+        suffix = f"_{label_suffix}" if len(label_suffix) > 0 else ""
+        # register species
+        species = CellularSpecies(genes)
+        if self.splicing:
+            species.register_species(f"u{suffix}")
+            species.register_species(f"s{suffix}")
+        else:
+            species.register_species(f"r{suffix}")
+
+        # kinetic labeling expr. init. cond.
+        C0 = np.zeros(len(species))
+
+        # initialization w/o setting up the reactions
+        gene_param_names = ["alpha", "beta", "gamma"] if self.splicing else ["alpha", "gamma"]
+        super().__init__(
+            None,
+            C0,
+            param_dict,
+            species=species,
+            gene_param_names=gene_param_names,
+        )
+
+
 class BifurcationTwoGenes(AnnDataSimulator):
-    def __init__(self, param_dict, C0s=None, r=20, tau=3, n_C0s=10, gene_names=None) -> None:
+    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None) -> None:
         """
         Two gene toggle switch model anndata simulator.
 
@@ -208,14 +229,14 @@ class BifurcationTwoGenes(AnnDataSimulator):
                 if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
             C0s: None or :class:`~numpy.ndarray`
                 Initial conditions (# init cond. x # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
-            r: float
-                Controls steady state copy number for x1 and x2. At steady state, x1_s ~ r*(a1+b1)/ga1; x2_s ~ r*(a2+b2)/ga2
+            r_aug: float
+                Parameter which augments steady state copy number for x1 and x2. At steady state, x1_s ~ r*(a1+b1)/ga1; x2_s ~ r*(a2+b2)/ga2
             tau: float
-                A time scale parameter which does not affect steady state solutions.
+                Time scale parameter which does not affect steady state solutions.
             n_C0s: int
                 Number of augmented initial conditions, if C0s is `None`.
             gene_names: None or list
-                A list of gene names. If `None`, "gene_1", "gene_2", etc., are used.
+                List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
         """
         self.splicing = True if "beta" in param_dict.keys() else False
         if C0s is None:
@@ -230,14 +251,14 @@ class BifurcationTwoGenes(AnnDataSimulator):
             species.register_species("u", True)
             species.register_species("s", True)
         else:
-            species.register_species("x", True)
+            species.register_species("r", True)
 
         if self.splicing:
             gene_param_names = ["a", "b", "S", "K", "m", "n", "beta", "gamma"]
         else:
             gene_param_names = ["a", "b", "S", "K", "m", "n", "gamma"]
 
-        # utilize super's init to initialize the class and fix param dict, w/o setting the simulator
+        # utilize super's init to initialize the class and fix param dict, w/o setting the simulation function
         super().__init__(
             None,
             C0s_,
@@ -246,20 +267,20 @@ class BifurcationTwoGenes(AnnDataSimulator):
             gene_param_names=gene_param_names,
         )
 
-        main_info("Adjusting parameters based on r and tau...")
+        main_info("Adjusting parameters based on r_aug and tau...")
         if self.splicing:
             self.param_dict["beta"] /= tau
         self.param_dict["gamma"] /= tau
-        self.param_dict["a"] *= r / tau
-        self.param_dict["b"] *= r / tau
-        self.param_dict["S"] *= r
-        self.param_dict["K"] *= r
+        self.param_dict["a"] *= r_aug / tau
+        self.param_dict["b"] *= r_aug / tau
+        self.param_dict["S"] *= r_aug
+        self.param_dict["K"] *= r_aug
 
-        # register reactions and set the simulator
+        # register reactions and set the simulation function
         reactions = self.register_reactions()
         main_info("Stoichiometry Matrix:")
         reactions.display_stoich()
-        self.simulator = reactions.simulate
+        self.sim_func = reactions.simulate
 
         # calculate C0 if not specified, C0 ~ [x1_s, x2_s]
         if C0s is None:
