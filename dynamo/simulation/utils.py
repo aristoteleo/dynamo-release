@@ -429,6 +429,9 @@ class CellularSpecies:
     def get_n_genes(self):
         return len(self.gene_names)
 
+    def get_species_names(self):
+        return self.species_dict.keys()
+
     def register_species(self, species_name: str, is_gene_species=True):
         if species_name in self.species_dict:
             raise Exception(f"You have already registered {species_name}.")
@@ -465,7 +468,10 @@ class CellularSpecies:
                 species = (k, self.gene_names[gene_idx])
         return species
 
-    def is_gene_species(self, species):
+    def is_gene_species(self, species: Union[str, int]):
+        if type(species) == int:
+            species = self.__getitem__(species)[0]
+
         if species not in self.species_dict.keys():
             raise Exception(f"The species {species} is not found in the registered species.")
         else:
@@ -490,6 +496,13 @@ class CellularSpecies:
     def __len__(self):
         return self.num_species
 
+    def copy(self):
+        # this function needs to be tested.
+        species = CellularSpecies(self.gene_names)
+        for sp in self.get_species_names():
+            species.register_species(sp, self.is_gene_species(sp))
+        return species
+
 
 class GillespieReactions:
     def __init__(self, species: CellularSpecies) -> None:
@@ -501,6 +514,14 @@ class GillespieReactions:
     def __len__(self):
         return self.stoich.shape[0]
 
+    def __getitem__(self, index):
+        stoich_rxn = self.stoich[index]
+        substrates = np.where(stoich_rxn < 0)[0]
+        substrates_stoich = self.stoich[stoich_rxn < 0]
+        products = np.where(stoich_rxn > 0)[0]
+        products_stoich = self.stoich[stoich_rxn > 0]
+        return substrates, products, substrates_stoich, products_stoich
+
     def register_reaction(
         self,
         substrates: list,
@@ -511,7 +532,6 @@ class GillespieReactions:
         desc: str = "",
     ):
         # TODO: check if substrates and products are valid species indices
-
         if stoich_substrates is None:
             stoich_substrates = -np.ones(len(substrates), dtype=int)
         if stoich_products is None:
@@ -519,9 +539,10 @@ class GillespieReactions:
         stoich = np.zeros(len(self.species), dtype=int)
         stoich[substrates] = stoich_substrates
         stoich[products] = stoich_products
+        # TODO: fix the case where a species is in both the substrates and products
 
         if self.stoich is None:
-            self.stoich = stoich
+            self.stoich = np.atleast_2d(stoich)
         else:
             self.stoich = np.vstack((self.stoich, stoich))
 
