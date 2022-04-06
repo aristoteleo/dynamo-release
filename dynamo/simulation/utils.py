@@ -1,6 +1,18 @@
 from typing import Callable, Union
 
+import enum
+from tkinter.filedialog import SaveFileDialog
 import numpy as np
+
+# dynamo logger related
+from ..dynamo_logger import (
+    LoggerManager,
+    main_tqdm,
+    main_info,
+    main_warning,
+    main_critical,
+    main_exception,
+)
 
 
 def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_skip_steps=0, record_max_length=1e5):
@@ -19,11 +31,11 @@ def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_ski
         tspan: list
             a list of starting and end simulation time, e.g. [0, 100].
         C0: :class:`~numpy.ndarray`
-            transcription rate with active promoter
+            A 1d array of initial conditions.
         record_skip_steps: int
-            transcription rate with inactive promoter
+            The number of reaction steps skipped when recording the trajectories.
         record_max_length: int
-            sigma, degradation rate
+            The maximum length for recording the trajectories.
 
     Returns
     -------
@@ -178,8 +190,8 @@ def stoich_2bifurgenes():
 def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
     # species
     u1 = C[0]
-    s1 = C[1]
-    u2 = C[2]
+    u2 = C[1]
+    s1 = C[2]
     s2 = C[3]
 
     # parameters
@@ -207,8 +219,8 @@ def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
 def stoich_2bifurgenes_splicing():
     # species
     u1 = 0
-    s1 = 1
-    u2 = 2
+    u2 = 1
+    s1 = 2
     s2 = 3
 
     # stoichiometry matrix
@@ -250,6 +262,85 @@ def simulate_2bifurgenes(C0, t_span, n_traj, param_dict, report=False, **gillesp
         if report:
             print("Iteration %d/%d finished." % (i + 1, n_traj), end="\r")
     return trajs_T, trajs_C
+
+
+def stoich_syn_labeling():
+    # species
+    u = 0
+    l = 1
+
+    # stoichiometry matrix
+    stoich = np.zeros((4, 2))
+    stoich[0, u] = 1  # 0 -> u
+    stoich[1, u] = 1  # 0 -> l
+    stoich[2, l] = -1  # u -> 0
+    stoich[3, l] = -1  # l -> 0
+
+    return stoich
+
+
+def stoich_syn_labeling_splicing():
+    # species
+    uu = 0
+    ul = 1
+    su = 2
+    sl = 3
+
+    # stoichiometry matrix
+    stoich = np.zeros((6, 4))
+    stoich[0, uu] = 1  # 0 -> uu
+    stoich[1, ul] = 1  # 0 -> ul
+    stoich[2, uu] = -1  # uu -> su
+    stoich[2, su] = 1
+    stoich[3, ul] = -1  # ul -> sl
+    stoich[3, sl] = 1
+    stoich[4, su] = -1  # su -> 0
+    stoich[5, sl] = -1  # sl -> 0
+
+    return stoich
+
+
+def prop_syn_labeling(C, alpha, gamma, label_eff):
+    # concentrations
+    u = C[0]
+    l = C[1]
+
+    # propensities
+    prop = np.zeros(4)
+    prop[0] = (1 - label_eff) * alpha  # 0 -> u
+    prop[1] = label_eff * alpha  # 0 -> l
+    prop[2] = gamma * u  # u -> 0
+    prop[3] = gamma * l  # l -> 0
+
+    return prop
+
+
+def prop_syn_labeling_splicing(C, alpha, beta, gamma, label_eff):
+    # concentrations
+    uu = C[0]
+    ul = C[1]
+    su = C[2]
+    sl = C[3]
+
+    # propensities
+    prop = np.zeros(6)
+    prop[0] = (1 - label_eff) * alpha  # 0 -> uu
+    prop[1] = label_eff * alpha  # 0 -> ul
+    prop[2] = beta * uu  # uu -> su
+    prop[3] = beta * ul  # ul -> sl
+    prop[4] = gamma * su  # su -> 0
+    prop[5] = gamma * sl  # sl -> 0
+
+    return prop
+
+
+def simulate_syn_labeling(C0, t_span, param_dict, **gillespie_kwargs):
+    stoich = stoich_syn_labeling()
+    update_func = lambda C, mu: C + stoich[mu, :]
+    prop_func = lambda C: prop_syn_labeling(C, **param_dict)
+
+    T, C = directMethod(prop_func, update_func, t_span, C0, **gillespie_kwargs)
+    return T, C
 
 
 def temporal_average(t, trajs_T, trajs_C, species, f=lambda x: x):
@@ -324,15 +415,143 @@ def simulate_multigene(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval,
     return np.array(ret)
 
 
-class trajectories:
-    def __init__(self, trajs_T=[], trajs_C=[]):
-        # species
-        self.trajs_T = trajs_T
-        self.trajs_C = trajs_C
+class CellularSpecies:
+    def __init__(self, gene_names: list = []) -> None:
+        """
+        A class to register gene and species for easier implemention of simulations.
+        """
+        self.species_dict = {}
+        self.gene_names = gene_names
+        self._species_names = []
+        self._is_gene_species = []
+        self.num_species = 0
 
-    def append(self, traj_T, traj_C):
-        self.trajs_T.append(traj_T)
-        self.trajs_C.append(traj_C)
+    def get_n_genes(self):
+        return len(self.gene_names)
 
-    def interpolate(self, T, round=False):
-        return temporal_interp(T, self.trajs_T, self.trajs_C, round)
+    def register_species(self, species_name: str, is_gene_species=True):
+        if species_name in self.species_dict:
+            raise Exception(f"You have already registered {species_name}.")
+        else:
+            self._species_names.append(species_name)
+            if not is_gene_species:
+                self._is_gene_species.append(False)
+                self.species_dict[species_name] = self.num_species
+                self.num_species += 1
+            else:
+                self._is_gene_species.append(True)
+                self.species_dict[species_name] = [i + self.num_species for i in range(self.get_n_genes())]
+                self.num_species += self.get_n_genes()
+
+    def get_index(self, species, gene=None):
+        idx = self.species_dict[species]
+        if gene is not None:
+            if type(gene) == str and gene in self.gene_names:
+                idx = next(k for i, k in enumerate(idx) if self.gene_names[i] == gene)
+            elif type(gene) == int and gene < self.get_n_genes():
+                idx = idx[gene]
+            else:
+                raise Exception(f"The gene name {gene} is not found in the registered genes.")
+        return idx
+
+    def get_species(self, index):
+        species = None
+        for k, v in self.species_dict.items():
+            if type(v) == int:
+                if v == index:
+                    species = (k,)
+            elif index in v:
+                gene_idx = next(i for i, g in enumerate(v) if g == index)
+                species = (k, self.gene_names[gene_idx])
+        return species
+
+    def is_gene_species(self, species):
+        if species not in self.species_dict.keys():
+            raise Exception(f"The species {species} is not found in the registered species.")
+        else:
+            for i, k in enumerate(self.species_dict.keys()):
+                if k == species:
+                    return self.is_gene_species[i]
+
+    def iter_gene_species(self):
+        for i, (k, v) in enumerate(self.species_dict.items()):
+            if self._is_gene_species[i]:
+                yield (k, v)
+
+    def __getitem__(self, species):
+        if np.isscalar(species):
+            if type(species) == str:
+                return self.get_index(species)
+            else:
+                return self.get_species(species)
+        else:
+            return self.get_index(species[0], species[1])
+
+    def __len__(self):
+        return self.num_species
+
+
+class GillespieReactions:
+    def __init__(self, species: CellularSpecies) -> None:
+        self.species = species
+        self.stoich = None
+        self.rate_funcs = []
+        self.desc = []
+
+    def __len__(self):
+        return self.stoich.shape[0]
+
+    def register_reaction(
+        self,
+        substrates: list,
+        products: list,
+        rate_func: Callable,
+        stoich_substrates=None,
+        stoich_products=None,
+        desc: str = "",
+    ):
+        # TODO: check if substrates and products are valid species indices
+
+        if stoich_substrates is None:
+            stoich_substrates = -np.ones(len(substrates), dtype=int)
+        if stoich_products is None:
+            stoich_products = np.ones(len(products), dtype=int)
+        stoich = np.zeros(len(self.species), dtype=int)
+        stoich[substrates] = stoich_substrates
+        stoich[products] = stoich_products
+
+        if self.stoich is None:
+            self.stoich = stoich
+        else:
+            self.stoich = np.vstack((self.stoich, stoich))
+
+        self.rate_funcs.append(rate_func)
+
+        if len(desc) == 0:
+            self.desc.append(f"rxn {len(self) + 1}")
+        else:
+            self.desc.append(desc)
+
+    def propensity(self, C):
+        prop = np.zeros(len(self))
+        for i, rate_func in enumerate(self.rate_funcs):
+            prop[i] = rate_func(C)
+        return prop
+
+    def display_stoich(self):
+        import pandas as pd
+
+        species_names = []
+        for i in range(len(self.species)):
+            sp = self.species[i]
+            sp = sp[0] if len(sp) == 1 else f"{sp[0]}_{sp[1]}"
+            species_names.append(sp)
+        df = pd.DataFrame(self.stoich, columns=species_names, index=self.desc)
+        print(df)
+
+    def simulate(self, t_span, C0, **gillespie_kwargs):
+        stoich = self.stoich
+        update_func = lambda C, mu: C + stoich[mu, :]
+
+        T, C = directMethod(self.propensity, update_func, t_span, C0, **gillespie_kwargs)
+        return T, C

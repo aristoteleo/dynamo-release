@@ -5,6 +5,27 @@ import numpy as np
 import pandas as pd
 
 
+# TODO: import from here in ..estimation.fit_jacobian.py
+def hill_inh_func(x, A, K, n, g=0):
+    Kd = K ** n
+    return A * Kd / (Kd + x ** n) - g * x
+
+
+def hill_inh_grad(x, A, K, n, g=0):
+    Kd = K ** n
+    return -A * n * Kd * x ** (n - 1) / (Kd + x ** n) ** 2 - g
+
+
+def hill_act_func(x, A, K, n, g=0):
+    Kd = K ** n
+    return A * x ** n / (Kd + x ** n) - g * x
+
+
+def hill_act_grad(x, A, K, n, g=0):
+    Kd = K ** n
+    return A * n * Kd * x ** (n - 1) / (Kd + x ** n) ** 2 - g
+
+
 def toggle(ab, t=None, beta=5, gamma=1, n=2):
     """Right hand side (rhs) for toggle ODEs."""
     if len(ab.shape) == 2:
@@ -168,14 +189,14 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
 
         gene_name = np.array(
             [
-                "Pax6",
-                "Mash1",
+                "Pax6",  #
+                "Mash1",  #
                 "Brn2",
                 "Zic1",
                 "Tuj1",
-                "Hes5",
-                "Scl",
-                "Olig2",
+                "Hes5",  #
+                "Scl",  #
+                "Olig2",  #
                 "Stat3",
                 "Myt1L",
                 "Alhd1L",
