@@ -16,11 +16,11 @@ from ..dynamo_logger import (
 from ..tools.sampling import sample
 from ..tools.utils import flatten
 from .ODE import hill_act_func, hill_inh_func, ode_2bifurgenes
-from .utils import CellularSpecies, GillespieReactions
+from .utils import CellularSpecies, GillespieReactions, Reaction
 
 bifur2genes_params = {"gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
-bifur2genes_splicing_params = {"beta": 0.5, "gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
+bifur2genes_splicing_params = {"beta": 1.0, "gamma": 0.2, "a": 0.5, "b": 0.5, "S": 2.5, "K": 2.5, "m": 5, "n": 5}
 
 
 class AnnDataSimulator:
@@ -138,7 +138,7 @@ class AnnDataSimulator:
                 V.append(flatten(v))
             self.V = np.array(V)
 
-    def generate_anndata(self, remove_empty_cells=False, verbose=True):
+    def generate_anndata(self, remove_empty_cells: bool = False):
         if self.T is not None and self.C is not None:
 
             obs = pd.DataFrame(
@@ -182,8 +182,7 @@ class AnnDataSimulator:
                 # remove cells that has no expression
                 adata = adata[np.array(adata.X.sum(1)).flatten() > 0, :]
 
-            if verbose:
-                main_info("%s cell with %s genes stored in AnnData." % (self.get_n_cells(), self.get_n_genes()))
+            main_info("%s cell with %s genes stored in AnnData." % (self.get_n_cells(), self.get_n_genes()))
         else:
             raise Exception("No trajectory has been generated; Run simulation first.")
 
@@ -192,8 +191,13 @@ class AnnDataSimulator:
 
 class KinLabelingSimulator:
     def __init__(
-        self, simulator: AnnDataSimulator, label_suffix: str = "l", label_species: Union[None, list] = None
+        self,
+        simulator: AnnDataSimulator,
+        label_suffix: str = "l",
+        label_species: Union[None, list] = None,
+        syn_rxn_tag: str = "synthesis",
     ) -> None:
+        self.n_cells = simulator.C.shape[0]
         self.splicing = True if "beta" in simulator.param_dict.keys() else False
 
         suffix = f"_{label_suffix}" if len(label_suffix) > 0 else ""
@@ -202,24 +206,108 @@ class KinLabelingSimulator:
         if label_species is None:
             label_species = ["u", "s"] if self.splicing else ["r"]
 
-        species = CellularSpecies(simulator.species.gene_names)
+        _label_species = []
+        self.species = CellularSpecies(simulator.species.gene_names)
         for sp in label_species:
-            species.register_species(f"{sp}{suffix}")
+            self.species.register_species(f"{sp}{suffix}")
+            _label_species.append(f"{sp}{suffix}")
 
         # register reactions
+        self.reactions, self.syn_rxns = self.register_reactions(self.species, _label_species, simulator.param_dict)
 
-        self.C = simulator.C
+        # calculate synthesis rate (alpha) for each cell
+        self.alpha = np.zeros((simulator.C.shape[0], self.species.get_n_genes()))
+        for i, c in enumerate(simulator.C):
+            for rxn in simulator.reactions:
+                if rxn.desc == syn_rxn_tag:  # The reaction is synthesis
+                    product = rxn.products[0]
+                    if product in simulator.species[label_species[0]]:  # The product is the unspliced species
+                        gene = simulator.species.get_species(product, return_gene_name=False)[1]
+                        self.alpha[i, gene] = rxn.rate_func(c)
+
         self.Cl = None
         self.Tl = None
         self._label_time = None
 
     def get_n_cells(self):
-        return self.C.shape[0]
+        return self.n_cells
+
+    def register_reactions(self, species: CellularSpecies, label_species, param_dict):
+        reactions = GillespieReactions(species)
+        syn_rxns = []
+        if self.splicing:
+            u = species[label_species[0]]
+            s = species[label_species[1]]
+            for i_gene in range(species.get_n_genes()):
+                i_rxn = reactions.register_reaction(Reaction([], [u[i_gene]], None, desc="synthesis"))
+                syn_rxns.append(i_rxn)
+                reactions.register_reaction(
+                    Reaction(
+                        [u[i_gene]],
+                        [s[i_gene]],
+                        lambda C, u=u[i_gene], beta=param_dict["beta"][i_gene]: beta * C[u],
+                        desc="splicing",
+                    )
+                )
+                reactions.register_reaction(
+                    Reaction(
+                        [s[i_gene]],
+                        [],
+                        lambda C, s=s[i_gene], gamma=param_dict["gamma"][i_gene]: gamma * C[s],
+                        desc="degradation",
+                    )
+                )
+        else:
+            r = species[label_species[0]]
+            for i_gene in range(species.get_n_genes()):
+                i_rxn = reactions.register_reaction(Reaction([], [r[i_gene]], None, desc="synthesis"))
+                syn_rxns.append(i_rxn)
+                reactions.register_reaction(
+                    Reaction(
+                        [r[i_gene]],
+                        [],
+                        lambda C, r=r[i_gene], gamma=param_dict["gamma"][i_gene]: gamma * C[r],
+                        desc="degradation",
+                    )
+                )
+        return reactions, syn_rxns
 
     def simulate(self, label_time):
         if np.isscalar(label_time):
             label_time = np.ones(self.get_n_cells()) * label_time
         self._label_time = label_time
+
+        self.Tl, self.Cl = [], None
+        for i in range(self.get_n_cells()):
+            tau = label_time[i]
+            # set alpha for each synthesis reaction
+            for i_gene, i_rxn in enumerate(self.syn_rxns):
+                self.reactions[i_rxn].rate_func = lambda C, alpha=self.alpha[i, i_gene]: alpha
+            T, C = self.reactions.simulate([0, tau], np.zeros(len(self.species)))
+            self.Tl = np.hstack((self.Tl, T[-1]))
+            self.Cl = C[:, -1] if self.Cl is None else np.vstack((self.Cl, C[:, -1]))
+
+    def write_to_anndata(self, adata: anndata):
+        if adata.n_vars != self.species.get_n_genes():
+            raise Exception(
+                f"The input anndata has {adata.n_vars} genes while there are {self.species.get_n_genes()} registered."
+            )
+
+        if adata.n_obs != self.get_n_cells():
+            raise Exception(f"The input anndata has {adata.n_obs} cells while there are {self.get_n_cells()} labeled.")
+
+        if self.Tl is not None and self.Cl is not None:
+            adata.obs["actual_label_time"] = self.Tl
+            adata.obs["label_time"] = self._label_time
+            # gene species go here
+            for species, indices in self.species.iter_gene_species():
+                S = self.Cl[:, indices]
+                adata.layers[species] = S
+                main_info("A layer is created for the labeled species %s." % species)
+        else:
+            raise Exception("No simulated data has been generated; Run simulation first.")
+
+        return adata
 
 
 class BifurcationTwoGenes(AnnDataSimulator):
@@ -332,26 +420,38 @@ class BifurcationTwoGenes(AnnDataSimulator):
             u1, u2 = self.species["u", 0], self.species["u", 1]
             s1, s2 = self.species["s", 0], self.species["s", 1]
             # 0 -> u1
-            reactions.register_reaction([], [u1], lambda C: rate_syn(C[s1], C[s2], 0), desc="synthesis")
+            reactions.register_reaction(Reaction([], [u1], lambda C: rate_syn(C[s1], C[s2], 0), desc="synthesis"))
             # u1 -> s1
-            reactions.register_reaction([u1], [s1], lambda C: self.param_dict["beta"][0] * C[u1], desc="splicing")
+            reactions.register_reaction(
+                Reaction([u1], [s1], lambda C, beta=self.param_dict["beta"][0]: beta * C[u1], desc="splicing")
+            )
             # s1 -> 0
-            reactions.register_reaction([s1], [], lambda C: self.param_dict["gamma"][0] * C[s1], desc="degradation")
+            reactions.register_reaction(
+                Reaction([s1], [], lambda C, gamma=self.param_dict["gamma"][0]: gamma * C[s1], desc="degradation")
+            )
             # 0 -> u2
-            reactions.register_reaction([], [u2], lambda C: rate_syn(C[s2], C[s1], 0), desc="synthesis")
+            reactions.register_reaction(Reaction([], [u2], lambda C: rate_syn(C[s2], C[s1], 0), desc="synthesis"))
             # u1 -> s1
-            reactions.register_reaction([u2], [s2], lambda C: self.param_dict["beta"][1] * C[u2], desc="splicing")
+            reactions.register_reaction(
+                Reaction([u2], [s2], lambda C, beta=self.param_dict["beta"][1]: beta * C[u2], desc="splicing")
+            )
             # s2 -> 0
-            reactions.register_reaction([s2], [], lambda C: self.param_dict["gamma"][1] * C[s2], desc="degradation")
+            reactions.register_reaction(
+                Reaction([s2], [], lambda C, gamma=self.param_dict["gamma"][1]: gamma * C[s2], desc="degradation")
+            )
         else:
             x1, x2 = self.species["r", 0], self.species["r", 1]
             # 0 -> x1
-            reactions.register_reaction([], [x1], lambda C: rate_syn(C[x1], C[x2], 0), desc="synthesis")
+            reactions.register_reaction(Reaction([], [x1], lambda C: rate_syn(C[x1], C[x2], 0), desc="synthesis"))
             # x1 -> 0
-            reactions.register_reaction([x1], [], lambda C: self.param_dict["gamma"][0] * C[x1], desc="degradation")
+            reactions.register_reaction(
+                Reaction([x1], [], lambda C, gamma=self.param_dict["gamma"][0]: gamma * C[x1], desc="degradation")
+            )
             # 0 -> x2
-            reactions.register_reaction([], [x2], lambda C: rate_syn(C[x2], C[x1], 0), desc="synthesis")
+            reactions.register_reaction(Reaction([], [x2], lambda C: rate_syn(C[x2], C[x1], 0), desc="synthesis"))
             # x2 -> 0
-            reactions.register_reaction([x2], [], lambda C: self.param_dict["gamma"][1] * C[x2], desc="degradation")
+            reactions.register_reaction(
+                Reaction([x2], [], lambda C, gamma=self.param_dict["gamma"][1]: gamma * C[x2], desc="degradation")
+            )
 
         return reactions
