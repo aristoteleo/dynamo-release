@@ -76,7 +76,7 @@ def jacobian_bifur2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4
     return J
 
 
-def ode_circ2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
+def ode_osc2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
     """The ODE model for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
     x = np.atleast_2d(x)

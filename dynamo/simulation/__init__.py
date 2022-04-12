@@ -12,11 +12,11 @@ from .ODE import (
 from .simulate_anndata import (
     AnnDataSimulator,
     BifurcationTwoGenes,
-    CirculationTwoGenes,
     KinLabelingSimulator,
+    OscillationTwoGenes,
     bifur2genes_params,
     bifur2genes_splicing_params,
-    circ2genes_params,
-    circ2genes_splicing_params,
+    osc2genes_params,
+    osc2genes_splicing_params,
 )
 from .utils import CellularSpecies, directMethod
