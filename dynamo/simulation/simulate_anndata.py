@@ -240,7 +240,7 @@ class KinLabelingSimulator:
 
         # register species
         if label_species is None:
-            label_species = ["u", "s"] if self.splicing else ["r"]
+            label_species = ["unspliced", "spliced"] if self.splicing else ["total"]
 
         _label_species = []
         self.species = CellularSpecies(simulator.species.gene_names)
@@ -348,7 +348,17 @@ class KinLabelingSimulator:
 
 class CellularModelSimulator(AnnDataSimulator):
     def __init__(
-        self, gene_names: list, synthesis_param_names: list, param_dict: dict, C0s=None, r_aug=20, tau=3, n_C0s=10
+        self,
+        gene_names: list,
+        synthesis_param_names: list,
+        param_dict: dict,
+        molecular_param_names: list = [],
+        kinetic_param_names: list = [],
+        C0s=None,
+        r_aug=1,
+        tau=1,
+        n_C0s=10,
+        velocity_func=None,
     ) -> None:
         """
         An anndata simulator class handling models with synthesis, splicing (optional), and first-order degrdation reactions.
@@ -397,104 +407,66 @@ class CellularModelSimulator(AnnDataSimulator):
             gene_param_names=gene_param_names,
         )
 
-        main_info("Adjusting parameters based on r_aug and tau...")
+        main_info("Adjusting parameters based on `r_aug` and `tau`...")
         if self.splicing:
             self.param_dict["beta"] /= tau
         self.param_dict["gamma"] /= tau
-        self.param_dict["a"] *= r_aug / tau
-        self.param_dict["b"] *= r_aug / tau
-        self.param_dict["S"] *= r_aug
-        self.param_dict["K"] *= r_aug
+
+        for param in molecular_param_names:
+            self.param_dict[param] *= r_aug
+
+        for param in kinetic_param_names:
+            self.param_dict[param] /= tau
 
         # register reactions and set the simulation function
-        reactions = self.register_reactions()
+        reactions = GillespieReactions(species)
+        self.register_reactions(reactions)
         main_info("Stoichiometry Matrix:")
         reactions.display_stoich()
         self.reactions = reactions
 
-        # calculate C0 if not specified, C0 ~ [x1_s, x2_s]
+        # calculate C0 if not specified
         if C0s is None:
-            a, b = self.param_dict["a"], self.param_dict["b"]
-            ga = self.param_dict["gamma"]
-
-            x1_s = (a[0] + b[0]) / ga[0]
-            x2_s = (a[1] + b[1]) / ga[1]
-            if self.splicing:
-                be = self.param_dict["beta"]
-                C0s = np.zeros(len(self.species))
-                C0s[self.species["u", 0]] = ga[0] / be[0] * x1_s
-                C0s[self.species["s", 0]] = x1_s
-                C0s[self.species["u", 1]] = ga[1] / be[1] * x2_s
-                C0s[self.species["s", 1]] = x2_s
-            else:
-                C0s = np.array([x1_s, x2_s])
+            C0s = self.auto_C0()
 
         self.C0s = C0s
         self.augment_C0_gaussian(n_C0s, sigma=5)
         main_info(f"{n_C0s} initial conditions have been created by augmentation.")
 
         # set the velocity func
-        if self.splicing:
-            param_dict = self.param_dict.copy()
-            del param_dict["beta"]
-            self.vfunc = lambda x: ode_bifur2genes(x[self.species["s"]], **param_dict)
-        else:
-            self.vfunc = lambda x: ode_bifur2genes(x, **self.param_dict)
+        if velocity_func is not None:
+            if self.splicing:
+                param_dict = self.param_dict.copy()
+                del param_dict["beta"]
+                self.vfunc = lambda x: velocity_func(x[self.species["spliced"]], **param_dict)
+            else:
+                self.vfunc = lambda x: velocity_func(x, **self.param_dict)
 
-    def register_reactions(self):
-        reactions = GillespieReactions(self.species)
+    def auto_C0(self):
+        return np.zeros(len(self.species))
 
-        def rate_syn(x, y, gene):
-            activation = hill_act_func(
-                x, self.param_dict["a"][gene], self.param_dict["S"][gene], self.param_dict["m"][gene]
-            )
-            inhibition = hill_inh_func(
-                y, self.param_dict["b"][gene], self.param_dict["K"][gene], self.param_dict["n"][gene]
-            )
-            return activation + inhibition
-
-        if self.splicing:
-            u1, u2 = self.species["u", 0], self.species["u", 1]
-            s1, s2 = self.species["s", 0], self.species["s", 1]
-            # 0 -> u1
-            reactions.register_reaction(Reaction([], [u1], lambda C: rate_syn(C[s1], C[s2], 0), desc="synthesis"))
-            # u1 -> s1
-            reactions.register_reaction(
-                Reaction([u1], [s1], lambda C, beta=self.param_dict["beta"][0]: beta * C[u1], desc="splicing")
-            )
-            # s1 -> 0
-            reactions.register_reaction(
-                Reaction([s1], [], lambda C, gamma=self.param_dict["gamma"][0]: gamma * C[s1], desc="degradation")
-            )
-            # 0 -> u2
-            reactions.register_reaction(Reaction([], [u2], lambda C: rate_syn(C[s2], C[s1], 0), desc="synthesis"))
-            # u1 -> s1
-            reactions.register_reaction(
-                Reaction([u2], [s2], lambda C, beta=self.param_dict["beta"][1]: beta * C[u2], desc="splicing")
-            )
-            # s2 -> 0
-            reactions.register_reaction(
-                Reaction([s2], [], lambda C, gamma=self.param_dict["gamma"][1]: gamma * C[s2], desc="degradation")
-            )
-        else:
-            x1, x2 = self.species["r", 0], self.species["r", 1]
-            # 0 -> x1
-            reactions.register_reaction(Reaction([], [x1], lambda C: rate_syn(C[x1], C[x2], 0), desc="synthesis"))
-            # x1 -> 0
-            reactions.register_reaction(
-                Reaction([x1], [], lambda C, gamma=self.param_dict["gamma"][0]: gamma * C[x1], desc="degradation")
-            )
-            # 0 -> x2
-            reactions.register_reaction(Reaction([], [x2], lambda C: rate_syn(C[x2], C[x1], 0), desc="synthesis"))
-            # x2 -> 0
-            reactions.register_reaction(
-                Reaction([x2], [], lambda C, gamma=self.param_dict["gamma"][1]: gamma * C[x2], desc="degradation")
-            )
-
+    def register_reactions(self, reactions: GillespieReactions):
+        for i_gene in range(self.get_n_genes()):
+            if self.splicing:
+                u, s = self.species["unspliced", i_gene], self.species["spliced", i_gene]
+                beta, gamma = self.param_dict["beta"][i_gene], self.param_dict["gamma"][i_gene]
+                # u -> s
+                reactions.register_reaction(Reaction([u], [s], lambda C, u=u, beta=beta: beta * C[u], desc="splicing"))
+                # s -> 0
+                reactions.register_reaction(
+                    Reaction([s], [], lambda C, s=s, gamma=gamma: gamma * C[s], desc="degradation")
+                )
+            else:
+                r = self.species["total", i_gene]
+                gamma = self.param_dict["gamma"][i_gene]
+                # r -> 0
+                reactions.register_reaction(
+                    Reaction([r], [], lambda C, r=r, gamma=gamma: gamma * C[r], desc="degradation")
+                )
         return reactions
 
 
-class BifurcationTwoGenes(AnnDataSimulator):
+class BifurcationTwoGenes(CellularModelSimulator):
     def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None) -> None:
         """
         Two gene toggle switch model anndata simulator.
@@ -515,83 +487,40 @@ class BifurcationTwoGenes(AnnDataSimulator):
             gene_names: None or list
                 List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
         """
-        self.splicing = True if "beta" in param_dict.keys() else False
-
         if gene_names is None:
             gene_names = ["gene_1", "gene_2"]
 
-        # register species
-        species = CellularSpecies(gene_names)
-        if self.splicing:
-            species.register_species("u", True)
-            species.register_species("s", True)
-        else:
-            species.register_species("r", True)
-
-        if C0s is None:
-            C0s_ = np.zeros(len(species))
-
-        if self.splicing:
-            gene_param_names = ["a", "b", "S", "K", "m", "n", "beta", "gamma"]
-        else:
-            gene_param_names = ["a", "b", "S", "K", "m", "n", "gamma"]
-
-        # utilize super's init to initialize the class and fix param dict, w/o setting the simulation function
         super().__init__(
-            None,
-            C0s_,
-            param_dict,
-            species=species,
-            gene_param_names=gene_param_names,
+            gene_names,
+            synthesis_param_names=["a", "b", "S", "K", "m", "n"],
+            param_dict=param_dict,
+            molecular_param_names=["a", "b", "S", "K"],
+            kinetic_param_names=["a", "b"],
+            C0s=C0s,
+            r_aug=r_aug,
+            tau=tau,
+            n_C0s=n_C0s,
+            velocity_func=ode_bifur2genes,
         )
 
-        main_info("Adjusting parameters based on r_aug and tau...")
+    def auto_C0(self):
+        a, b = self.param_dict["a"], self.param_dict["b"]
+        ga = self.param_dict["gamma"]
+
+        x1_s = (a[0] + b[0]) / ga[0]
+        x2_s = (a[1] + b[1]) / ga[1]
         if self.splicing:
-            self.param_dict["beta"] /= tau
-        self.param_dict["gamma"] /= tau
-        self.param_dict["a"] *= r_aug / tau
-        self.param_dict["b"] *= r_aug / tau
-        self.param_dict["S"] *= r_aug
-        self.param_dict["K"] *= r_aug
-
-        # register reactions and set the simulation function
-        reactions = self.register_reactions()
-        main_info("Stoichiometry Matrix:")
-        reactions.display_stoich()
-        self.reactions = reactions
-
-        # calculate C0 if not specified, C0 ~ [x1_s, x2_s]
-        if C0s is None:
-            a, b = self.param_dict["a"], self.param_dict["b"]
-            ga = self.param_dict["gamma"]
-
-            x1_s = (a[0] + b[0]) / ga[0]
-            x2_s = (a[1] + b[1]) / ga[1]
-            if self.splicing:
-                be = self.param_dict["beta"]
-                C0s = np.zeros(len(self.species))
-                C0s[self.species["u", 0]] = ga[0] / be[0] * x1_s
-                C0s[self.species["s", 0]] = x1_s
-                C0s[self.species["u", 1]] = ga[1] / be[1] * x2_s
-                C0s[self.species["s", 1]] = x2_s
-            else:
-                C0s = np.array([x1_s, x2_s])
-
-        self.C0s = C0s
-        self.augment_C0_gaussian(n_C0s, sigma=5)
-        main_info(f"{n_C0s} initial conditions have been created by augmentation.")
-
-        # set the velocity func
-        if self.splicing:
-            param_dict = self.param_dict.copy()
-            del param_dict["beta"]
-            self.vfunc = lambda x: ode_bifur2genes(x[self.species["s"]], **param_dict)
+            be = self.param_dict["beta"]
+            C0s = np.zeros(len(self.species))
+            C0s[self.species["unspliced", 0]] = ga[0] / be[0] * x1_s
+            C0s[self.species["spliced", 0]] = x1_s
+            C0s[self.species["unspliced", 1]] = ga[1] / be[1] * x2_s
+            C0s[self.species["spliced", 1]] = x2_s
         else:
-            self.vfunc = lambda x: ode_bifur2genes(x, **self.param_dict)
+            C0s = np.array([x1_s, x2_s])
+        return C0s
 
-    def register_reactions(self):
-        reactions = GillespieReactions(self.species)
-
+    def register_reactions(self, reactions):
         def rate_syn(x, y, gene):
             activation = hill_act_func(
                 x, self.param_dict["a"][gene], self.param_dict["S"][gene], self.param_dict["m"][gene]
@@ -602,47 +531,110 @@ class BifurcationTwoGenes(AnnDataSimulator):
             return activation + inhibition
 
         if self.splicing:
-            u1, u2 = self.species["u", 0], self.species["u", 1]
-            s1, s2 = self.species["s", 0], self.species["s", 1]
+            u1, u2 = self.species["unspliced", 0], self.species["unspliced", 1]
+            s1, s2 = self.species["spliced", 0], self.species["spliced", 1]
             # 0 -> u1
             reactions.register_reaction(Reaction([], [u1], lambda C: rate_syn(C[s1], C[s2], 0), desc="synthesis"))
-            # u1 -> s1
-            reactions.register_reaction(
-                Reaction([u1], [s1], lambda C, beta=self.param_dict["beta"][0]: beta * C[u1], desc="splicing")
-            )
-            # s1 -> 0
-            reactions.register_reaction(
-                Reaction([s1], [], lambda C, gamma=self.param_dict["gamma"][0]: gamma * C[s1], desc="degradation")
-            )
             # 0 -> u2
             reactions.register_reaction(Reaction([], [u2], lambda C: rate_syn(C[s2], C[s1], 0), desc="synthesis"))
-            # u1 -> s1
-            reactions.register_reaction(
-                Reaction([u2], [s2], lambda C, beta=self.param_dict["beta"][1]: beta * C[u2], desc="splicing")
-            )
-            # s2 -> 0
-            reactions.register_reaction(
-                Reaction([s2], [], lambda C, gamma=self.param_dict["gamma"][1]: gamma * C[s2], desc="degradation")
-            )
         else:
-            x1, x2 = self.species["r", 0], self.species["r", 1]
+            x1, x2 = self.species["total", 0], self.species["total", 1]
             # 0 -> x1
             reactions.register_reaction(Reaction([], [x1], lambda C: rate_syn(C[x1], C[x2], 0), desc="synthesis"))
-            # x1 -> 0
-            reactions.register_reaction(
-                Reaction([x1], [], lambda C, gamma=self.param_dict["gamma"][0]: gamma * C[x1], desc="degradation")
-            )
             # 0 -> x2
             reactions.register_reaction(Reaction([], [x2], lambda C: rate_syn(C[x2], C[x1], 0), desc="synthesis"))
-            # x2 -> 0
-            reactions.register_reaction(
-                Reaction([x2], [], lambda C, gamma=self.param_dict["gamma"][1]: gamma * C[x2], desc="degradation")
+
+        super().register_reactions(reactions)
+
+
+class OscillationTwoGenes(CellularModelSimulator):
+    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None) -> None:
+        """
+        Two gene oscillation model anndata simulator.
+        TODO: fix documentation
+
+        Parameters
+        ----------
+            param_dict: dict
+                The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
+                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
+            C0s: None or :class:`~numpy.ndarray`
+                Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
+            r_aug: float
+                Parameter which augments copy number for r1 and r2.
+            tau: float
+                Time scale parameter which does not affect steady state solutions.
+            n_C0s: int
+                Number of augmented initial conditions, if C0s is `None`.
+            gene_names: None or list
+                List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
+        """
+        if gene_names is None:
+            gene_names = ["gene_1", "gene_2"]
+
+        super().__init__(
+            gene_names,
+            synthesis_param_names=["a", "b", "S", "K", "m", "n"],
+            param_dict=param_dict,
+            molecular_param_names=["a", "b", "S", "K"],
+            kinetic_param_names=["a", "b"],
+            C0s=C0s,
+            r_aug=r_aug,
+            tau=tau,
+            n_C0s=n_C0s,
+            velocity_func=ode_osc2genes,
+        )
+
+    def auto_C0(self):
+        # TODO: derive solutions for auto C0
+        if self.splicing:
+            ga, be = self.param_dict["gamma"], self.param_dict["beta"]
+            C0s = np.zeros(len(self.species))
+            C0s[self.species["unspliced", 0]] = ga[0] / be[0] * 70
+            C0s[self.species["spliced", 0]] = 70
+            C0s[self.species["unspliced", 1]] = ga[1] / be[1] * 70
+            C0s[self.species["spliced", 1]] = 70
+        else:
+            C0s = 70 * np.ones(len(self.species))
+        return C0s
+
+    def register_reactions(self, reactions):
+        def rate_syn_1(x, y, gene):
+            activation = hill_act_func(
+                x, self.param_dict["a"][gene], self.param_dict["S"][gene], self.param_dict["m"][gene]
             )
+            inhibition = hill_inh_func(
+                y, self.param_dict["b"][gene], self.param_dict["K"][gene], self.param_dict["n"][gene]
+            )
+            return activation + inhibition
 
-        return reactions
+        def rate_syn_2(x, y, gene):
+            activation1 = hill_act_func(
+                x, self.param_dict["a"][gene], self.param_dict["S"][gene], self.param_dict["m"][gene]
+            )
+            activation2 = hill_act_func(
+                y, self.param_dict["b"][gene], self.param_dict["K"][gene], self.param_dict["n"][gene]
+            )
+            return activation1 + activation2
+
+        if self.splicing:
+            u1, u2 = self.species["unspliced", 0], self.species["unspliced", 1]
+            s1, s2 = self.species["spliced", 0], self.species["spliced", 1]
+            # 0 -> u1
+            reactions.register_reaction(Reaction([], [u1], lambda C: rate_syn_1(C[s1], C[s2], 0), desc="synthesis"))
+            # 0 -> u2
+            reactions.register_reaction(Reaction([], [u2], lambda C: rate_syn_2(C[s2], C[s1], 0), desc="synthesis"))
+        else:
+            x1, x2 = self.species["total", 0], self.species["total", 1]
+            # 0 -> x1
+            reactions.register_reaction(Reaction([], [x1], lambda C: rate_syn_1(C[x1], C[x2], 0), desc="synthesis"))
+            # 0 -> x2
+            reactions.register_reaction(Reaction([], [x2], lambda C: rate_syn_2(C[x2], C[x1], 0), desc="synthesis"))
+
+        super().register_reactions(reactions)
 
 
-class OscillationTwoGenes(AnnDataSimulator):
+"""class OscillationTwoGenes(AnnDataSimulator):
     def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None) -> None:
         self.splicing = True if "beta" in param_dict.keys() else False
 
@@ -775,3 +767,4 @@ class OscillationTwoGenes(AnnDataSimulator):
             )
 
         return reactions
+"""
