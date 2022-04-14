@@ -19,7 +19,7 @@ def diffusionMatrix(
     VecFld=None,
     residual="vector_field",
 ):
-    """ "Calculate the diffusion matrix from the estimated velocity vector and the reconstructed vector field.
+    """Calculate the diffusion matrix from the estimated velocity vector and the reconstructed vector field.
 
     Parameters
     ----------

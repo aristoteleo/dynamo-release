@@ -11,7 +11,9 @@ from .ODE import (
 )
 from .simulate_anndata import (
     AnnDataSimulator,
-    Differentiation2Genes,
-    diff2genes_params,
-    diff2genes_splicing_params,
+    BifurcationTwoGenes,
+    KinLabelingSimulator,
+    bifur2genes_params,
+    bifur2genes_splicing_params,
 )
+from .utils import CellularSpecies, directMethod

@@ -26,6 +26,10 @@ class DynamoAdataKeyManager:
     UNS_PP_SPLICING_LABELING = "splicing_labeling"
     UNS_PP_PEARSON_RESIDUAL_NORMALIZATION = "pearson_residuals_normalization_params"
 
+    # obsp adjacency matrix string constants
+    OBSP_ADJ_MAT_DIST = "distances"
+    OBSP_ADJ_MAT_CONNECTIVITY = "connectivities"
+
     # special key names frequently used in dynamo
     X_LAYER = "X"
     PROTEIN_LAYER = "protein"
