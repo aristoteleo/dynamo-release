@@ -115,6 +115,7 @@ __all__ = [
     "plot_traj",
     "topography",
     "speed",
+    "acceleration",
     "curl",
     "divergence",
     "curvature",

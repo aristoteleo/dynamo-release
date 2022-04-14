@@ -12,9 +12,13 @@ from .scribe import coexp_measure, coexp_measure_mat, scribe
 from .sctransform import sctransform
 
 __all__ = [
-    "ddhodge",
     "enrichr",
-    "scribe",
+    "ddhodge",
+    "normalize_layers_pearson_residuals",
+    "select_genes_by_pearson_residuals",
+    "scifate_glmnet",
     "coexp_measure",
     "coexp_measure_mat",
+    "scribe",
+    "sctransform",
 ]
