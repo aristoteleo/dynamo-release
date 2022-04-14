@@ -11,7 +11,8 @@ from subprocess import PIPE, CalledProcessError, run
 from typing import List, NamedTuple, Optional, Union
 
 RE_VERSION = r"([\d.]+?)(?:\.dev(\d+))?(?:[_+-]([0-9a-zA-Z.]+))?"
-RE_GIT_DESCRIBE = r"v?(?:([\d.]+)-(\d+)-g)?([0-9a-f]{7})(-dirty)?"
+# RE_GIT_DESCRIBE = r"v?(?:([\d.]+)-(\d+)-g)?([0-9a-f]{7})(-dirty)?"
+RE_GIT_DESCRIBE = r"v?(?:([\d.]+)-(.+)-g)?([0-9a-f]{7})(-dirty)?"
 ON_RTD = os.environ.get("READTHEDOCS") == "True"
 
 
@@ -85,7 +86,7 @@ def get_version_from_git(parent):
         check=True,
     )
 
-    release, dev, hex_, dirty = match_groups(f"{RE_GIT_DESCRIBE}$", p.stdout.rstrip("\r\n"))
+    release, dev, hex_, dirty = match_groups(f"{RE_GIT_DESCRIBE}", p.stdout.rstrip("\r\n"))
 
     labels = []
     if dev == "0":
@@ -165,9 +166,14 @@ def get_version(package: Union[Path, str]) -> str:
 def get_dynamo_version():
     import pkg_resources
 
-    _package_name = "dynamo-release"
-    _package = pkg_resources.working_set.by_key[_package_name]
-    return _package.version
+    try:
+        _package_name = "dynamo-release"
+        _package = pkg_resources.working_set.by_key[_package_name]
+        version = _package.version
+    except KeyError:
+        version = "1.0.9"
+
+    return version
 
 
 def get_all_dependencies_version(display=True):
