@@ -1,0 +1,62 @@
+import os
+
+import numpy as np
+from anndata import AnnData
+from scvelo import AnnData
+
+from ..configuration import DKM
+from ..data_io import read_h5ad
+from .Preprocessor import Preprocessor
+
+
+class CnmfPreprocessor(Preprocessor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.selected_K = 10
+        self.n_iter = 200
+        self.n_top_genes = 2000
+        self.output_dir = "./cnmf_dyn_preprocess_temp"
+        self.seed = 0
+        self.density_threshold = 2.00
+        self.run_name = "temp"
+        self.adata_h5ad_path = os.path.join(self.output_dir, "temp_adata.h5ad")
+
+        # TODO: enable parallel computing in the future. Currently cNMF only provides cmd interfaces for factorization.
+        self.num_worker = 1
+
+    def preprocess_adata(self, adata: AnnData):
+        try:
+            from cnmf import cNMF
+        except Exception as e:
+            print("Exception when importing CNMF")
+            print("detailed exception:", str(e))
+
+        counts_fn = self.adata_h5ad_path
+        adata.write_h5ad(counts_fn)
+        cnmf_obj = cNMF(output_dir=self.output_dir, name=self.run_name)
+        cnmf_obj.prepare(
+            counts_fn=counts_fn,
+            components=np.arange(5, 11),
+            n_iter=self.n_iter,
+            seed=self.seed,
+            num_highvar_genes=self.n_top_genes,
+        )
+        cnmf_obj.factorize(worker_i=0, total_workers=1)
+        cnmf_obj.combine()
+        cnmf_obj.consensus(
+            k=self.selected_K,
+            density_threshold=self.density_threshold,
+            show_clustering=True,
+            close_clustergram_fig=False,
+        )
+
+        adata = read_h5ad(counts_fn)
+        hvg_path = os.path.join(self.output_dir, self.run_name, self.run_name + ".overdispersed_genes.txt")
+        hvgs = open(hvg_path).read().split("\n")
+
+        self._force_gene_list(adata, hvgs)
+        self._normalize_by_cells(adata)
+
+        adata = adata[:, DKM.VAR_USE_FOR_PCA]
+        self._pca(adata)
+        return adata
