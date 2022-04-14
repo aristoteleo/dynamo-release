@@ -316,7 +316,7 @@ def convert_layers2csr(adata):
     return adata
 
 
-def merge_adata_attrs(adata_ori, adata, attr):
+def merge_adata_attrs(adata_ori: AnnData, adata: AnnData, attr):
     def _merge_by_diff(origin_df: pd.DataFrame, diff_df: pd.DataFrame):
         _columns = set(diff_df.columns).difference(origin_df.columns)
         new_df = origin_df.merge(diff_df[_columns], how="left", left_index=True, right_index=True)
@@ -325,7 +325,12 @@ def merge_adata_attrs(adata_ori, adata, attr):
     if attr == "var":
         adata_ori.var = _merge_by_diff(adata_ori.var, adata.var)
     elif attr == "obs":
-        adata_ori.obs = _merge_by_diff(adata_ori.obs, adata.obs)
+        obs_df = _merge_by_diff(adata_ori.obs, adata.obs)
+        if obs_df.shape[0] > adata_ori.n_obs:
+            raise ValueError(
+                "Left join generates more rows. Please check if you obs names are unique before calling this fucntion."
+            )
+        adata_ori.obs = obs_df
     return adata_ori
 
 
