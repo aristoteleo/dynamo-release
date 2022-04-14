@@ -156,10 +156,10 @@ def get_version(package: Union[Path, str]) -> str:
         parent = path.parent
 
     return str(
-        get_version_from_dirname(name, parent)
+        get_dynamo_version()
+        or get_version_from_dirname(name, parent)
         or get_version_from_git(parent)
         or get_version_from_metadata(name, parent)
-        or get_dynamo_version()
     )
 
 
