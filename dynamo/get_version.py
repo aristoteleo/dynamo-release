@@ -158,8 +158,16 @@ def get_version(package: Union[Path, str]) -> str:
         get_version_from_dirname(name, parent)
         or get_version_from_git(parent)
         or get_version_from_metadata(name, parent)
-        or "0.0.0"
+        or get_dynamo_version()
     )
+
+
+def get_dynamo_version():
+    import pkg_resources
+
+    _package_name = "dynamo-release"
+    _package = pkg_resources.working_set.by_key[_package_name]
+    return _package.version
 
 
 def get_all_dependencies_version(display=True):
