@@ -1,5 +1,6 @@
 # Please import relevant packages in corresponding functions to avoid conflicts with dynamo's modules (e.g. dyn.pd.**)
 
+import os
 from functools import reduce
 
 from anndata import (
@@ -18,6 +19,43 @@ from anndata import (
 from tqdm import tqdm
 
 from .dynamo_logger import main_info
+
+
+def make_dir(path: str, can_exist=True):
+    """wrapper for making directory
+
+    Parameters
+    ----------
+    path :
+        str or path object
+    can_exist : bool, optional
+        if path can exist or not. If set to True and path exists, an exception will be raised.
+
+    Returns
+    -------
+    _type_
+        _description_
+
+    Raises
+    ------
+    bool
+        if a new directory has been created
+    """
+    if os.path.exists(path):
+        main_info(path + " : exists")
+        if os.path.isdir(path) and can_exist:
+            main_info(path + " : is a directory, continue using the existing directory")
+            return False
+        elif os.path.isdir(path) and not can_exist:
+            raise ValueError("dir path exists: %s" % path)
+        else:
+            main_info(path + " : is not a directory, creating a new directory...")
+            os.makedirs(path)
+            return True
+    else:
+        main_info("creating a new directory")
+        os.makedirs(path)
+        return True
 
 
 def convert2float(adata, columns, var=False):
