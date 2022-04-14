@@ -33,11 +33,6 @@ def make_dir(path: str, can_exist=True):
 
     Returns
     -------
-    _type_
-        _description_
-
-    Raises
-    ------
     bool
         if a new directory has been created
     """

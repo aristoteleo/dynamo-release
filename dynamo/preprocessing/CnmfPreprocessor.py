@@ -1,18 +1,18 @@
 import os
+from shutil import rmtree
 
 import numpy as np
 from anndata import AnnData
-from scvelo import AnnData
 
 from ..configuration import DKM
-from ..data_io import read_h5ad
+from ..data_io import make_dir, read_h5ad
 from .Preprocessor import Preprocessor
 
 
 class CnmfPreprocessor(Preprocessor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.selected_K = 10
+        self.selected_K = 7
         self.n_iter = 200
         self.n_top_genes = 2000
         self.output_dir = "./cnmf_dyn_preprocess_temp"
@@ -33,6 +33,7 @@ class CnmfPreprocessor(Preprocessor):
             print("Exception when importing CNMF")
             print("detailed exception:", str(e))
 
+        make_dir(self.output_dir)
         counts_fn = self.adata_h5ad_path
         self.standardize_adata(adata, tkey=self.tkey, experiment_type=self.experiment_type)
 
@@ -53,7 +54,6 @@ class CnmfPreprocessor(Preprocessor):
             show_clustering=True,
             close_clustergram_fig=False,
         )
-
         adata = read_h5ad(counts_fn)
         hvg_path = os.path.join(self.output_dir, self.run_name, self.run_name + ".overdispersed_genes.txt")
         hvgs = open(hvg_path).read().split("\n")
@@ -63,4 +63,12 @@ class CnmfPreprocessor(Preprocessor):
         adata = adata[:, adata.var[DKM.VAR_USE_FOR_PCA]]
         self._normalize_by_cells(adata)
         self._pca(adata)
+
+        self.cnmf_obj = cnmf_obj
         return adata
+
+    def k_selection_plot(self):
+        self.cnmf_obj.k_selection_plot(close_fig=False)
+
+    def cleanup_cnmf(self):
+        rmtree(self.output_dir, ignore_errors=True)
