@@ -17,6 +17,7 @@ from ..dynamo_logger import (
     main_debug,
     main_exception,
     main_info,
+    main_info_insert_adata_var,
     main_warning,
 )
 from ..utils import areinstance
@@ -651,9 +652,8 @@ def pca_monocle(
         return adata
 
 
-def pca_genes(PCs: list, n_top_genes: int = 100):
-    """[summary]
-    For each gene, if the gene is n_top in some principle component
+def pca_genes(PCs: list, n_top_genes: int = 100) -> np.array:
+    """For each gene, if the gene is n_top in some principle component
     then it is valid. Return all such valid genes.
     Parameters
     ----------
@@ -661,10 +661,6 @@ def pca_genes(PCs: list, n_top_genes: int = 100):
         principle components(PC) of PCA
     n_top_genes :
         number of gene candidates in EACH PC
-
-    Returns
-    -------
-        ret
     """
     valid_genes = np.zeros(PCs.shape[0], dtype=bool)
     for q in PCs.T:
@@ -674,7 +670,27 @@ def pca_genes(PCs: list, n_top_genes: int = 100):
     return valid_genes
 
 
-def top_pca_genes(adata, pc_key="PCs", n_top_genes=100, pc_components=None, adata_store_key="top_pca_genes"):
+def top_pca_genes(
+    adata: AnnData,
+    pc_key: str = "PCs",
+    n_top_genes: int = 100,
+    pc_components: int = None,
+    adata_store_key: str = "top_pca_genes",
+) -> AnnData:
+    """Define top genes as any gene that is ``n_top_genes`` in some principle component.
+
+    Parameters
+    ----------
+    adata :
+    pc_key :
+        component key stored in adata.uns, by default "PCs"
+    n_top_genes : int, optional
+        #top genes as valid top genes in each component, by default 100
+    pc_components : int, optional
+        number of top principle components to use, by default None
+    adata_store_key : str, optional
+        the key for storing pca genes, by default "top_pca_genes"
+    """
     if pc_key in adata.uns.keys():
         Q = adata.uns[pc_key]
     elif pc_key in adata.varm.keys():
@@ -689,10 +705,11 @@ def top_pca_genes(adata, pc_key="PCs", n_top_genes=100, pc_components=None, adat
 
     pcg = pca_genes(Q, n_top_genes=n_top_genes)
     genes = np.zeros(adata.n_vars, dtype=bool)
-    if "use_for_pca" in adata.var.keys():
-        genes[adata.var["use_for_pca"]] = pcg
+    if DKM.VAR_USE_FOR_PCA in adata.var.keys():
+        genes[adata.var[DKM.VAR_USE_FOR_PCA]] = pcg
     else:
         genes = pcg
+    main_info_insert_adata_var(adata_store_key, indent_level=2)
     adata.var[adata_store_key] = genes
     return adata
 

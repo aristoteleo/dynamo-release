@@ -301,6 +301,27 @@ def hematopoiesis(
     return adata
 
 
+def hematopoiesis(
+    url: str = "https://pitt.box.com/shared/static/kyh3s4wrxdywupn9wk9r2j27vzlvk8vf.h5ad",
+    # url: str = "https://pitt.box.com/shared/static/efqa8icu1m6d1ghfcc3s9tj0j91pky1h.h5ad", # v0: umap_ori version
+    filename: str = "hematopoiesis.h5ad",
+):
+    """https://pitt.box.com/v/hematopoiesis-processed"""
+    main_info("Downloading processed hematopoiesis adata")
+    adata = get_adata(url, filename)
+    return adata
+
+
+def hematopoiesis_raw(
+    url: str = "https://pitt.box.com/shared/static/bv7q0kgxjncc5uoget5wvmi700xwntje.h5ad",
+    filename: str = "hematopoiesis_raw.h5ad",
+):
+    """https://pitt.box.com/v/hematopoiesis-processed"""
+    main_info("Downloading raw hematopoiesis adata")
+    adata = get_adata(url, filename)
+    return adata
+
+
 def human_tfs(url="https://pitt.box.com/shared/static/spr7mi9rl2s7kgstrvrpidg138quuo4c.txt", filename="human_tfs.txt"):
     file_path = download_data(url, filename)
     tfs = pd.read_csv(file_path, sep="\t")
@@ -308,4 +329,4 @@ def human_tfs(url="https://pitt.box.com/shared/static/spr7mi9rl2s7kgstrvrpidg138
 
 
 if __name__ == "__main__":
-    DentateGyrus()
+    pass
