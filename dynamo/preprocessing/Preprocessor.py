@@ -262,6 +262,8 @@ class Preprocessor:
                 "OVERWRITE all gene selection results above according to user gene list inputs. %d genes in use."
                 % len(forced_genes)
             )
+        else:
+            main_info("self.force_gene_list is None, skipping filtering by gene list...")
 
     def _normalize_selected_genes(self, adata: AnnData):
         if not callable(self.normalize_selected_genes):

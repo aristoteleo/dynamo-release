@@ -21,6 +21,8 @@ class CnmfPreprocessor(Preprocessor):
         self.run_name = "temp"
         self.adata_h5ad_path = os.path.join(self.output_dir, "temp_adata.h5ad")
 
+        self.tkey = None
+        self.experiment_type = None
         # TODO: enable parallel computing in the future. Currently cNMF only provides cmd interfaces for factorization.
         self.num_worker = 1
 
@@ -32,6 +34,8 @@ class CnmfPreprocessor(Preprocessor):
             print("detailed exception:", str(e))
 
         counts_fn = self.adata_h5ad_path
+        self.standardize_adata(adata, tkey=self.tkey, experiment_type=self.experiment_type)
+
         adata.write_h5ad(counts_fn)
         cnmf_obj = cNMF(output_dir=self.output_dir, name=self.run_name)
         cnmf_obj.prepare(
@@ -54,9 +58,9 @@ class CnmfPreprocessor(Preprocessor):
         hvg_path = os.path.join(self.output_dir, self.run_name, self.run_name + ".overdispersed_genes.txt")
         hvgs = open(hvg_path).read().split("\n")
 
-        self._force_gene_list(adata, hvgs)
+        self.force_gene_list = hvgs
+        self._force_gene_list(adata)
+        adata = adata[:, adata.var[DKM.VAR_USE_FOR_PCA]]
         self._normalize_by_cells(adata)
-
-        adata = adata[:, DKM.VAR_USE_FOR_PCA]
         self._pca(adata)
         return adata
