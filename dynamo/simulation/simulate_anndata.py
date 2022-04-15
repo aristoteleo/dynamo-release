@@ -18,7 +18,6 @@ from ..tools.utils import flatten
 from .ODE import hill_act_func, hill_inh_func, ode_bifur2genes, ode_osc2genes
 from .utils import CellularSpecies, GillespieReactions, Reaction
 
-# TODO: make all parameters a list
 bifur2genes_params = {
     "gamma": [0.2, 0.2],
     "a": [0.5, 0.5],
@@ -195,17 +194,19 @@ class AnnDataSimulator:
             for param_name in self.gene_param_names:
                 var[param_name] = self.param_dict[param_name]
 
-            # gene species go here
+            # total velocity
             layers = {}
             if self.V is not None:
-                layers["V"] = self.V
+                layers["velocity_T"] = self.V
 
+            # gene species
             X = np.zeros((self.get_n_cells(), self.get_n_genes()))
             for species, indices in self.species.iter_gene_species():
                 S = self.C[:, indices]
                 layers[species] = S
                 X += S
-            layers["X"] = X
+            if "total" not in layers.keys():
+                layers["total"] = X
 
             adata = anndata.AnnData(
                 X,
@@ -354,30 +355,38 @@ class CellularModelSimulator(AnnDataSimulator):
         param_dict: dict,
         molecular_param_names: list = [],
         kinetic_param_names: list = [],
-        C0s=None,
-        r_aug=1,
-        tau=1,
-        n_C0s=10,
-        velocity_func=None,
+        C0s: np.ndarray = None,
+        r_aug: float = 1,
+        tau: float = 1,
+        n_C0s: int = 10,
+        velocity_func: Union[None, Callable] = None,
     ) -> None:
         """
         An anndata simulator class handling models with synthesis, splicing (optional), and first-order degrdation reactions.
 
         Parameters
         ----------
+            gene_names: list
+                List of gene names.
+            synthesis_param_names: list
+                List of kinetic parameters used to calculate synthesis rates.
             param_dict: dict
                 The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
-                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
+                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (`unspliced` and `spliced` for each gene).
+            molecular_param_names: list
+                List of names of parameters which has `number of molecules` in their dimensions. These parameters will be multiplied with `r_aug` for scaling.
+            kinetic_param_names: list
+                List of names of parameters which has `time` in their dimensions. These parameters will be multiplied with `tau` to scale the kinetics.
             C0s: None or :class:`~numpy.ndarray`
-                Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
+                Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions.
             r_aug: float
                 Parameter which augments steady state copy number for r1 and r2. At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
             tau: float
                 Time scale parameter which does not affect steady state solutions.
             n_C0s: int
                 Number of augmented initial conditions, if C0s is `None`.
-            gene_names: None or list
-                List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
+            velocity_func: None or Callable
+                Function used to calculate velocity. If `None`, the velocity will not be calculated.
         """
         self.splicing = True if "beta" in param_dict.keys() else False
         self.gene_names = gene_names
@@ -465,6 +474,15 @@ class CellularModelSimulator(AnnDataSimulator):
                 )
         return reactions
 
+    def generate_anndata(self, remove_empty_cells: bool = False):
+        adata = super().generate_anndata(remove_empty_cells)
+
+        if self.splicing:
+            beta, gamma = np.array(self.param_dict["beta"]), np.array(self.param_dict["gamma"])
+            V = beta * adata.layers["unspliced"] - gamma * adata.layers["spliced"]
+            adata.layers["velocity_S"] = V
+        return adata
+
 
 class BifurcationTwoGenes(CellularModelSimulator):
     def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None) -> None:
@@ -479,7 +497,7 @@ class BifurcationTwoGenes(CellularModelSimulator):
             C0s: None or :class:`~numpy.ndarray`
                 Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
             r_aug: float
-                Parameter which augments steady state copy number for r1 and r2. At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+                Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
             tau: float
                 Time scale parameter which does not affect steady state solutions.
             n_C0s: int
@@ -550,8 +568,7 @@ class BifurcationTwoGenes(CellularModelSimulator):
 class OscillationTwoGenes(CellularModelSimulator):
     def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None) -> None:
         """
-        Two gene oscillation model anndata simulator.
-        TODO: fix documentation
+        Two gene oscillation model anndata simulator. This is essentially a predator-prey model, where gene 1 (predator) inhibits gene 2 (prey) and gene 2 activates gene 1.
 
         Parameters
         ----------
@@ -561,7 +578,7 @@ class OscillationTwoGenes(CellularModelSimulator):
             C0s: None or :class:`~numpy.ndarray`
                 Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
             r_aug: float
-                Parameter which augments copy number for r1 and r2.
+                Parameter which augments copy numbers for the two genes.
             tau: float
                 Time scale parameter which does not affect steady state solutions.
             n_C0s: int
