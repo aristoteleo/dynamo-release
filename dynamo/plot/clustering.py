@@ -88,7 +88,7 @@ def streamline_clusters(
     adata: AnnData, basis: str = "umap", clusters="clusters", color_key_cmap: str = "Spectral", *args, **kwargs
 ):
     """\
-    Scatter plot for infomap community detection in selected basis.
+    Scatter plot for visualizing streamline clusters in selected basis.
 
     Parameters
     ----------

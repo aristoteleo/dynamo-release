@@ -1550,7 +1550,7 @@ def highest_frac_genes(
     store_key: str = "highest_frac_genes",
     n_top: int = 30,
     gene_prefix_list: list = None,
-    show_individual_prefix_gene: bool = False,
+    gene_prefix_only: bool = False,
     layer: Union[str, None] = None,
 ):
     """
@@ -1560,26 +1560,22 @@ def highest_frac_genes(
     Parameters
     ----------
     adata : AnnData
-        [description]
+        anndata input
     store_key : str, optional
-        [description], by default "highest_frac_genes"
+        key for storing expression percent results, by default "highest_frac_genes"
     n_top : int, optional
-        [description], by default 30
+        #top genes to show, by default 30
     gene_prefix_list : list, optional
-        [description], by default None
-    show_individual_prefix_gene : bool, optional
-        [description], by default False
+        a list of gene prefixes used for gathering/calculating genes percents which are with these prefixes, by default None
+    gene_prefix_only : bool, optional
+        whether to show prefix of genes only. It only takes effect if gene prefix list is provided, by default True
     layer : Union[str, None], optional
-        [description], by default None
+        layer on which the gene percents will be computed, by default None
 
-    Returns
-    -------
-    [type]
-        [description]
     """
     gene_mat = adata.X
     if layer is not None:
-        gene_mat = adata.layers[layer]
+        gene_mat = DKM.select_layer_data(layer)
     # compute gene percents at each cell row
     cell_expression_sum = gene_mat.sum(axis=1).flatten()
     # get rid of cells that have all zero counts
@@ -1603,7 +1599,7 @@ def highest_frac_genes(
         if len(valid_gene_set) == 0:
             main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
             return None
-        if not show_individual_prefix_gene:
+        if gene_prefix_only:
             # gathering gene prefix set data
             df = pd.DataFrame(index=_adata.obs.index)
             for prefix in prefix_to_genes:
@@ -1644,7 +1640,7 @@ def highest_frac_genes(
         "layer": layer,
         "selected_indices": selected_indices,
         "gene_prefix_list": gene_prefix_list,
-        "show_individual_prefix_gene": show_individual_prefix_gene,
+        "show_individual_prefix_gene": gene_prefix_only,
         "gene_percents": gene_percents_df,
     }
 

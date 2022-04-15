@@ -2,7 +2,12 @@
 """
 
 from .fate import andecestor, fate, fate_bias
-from .least_action_path import get_init_path, least_action
+from .least_action_path import (
+    GeneLeastActionPath,
+    LeastActionPath,
+    get_init_path,
+    least_action,
+)
 from .perturbation import (
     KO,
     perturbation,
@@ -30,5 +35,7 @@ __all__ = [
     "rank_perturbation_cell_clusters",
     "Trajectory",
     "GeneTrajectory",
+    "LeastActionPath",
+    "GeneLeastActionPath",
     "get_pulse_r0",
 ]

@@ -82,7 +82,7 @@ copyright = "2020, Xiaojie Qiu, Yan Zhang, Ke Ni"
 author = "Xiaojie Qiu, Yan Zhang, Ke Ni"
 
 # The full version, including alpha/beta/rc tags
-release = "1.0.9"
+release = "1.1.0"
 
 # -- General configuration ---------------------------------------------------
 

@@ -41,6 +41,10 @@ from .preprocess_monocle_utils import estimate_dispersion, top_table
 from .Preprocessor import Preprocessor
 
 __all__ = [
+    "filter_cells",
+    "filter_genes",
+    "log1p",
+    "normalize_cells",
     "lambda_correction",
     "calc_sz_factor_legacy",
     "normalize_cell_expr_by_size_factors",

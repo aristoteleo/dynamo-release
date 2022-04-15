@@ -366,7 +366,7 @@ def select_genes_by_seurat_recipe(
 
 def select_genes_by_dispersion_svr(
     adata: AnnData, layer_mat: Union[np.array, scipy.sparse.csr_matrix], n_top_genes: int
-) -> None:
+) -> tuple:
     """Filters adata's genes according to layer_mat, and set adata's preprocess keys for downstream analysis
 
     Parameters
@@ -847,6 +847,7 @@ def filter_genes_by_outliers(
 
     # add our filtering for labeling data below
 
+    # TODO refactor with get_in_range_mask
     if "spliced" in adata.layers.keys() and (layer == "spliced" or layer == "all"):
         detected_bool = (
             detected_bool
@@ -907,10 +908,11 @@ def filter_genes_by_outliers(
     return adata.var["pass_basic_filter"]
 
 
-def get_in_range_mask(data_mat, min_val, max_val, axis=0, sum_min_val_threshold=0):
+def get_sum_in_range_mask(data_mat, min_val, max_val, axis=0, data_min_val_threshold=0):
+    """check if data_mat's sum is inrange or not along an axis. data_mat's values < data_min_val_threshold is ignored."""
     return (
-        ((data_mat > sum_min_val_threshold).sum(axis) >= min_val)
-        & ((data_mat > sum_min_val_threshold).sum(axis) <= max_val)
+        ((data_mat > data_min_val_threshold).sum(axis) >= min_val)
+        & ((data_mat > data_min_val_threshold).sum(axis) <= max_val)
     ).flatten()
 
 
@@ -978,6 +980,13 @@ def filter_cells_by_outliers(
         layer_keys_used_for_filtering = predefined_layers_for_filtering
     elif isinstance(layer, str) and layer in predefined_layers_for_filtering:
         layer_keys_used_for_filtering = [layer]
+    elif isinstance(layer, list) and set(layer) <= set(predefined_layers_for_filtering):
+        layer_keys_used_for_filtering = layer
+    else:
+        raise ValueError(
+            "layer should be str or list, and layer should be one of or a subset of "
+            + str(predefined_layers_for_filtering)
+        )
 
     detected_bool = get_filter_mask_cells_by_outliers(
         adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
@@ -1034,16 +1043,18 @@ def get_filter_mask_cells_by_outliers(
     for i, layer in enumerate(layers):
         if layer not in layer2range:
             main_info(
-                "skip filtering cells by layer: %s as it is not in predefined range list:" % layer, indent_level=2
+                "skip filtering cells by layer: %s as it is not in the layer2range mapping passed in:" % layer,
+                indent_level=2,
             )
             continue
         if not DKM.check_if_layer_exist(adata, layer):
             main_info("skip filtering by layer:%s as it is not in adata." % layer)
             continue
+
         main_info("filtering cells by layer:%s" % layer, indent_level=2)
         layer_data = DKM.select_layer_data(adata, layer)
-        detected_mask = detected_mask & get_in_range_mask(
-            layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, sum_min_val_threshold=0
+        detected_mask = detected_mask & get_sum_in_range_mask(
+            layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, data_min_val_threshold=0
         )
 
     if shared_count is not None:
