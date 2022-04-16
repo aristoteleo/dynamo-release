@@ -54,7 +54,7 @@ def Ying_model(x, t=None):
     return ret
 
 
-def ode_2bifurgenes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
+def ode_bifur2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
     """The ODE model for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
     x = np.atleast_2d(x)
@@ -66,7 +66,7 @@ def ode_2bifurgenes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4],
     return dx
 
 
-def jacobian_2bifurgenes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
+def jacobian_bifur2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
     """The Jacobian of the toggle switch ODE model."""
     df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
     df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
@@ -74,6 +74,18 @@ def jacobian_2bifurgenes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4
     df2_dx2 = hill_inh_grad(x[:, 0], b[1], K[1], n[1])
     J = np.array([[df1_dx1, df1_dx2], [df2_dx1, df2_dx2]])
     return J
+
+
+def ode_osc2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
+    """The ODE model for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
+
+    x = np.atleast_2d(x)
+    dx = np.zeros(x.shape)
+
+    dx[:, 0] = hill_act_func(x[:, 0], a[0], S[0], m[0], g=gamma[0]) + hill_inh_func(x[:, 1], b[0], K[0], n[0])
+    dx[:, 1] = hill_act_func(x[:, 1], a[1], S[1], m[1], g=gamma[1]) + hill_act_func(x[:, 0], b[1], K[1], n[1])
+
+    return dx
 
 
 def neurogenesis(
@@ -197,7 +209,7 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             ]
         )
     elif motif == "twogenes":
-        X, Y = state_space_sampler(ode=ode_2bifurgenes, dim=2, min_val=0, max_val=4, N=cell_num)
+        X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num)
         gene_name = np.array(["Pu.1", "Gata.1"])
     elif motif == "Ying":
         X, Y = state_space_sampler(ode=Ying_model, dim=2, clip=clip, min_val=-3, max_val=3, N=cell_num)

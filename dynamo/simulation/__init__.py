@@ -3,9 +3,9 @@ from .Gillespie import Gillespie
 from .ODE import (
     Simulator,
     Ying_model,
-    jacobian_2bifurgenes,
+    jacobian_bifur2genes,
     neurogenesis,
-    ode_2bifurgenes,
+    ode_bifur2genes,
     state_space_sampler,
     toggle,
 )
@@ -13,7 +13,10 @@ from .simulate_anndata import (
     AnnDataSimulator,
     BifurcationTwoGenes,
     KinLabelingSimulator,
+    OscillationTwoGenes,
     bifur2genes_params,
     bifur2genes_splicing_params,
+    osc2genes_params,
+    osc2genes_splicing_params,
 )
 from .utils import CellularSpecies, directMethod
