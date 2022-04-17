@@ -1804,8 +1804,11 @@ def set_transition_genes(
 
 
 def get_ekey_vkey_from_adata(adata):
-    """ekey: expression from which to extrapolate velocity; vkey: velocity key; layer: the states cells will be used in
-    velocity embedding."""
+    """
+    ekey: expression from which to extrapolate velocity
+    vkey: velocity key
+    layer: the states cells will be used in velocity embedding.
+    """
     dynamics_key = [i for i in adata.uns.keys() if i.endswith("dynamics")][0]
     experiment_type, use_smoothed = (
         adata.uns[dynamics_key]["experiment_type"],

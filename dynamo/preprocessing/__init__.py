@@ -37,6 +37,7 @@ filter_genes = filter_genes_by_outliers
 log1p = log1p_adata
 normalize_cells = normalize_cell_expr_by_size_factors
 
+from .CnmfPreprocessor import CnmfPreprocessor
 from .preprocess_monocle_utils import estimate_dispersion, top_table
 from .Preprocessor import Preprocessor
 
@@ -72,6 +73,7 @@ __all__ = [
     "filter_genes_by_pattern",
     "decode",
     "Preprocessor",
+    "CnmfPreprocessor",
     "log1p",
     "log1p_adata",
     "log1p_adata_layer",
