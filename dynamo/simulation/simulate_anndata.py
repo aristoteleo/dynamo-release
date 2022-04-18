@@ -385,9 +385,9 @@ class KinLabelingSimulator:
 
         # register species
         if self.splicing:
-            label_dict = {"unspliced": "unspliced_labeled", "spliced": "spliced_labeled"}
+            label_dict = {"unspliced": "ul", "spliced": "sl"}
         else:
-            label_dict = {"total": "labeled"}
+            label_dict = {"total": "new"}
 
         label_species = []
         self.species = CellularSpecies(simulator.species.gene_names)
