@@ -116,8 +116,28 @@ def sample_by_kmeans(X, n, return_index=False):
         X[nbrs]
 
 
-def lhsclassic(n_samples, n_dim, seed=19491001):
-    # From PyDOE
+def lhsclassic(n_samples: int, n_dim: int, bounds=None, seed=19491001):
+    """
+    Latin Hypercube Sampling method implemented from PyDOE.
+
+    Parameters
+    ----------
+        n_samples: int
+            Number of samples to be generated.
+        n_dim: int
+            Number of data dimensions.
+        bounds: None, list, or :class:`~numpy.ndarray`
+            n_dim-by-2 matrix where each row specifies the lower and upper bound for the corresponding dimension.
+            If None, it is assumed to be (0, 1) for every dimension.
+        seed: int
+            Randomization seed.
+
+    Returns
+    -------
+        H: :class:`~numpy.ndarray`
+            The sampled data array (n_samples-by-n_dim).
+    """
+
     # Generate the intervals
     np.random.seed(seed)
     cut = np.linspace(0, 1, n_samples + 1)
@@ -135,6 +155,11 @@ def lhsclassic(n_samples, n_dim, seed=19491001):
     for j in range(n_dim):
         order = np.random.permutation(range(n_samples))
         H[:, j] = rdpoints[order, j]
+
+    # Scale according to bounds
+    if bounds is not None:
+        for i in range(n_dim):
+            H[:, i] = H[:, i] * (bounds[i][1] - bounds[i][0]) + bounds[i][0]
 
     return H
 
@@ -168,14 +193,12 @@ def sample(
         V: None or :class:`~numpy.ndarray`
             Velocity associated to each element in `arr`
         seed: int
-            sigma, degradation rate
+            randomization seed
 
     Returns
     -------
-        retT: :class:`~numpy.ndarray`
-            a 1d numpy array of time points.
-        retC: :class:`~numpy.ndarray`
-            a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
+        sub_arr: :class:`~numpy.ndarray`
+            The sampled data array.
     """
     if method == "random":
         np.random.seed(seed)

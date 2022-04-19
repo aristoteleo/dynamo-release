@@ -22,6 +22,7 @@ from .scPotential import (  # , vector_field_function
 )
 from .scVectorField import (  # , evaluate, con_K_div_cur_free
     BaseVectorField,
+    BifurcationTwoGenesVectorField,
     SparseVFC,
     SvcVectorField,
     graphize_vecfld,

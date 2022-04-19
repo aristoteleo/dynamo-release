@@ -54,8 +54,8 @@ def Ying_model(x, t=None):
     return ret
 
 
-def ode_bifur2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
-    """The ODE model for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
+def ode_bifur2genes(x, a, b, S, K, m, n, gamma):
+    """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
     x = np.atleast_2d(x)
     dx = np.zeros(x.shape)
@@ -66,7 +66,7 @@ def ode_bifur2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4],
     return dx
 
 
-def jacobian_bifur2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
+def jacobian_bifur2genes(x, a, b, S, K, m, n, gamma):
     """The Jacobian of the toggle switch ODE model."""
     df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
     df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
@@ -76,8 +76,8 @@ def jacobian_bifur2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4
     return J
 
 
-def ode_osc2genes(x, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
-    """The ODE model for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
+def ode_osc2genes(x, a, b, S, K, m, n, gamma):
+    """The ODEs for the two gene oscillation based on a predator-prey model."""
 
     x = np.atleast_2d(x)
     dx = np.zeros(x.shape)
