@@ -722,7 +722,6 @@ class BaseVectorField:
     def integrate(
         self,
         init_states,
-        VecFld_true=None,
         dims=None,
         scale=1,
         t_end=None,
@@ -746,13 +745,10 @@ class BaseVectorField:
 
         if self.func is None:
             VecFld = self.vf_dict
-            self.func = (
-                lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
-                if VecFld_true is None
-                else VecFld_true
-            )
+            self.func = lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
         if t_end is None:
             t_end = getTend(self.get_X(), self.get_V())
+
         t_linspace = getTseq(init_states, t_end, step_size)
         t, prediction = integrate_vf_ivp(
             init_states,
@@ -1257,7 +1253,7 @@ class BifurcationTwoGenesVectorField(DifferentiableVectorField):
     def get_Jacobian(self, method=None):
         return lambda x: jacobian_bifur2genes(x, **self.vf_dict["params"])
 
-    def find_fixed_points(self, n_x0=10, domain=None, **kwargs):
+    def find_fixed_points(self, n_x0=10, **kwargs):
         a = self.vf_dict["params"]["a"]
         b = self.vf_dict["params"]["b"]
         gamma = self.vf_dict["params"]["gamma"]

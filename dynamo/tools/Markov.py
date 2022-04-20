@@ -982,7 +982,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         for i in range(self.get_num_states()):
             if not i in sinks:
                 states.append(i)
-        K = self.P[states][states]  # submatrix of P excluding the sinks
+        K = self.P[states][:, states]  # submatrix of P excluding the sinks
         p0_ = p0[states]
         met = np.sum(-np.linalg.inv(K) @ p0_)
         return met

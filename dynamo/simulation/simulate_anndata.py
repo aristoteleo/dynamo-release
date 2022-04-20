@@ -164,7 +164,7 @@ class AnnDataSimulator:
 
         self.T = Ts
         self.C = Cs
-        self.traj_id = traj_id
+        self.traj_id = np.array(traj_id, dtype=int)
 
         if self.vfunc is not None:
             V = []

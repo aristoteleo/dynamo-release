@@ -242,6 +242,8 @@ def dup_osc_idx_iter(x, max_iter=5, **kwargs):
     return idx, D
 
 
+# TODO: This should be inherited from the BaseVectorField/DifferentiatiableVectorField class,
+#       and BifurcationTwoGenes should be inherited from this class.
 class VectorField2D:
     def __init__(self, func, func_vx=None, func_vy=None, X_data=None):
         self.func = func
