@@ -12,6 +12,7 @@ from .ODE import (
 from .simulate_anndata import (
     AnnDataSimulator,
     BifurcationTwoGenes,
+    CellularModelSimulator,
     KinLabelingSimulator,
     OscillationTwoGenes,
     bifur2genes_params,

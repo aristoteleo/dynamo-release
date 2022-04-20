@@ -1069,17 +1069,24 @@ def remove_redundant_points(X, tol=1e-4, output_discard=False):
 
 
 def find_fixed_points(
-    x0_list: Union[list, np.array],
+    x0_list: Union[list, np.ndarray],
     func_vf: Callable,
     domain=None,
     tol_redundant: float = 1e-4,
     return_all: bool = False,
 ) -> tuple:
+    def vf_aux(x):
+        """auxillary function unifying dimensionality"""
+        v = func_vf(x)
+        if x.ndim == 1:
+            v = v.flatten()
+        return v
+
     X = []
     J = []
     fval = []
     for x0 in x0_list:
-        x, info_dict, _, _ = fsolve(func_vf, x0, full_output=True)
+        x, info_dict, _, _ = fsolve(vf_aux, x0, full_output=True)
 
         outside = is_outside(x[None, :], domain)[0] if domain is not None else False
         if not outside:

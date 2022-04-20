@@ -883,8 +883,8 @@ class ContinuousTimeMarkovChain(MarkovChain):
     def __init__(self, P=None, eignum=None, **kwargs):
         super().__init__(P, eignum=eignum, sumto=0, **kwargs)
         self.Q = None  # embedded markov chain transition matrix
-        self.Kd = None
-        self.p_st = None
+        self.Kd = None  # density kernel for density adjustment
+        self.p_st = None  # stationary distribution
 
     def check_transition_rate_matrix(self, P, tol=1e-6):
         if np.any(flatten(np.abs(np.sum(P, 0))) <= tol):
@@ -893,27 +893,6 @@ class ContinuousTimeMarkovChain(MarkovChain):
             return P.T
         else:
             raise ValueError("The input transition rate matrix must have a zero row- or column-sum.")
-
-    """def fit(self, X, V, k, s=None, tol=1e-4):
-        self.__reset__()
-        # knn clustering
-        if self.nbrs_idx is None:
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
-            _, Idx = nbrs.kneighbors(X)
-            self.nbrs_idx = Idx
-        else:
-            Idx = self.nbrs_idx
-        # compute transition prob.
-        n = X.shape[0]
-        self.P = np.zeros((n, n))
-        for i in range(n):
-            y = X[i]
-            v = V[i]
-            Y = X[Idx[i, 1:]]
-            p = compute_markov_trans_prob(y, v, Y, s, cont_time=True)
-            p[p<=tol] = 0       # tolerance check
-            self.P[Idx[i, 1:], i] = p
-            self.P[i, i] = - np.sum(p)"""
 
     def compute_drift(self, X, t, n_top=5, normalize_vector=False):
         n = self.get_num_states()
@@ -998,6 +977,16 @@ class ContinuousTimeMarkovChain(MarkovChain):
 
         return C, T
 
+    def compute_mean_exit_time(self, p0, sinks):
+        states = []
+        for i in range(self.get_num_states()):
+            if not i in sinks:
+                states.append(i)
+        K = self.P[states][:, states]  # submatrix of P excluding the sinks
+        p0_ = p0[states]
+        met = np.sum(-np.linalg.inv(K) @ p0_)
+        return met
+
     def compute_hitting_time(self, p_st=None, return_Z=False):
         p_st = self.compute_stationary_distribution() if p_st is None else p_st
         n_nodes = len(p_st)
@@ -1021,3 +1010,24 @@ class ContinuousTimeMarkovChain(MarkovChain):
             pca = PCA(n_components=n_pca_dims)
             Y = pca.fit_transform(Y)
         return Y
+
+    """def fit(self, X, V, k, s=None, tol=1e-4):
+        self.__reset__()
+        # knn clustering
+        if self.nbrs_idx is None:
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+            _, Idx = nbrs.kneighbors(X)
+            self.nbrs_idx = Idx
+        else:
+            Idx = self.nbrs_idx
+        # compute transition prob.
+        n = X.shape[0]
+        self.P = np.zeros((n, n))
+        for i in range(n):
+            y = X[i]
+            v = V[i]
+            Y = X[Idx[i, 1:]]
+            p = compute_markov_trans_prob(y, v, Y, s, cont_time=True)
+            p[p<=tol] = 0       # tolerance check
+            self.P[Idx[i, 1:], i] = p
+            self.P[i, i] = - np.sum(p)"""

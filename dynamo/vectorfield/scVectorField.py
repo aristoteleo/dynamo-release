@@ -12,8 +12,9 @@ from scipy.linalg import lstsq
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
 
-from ..dynamo_logger import LoggerManager, main_warning
-from ..tools.sampling import sample, sample_by_velocity
+from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..simulation.ODE import jacobian_bifur2genes, ode_bifur2genes
+from ..tools.sampling import lhsclassic, sample, sample_by_velocity
 from ..tools.utils import (
     index_condensed_matrix,
     linear_least_squares,
@@ -621,11 +622,19 @@ class BaseVectorField:
         Search for fixed points of the vector field function.
 
         """
+        if domain is not None:
+            domain = np.atleast_2d(domain)
+
         if self.data is None and X0 is None:
-            raise Exception(
-                "The initial points `X0` are not provided, "
-                "and no data is stored in the vector field for the sampling of initial points."
-            )
+            if domain is None:
+                raise Exception(
+                    "The initial points `X0` are not provided, "
+                    "no data is stored in the vector field, and no domain is provided for the sampling of initial points."
+                )
+            else:
+                main_info(f"Sampling {n_x0} initial points in the provided domain using the Latin Hypercube method.")
+                X0 = lhsclassic(n_x0, domain.shape[0], bounds=domain)
+
         elif X0 is None:
             indices = sample(np.arange(len(self.data["X"])), n_x0, method=sampling_method)
             X0 = self.data["X"][indices]
@@ -713,7 +722,6 @@ class BaseVectorField:
     def integrate(
         self,
         init_states,
-        VecFld_true=None,
         dims=None,
         scale=1,
         t_end=None,
@@ -737,13 +745,10 @@ class BaseVectorField:
 
         if self.func is None:
             VecFld = self.vf_dict
-            self.func = (
-                lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
-                if VecFld_true is None
-                else VecFld_true
-            )
+            self.func = lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
         if t_end is None:
             t_end = getTend(self.get_X(), self.get_V())
+
         t_linspace = getTseq(init_states, t_end, step_size)
         t, prediction = integrate_vf_ivp(
             init_states,
@@ -1232,3 +1237,29 @@ def vector_field_function_knockout(
         return vf
     else:
         return vf.func
+
+
+class BifurcationTwoGenesVectorField(DifferentiableVectorField):
+    def __init__(self, param_dict, X=None, V=None, Grid=None, *args, **kwargs):
+        super().__init__(X, V, Grid, *args, **kwargs)
+        param_dict_ = param_dict.copy()
+        for k in param_dict_.keys():
+            if k not in ["a", "b", "S", "K", "m", "n", "gamma"]:
+                del param_dict_[k]
+                main_warning(f"The parameter {k} is not used for the vector field.")
+        self.vf_dict["params"] = param_dict_
+        self.func = lambda x: ode_bifur2genes(x, **param_dict_)
+
+    def get_Jacobian(self, method=None):
+        return lambda x: jacobian_bifur2genes(x, **self.vf_dict["params"])
+
+    def find_fixed_points(self, n_x0=10, **kwargs):
+        a = self.vf_dict["params"]["a"]
+        b = self.vf_dict["params"]["b"]
+        gamma = self.vf_dict["params"]["gamma"]
+        xss = (a + b) / gamma
+        margin = 10
+        domain = np.array([[0, xss[0] + margin], [0, xss[1] + margin]])
+        return super().find_fixed_points(n_x0, X0=None, domain=domain, **kwargs)
+
+    # TODO: nullcline calculation

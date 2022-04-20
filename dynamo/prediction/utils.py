@@ -82,6 +82,7 @@ def integrate_vf_ivp(
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
 
+    # TODO: rewrite this function with the Trajectory class
     if init_states.ndim == 1:
         init_states = init_states[None, :]
     n_cell, n_feature = init_states.shape
@@ -280,7 +281,7 @@ def integrate_vf_ivp(
 
         t, Y = valid_t_trans, _Y
 
-        # this part is buggy, need to fix
+        # TODO: this part is buggy, need to fix
         if n_cell > 1 and average:
             t_len = int(len(t) / n_cell)
             avg = np.zeros((n_feature, t_len))
