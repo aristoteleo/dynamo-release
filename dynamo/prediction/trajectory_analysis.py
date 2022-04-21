@@ -33,7 +33,7 @@ def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable,
 
 
 def calc_mean_first_passage_time(
-    trajectories: list[Trajectory], in_init_state: Callable, in_target_state: Callable, in_sink_state: Callable
+    trajectories: List[Trajectory], in_init_state: Callable, in_target_state: Callable, in_sink_state: Callable
 ) -> float:
     mfpt = []
     for traj in trajectories:
