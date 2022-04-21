@@ -18,7 +18,7 @@ from ..utils import areinstance, isarray
 from .trajectory import Trajectory
 
 
-def calc_mean_exit_time(trajectories: list[Trajectory], in_init_state: Callable, in_sink_state: Callable) -> float:
+def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable, in_sink_state: Callable) -> float:
     met = []
     for traj in trajectories:
         t_init = -1
