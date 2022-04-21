@@ -14,7 +14,7 @@ from ..dynamo_logger import (
     main_warning,
 )
 from ..tools.sampling import sample
-from ..tools.utils import flatten
+from ..tools.utils import flatten, isarray
 from .ODE import hill_act_func, hill_inh_func, ode_bifur2genes, ode_osc2genes
 from .utils import CellularSpecies, GillespieReactions, Reaction
 
@@ -111,7 +111,12 @@ class AnnDataSimulator:
         """
         Fixes parameters in place.
         """
-        param_dict = self.param_dict.copy()
+        param_dict = {}
+        for k, v in self.param_dict.items():
+            if isarray(v):
+                param_dict[k] = np.array(v, copy=True)
+            else:
+                param_dict[k] = v
 
         # required parameters
         for param_name in required_param_names:
@@ -280,6 +285,8 @@ class CellularModelSimulator(AnnDataSimulator):
 
         if C0s is None:
             C0s_ = np.zeros(len(species))
+        else:
+            C0s_ = C0s
 
         gene_param_names = synthesis_param_names.copy()
         if self.splicing:
@@ -561,15 +568,23 @@ class BifurcationTwoGenes(CellularModelSimulator):
             u1, u2 = self.species["unspliced", 0], self.species["unspliced", 1]
             s1, s2 = self.species["spliced", 0], self.species["spliced", 1]
             # 0 -> u1
-            reactions.register_reaction(Reaction([], [u1], lambda C: rate_syn(C[s1], C[s2], 0), desc="synthesis"))
+            reactions.register_reaction(
+                Reaction([], [u1], lambda C, s1=s1, s2=s2: rate_syn(C[s1], C[s2], 0), desc="synthesis")
+            )
             # 0 -> u2
-            reactions.register_reaction(Reaction([], [u2], lambda C: rate_syn(C[s2], C[s1], 0), desc="synthesis"))
+            reactions.register_reaction(
+                Reaction([], [u2], lambda C, s1=s1, s2=s2: rate_syn(C[s2], C[s1], 1), desc="synthesis")
+            )
         else:
             x1, x2 = self.species["total", 0], self.species["total", 1]
             # 0 -> x1
-            reactions.register_reaction(Reaction([], [x1], lambda C: rate_syn(C[x1], C[x2], 0), desc="synthesis"))
+            reactions.register_reaction(
+                Reaction([], [x1], lambda C, x1=x1, x2=x2: rate_syn(C[x1], C[x2], 0), desc="synthesis")
+            )
             # 0 -> x2
-            reactions.register_reaction(Reaction([], [x2], lambda C: rate_syn(C[x2], C[x1], 0), desc="synthesis"))
+            reactions.register_reaction(
+                Reaction([], [x2], lambda C, x1=x1, x2=x2: rate_syn(C[x2], C[x1], 1), desc="synthesis")
+            )
 
         super().register_reactions(reactions)
 
@@ -647,14 +662,22 @@ class OscillationTwoGenes(CellularModelSimulator):
             u1, u2 = self.species["unspliced", 0], self.species["unspliced", 1]
             s1, s2 = self.species["spliced", 0], self.species["spliced", 1]
             # 0 -> u1
-            reactions.register_reaction(Reaction([], [u1], lambda C: rate_syn_1(C[s1], C[s2], 0), desc="synthesis"))
+            reactions.register_reaction(
+                Reaction([], [u1], lambda C, s1=s1, s2=s2: rate_syn_1(C[s1], C[s2], 0), desc="synthesis")
+            )
             # 0 -> u2
-            reactions.register_reaction(Reaction([], [u2], lambda C: rate_syn_2(C[s2], C[s1], 0), desc="synthesis"))
+            reactions.register_reaction(
+                Reaction([], [u2], lambda C, s1=s1, s2=s2: rate_syn_2(C[s2], C[s1], 1), desc="synthesis")
+            )
         else:
             x1, x2 = self.species["total", 0], self.species["total", 1]
             # 0 -> x1
-            reactions.register_reaction(Reaction([], [x1], lambda C: rate_syn_1(C[x1], C[x2], 0), desc="synthesis"))
+            reactions.register_reaction(
+                Reaction([], [x1], lambda C, x1=x1, x2=x2: rate_syn_1(C[x1], C[x2], 0), desc="synthesis")
+            )
             # 0 -> x2
-            reactions.register_reaction(Reaction([], [x2], lambda C: rate_syn_2(C[x2], C[x1], 0), desc="synthesis"))
+            reactions.register_reaction(
+                Reaction([], [x2], lambda C, x1=x1, x2=x2: rate_syn_2(C[x2], C[x1], 1), desc="synthesis")
+            )
 
         super().register_reactions(reactions)
