@@ -96,6 +96,48 @@ def ode_osc2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
     return dx
 
 
+def ode_neurogenesis(
+    x: np.ndarray,
+    a,
+    K,
+    n,
+    gamma,
+):
+    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2012."""
+
+    d = x.ndim
+    x = np.atleast_2d(x)
+    dx = np.zeros(shape=x.shape)
+
+    dx[:, 0] = (
+        a[0] * K[0] ** n[0] / (K[0] ** n[0] + x[:, 4] ** n[0] + x[:, 9] ** n[0] + x[:, 11] ** n[0]) - gamma[0] * x[:, 0]
+    )  # Pax6
+    dx[:, 1] = a[1] * (x[:, 0] ** n[1]) / (1 + x[:, 0] ** n[1] + x[:, 5] ** n[1]) - gamma[1] * x[:, 1]  # Mash1
+    dx[:, 2] = a[2] * (x[:, 1] ** n[2]) / (1 + x[:, 1] ** n[2]) - gamma[2] * x[:, 2]  # Zic1
+    dx[:, 3] = a[3] * (x[:, 1] ** n[3]) / (1 + x[:, 1] ** n[3] + x[:, 7] ** n[3]) - gamma[3] * x[:, 3]  # Brn2
+    dx[:, 4] = (
+        a[4]
+        * (x[:, 2] ** n[4] + x[:, 3] ** n[4] + x[:, 10] ** n[4])
+        / (1 + x[:, 2] ** n[4] + x[:, 3] ** n[4] + x[:, 10] ** n[4])  # Tuj1
+        - gamma[4] * x[:, 4]
+    )
+    dx[:, 5] = a[5] * (x[:, 0] ** n[5]) / (1 + x[:, 0] ** n[5] + x[:, 1] ** n[5]) - gamma[5] * x[:, 5]  # Hes5
+    dx[:, 6] = a[6] * (x[:, 5] ** n[6]) / (1 + x[:, 5] ** n[6] + x[:, 7] ** n[6]) - gamma[6] * x[:, 6]  # Scl
+    dx[:, 7] = a[7] * (x[:, 5] ** n[7]) / (1 + x[:, 5] ** n[7] + x[:, 6] ** n[7]) - gamma[7] * x[:, 7]  # Olig2
+    dx[:, 8] = (
+        a[8] * (x[:, 5] ** n[8] * x[:, 6] ** n[8]) / (1 + x[:, 5] ** n[8] * x[:, 6] ** n[8])
+        - gamma[8] * x[:, 8]  # Stat3
+    )
+    dx[:, 9] = a[9] * (x[:, 8] ** n[9]) / (1 + x[:, 8] ** n[9]) - gamma[9] * x[:, 9]  # A1dh1L
+    dx[:, 10] = a[10] * (x[:, 7] ** n[10]) / (1 + x[:, 7] ** n[10]) - gamma[10] * x[:, 10]  # Myt1L
+    dx[:, 11] = a[11] * (x[:, 7] ** n[11]) / (1 + x[:, 7] ** n[11]) - gamma[11] * x[:, 11]  # Sox8
+
+    if d == 1:
+        dx = dx.flatten()
+
+    return dx
+
+
 def neurogenesis(
     x,
     t=None,
@@ -110,7 +152,7 @@ def neurogenesis(
     a_e=6,
     mx=10,
 ):
-    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2011."""
+    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2012."""
 
     dx = np.nan * np.ones(shape=x.shape)
 

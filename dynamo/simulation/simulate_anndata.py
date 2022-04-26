@@ -15,7 +15,13 @@ from ..dynamo_logger import (
 )
 from ..tools.sampling import sample
 from ..tools.utils import flatten, isarray
-from .ODE import hill_act_func, hill_inh_func, ode_bifur2genes, ode_osc2genes
+from .ODE import (
+    hill_act_func,
+    hill_inh_func,
+    ode_bifur2genes,
+    ode_neurogenesis,
+    ode_osc2genes,
+)
 from .utils import CellularSpecies, GillespieReactions, Reaction
 
 bifur2genes_params = {
@@ -678,6 +684,169 @@ class OscillationTwoGenes(CellularModelSimulator):
             # 0 -> x2
             reactions.register_reaction(
                 Reaction([], [x2], lambda C, x1=x1, x2=x2: rate_syn_2(C[x2], C[x1], 1), desc="synthesis")
+            )
+
+        super().register_reactions(reactions)
+
+
+class Neurogenesis(CellularModelSimulator):
+    def __init__(self, param_dict, C0s=None, r_aug=1, tau=1, n_C0s=10) -> None:
+        """
+        Neurogenesis model from Xiaojie Qiu, et. al, 2012. anndata simulator.
+
+        Parameters
+        ----------
+            param_dict: dict
+                The parameter dictionary.
+                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
+            C0s: None or :class:`~numpy.ndarray`
+                Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
+            r_aug: float
+                Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+            tau: float
+                Time scale parameter which does not affect steady state solutions.
+            n_C0s: int
+                Number of augmented initial conditions, if C0s is `None`.
+        """
+
+        gene_names = [
+            "Pax6",
+            "Mash1",
+            "Zic1",
+            "Brn2",
+            "Tuj1",
+            "Hes5",
+            "Scl",
+            "Olig2",
+            "Stat3",
+            "A1dh1L",
+            "Myt1L",
+            "Sox8",
+        ]
+
+        super().__init__(
+            gene_names,
+            synthesis_param_names=["a", "K", "n"],
+            param_dict=param_dict,
+            molecular_param_names=["a", "K"],
+            kinetic_param_names=["a"],
+            C0s=C0s,
+            r_aug=r_aug,
+            tau=tau,
+            n_C0s=n_C0s,
+            velocity_func=ode_neurogenesis,
+        )
+
+    def register_reactions(self, reactions):
+        def rate_pax6(x, y, z, gene):
+            a = self.param_dict["a", gene]
+            K = self.param_dict["K", gene]
+            n = self.param_dict["n", gene]
+            rate = a * K ** n / (K ** n + x ** n + y ** n + z ** n)
+            return rate
+
+        def rate_act(x, gene):
+            a = self.param_dict["a", gene]
+            K = self.param_dict["K", gene]
+            n = self.param_dict["n", gene]
+            rate = a * x ** n / (K ** n + x ** n)
+            return rate
+
+        def rate_toggle(x, y, gene):
+            a = self.param_dict["a", gene]
+            K = self.param_dict["K", gene]
+            n = self.param_dict["n", gene]
+            rate = a * x ** n / (K ** n + x ** n + y ** n)
+            return rate
+
+        def rate_tuj1(x, y, z, gene):
+            a = self.param_dict["a", gene]
+            K = self.param_dict["K", gene]
+            n = self.param_dict["n", gene]
+            rate = a * (x ** n + y ** n + z ** n) / (K ** n + x ** n + y ** n + z ** n)
+            return rate
+
+        def rate_stat3(x, y, gene):
+            a = self.param_dict["a", gene]
+            K = self.param_dict["K", gene]
+            n = self.param_dict["n", gene]
+            rate = a * (x ** n * y ** n) / (K ** n + x ** n * y ** n)
+            return rate
+
+        if self.splicing:
+            # TODO: develop the splicing model
+            raise NotImplementedError("The splicing model has not been developed.")
+        else:
+            pax6 = self.species["total", "Pax6"]
+            mash1 = self.species["total", "Mash1"]
+            hes5 = self.species["total", "Hes5"]
+            scl = self.species["total", "Scl"]
+            olig2 = self.species["total", "Olig2"]
+            zic1 = self.species["total", "Zic1"]
+            brn2 = self.species["total", "Brn2"]
+            tuj1 = self.species["total", "Tuj1"]
+            a1dh1l = self.species["total", "A1dh1L"]
+            sox8 = self.species["total", "Sox8"]
+            stat3 = self.species["total", "Stat3"]
+            myt1l = self.species["total", "Myt1L"]
+
+            # 0 -> pax6
+            reactions.register_reaction(
+                Reaction(
+                    [],
+                    [pax6],
+                    lambda C, x=tuj1, y=a1dh1l, z=sox8, g=pax6: rate_pax6(C[x], C[y], C[z], g),
+                    desc="synthesis",
+                )
+            )
+            # 0 -> mash1
+            reactions.register_reaction(
+                Reaction([], [mash1], lambda C, x=pax6, y=hes5, g=mash1: rate_toggle(C[x], C[y], g), desc="synthesis")
+            )
+            # 0 -> zic1
+            reactions.register_reaction(
+                Reaction([], [zic1], lambda C, x=mash1, g=zic1: rate_act(C[x], g), desc="synthesis")
+            )
+            # 0 -> brn2
+            reactions.register_reaction(
+                Reaction([], [brn2], lambda C, x=mash1, y=olig2, g=brn2: rate_toggle(C[x], C[y], g), desc="synthesis")
+            )
+            # 0 -> tuj1
+            reactions.register_reaction(
+                Reaction(
+                    [],
+                    [tuj1],
+                    lambda C, x=zic1, y=brn2, z=myt1l, g=tuj1: rate_tuj1(C[x], C[y], C[z], g),
+                    desc="synthesis",
+                )
+            )
+            # 0 -> hes5
+            reactions.register_reaction(
+                Reaction([], [hes5], lambda C, x=pax6, y=mash1, g=hes5: rate_toggle(C[x], C[y], g), desc="synthesis")
+            )
+            # 0 -> scl
+            reactions.register_reaction(
+                Reaction([], [scl], lambda C, x=hes5, y=olig2, g=scl: rate_toggle(C[x], C[y], g), desc="synthesis")
+            )
+            # 0 -> olig2
+            reactions.register_reaction(
+                Reaction([], [olig2], lambda C, x=hes5, y=scl, g=olig2: rate_toggle(C[x], C[y], g), desc="synthesis")
+            )
+            # 0 -> stat3
+            reactions.register_reaction(
+                Reaction([], [stat3], lambda C, x=hes5, y=scl, g=stat3: rate_stat3(C[x], C[y], g), desc="synthesis")
+            )
+            # 0 -> a1dh1l
+            reactions.register_reaction(
+                Reaction([], [a1dh1l], lambda C, x=stat3, g=a1dh1l: rate_act(C[x], g), desc="synthesis")
+            )
+            # 0 -> myt1l
+            reactions.register_reaction(
+                Reaction([], [myt1l], lambda C, x=olig2, g=myt1l: rate_act(C[x], g), desc="synthesis")
+            )
+            # 0 -> sox8
+            reactions.register_reaction(
+                Reaction([], [sox8], lambda C, x=olig2, g=sox8: rate_act(C[x], g), desc="synthesis")
             )
 
         super().register_reactions(reactions)

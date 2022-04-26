@@ -12,6 +12,7 @@ from .utils import (
     index_condensed_matrix,
     k_nearest_neighbors,
     nbrs_to_dists,
+    symmetrize_symmetric_matrix,
 )
 
 
@@ -133,24 +134,9 @@ def symmetrize_discrete_vector_field(E):
 
 
 def dist_mat_to_gaussian_weight(dist, sigma):
-    if not sp.issparse(dist):
-        dist = sp.csr_matrix(dist)
+    dist = symmetrize_symmetric_matrix(dist)
     W = elem_prod(dist, dist) / sigma ** 2
     W[W.nonzero()] = np.exp(-0.5 * W.data)
-
-    # symmetrize W:
-    W = W.A
-    for i in range(W.shape[0]):
-        for j in range(i, W.shape[1]):
-            if W[i, j] == 0:
-                W[i, j] = W[j, i]
-            else:
-                W[j, i] = W[i, j]
-    """indices = np.vstack(W.nonzero()).T
-    for idx in indices:
-        idx_T = idx[::-1]
-        if not idx_T in indices:
-            W[idx_T] = W[idx]"""
 
     return W
 

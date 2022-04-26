@@ -170,6 +170,26 @@ def nbrs_to_dists(X, nbrs_idx):
     return dists
 
 
+def symmetrize_symmetric_matrix(W):
+    """
+    symmetrize a supposedly symmetric matrix W, so that W_ij == Wji strictly.
+    returns a csr sparse matrix.
+    """
+    if not sp.issparse(W):
+        W = sp.csr_matrix(W)
+
+    _row_inds, _col_inds = W.nonzero()
+    _data = W.data.copy()
+
+    row_inds = np.hstack((_row_inds, _col_inds))
+    col_inds = np.hstack((_col_inds, _row_inds))
+    data = np.hstack((_data, _data))
+
+    I = np.unique(np.vstack((row_inds, col_inds)).T, axis=0, return_index=True)[1]
+    W = sp.csr_matrix((data[I], (row_inds[I], col_inds[I])))
+    return W
+
+
 def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
     all_genes = adata.var.index
     if genes is None:
