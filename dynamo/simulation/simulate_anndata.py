@@ -18,6 +18,7 @@ from ..tools.utils import flatten, isarray
 from .ODE import (
     hill_act_func,
     hill_inh_func,
+    neurogenesis,
     ode_bifur2genes,
     ode_neurogenesis,
     ode_osc2genes,
@@ -61,6 +62,12 @@ osc2genes_splicing_params = {
     "K": [2.5, 2.5],
     "m": [5, 5],
     "n": [10, 10],
+}
+neurogenesis_params = {
+    "gamma": np.ones(12),
+    "a": [2.2, 4, 3, 3, 3, 4, 5, 5, 3, 3, 3, 3],
+    "K": [10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "n": 4 * np.ones(12),
 }
 
 
@@ -250,6 +257,7 @@ class CellularModelSimulator(AnnDataSimulator):
         tau: float = 1,
         n_C0s: int = 10,
         velocity_func: Union[None, Callable] = None,
+        report_stoich=False,
     ) -> None:
         """
         An anndata simulator class handling models with synthesis, splicing (optional), and first-order degrdation reactions.
@@ -322,13 +330,14 @@ class CellularModelSimulator(AnnDataSimulator):
         # register reactions and set the simulation function
         reactions = GillespieReactions(species)
         self.register_reactions(reactions)
-        main_info("Stoichiometry Matrix:")
-        reactions.display_stoich()
+        if report_stoich:
+            main_info("Stoichiometry Matrix:")
+            reactions.display_stoich()
         self.reactions = reactions
 
         # calculate C0 if not specified
         if C0s is None:
-            C0s = self.auto_C0()
+            C0s = self.auto_C0(r_aug, tau)
 
         self.C0s = C0s
         self.augment_C0_gaussian(n_C0s, sigma=5)
@@ -353,7 +362,7 @@ class CellularModelSimulator(AnnDataSimulator):
         name = "spliced" if self.splicing else "total"
         return self.species[name]
 
-    def auto_C0(self):
+    def auto_C0(self, r_aug, tau):
         return np.zeros(len(self.species))
 
     def register_reactions(self, reactions: GillespieReactions):
@@ -507,7 +516,7 @@ class KinLabelingSimulator:
 
 
 class BifurcationTwoGenes(CellularModelSimulator):
-    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None) -> None:
+    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None, report_stoich=False) -> None:
         """
         Two gene toggle switch model anndata simulator.
 
@@ -541,9 +550,10 @@ class BifurcationTwoGenes(CellularModelSimulator):
             tau=tau,
             n_C0s=n_C0s,
             velocity_func=ode_bifur2genes,
+            report_stoich=report_stoich,
         )
 
-    def auto_C0(self):
+    def auto_C0(self, r_aug, tau):
         a, b = self.param_dict["a"], self.param_dict["b"]
         ga = self.param_dict["gamma"]
 
@@ -596,7 +606,7 @@ class BifurcationTwoGenes(CellularModelSimulator):
 
 
 class OscillationTwoGenes(CellularModelSimulator):
-    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None) -> None:
+    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None, report_stoich=False) -> None:
         """
         Two gene oscillation model anndata simulator. This is essentially a predator-prey model, where gene 1 (predator) inhibits gene 2 (prey) and gene 2 activates gene 1.
 
@@ -630,9 +640,10 @@ class OscillationTwoGenes(CellularModelSimulator):
             tau=tau,
             n_C0s=n_C0s,
             velocity_func=ode_osc2genes,
+            report_stoich=report_stoich,
         )
 
-    def auto_C0(self):
+    def auto_C0(self, r_aug, tau):
         # TODO: derive solutions for auto C0
         if self.splicing:
             ga, be = self.param_dict["gamma"], self.param_dict["beta"]
@@ -690,7 +701,7 @@ class OscillationTwoGenes(CellularModelSimulator):
 
 
 class Neurogenesis(CellularModelSimulator):
-    def __init__(self, param_dict, C0s=None, r_aug=1, tau=1, n_C0s=10) -> None:
+    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, report_stoich=False) -> None:
         """
         Neurogenesis model from Xiaojie Qiu, et. al, 2012. anndata simulator.
 
@@ -735,41 +746,49 @@ class Neurogenesis(CellularModelSimulator):
             tau=tau,
             n_C0s=n_C0s,
             velocity_func=ode_neurogenesis,
+            report_stoich=report_stoich,
         )
+
+    def auto_C0(self, r_aug, tau):
+        # C0 = np.ones(self.get_n_species()) * r_aug
+        C0 = np.zeros(self.get_n_species())
+        # TODO: splicing case
+        C0[self.species["total", "Pax6"]] = 2.0 * r_aug
+        return C0
 
     def register_reactions(self, reactions):
         def rate_pax6(x, y, z, gene):
-            a = self.param_dict["a", gene]
-            K = self.param_dict["K", gene]
-            n = self.param_dict["n", gene]
+            a = self.param_dict["a"][gene]
+            K = self.param_dict["K"][gene]
+            n = self.param_dict["n"][gene]
             rate = a * K ** n / (K ** n + x ** n + y ** n + z ** n)
             return rate
 
         def rate_act(x, gene):
-            a = self.param_dict["a", gene]
-            K = self.param_dict["K", gene]
-            n = self.param_dict["n", gene]
+            a = self.param_dict["a"][gene]
+            K = self.param_dict["K"][gene]
+            n = self.param_dict["n"][gene]
             rate = a * x ** n / (K ** n + x ** n)
             return rate
 
         def rate_toggle(x, y, gene):
-            a = self.param_dict["a", gene]
-            K = self.param_dict["K", gene]
-            n = self.param_dict["n", gene]
+            a = self.param_dict["a"][gene]
+            K = self.param_dict["K"][gene]
+            n = self.param_dict["n"][gene]
             rate = a * x ** n / (K ** n + x ** n + y ** n)
             return rate
 
         def rate_tuj1(x, y, z, gene):
-            a = self.param_dict["a", gene]
-            K = self.param_dict["K", gene]
-            n = self.param_dict["n", gene]
+            a = self.param_dict["a"][gene]
+            K = self.param_dict["K"][gene]
+            n = self.param_dict["n"][gene]
             rate = a * (x ** n + y ** n + z ** n) / (K ** n + x ** n + y ** n + z ** n)
             return rate
 
         def rate_stat3(x, y, gene):
-            a = self.param_dict["a", gene]
-            K = self.param_dict["K", gene]
-            n = self.param_dict["n", gene]
+            a = self.param_dict["a"][gene]
+            K = self.param_dict["K"][gene]
+            n = self.param_dict["n"][gene]
             rate = a * (x ** n * y ** n) / (K ** n + x ** n * y ** n)
             return rate
 
