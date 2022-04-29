@@ -485,6 +485,11 @@ def divergence(E, tol=1e-5):
 
 class MarkovChain:
     def __init__(self, P=None, eignum=None, check_norm=True, sumto=1, tol=1e-3):
+        """
+        The elements in the transition matrix P_ij encodes transition probability from j to i, i.e.:
+                P_ij = P(j -> i)
+        Consequently, each column of P should sum to `sumto`.
+        """
         if check_norm and not self.is_normalized(P, axis=0, sumto=sumto, tol=tol):
             if self.is_normalized(P, axis=1, sumto=sumto, tol=tol):
                 LoggerManager.main_logger.info(
@@ -527,6 +532,12 @@ class MarkovChain:
 
     def get_num_states(self):
         return self.P.shape[0]
+
+    def make_p0(self, init_states):
+        p0 = np.zeros(self.get_num_states())
+        p0[init_states] = 1
+        p0 /= np.sum(p0)
+        return p0
 
     def is_normalized(self, P=None, tol=1e-3, sumto=1, axis=0, ignore_nan=True):
         """
@@ -978,6 +989,12 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return C, T
 
     def compute_mean_exit_time(self, p0, sinks):
+        """
+        compute the mean exit time given a initial distribution p0 and a set of sink nodes using:
+            met = inv(K) @ p0_
+        where K is the transition rate matrix (P) where the columns and rows corresponding to the sinks are removed,
+        and p0_ the initial distribution w/o the sinks.
+        """
         states = []
         for i in range(self.get_num_states()):
             if not i in sinks:
@@ -986,6 +1003,24 @@ class ContinuousTimeMarkovChain(MarkovChain):
         p0_ = p0[states]
         met = np.sum(-np.linalg.inv(K) @ p0_)
         return met
+
+    def compute_mean_first_passage_time(self, p0, target, sinks):
+        states = []
+        all_sinks = np.hstack((target, sinks))
+        for i in range(self.get_num_states()):
+            if not i in all_sinks:
+                states.append(i)
+        K = self.P[states][:, states]  # submatrix of P excluding the sinks
+        p0_ = p0[states]
+
+        # find transition prob. from states to target
+        k = np.zeros(len(states))
+        for i, state in enumerate(states):
+            k[i] = np.sum(self.P[target, state])
+
+        K_inv = np.linalg.inv(K)
+        mfpt = -(k @ (K_inv @ K_inv @ p0_)) / (k @ (K_inv @ p0_))
+        return mfpt
 
     def compute_hitting_time(self, p_st=None, return_Z=False):
         p_st = self.compute_stationary_distribution() if p_st is None else p_st

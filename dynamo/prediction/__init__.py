@@ -17,6 +17,11 @@ from .perturbation import (
 )
 from .state_graph import state_graph, tree_model
 from .trajectory import GeneTrajectory, Trajectory
+from .trajectory_analysis import (
+    calc_mean_exit_time,
+    calc_mean_first_passage_time,
+    mean_first_passage_time,
+)
 from .tscRNA_seq import get_pulse_r0
 
 # https://stackoverflow.com/questions/31079047/python-pep8-class-in-init-imported-but-not-used
@@ -38,4 +43,7 @@ __all__ = [
     "LeastActionPath",
     "GeneLeastActionPath",
     "get_pulse_r0",
+    "calc_mean_exit_time",
+    "calc_mean_first_passage_time",
+    "mean_first_passage_time",
 ]

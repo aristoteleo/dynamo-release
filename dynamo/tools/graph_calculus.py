@@ -6,7 +6,14 @@ from scipy.linalg import qr
 from scipy.optimize import lsq_linear
 
 from ..dynamo_logger import main_info, main_warning
-from .utils import flatten, index_condensed_matrix, k_nearest_neighbors, nbrs_to_dists
+from .utils import (
+    elem_prod,
+    flatten,
+    index_condensed_matrix,
+    k_nearest_neighbors,
+    nbrs_to_dists,
+    symmetrize_symmetric_matrix,
+)
 
 
 def graphize_velocity(
@@ -117,6 +124,23 @@ def graphize_velocity(
     return E, nbrs_idx, dists
 
 
+def symmetrize_discrete_vector_field(E):
+    E_ = E.copy()
+    for i in range(E.shape[0]):
+        for j in range(i + 1, E.shape[1]):
+            flux = 0.5 * (E[i, j] - E[j, i])
+            E_[i, j], E_[j, i] = flux, -flux
+    return E_
+
+
+def dist_mat_to_gaussian_weight(dist, sigma):
+    dist = symmetrize_symmetric_matrix(dist)
+    W = elem_prod(dist, dist) / sigma ** 2
+    W[W.nonzero()] = np.exp(-0.5 * W.data)
+
+    return W
+
+
 def calc_gaussian_weight(nbrs_idx, dists, sig=None, auto_sig_func=None, auto_sig_multiplier=2, format="squareform"):
     n = len(nbrs_idx)
     if format == "sparse":
@@ -166,8 +190,11 @@ def calc_laplacian(W, weight_mode="symmetric", convention="graph"):
     return L
 
 
-def fp_operator(E, D, W=None, drift_weight=False, weight_mode="symmetric"):
+def fp_operator(E, D, W=None, symmetrize_E=True, drift_weight=False, weight_mode="symmetric"):
     # drift
+    if symmetrize_E:
+        E = symmetrize_discrete_vector_field(E)
+
     Mu = E.T.copy()
     Mu[Mu < 0] = 0
     if W is not None and drift_weight:
@@ -180,6 +207,7 @@ def fp_operator(E, D, W=None, drift_weight=False, weight_mode="symmetric"):
         L = calc_laplacian(W, convention="diffusion", weight_mode=weight_mode)
 
     # return - Mu + D * L
+    # TODO: make sure the 0.5 factor here is needed when there's already 0.5 in symmetrize dvf
     return -0.5 * Mu + D * L
 
 

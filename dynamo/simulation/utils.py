@@ -1,6 +1,3 @@
-import enum
-from ast import Call
-from tkinter.filedialog import SaveFileDialog
 from typing import Callable, List, Union
 
 import numpy as np
@@ -312,21 +309,6 @@ def convert_nosplice(trajs_T, trajs_C):
         traj_temp[1] = trajs_C[i][2] + trajs_C[i][4]  # unlabeled = ul + sl
         trajs_C_nosplice.append(traj_temp)
     return trajs_C_nosplice
-
-
-def calc_mean_exit_time(trajs_T, trajs_C, in_init_state: Callable, in_sink_state: Callable):
-    met = []
-    for i, traj_C in enumerate(trajs_C):
-        traj_T = trajs_T[i]
-        t_init = -1
-        for j, c in enumerate(traj_C):
-            t = traj_T[j]
-            if in_init_state(c):
-                t_init = t
-            if t_init > 0 and in_sink_state(c):
-                met.append(t - t_init)
-                break
-    return np.mean(met)
 
 
 def simulate_multigene(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval, report=False):
