@@ -191,6 +191,10 @@ def calc_laplacian(W, weight_mode="symmetric", convention="graph"):
 
 
 def fp_operator(E, D, W=None, symmetrize_E=True, drift_weight=False, weight_mode="symmetric"):
+    """
+    The output of this function is a transition rate matrix Q, encoding the transition rate
+    from node i to j in Q_ji
+    """
     # drift
     if symmetrize_E:
         E = symmetrize_discrete_vector_field(E)
