@@ -124,11 +124,11 @@ def graphize_velocity(
     return E, nbrs_idx, dists
 
 
-def symmetrize_discrete_vector_field(E):
-    E_ = E.copy()
-    for i in range(E.shape[0]):
-        for j in range(i + 1, E.shape[1]):
-            flux = 0.5 * (E[i, j] - E[j, i])
+def symmetrize_discrete_vector_field(F):
+    E_ = F.copy()
+    for i in range(F.shape[0]):
+        for j in range(i + 1, F.shape[1]):
+            flux = 0.5 * (F[i, j] - F[j, i])
             E_[i, j], E_[j, i] = flux, -flux
     return E_
 
@@ -171,18 +171,27 @@ def calc_gaussian_weight(nbrs_idx, dists, sig=None, auto_sig_func=None, auto_sig
     return W
 
 
-def calc_laplacian(W, weight_mode="symmetric", convention="graph"):
+def calc_laplacian(W, E=None, weight_mode="asymmetric", convention="graph"):
+    """
+    W: the weights stored for each edge e_ij.
+    E: length of edges. If None, all edges are assumed to have lengths of one.
+    """
     if weight_mode == "naive":
         A = np.abs(np.sign(W))
-    elif weight_mode == "symmetric":
-        A = W
     elif weight_mode == "asymmetric":
+        A = np.array(W, copy=True)
+    elif weight_mode == "symmetric":
         A = np.array(W, copy=True)
         A = 0.5 * (A + A.T)
     else:
         raise NotImplementedError(f"Unidentified weight mode: `{weight_mode}`")
 
-    L = np.diag(np.sum(A, 0)) - A
+    if E is not None:
+        E_ = np.zeros(E.shape)
+        E_[np.where(E > 0)] = 1 / E[np.where(E > 0)]
+        A *= E_
+
+    L = np.diag(np.sum(A, 1)) - A
 
     if convention == "diffusion":
         L = -L
@@ -190,29 +199,36 @@ def calc_laplacian(W, weight_mode="symmetric", convention="graph"):
     return L
 
 
-def fp_operator(E, D, W=None, symmetrize_E=True, drift_weight=False, weight_mode="symmetric"):
+def fp_operator(F, D, E=None, W=None, symmetrize_E=True, drift_weight=False, weight_mode="asymmetric"):
     """
     The output of this function is a transition rate matrix Q, encoding the transition rate
     from node i to j in Q_ji
+
+    F: graph vector field. F_ij encodes the flow on edge e_ij (from vertex i to j)
+    D: diffusion coefficient
+    W: edge weight. W_ij is the weight on edge e_ij
     """
     # drift
     if symmetrize_E:
-        E = symmetrize_discrete_vector_field(E)
+        F = symmetrize_discrete_vector_field(F)
 
-    Mu = E.T.copy()
+    Mu = F.T.copy()
     Mu[Mu < 0] = 0
     if W is not None and drift_weight:
         Mu *= W.T
     Mu = np.diag(np.sum(Mu, 0)) - Mu
     # diffusion
     if W is None:
-        L = calc_laplacian(E, convention="diffusion", weight_mode="naive")
+        if E is not None:
+            L = calc_laplacian(E, E=E, convention="diffusion", weight_mode="naive")
+        else:
+            L = calc_laplacian(F, E=E, convention="diffusion", weight_mode="naive")
     else:
-        L = calc_laplacian(W, convention="diffusion", weight_mode=weight_mode)
+        L = calc_laplacian(W, E=E, convention="diffusion", weight_mode=weight_mode)
 
     # return - Mu + D * L
     # TODO: make sure the 0.5 factor here is needed when there's already 0.5 in symmetrize dvf
-    return -0.5 * Mu + D * L
+    return -0.5 * Mu + D * L.T
 
 
 def divergence(E, W=None, method="operator"):
