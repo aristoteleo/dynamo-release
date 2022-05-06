@@ -199,7 +199,9 @@ def calc_laplacian(W, E=None, weight_mode="asymmetric", convention="graph"):
     return L
 
 
-def fp_operator(F, D, E=None, W=None, symmetrize_E=True, drift_weight=False, weight_mode="asymmetric"):
+def fp_operator(
+    F, D, E=None, W=None, symmetrize_E=True, drift_weight=False, weight_mode="asymmetric", renormalize=False
+):
     """
     The output of this function is a transition rate matrix Q, encoding the transition rate
     from node i to j in Q_ji
@@ -228,7 +230,12 @@ def fp_operator(F, D, E=None, W=None, symmetrize_E=True, drift_weight=False, wei
 
     # return - Mu + D * L
     # TODO: make sure the 0.5 factor here is needed when there's already 0.5 in symmetrize dvf
-    return -0.5 * Mu + D * L.T
+    Q = -0.5 * Mu + D * L.T
+    if renormalize:
+        # TODO: automate this and give a warning.
+        col_sum = np.sum(Q, 0)
+        Q -= np.diag(col_sum)
+    return Q
 
 
 def divergence(E, W=None, method="operator"):
