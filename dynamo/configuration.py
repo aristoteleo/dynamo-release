@@ -1,3 +1,5 @@
+import warnings
+
 import colorcet
 import matplotlib
 import matplotlib.pyplot as plt
@@ -293,16 +295,18 @@ glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 )
 
 # register cmap
-plt.register_cmap("zebrafish", zebrafish_cmap)
-plt.register_cmap("fire", fire_cmap)
-plt.register_cmap("darkblue", darkblue_cmap)
-plt.register_cmap("darkgreen", darkgreen_cmap)
-plt.register_cmap("darkred", darkred_cmap)
-plt.register_cmap("darkpurple", darkpurple_cmap)
-plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
-plt.register_cmap("div_blue_red", div_blue_red_cmap)
-plt.register_cmap("glasbey_white", glasbey_white_cmap)
-plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    plt.register_cmap("zebrafish", zebrafish_cmap)
+    plt.register_cmap("fire", fire_cmap)
+    plt.register_cmap("darkblue", darkblue_cmap)
+    plt.register_cmap("darkgreen", darkgreen_cmap)
+    plt.register_cmap("darkred", darkred_cmap)
+    plt.register_cmap("darkpurple", darkpurple_cmap)
+    plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
+    plt.register_cmap("div_blue_red", div_blue_red_cmap)
+    plt.register_cmap("glasbey_white", glasbey_white_cmap)
+    plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
 
 _themes = {
     "fire": {
