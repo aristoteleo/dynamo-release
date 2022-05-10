@@ -320,8 +320,10 @@ def calc_laplacian(W, E=None, weight_mode="asymmetric", convention="graph"):
 
     if E is not None:
         E_ = np.zeros(E.shape)
-        E_[np.where(E > 0)] = 1 / E[np.where(E > 0)] ** 2
-        A *= E_
+        # E_[np.where(E > 0)] = 1 / E[np.where(E > 0)] ** 2
+        E_[E.nonzero()] = 1 / E[E.nonzero()] ** 2
+        # A *= E_
+        A = elem_prod(A, E_)
 
     L = np.diag(np.sum(A, 1)) - A
 
@@ -398,8 +400,8 @@ def gradop(adj):
 
 def gradient(E, p):
     adj = np.abs(np.sign(E))
-    F_pot = np.array(adj, copy=True)
-    F_pot[F_pot.nonzero()] = gradop(adj) * p / E[E.nonzero()]
+    F_pot = np.array(adj, copy=True, dtype=float)
+    F_pot[F_pot.nonzero()] = gradop(adj) * p / E[E.nonzero()] ** 2
     return F_pot
 
 
@@ -476,8 +478,12 @@ class GraphVectorField:
             self._div = divergence(self.asym(), W=self.W, **kwargs)
         return self._div
 
-    def potential(self, **kwargs):
-        return potential(self.asym(), E=self.E, W=self.W, div=self.divergence(), **kwargs)
+    def potential(self, mode="asym", **kwargs):
+        if mode == "raw":
+            F_ = self.F
+        elif mode == "asym":
+            F_ = self.asym()
+        return potential(F_, E=self.E, W=self.W, div=self.divergence(), **kwargs)
 
     def fp_operator(self, D, **kwargs):
         return fp_operator(self.asym(), D, E=self.E, W=self.W, symmetrize_E=False, **kwargs)
