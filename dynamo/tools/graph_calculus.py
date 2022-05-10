@@ -3,7 +3,7 @@ from typing import Callable, Union
 import numpy as np
 import scipy.sparse as sp
 from scipy.linalg import qr
-from scipy.optimize import lsq_linear
+from scipy.optimize import lsq_linear, minimize
 
 from ..dynamo_logger import main_info, main_warning
 from .utils import (
@@ -124,13 +124,144 @@ def graphize_velocity(
     return E, nbrs_idx, dists
 
 
-def symmetrize_discrete_vector_field(F):
+def graphize_velocity_coopt(
+    X: np.ndarray,
+    V: np.ndarray,
+    U: np.ndarray,
+    nbrs: list,
+    b: float = 1.0,
+    r: float = 1.0,
+    nonneg: bool = False,
+    norm_dist: bool = False,
+):
+    # TODO: merge with graphize_velocity
+    """
+    The function generates a graph based on the velocity data by minimizing the loss function:
+                    L(w_i) = |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
+    where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
+
+    Arguments
+    ---------
+        X: :class:`~numpy.ndarray`
+            The coordinates of cells in the expression space.
+        V: :class:`~numpy.ndarray`
+            The velocity vectors in the expression space.
+        U: :class:`~numpy.ndarray`
+            The correlation kernel-projected velocity vectors.
+        nbrs: list
+            List of neighbor indices for each cell.
+        b: float (default 1.0)
+            Weight for
+
+    Returns
+    -------
+        E: :class:`~numpy.ndarray`
+            The edge matrix.
+    """
+    E = np.zeros((X.shape[0], X.shape[0]))
+
+    for i, x in enumerate(X):
+        v, u, idx = V[i], U[i], nbrs[i]
+
+        # normalized differences
+        D = X[idx] - x
+        if norm_dist:
+            dist = np.linalg.norm(D, axis=1)
+            dist[dist == 0] = 1
+            D /= dist[:, None]
+
+        # co-optimization
+        u_norm = np.linalg.norm(u)
+
+        def func(w):
+            v_ = w @ D
+
+            # cosine similarity between v_ and u
+            if b == 0:
+                sim = 0
+            else:
+                uv = u_norm * np.linalg.norm(v_)
+                if uv > 0:
+                    sim = u.dot(v_) / uv
+                else:
+                    sim = 0
+
+            # reconstruction error between v_ and v
+            rec = v_ - v
+            rec = rec.dot(rec)
+
+            # regularization
+            reg = 0 if r == 0 else w.dot(w)
+
+            return rec - b * sim + r * reg
+
+        def fjac(w):
+            v_ = w @ D
+            v_norm = np.linalg.norm(v_)
+            u_ = u / u_norm
+
+            # reconstruction error
+            jac_con = 2 * D @ (v_ - v)
+
+            # cosine similarity
+            if v_norm == 0 or b == 0:
+                jac_sim = 0
+            else:
+                jac_sim = b / v_norm ** 2 * (v_norm * D @ u_ - v_.dot(u_) * v_ @ D.T / v_norm)
+
+            # regularization
+            if r == 0:
+                jac_reg = 0
+            else:
+                jac_reg = 2 * r * w
+
+            return jac_con - jac_sim + jac_reg
+
+        if nonneg:
+            bounds = [(0, np.inf)] * D.shape[0]
+        else:
+            bounds = None
+
+        res = minimize(func, x0=D @ v, jac=fjac, bounds=bounds)
+        E[i][idx] = res["x"]
+    return E
+
+
+def symmetrize_discrete_vector_field(F, mode="asym"):
     E_ = F.copy()
     for i in range(F.shape[0]):
         for j in range(i + 1, F.shape[1]):
-            flux = 0.5 * (F[i, j] - F[j, i])
-            E_[i, j], E_[j, i] = flux, -flux
+            if mode == "asym":
+                flux = 0.5 * (F[i, j] - F[j, i])
+                E_[i, j], E_[j, i] = flux, -flux
+            elif mode == "sym":
+                flux = 0.5 * (F[i, j] + F[j, i])
+                E_[i, j], E_[j, i] = flux, flux
     return E_
+
+
+def projection_with_transition_matrix(T, X_emb, correct_density=True, norm_dist=False):
+    # TODO: merge with the same function in cell_velocities after testing.
+    # Note that this function does not normalize distance vectors by default (bc it's desirble by coopt).
+    n = T.shape[0]
+    V = np.zeros((n, X_emb.shape[1]))
+
+    if not sp.issparse(T):
+        T = sp.csr_matrix(T)
+
+    for i in range(n):
+        idx = T[i].indices
+        diff_emb = X_emb[idx] - X_emb[i, None]
+        if norm_dist:
+            diff_emb /= np.linalg.norm(diff_emb, axis=1)[:, None]
+        if np.isnan(diff_emb).sum() != 0:
+            diff_emb[np.isnan(diff_emb)] = 0
+        T_i = T[i].data
+        V[i] = T_i.dot(diff_emb)
+        if correct_density:
+            V[i] -= T_i.mean() * diff_emb.sum(0)
+
+    return V
 
 
 def dist_mat_to_gaussian_weight(dist, sigma):
@@ -142,6 +273,7 @@ def dist_mat_to_gaussian_weight(dist, sigma):
 
 
 def calc_gaussian_weight(nbrs_idx, dists, sig=None, auto_sig_func=None, auto_sig_multiplier=2, format="squareform"):
+    # TODO: deprecate this function
     n = len(nbrs_idx)
     if format == "sparse":
         W = sp.lil_matrix((n, n))
@@ -188,7 +320,7 @@ def calc_laplacian(W, E=None, weight_mode="asymmetric", convention="graph"):
 
     if E is not None:
         E_ = np.zeros(E.shape)
-        E_[np.where(E > 0)] = 1 / E[np.where(E > 0)]
+        E_[np.where(E > 0)] = 1 / E[np.where(E > 0)] ** 2
         A *= E_
 
     L = np.diag(np.sum(A, 1)) - A
@@ -212,7 +344,7 @@ def fp_operator(
     """
     # drift
     if symmetrize_E:
-        F = symmetrize_discrete_vector_field(F)
+        F = symmetrize_discrete_vector_field(F, mode="asym")
 
     Mu = F.T.copy()
     Mu[Mu < 0] = 0
@@ -239,7 +371,7 @@ def fp_operator(
 
 
 def divergence(E, W=None, method="operator"):
-    # support weight in the future
+    # TODO: support weight in the future
     if method == "direct":
         n = E.shape[0]
         div = np.zeros(n)
@@ -255,13 +387,19 @@ def divergence(E, W=None, method="operator"):
     return div
 
 
-def gradop(W):
-    e = np.array(W.nonzero())
+def gradop(adj):
+    e = np.array(adj.nonzero())
     ne = e.shape[1]
-    nv = W.shape[0]
+    nv = adj.shape[0]
     i, j, x = np.tile(range(ne), 2), e.flatten(), np.repeat([-1, 1], ne)
 
     return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
+
+
+def gradient(adj, p):
+    F_pot = np.array(adj, copy=True)
+    F_pot[F_pot.nonzero()] = gradop(adj) * p
+    return F_pot
 
 
 def divop(W):
@@ -290,3 +428,65 @@ def potential(E, W=None, div=None, method="lsq"):
 
     p -= p.min()
     return p
+
+
+class GraphVectorField:
+    def __init__(self, F, W=None, E=None) -> None:
+        self.F = F
+        self._sym = None
+        self._asym = None
+        self._div = None
+
+        if W is None and E is None:
+            main_info("Neither edge weight nor length matrix is provided. Inferring adjacency matrix from `F`.")
+            self.adj = np.abs(np.sign(self.F))
+            self.adj = symmetrize_symmetric_matrix(self.adj).A
+            self.W = self.adj
+            self.E = self.adj
+        else:
+            if E is not None and E.shape != F.shape:
+                raise Exception("Edge length and graph vector field dimensions do not match.")
+            if W is not None and W.shape != F.shape:
+                raise Exception("Edge weight and graph vector field dimensions do not match.")
+
+            self.adj = np.abs(np.sign(E)) if E is not None else np.abs(np.sign(W))
+            self.adj = symmetrize_symmetric_matrix(self.adj).A
+            self.W = W if W is not None else self.adj
+            self.E = symmetrize_symmetric_matrix(E).A if E is not None else self.adj
+
+    def sym(self):
+        """
+        Return the symmetric components of the graph vector field.
+        """
+        if self._sym is None:
+            self._sym = symmetrize_discrete_vector_field(self.F, mode="sym")
+        return self._sym
+
+    def asym(self):
+        """
+        Return the asymmetric components of the graph vector field.
+        """
+        if self._asym is None:
+            self._asym = symmetrize_discrete_vector_field(self.F, mode="asym")
+        return self._asym
+
+    def divergence(self, **kwargs):
+        if self._div is None:
+            self._div = divergence(self.asym(), W=self.W, **kwargs)
+        return self._div
+
+    def potential(self, **kwargs):
+        return potential(self.asym(), W=self.W, div=self.divergence(), **kwargs)
+
+    def fp_operator(self, D, **kwargs):
+        return fp_operator(self.asym(), D, E=self.E, W=self.W, symmetrize_E=False, **kwargs)
+
+    def project_velocity(self, X_emb, mode="raw", correct_density=False, norm_dist=False, **kwargs):
+        if mode == "raw":
+            F_ = self.F
+        elif mode == "asym":
+            F_ = self.asym()
+
+        return projection_with_transition_matrix(
+            F_, X_emb, correct_density=correct_density, norm_dist=norm_dist, **kwargs
+        )
