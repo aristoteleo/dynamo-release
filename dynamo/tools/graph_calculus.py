@@ -396,9 +396,10 @@ def gradop(adj):
     return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
 
 
-def gradient(adj, p):
+def gradient(E, p):
+    adj = np.abs(np.sign(E))
     F_pot = np.array(adj, copy=True)
-    F_pot[F_pot.nonzero()] = gradop(adj) * p
+    F_pot[F_pot.nonzero()] = gradop(adj) * p / E[E.nonzero()]
     return F_pot
 
 
@@ -406,13 +407,13 @@ def divop(W):
     return -0.5 * gradop(W).T
 
 
-def potential(E, W=None, div=None, method="lsq"):
+def potential(F, E=None, W=None, div=None, method="lsq"):
     """potential is related to the intrinsic time. Note that the returned value from this function is the negative of
     potential. Thus small potential is related to smaller intrinsic time and vice versa."""
 
-    W = np.abs(np.sign(E)) if W is None else W
-    div_neg = -divergence(E, W=W) if div is None else -div
-    L = calc_laplacian(W, weight_mode="naive")
+    W = np.abs(np.sign(F)) if W is None else W
+    div_neg = -divergence(F, W=W) if div is None else -div
+    L = calc_laplacian(W, E=E, weight_mode="naive")
 
     if method == "inv":
         p = np.linalg.inv(L).dot(div_neg)
@@ -476,7 +477,7 @@ class GraphVectorField:
         return self._div
 
     def potential(self, **kwargs):
-        return potential(self.asym(), W=self.W, div=self.divergence(), **kwargs)
+        return potential(self.asym(), E=self.E, W=self.W, div=self.divergence(), **kwargs)
 
     def fp_operator(self, D, **kwargs):
         return fp_operator(self.asym(), D, E=self.E, W=self.W, symmetrize_E=False, **kwargs)
