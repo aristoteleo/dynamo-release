@@ -42,6 +42,9 @@ from .DDRTree_py import DDRTree, cal_ncenter
 from .dimension_reduction import reduceDimension  # , run_umap
 from .dynamics import dynamics
 
+# state graph related
+from .graph_calculus import GraphVectorField
+
 # cell proliferation and death:
 from .growth import cell_growth_rate, growth_rate, n_descentants, score_cells
 
@@ -105,5 +108,3 @@ from .velocyto_scvelo import (
     run_velocyto,
     vlm_to_adata,
 )
-
-# state graph related
