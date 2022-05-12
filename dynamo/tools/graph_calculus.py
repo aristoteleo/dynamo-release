@@ -434,7 +434,8 @@ def potential(F, E=None, W=None, div=None, method="lsq"):
 
 
 class GraphVectorField:
-    def __init__(self, F, W=None, E=None) -> None:
+    def __init__(self, F, E=None, W=None, E_tol=1e-5) -> None:
+        # TODO: sparse matrix support
         self.F = F
         self._sym = None
         self._asym = None
@@ -455,7 +456,14 @@ class GraphVectorField:
             self.adj = np.abs(np.sign(E)) if E is not None else np.abs(np.sign(W))
             self.adj = symmetrize_symmetric_matrix(self.adj).A
             self.W = W if W is not None else self.adj
-            self.E = symmetrize_symmetric_matrix(E).A if E is not None else self.adj
+
+            if E is not None:
+                E_ = symmetrize_symmetric_matrix(E)
+                if E_tol is not None:  # prevent numerical instability due to extremely small e_ij
+                    E_[E_.nonzero()] = np.clip(E_[E_.nonzero()], 1e-5, None)
+                self.E = E_.A
+            else:
+                self.E = self.adj
 
     def sym(self):
         """
