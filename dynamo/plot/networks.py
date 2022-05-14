@@ -1,8 +1,13 @@
 from matplotlib.axes import Axes
 import numpy as np
 import networkx as nx
+
+# nxviz prints long warning messages regarding nxviz's own version update information
+import warnings
+
+warnings.filterwarnings("ignore", module="nxviz")
+
 import nxviz as nv
-import nxviz.annotate
 import pandas as pd
 from ..tools.utils import (
     update_dict,
