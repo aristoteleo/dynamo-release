@@ -201,6 +201,10 @@ def neurogenesis(
     return dx
 
 
+def hsc():
+    pass
+
+
 def state_space_sampler(ode, dim, seed_num=19491001, clip=True, min_val=0, max_val=4, N=10000):
     """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val and max_val. Velocity vector at the sampled points will be calculated according to ode function."""
 

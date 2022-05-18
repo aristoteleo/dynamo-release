@@ -291,18 +291,8 @@ def scEU_seq_organoid(
 
 
 def hematopoiesis(
-    url: str = "https://pitt.box.com/shared/static/kyh3s4wrxdywupn9wk9r2j27vzlvk8vf.h5ad",
-    # url: str = "https://pitt.box.com/shared/static/efqa8icu1m6d1ghfcc3s9tj0j91pky1h.h5ad", # v0: umap_ori version
-    filename: str = "hematopoiesis.h5ad",
-):
-    """https://pitt.box.com/v/hematopoiesis-processed"""
-    main_info("Downloading processed hematopoiesis adata")
-    adata = get_adata(url, filename)
-    return adata
-
-
-def hematopoiesis(
-    url: str = "https://pitt.box.com/shared/static/kyh3s4wrxdywupn9wk9r2j27vzlvk8vf.h5ad",
+    url: str = "https://www.dropbox.com/s/n9mx9trv1h78q0r/hematopoiesis_v1.h5ad?dl=1",
+    # url: str = "https://pitt.box.com/shared/static/kyh3s4wrxdywupn9wk9r2j27vzlvk8vf.h5ad", # with box
     # url: str = "https://pitt.box.com/shared/static/efqa8icu1m6d1ghfcc3s9tj0j91pky1h.h5ad", # v0: umap_ori version
     filename: str = "hematopoiesis.h5ad",
 ):
@@ -313,7 +303,8 @@ def hematopoiesis(
 
 
 def hematopoiesis_raw(
-    url: str = "https://pitt.box.com/shared/static/bv7q0kgxjncc5uoget5wvmi700xwntje.h5ad",
+    url: str = "https://www.dropbox.com/s/rvkxvq8694xnxz3/hsc_raw_with_metadata.h5ad?dl=1",
+    # url: str = "https://pitt.box.com/shared/static/bv7q0kgxjncc5uoget5wvmi700xwntje.h5ad", # with box
     filename: str = "hematopoiesis_raw.h5ad",
 ):
     """https://pitt.box.com/v/hematopoiesis-processed"""
