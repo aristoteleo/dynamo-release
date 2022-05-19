@@ -24,6 +24,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install git+https://github.com/pypa/pip.git@611e9253ff74ca5b8ce438c2423373ab0d44c961
         pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install package
