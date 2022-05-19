@@ -72,7 +72,13 @@ docs = [
 network = ["networkx", "nxviz", "hiveplotlib", "python-igraph", "leidenalg", "wurlitzer"]
 spatial = ['pysal>2.0.0']
 test = ['pytest', 'sympy>=1.4']
-extra = []
+
+
+[project.optional-dependencies]
+# experimental feature
+# https://setuptools.pypa.io/en/latest/userguide/dependency_management.html#optional-dependencies
+
+
 
 [tool.flit.sdist]
 exclude = [
