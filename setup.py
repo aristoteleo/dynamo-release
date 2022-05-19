@@ -31,7 +31,7 @@ if __name__ == "__main__":
         #         "holoviews>=1.9.2",
         #     ],
         # },
-        packages=find_packages(),
+        packages=find_packages(exclude=("tests", "docs")),
         classifiers=[
             "Programming Language :: Python :: 3",
             "License :: OSI Approved :: BSD License",
