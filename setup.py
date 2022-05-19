@@ -14,19 +14,20 @@ if __name__ == "__main__":
         name="dynamo-release",
         version="v1.1.0",
         python_requires=">=3.7",
-        install_requires=[l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines()],  # 'yt>=3.5.1',
-        extras_require={
-            "spatial": ["pysal>2.0.0"],
-            "interactive_plots": ["plotly"],
-            "network": ["networkx", "nxviz", "hiveplotlib"],
-            "dimension_reduction": ["fitsne>=1.0.1", "dbmap>=1.1.2"],
-            "test": ["sympy>=1.4", "networkx"],
-            "bigdata_visualization": [
-                "datashader>=0.9.0",
-                "bokeh>=1.4.0",
-                "holoviews>=1.9.2",
-            ],
-        },
+        install_requires=[l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines()],
+        # 'yt>=3.5.1',
+        # extras_require={
+        #     "spatial": ["pysal>2.0.0"],
+        #     "interactive_plots": ["plotly"],
+        #     "network": ["networkx", "nxviz", "hiveplotlib"],
+        #     "dimension_reduction": ["fitsne>=1.0.1", "dbmap>=1.1.2"],
+        #     "test": ["sympy>=1.4", "networkx"],
+        #     "bigdata_visualization": [
+        #         "datashader>=0.9.0",
+        #         "bokeh>=1.4.0",
+        #         "holoviews>=1.9.2",
+        #     ],
+        # },
         packages=find_packages(),
         classifiers=[
             "Programming Language :: Python :: 3",
