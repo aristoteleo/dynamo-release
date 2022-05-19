@@ -5,6 +5,9 @@ from setuptools import find_packages, setup
 # import numpy as np
 # from version import __version__
 
+def read_requirements(path):
+    with open(path, "r") as f:
+        return [line.strip() for line in f if not line.isspace()]
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
