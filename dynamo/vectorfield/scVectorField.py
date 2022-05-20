@@ -370,7 +370,7 @@ def SparseVFC(
             The minimum limitation of energy change rate in the iteration process.
         gamma: 'float' (default: 0.9)
             Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
-        lambda_: 'float' (default: 0.3)
+        lambda_: 'float' (default: 3)
             Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more
             weights on regularization.
         minP: 'float' (default: 1e-5)
