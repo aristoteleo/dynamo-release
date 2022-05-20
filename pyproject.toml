@@ -73,7 +73,6 @@ network = ["networkx", "nxviz", "hiveplotlib", "python-igraph", "leidenalg", "wu
 spatial = ['pysal>2.0.0']
 test = ['pytest', 'sympy>=1.4']
 
-
 [tool.flit.sdist]
 exclude = [
   'dynamo/tests',
