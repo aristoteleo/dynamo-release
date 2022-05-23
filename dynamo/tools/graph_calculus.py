@@ -129,6 +129,7 @@ def graphize_velocity_coopt(
     V: np.ndarray,
     U: np.ndarray,
     nbrs: list,
+    a: float = 1.0,
     b: float = 1.0,
     r: float = 1.0,
     nonneg: bool = False,
@@ -193,7 +194,7 @@ def graphize_velocity_coopt(
             # regularization
             reg = 0 if r == 0 else w.dot(w)
 
-            return rec - b * sim + r * reg
+            return a * rec - b * sim + r * reg
 
         def fjac(w):
             v_ = w @ D
@@ -201,7 +202,7 @@ def graphize_velocity_coopt(
             u_ = u / u_norm
 
             # reconstruction error
-            jac_con = 2 * D @ (v_ - v)
+            jac_con = 2 * a * D @ (v_ - v)
 
             # cosine similarity
             if v_norm == 0 or b == 0:
