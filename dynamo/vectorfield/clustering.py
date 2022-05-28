@@ -30,6 +30,7 @@ def cluster_field(
     method="leiden",
     cores=1,
     copy=False,
+    resolution=1.0,
     **kwargs,
 ):
     """Cluster cells based on vector field features.
@@ -71,6 +72,8 @@ def cluster_field(
         ``-1`` means using all processors.
     copy:
         Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
+    resolution:
+        Clustering resolution, higher values yield more fine-grained clusters.
     kwargs:
         Any additional arguments that will be passed to either kmeans, hdbscan, louvain or leiden clustering algorithms.
 
@@ -152,6 +155,13 @@ def cluster_field(
         # X = (X - X.min(0)) / X.ptp(0)
         X = (X - X.mean(0)) / X.std(0)
 
+    # add the resolution parameter to the kwargs so that it could be passed to downstream clustering function calls()
+    kwargs.update(
+        {
+            "resolution": resolution,
+        }
+    )
+
     if method in ["hdbscan", "kmeans"]:
         if method == "hdbscan":
             key = "field_hdbscan"
@@ -196,18 +206,21 @@ def cluster_field(
                 adata,
                 adj_matrix_key="vf_feature_knn",
                 result_key="field_leiden",
+                **kwargs
             )
         elif method == "louvain":
             louvain(
                 adata,
                 adj_matrix_key="vf_feature_knn",
                 result_key="field_louvain",
+                **kwargs
             )
         elif method == "infomap":
             infomap(
                 adata,
                 adj_matrix_key="vf_feature_knn",
                 result_key="field_infomap",
+                **kwargs
             )
 
     logger.finish_progress(progress_name="clustering_field")
