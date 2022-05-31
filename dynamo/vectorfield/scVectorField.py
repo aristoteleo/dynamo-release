@@ -1093,44 +1093,53 @@ if use_dynode:
 
             self.norm_dict = {}
 
+            assert dynode_object is not None, "dynode_object argument is required."
+
             if X is not None and V is not None:
+               pass
+            elif dynode_object.Velocity["sampler"] is not None:
+                X = dynode_object.Velocity["sampler"].data["X"]
+                V = dynode_object.Velocity["sampler"].data["V"]
+                Grid = dynode_object.Velocity["sampler"].data["Grid"]
+            else:
+                raise
 
-                self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
+            self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
 
-                self.valid_ind = np.where(~np.isnan(V.sum(1)))[0]
+            self.valid_ind = np.where(~np.isnan(V.sum(1)))[0]
 
-                vf_kwargs = {
-                    "X": X,
-                    "V": V,
-                    "Grid": Grid,
-                    "NNmodel": dynode_object.NNmodel,
-                    "Velocity_sampler": dynode_object.Velocity["sampler"],
-                    "TimeCourse_sampler": dynode_object.TimeCourse["sampler"],
-                    "Velocity_ChannelModel": dynode_object.Velocity["channel_model"],
-                    "TimeCourse_ChannelModel": dynode_object.TimeCourse["channel_model"],
-                    "Velocity_x_initialize": dynode_object.Velocity["x_variable"],
-                    "TimeCourse_x0_initialize": dynode_object.TimeCourse["x0_variable"],
-                    "NNmodel_save_path": dynode_object.NNmodel_save_path,
-                    "device": dynode_object.device}
+            vf_kwargs = {
+                "X": X,
+                "V": V,
+                "Grid": Grid,
+                "NNmodel": dynode_object.NNmodel,
+                "Velocity_sampler": dynode_object.Velocity["sampler"],
+                "TimeCourse_sampler": dynode_object.TimeCourse["sampler"],
+                "Velocity_ChannelModel": dynode_object.Velocity["channel_model"],
+                "TimeCourse_ChannelModel": dynode_object.TimeCourse["channel_model"],
+                "Velocity_x_initialize": dynode_object.Velocity["x_variable"],
+                "TimeCourse_x0_initialize": dynode_object.TimeCourse["x0_variable"],
+                "NNmodel_save_path": dynode_object.NNmodel_save_path,
+                "device": dynode_object.device}
 
-                vf_kwargs = update_dict(vf_kwargs, self.parameters)
-                super().__init__(**vf_kwargs)
+            vf_kwargs = update_dict(vf_kwargs, self.parameters)
+            super().__init__(**vf_kwargs)
 
-                self.func = self.predict_velocity
+            self.func = self.predict_velocity
 
-                self.vf_dict = {
-                    "X": self.data["X"],
-                    "valid_ind": self.valid_ind,
-                    "Y": self.data["V"],
-                    "V": self.func(self.data["X"]),
-                    "grid": self.data["Grid"],
-                    "grid_V": self.func(self.data["Grid"]),
-                    "iteration": int(dynode_object.max_iter),
-                    "velocity_loss_traj": dynode_object.Velocity["loss_trajectory"],
-                    "time_course_loss_traj": dynode_object.TimeCourse["loss_trajectory"],
-                    "autoencoder_loss_traj": dynode_object.AutoEncoder["loss_trajectory"],
-                    "parameters": self.parameters,
-                }
+            self.vf_dict = {
+                "X": self.data["X"],
+                "valid_ind": self.valid_ind,
+                "Y": self.data["V"],
+                "V": self.func(self.data["X"]),
+                "grid": self.data["Grid"],
+                "grid_V": self.func(self.data["Grid"]),
+                "iteration": int(dynode_object.max_iter),
+                "velocity_loss_traj": dynode_object.Velocity["loss_trajectory"],
+                "time_course_loss_traj": dynode_object.TimeCourse["loss_trajectory"],
+                "autoencoder_loss_traj": dynode_object.AutoEncoder["loss_trajectory"],
+                "parameters": self.parameters,
+            }
 
 
 def vector_field_function_knockout(
