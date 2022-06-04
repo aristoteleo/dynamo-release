@@ -1096,7 +1096,7 @@ if use_dynode:
             assert dynode_object is not None, "dynode_object argument is required."
 
             if X is not None and V is not None:
-               pass
+                pass
             elif dynode_object.Velocity["sampler"] is not None:
                 X = dynode_object.Velocity["sampler"].data["X"]
                 V = dynode_object.Velocity["sampler"].data["V"]
@@ -1120,7 +1120,8 @@ if use_dynode:
                 "Velocity_x_initialize": dynode_object.Velocity["x_variable"],
                 "TimeCourse_x0_initialize": dynode_object.TimeCourse["x0_variable"],
                 "NNmodel_save_path": dynode_object.NNmodel_save_path,
-                "device": dynode_object.device}
+                "device": dynode_object.device,
+            }
 
             vf_kwargs = update_dict(vf_kwargs, self.parameters)
             super().__init__(**vf_kwargs)
@@ -1140,6 +1141,10 @@ if use_dynode:
                 "autoencoder_loss_traj": dynode_object.AutoEncoder["loss_trajectory"],
                 "parameters": self.parameters,
             }
+
+        @classmethod
+        def fromDynode(cls, dynode_object: Dynode) -> "dynode_vectorfield":
+            return cls(X=None, V=None, Grid=None, dynode_object=dynode_object)
 
 
 def vector_field_function_knockout(
