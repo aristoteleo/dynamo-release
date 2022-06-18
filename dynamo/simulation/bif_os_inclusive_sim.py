@@ -1,5 +1,6 @@
 import numpy as np
-from .gillespie_utils import directMethod, temporal_interp
+
+from .utils import directMethod, temporal_interp
 
 
 # Differentiation model

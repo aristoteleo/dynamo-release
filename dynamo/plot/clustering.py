@@ -1,8 +1,7 @@
 import numpy as np
 from anndata import AnnData
 
-from .scatters import scatters
-from .scatters import docstrings
+from .scatters import docstrings, scatters
 from .utils import _to_hex
 
 docstrings.delete_params("scatters.parameters", "adata", "basis")
@@ -89,7 +88,7 @@ def streamline_clusters(
     adata: AnnData, basis: str = "umap", clusters="clusters", color_key_cmap: str = "Spectral", *args, **kwargs
 ):
     """\
-    Scatter plot for infomap community detection in selected basis.
+    Scatter plot for visualizing streamline clusters in selected basis.
 
     Parameters
     ----------

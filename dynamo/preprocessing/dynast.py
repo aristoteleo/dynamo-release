@@ -1,8 +1,10 @@
+from typing import Union
+
+import anndata
 import numpy as np
 from scipy.sparse import issparse
 from sklearn.utils import sparsefuncs
-import anndata
-from typing import Union
+
 from ..dynamo_logger import LoggerManager, main_tqdm
 from ..utils import copy_adata
 

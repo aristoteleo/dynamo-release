@@ -1,10 +1,12 @@
-from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
-from .connectivity import _gen_neighbor_keys, neighbors
-import numpy as np
-import anndata
 from typing import Union
+
+import anndata
+import numpy as np
+
 from ..dynamo_logger import LoggerManager
 from ..utils import copy_adata
+from .connectivity import _gen_neighbor_keys, neighbors
+from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
 
 def reduceDimension(
@@ -45,7 +47,7 @@ def reduceDimension(
         dims:
             The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
         n_pca_components:
-            Number of PCA components.
+            Number of input PCs (principle components) that will be used for further non-linear dimension reduction.. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested.
         n_components:
             The dimension of the space to embed into.
         n_neighbors:

@@ -1,46 +1,51 @@
 """Mapping Vector Field of Single Cells
 """
 
+from .cell_cycle import cell_cycle_scores
 from .dynast import lambda_correction
-
 from .preprocess import (
+    Gini,
+    SVRs,
     calc_sz_factor_legacy,
+    filter_cells_by_outliers,
+    filter_cells_legacy,
+    filter_genes_by_clusters_,
+    filter_genes_by_outliers,
+    get_svr_filter,
+    highest_frac_genes,
     normalize_cell_expr_by_size_factors_legacy,
     recipe_monocle,
     recipe_velocyto,
-    Gini,
-    filter_cells_legacy,
     select_genes_monocle,
-    filter_cells_by_outliers,
-    filter_genes_by_outliers,
-    filter_genes_by_clusters_,
-    SVRs,
-    get_svr_filter,
-    highest_frac_genes,
-)
-from .preprocess import filter_genes_by_outliers as filter_genes
-
-from .cell_cycle import cell_cycle_scores
-from .utils import (
-    basic_stats,
-    cook_dist,
-    pca_monocle,
-    top_pca_genes,
-    relative2abs,
-    scale,
-    convert2symbol,
-    filter_genes_by_pattern,
-    decode,
-    compute_gene_exp_fraction,
 )
 from .preprocessor_utils import *
+from .utils import (
+    basic_stats,
+    compute_gene_exp_fraction,
+    convert2symbol,
+    cook_dist,
+    decode,
+    filter_genes_by_pattern,
+    pca_monocle,
+    relative2abs,
+    scale,
+    top_pca_genes,
+)
 
+filter_cells = filter_cells_by_outliers
+filter_genes = filter_genes_by_outliers
 log1p = log1p_adata
+normalize_cells = normalize_cell_expr_by_size_factors
 
-from .preprocess_monocle_utils import top_table, estimate_dispersion
+from .CnmfPreprocessor import CnmfPreprocessor
+from .preprocess_monocle_utils import estimate_dispersion, top_table
 from .Preprocessor import Preprocessor
 
 __all__ = [
+    "filter_cells",
+    "filter_genes",
+    "log1p",
+    "normalize_cells",
     "lambda_correction",
     "calc_sz_factor_legacy",
     "normalize_cell_expr_by_size_factors",
@@ -68,6 +73,7 @@ __all__ = [
     "filter_genes_by_pattern",
     "decode",
     "Preprocessor",
+    "CnmfPreprocessor",
     "log1p",
     "log1p_adata",
     "log1p_adata_layer",

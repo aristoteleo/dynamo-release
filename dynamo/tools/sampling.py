@@ -1,9 +1,11 @@
+from typing import Callable, Union
+
 import numpy as np
-from tqdm import tqdm
-from sklearn.neighbors import NearestNeighbors
 from scipy.cluster.vq import kmeans2
-from .utils import timeit, nearest_neighbors
+from sklearn.neighbors import NearestNeighbors
+
 from ..dynamo_logger import LoggerManager
+from .utils import nearest_neighbors, timeit
 
 
 class TRNET:
@@ -114,8 +116,28 @@ def sample_by_kmeans(X, n, return_index=False):
         X[nbrs]
 
 
-def lhsclassic(n_samples, n_dim, seed=19491001):
-    # From PyDOE
+def lhsclassic(n_samples: int, n_dim: int, bounds=None, seed=19491001):
+    """
+    Latin Hypercube Sampling method implemented from PyDOE.
+
+    Parameters
+    ----------
+        n_samples: int
+            Number of samples to be generated.
+        n_dim: int
+            Number of data dimensions.
+        bounds: None, list, or :class:`~numpy.ndarray`
+            n_dim-by-2 matrix where each row specifies the lower and upper bound for the corresponding dimension.
+            If None, it is assumed to be (0, 1) for every dimension.
+        seed: int
+            Randomization seed.
+
+    Returns
+    -------
+        H: :class:`~numpy.ndarray`
+            The sampled data array (n_samples-by-n_dim).
+    """
+
     # Generate the intervals
     np.random.seed(seed)
     cut = np.linspace(0, 1, n_samples + 1)
@@ -134,19 +156,59 @@ def lhsclassic(n_samples, n_dim, seed=19491001):
         order = np.random.permutation(range(n_samples))
         H[:, j] = rdpoints[order, j]
 
+    # Scale according to bounds
+    if bounds is not None:
+        for i in range(n_dim):
+            H[:, i] = H[:, i] * (bounds[i][1] - bounds[i][0]) + bounds[i][0]
+
     return H
 
 
-def sample(arr, n, method="random", X=None, V=None, seed=19491001, **kwargs):
+def sample(
+    arr: Union[list, np.ndarray],
+    n: int,
+    method: str = "random",
+    X: Union[np.ndarray, None] = None,
+    V: Union[np.ndarray, None] = None,
+    seed: int = 19491001,
+    **kwargs,
+):
+    """
+    A collection of various sampling methods.
+
+    Parameters
+    ----------
+        arr: list or :class:`~numpy.ndarray`
+            The array to be subsampled.
+        n: int
+            The number of samples.
+        method: str
+            Sampling method:
+            "random": randomly choosing `n` elements from `arr`;
+            "velocity": Higher the velocity, higher the chance to be sampled;
+            "trn": Topology Representing Network based sampling;
+            "kmeans": `n` points that are closest to the kmeans centroids on `X` are chosen.
+        X: None or :class:`~numpy.ndarray`
+            Coordinates associated to each element in `arr`
+        V: None or :class:`~numpy.ndarray`
+            Velocity associated to each element in `arr`
+        seed: int
+            randomization seed
+
+    Returns
+    -------
+        sub_arr: :class:`~numpy.ndarray`
+            The sampled data array.
+    """
     if method == "random":
         np.random.seed(seed)
-        cell_idx = np.random.choice(arr, size=n, replace=False)
+        sub_arr = np.random.choice(arr, size=n, replace=False)
     elif method == "velocity" and V is not None:
-        cell_idx = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
+        sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
     elif method == "trn" and X is not None:
-        cell_idx = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
+        sub_arr = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
     elif method == "kmeans":
-        cell_idx = arr[sample_by_kmeans(X, n, return_index=True)]
+        sub_arr = arr[sample_by_kmeans(X, n, return_index=True)]
     else:
         raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
-    return cell_idx
+    return sub_arr

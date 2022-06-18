@@ -1,11 +1,12 @@
+from typing import Optional, Union
+
 import numpy as np
 import pandas as pd
 from anndata import AnnData
-from typing import Optional, Union
 from matplotlib.axes import Axes
 
 from ..tools.utils import update_dict
-from .scatters import scatters, docstrings
+from .scatters import docstrings, scatters
 from .utils import save_fig
 
 docstrings.delete_params("scatters.parameters", "aggregate", "kwargs", "save_kwargs")

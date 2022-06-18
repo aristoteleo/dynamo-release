@@ -1,14 +1,13 @@
 # functions to run velocyto and scvelo
+# from .moments import *
+import anndata
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 # import velocyto as vcy
 # import scvelo as scv
 from scipy.sparse import csr_matrix
-import matplotlib.pyplot as plt
-
-# from .moments import *
-import anndata
 
 
 def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None):

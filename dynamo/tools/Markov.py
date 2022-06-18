@@ -1,15 +1,16 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
-from tqdm import tqdm
 import numpy as np
 import scipy.sparse as sp
-from sklearn.neighbors import NearestNeighbors
-from sklearn.decomposition import PCA
-from scipy.stats import norm
-from scipy.linalg import eig, null_space
 from numba import jit
-from .utils import append_iterative_neighbor_indices, flatten
-from ..simulation.gillespie_utils import directMethod
+from scipy.linalg import eig, null_space
+from scipy.stats import norm
+from sklearn.decomposition import PCA
+from sklearn.neighbors import NearestNeighbors
+from tqdm import tqdm
+
 from ..dynamo_logger import LoggerManager
+from ..simulation.utils import directMethod
+from .utils import append_iterative_neighbor_indices, flatten
 
 
 def markov_combination(x, v, X):
@@ -484,6 +485,11 @@ def divergence(E, tol=1e-5):
 
 class MarkovChain:
     def __init__(self, P=None, eignum=None, check_norm=True, sumto=1, tol=1e-3):
+        """
+        The elements in the transition matrix P_ij encodes transition probability from j to i, i.e.:
+                P_ij = P(j -> i)
+        Consequently, each column of P should sum to `sumto`.
+        """
         if check_norm and not self.is_normalized(P, axis=0, sumto=sumto, tol=tol):
             if self.is_normalized(P, axis=1, sumto=sumto, tol=tol):
                 LoggerManager.main_logger.info(
@@ -526,6 +532,12 @@ class MarkovChain:
 
     def get_num_states(self):
         return self.P.shape[0]
+
+    def make_p0(self, init_states):
+        p0 = np.zeros(self.get_num_states())
+        p0[init_states] = 1
+        p0 /= np.sum(p0)
+        return p0
 
     def is_normalized(self, P=None, tol=1e-3, sumto=1, axis=0, ignore_nan=True):
         """
@@ -882,8 +894,8 @@ class ContinuousTimeMarkovChain(MarkovChain):
     def __init__(self, P=None, eignum=None, **kwargs):
         super().__init__(P, eignum=eignum, sumto=0, **kwargs)
         self.Q = None  # embedded markov chain transition matrix
-        self.Kd = None
-        self.p_st = None
+        self.Kd = None  # density kernel for density adjustment
+        self.p_st = None  # stationary distribution
 
     def check_transition_rate_matrix(self, P, tol=1e-6):
         if np.any(flatten(np.abs(np.sum(P, 0))) <= tol):
@@ -892,27 +904,6 @@ class ContinuousTimeMarkovChain(MarkovChain):
             return P.T
         else:
             raise ValueError("The input transition rate matrix must have a zero row- or column-sum.")
-
-    """def fit(self, X, V, k, s=None, tol=1e-4):
-        self.__reset__()
-        # knn clustering
-        if self.nbrs_idx is None:
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
-            _, Idx = nbrs.kneighbors(X)
-            self.nbrs_idx = Idx
-        else:
-            Idx = self.nbrs_idx
-        # compute transition prob.
-        n = X.shape[0]
-        self.P = np.zeros((n, n))
-        for i in range(n):
-            y = X[i]
-            v = V[i]
-            Y = X[Idx[i, 1:]]
-            p = compute_markov_trans_prob(y, v, Y, s, cont_time=True)
-            p[p<=tol] = 0       # tolerance check
-            self.P[Idx[i, 1:], i] = p
-            self.P[i, i] = - np.sum(p)"""
 
     def compute_drift(self, X, t, n_top=5, normalize_vector=False):
         n = self.get_num_states()
@@ -997,6 +988,40 @@ class ContinuousTimeMarkovChain(MarkovChain):
 
         return C, T
 
+    def compute_mean_exit_time(self, p0, sinks):
+        """
+        compute the mean exit time given a initial distribution p0 and a set of sink nodes using:
+            met = inv(K) @ p0_
+        where K is the transition rate matrix (P) where the columns and rows corresponding to the sinks are removed,
+        and p0_ the initial distribution w/o the sinks.
+        """
+        states = []
+        for i in range(self.get_num_states()):
+            if not i in sinks:
+                states.append(i)
+        K = self.P[states][:, states]  # submatrix of P excluding the sinks
+        p0_ = p0[states]
+        met = np.sum(-np.linalg.inv(K) @ p0_)
+        return met
+
+    def compute_mean_first_passage_time(self, p0, target, sinks):
+        states = []
+        all_sinks = np.hstack((target, sinks))
+        for i in range(self.get_num_states()):
+            if not i in all_sinks:
+                states.append(i)
+        K = self.P[states][:, states]  # submatrix of P excluding the sinks
+        p0_ = p0[states]
+
+        # find transition prob. from states to target
+        k = np.zeros(len(states))
+        for i, state in enumerate(states):
+            k[i] = np.sum(self.P[target, state])
+
+        K_inv = np.linalg.inv(K)
+        mfpt = -(k @ (K_inv @ K_inv @ p0_)) / (k @ (K_inv @ p0_))
+        return mfpt
+
     def compute_hitting_time(self, p_st=None, return_Z=False):
         p_st = self.compute_stationary_distribution() if p_st is None else p_st
         n_nodes = len(p_st)
@@ -1020,3 +1045,24 @@ class ContinuousTimeMarkovChain(MarkovChain):
             pca = PCA(n_components=n_pca_dims)
             Y = pca.fit_transform(Y)
         return Y
+
+    """def fit(self, X, V, k, s=None, tol=1e-4):
+        self.__reset__()
+        # knn clustering
+        if self.nbrs_idx is None:
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+            _, Idx = nbrs.kneighbors(X)
+            self.nbrs_idx = Idx
+        else:
+            Idx = self.nbrs_idx
+        # compute transition prob.
+        n = X.shape[0]
+        self.P = np.zeros((n, n))
+        for i in range(n):
+            y = X[i]
+            v = V[i]
+            Y = X[Idx[i, 1:]]
+            p = compute_markov_trans_prob(y, v, Y, s, cont_time=True)
+            p[p<=tol] = 0       # tolerance check
+            self.P[Idx[i, 1:], i] = p
+            self.P[i, i] = - np.sum(p)"""

@@ -1,7 +1,29 @@
-import numpy as np
-from random import uniform, seed
+from random import seed, uniform
+
 import anndata
+import numpy as np
 import pandas as pd
+
+
+# TODO: import from here in ..estimation.fit_jacobian.py
+def hill_inh_func(x, A, K, n, g=0):
+    Kd = K ** n
+    return A * Kd / (Kd + x ** n) - g * x
+
+
+def hill_inh_grad(x, A, K, n, g=0):
+    Kd = K ** n
+    return -A * n * Kd * x ** (n - 1) / (Kd + x ** n) ** 2 - g
+
+
+def hill_act_func(x, A, K, n, g=0):
+    Kd = K ** n
+    return A * x ** n / (Kd + x ** n) - g * x
+
+
+def hill_act_grad(x, A, K, n, g=0):
+    Kd = K ** n
+    return A * n * Kd * x ** (n - 1) / (Kd + x ** n) ** 2 - g
 
 
 def toggle(ab, t=None, beta=5, gamma=1, n=2):
@@ -32,35 +54,96 @@ def Ying_model(x, t=None):
     return ret
 
 
-def two_genes_motif(x, t=None, a1=1, a2=1, b1=1, b2=1, k1=1, k2=1, S=0.5, n=4):
-    """The ODE model for the famous Pu.1-Gata.1 like network motif with self-activation and mutual inhibition."""
+def ode_bifur2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
+    """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
-    dx = np.nan * np.ones(x.shape)
+    d = x.ndim
+    x = np.atleast_2d(x)
+    dx = np.zeros(x.shape)
 
-    if len(x.shape) == 2:
-        dx[:, 0] = a1 * x[:, 0] ** n / (S ** n + x[:, 0] ** n) + b1 * S ** n / (S ** n + x[:, 1] ** n) - k1 * x[:, 0]
-        dx[:, 1] = a2 * x[:, 1] ** n / (S ** n + x[:, 1] ** n) + b2 * S ** n / (S ** n + x[:, 0] ** n) - k2 * x[:, 1]
-    else:
-        dx[0] = a1 * x[0] ** n / (S ** n + x[0] ** n) + b1 * S ** n / (S ** n + x[1] ** n) - k1 * x[0]
-        dx[1] = a2 * x[1] ** n / (S ** n + x[1] ** n) + b2 * S ** n / (S ** n + x[0] ** n) - k2 * x[1]
+    dx[:, 0] = hill_act_func(x[:, 0], a[0], S[0], m[0], g=gamma[0]) + hill_inh_func(x[:, 1], b[0], K[0], n[0])
+    dx[:, 1] = hill_act_func(x[:, 1], a[1], S[1], m[1], g=gamma[1]) + hill_inh_func(x[:, 0], b[1], K[1], n[1])
+
+    if d == 1:
+        dx = dx.flatten()
 
     return dx
 
 
-def two_genes_motif_jacobian(x1, x2):
-    J = np.array(
-        [
-            [
-                0.25 * x1 ** 3 / (0.0625 + x1 ** 4) ** 2 - 1,
-                -0.25 * x2 ** 3 / (0.0625 + x2 ** 4) ** 2,
-            ],
-            [
-                -0.25 * x1 ** 3 / (0.0625 + x1 ** 4) ** 2,
-                0.25 * x2 ** 3 / (0.0625 + x2 ** 4) ** 2 - 1,
-            ],
-        ]
-    )
+def jacobian_bifur2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
+    """The Jacobian of the toggle switch ODE model."""
+    df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
+    df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
+    df2_dx1 = hill_act_grad(x[:, 1], a[1], S[1], m[1], g=gamma[1])
+    df2_dx2 = hill_inh_grad(x[:, 0], b[1], K[1], n[1])
+    J = np.array([[df1_dx1, df1_dx2], [df2_dx1, df2_dx2]])
     return J
+
+
+def ode_osc2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
+    """The ODEs for the two gene oscillation based on a predator-prey model."""
+
+    d = x.ndim
+    x = np.atleast_2d(x)
+    dx = np.zeros(x.shape)
+
+    dx[:, 0] = hill_act_func(x[:, 0], a[0], S[0], m[0], g=gamma[0]) + hill_inh_func(x[:, 1], b[0], K[0], n[0])
+    dx[:, 1] = hill_act_func(x[:, 1], a[1], S[1], m[1], g=gamma[1]) + hill_act_func(x[:, 0], b[1], K[1], n[1])
+
+    if d == 1:
+        dx = dx.flatten()
+
+    return dx
+
+
+def ode_neurogenesis(
+    x: np.ndarray,
+    a,
+    K,
+    n,
+    gamma,
+):
+    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2012."""
+
+    d = x.ndim
+    x = np.atleast_2d(x)
+    dx = np.zeros(shape=x.shape)
+
+    dx[:, 0] = (
+        a[0] * K[0] ** n[0] / (K[0] ** n[0] + x[:, 4] ** n[0] + x[:, 9] ** n[0] + x[:, 11] ** n[0]) - gamma[0] * x[:, 0]
+    )  # Pax6
+    dx[:, 1] = (
+        a[1] * (x[:, 0] ** n[1]) / (K[1] ** n[1] + x[:, 0] ** n[1] + x[:, 5] ** n[1]) - gamma[1] * x[:, 1]
+    )  # Mash1
+    dx[:, 2] = a[2] * (x[:, 1] ** n[2]) / (K[2] ** n[2] + x[:, 1] ** n[2]) - gamma[2] * x[:, 2]  # Zic1
+    dx[:, 3] = (
+        a[3] * (x[:, 1] ** n[3]) / (K[3] ** n[3] + x[:, 1] ** n[3] + x[:, 7] ** n[3]) - gamma[3] * x[:, 3]
+    )  # Brn2
+    dx[:, 4] = (
+        a[4]
+        * (x[:, 2] ** n[4] + x[:, 3] ** n[4] + x[:, 10] ** n[4])
+        / (K[4] ** n[4] + x[:, 2] ** n[4] + x[:, 3] ** n[4] + x[:, 10] ** n[4])  # Tuj1
+        - gamma[4] * x[:, 4]
+    )
+    dx[:, 5] = (
+        a[5] * (x[:, 0] ** n[5]) / (K[5] ** n[5] + x[:, 0] ** n[5] + x[:, 1] ** n[5]) - gamma[5] * x[:, 5]
+    )  # Hes5
+    dx[:, 6] = a[6] * (x[:, 5] ** n[6]) / (K[6] ** n[6] + x[:, 5] ** n[6] + x[:, 7] ** n[6]) - gamma[6] * x[:, 6]  # Scl
+    dx[:, 7] = (
+        a[7] * (x[:, 5] ** n[7]) / (K[7] ** n[7] + x[:, 5] ** n[7] + x[:, 6] ** n[7]) - gamma[7] * x[:, 7]
+    )  # Olig2
+    dx[:, 8] = (
+        a[8] * (x[:, 5] ** n[8] * x[:, 6] ** n[8]) / (K[8] ** n[8] + x[:, 5] ** n[8] * x[:, 6] ** n[8])
+        - gamma[8] * x[:, 8]  # Stat3
+    )
+    dx[:, 9] = a[9] * (x[:, 8] ** n[9]) / (K[9] ** n[9] + x[:, 8] ** n[9]) - gamma[9] * x[:, 9]  # A1dh1L
+    dx[:, 10] = a[10] * (x[:, 7] ** n[10]) / (K[10] ** n[10] + x[:, 7] ** n[10]) - gamma[10] * x[:, 10]  # Myt1L
+    dx[:, 11] = a[11] * (x[:, 7] ** n[11]) / (K[11] ** n[11] + x[:, 7] ** n[11]) - gamma[11] * x[:, 11]  # Sox8
+
+    if d == 1:
+        dx = dx.flatten()
+
+    return dx
 
 
 def neurogenesis(
@@ -77,7 +160,7 @@ def neurogenesis(
     a_e=6,
     mx=10,
 ):
-    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2011."""
+    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2012."""
 
     dx = np.nan * np.ones(shape=x.shape)
 
@@ -118,6 +201,10 @@ def neurogenesis(
     return dx
 
 
+def hsc():
+    pass
+
+
 def state_space_sampler(ode, dim, seed_num=19491001, clip=True, min_val=0, max_val=4, N=10000):
     """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val and max_val. Velocity vector at the sampled points will be calculated according to ode function."""
 
@@ -133,11 +220,11 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
 
     Parameters
     ----------
-    motif: `str` (default: `neurogenesis`)
+    motif: str (default: "neurogenesis")
         Name of the network motif that will be used in the simulation.
-    clip: `bool` (default: `True`)
+    clip: bool (default: True)
         Whether to clip data points that are negative.
-    cell_num: `int` (default: `5000`)
+    cell_num: int (default: 5000)
         Number of cells to simulate.
 
     Returns
@@ -168,14 +255,14 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
 
         gene_name = np.array(
             [
-                "Pax6",
-                "Mash1",
+                "Pax6",  #
+                "Mash1",  #
                 "Brn2",
                 "Zic1",
                 "Tuj1",
-                "Hes5",
-                "Scl",
-                "Olig2",
+                "Hes5",  #
+                "Scl",  #
+                "Olig2",  #
                 "Stat3",
                 "Myt1L",
                 "Alhd1L",
@@ -184,7 +271,7 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             ]
         )
     elif motif == "twogenes":
-        X, Y = state_space_sampler(ode=two_genes_motif, dim=2, min_val=0, max_val=4, N=cell_num)
+        X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num)
         gene_name = np.array(["Pu.1", "Gata.1"])
     elif motif == "Ying":
         X, Y = state_space_sampler(ode=Ying_model, dim=2, clip=clip, min_val=-3, max_val=3, N=cell_num)

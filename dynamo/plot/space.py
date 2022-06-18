@@ -1,13 +1,17 @@
-import numpy as np
 from typing import Union
-import anndata
-from .scatters import (
-    scatters,
-    docstrings,
-)
 
+import anndata
+import numpy as np
+
+from ..dynamo_logger import (
+    main_critical,
+    main_finish_progress,
+    main_info,
+    main_log_time,
+    main_warning,
+)
 from ..tl import compute_smallest_distance
-from ..dynamo_logger import main_critical, main_info, main_finish_progress, main_log_time, main_warning
+from .scatters import docstrings, scatters
 
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 

@@ -1,14 +1,11 @@
+from typing import Optional, Union
+
 import anndata
 from scipy.sparse import csr_matrix
-from .utils import init_r0_pulse
 
-from typing import Optional, Union
-from ..dynamo_logger import (
-    main_exception,
-    main_warning,
-    LoggerManager,
-)
+from ..dynamo_logger import LoggerManager, main_exception, main_warning
 from ..utils import copy_adata
+from .utils import init_r0_pulse
 
 
 def get_pulse_r0(

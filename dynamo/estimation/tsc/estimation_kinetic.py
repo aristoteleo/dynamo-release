@@ -1,10 +1,12 @@
-from ...tools.sampling import lhsclassic
-from ...tools.moments import strat_mom
+import warnings
+
 from scipy.optimize import least_squares
 from scipy.stats import chi2
-from .utils_kinetic import *
+
 from ...dynamo_logger import main_warning
-import warnings
+from ...tools.moments import strat_mom
+from ...tools.sampling import lhsclassic
+from .utils_kinetic import *
 
 
 def guestimate_alpha(x_data, time):

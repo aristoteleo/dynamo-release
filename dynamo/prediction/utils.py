@@ -1,20 +1,17 @@
 from typing import Callable
-from tqdm import tqdm
 
 # from anndata._core.views import ArrayView
 import numpy as np
 from scipy import interpolate
 from scipy.integrate import solve_ivp
+from tqdm import tqdm
+
+from ..dynamo_logger import main_warning
+from ..tools.utils import log1p_, nearest_neighbors
+from ..utils import isarray, normalize
 
 # import scipy.sparse as sp
 from ..vectorfield.topography import dup_osc_idx_iter
-from ..tools.utils import log1p_
-
-from ..utils import isarray, normalize
-from ..tools.utils import nearest_neighbors
-
-from ..dynamo_logger import main_warning
-
 
 # ---------------------------------------------------------------------------------------------------
 # initial state related
@@ -85,6 +82,7 @@ def integrate_vf_ivp(
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
 
+    # TODO: rewrite this function with the Trajectory class
     if init_states.ndim == 1:
         init_states = init_states[None, :]
     n_cell, n_feature = init_states.shape
@@ -283,7 +281,7 @@ def integrate_vf_ivp(
 
         t, Y = valid_t_trans, _Y
 
-        # this part is buggy, need to fix
+        # TODO: this part is buggy, need to fix
         if n_cell > 1 and average:
             t_len = int(len(t) / n_cell)
             avg = np.zeros((n_feature, t_len))

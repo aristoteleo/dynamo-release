@@ -1,11 +1,12 @@
 # code copy from https://github.com/Chilipp/docrep/blob/master/docrep/__init__.py
 # need to better properly include it
 
-import types
-import six
 import inspect
 import re
+import types
 from warnings import warn
+
+import six
 
 
 def dedents(s):

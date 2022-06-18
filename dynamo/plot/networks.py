@@ -1,20 +1,16 @@
-from matplotlib.axes import Axes
-import numpy as np
-import networkx as nx
-
 # nxviz prints long warning messages regarding nxviz's own version update information
 import warnings
 
-warnings.filterwarnings("ignore", module="nxviz")
-
+import networkx as nx
+import numpy as np
 import nxviz as nv
 import pandas as pd
-from ..tools.utils import (
-    update_dict,
-    index_gene,
-    flatten,
-)
-from .utils import set_colorbar, save_fig
+from matplotlib.axes import Axes
+
+warnings.filterwarnings("ignore", module="nxviz")
+
+from ..tools.utils import flatten, index_gene, update_dict
+from .utils import save_fig, set_colorbar
 from .utils_graph import ArcPlot
 
 
@@ -536,8 +532,8 @@ def hivePlot(
 
     try:
         import networkx as nx
-        from hiveplotlib import Axis, Node, HivePlot
-        from hiveplotlib.viz import axes_viz_mpl, node_viz_mpl, edge_viz_mpl
+        from hiveplotlib import Axis, HivePlot, Node
+        from hiveplotlib.viz import axes_viz_mpl, edge_viz_mpl, node_viz_mpl
     except ImportError:
         raise ImportError(
             "You need to install the package `networkx, hiveplotlib`."

@@ -1,92 +1,79 @@
 """Mapping Vector Field of Single Cells
 """
 
-# from .theme import points
-from .utils import quiver_autoscaler, save_fig
-from .scatters import scatters
-
+from .cell_cycle import cell_cycle_scores
+from .clustering import infomap, leiden, louvain, streamline_clusters
+from .connectivity import nneighbors
+from .dimension_reduction import pca, trimap, tsne, umap
+from .dynamics import dynamics, phase_portraits
+from .ezplots import (
+    SchemeDiverge,
+    SchemeDivergeBWR,
+    multiplot,
+    plot_V,
+    plot_X,
+    zscatter,
+    zstreamline,
+)
+from .fate import fate, fate_bias
+from .heatmaps import causality, comb_logic, plot_hill_function, response
+from .least_action_path import lap_min_time, least_action
+from .markers import bubble
+from .networks import arcPlot, circosPlot, circosPlotDeprecated, hivePlot
 from .preprocess import (
     basic_stats,
-    show_fraction,
-    feature_genes,
-    variance_explained,
     biplot,
-    loading,
     exp_by_groups,
+    feature_genes,
     highest_frac_genes,
+    loading,
+    show_fraction,
+    variance_explained,
 )
-from .cell_cycle import cell_cycle_scores
-from .markers import bubble
-
-from .dynamics import phase_portraits, dynamics
-from .time_series import (
-    kinetic_curves,
-    kinetic_heatmap,
-    jacobian_kinetics,
-    sensitivity_kinetics,
-)
-
-from .dimension_reduction import pca, tsne, umap, trimap
-from .connectivity import nneighbors
-
-from .scVectorField import (
-    cell_wise_vectors_3d,
+from .scatters import scatters
+from .scPotential import show_landscape
+from .scVectorField import (  # , plot_LIC_gray
     cell_wise_vectors,
     cell_wise_vectors_3d,
     grid_vectors,
-    streamline_plot,
     line_integral_conv,
     plot_energy,
-)  # , plot_LIC_gray
+    streamline_plot,
+)
+
+# spatial data related
+from .space import space
+from .state_graph import state_graph
 from .streamtube import plot_3d_streamtube
+from .time_series import (
+    jacobian_kinetics,
+    kinetic_curves,
+    kinetic_heatmap,
+    sensitivity_kinetics,
+)
 from .topography import (
-    plot_flow_field,
-    plot_fixed_points_2d,
     plot_fixed_points,
+    plot_fixed_points_2d,
+    plot_flow_field,
     plot_nullclines,
     plot_separatrix,
     plot_traj,
     topography,
 )
+
+# from .theme import points
+from .utils import quiver_autoscaler, save_fig
 from .vector_calculus import (
-    speed,
-    curl,
-    divergence,
     acceleration,
+    curl,
     curvature,
+    divergence,
     jacobian,
     jacobian_heatmap,
     sensitivity,
     sensitivity_heatmap,
+    speed,
 )
-from .networks import (
-    arcPlot,
-    circosPlotDeprecated,
-    hivePlot,
-    circosPlot,
-)
-
-from .fate import fate_bias, fate
-from .state_graph import state_graph
-from .least_action_path import least_action, lap_min_time
-
-from .scPotential import show_landscape
-
-from .ezplots import (
-    zscatter,
-    zstreamline,
-    multiplot,
-    plot_V,
-    plot_X,
-    SchemeDiverge,
-    SchemeDivergeBWR,
-)
-
-from .clustering import louvain, leiden, infomap, streamline_clusters
-from .heatmaps import response, plot_hill_function, causality, comb_logic
-
-# spatial data related
-from .space import space
 
 __all__ = [
     "quiver_autoscaler",
@@ -128,6 +115,7 @@ __all__ = [
     "plot_traj",
     "topography",
     "speed",
+    "acceleration",
     "curl",
     "divergence",
     "curvature",

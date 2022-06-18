@@ -1,8 +1,9 @@
 import numpy as np
-from scipy.optimize import least_squares
-from scipy.sparse import issparse, csr_matrix
-from sklearn.linear_model import LinearRegression, RANSACRegressor
 import statsmodels.api as sm
+from scipy.optimize import least_squares
+from scipy.sparse import csr_matrix, issparse
+from sklearn.linear_model import LinearRegression, RANSACRegressor
+
 from ...tools.moments import strat_mom
 from ...tools.utils import elem_prod, find_extreme
 

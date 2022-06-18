@@ -1,8 +1,8 @@
 """General utility functions
 """
-from anndata import AnnData
 import numpy as np
 import scipy.sparse as sp
+from anndata import AnnData
 
 from .dynamo_logger import LoggerManager
 
@@ -44,9 +44,9 @@ def copy_adata(adata: AnnData, logger=None) -> AnnData:
     Parameters
     ----------
     adata :
-        [description]
-    logger : [type], optional
-        [description], by default None
+         An adata object that will be deep copied.
+    logger : [bool], optional
+        Whether to report logging info
 
     Examples
     --------

@@ -1,21 +1,56 @@
 # Please import relevant packages in corresponding functions to avoid conflicts with dynamo's modules (e.g. dyn.pd.**)
 
-from tqdm import tqdm
+import os
 from functools import reduce
+
 from anndata import (
+    AnnData,
     read,
-    read_loom,
     read_csv,
     read_excel,
     read_h5ad,
     read_hdf,
+    read_loom,
     read_mtx,
+    read_text,
     read_umi_tools,
     read_zarr,
-    read_text,
-    AnnData,
 )
+from tqdm import tqdm
+
 from .dynamo_logger import main_info
+
+
+def make_dir(path: str, can_exist=True):
+    """wrapper for making directory
+
+    Parameters
+    ----------
+    path :
+        str or path object
+    can_exist : bool, optional
+        if path can exist or not. If set to True and path exists, an exception will be raised.
+
+    Returns
+    -------
+    bool
+        if a new directory has been created
+    """
+    if os.path.exists(path):
+        main_info(path + " : exists")
+        if os.path.isdir(path) and can_exist:
+            main_info(path + " : is a directory, continue using the existing directory")
+            return False
+        elif os.path.isdir(path) and not can_exist:
+            raise ValueError("dir path exists: %s" % path)
+        else:
+            main_info(path + " : is not a directory, creating a new directory...")
+            os.makedirs(path)
+            return True
+    else:
+        main_info("creating a new directory")
+        os.makedirs(path)
+        return True
 
 
 def convert2float(adata, columns, var=False):
@@ -68,11 +103,13 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
             AnnData object with the `new` and `total` layers.
     """
 
-    import os
-    from anndata import AnnData
     import glob
+    import os
+
+    import numpy as np
+    import pandas as pd
+    from anndata import AnnData
     from scipy.sparse import csr_matrix
-    import pandas as pd, numpy as np
 
     if type == "TMM":
         delimiter = "_"

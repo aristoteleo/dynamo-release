@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.optimize import least_squares
+from scipy.stats import norm as normal
 from sklearn.decomposition import TruncatedSVD
 from sklearn.manifold import TSNE
 from sklearn.neighbors import NearestNeighbors
-from scipy.stats import norm as normal
 
 
 def sol_u(t, u0, alpha, beta):

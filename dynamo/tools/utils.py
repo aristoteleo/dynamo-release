@@ -1,33 +1,35 @@
+import itertools
+import time
+import warnings
+from inspect import signature
 from typing import Union
-from anndata._core.anndata import AnnData
-from tqdm import tqdm
-from anndata._core.views import ArrayView
+
 import numpy as np
-import scipy.sparse as sp
 import pandas as pd
+import scipy.sparse as sp
+from anndata._core.anndata import AnnData
+from anndata._core.views import ArrayView
 from scipy import interpolate, stats
-from scipy.spatial.distance import squareform as spsquare
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
 from scipy.spatial import cKDTree
+from scipy.spatial.distance import squareform as spsquare
 from sklearn.neighbors import NearestNeighbors
-import warnings
-import time
-import itertools
-from inspect import signature
+from tqdm import tqdm
 
-from ..preprocessing.utils import Freeman_Tukey
-from ..utils import areinstance, isarray
 from ..dynamo_logger import (
+    main_critical,
     main_debug,
+    main_exception,
+    main_info,
     main_info_insert_adata,
     main_info_verbose_timeit,
     main_tqdm,
-    main_info,
     main_warning,
-    main_critical,
-    main_exception,
 )
+from ..preprocessing.utils import Freeman_Tukey
+from ..utils import areinstance, isarray
+
 
 # ---------------------------------------------------------------------------------------------------
 # others
@@ -166,6 +168,26 @@ def nbrs_to_dists(X, nbrs_idx):
         d = np.linalg.norm(d, axis=1)
         dists.append(d)
     return dists
+
+
+def symmetrize_symmetric_matrix(W):
+    """
+    symmetrize a supposedly symmetric matrix W, so that W_ij == Wji strictly.
+    returns a csr sparse matrix.
+    """
+    if not sp.issparse(W):
+        W = sp.csr_matrix(W)
+
+    _row_inds, _col_inds = W.nonzero()
+    _data = W.data.copy()
+
+    row_inds = np.hstack((_row_inds, _col_inds))
+    col_inds = np.hstack((_col_inds, _row_inds))
+    data = np.hstack((_data, _data))
+
+    I = np.unique(np.vstack((row_inds, col_inds)).T, axis=0, return_index=True)[1]
+    W = sp.csr_matrix((data[I], (row_inds[I], col_inds[I])))
+    return W
 
 
 def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
@@ -1802,8 +1824,11 @@ def set_transition_genes(
 
 
 def get_ekey_vkey_from_adata(adata):
-    """ekey: expression from which to extrapolate velocity; vkey: velocity key; layer: the states cells will be used in
-    velocity embedding."""
+    """
+    ekey: expression from which to extrapolate velocity
+    vkey: velocity key
+    layer: the states cells will be used in velocity embedding.
+    """
     dynamics_key = [i for i in adata.uns.keys() if i.endswith("dynamics")][0]
     experiment_type, use_smoothed = (
         adata.uns[dynamics_key]["experiment_type"],

@@ -1,4 +1,5 @@
 import numpy as np
+
 from .DDRTree_py import DDRTree
 from .utils import log1p_
 

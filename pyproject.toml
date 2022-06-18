@@ -1,6 +1,6 @@
 [build-system]
-build-backend = 'flit.buildapi'
-requires = ['flit']
+build-backend = "flit_core.buildapi"
+requires = ["flit_core >=3.4,<4"]
 
 [tool.flit.metadata]
 author = 'Xiaojie Qiu, Yan Zhang, Ke Ni'
@@ -47,7 +47,8 @@ requires = [
   'KDEpy', # preprocess module: sctransform
   'nxviz==0.7.3',
   'openpyxl', # export dynamics ranking info
-  "get_version>=3.5.4"
+  "get_version>=3.5.4",
+  "setuptools_scm",
 ]
 requires-python = '>=3.7'
 
@@ -71,6 +72,7 @@ docs = [
 network = ["networkx", "nxviz", "hiveplotlib", "python-igraph", "leidenalg", "wurlitzer"]
 spatial = ['pysal>2.0.0']
 test = ['pytest', 'sympy>=1.4']
+
 
 [tool.flit.sdist]
 exclude = [

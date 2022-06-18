@@ -1,29 +1,43 @@
 from typing import Callable, List, Optional
-from anndata import AnnData
+
 import numpy as np
 import pandas as pd
-from .preprocessor_utils import (
-    _infer_labeling_experiment_type,
-    is_log1p_transformed_adata,
-    normalize_cell_expr_by_size_factors,
-    select_genes_by_dispersion_general,
-    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
-    log1p_adata,
-    filter_cells_by_outliers as monocle_filter_cells_by_outliers,
-)
+from anndata import AnnData
 
-from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
-from .utils import (
-    collapse_species_adata,
-    convert_layers2csr,
-    detect_experiment_datatype,
-    convert2symbol,
-    unique_var_obs_adata,
+from ..configuration import DKM
+from ..dynamo_logger import (
+    LoggerManager,
+    main_info,
+    main_info_insert_adata,
+    main_warning,
+)
+from ..external import (
+    normalize_layers_pearson_residuals,
+    sctransform,
+    select_genes_by_pearson_residuals,
 )
 from ..tools.connectivity import neighbors as default_neighbors
-from ..dynamo_logger import LoggerManager, main_info, main_info_insert_adata, main_warning
-from ..configuration import DKM
-from ..external import sctransform, select_genes_by_pearson_residuals, normalize_layers_pearson_residuals
+from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
+from .preprocessor_utils import _infer_labeling_experiment_type
+from .preprocessor_utils import (
+    filter_cells_by_outliers as monocle_filter_cells_by_outliers,
+)
+from .preprocessor_utils import (
+    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
+)
+from .preprocessor_utils import (
+    is_log1p_transformed_adata,
+    log1p_adata,
+    normalize_cell_expr_by_size_factors,
+    select_genes_by_dispersion_general,
+)
+from .utils import (
+    collapse_species_adata,
+    convert2symbol,
+    convert_layers2csr,
+    detect_experiment_datatype,
+    unique_var_obs_adata,
+)
 
 
 class Preprocessor:
@@ -248,6 +262,8 @@ class Preprocessor:
                 "OVERWRITE all gene selection results above according to user gene list inputs. %d genes in use."
                 % len(forced_genes)
             )
+        else:
+            main_info("self.force_gene_list is None, skipping filtering by gene list...")
 
     def _normalize_selected_genes(self, adata: AnnData):
         if not callable(self.normalize_selected_genes):

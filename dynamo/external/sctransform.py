@@ -7,21 +7,21 @@
 # Sctransform Paper: Hafemeister, C., Satija, R. Normalization and variance stabilization of single-cell RNA-seq data using regularized negative binomial regression.
 # =================================================================
 
-import statsmodels.nonparametric.kernel_regression
-from KDEpy import FFTKDE
-from multiprocessing import Pool, Manager
-from scipy import stats
-import numpy as np
 import os
+from multiprocessing import Manager, Pool
+
+import numpy as np
 import pandas as pd
-import statsmodels.discrete.discrete_model
-from anndata import AnnData
 import scipy
 import scipy as sp
+import statsmodels.discrete.discrete_model
+import statsmodels.nonparametric.kernel_regression
+from anndata import AnnData
+from KDEpy import FFTKDE
+from scipy import stats
 
-from ..dynamo_logger import main_info_insert_adata_layer
 from ..configuration import DKM
-from ..dynamo_logger import main_info
+from ..dynamo_logger import main_info, main_info_insert_adata_layer
 
 _EPS = np.finfo(float).eps
 
@@ -91,7 +91,7 @@ def theta_ml(y, mu):
     limit = 10
     eps = (_EPS) ** 0.25
 
-    from scipy.special import psi, polygamma
+    from scipy.special import polygamma, psi
 
     def score(n, th, mu, y, w):
         return sum(w * (psi(th + y) - psi(th) + np.log(th) + 1 - np.log(th + mu) - (y + th) / (mu + th)))

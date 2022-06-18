@@ -1,49 +1,49 @@
-import numpy.matlib
-from numpy import format_float_scientific as scinot
+import functools
+import itertools
+import warnings
+from multiprocessing.dummy import Pool as ThreadPool
+from typing import Callable, Union
+
 import numpy as np
+import numpy.matlib
 import scipy.sparse as sp
+from numpy import format_float_scientific as scinot
 from scipy.linalg import lstsq
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
-from multiprocessing.dummy import Pool as ThreadPool
-import itertools
-import functools
-import warnings
-from ..tools.sampling import (
-    sample_by_velocity,
-    sample,
-)
+
+from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..simulation.ODE import jacobian_bifur2genes, ode_bifur2genes
+from ..tools.sampling import lhsclassic, sample, sample_by_velocity
 from ..tools.utils import (
+    index_condensed_matrix,
+    linear_least_squares,
+    nearest_neighbors,
+    starmap_with_kwargs,
+    timeit,
     update_dict,
     update_n_merge_dict,
-    linear_least_squares,
-    timeit,
-    index_condensed_matrix,
-    starmap_with_kwargs,
-    nearest_neighbors,
 )
 from .utils import (
-    vector_field_function,
-    con_K_div_cur_free,
-    con_K,
+    FixedPoints,
+    Jacobian_kovf,
     Jacobian_numerical,
-    compute_divergence,
-    compute_curl,
-    compute_acceleration,
-    compute_curvature,
-    compute_torsion,
-    compute_sensitivity,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
-    Jacobian_kovf,
-    vecfld_from_adata,
+    compute_acceleration,
+    compute_curl,
+    compute_curvature,
+    compute_divergence,
+    compute_sensitivity,
+    compute_torsion,
+    con_K,
+    con_K_div_cur_free,
     find_fixed_points,
-    FixedPoints,
     remove_redundant_points,
+    vecfld_from_adata,
+    vector_field_function,
     vector_transformation,
 )
-from typing import Union, Callable
-from ..dynamo_logger import LoggerManager, main_warning
 
 
 def norm(X, V, T, fix_velocity=True):
@@ -52,15 +52,15 @@ def norm(X, V, T, fix_velocity=True):
 
     Arguments
     ---------
-        X: 'np.ndarray'
+        X: :class:`~numpy.ndarray`
             Current state. This corresponds to, for example, the spliced transcriptomic state.
-        V: 'np.ndarray'
+        V: :class:`~numpy.ndarray`
             Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
             velocity estimated calculated by dynamo or velocyto, scvelo.
-        T: 'np.ndarray'
+        T: :class:`~numpy.ndarray`
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state.
-        fix_velocity: 'bool' (default: `True`)
+        fix_velocity: bool (default: `True`)
             Whether to fix velocity and don't transform it.
 
     Returns
@@ -370,7 +370,7 @@ def SparseVFC(
             The minimum limitation of energy change rate in the iteration process.
         gamma: 'float' (default: 0.9)
             Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
-        lambda_: 'float' (default: 0.3)
+        lambda_: 'float' (default: 3)
             Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more
             weights on regularization.
         minP: 'float' (default: 1e-5)
@@ -622,11 +622,19 @@ class BaseVectorField:
         Search for fixed points of the vector field function.
 
         """
+        if domain is not None:
+            domain = np.atleast_2d(domain)
+
         if self.data is None and X0 is None:
-            raise Exception(
-                "The initial points `X0` are not provided, "
-                "and no data is stored in the vector field for the sampling of initial points."
-            )
+            if domain is None:
+                raise Exception(
+                    "The initial points `X0` are not provided, "
+                    "no data is stored in the vector field, and no domain is provided for the sampling of initial points."
+                )
+            else:
+                main_info(f"Sampling {n_x0} initial points in the provided domain using the Latin Hypercube method.")
+                X0 = lhsclassic(n_x0, domain.shape[0], bounds=domain)
+
         elif X0 is None:
             indices = sample(np.arange(len(self.data["X"])), n_x0, method=sampling_method)
             X0 = self.data["X"][indices]
@@ -714,7 +722,6 @@ class BaseVectorField:
     def integrate(
         self,
         init_states,
-        VecFld_true=None,
         dims=None,
         scale=1,
         t_end=None,
@@ -728,11 +735,8 @@ class BaseVectorField:
         disable=False,
     ):
 
-        from ..tools.utils import (
-            getTend,
-            getTseq,
-        )
         from ..prediction.utils import integrate_vf_ivp
+        from ..tools.utils import getTend, getTseq
 
         if np.isscalar(dims):
             init_states = init_states[:, :dims]
@@ -741,13 +745,10 @@ class BaseVectorField:
 
         if self.func is None:
             VecFld = self.vf_dict
-            self.func = (
-                lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
-                if VecFld_true is None
-                else VecFld_true
-            )
+            self.func = lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
         if t_end is None:
             t_end = getTend(self.get_X(), self.get_V())
+
         t_linspace = getTseq(init_states, t_end, step_size)
         t, prediction = integrate_vf_ivp(
             init_states,
@@ -1095,11 +1096,12 @@ if use_dynode:
                 self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
 
                 import tempfile
+
                 from dynode.vectorfield import networkModels
-                from dynode.vectorfield.samplers import VelocityDataSampler
-                from dynode.vectorfield.losses_weighted import (
+                from dynode.vectorfield.losses_weighted import (  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
                     MSE,
-                )  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
+                )
+                from dynode.vectorfield.samplers import VelocityDataSampler
 
                 good_ind = np.where(~np.isnan(V.sum(1)))[0]
                 good_V = V[good_ind, :]
@@ -1235,3 +1237,29 @@ def vector_field_function_knockout(
         return vf
     else:
         return vf.func
+
+
+class BifurcationTwoGenesVectorField(DifferentiableVectorField):
+    def __init__(self, param_dict, X=None, V=None, Grid=None, *args, **kwargs):
+        super().__init__(X, V, Grid, *args, **kwargs)
+        param_dict_ = param_dict.copy()
+        for k in param_dict_.keys():
+            if k not in ["a", "b", "S", "K", "m", "n", "gamma"]:
+                del param_dict_[k]
+                main_warning(f"The parameter {k} is not used for the vector field.")
+        self.vf_dict["params"] = param_dict_
+        self.func = lambda x: ode_bifur2genes(x, **param_dict_)
+
+    def get_Jacobian(self, method=None):
+        return lambda x: jacobian_bifur2genes(x, **self.vf_dict["params"])
+
+    def find_fixed_points(self, n_x0=10, **kwargs):
+        a = self.vf_dict["params"]["a"]
+        b = self.vf_dict["params"]["b"]
+        gamma = self.vf_dict["params"]["gamma"]
+        xss = (a + b) / gamma
+        margin = 10
+        domain = np.array([[0, xss[0] + margin], [0, xss[1] + margin]])
+        return super().find_fixed_points(n_x0, X0=None, domain=domain, **kwargs)
+
+    # TODO: nullcline calculation

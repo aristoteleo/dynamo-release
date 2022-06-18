@@ -1,22 +1,25 @@
+import functools
+import inspect
+import itertools
+import multiprocessing as mp
+from multiprocessing.dummy import Pool as ThreadPool
 from typing import Callable, Union
-from tqdm import tqdm
+
+import numdifftools as nd
 import numpy as np
 import pandas as pd
-from scipy.spatial.distance import cdist, pdist
-from scipy.sparse import issparse
 from scipy.optimize import fsolve
-import numdifftools as nd
-from multiprocessing.dummy import Pool as ThreadPool
-import multiprocessing as mp
-import itertools, functools
-import inspect
+from scipy.sparse import issparse
+from scipy.spatial.distance import cdist, pdist
+from tqdm import tqdm
+
+from ..dynamo_logger import LoggerManager, main_info
 from ..tools.utils import (
     form_triu_matrix,
     index_condensed_matrix,
-    timeit,
     subset_dict_with_key_list,
+    timeit,
 )
-from ..dynamo_logger import LoggerManager, main_info
 from .FixedPoints import FixedPoints
 
 
@@ -1066,17 +1069,24 @@ def remove_redundant_points(X, tol=1e-4, output_discard=False):
 
 
 def find_fixed_points(
-    x0_list: Union[list, np.array],
+    x0_list: Union[list, np.ndarray],
     func_vf: Callable,
     domain=None,
     tol_redundant: float = 1e-4,
     return_all: bool = False,
 ) -> tuple:
+    def vf_aux(x):
+        """auxillary function unifying dimensionality"""
+        v = func_vf(x)
+        if x.ndim == 1:
+            v = v.flatten()
+        return v
+
     X = []
     J = []
     fval = []
     for x0 in x0_list:
-        x, info_dict, _, _ = fsolve(func_vf, x0, full_output=True)
+        x, info_dict, _, _ = fsolve(vf_aux, x0, full_output=True)
 
         outside = is_outside(x[None, :], domain)[0] if domain is not None else False
         if not outside:

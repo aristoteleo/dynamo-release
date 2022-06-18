@@ -1,9 +1,11 @@
-from anndata import read_h5ad, read_loom
-from urllib.request import urlretrieve
-from pathlib import Path
-import os
 import ntpath
+import os
+from pathlib import Path
+from urllib.request import urlretrieve
+
 import pandas as pd
+from anndata import read_h5ad, read_loom
+
 from .dynamo_logger import LoggerManager, main_info, main_log_time
 
 
@@ -289,12 +291,24 @@ def scEU_seq_organoid(
 
 
 def hematopoiesis(
-    url: str = "https://pitt.box.com/shared/static/kyh3s4wrxdywupn9wk9r2j27vzlvk8vf.h5ad",
+    url: str = "https://www.dropbox.com/s/n9mx9trv1h78q0r/hematopoiesis_v1.h5ad?dl=1",
+    # url: str = "https://pitt.box.com/shared/static/kyh3s4wrxdywupn9wk9r2j27vzlvk8vf.h5ad", # with box
     # url: str = "https://pitt.box.com/shared/static/efqa8icu1m6d1ghfcc3s9tj0j91pky1h.h5ad", # v0: umap_ori version
     filename: str = "hematopoiesis.h5ad",
 ):
     """https://pitt.box.com/v/hematopoiesis-processed"""
     main_info("Downloading processed hematopoiesis adata")
+    adata = get_adata(url, filename)
+    return adata
+
+
+def hematopoiesis_raw(
+    url: str = "https://www.dropbox.com/s/rvkxvq8694xnxz3/hsc_raw_with_metadata.h5ad?dl=1",
+    # url: str = "https://pitt.box.com/shared/static/bv7q0kgxjncc5uoget5wvmi700xwntje.h5ad", # with box
+    filename: str = "hematopoiesis_raw.h5ad",
+):
+    """https://pitt.box.com/v/hematopoiesis-processed"""
+    main_info("Downloading raw hematopoiesis adata")
     adata = get_adata(url, filename)
     return adata
 
@@ -306,4 +320,4 @@ def human_tfs(url="https://pitt.box.com/shared/static/spr7mi9rl2s7kgstrvrpidg138
 
 
 if __name__ == "__main__":
-    DentateGyrus()
+    pass

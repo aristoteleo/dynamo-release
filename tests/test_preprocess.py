@@ -1,9 +1,14 @@
-from scipy import sparse
-from dynamo.preprocessing.utils import convert_layers2csr
-from dynamo.preprocessing import Preprocessor
+import anndata
+import numpy as np
+import pandas as pd
 import scipy
 import scipy.sparse
+from scipy import sparse
 from scipy.sparse.csr import csr_matrix
+
+# from utils import *
+import dynamo as dyn
+from dynamo.preprocessing import Preprocessor
 from dynamo.preprocessing.preprocessor_utils import (
     calc_mean_var_dispersion_sparse,
     is_float_integer_arr,
@@ -14,12 +19,7 @@ from dynamo.preprocessing.preprocessor_utils import (
     log1p_adata,
     select_genes_by_dispersion_general,
 )
-
-# from utils import *
-import dynamo as dyn
-import anndata
-import pandas as pd
-import numpy as np
+from dynamo.preprocessing.utils import convert_layers2csr
 
 SHOW_FIG = False
 

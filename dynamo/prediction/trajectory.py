@@ -1,22 +1,36 @@
+from typing import Union
+
 import numpy as np
 from scipy.interpolate import interp1d
-from ..vectorfield.utils import normalize_vectors, angle
-from ..vectorfield.scVectorField import DifferentiableVectorField
-from .utils import arclength_sampling_n, remove_redundant_points_trajectory, pca_to_expr, expr_to_pca
-from ..tools.utils import flatten
+
 from ..dynamo_logger import LoggerManager
+from ..tools.utils import flatten
+from ..vectorfield.scVectorField import DifferentiableVectorField
+from ..vectorfield.utils import angle, normalize_vectors
+from .utils import arclength_sampling_n, expr_to_pca, pca_to_expr
 
 
 class Trajectory:
-    def __init__(self, X, t=None) -> None:
+    def __init__(self, X: np.ndarray, t: Union[None, np.ndarray] = None, sort: bool = True) -> None:
         """
         Base class for handling trajectory interpolation, resampling, etc.
         """
         self.X = X
-        self.t = t
+        if t is None:
+            self.t = None
+        else:
+            self.set_time(t, sort=sort)
 
     def __len__(self):
         return self.X.shape[0]
+
+    def set_time(self, t, sort: bool = True):
+        if sort:
+            I = np.argsort(t)
+            self.t = t[I]
+            self.X = self.X[I]
+        else:
+            self.t = t
 
     def dim(self):
         return self.X.shape[1]

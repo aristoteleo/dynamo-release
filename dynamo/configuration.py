@@ -1,11 +1,14 @@
-from anndata._core.anndata import AnnData
+import warnings
+
 import colorcet
 import matplotlib
-from matplotlib import rcParams, cm, colors
-from cycler import cycler
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
+from anndata._core.anndata import AnnData
+from cycler import cycler
+from matplotlib import cm, colors, rcParams
+
 from .dynamo_logger import main_info, main_warning
 
 
@@ -24,6 +27,10 @@ class DynamoAdataKeyManager:
     UNS_PP_HAS_PROTEIN = "has_protein"
     UNS_PP_SPLICING_LABELING = "splicing_labeling"
     UNS_PP_PEARSON_RESIDUAL_NORMALIZATION = "pearson_residuals_normalization_params"
+
+    # obsp adjacency matrix string constants
+    OBSP_ADJ_MAT_DIST = "distances"
+    OBSP_ADJ_MAT_CONNECTIVITY = "connectivities"
 
     # special key names frequently used in dynamo
     X_LAYER = "X"
@@ -288,16 +295,18 @@ glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 )
 
 # register cmap
-plt.register_cmap("zebrafish", zebrafish_cmap)
-plt.register_cmap("fire", fire_cmap)
-plt.register_cmap("darkblue", darkblue_cmap)
-plt.register_cmap("darkgreen", darkgreen_cmap)
-plt.register_cmap("darkred", darkred_cmap)
-plt.register_cmap("darkpurple", darkpurple_cmap)
-plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
-plt.register_cmap("div_blue_red", div_blue_red_cmap)
-plt.register_cmap("glasbey_white", glasbey_white_cmap)
-plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    plt.register_cmap("zebrafish", zebrafish_cmap)
+    plt.register_cmap("fire", fire_cmap)
+    plt.register_cmap("darkblue", darkblue_cmap)
+    plt.register_cmap("darkgreen", darkgreen_cmap)
+    plt.register_cmap("darkred", darkred_cmap)
+    plt.register_cmap("darkpurple", darkpurple_cmap)
+    plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
+    plt.register_cmap("div_blue_red", div_blue_red_cmap)
+    plt.register_cmap("glasbey_white", glasbey_white_cmap)
+    plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
 
 _themes = {
     "fire": {
