@@ -1633,7 +1633,6 @@ def highest_frac_genes(
         selected_gene_X_percents,
         index=adata.obs_names,
         columns=gene_names,
-        dtype=float,
     )
     gene_percents_df = pd.Series(gene_percents, index=_adata.var_names)
 
