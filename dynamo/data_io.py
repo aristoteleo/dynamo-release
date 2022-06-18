@@ -263,6 +263,8 @@ def cleanup(adata, del_prediction=False, del_2nd_moments=False):
         adata.uns.pop("kinetics_heatmap")
     if "hdbscan" in adata.uns_keys():
         adata.uns.pop("hdbscan")
+    if "highest_frac_genes" in adata.uns_keys():
+        adata.uns.pop("highest_frac_genes")
 
     VF_keys = [i if i.startswith("VecFld") else None for i in adata.uns_keys()]
     for i in VF_keys:
