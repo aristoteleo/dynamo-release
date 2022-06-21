@@ -35,7 +35,7 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
     * Calculate RNA acceleration (reveals early drivers), curvature (reveals master regulators of fate decision points), divergence (stability of cell states) and RNA Jacobian (cell-state dependent regulatory networks) 
     * Various downstream differential geometry analyses to rank critical regulators/effectors,  and visualize regulatory networks at key fate decision points    
 * Non-trivial vector field predictions of cell fate transitions:
-    * Least action path approach to predict the optimal paths and transcriptomic factors of cell fate reprogrammings
+    * Least action path approach to predict the optimal paths and transcription factors of cell fate reprogrammings
     * In silico perturbation to predict the gene-wise perturbation effects and cell fate diversion after genetic perturbations
 
 ## News
