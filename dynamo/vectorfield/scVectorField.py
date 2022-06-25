@@ -1089,80 +1089,52 @@ except ImportError:
 if use_dynode:
 
     class dynode_vectorfield(BaseVectorField, Dynode):  #
-        def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
+        def __init__(self, X=None, V=None, Grid=None, dynode_object=None, *args, **kwargs):
+
             self.norm_dict = {}
 
+            assert dynode_object is not None, "dynode_object argument is required."
+
+            valid_ind = None
             if X is not None and V is not None:
-                self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
-
-                import tempfile
-
-                from dynode.vectorfield import networkModels
-                from dynode.vectorfield.losses_weighted import (  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
-                    MSE,
+                pass
+            elif dynode_object.Velocity["sampler"] is not None:
+                X = dynode_object.Velocity["sampler"].X_raw
+                V = dynode_object.Velocity["sampler"].V_raw
+                Grid = (
+                    dynode_object.Velocity["sampler"].Grid
+                    if hasattr(dynode_object.Velocity["sampler"], "Grid")
+                    else None
                 )
-                from dynode.vectorfield.samplers import VelocityDataSampler
+                # V = dynode_object.predict_velocity(dynode_object.Velocity["sampler"].X_raw)
+                valid_ind = dynode_object.Velocity["sampler"].valid_ind
+            else:
+                raise
 
-                good_ind = np.where(~np.isnan(V.sum(1)))[0]
-                good_V = V[good_ind, :]
-                good_X = X[good_ind, :]
+            self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
 
-                self.valid_ind = good_ind
+            self.valid_ind = np.where(~np.isnan(V.sum(1)))[0] if valid_ind is None else valid_ind
 
-                velocity_data_sampler = VelocityDataSampler(
-                    adata={"X": good_X, "V": good_V},
-                    normalize_velocity=kwargs.get("normalize_velocity", False),
-                )
-
-                vf_kwargs = {
-                    "X": X,
-                    "V": V,
-                    "Grid": Grid,
-                    "model": networkModels,
-                    "sirens": False,
-                    "enforce_positivity": False,
-                    "velocity_data_sampler": velocity_data_sampler,
-                    "time_course_data_sampler": None,
-                    "network_dim": X.shape[1],
-                    "velocity_loss_function": MSE(),  # CosineDistance(), # #MSE(), MAD()
-                    "time_course_loss_function": None,  # BinomialChannel(p=0.1, alpha=1)
-                    "velocity_x_initialize": X,
-                    "time_course_x0_initialize": None,
-                    "smoothing_factor": None,
-                    "stability_factor": None,
-                    "load_model_from_buffer": False,
-                    "buffer_path": tempfile.mkdtemp(),
-                    "hidden_features": 256,
-                    "hidden_layers": 3,
-                    "first_omega_0": 30.0,
-                    "hidden_omega_0": 30.0,
-                }
-                vf_kwargs = update_dict(vf_kwargs, self.parameters)
-                super().__init__(**vf_kwargs)
-
-        def train(self, **kwargs):
-            if len(kwargs) > 0:
-                self.parameters = update_n_merge_dict(self.parameters, kwargs)
-            max_iter = 2 * 100000 * np.log(self.data["X"].shape[0]) / (250 + np.log(self.data["X"].shape[0]))
-            train_kwargs = {
-                "max_iter": int(max_iter),
-                "velocity_batch_size": 50,
-                "time_course_batch_size": 100,
-                "autoencoder_batch_size": 50,
-                "velocity_lr": 1e-4,
-                "velocity_x_lr": 0,
-                "time_course_lr": 1e-4,
-                "time_course_x0_lr": 1e4,
-                "autoencoder_lr": 1e-4,
-                "velocity_sample_fraction": 1,
-                "time_course_sample_fraction": 1,
-                "iter_per_sample_update": None,
+            vf_kwargs = {
+                "X": X,
+                "V": V,
+                "Grid": Grid,
+                "NNmodel": dynode_object.NNmodel,
+                "Velocity_sampler": dynode_object.Velocity["sampler"],
+                "TimeCourse_sampler": dynode_object.TimeCourse["sampler"],
+                "Velocity_ChannelModel": dynode_object.Velocity["channel_model"],
+                "TimeCourse_ChannelModel": dynode_object.TimeCourse["channel_model"],
+                "Velocity_x_initialize": dynode_object.Velocity["x_variable"],
+                "TimeCourse_x0_initialize": dynode_object.TimeCourse["x0_variable"],
+                "NNmodel_save_path": dynode_object.NNmodel_save_path,
+                "device": dynode_object.device,
             }
-            train_kwargs = update_dict(train_kwargs, kwargs)
 
-            super().train(**train_kwargs)
+            vf_kwargs = update_dict(vf_kwargs, self.parameters)
+            super().__init__(**vf_kwargs)
 
             self.func = self.predict_velocity
+
             self.vf_dict = {
                 "X": self.data["X"],
                 "valid_ind": self.valid_ind,
@@ -1170,14 +1142,16 @@ if use_dynode:
                 "V": self.func(self.data["X"]),
                 "grid": self.data["Grid"],
                 "grid_V": self.func(self.data["Grid"]),
-                "iteration": self.parameters.pop("max_iter", int(max_iter)),
-                "velocity_loss_traj": self.velocity_loss_traj,
-                "time_course_loss_traj": self.time_course_loss_traj,
-                "autoencoder_loss_traj": self.autoencoder_loss_traj,
+                "iteration": int(dynode_object.max_iter),
+                "velocity_loss_traj": dynode_object.Velocity["loss_trajectory"],
+                "time_course_loss_traj": dynode_object.TimeCourse["loss_trajectory"],
+                "autoencoder_loss_traj": dynode_object.AutoEncoder["loss_trajectory"],
                 "parameters": self.parameters,
             }
 
-            return self.vf_dict
+        @classmethod
+        def fromDynode(cls, dynode_object: Dynode) -> "dynode_vectorfield":
+            return cls(X=None, V=None, Grid=None, dynode_object=dynode_object)
 
 
 def vector_field_function_knockout(

@@ -55,8 +55,8 @@ def plot_flow_field(
 
     Parameters
     ----------
-    vecfld: :class:`~VectorField2D`
-        An instance of the VectorField2D class which presumably has fixed points computed and stored.
+    vecfld: :class:`~vector_field`
+        An instance of the vector_field class.
     x_range: array_like, shape (2,)
         Range of values for x-axis.
     y_range: array_like, shape (2,)
