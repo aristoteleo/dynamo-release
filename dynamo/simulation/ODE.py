@@ -54,7 +54,7 @@ def Ying_model(x, t=None):
     return ret
 
 
-def ode_bifur2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
+def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[1, 1], K=[1, 1], m=[1, 1], n=[1, 1], gamma=[1, 1]):
     """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
     d = x.ndim
@@ -271,6 +271,7 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             ]
         )
     elif motif == "twogenes":
+        # X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num)
         X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num)
         gene_name = np.array(["Pu.1", "Gata.1"])
     elif motif == "Ying":

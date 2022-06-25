@@ -95,23 +95,24 @@ def vector_field_function(x, vf_dict, dim=None, kernel="full", X_ctrl_ind=None, 
 
 
 def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
-    try:
-        import dynode
-        from dynode.vectorfield import Dynode
-    except ImportError:
-        raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
-    vf_dict["parameters"]["load_model_from_buffer"] = True
-    dynode_inspect = inspect.getfullargspec(Dynode)
-    dynode_dict = subset_dict_with_key_list(vf_dict["parameters"], dynode_inspect.args)
-
-    nn = Dynode(**dynode_dict)
+    # try:
+    #     import dynode
+    #     from dynode.vectorfield import Dynode
+    # except ImportError:
+    #     raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
+    # vf_dict["parameters"]["load_model_from_buffer"] = True
+    # dynode_inspect = inspect.getfullargspec(Dynode)
+    # dynode_dict = subset_dict_with_key_list(vf_dict["parameters"], dynode_inspect.args)
+    #
+    # nn = Dynode(**dynode_dict)
+    dynode_obj = vf_dict["dynode_object"]
 
     to_flatten = False
     if x.ndim == 1:
         to_flatten = True
         x = x[None, :]
 
-    res = nn.predict_velocity(input_x=x)
+    res = dynode_obj.predict_velocity(X=x)  # input_x=
 
     if dim is not None:
         if np.isscalar(dim):

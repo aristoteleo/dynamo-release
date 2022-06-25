@@ -1098,9 +1098,13 @@ if use_dynode:
             if X is not None and V is not None:
                 pass
             elif dynode_object.Velocity["sampler"] is not None:
-                X = dynode_object.Velocity["sampler"].data["X"]
-                V = dynode_object.Velocity["sampler"].data["V"]
-                Grid = dynode_object.Velocity["sampler"].data["Grid"]
+                X = dynode_object.Velocity["sampler"].X.numpy()
+                V = dynode_object.Velocity["sampler"].V.numpy()
+                Grid = (
+                    dynode_object.Velocity["sampler"].Grid
+                    if hasattr(dynode_object.Velocity["sampler"], "Grid")
+                    else None
+                )
             else:
                 raise
 
