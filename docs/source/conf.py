@@ -74,6 +74,7 @@ nbsphinx_prolog = r"""
       <img src="https://user-images.githubusercontent.com/7456281/93841447-9c263b80-fc61-11ea-99b2-4eafe9958ee4.png" width="119" alt="Open In nbviewer"/></a>
     </div>
 """
+nbsphinx_execute = "never"  # never execute notebooks
 
 # -- Project information -----------------------------------------------------
 
