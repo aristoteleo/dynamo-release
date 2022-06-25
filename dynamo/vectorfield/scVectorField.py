@@ -1095,22 +1095,25 @@ if use_dynode:
 
             assert dynode_object is not None, "dynode_object argument is required."
 
+            valid_ind = None
             if X is not None and V is not None:
                 pass
             elif dynode_object.Velocity["sampler"] is not None:
-                X = dynode_object.Velocity["sampler"].X.numpy()
-                V = dynode_object.Velocity["sampler"].V.numpy()
+                X = dynode_object.Velocity["sampler"].X_raw
+                V = dynode_object.Velocity["sampler"].V_raw
                 Grid = (
                     dynode_object.Velocity["sampler"].Grid
                     if hasattr(dynode_object.Velocity["sampler"], "Grid")
                     else None
                 )
+                # V = dynode_object.predict_velocity(dynode_object.Velocity["sampler"].X_raw)
+                valid_ind = dynode_object.Velocity["sampler"].valid_ind
             else:
                 raise
 
             self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
 
-            self.valid_ind = np.where(~np.isnan(V.sum(1)))[0]
+            self.valid_ind = np.where(~np.isnan(V.sum(1)))[0] if valid_ind is None else valid_ind
 
             vf_kwargs = {
                 "X": X,

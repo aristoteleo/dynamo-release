@@ -839,11 +839,11 @@ def VectorField(
                 else:
                     Dynode_obj = kwargs["Dynode"]
                     VecFld = dynode_vectorfield.fromDynode(Dynode_obj)
-                    X, V = Dynode_obj.Velocity["sampler"].X.numpy(), Dynode_obj.Velocity["sampler"].V.numpy()
+                    X, Y = Dynode_obj.Velocity["sampler"].X_raw, Dynode_obj.Velocity["sampler"].V_raw
                     cur_vf_dict = {
                         "X": X,
-                        "Y": X + V,
-                        "V": V,
+                        "Y": Y,
+                        "V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].X_raw),
                         "grid_V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].Grid),
                         "valid_ind": Dynode_obj.Velocity["sampler"].valid_ind
                         if hasattr(Dynode_obj.Velocity["sampler"], "valid_ind")
