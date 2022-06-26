@@ -54,7 +54,7 @@ def Ying_model(x, t=None):
     return ret
 
 
-def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[1, 1], m=[1, 1], n=[1, 1], gamma=[1, 1]):
+def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
     """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
     d = x.ndim
@@ -70,7 +70,9 @@ def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[1, 1], m
     return dx
 
 
-def jacobian_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[1, 1], m=[1, 1], n=[1, 1], gamma=[1, 1]):
+def jacobian_bifur2genes(
+    x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]
+):
     """The Jacobian of the toggle switch ODE model."""
     df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
     df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
