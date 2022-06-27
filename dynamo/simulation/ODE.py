@@ -275,7 +275,6 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             ]
         )
     elif motif == "twogenes":
-        # X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num)
         X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num, clip=clip)
         gene_name = np.array(["Pu.1", "Gata.1"])
     elif motif == "Ying":
