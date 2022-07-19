@@ -39,7 +39,10 @@ def toggle(ab, t=None, beta=5, gamma=1, n=2):
 
 
 def Ying_model(x, t=None):
-    """network used in the potential landscape paper from Ying, et. al: https://www.nature.com/articles/s41598-017-15889-2"""
+    """network used in the potential landscape paper from Ying, et. al:
+    https://www.nature.com/articles/s41598-017-15889-2.
+    This is also the mixture of Gaussian model.
+    """
     if len(x.shape) == 2:
         dx1 = -1 + 9 * x[:, 0] - 2 * pow(x[:, 0], 3) + 9 * x[:, 1] - 2 * pow(x[:, 1], 3)
         dx2 = 1 - 11 * x[:, 0] + 2 * pow(x[:, 0], 3) + 11 * x[:, 1] - 2 * pow(x[:, 1], 3)
@@ -52,6 +55,27 @@ def Ying_model(x, t=None):
         ret = np.array([dx1, dx2])
 
     return ret
+
+
+def jacobian_Ying_model(x, t=None):
+    """network used in the potential landscape paper from Ying, et. al:
+    https://www.nature.com/articles/s41598-017-15889-2.
+    This is also the mixture of Gaussian model.
+    """
+    if len(x.shape) == 2:
+        df1_dx1 = 9 - 6 * pow(x[:, 0], 2)
+        df1_dx2 = 9 - 6 * pow(x[:, 1], 2)
+        df2_dx1 = -11 + 6 * pow(x[:, 0], 2)
+        df2_dx2 = 11 - 6 * pow(x[:, 1], 2)
+    else:
+        df1_dx1 = 9 - 6 * pow(x[0], 2)
+        df1_dx2 = 9 - 6 * pow(x[1], 2)
+        df2_dx1 = -11 + 6 * pow(x[0], 2)
+        df2_dx2 = 11 - 6 * pow(x[1], 2)
+
+    J = np.array([[df1_dx1, df1_dx2], [df2_dx1, df2_dx2]])
+
+    return J
 
 
 def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):

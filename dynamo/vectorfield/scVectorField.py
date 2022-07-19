@@ -1078,6 +1078,39 @@ class KOVectorField(DifferentiableVectorField):
                 f"The method {method} is not implemented. Currently only " f"supports 'analytical'."
             )
 
+    def get_Hessian(self, method="analytical", **kwargs):
+        """
+        Get the Hessian of the vector field function.
+        If method is 'analytical':
+        The analytical Hessian will be returned and it always
+        take row vectors as input no matter what input_vector_convention is.
+
+        No matter the method and input vector convention, the returned Hessian is of the
+        following format:
+                df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
+                df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
+                df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
+                ...         ...         ...         ...
+        """
+        if method == "analytical":
+            exact = kwargs.pop("exact", False)
+            mu = kwargs.pop("mu", None)
+            if exact:
+                if mu is None:
+                    mu = self.mean
+                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, exact=True, mu=mu, **kwargs)
+            else:
+                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, **kwargs)
+        elif method == "numerical":
+            if self.func is not None:
+                return Jacobian_numerical(self.func, **kwargs)
+            else:
+                raise Exception("The perturbed vector field function has not been set up.")
+        else:
+            raise NotImplementedError(
+                f"The method {method} is not implemented. Currently only " f"supports 'analytical'."
+            )
+
 
 try:
     from dynode.vectorfield import Dynode
