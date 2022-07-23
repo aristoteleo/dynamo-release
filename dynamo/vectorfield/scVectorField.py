@@ -26,6 +26,7 @@ from ..tools.utils import (
 )
 from .utils import (
     FixedPoints,
+    Hessian_rkhs_gaussian,
     Jacobian_kovf,
     Jacobian_numerical,
     Jacobian_rkhs_gaussian,
@@ -980,6 +981,32 @@ class SvcVectorField(DifferentiableVectorField):
                 f"supports 'analytical', 'numerical', and 'parallel'."
             )
 
+    def get_Hessian(self, method="analytical", **kwargs):
+        """
+        Get the Hessian of the vector field function.
+        If method is 'analytical':
+        The analytical Hessian will be returned and it always
+        take row vectors as input no matter what input_vector_convention is.
+
+        No matter the method and input vector convention, the returned Hessian is of the
+        following format:
+                df^2/dx_1^2        df_1^2/(dx_1 dx_2)   df_1^2/(dx_1 dx_3)   ...
+                df^2/(dx_2 dx_1)   df^2/dx_2^2          df^2/(dx_2 dx_3)     ...
+                df^2/(dx_3 dx_1)   df^2/(dx_3 dx_2)     df^2/dx_3^2          ...
+                ...                ...                  ...                  ...
+        """
+        if method == "analytical":
+            return lambda x: Hessian_rkhs_gaussian(x, self.vf_dict, **kwargs)
+        elif method == "numerical":
+            if self.func is not None:
+                raise Exception("numerical Hessian for vector field is not defined.")
+            else:
+                raise Exception("The perturbed vector field function has not been set up.")
+        else:
+            raise NotImplementedError(
+                f"The method {method} is not implemented. Currently only " f"supports 'analytical'."
+            )
+
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
 
@@ -1053,39 +1080,6 @@ class KOVectorField(DifferentiableVectorField):
         take row vectors as input no matter what input_vector_convention is.
 
         No matter the method and input vector convention, the returned Jacobian is of the
-        following format:
-                df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
-                df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
-                df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
-                ...         ...         ...         ...
-        """
-        if method == "analytical":
-            exact = kwargs.pop("exact", False)
-            mu = kwargs.pop("mu", None)
-            if exact:
-                if mu is None:
-                    mu = self.mean
-                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, exact=True, mu=mu, **kwargs)
-            else:
-                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, **kwargs)
-        elif method == "numerical":
-            if self.func is not None:
-                return Jacobian_numerical(self.func, **kwargs)
-            else:
-                raise Exception("The perturbed vector field function has not been set up.")
-        else:
-            raise NotImplementedError(
-                f"The method {method} is not implemented. Currently only " f"supports 'analytical'."
-            )
-
-    def get_Hessian(self, method="analytical", **kwargs):
-        """
-        Get the Hessian of the vector field function.
-        If method is 'analytical':
-        The analytical Hessian will be returned and it always
-        take row vectors as input no matter what input_vector_convention is.
-
-        No matter the method and input vector convention, the returned Hessian is of the
         following format:
                 df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
                 df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
