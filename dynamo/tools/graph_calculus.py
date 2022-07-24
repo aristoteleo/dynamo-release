@@ -6,7 +6,7 @@ from scipy.linalg import qr
 from scipy.optimize import lsq_linear, minimize
 
 from ..dynamo_logger import main_info, main_warning
-from ..tools.cell_velocities import projection_with_transition_matrix
+from ..tools.utils import projection_with_transition_matrix
 from .utils import (
     elem_prod,
     flatten,

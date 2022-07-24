@@ -3,9 +3,9 @@ import numpy as np
 from scipy.sparse import csr_matrix, diags, issparse
 
 from ..dynamo_logger import LoggerManager
-from .cell_velocities import projection_with_transition_matrix
 from .connectivity import adj_to_knn, knn_to_adj
 from .graph_operators import build_graph, gradop
+from .utils import projection_with_transition_matrix
 
 
 def gradient(E, f, tol=1e-5):

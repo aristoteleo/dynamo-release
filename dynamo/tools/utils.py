@@ -9,13 +9,17 @@ import pandas as pd
 import scipy.sparse as sp
 from anndata._core.anndata import AnnData
 from anndata._core.views import ArrayView
-from scipy import interpolate, stats
+from scipy import interpolate
+from scipy import sparse as sp
+from scipy import stats
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
 from scipy.spatial import cKDTree
 from scipy.spatial.distance import squareform as spsquare
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
+
+from dynamo import LoggerManager
 
 from ..dynamo_logger import (
     main_critical,
@@ -2367,3 +2371,32 @@ def get_rank_array(
         arr = np.abs(arr)
 
     return genes, arr
+
+
+# ---------------------------------------------------------------------------------------------------
+# projection related
+def projection_with_transition_matrix(T, X_embedding, correct_density=True, norm_dist=True):
+    n = T.shape[0]
+    delta_X = np.zeros((n, X_embedding.shape[1]))
+
+    if not sp.issparse(T):
+        T = sp.csr_matrix(T)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for i in LoggerManager.progress_logger(
+            range(n),
+            progress_name="projecting velocity vector to low dimensional embedding",
+        ):
+            idx = T[i].indices
+            diff_emb = X_embedding[idx] - X_embedding[i, None]
+            if norm_dist:
+                diff_emb /= norm(diff_emb, axis=1)[:, None]
+            if np.isnan(diff_emb).sum() != 0:
+                diff_emb[np.isnan(diff_emb)] = 0
+            T_i = T[i].data
+            delta_X[i] = T_i.dot(diff_emb)
+            if correct_density:
+                delta_X[i] -= T_i.mean() * diff_emb.sum(0)
+
+    return delta_X
