@@ -455,7 +455,7 @@ def hessian(
             cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
 
     Hessian_func = vector_field_class.get_Hessian(method=method)
-    Hs = Hessian_func(X[cell_idx])
+    Hs = [Hessian_func(X[i]) for i in cell_idx]
 
     if regulators is not None and coregulators is not None and effector is not None:
         if type(regulators) is str:
@@ -505,11 +505,16 @@ def hessian(
                 raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
             Q = Q[:, : X.shape[1]]
             if len(regulators) == 1 and len(coregulators) == 1 and len(effector) == 1:
-                Hessian = elementwise_hessian_transformation(
-                    Hs, Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), Q[coreg_idx, :].flatten(), **kwargs
-                )
+                Hessian = [
+                    elementwise_hessian_transformation(
+                        h, Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), Q[coreg_idx, :].flatten(), **kwargs
+                    )
+                    for h in Hs
+                ]
             else:
-                Hessian = hessian_transformation(Hs, Q[eff_idx, :], Q[reg_idx, :], Q[coreg_idx, :], **kwargs)
+                Hessian = [
+                    hessian_transformation(h, Q[eff_idx, :], Q[reg_idx, :], Q[coreg_idx, :], **kwargs) for h in Hs
+                ]
         else:
             Hessian = Hs.copy()
     else:
