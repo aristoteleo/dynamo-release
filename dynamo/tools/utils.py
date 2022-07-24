@@ -19,8 +19,8 @@ from scipy.spatial.distance import squareform as spsquare
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from .. import LoggerManager
 from ..dynamo_logger import (
+    LoggerManager,
     main_critical,
     main_debug,
     main_exception,
