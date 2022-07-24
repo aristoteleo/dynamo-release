@@ -6,6 +6,7 @@ from scipy.linalg import qr
 from scipy.optimize import lsq_linear, minimize
 
 from ..dynamo_logger import main_info, main_warning
+from ..tools.cell_velocities import projection_with_transition_matrix
 from .utils import (
     elem_prod,
     flatten,
@@ -253,30 +254,6 @@ def symmetrize_discrete_vector_field(F, mode="asym"):
                 flux = 0.5 * (F[i, j] + F[j, i])
                 E_[i, j], E_[j, i] = flux, flux
     return E_
-
-
-def projection_with_transition_matrix(T, X_emb, correct_density=True, norm_dist=False):
-    # TODO: merge with the same function in cell_velocities after testing.
-    # Note that this function does not normalize distance vectors by default (bc it's desirable by coopt).
-    n = T.shape[0]
-    V = np.zeros((n, X_emb.shape[1]))
-
-    if not sp.issparse(T):
-        T = sp.csr_matrix(T)
-
-    for i in range(n):
-        idx = T[i].indices
-        diff_emb = X_emb[idx] - X_emb[i, None]
-        if norm_dist:
-            diff_emb /= np.linalg.norm(diff_emb, axis=1)[:, None]
-        if np.isnan(diff_emb).sum() != 0:
-            diff_emb[np.isnan(diff_emb)] = 0
-        T_i = T[i].data
-        V[i] = T_i.dot(diff_emb)
-        if correct_density:
-            V[i] -= T_i.mean() * diff_emb.sum(0)
-
-    return V
 
 
 def dist_mat_to_gaussian_weight(dist, sigma):

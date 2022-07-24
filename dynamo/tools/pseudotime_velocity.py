@@ -160,7 +160,7 @@ def pseudotime_velocity(
         raise Exception(f"{method} method is not supported. only `hodge`, `gradient` and `naive` method is supported!")
 
     logger.info("Use pseudotime transition matrix to learn low dimensional velocity projection.")
-    delta_x = projection_with_transition_matrix(T.shape[0], T, adata.obsm[embedding_key], True)
+    delta_x = projection_with_transition_matrix(T, X_embedding=adata.obsm[embedding_key], correct_density=True)
     logger.info_insert_adata(velocity_key, "obsm")
     adata.obsm[velocity_key] = delta_x
 
