@@ -17,6 +17,7 @@ from ..estimation.fit_jacobian import (
 )
 from ..tools.utils import flatten, update_dict
 from ..vectorfield.utils import get_jacobian
+from ..vectorfield.vector_calculus import hessian
 from .utils import (
     _datashade_points,
     _matplotlib_points,
@@ -709,6 +710,7 @@ def plot_hill_function(
 def causality(
     adata,
     pairs_mat,
+    hessian_matrix=False,
     xkey=None,
     ykey=None,
     zkey=None,
@@ -745,6 +747,9 @@ def causality(
     ---------
         adata: `Anndata`
             Annotated Data Frame, an Anndata object.
+        hessian_matrix: `bool`
+            Whether to visualize the Hessian matrix results (row, column are the regulatory/co-regulator gene expression
+            while the color is the results of the Hessian to the effector).
         pairs_mat: 'np.ndarray'
             A matrix where each row is the gene pair and the first column is the hypothetical source or regulator while
             the second column represents the hypothetical target. The name in this matrix should match the name in the
@@ -804,13 +809,16 @@ def causality(
     if ykey is None:
         ykey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
     if zkey is None:
-        zkey = "M_n" if adata.uns["pp"]["has_labeling"] else "M_u"
+        if hessian_matrix:
+            zkey = "hessian_pca"
+        else:
+            zkey = "M_n" if adata.uns["pp"]["has_labeling"] else "M_u"
     if cmap is None:
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
             "causality", ["#008000", "#ADFF2F", "#FFFF00", "#FFA500", "#FFC0CB", "#FFFFFE"]
         )
 
-    if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian"])):
+    if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian", "hessian_pca"])):
         raise Exception(
             f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
@@ -879,11 +887,21 @@ def causality(
 
             z_ori = flatten(J_df[jkey])
         else:
-            z_ori = (
-                flatten(adata[:, gene_pairs[2]].layers[zkey])
-                if len(gene_pairs) == 3
-                else flatten(adata[:, gene_pairs[1]].layers[zkey])
-            )
+            if hessian_matrix:
+                res = hessian_matrix(
+                    adata,
+                    regulators=gene_pairs[0],
+                    coregulators=gene_pairs[1],
+                    effector=gene_pairs[2],
+                    store_in_adata=False,
+                )
+                z_ori = res["hessian_pca"]
+            else:
+                z_ori = (
+                    flatten(adata[:, gene_pairs[2]].layers[zkey])
+                    if len(gene_pairs) == 3
+                    else flatten(adata[:, gene_pairs[1]].layers[zkey])
+                )
 
         if drop_zero_cells:
             finite = np.isfinite(x + y_ori + z_ori)
@@ -1257,4 +1275,139 @@ def comb_logic(
             save_kwargs=save_kwargs,
             return_data=return_data,
             save_key="comb_logic",
+        )
+
+
+def hessian(
+    adata,
+    pairs_mat,
+    xkey=None,
+    ykey=None,
+    zkey=None,
+    log=True,
+    drop_zero_cells=False,
+    delay=0,
+    grid_num=25,
+    n_row=1,
+    n_col=None,
+    cmap="bwr",
+    normalize=True,
+    k=30,
+    show_rug=True,
+    show_extent=False,
+    ext_format=None,
+    stacked_fraction=False,
+    figsize=(6, 4),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    return_data=False,
+):
+    """Plot the combinatorial influence of two genes :math:`x`, :math:`y` to the target :math:`z`.
+    This plotting function tries to intuitively visualize the influence from genes :math:`x` and :math:`y` to the target :math:`z`.
+    Firstly, we divide the expression space for :math:`x` and :math:`y` based on grid_num and then we estimate the k-nearest neighbor for each of the
+    grid. We then use a Gaussian kernel to estimate the expected value for :math:`z`. It is then displayed in two dimension with :math:`x` and :math:`y`
+    as two axis and the color represents the value of the expected of :math:`z`. This function accepts a matrix where each row is the gene pair
+    and the target genes for this pair. The first column is the first hypothetical source or regulator, the second column represents
+    the second hypothetical target while the third column represents the hypothetical target gene. The name in this matrix should match
+    the name in the gene_short_name column of the cds_subset object.
+
+    Arguments
+    ---------
+        adata: `Anndata`
+            Annotated Data Frame, an Anndata object.
+        pairs_mat: 'np.ndarray'
+            A matrix where each row is the gene pair and the first and second columns are the hypothetical source or regulator while
+            the third column represents the hypothetical target. The name in this matrix should match the name in the
+            gene_short_name column of the adata object.
+        log: `bool` (Default: True)
+            A logic argument used to determine whether or not you should perform log transformation (using log(expression + 1))
+            before calculating density estimates, default to be TRUE.
+        drop_zero_cells: `bool` (Default: True)
+            Whether to drop cells that with zero expression for either the potential regulator or potential target. This
+            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
+            of ignoring strong inhibition effects from certain regulators to targets.
+        delay: `int` (Default: 1)
+            The time delay between the source and target gene. Always zero because we don't have real time-series.
+        grid_num: `int` (Default: 25)
+            The number of grid when creating the lagged DREVI plot.
+        n_row: `int` (Default: None)
+            number of columns used to layout the faceted cluster panels.
+        normalize: `bool` (Default: True)
+            Whether to row-scale the data
+        n_col: `int` (Default: 1)
+            number of columns used to layout the faceted cluster panels.
+        ext_format: None or `str` or List[str]
+            The string/list of strings (the first is for x and second for y labels) that will be used to format the ticks
+            on x or y-axis. If it is None or one of the element in the list is None, the default setting will be used.
+        stacked_fraction: bool (default: False)
+            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
+            style is used.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
+
+    Returns
+    -------
+        A figure created by matplotlib.
+    """
+    import matplotlib
+    from matplotlib.colors import ListedColormap
+
+    if cmap is None:
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list("comb_logic", ["#00CF8D", "#FFFF99", "#FF0000"])
+
+    if return_data:
+        flat_res = causality(
+            adata,
+            pairs_mat,
+            hessian_matrix=True,
+            xkey=xkey,
+            ykey=ykey,
+            zkey=zkey,
+            log=log,
+            drop_zero_cells=drop_zero_cells,
+            delay=delay,
+            k=k,
+            normalize=normalize,
+            grid_num=grid_num,
+            n_row=n_row,
+            n_col=n_col,
+            cmap=cmap,
+            show_rug=show_rug,
+            show_extent=show_extent,
+            ext_format=ext_format,
+            figsize=figsize,
+            return_data=return_data,
+        )
+        return flat_res
+    else:
+        causality(
+            adata,
+            pairs_mat,
+            xkey=xkey,
+            ykey=ykey,
+            zkey=zkey,
+            log=log,
+            drop_zero_cells=drop_zero_cells,
+            delay=delay,
+            k=k,
+            normalize=normalize,
+            grid_num=grid_num,
+            n_row=n_row,
+            n_col=n_col,
+            cmap=cmap,
+            show_rug=show_rug,
+            show_extent=show_extent,
+            ext_format=ext_format,
+            stacked_fraction=stacked_fraction,
+            figsize=figsize,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+            return_data=return_data,
+            save_key="hessian",
         )
