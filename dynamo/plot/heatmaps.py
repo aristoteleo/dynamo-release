@@ -1038,10 +1038,16 @@ def causality(
             else:
                 axes[i, j].title.set_text(r"$E(\partial f_{%s} / \partial x_{%s})$" % (gene_pairs[1], gene_pairs[0]))
         else:
-            if len(gene_pairs) == 3:
-                axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
+            if hessian_matrix:
+                if len(gene_pairs) == 3:
+                    axes[i, j].title.set_text(rf"$Hessian_{{{gene_pairs[2]}}}$ (${zkey}$)")
+                else:
+                    axes[i, j].title.set_text(rf"$Hessian_{{{gene_pairs[1]}}}$ (${zkey}$)")
             else:
-                axes[i, j].title.set_text(rf"$E_{{{gene_pairs[1]}}}$ (${zkey}$)")
+                if len(gene_pairs) == 3:
+                    axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
+                else:
+                    axes[i, j].title.set_text(rf"$E_{{{gene_pairs[1]}}}$ (${zkey}$)")
 
         if show_rug:
             xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
