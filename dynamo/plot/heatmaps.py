@@ -895,7 +895,7 @@ def causality(
                     effector=gene_pairs[2],
                     store_in_adata=False,
                 )
-                z_ori = res["hessian_pca"]
+                z_ori = res["hessian_gene"]
             else:
                 z_ori = (
                     flatten(adata[:, gene_pairs[2]].layers[zkey])
