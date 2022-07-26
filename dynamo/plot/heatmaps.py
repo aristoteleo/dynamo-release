@@ -1395,6 +1395,7 @@ def hessian(
         causality(
             adata,
             pairs_mat,
+            hessian_matrix=True,
             xkey=xkey,
             ykey=ykey,
             zkey=zkey,
