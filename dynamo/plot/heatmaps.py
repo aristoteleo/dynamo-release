@@ -895,7 +895,7 @@ def causality(
                     effector=gene_pairs[2],
                     store_in_adata=False,
                 )
-                z_ori = res["hessian_gene"]
+                z_ori = np.array(res["hessian_gene"])
             else:
                 z_ori = (
                     flatten(adata[:, gene_pairs[2]].layers[zkey])
@@ -916,7 +916,7 @@ def causality(
         if log:
             x = x if sum(x < 0) else np.log(np.array(x) + 1)
             y_ori = y_ori if sum(y_ori) < 0 else np.log(np.array(y_ori) + 1)
-            z_ori = z_ori if sum(z_ori) < 0 else np.log(np.array(z_ori) + 1)
+            z_ori = z_ori if sum(z_ori) < 0 or hessian_matrix else np.log(np.array(z_ori) + 1)
 
         if delay != 0:
             x = x[:-delay]
