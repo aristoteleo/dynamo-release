@@ -17,7 +17,7 @@ from ..estimation.fit_jacobian import (
 )
 from ..tools.utils import flatten, update_dict
 from ..vectorfield.utils import get_jacobian
-from ..vectorfield.vector_calculus import hessian
+from ..vectorfield.vector_calculus import hessian as run_hessian
 from .utils import (
     _datashade_points,
     _matplotlib_points,
@@ -888,7 +888,7 @@ def causality(
             z_ori = flatten(J_df[jkey])
         else:
             if hessian_matrix:
-                res = hessian_matrix(
+                res = run_hessian(
                     adata,
                     regulators=gene_pairs[0],
                     coregulators=gene_pairs[1],
