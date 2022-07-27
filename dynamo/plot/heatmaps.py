@@ -962,7 +962,7 @@ def causality(
             if not np.isfinite(max_val):
                 max_val = 1e10
 
-            flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_z"] = (
+            flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), 2] = (
                 flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_z"] / max_val
             )
 

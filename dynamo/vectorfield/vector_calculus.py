@@ -455,7 +455,9 @@ def hessian(
             cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
 
     Hessian_func = vector_field_class.get_Hessian(method=method)
-    Hs = [Hessian_func(X[i]) for i in cell_idx]
+    Hs = np.zeros([X.shape[1], X.shape[1], X.shape[1], X.shape[0]])
+    for ind, i in enumerate(cell_idx):
+        Hs[:, :, :, ind] = Hessian_func(X[i])
 
     if regulators is not None and coregulators is not None and effector is not None:
         if type(regulators) is str:
@@ -507,13 +509,18 @@ def hessian(
             if len(regulators) == 1 and len(coregulators) == 1 and len(effector) == 1:
                 Hessian = [
                     elementwise_hessian_transformation(
-                        h, Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), Q[coreg_idx, :].flatten(), **kwargs
+                        Hs[:, :, :, i],
+                        Q[eff_idx, :].flatten(),
+                        Q[reg_idx, :].flatten(),
+                        Q[coreg_idx, :].flatten(),
+                        **kwargs,
                     )
-                    for h in Hs
+                    for i in np.arange(Hs.shape[-1])
                 ]
             else:
                 Hessian = [
-                    hessian_transformation(h, Q[eff_idx, :], Q[reg_idx, :], Q[coreg_idx, :], **kwargs) for h in Hs
+                    hessian_transformation(Hs[:, :, :, i], Q[eff_idx, :], Q[reg_idx, :], Q[coreg_idx, :], **kwargs)
+                    for i in np.arange(Hs.shape[-1])
                 ]
         else:
             Hessian = Hs.copy()
