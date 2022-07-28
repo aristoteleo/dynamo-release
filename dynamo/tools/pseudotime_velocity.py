@@ -3,9 +3,9 @@ import numpy as np
 from scipy.sparse import csr_matrix, diags, issparse
 
 from ..dynamo_logger import LoggerManager
-from .cell_velocities import projection_with_transition_matrix
 from .connectivity import adj_to_knn, knn_to_adj
 from .graph_operators import build_graph, gradop
+from .utils import projection_with_transition_matrix
 
 
 def gradient(E, f, tol=1e-5):
@@ -160,12 +160,12 @@ def pseudotime_velocity(
         raise Exception(f"{method} method is not supported. only `hodge`, `gradient` and `naive` method is supported!")
 
     logger.info("Use pseudotime transition matrix to learn low dimensional velocity projection.")
-    delta_x = projection_with_transition_matrix(T.shape[0], T, adata.obsm[embedding_key], True)
+    delta_x = projection_with_transition_matrix(T, X_embedding=adata.obsm[embedding_key], correct_density=True)
     logger.info_insert_adata(velocity_key, "obsm")
     adata.obsm[velocity_key] = delta_x
 
     logger.info("Use pseudotime transition matrix to learn gene-wise velocity vectors.")
-    delta_X = projection_with_transition_matrix(T.shape[0], T, adata.layers[ekey].A, True)
+    delta_X = projection_with_transition_matrix(T, adata.layers[ekey].A, True)
     logger.info_insert_adata(vkey, "layers")
     adata.layers[vkey] = csr_matrix(delta_X)
 

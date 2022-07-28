@@ -39,7 +39,10 @@ def toggle(ab, t=None, beta=5, gamma=1, n=2):
 
 
 def Ying_model(x, t=None):
-    """network used in the potential landscape paper from Ying, et. al: https://www.nature.com/articles/s41598-017-15889-2"""
+    """network used in the potential landscape paper from Ying, et. al:
+    https://www.nature.com/articles/s41598-017-15889-2.
+    This is also the mixture of Gaussian model.
+    """
     if len(x.shape) == 2:
         dx1 = -1 + 9 * x[:, 0] - 2 * pow(x[:, 0], 3) + 9 * x[:, 1] - 2 * pow(x[:, 1], 3)
         dx2 = 1 - 11 * x[:, 0] + 2 * pow(x[:, 0], 3) + 11 * x[:, 1] - 2 * pow(x[:, 1], 3)
@@ -54,7 +57,28 @@ def Ying_model(x, t=None):
     return ret
 
 
-def ode_bifur2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
+def jacobian_Ying_model(x, t=None):
+    """network used in the potential landscape paper from Ying, et. al:
+    https://www.nature.com/articles/s41598-017-15889-2.
+    This is also the mixture of Gaussian model.
+    """
+    if len(x.shape) == 2:
+        df1_dx1 = 9 - 6 * pow(x[:, 0], 2)
+        df1_dx2 = 9 - 6 * pow(x[:, 1], 2)
+        df2_dx1 = -11 + 6 * pow(x[:, 0], 2)
+        df2_dx2 = 11 - 6 * pow(x[:, 1], 2)
+    else:
+        df1_dx1 = 9 - 6 * pow(x[0], 2)
+        df1_dx2 = 9 - 6 * pow(x[1], 2)
+        df2_dx1 = -11 + 6 * pow(x[0], 2)
+        df2_dx2 = 11 - 6 * pow(x[1], 2)
+
+    J = np.array([[df1_dx1, df1_dx2], [df2_dx1, df2_dx2]])
+
+    return J
+
+
+def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
     """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
     d = x.ndim
@@ -70,7 +94,9 @@ def ode_bifur2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
     return dx
 
 
-def jacobian_bifur2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
+def jacobian_bifur2genes(
+    x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]
+):
     """The Jacobian of the toggle switch ODE model."""
     df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
     df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
@@ -241,6 +267,7 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             min_val=0,
             max_val=6,
             N=cell_num,
+            clip=clip,
         )
         gene_name = np.array(["X", "Y"])
     elif motif == "neurogenesis":
@@ -251,6 +278,7 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             min_val=0,
             max_val=6,
             N=cell_num,
+            clip=clip,
         )
 
         gene_name = np.array(
@@ -271,10 +299,10 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             ]
         )
     elif motif == "twogenes":
-        X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num)
+        X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num, clip=clip)
         gene_name = np.array(["Pu.1", "Gata.1"])
     elif motif == "Ying":
-        X, Y = state_space_sampler(ode=Ying_model, dim=2, clip=clip, min_val=-3, max_val=3, N=cell_num)
+        X, Y = state_space_sampler(ode=Ying_model, dim=2, min_val=-3, max_val=3, N=cell_num, clip=clip)
         gene_name = np.array(["X", "Y"])
 
     var = pd.DataFrame({"gene_short_name": gene_name})  # use the real name in simulation?

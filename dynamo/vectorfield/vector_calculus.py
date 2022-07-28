@@ -29,8 +29,10 @@ from ..vectorfield import scVectorField
 from .scVectorField import SvcVectorField
 from .utils import (
     average_jacobian_by_group,
+    elementwise_hessian_transformation,
     elementwise_jacobian_transformation,
     get_vf_dict,
+    hessian_transformation,
     intersect_sources_targets,
     subset_jacobian_transformation,
     vecfld_from_adata,
@@ -95,7 +97,7 @@ def velocities(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -172,7 +174,7 @@ def speed(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -265,7 +267,7 @@ def jacobian(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -351,6 +353,194 @@ def jacobian(
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
+        return adata
+    else:
+        return ret_dict
+
+
+def hessian(
+    adata,
+    regulators,
+    coregulators,
+    effector,
+    cell_idx=None,
+    sampling=None,
+    sample_ncells=1000,
+    basis="pca",
+    Qkey="PCs",
+    vector_field_class=None,
+    method="analytical",
+    store_in_adata=True,
+    **kwargs,
+):
+    """Calculate Hessian for each cell with the reconstructed vector field.
+
+    If the vector field was reconstructed from the reduced PCA space, the Hessian matrix will then be inverse
+    transformed back to high dimension. Note that this should also be possible for reduced UMAP space and will be
+    supported shortly. Note that we compute the Hessian for the RKHS kernel vector field analytically, which is much
+    more computationally efficient than the numerical method.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field in `.uns`.
+        regulators: list
+            The list of genes that will be used as regulators when calculating the cell-wise Hessian matrix. The
+            Hessian is the matrix consisting of secondary partial derivatives of the vector field wrt gene expressions.
+            It can be used to evaluate the change in velocities of effectors (see below) as the expressions of
+            regulators and co-regulators increase. The regulators/co-regulators are the denominators of the partial
+            derivatives.
+        coregulators: list
+            The list of genes that will be used as regulators when calculating the cell-wise Hessian matrix. The
+            Hessian is the matrix consisting of secondary partial derivatives of the vector field wrt gene expressions.
+            It can be used to evaluate the change in velocities of effectors (see below) as the expressions of
+            regulators and co-regulators increase. The regulators/co-regulators are the denominators of the partial
+            derivatives.
+        effector: list or None (default: None)
+            The target gene that will be used as effector when calculating the cell-wise Hessian matrix. Effector
+            must be a single gene. The effector is the numerator of the partial derivatives.
+        cell_idx: list or None (default: None)
+            A list of cell index (or boolean flags) for which the Hessian is calculated.
+            If `None`, all or a subset of sampled cells are used.
+        sampling: {None, 'random', 'velocity', 'trn'}, (default: None)
+            See specific information on these methods in `.tl.sample`.
+            If `None`, all cells are used.
+        sample_ncells: int (default: 1000)
+            The number of cells to be sampled. If `sampling` is None, this parameter is ignored.
+        basis: str (default: 'pca')
+            The embedding data in which the vector field was reconstructed. If `None`, use the vector field function
+            that was reconstructed directly from the original unreduced gene expression space.
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not `None`, the Hessian will be computed using this class instead of the vector field stored in adata.
+        method: str (default: 'analytical')
+            The method that will be used for calculating Hessian, either `'analytical'` or `'numerical'`.
+            `'analytical'` method uses the analytical expressions for calculating Hessian while `'numerical'` method
+            uses numdifftools, a numerical differentiation tool, for computing Hessian. `'analytical'` method is much
+            more efficient.
+        cores: int (default: 1)
+            Number of cores to calculate Hessian. Currently note used.
+        kwargs:
+            Any additional keys that will be passed to elementwise_hessian_transformation function.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `'Hessian'` key in the `.uns`. This is a 4-dimensional tensor with
+            dimensions 1 (n_effector) x n_regulators x n_coregulators x n_obs.
+    """
+
+    if vector_field_class is None:
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys():
+            vf_dict["method"] = "sparsevfc"
+        if vf_dict["method"].lower() == "sparsevfc":
+            vector_field_class = SvcVectorField()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict["method"].lower() == "dynode":
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError("current only support two methods, SparseVFC and dynode")
+
+    if basis == "umap":
+        cell_idx = np.arange(adata.n_obs)
+
+    X, V = vector_field_class.get_data()
+    if cell_idx is None:
+        if sampling is None or sampling == "all":
+            cell_idx = np.arange(adata.n_obs)
+        else:
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
+
+    Hessian_func = vector_field_class.get_Hessian(method=method)
+    Hs = np.zeros([X.shape[1], X.shape[1], X.shape[1], X.shape[0]])
+    for ind, i in enumerate(cell_idx):
+        Hs[:, :, :, ind] = Hessian_func(X[i])
+
+    if regulators is not None and coregulators is not None and effector is not None:
+        if type(regulators) is str:
+            if regulators in adata.var.keys():
+                regulators = adata.var.index[adata.var[regulators]]
+            else:
+                regulators = [regulators]
+        if type(coregulators) is str:
+            if coregulators in adata.var.keys():
+                coregulators = adata.var.index[adata.var[coregulators]]
+            else:
+                coregulators = [coregulators]
+        if type(effector) is str:
+            if effector in adata.var.keys():
+                effector = adata.var.index[adata.var[effector]]
+            else:
+                effector = [effector]
+
+            if len(effector) > 1:
+                raise Exception(f"effector must be a single gene but you have {effector}. ")
+
+        regulators = np.unique(regulators)
+        coregulators = np.unique(coregulators)
+        effector = np.unique(effector)
+
+        var_df = adata[:, adata.var.use_for_dynamics].var
+        regulators = var_df.index.intersection(regulators)
+        coregulators = var_df.index.intersection(coregulators)
+        effector = var_df.index.intersection(effector)
+
+        reg_idx, coreg_idx, eff_idx = (
+            get_pd_row_column_idx(var_df, regulators, "row"),
+            get_pd_row_column_idx(var_df, coregulators, "row"),
+            get_pd_row_column_idx(var_df, effector, "row"),
+        )
+        if len(regulators) == 0 or len(coregulators) == 0 or len(effector) == 0:
+            raise ValueError(
+                "Either the regulator, coregulator or the effector gene list provided is not in the dynamics gene list!"
+            )
+
+        if basis == "pca":
+            if Qkey in adata.uns.keys():
+                Q = adata.uns[Qkey]
+            elif Qkey in adata.varm.keys():
+                Q = adata.varm[Qkey]
+            else:
+                raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
+            Q = Q[:, : X.shape[1]]
+            if len(regulators) == 1 and len(coregulators) == 1 and len(effector) == 1:
+                Hessian = [
+                    elementwise_hessian_transformation(
+                        Hs[:, :, :, i],
+                        Q[eff_idx, :].flatten(),
+                        Q[reg_idx, :].flatten(),
+                        Q[coreg_idx, :].flatten(),
+                        **kwargs,
+                    )
+                    for i in np.arange(Hs.shape[-1])
+                ]
+            else:
+                Hessian = [
+                    hessian_transformation(Hs[:, :, :, i], Q[eff_idx, :], Q[reg_idx, :], Q[coreg_idx, :], **kwargs)
+                    for i in np.arange(Hs.shape[-1])
+                ]
+        else:
+            Hessian = Hs.copy()
+    else:
+        Hessian = None
+
+    ret_dict = {"hessian": Hs, "cell_idx": cell_idx}
+    # use 'str_key' in dict.keys() to check if these items are computed, or use dict.get('str_key')
+    if Hessian is not None:
+        ret_dict["hessian_gene"] = Hessian
+    if regulators is not None:
+        ret_dict["regulators"] = regulators.to_list()
+    if coregulators is not None:
+        ret_dict["coregulators"] = coregulators.to_list()
+    if effector is not None:
+        ret_dict["effectors"] = effector.to_list()
+
+    if store_in_adata:
+        hkey = "hessian" if basis is None else "hessian_" + basis
+        adata.uns[hkey] = ret_dict
         return adata
     else:
         return ret_dict
@@ -444,7 +634,7 @@ def sensitivity(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -598,7 +788,7 @@ def acceleration(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -680,7 +870,7 @@ def curvature(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -742,7 +932,7 @@ def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -789,7 +979,7 @@ def curl(adata, basis="umap", vector_field_class=None, method="analytical", **kw
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -845,7 +1035,7 @@ def divergence(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError("current only support two methods, SparseVFC and dynode")
 

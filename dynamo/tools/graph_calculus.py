@@ -6,6 +6,7 @@ from scipy.linalg import qr
 from scipy.optimize import lsq_linear, minimize
 
 from ..dynamo_logger import main_info, main_warning
+from ..tools.utils import projection_with_transition_matrix
 from .utils import (
     elem_prod,
     flatten,
@@ -39,7 +40,7 @@ def graphize_velocity(
         X: :class:`~numpy.ndarray`
             The coordinates for all cells.
         nbrs_idx: list (optional, default None)
-            a list of neighbor indices for each cell. If None a KNN will be performed instead.
+            A list of neighbor indices for each cell. If None a KNN will be performed instead.
         k: int (optional, default 30)
             The number of neighbors for the KNN search.
         normalize_v: bool (optional, default False)
@@ -50,7 +51,8 @@ def graphize_velocity(
                 'sqrt': the numpy.sqrt square root function;
                 'exp': the numpy.exp exponential function.
         return_nbrs:
-            returns a neighbor object if this arg is true. A neighbor object is from k_nearest_neighbors and may be from NNDescent (pynndescent) or NearestNeighbors.
+            returns a neighbor object if this arg is True. A neighbor object is from k_nearest_neighbors and may be
+            from NNDescent (pynndescent) or NearestNeighbors.
 
     Returns
     -------
@@ -138,8 +140,9 @@ def graphize_velocity_coopt(
     # TODO: merge with graphize_velocity
     """
     The function generates a graph based on the velocity data by minimizing the loss function:
-                    L(w_i) = |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
-    where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
+                    L(w_i) = a |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
+    where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j],
+    and E[i, j] = -E[j, i].
 
     Arguments
     ---------
@@ -148,11 +151,23 @@ def graphize_velocity_coopt(
         V: :class:`~numpy.ndarray`
             The velocity vectors in the expression space.
         U: :class:`~numpy.ndarray`
-            The correlation kernel-projected velocity vectors.
+            The correlation kernel-projected velocity vectors, must be in the original expression space, can be
+            calculated as `adata.obsm['velocity_pca'] @ adata.uns['PCs'].T` where velocity_pca is the kernel projected
+            velocity vector in PCA space.
         nbrs: list
             List of neighbor indices for each cell.
+        a: float (default 1.0)
+            The weight for preserving the velocity length.
         b: float (default 1.0)
-            Weight for
+            The weight for the cosine similarity.
+        r: float (default 1.0)
+            The weight for the regularization.
+        nonneg: bool (default False)
+            Whether to ensure the resultant transition matrix to have non-negative values.
+        norm_dist: bool (defauilt False)
+            norm_dist should be False so that the resulting graph vector field penalizes long jumps.
+
+
 
     Returns
     -------
@@ -239,30 +254,6 @@ def symmetrize_discrete_vector_field(F, mode="asym"):
                 flux = 0.5 * (F[i, j] + F[j, i])
                 E_[i, j], E_[j, i] = flux, flux
     return E_
-
-
-def projection_with_transition_matrix(T, X_emb, correct_density=True, norm_dist=False):
-    # TODO: merge with the same function in cell_velocities after testing.
-    # Note that this function does not normalize distance vectors by default (bc it's desirble by coopt).
-    n = T.shape[0]
-    V = np.zeros((n, X_emb.shape[1]))
-
-    if not sp.issparse(T):
-        T = sp.csr_matrix(T)
-
-    for i in range(n):
-        idx = T[i].indices
-        diff_emb = X_emb[idx] - X_emb[i, None]
-        if norm_dist:
-            diff_emb /= np.linalg.norm(diff_emb, axis=1)[:, None]
-        if np.isnan(diff_emb).sum() != 0:
-            diff_emb[np.isnan(diff_emb)] = 0
-        T_i = T[i].data
-        V[i] = T_i.dot(diff_emb)
-        if correct_density:
-            V[i] -= T_i.mean() * diff_emb.sum(0)
-
-    return V
 
 
 def dist_mat_to_gaussian_weight(dist, sigma):

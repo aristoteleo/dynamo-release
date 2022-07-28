@@ -1,4 +1,3 @@
-import warnings
 from typing import Union
 
 import anndata
@@ -10,21 +9,15 @@ from numba import jit
 from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
 
-# dynamo logger related
-from ..dynamo_logger import (
-    LoggerManager,
-    main_critical,
-    main_exception,
-    main_info,
-    main_tqdm,
-    main_warning,
-)
+from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..utils import areinstance
 from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
 from .dimension_reduction import reduceDimension
 from .graph_calculus import calc_gaussian_weight, fp_operator, graphize_velocity
 from .Markov import ContinuousTimeMarkovChain, KernelMarkovChain, velocity_on_grid
 from .metric_velocity import gene_wise_confidence
+
+# dynamo logger related
 from .utils import (
     einsum_correlation,
     get_ekey_vkey_from_adata,
@@ -33,7 +26,7 @@ from .utils import (
     get_neighbor_indices,
     index_gene,
     log1p_,
-    norm,
+    projection_with_transition_matrix,
     set_transition_genes,
     split_velocity_graph,
     update_dict,
@@ -451,7 +444,7 @@ def cell_velocities(
         if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
             print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
             T = adata.obsp[method + "_transition_matrix"] if transition_matrix is None else transition_matrix
-            delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding, correct_density)
+            delta_X = projection_with_transition_matrix(T, X_embedding, correct_density)
             X_grid, V_grid, D = velocity_on_grid(
                 X_embedding[:, :2],
                 (X_embedding + delta_X)[:, :2],
@@ -520,7 +513,7 @@ def cell_velocities(
                 print("Using existing %s found in .obsp." % (method + "_transition_rate"))
                 R = adata.obsp[method + "_transition_rate"]
                 T = ContinuousTimeMarkovChain(P=R.T).compute_embedded_transition_matrix().T
-            delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
+            delta_X = projection_with_transition_matrix(T, X_embedding, correct_density)
         else:
             E, nbrs_idx, dists = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
             if wgt_mode == "naive":
@@ -535,7 +528,7 @@ def cell_velocities(
             L = fp_operator(E, W=W, **fp_kwargs)
             ctmc = ContinuousTimeMarkovChain(P=L, **ctmc_kwargs)
             T = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
-            delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
+            delta_X = projection_with_transition_matrix(T, X_embedding, correct_density)
 
             adata.obsp["fp_transition_rate"] = ctmc.P.T
             adata.obsp["discrete_vector_field"] = E
@@ -982,7 +975,7 @@ def kernels_from_velocyto_scvelo(
     T.setdiag(0)
     T.eliminate_zeros()
 
-    delta_X = projection_with_transition_matrix(n, T, X_embedding, correct_density)
+    delta_X = projection_with_transition_matrix(T, X_embedding, correct_density)
 
     X_grid, V_grid, D = velocity_on_grid(
         X_embedding[:, :2],
@@ -991,28 +984,6 @@ def kernels_from_velocyto_scvelo(
     )
 
     return T, delta_X, X_grid, V_grid, D
-
-
-def projection_with_transition_matrix(n, T, X_embedding, correct_density=True):
-    delta_X = np.zeros((n, X_embedding.shape[1]))
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        for i in LoggerManager.progress_logger(
-            range(n),
-            progress_name="projecting velocity vector to low dimensional embedding",
-        ):
-            idx = T[i].indices
-            diff_emb = X_embedding[idx] - X_embedding[i, None]
-            diff_emb /= norm(diff_emb, axis=1)[:, None]
-            if np.isnan(diff_emb).sum() != 0:
-                diff_emb[np.isnan(diff_emb)] = 0
-            T_i = T[i].data
-            delta_X[i] = T_i.dot(diff_emb)
-            if correct_density:
-                delta_X[i] -= T_i.mean() * diff_emb.sum(0)
-
-    return delta_X
 
 
 # utility functions for calculating the random cell velocities

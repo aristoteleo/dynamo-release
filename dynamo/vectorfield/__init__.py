@@ -44,6 +44,7 @@ from .vector_calculus import (
     curl,
     curvature,
     divergence,
+    hessian,
     jacobian,
     rank_acceleration_genes,
     rank_cells,

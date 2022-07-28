@@ -13,8 +13,8 @@ class TRNET:
         self.n_nodes = n_nodes
         self.n_dims = X.shape[1]
         self.X = X
-        self.W = self.draw_sample(self.n_nodes)  # initialize the positions of nodes
         self.seed = seed
+        self.W = self.draw_sample(self.n_nodes)  # initialize the positions of nodes
 
     def draw_sample(self, n_samples):
         np.random.seed(self.seed)
