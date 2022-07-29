@@ -1008,7 +1008,7 @@ class SvcVectorField(DifferentiableVectorField):
 
     def get_Laplacian(self, method="analytical", **kwargs):
         """
-        Get the Laplacian of the vector field. Laplacian is defined as the sum of the diagonal of the hessian matrix.
+        Get the Laplacian of the vector field. Laplacian is defined as the sum of the diagonal of the Hessian matrix.
         Because Hessian is originally defined for scalar function and here we extend it to vector functions. We will
         calculate the summation of the diagonal of each output (target) dimension.
 

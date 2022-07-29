@@ -662,7 +662,7 @@ def Laplacian(H):
         L = np.zeros([H.shape[2], H.shape[3]])
         for sample_indx, i in enumerate(H):
             for out_indx in range(L.shape[0]):
-                L[out_indx, sample_indx] = np.diag(i[:, :, out_indx]).sum()
+                L[out_indx, sample_indx] = np.diag(i[:, :, out_indx, sample_indx]).sum()
     else:
         L = np.zeros([H.shape[2], 1])
         for out_indx in range(L.shape[0]):

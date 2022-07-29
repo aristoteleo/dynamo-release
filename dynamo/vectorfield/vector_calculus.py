@@ -587,8 +587,8 @@ def laplacian(
     -------
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the `'Laplacian'` key in the `.obs` and `obsm`. The first one is the
-            norm of the Laplacian for all target gene in a cell while the second one is the vector of Laplican for all
-            target gene in each cell.
+            norm of the Laplacian for all target genes in a cell while the second one is the vector of Laplacian for all
+            target genes in each cell.
     """
 
     if hkey not in adata.uns_keys():
