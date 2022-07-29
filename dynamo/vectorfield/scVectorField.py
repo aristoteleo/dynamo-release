@@ -31,6 +31,7 @@ from .utils import (
     Jacobian_numerical,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
+    Laplacian,
     compute_acceleration,
     compute_curl,
     compute_curvature,
@@ -1003,9 +1004,27 @@ class SvcVectorField(DifferentiableVectorField):
             else:
                 raise Exception("The perturbed vector field function has not been set up.")
         else:
-            raise NotImplementedError(
-                f"The method {method} is not implemented. Currently only " f"supports 'analytical'."
-            )
+            raise NotImplementedError(f"The method {method} is not implemented. Currently only supports 'analytical'.")
+
+    def get_Laplacian(self, method="analytical", **kwargs):
+        """
+        Get the Laplacian of the vector field. Laplacian is defined as the sum of the diagonal of the hessian matrix.
+        Because Hessian is originally defined for scalar function and here we extend it to vector functions. We will
+        calculate the summation of the diagonal of each output (target) dimension.
+
+        A Laplacian filter is an edge detector used to compute the second derivatives of an image, measuring the rate
+        at which the first derivatives change (so it is the derivative of the Jacobian). This determines if a change in
+        adjacent pixel values is from an edge or continuous progression.
+        """
+        if method == "analytical":
+            return lambda x: Laplacian(x)
+        elif method == "numerical":
+            if self.func is not None:
+                raise Exception("Numerical Laplacian for vector field is not defined.")
+            else:
+                raise Exception("The perturbed vector field function has not been set up.")
+        else:
+            raise NotImplementedError(f"The method {method} is not implemented. Currently only supports 'analytical'.")
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.

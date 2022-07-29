@@ -657,6 +657,19 @@ def elementwise_hessian_transformation(H, qi, qj, qk):
 
 
 # ---------------------------------------------------------------------------------------------------
+def Laplacian(H):
+    if H.ndim == 4:
+        L = np.zeros([H.shape[2], H.shape[3]])
+        for sample_indx, i in enumerate(H):
+            for out_indx in range(L.shape[0]):
+                L[out_indx, sample_indx] = np.diag(i[:, :, out_indx]).sum()
+    else:
+        L = np.zeros([H.shape[2], 1])
+        for out_indx in range(L.shape[0]):
+            L[out_indx, 0] = np.diag(H[:, :, out_indx]).sum()
+
+
+# ---------------------------------------------------------------------------------------------------
 # dynamical properties
 def _divergence(f, x):
     """Divergence of the reconstructed vector field function f evaluated at x"""

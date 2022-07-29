@@ -46,6 +46,7 @@ from .vector_calculus import (
     divergence,
     hessian,
     jacobian,
+    laplacian,
     rank_acceleration_genes,
     rank_cells,
     rank_curvature_genes,
