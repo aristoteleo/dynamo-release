@@ -78,6 +78,27 @@ def jacobian_Ying_model(x, t=None):
     return J
 
 
+def hessian_Ying_model(x, t=None):
+    """network used in the potential landscape paper from Ying, et. al:
+    https://www.nature.com/articles/s41598-017-15889-2.
+    This is also the mixture of Gaussian model.
+    """
+    if len(x.shape) == 2:
+        H = np.zeros([2, 2, 2, x.shape[0]])
+        H[0, 0, 0, :] = -12 * x[:, 0]
+        H[1, 1, 0, :] = -12 * x[:, 1]
+        H[0, 0, 1, :] = 12 * x[:, 0]
+        H[1, 1, 1, :] = -12 * x[:, 1]
+    else:
+        H = np.zeros([2, 2, 2])
+        H[0, 0, 0] = -12 * x[0]
+        H[1, 1, 0] = -12 * x[1]
+        H[0, 0, 1] = 12 * x[0]
+        H[1, 1, 1] = -12 * x[1]
+
+    return H
+
+
 def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
     """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
@@ -100,10 +121,55 @@ def jacobian_bifur2genes(
     """The Jacobian of the toggle switch ODE model."""
     df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
     df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
-    df2_dx1 = hill_act_grad(x[:, 1], a[1], S[1], m[1], g=gamma[1])
-    df2_dx2 = hill_inh_grad(x[:, 0], b[1], K[1], n[1])
+    df2_dx1 = hill_inh_grad(x[:, 0], b[1], K[1], n[1])
+    df2_dx2 = hill_act_grad(x[:, 1], a[1], S[1], m[1], g=gamma[1])
     J = np.array([[df1_dx1, df1_dx2], [df2_dx1, df2_dx2]])
     return J
+
+
+def two_genes_motif_jacobian(x1, x2):
+    """This should be equivalent to jacobian_bifur2genes when using default parameters"""
+    J = np.array(
+        [
+            [
+                0.25 * x1 ** 3 / (0.0625 + x1 ** 4) ** 2 - 1,
+                -0.25 * x2 ** 3 / (0.0625 + x2 ** 4) ** 2,
+            ],
+            [
+                -0.25 * x1 ** 3 / (0.0625 + x1 ** 4) ** 2,
+                0.25 * x2 ** 3 / (0.0625 + x2 ** 4) ** 2 - 1,
+            ],
+        ]
+    )
+    return J
+
+
+def hill_inh_grad2(x, A, K, n):
+    Kd = K ** n
+    return A * n * Kd * x ** (n - 2) * ((n + 1) * x ** n - Kd * n + Kd) / (Kd + x ** n) ** 3
+
+
+def hill_act_grad2(x, A, K, n):
+    Kd = K ** n
+    return -A * n * Kd * x ** (n - 2) * ((n + 1) * x ** n - Kd * n + Kd) / (Kd + x ** n) ** 3
+
+
+def hessian_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], t=None):
+    """The Hessian of the toggle switch ODE model."""
+    if len(x.shape) == 2:
+        H = np.zeros([2, 2, 2, x.shape[0]])
+        H[0, 0, 0, :] = hill_act_grad2(x[:, 0], a[0], S[0], m[0])
+        H[1, 1, 0, :] = hill_inh_grad2(x[:, 1], b[0], K[0], n[0])
+        H[0, 0, 1, :] = hill_inh_grad2(x[:, 0], b[1], K[1], n[1])
+        H[1, 1, 1, :] = hill_act_grad2(x[:, 1], a[1], S[1], m[1])
+    else:
+        H = np.zeros([2, 2, 2])
+        H[0, 0, 0] = hill_act_grad2(x[0], a[0], S[0], m[0])
+        H[1, 1, 0] = hill_inh_grad2(x[1], b[0], K[0], n[0])
+        H[0, 0, 1] = hill_inh_grad2(x[0], b[1], K[1], n[1])
+        H[1, 1, 1] = hill_act_grad2(x[1], a[1], S[1], m[1])
+
+    return H
 
 
 def ode_osc2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
