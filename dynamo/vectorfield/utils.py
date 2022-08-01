@@ -620,7 +620,7 @@ def hessian_transformation(H, qi, Qj, Qk):
             The calculated Hessian matrix for the effector i w.r.t regulators j and co-regulators k.
     """
 
-    h = np.einsum("ijk, i -> jk", H, qi)
+    h = np.einsum("ijk, di -> djk", H, qi)
     Qj, Qk = np.atleast_2d(Qj), np.atleast_2d(Qk)
     h = Qj @ h @ Qk.T
 
