@@ -1017,7 +1017,7 @@ class SvcVectorField(DifferentiableVectorField):
         adjacent pixel values is from an edge or continuous progression.
         """
         if method == "analytical":
-            return lambda x: Laplacian(x)
+            return lambda x: Laplacian(H=x)
         elif method == "numerical":
             if self.func is not None:
                 raise Exception("Numerical Laplacian for vector field is not defined.")

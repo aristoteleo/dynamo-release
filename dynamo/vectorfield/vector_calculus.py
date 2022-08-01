@@ -235,7 +235,7 @@ def jacobian(
             The number of cells to be sampled. If `sampling` is None, this parameter is ignored.
         basis: str (default: 'pca')
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function
-            that was reconstructed directly from the original unreduced gene expression space.
+            that was reconstructed directly from the original unredu    ced gene expression space.
         Qkey: str (default: 'PCs')
             The key of the PCA loading matrix in `.uns`.
         vector_field_class: :class:`~scVectorField.vectorfield`
@@ -1781,7 +1781,7 @@ def rank_jacobian_genes(
             rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, output_values=ov, **kwargs)
     elif mode in ["full eff", "full_eff"]:
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(J, reg, eff, n_top_genes=None, output_values=ov, **kwargs)
+            rank_dict[k] = table_top_genes(J.T, reg, eff, n_top_genes=None, output_values=ov, **kwargs)
     elif mode == "reg":
         for k, J in J_mean.items():
             if exclude_diagonal:
