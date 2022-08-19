@@ -17,6 +17,7 @@ from .utils import (
 )
 
 
+# test
 def graphize_velocity(
     V,
     X,
@@ -134,6 +135,7 @@ def graphize_velocity_coopt(
     a: float = 1.0,
     b: float = 1.0,
     r: float = 1.0,
+    loss_func: str = "log",
     nonneg: bool = False,
     norm_dist: bool = False,
 ):
@@ -205,11 +207,20 @@ def graphize_velocity_coopt(
             # reconstruction error between v_ and v
             rec = v_ - v
             rec = rec.dot(rec)
+            if loss_func is None or loss_func == "linear":
+                rec = rec
+            elif loss_func == "log":
+                rec = np.log(rec)
+            else:
+                raise NotImplementedError(
+                    f"The function {loss_func} is not supported. Choose either `linear` or `log`."
+                )
 
             # regularization
             reg = 0 if r == 0 else w.dot(w)
 
-            return a * rec - b * sim + r * reg
+            ret = a * rec - b * sim + r * reg
+            return ret
 
         def fjac(w):
             v_ = w @ D
@@ -218,6 +229,11 @@ def graphize_velocity_coopt(
 
             # reconstruction error
             jac_con = 2 * a * D @ (v_ - v)
+
+            if loss_func is None or loss_func == "linear":
+                jac_con = jac_con
+            elif loss_func == "log":
+                jac_con = jac_con / (v_ - v).dot(v_ - v)
 
             # cosine similarity
             if v_norm == 0 or b == 0:
