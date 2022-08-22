@@ -67,9 +67,9 @@ def mean_first_passage_time(
     tkey: str = "time",
     traj_key: str = "trajectory",
     init_T_quantile=0.01,
-    init_state_radius=3,
-    sink_state_radius=3,
-    target_state_radius=3,
+    init_state_radius=0.1,
+    sink_state_radius=0.1,
+    target_state_radius=0.1,
 ) -> float:
 
     if xkey is None:

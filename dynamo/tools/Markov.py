@@ -844,7 +844,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
     def compute_stationary_distribution(self, method="eig"):
         if method == "solve":
-            p = np.real(null_space(self.P - np.eye(self.P.shape[0])[:, 0]).flatten())
+            p = np.real(null_space(self.P - np.eye(self.P.shape[0])[:, 0])[:, 0].flatten())
         else:
             if self.W is None:
                 self.eigsys()
@@ -888,6 +888,18 @@ class DiscreteTimeMarkovChain(MarkovChain):
         ind = np.arange(1, n_dims + 1)
         Y = np.real(self.D[ind] ** t) * np.real(self.U[:, ind])
         return Y
+
+    def simulate_random_walk(self, init_idx, num_steps):
+        P = self.P.copy()
+
+        seq = np.ones(num_steps + 1, dtype=int) * -1
+        seq[0] = init_idx
+        for i in range(1, num_steps + 1):
+            cur_state = seq[i - 1]
+            r = np.random.rand()
+            seq[i] = np.cumsum(P[:, cur_state]).searchsorted(r)
+
+        return seq
 
 
 class ContinuousTimeMarkovChain(MarkovChain):
