@@ -7,9 +7,9 @@ assignees: ''
 
 ---
 - [ ] I am sure this issue is not simply a general python programming problem
-      (if so, please googled the answers).
-- [ ] I have checked that this issue has not already been reported.
-- [ ] I have confirmed this bug exists on the latest version of dynamo.
+      (if so, please google the answers).
+- [ ] I have searched github issues and confirm this issue has not reported previously.
+- [ ] I have confirmed this bug is not related to dynamo version and it exists on the latest version of dynamo.
 
 ---
 
