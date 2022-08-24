@@ -46,7 +46,7 @@ session_info.show()
 **Additional context**
 Add any other context about the problem here.
 
-## Enhancement other than code
+## Enhancement on text
 Please tell us your ideas about the general description texts here. 
 
 **Unclear or insufficient chapter**
