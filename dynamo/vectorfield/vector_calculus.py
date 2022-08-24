@@ -1030,6 +1030,8 @@ def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
     >>>                        )
     >>> dyn.vf.VectorField(adata, basis='umap_3d')
     >>> dyn.vf.torsion(adata, basis='umap_3d')
+    >>> dyn.pl.streamline_plot(adata, color='torsion_umap_3d', basis='umap_3d')
+    >>> dyn.pl.streamline_plot(adata, color='torsion_umap_3d')
     """
 
     if vector_field_class is None:
