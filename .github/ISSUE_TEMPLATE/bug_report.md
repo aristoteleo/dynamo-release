@@ -35,6 +35,7 @@ If applicable, add screenshots to help explain your problem.
 Install session-info via `pip install session-info` and post the output after running session_info.show()
 
 ```
+import dynamo
 import session_info
 session_info.show()
 ```
