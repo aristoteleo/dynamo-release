@@ -222,6 +222,7 @@ class StreamFuncAnim:
 
             for line in self.ax.get_lines():
                 line.remove()
+
             (self.ln,) = self.ax.plot(x, y, "ro", zorder=20)
             return (self.ln,)  # return line so that blit works properly
         else:
@@ -236,6 +237,7 @@ class StreamFuncAnim:
 
         for line in self.ax.get_lines():
             line.remove()
+
         (self.ln,) = self.ax.plot(x, y, "ro", zorder=20)
 
         if self.time_scaler is not None:
