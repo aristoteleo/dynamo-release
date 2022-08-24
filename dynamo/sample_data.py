@@ -71,7 +71,7 @@ def scifate():
 
 
 def scNT_seq_neuron_splicing(
-    url="https://www.dropbox.com/s/5wk3q2xhgqai2xq/neuron_splicing_4_11.h5ad?dl=1",
+    url="https://www.dropbox.com/s/g1afqdcsczgyj2m/neuron_splicing_4_11.h5ad?dl=1",
     filename="neuron_splicing.h5ad",
 ):
     """The neuron splicing data is from Qiu, et al (2020).
@@ -87,11 +87,11 @@ def scNT_seq_neuron_splicing(
 
 
 def scNT_seq_neuron_labeling(
-    url="https://www.dropbox.com/s/5wk3q2xhgqai2xq/neuron_labeling.h5ad?dl=1",
+    url="https://www.dropbox.com/s/lk9cl63yd28mfuq/neuron_labeling.h5ad?dl=1",
     filename="neuron_labeling.h5ad",
 ):
     """The neuron splicing data is from Qiu, et al (2020).
-    This data consists of 37,007 genes across 3,060 cells.
+    This data consists of 24, 078 genes across 3,060 cells.
 
     Returns
     -------
