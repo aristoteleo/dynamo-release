@@ -96,7 +96,10 @@ def Gillespie(
             t_eval=None,
             report=verbose,
         )  # unfinished, no need to interpolate now.
-        uu, ul, su, sl = [np.transpose(trajs_C[:, :, i + 1, :].reshape((gene_num, -1))) for i in range(4)]
+        uu, ul, su, sl = [
+            np.transpose(trajs_C[:, :, i + 1, :].reshape((gene_num, -1)))
+            for i in range(4)
+        ]
 
         u = uu + ul
         s = su + sl
@@ -113,7 +116,9 @@ def Gillespie(
 
         # provide more annotation for cells next:
         cell_ids = [
-            "traj_%d_step_%d" % (i, j) for i in range(n_traj) for j in range(steps)
+            "traj_%d_step_%d" % (i, j)
+            for i in range(n_traj)
+            for j in range(steps)
         ]  # first n_traj and then steps
         obs = pd.DataFrame(
             {
@@ -155,7 +160,9 @@ def Gillespie(
 
         # provide more annotation for cells next:
         cell_ids = [
-            "traj_%d_step_%d" % (i, j) for i in range(n_traj) for j in range(steps)
+            "traj_%d_step_%d" % (i, j)
+            for i in range(n_traj)
+            for j in range(steps)
         ]  # first n_traj and then steps
         obs = pd.DataFrame(
             {
@@ -259,7 +266,9 @@ def Gillespie(
 
         # synthesize steady state before treatment
         n_cell = 50
-        c0 = np.array([40, 100, 40, 100, 0, 0, 0, 0, 1000, 1000])  # same as the os model after this line of code
+        c0 = np.array(
+            [40, 100, 40, 100, 0, 0, 0, 0, 1000, 1000]
+        )  # same as the os model after this line of code
 
         n_species = len(c0)
         trajs_T, trajs_C = simulate(
@@ -278,7 +287,9 @@ def Gillespie(
             one_shot,
             deg_begin,
             deg_end,
-        ) = osc_diff_dup(n_species, trajs_C, model_treat_lab, model_treat_unlab, n_cell)
+        ) = osc_diff_dup(
+            n_species, trajs_C, model_treat_lab, model_treat_unlab, n_cell
+        )
 
         uu = np.vstack(
             (
@@ -363,22 +374,38 @@ def Gillespie(
 
         # label time for kinetics experiment is 1 (actually it is one-shot experiment)
         kin_cell_ids, kin_Trajectory, kin_Step = (
-            ["kin_traj_%d_time_%f" % (i, j) for j in kin_Tl for i in range(n_cell)],
+            [
+                "kin_traj_%d_time_%f" % (i, j)
+                for j in kin_Tl
+                for i in range(n_cell)
+            ],
             [i for j in kin_Tl for i in range(n_cell)],
             [j for j in kin_Tl for i in range(n_cell)],
         )
         one_shot_cell_ids, one_shot_Trajectory, one_shot_Step = (
-            ["one_shot_traj_%d_time_%d" % (i, j) for j in kin_T_CP for i in range(n_cell)],
+            [
+                "one_shot_traj_%d_time_%d" % (i, j)
+                for j in kin_T_CP
+                for i in range(n_cell)
+            ],
             [i for j in kin_T_CP for i in range(n_cell)],
             [j for j in kin_T_CP for i in range(n_cell)],
         )  # first n_traj and then steps
         begin_cell_ids, begin_Trajectory, begin_Step = (
-            ["begin_deg_traj_%d_time_%d" % (i, j) for j in deg_label_t for i in range(n_cell)],
+            [
+                "begin_deg_traj_%d_time_%d" % (i, j)
+                for j in deg_label_t
+                for i in range(n_cell)
+            ],
             [i for j in deg_label_t for i in range(n_cell)],
             [j for j in deg_label_t for i in range(n_cell)],
         )  # first n_traj and then steps
         end_cell_ids, end_Trajectory, end_Step = (
-            ["end_deg_traj_%d_time_%d" % (i, j) for j in deg_label_t for i in range(n_cell)],
+            [
+                "end_deg_traj_%d_time_%d" % (i, j)
+                for j in deg_label_t
+                for i in range(n_cell)
+            ],
             [i for j in deg_label_t for i in range(n_cell)],
             [j for j in deg_label_t for i in range(n_cell)],
         )  # first n_traj and then steps
@@ -608,22 +635,38 @@ def Gillespie(
 
         # label time for kinetics experiment is 1 (actually it is one-shot experiment)
         kin_cell_ids, kin_Trajectory, kin_Step = (
-            ["kin_traj_%d_time_%f" % (i, j) for j in kin_Tl for i in range(n_cell)],
+            [
+                "kin_traj_%d_time_%f" % (i, j)
+                for j in kin_Tl
+                for i in range(n_cell)
+            ],
             [i for j in kin_Tl for i in range(n_cell)],
             [j for j in kin_Tl for i in range(n_cell)],
         )
         one_shot_cell_ids, one_shot_Trajectory, one_shot_Step = (
-            ["one_shot_traj_%d_time_%d" % (i, j) for j in kin_T_CP for i in range(n_cell)],
+            [
+                "one_shot_traj_%d_time_%d" % (i, j)
+                for j in kin_T_CP
+                for i in range(n_cell)
+            ],
             [i for j in kin_T_CP for i in range(n_cell)],
             [j for j in kin_T_CP for i in range(n_cell)],
         )  # first n_traj and then steps
         begin_cell_ids, begin_Trajectory, begin_Step = (
-            ["begin_deg_traj_%d_time_%d" % (i, j) for j in deg_label_t for i in range(n_cell)],
+            [
+                "begin_deg_traj_%d_time_%d" % (i, j)
+                for j in deg_label_t
+                for i in range(n_cell)
+            ],
             [i for j in deg_label_t for i in range(n_cell)],
             [j for j in deg_label_t for i in range(n_cell)],
         )  # first n_traj and then steps
         end_cell_ids, end_Trajectory, end_Step = (
-            ["end_deg_traj_%d_time_%d" % (i, j) for j in deg_label_t for i in range(n_cell)],
+            [
+                "end_deg_traj_%d_time_%d" % (i, j)
+                for j in deg_label_t
+                for i in range(n_cell)
+            ],
             [i for j in deg_label_t for i in range(n_cell)],
             [j for j in deg_label_t for i in range(n_cell)],
         )  # first n_traj and then steps
@@ -708,6 +751,8 @@ def Gillespie(
         adata_no_splicing.obsm["protein"] = P
     # remove cells that has no expression
     adata = adata[np.array(adata.X.sum(1)).flatten() > 0, :]
-    adata_no_splicing = adata_no_splicing[np.array(adata_no_splicing.X.sum(1)).flatten() > 0, :]
+    adata_no_splicing = adata_no_splicing[
+        np.array(adata_no_splicing.X.sum(1)).flatten() > 0, :
+    ]
 
     return adata, adata_no_splicing

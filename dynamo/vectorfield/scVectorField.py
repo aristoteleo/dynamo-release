@@ -84,14 +84,24 @@ def norm(X, V, T, fix_velocity=True):
     )
 
     xscale, yscale = (
-        np.sqrt(np.sum(np.sum(x ** 2, 1)) / n),
-        np.sqrt(np.sum(np.sum(y ** 2, 1)) / m),
+        np.sqrt(np.sum(np.sum(x**2, 1)) / n),
+        np.sqrt(np.sum(np.sum(y**2, 1)) / m),
     )
 
-    X, Y, T = x / xscale, y / yscale, t / (1 / 2 * (xscale + yscale)) if T is not None else None
+    X, Y, T = (
+        x / xscale,
+        y / yscale,
+        t / (1 / 2 * (xscale + yscale)) if T is not None else None,
+    )
 
     X, V, T = X, V if fix_velocity else Y - X, T
-    norm_dict = {"xm": xm, "ym": ym, "xscale": xscale, "yscale": yscale, "fix_velocity": fix_velocity}
+    norm_dict = {
+        "xm": xm,
+        "ym": ym,
+        "xscale": xscale,
+        "yscale": yscale,
+        "fix_velocity": fix_velocity,
+    }
 
     return X, V, T, norm_dict
 
@@ -127,7 +137,9 @@ def bandwidth_selector(X):
         _, distances = nbrs.query(X, k=max(2, int(0.2 * n)))
     else:
         alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2 * n)), algorithm=alg, n_jobs=-1).fit(X)
+        nbrs = NearestNeighbors(
+            n_neighbors=max(2, int(0.2 * n)), algorithm=alg, n_jobs=-1
+        ).fit(X)
         distances, _ = nbrs.kneighbors(X)
 
     d = np.mean(distances[:, 1:]) / 1.5
@@ -170,11 +182,23 @@ def denorm(VecFld, X_old, V_old, norm_dict):
     VecFld["X"] = X_old
     VecFld["Y"] = Y_old
     # VecFld["X_ctrl"] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
-    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [grid.shape[0], 1]) if grid is not None else None
-    VecFld["grid_V"] = (
-        (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [grid_V.shape[0], 1]) - grid if grid_V is not None else None
+    VecFld["grid"] = (
+        grid * xy_scale + np.matlib.tile(xy_m, [grid.shape[0], 1])
+        if grid is not None
+        else None
     )
-    VecFld["V"] = V if fix_velocity else (V + X) * y_scale + np.matlib.tile(ym, [V.shape[0], 1]) - X_old
+    VecFld["grid_V"] = (
+        (grid + grid_V) * xy_scale
+        + np.matlib.tile(xy_m, [grid_V.shape[0], 1])
+        - grid
+        if grid_V is not None
+        else None
+    )
+    VecFld["V"] = (
+        V
+        if fix_velocity
+        else (V + X) * y_scale + np.matlib.tile(ym, [V.shape[0], 1]) - X_old
+    )
     VecFld["norm_dict"] = norm_dict
 
     return VecFld
@@ -187,7 +211,9 @@ def lstsq_solver(lhs, rhs, method="drouin"):
     elif method == "drouin":
         C = linear_least_squares(lhs, rhs)
     else:
-        main_warning("Invalid linear least squares solver. Use Drouin's method instead.")
+        main_warning(
+            "Invalid linear least squares solver. Use Drouin's method instead."
+        )
         C = linear_least_squares(lhs, rhs)
     return C
 
@@ -230,7 +256,10 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
     temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
     temp1[temp1 == 0] = np.min(temp1[temp1 != 0])
     P = temp1 / (temp1 + temp2)
-    E = P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2) + np.sum(P) * np.log(sigma2) * D / 2
+    E = (
+        P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2)
+        + np.sum(P) * np.log(sigma2) * D / 2
+    )
 
     return (P[:, None], E) if P.ndim == 1 else (P, E)
 
@@ -263,7 +292,9 @@ def graphize_vecfld(
             nbrs_idx, dist = nbrs.query(X, k=k + 1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
+            nbrs = NearestNeighbors(
+                n_neighbors=k + 1, algorithm=alg, n_jobs=-1
+            ).fit(X)
             dist, nbrs_idx = nbrs.kneighbors(X)
 
     if dist is None and not distance_free:
@@ -273,8 +304,14 @@ def graphize_vecfld(
 
     V = sp.csr_matrix((n, n))
     if cores == 1:
-        for i, idx in enumerate(LoggerManager.progress_logger(nbrs_idx, progress_name="graphize_vecfld")):
-            V += construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n)
+        for i, idx in enumerate(
+            LoggerManager.progress_logger(
+                nbrs_idx, progress_name="graphize_vecfld"
+            )
+        ):
+            V += construct_v(
+                X, i, idx, n_int_steps, func, distance_free, dist, D, n
+            )
 
     else:
         pool = ThreadPool(cores)
@@ -439,32 +476,42 @@ def SparseVFC(
     tmp_X, uid = np.unique(X, axis=0, return_index=True)  # return unique rows
     M = min(M, tmp_X.shape[0])
     if velocity_based_sampling:
-        logger.info("Sampling control points based on data velocity magnitude...")
+        logger.info(
+            "Sampling control points based on data velocity magnitude..."
+        )
         idx = sample_by_velocity(Y[uid], M, seed=seed)
     else:
-        idx = np.random.RandomState(seed=seed).permutation(tmp_X.shape[0])  # rand select some initial points
+        idx = np.random.RandomState(seed=seed).permutation(
+            tmp_X.shape[0]
+        )  # rand select some initial points
         idx = idx[range(M)]
     ctrl_pts = tmp_X[idx, :]
 
     if beta is None:
         h = bandwidth_selector(ctrl_pts)
-        beta = 1 / h ** 2
+        beta = 1 / h**2
 
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=need_utility_time_measure)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
+        else con_K_div_cur_free(
+            ctrl_pts, ctrl_pts, sigma, eta, timeit=need_utility_time_measure
+        )[0]
     )
     U = (
         con_K(X, ctrl_pts, beta, timeit=need_utility_time_measure)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
+        else con_K_div_cur_free(
+            X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure
+        )[0]
     )
     if Grid is not None:
         grid_U = (
             con_K(Grid, ctrl_pts, beta, timeit=need_utility_time_measure)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
+            else con_K_div_cur_free(
+                Grid, ctrl_pts, sigma, eta, timeit=need_utility_time_measure
+            )[0]
         )
     M = ctrl_pts.shape[0] * D if div_cur_free_kernels else ctrl_pts.shape[0]
 
@@ -477,7 +524,11 @@ def SparseVFC(
     C = np.zeros((M, 1)) if div_cur_free_kernels else np.zeros((M, D))
     i, tecr, E = 0, 1, 1
     # test this
-    sigma2 = sum(sum((Y - X) ** 2)) / (N * D) if div_cur_free_kernels else sum(sum((Y - V) ** 2)) / (N * D)
+    sigma2 = (
+        sum(sum((Y - X) ** 2)) / (N * D)
+        if div_cur_free_kernels
+        else sum(sum((Y - V) ** 2)) / (N * D)
+    )
     sigma2 = 1e-7 if sigma2 < 1e-8 else sigma2
     tecr_vec = np.ones(MaxIter) * np.nan
     E_vec = np.ones(MaxIter) * np.nan
@@ -503,8 +554,12 @@ def SparseVFC(
         temp_logger.log_time()
         P = np.maximum(P, minP)
         if div_cur_free_kernels:
-            P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1)))  # np.kron(P, np.ones((D, 1)))
-            lhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(U) + lambda_ * sigma2 * K
+            P = np.kron(
+                P, np.ones((int(U.shape[0] / P.shape[0]), 1))
+            )  # np.kron(P, np.ones((D, 1)))
+            lhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(
+                U
+            ) + lambda_ * sigma2 * K
             rhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(Y)
         else:
             UP = U.T * numpy.matlib.repmat(P.T, M, 1)
@@ -514,7 +569,9 @@ def SparseVFC(
             temp_logger.finish_progress(progress_name="computing lhs and rhs")
         temp_logger.log_time()
 
-        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=need_utility_time_measure)
+        C = lstsq_solver(
+            lhs, rhs, method=lstsq_method, timeit=need_utility_time_measure
+        )
 
         # Update V and sigma**2
         V = U.dot(C)
@@ -567,11 +624,9 @@ def SparseVFC(
             eta,
         )
         temp_logger.log_time()
-        (
-            _,
-            VecFld["df_kernel"],
-            VecFld["cf_kernel"],
-        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)
+        (_, VecFld["df_kernel"], VecFld["cf_kernel"],) = con_K_div_cur_free(
+            X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure
+        )
         temp_logger.finish_progress(progress_name="con_K_div_cur_free")
 
     logger.finish_progress(progress_name="SparseVFC")
@@ -619,7 +674,9 @@ class BaseVectorField:
     def get_data(self):
         return self.data["X"], self.data["V"]
 
-    def find_fixed_points(self, n_x0=100, X0=None, domain=None, sampling_method="random", **kwargs):
+    def find_fixed_points(
+        self, n_x0=100, X0=None, domain=None, sampling_method="random", **kwargs
+    ):
         """
         Search for fixed points of the vector field function.
 
@@ -634,15 +691,21 @@ class BaseVectorField:
                     "no data is stored in the vector field, and no domain is provided for the sampling of initial points."
                 )
             else:
-                main_info(f"Sampling {n_x0} initial points in the provided domain using the Latin Hypercube method.")
+                main_info(
+                    f"Sampling {n_x0} initial points in the provided domain using the Latin Hypercube method."
+                )
                 X0 = lhsclassic(n_x0, domain.shape[0], bounds=domain)
 
         elif X0 is None:
-            indices = sample(np.arange(len(self.data["X"])), n_x0, method=sampling_method)
+            indices = sample(
+                np.arange(len(self.data["X"])), n_x0, method=sampling_method
+            )
             X0 = self.data["X"][indices]
 
         if domain is None and self.data is not None:
-            domain = np.vstack((np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))).T
+            domain = np.vstack(
+                (np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))
+            ).T
 
         X, J, _ = find_fixed_points(X0, self.func, domain=domain, **kwargs)
         self.fixed_points = FixedPoints(X, J)
@@ -671,7 +734,9 @@ class BaseVectorField:
     def assign_fixed_points(self, domain=None, cores=1, **kwargs):
         """assign each cell to the associated fixed points"""
         if domain is None and self.data is not None:
-            domain = np.vstack((np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))).T
+            domain = np.vstack(
+                (np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))
+            ).T
 
         if cores == 1:
             X, J, _ = find_fixed_points(
@@ -691,15 +756,25 @@ class BaseVectorField:
                 itertools.repeat(True),
             )
             kwargs_iter = itertools.repeat(kwargs)
-            res = starmap_with_kwargs(pool, find_fixed_points, args_iter, kwargs_iter)
+            res = starmap_with_kwargs(
+                pool, find_fixed_points, args_iter, kwargs_iter
+            )
 
             pool.close()
             pool.join()
 
             (X, J, _) = zip(*res)
-            X = np.vstack([[i] * self.data["X"].shape[1] if i is None else i for i in X]).astype(float)
+            X = np.vstack(
+                [[i] * self.data["X"].shape[1] if i is None else i for i in X]
+            ).astype(float)
             J = np.array(
-                [np.zeros((self.data["X"].shape[1], self.data["X"].shape[1])) * np.nan if i is None else i for i in J]
+                [
+                    np.zeros((self.data["X"].shape[1], self.data["X"].shape[1]))
+                    * np.nan
+                    if i is None
+                    else i
+                    for i in J
+                ]
             )
 
         self.fixed_points = FixedPoints(X, J)
@@ -710,7 +785,9 @@ class BaseVectorField:
             fps_assignment[np.abs(fps_assignment).sum(1) > 0, :],
             fps_type_assignment[np.abs(fps_assignment).sum(1) > 0],
         )
-        X, discard = remove_redundant_points(valid_fps_assignment, output_discard=True)
+        X, discard = remove_redundant_points(
+            valid_fps_assignment, output_discard=True
+        )
 
         assignment_id = np.zeros(len(fps_assignment))
         for i, cur_fps in enumerate(fps_assignment):
@@ -747,7 +824,9 @@ class BaseVectorField:
 
         if self.func is None:
             VecFld = self.vf_dict
-            self.func = lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
+            self.func = lambda x: scale * vector_field_function(
+                x=x, vf_dict=VecFld, dim=dims
+            )
         if t_end is None:
             t_end = getTend(self.get_X(), self.get_V())
 
@@ -778,7 +857,9 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method)
         return compute_divergence(f_jac, X, **kwargs)
 
-    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
+    def compute_curl(
+        self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs
+    ):
         X = self.data["X"] if X is None else X
         if dim3 is None or X.shape[1] < 3:
             X = X[:, [dim1, dim2]]
@@ -792,7 +873,9 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method)
         return compute_acceleration(self.func, f_jac, X, **kwargs)
 
-    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
+    def compute_curvature(
+        self, X=None, method="analytical", formula=2, **kwargs
+    ):
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
@@ -864,7 +947,8 @@ class SvcVectorField(DifferentiableVectorField):
             self.parameters = update_n_merge_dict(
                 self.parameters,
                 {
-                    "M": kwargs.pop("M", None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
+                    "M": kwargs.pop("M", None)
+                    or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
                     # min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100)))),
                     "a": kwargs.pop("a", 5),
                     "beta": kwargs.pop("beta", None),
@@ -874,8 +958,12 @@ class SvcVectorField(DifferentiableVectorField):
                     "minP": kwargs.pop("minP", 1e-5),
                     "MaxIter": kwargs.pop("MaxIter", 500),
                     "theta": kwargs.pop("theta", 0.75),
-                    "div_cur_free_kernels": kwargs.pop("div_cur_free_kernels", False),
-                    "velocity_based_sampling": kwargs.pop("velocity_based_sampling", True),
+                    "div_cur_free_kernels": kwargs.pop(
+                        "div_cur_free_kernels", False
+                    ),
+                    "velocity_based_sampling": kwargs.pop(
+                        "velocity_based_sampling", True
+                    ),
                     "sigma": kwargs.pop("sigma", 0.8),
                     "eta": kwargs.pop("eta", 0.5),
                     "seed": kwargs.pop("seed", 0),
@@ -908,8 +996,15 @@ class SvcVectorField(DifferentiableVectorField):
         """
 
         if normalize:
-            X_norm, V_norm, T_norm, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
-            (self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict,) = (
+            X_norm, V_norm, T_norm, norm_dict = norm(
+                self.data["X"], self.data["V"], self.data["Grid"]
+            )
+            (
+                self.data["X"],
+                self.data["V"],
+                self.data["Grid"],
+                self.norm_dict,
+            ) = (
                 X_norm,
                 V_norm,
                 T_norm,
@@ -947,7 +1042,9 @@ class SvcVectorField(DifferentiableVectorField):
 
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
-    def get_Jacobian(self, method="analytical", input_vector_convention="row", **kwargs):
+    def get_Jacobian(
+        self, method="analytical", input_vector_convention="row", **kwargs
+    ):
         """
         Get the Jacobian of the vector field function.
         If method is 'analytical':
@@ -971,9 +1068,13 @@ class SvcVectorField(DifferentiableVectorField):
                 ...         ...         ...         ...
         """
         if method == "numerical":
-            return Jacobian_numerical(self.func, input_vector_convention, **kwargs)
+            return Jacobian_numerical(
+                self.func, input_vector_convention, **kwargs
+            )
         elif method == "parallel":
-            return lambda x: Jacobian_rkhs_gaussian_parallel(x, self.vf_dict, **kwargs)
+            return lambda x: Jacobian_rkhs_gaussian_parallel(
+                x, self.vf_dict, **kwargs
+            )
         elif method == "analytical":
             return lambda x: Jacobian_rkhs_gaussian(x, self.vf_dict, **kwargs)
         else:
@@ -1000,11 +1101,17 @@ class SvcVectorField(DifferentiableVectorField):
             return lambda x: Hessian_rkhs_gaussian(x, self.vf_dict, **kwargs)
         elif method == "numerical":
             if self.func is not None:
-                raise Exception("numerical Hessian for vector field is not defined.")
+                raise Exception(
+                    "numerical Hessian for vector field is not defined."
+                )
             else:
-                raise Exception("The perturbed vector field function has not been set up.")
+                raise Exception(
+                    "The perturbed vector field function has not been set up."
+                )
         else:
-            raise NotImplementedError(f"The method {method} is not implemented. Currently only supports 'analytical'.")
+            raise NotImplementedError(
+                f"The method {method} is not implemented. Currently only supports 'analytical'."
+            )
 
     def get_Laplacian(self, method="analytical", **kwargs):
         """
@@ -1020,11 +1127,17 @@ class SvcVectorField(DifferentiableVectorField):
             return lambda x: Laplacian(H=x)
         elif method == "numerical":
             if self.func is not None:
-                raise Exception("Numerical Laplacian for vector field is not defined.")
+                raise Exception(
+                    "Numerical Laplacian for vector field is not defined."
+                )
             else:
-                raise Exception("The perturbed vector field function has not been set up.")
+                raise Exception(
+                    "The perturbed vector field function has not been set up."
+                )
         else:
-            raise NotImplementedError(f"The method {method} is not implemented. Currently only supports 'analytical'.")
+            raise NotImplementedError(
+                f"The method {method} is not implemented. Currently only supports 'analytical'."
+            )
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
@@ -1058,16 +1171,34 @@ class SvcVectorField(DifferentiableVectorField):
         precision = NumVFCCorrect / NumVFCIndex
         recall = NumVFCCorrect / NumCorrectIndex
 
-        print("correct correspondence rate in the original data: %d/%d = %f" % (NumCorrectIndex, siz, corrRate))
-        print("precision rate: %d/%d = %f" % (NumVFCCorrect, NumVFCIndex, precision))
-        print("recall rate: %d/%d = %f" % (NumVFCCorrect, NumCorrectIndex, recall))
+        print(
+            "correct correspondence rate in the original data: %d/%d = %f"
+            % (NumCorrectIndex, siz, corrRate)
+        )
+        print(
+            "precision rate: %d/%d = %f"
+            % (NumVFCCorrect, NumVFCIndex, precision)
+        )
+        print(
+            "recall rate: %d/%d = %f" % (NumVFCCorrect, NumCorrectIndex, recall)
+        )
 
         return corrRate, precision, recall
 
 
 class KOVectorField(DifferentiableVectorField):
     def __init__(
-        self, X=None, V=None, Grid=None, K=None, func_base=None, fjac_base=None, PCs=None, mean=None, *args, **kwargs
+        self,
+        X=None,
+        V=None,
+        Grid=None,
+        K=None,
+        func_base=None,
+        fjac_base=None,
+        PCs=None,
+        mean=None,
+        *args,
+        **kwargs,
     ):
         super().__init__(X, V, Grid=Grid, *args, **kwargs)
 
@@ -1079,7 +1210,12 @@ class KOVectorField(DifferentiableVectorField):
         self.func_base = func_base
         self.fjac_base = fjac_base
 
-        if self.K is not None and self.PCs is not None and self.mean is not None and self.func_base is not None:
+        if (
+            self.K is not None
+            and self.PCs is not None
+            and self.mean is not None
+            and self.func_base is not None
+        ):
             self.setup_perturbed_func()
 
     def setup_perturbed_func(self):
@@ -1111,17 +1247,30 @@ class KOVectorField(DifferentiableVectorField):
             if exact:
                 if mu is None:
                     mu = self.mean
-                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, exact=True, mu=mu, **kwargs)
+                return lambda x: Jacobian_kovf(
+                    x,
+                    self.fjac_base,
+                    self.K,
+                    self.PCs,
+                    exact=True,
+                    mu=mu,
+                    **kwargs,
+                )
             else:
-                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, **kwargs)
+                return lambda x: Jacobian_kovf(
+                    x, self.fjac_base, self.K, self.PCs, **kwargs
+                )
         elif method == "numerical":
             if self.func is not None:
                 return Jacobian_numerical(self.func, **kwargs)
             else:
-                raise Exception("The perturbed vector field function has not been set up.")
+                raise Exception(
+                    "The perturbed vector field function has not been set up."
+                )
         else:
             raise NotImplementedError(
-                f"The method {method} is not implemented. Currently only " f"supports 'analytical'."
+                f"The method {method} is not implemented. Currently only "
+                f"supports 'analytical'."
             )
 
 
@@ -1135,11 +1284,15 @@ except ImportError:
 if use_dynode:
 
     class dynode_vectorfield(BaseVectorField, Dynode):  #
-        def __init__(self, X=None, V=None, Grid=None, dynode_object=None, *args, **kwargs):
+        def __init__(
+            self, X=None, V=None, Grid=None, dynode_object=None, *args, **kwargs
+        ):
 
             self.norm_dict = {}
 
-            assert dynode_object is not None, "dynode_object argument is required."
+            assert (
+                dynode_object is not None
+            ), "dynode_object argument is required."
 
             valid_ind = None
             if X is not None and V is not None:
@@ -1157,9 +1310,15 @@ if use_dynode:
             else:
                 raise
 
-            self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
+            self.parameters = update_n_merge_dict(
+                kwargs, {"X": X, "V": V, "Grid": Grid}
+            )
 
-            self.valid_ind = np.where(~np.isnan(V.sum(1)))[0] if valid_ind is None else valid_ind
+            self.valid_ind = (
+                np.where(~np.isnan(V.sum(1)))[0]
+                if valid_ind is None
+                else valid_ind
+            )
 
             vf_kwargs = {
                 "X": X,
@@ -1168,10 +1327,16 @@ if use_dynode:
                 "NNmodel": dynode_object.NNmodel,
                 "Velocity_sampler": dynode_object.Velocity["sampler"],
                 "TimeCourse_sampler": dynode_object.TimeCourse["sampler"],
-                "Velocity_ChannelModel": dynode_object.Velocity["channel_model"],
-                "TimeCourse_ChannelModel": dynode_object.TimeCourse["channel_model"],
+                "Velocity_ChannelModel": dynode_object.Velocity[
+                    "channel_model"
+                ],
+                "TimeCourse_ChannelModel": dynode_object.TimeCourse[
+                    "channel_model"
+                ],
                 "Velocity_x_initialize": dynode_object.Velocity["x_variable"],
-                "TimeCourse_x0_initialize": dynode_object.TimeCourse["x0_variable"],
+                "TimeCourse_x0_initialize": dynode_object.TimeCourse[
+                    "x0_variable"
+                ],
                 "NNmodel_save_path": dynode_object.NNmodel_save_path,
                 "device": dynode_object.device,
             }
@@ -1190,8 +1355,12 @@ if use_dynode:
                 "grid_V": self.func(self.data["Grid"]),
                 "iteration": int(dynode_object.max_iter),
                 "velocity_loss_traj": dynode_object.Velocity["loss_trajectory"],
-                "time_course_loss_traj": dynode_object.TimeCourse["loss_trajectory"],
-                "autoencoder_loss_traj": dynode_object.AutoEncoder["loss_trajectory"],
+                "time_course_loss_traj": dynode_object.TimeCourse[
+                    "loss_trajectory"
+                ],
+                "autoencoder_loss_traj": dynode_object.AutoEncoder[
+                    "loss_trajectory"
+                ],
                 "parameters": self.parameters,
             }
 
@@ -1219,7 +1388,9 @@ def vector_field_function_knockout(
         if g in ko_genes:
             g_mask[i] = True
     if g_mask.sum() != len(ko_genes):
-        raise ValueError(f"the ko_genes {ko_genes} you provided don't all belong to {pca_genes}.")
+        raise ValueError(
+            f"the ko_genes {ko_genes} you provided don't all belong to {pca_genes}."
+        )
 
     k = np.zeros(len(pca_genes))
     if k_deg is None:
@@ -1247,7 +1418,13 @@ def vector_field_function_knockout(
         v_gene = v_gene - k * x_gene
         return v_gene @ PCs"""
 
-    vf = KOVectorField(K=k, func_base=vf_func, fjac_base=vecfld.get_Jacobian(), PCs=PCs, mean=mean)
+    vf = KOVectorField(
+        K=k,
+        func_base=vf_func,
+        fjac_base=vecfld.get_Jacobian(),
+        PCs=PCs,
+        mean=mean,
+    )
     if not callable(vecfld):
         vf.data["X"] = vecfld.data["X"]
         vf.data["V"] = vf.func(vf.data["X"])
@@ -1266,7 +1443,9 @@ class BifurcationTwoGenesVectorField(DifferentiableVectorField):
         for k in param_dict_.keys():
             if k not in ["a", "b", "S", "K", "m", "n", "gamma"]:
                 del param_dict_[k]
-                main_warning(f"The parameter {k} is not used for the vector field.")
+                main_warning(
+                    f"The parameter {k} is not used for the vector field."
+                )
         self.vf_dict["params"] = param_dict_
         self.func = lambda x: ode_bifur2genes(x, **param_dict_)
 

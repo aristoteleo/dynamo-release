@@ -9,8 +9,16 @@ import dynamo as dyn
 
 
 def test_scatter_contour(adata):
-    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True)
-    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True, calpha=1)
+    dyn.pl.scatters(
+        adata, layer="curvature", save_show_or_return="return", contour=True
+    )
+    dyn.pl.scatters(
+        adata,
+        layer="curvature",
+        save_show_or_return="return",
+        contour=True,
+        calpha=1,
+    )
 
 
 @pytest.mark.skip(reason="nxviz old version")
@@ -95,9 +103,23 @@ def test_nxviz7_circosplot(utils):
     adata_layer_key = "M_s"
 
     for node in network.nodes:
-        network.nodes[node][adata_layer_key] = adata[:, node].layers[adata_layer_key].mean()
-    dyn.pl.circosPlot(network, node_color_key="M_s", show_colorbar=False, edge_alpha_scale=1, edge_lw_scale=1)
-    dyn.pl.circosPlot(network, node_color_key="M_s", show_colorbar=True, edge_alpha_scale=0.5, edge_lw_scale=0.4)
+        network.nodes[node][adata_layer_key] = (
+            adata[:, node].layers[adata_layer_key].mean()
+        )
+    dyn.pl.circosPlot(
+        network,
+        node_color_key="M_s",
+        show_colorbar=False,
+        edge_alpha_scale=1,
+        edge_lw_scale=1,
+    )
+    dyn.pl.circosPlot(
+        network,
+        node_color_key="M_s",
+        show_colorbar=True,
+        edge_alpha_scale=0.5,
+        edge_lw_scale=0.4,
+    )
     # plt.show() # show via command line run.
 
 

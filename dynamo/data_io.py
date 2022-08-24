@@ -39,12 +39,17 @@ def make_dir(path: str, can_exist=True):
     if os.path.exists(path):
         main_info(path + " : exists")
         if os.path.isdir(path) and can_exist:
-            main_info(path + " : is a directory, continue using the existing directory")
+            main_info(
+                path
+                + " : is a directory, continue using the existing directory"
+            )
             return False
         elif os.path.isdir(path) and not can_exist:
             raise ValueError("dir path exists: %s" % path)
         else:
-            main_info(path + " : is not a directory, creating a new directory...")
+            main_info(
+                path + " : is not a directory, creating a new directory..."
+            )
             os.makedirs(path)
             return True
     else:
@@ -57,9 +62,15 @@ def convert2float(adata, columns, var=False):
     """This helper function can convert the category columns (undesiredly converted) when saving adata object into h5ad
     file back to float type."""
 
-    columns = list(adata.var.columns.intersection(columns)) if var else list(adata.obs.columns.intersection(columns))
+    columns = (
+        list(adata.var.columns.intersection(columns))
+        if var
+        else list(adata.obs.columns.intersection(columns))
+    )
     if len(columns) == 0:
-        raise ValueError(f"the columns {columns} you provided doesn't match with any columns from the adata object.")
+        raise ValueError(
+            f"the columns {columns} you provided doesn't match with any columns from the adata object."
+        )
 
     for i in columns:
         if i.startswith("use_for") or i == "pass_basic_filter":
@@ -113,12 +124,16 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
 
     if type == "TMM":
         delimiter = "_"
-        tot_RNA = pd.read_csv(dir + "/rmse/RSEM.isoform.TMM.EXPR.matrix", sep="\t", index_col=0).T
+        tot_RNA = pd.read_csv(
+            dir + "/rmse/RSEM.isoform.TMM.EXPR.matrix", sep="\t", index_col=0
+        ).T
         cells_raw = tot_RNA.index
         cells = [i.split(delimiter)[1] for i in tot_RNA.index]
         tot_RNA.index = cells
         pi_g = pd.read_csv(dir + "/outfiles/_mode.csv", index_col=0)
-        pi_g.index = pd.Series(pi_g.index).str.split(delimiter, expand=True)[1].values
+        pi_g.index = (
+            pd.Series(pi_g.index).str.split(delimiter, expand=True)[1].values
+        )
         print(pi_g.head(2))
 
         new_RNA, old_RNA = (
@@ -130,8 +145,10 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
             tot_RNA.columns.intersection(pi_g.columns),
         )
         new_, old_ = (
-            tot_RNA.loc[valid_index, valid_columns] * pi_g.loc[valid_index, valid_columns],
-            tot_RNA.loc[valid_index, valid_columns] * (1 - pi_g.loc[valid_index, valid_columns]),
+            tot_RNA.loc[valid_index, valid_columns]
+            * pi_g.loc[valid_index, valid_columns],
+            tot_RNA.loc[valid_index, valid_columns]
+            * (1 - pi_g.loc[valid_index, valid_columns]),
         )
         (
             new_RNA.loc[new_.index, new_.columns],
@@ -164,7 +181,9 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
         tot_RNA.columns, tot_RNA.index = cells, list(tot_RNA.index)
 
         pi_g = pd.read_csv(dir + "/outfiles/_mode.csv", index_col=0)
-        pi_g.index = pd.Series(pi_g.index).str.split(delimiter, expand=True)[1].values
+        pi_g.index = (
+            pd.Series(pi_g.index).str.split(delimiter, expand=True)[1].values
+        )
 
         new_RNA, old_RNA = (
             pd.DataFrame(0.0, columns=tot_RNA.index, index=cells),
@@ -185,13 +204,21 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
     elif type == "Reads":
         included_extensions = ["newTable.csv", "oldTable.csv", "readCounts.csv"]
         file_names = [
-            fn for fn in os.listdir(dir + "/outfiles/") if any(fn.endswith(ext) for ext in included_extensions)
+            fn
+            for fn in os.listdir(dir + "/outfiles/")
+            if any(fn.endswith(ext) for ext in included_extensions)
         ]
 
         if len(file_names) == 3:
-            new_RNA = pd.read_csv(dir + "/outfiles/" + file_names[0], index_col=0, delimiter=",")
-            old_RNA = pd.read_csv(dir + "/outfiles/" + file_names[1], index_col=0, delimiter=",")
-            tot_RNA = pd.read_csv(dir + "/outfiles/" + file_names[2], index_col=0, delimiter=",")
+            new_RNA = pd.read_csv(
+                dir + "/outfiles/" + file_names[0], index_col=0, delimiter=","
+            )
+            old_RNA = pd.read_csv(
+                dir + "/outfiles/" + file_names[1], index_col=0, delimiter=","
+            )
+            tot_RNA = pd.read_csv(
+                dir + "/outfiles/" + file_names[2], index_col=0, delimiter=","
+            )
         else:
             raise Exception(
                 "The directory you provided doesn't contain files end with newTable.csv, oldcounts.csv and \
@@ -226,7 +253,9 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
         csr_matrix(tot_RNA.values),
         var=pd.DataFrame({"gene_name": tot_RNA.columns}, index=tot_RNA.columns),
         obs=split_df,
-        layers=dict(new=csr_matrix(new_RNA.values), total=csr_matrix(tot_RNA.values)),
+        layers=dict(
+            new=csr_matrix(new_RNA.values), total=csr_matrix(tot_RNA.values)
+        ),
     )
 
     adata = adata[:, adata.X.sum(0).A > 0]
@@ -255,12 +284,17 @@ def aggregate_adata(file_list: list) -> AnnData:
     elif type(file_list[0]) == str:
         adata_list = [anndata.read(i) for i in file_list]
 
-    valid_cells = reduce(lambda a, b: a.intersection(b), [i.obs_names for i in adata_list])
-    valid_genes = reduce(lambda a, b: a.intersection(b), [i.var_names for i in adata_list])
+    valid_cells = reduce(
+        lambda a, b: a.intersection(b), [i.obs_names for i in adata_list]
+    )
+    valid_genes = reduce(
+        lambda a, b: a.intersection(b), [i.var_names for i in adata_list]
+    )
 
     if len(valid_cells) == 0 or len(valid_genes) == 0:
         raise Exception(
-            f"we don't find any gene or cell names shared across different adata objects." f"Please check your data. "
+            f"we don't find any gene or cell names shared across different adata objects."
+            f"Please check your data. "
         )
 
     layer_dict = {}
@@ -326,7 +360,9 @@ def cleanup(adata, del_prediction=False, del_2nd_moments=False):
     return adata
 
 
-def export_rank_xlsx(adata, path="rank_info.xlsx", ext="excel", rank_prefix="rank"):
+def export_rank_xlsx(
+    adata, path="rank_info.xlsx", ext="excel", rank_prefix="rank"
+):
     import pandas as pd
 
     with pd.ExcelWriter(path) as writer:

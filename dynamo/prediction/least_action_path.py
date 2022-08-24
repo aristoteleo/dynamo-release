@@ -46,7 +46,9 @@ def action_grad(path, vf_func, jac_func, D=1, dt=1):
     return grad
 
 
-def action_grad_aux(path_flatten, vf_func, jac_func, dim, start=None, end=None, **kwargs):
+def action_grad_aux(
+    path_flatten, vf_func, jac_func, dim, start=None, end=None, **kwargs
+):
     path = reshape_path(path_flatten, dim, start=start, end=end)
     return action_grad(path, vf_func, jac_func, **kwargs).flatten()
 
@@ -66,10 +68,21 @@ def lap_T(path_0, T, vf_func, jac_func, D=1):
     dim = len(path_0[0])
 
     def fun(x):
-        return action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt)
+        return action_aux(
+            x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt
+        )
 
     def jac(x):
-        return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt)
+        return action_grad_aux(
+            x,
+            vf_func,
+            jac_func,
+            dim,
+            start=path_0[0],
+            end=path_0[-1],
+            D=D,
+            dt=dt,
+        )
 
     sol_dict = minimize(fun, path_0[1:-1], jac=jac)
     path_sol = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
@@ -82,11 +95,24 @@ def lap_T(path_0, T, vf_func, jac_func, D=1):
     return path_sol, dt_sol, action_opt
 
 
-def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1, dt_0=1, EM_steps=2):
+def least_action_path(
+    start,
+    end,
+    vf_func,
+    jac_func,
+    n_points=20,
+    init_path=None,
+    D=1,
+    dt_0=1,
+    EM_steps=2,
+):
     if init_path is None:
         path = (
             np.tile(start, (n_points + 1, 1))
-            + (np.linspace(0, 1, n_points + 1, endpoint=True) * np.tile(end - start, (n_points + 1, 1)).T).T
+            + (
+                np.linspace(0, 1, n_points + 1, endpoint=True)
+                * np.tile(end - start, (n_points + 1, 1)).T
+            ).T
         )
     else:
         path = np.array(init_path, copy=True)
@@ -97,12 +123,24 @@ def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None
 
     while EM_steps > 0:
         EM_steps -= 1
-        path, dt, action_opt = lap_T(path, dt * len(path), vf_func, jac_func, D=D)
+        path, dt, action_opt = lap_T(
+            path, dt * len(path), vf_func, jac_func, D=D
+        )
 
     return path, dt, action_opt
 
 
-def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, elbow_method="hessian", hes_tol=3):
+def minimize_lap_time(
+    path_0,
+    t0,
+    t_min,
+    vf_func,
+    jac_func,
+    D=1,
+    num_t=20,
+    elbow_method="hessian",
+    hes_tol=3,
+):
     T = np.linspace(t_min, t0, num_t)
     A = np.zeros(num_t)
     opt_T = np.zeros(num_t)
@@ -129,7 +167,9 @@ def get_init_path(G, start, end, coords, interpolation_num=20):
     # _, arclen, _ = remove_redundant_points_trajectory(init_path, tol=1e-4, output_discard=True)
     # arc_stepsize = arclen / (interpolation_num - 1)
     # init_path_final, _, _ = arclength_sampling(init_path, step_length=arc_stepsize, t=np.arange(len(init_path)))
-    init_path_final, _, _ = arclength_sampling_n(init_path, interpolation_num, t=np.arange(len(init_path)))
+    init_path_final, _, _ = arclength_sampling_n(
+        init_path, interpolation_num, t=np.arange(len(init_path))
+    )
 
     # add the beginning and end point
     init_path_final = np.vstack((start, init_path_final, end))
@@ -252,11 +292,16 @@ def least_action(
 
     if paired:
         if init_states.shape[0] != target_states.shape[0]:
-            logger.warning("The numbers of initial and target states are not equal. The longer one is trimmed")
+            logger.warning(
+                "The numbers of initial and target states are not equal. The longer one is trimmed"
+            )
             num = min(init_states.shape[0], target_states.shape[0])
             init_states = init_states[:num]
             target_states = target_states[:num]
-        pairs = [(init_states[i], target_states[i]) for i in range(init_states.shape[0])]
+        pairs = [
+            (init_states[i], target_states[i])
+            for i in range(init_states.shape[0])
+        ]
     else:
         pairs = [(pi, pt) for pi in init_states for pt in target_states]
         logger.warning(
@@ -280,9 +325,15 @@ def least_action(
             indent_level=2,
         )
         if init_paths is None:
-            init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
+            init_path = get_init_path(
+                G, init_state, target_state, coords, interpolation_num=n_points
+            )
         else:
-            init_path = init_paths if type(init_paths) == np.ndarray else init_paths[path_ind]
+            init_path = (
+                init_paths
+                if type(init_paths) == np.ndarray
+                else init_paths[path_ind]
+            )
 
         path_ind += 1
         logger.info(
@@ -290,16 +341,32 @@ def least_action(
             indent_level=2,
         )
         path_sol, dt_sol, action_opt = least_action_path(
-            init_state, target_state, vf.func, vf.get_Jacobian(), n_points=n_points, init_path=init_path, D=D, **kwargs
+            init_state,
+            target_state,
+            vf.func,
+            vf.get_Jacobian(),
+            n_points=n_points,
+            init_path=init_path,
+            D=D,
+            **kwargs,
         )
 
-        n_points = len(path_sol)  # the actual #points due to arclength resampling
+        n_points = len(
+            path_sol
+        )  # the actual #points due to arclength resampling
 
         if min_lap_t:
             t_sol = dt_sol * (n_points - 1)
             t_min = 0.3 * t_sol
             i_elbow_, laps_, A_, opt_T_ = minimize_lap_time(
-                path_sol, t_sol, t_min, vf.func, vf.get_Jacobian(), D=D, num_t=num_t, elbow_method=elbow_method
+                path_sol,
+                t_sol,
+                t_min,
+                vf.func,
+                vf.get_Jacobian(),
+                D=D,
+                num_t=num_t,
+                elbow_method=elbow_method,
             )
             if i_elbow_ is None:
                 i_elbow_ = 0
@@ -321,13 +388,19 @@ def least_action(
         if basis == "pca":
             pc_keys = "PCs" if PCs is None else PCs
             if pc_keys not in adata.uns.keys():
-                logger.warning("Expressions along the trajectories cannot be retrieved, due to lack of `PCs` in .uns.")
+                logger.warning(
+                    "Expressions along the trajectories cannot be retrieved, due to lack of `PCs` in .uns."
+                )
             else:
                 if "pca_mean" not in adata.uns.keys():
                     pca_mean = None
                 else:
                     pca_mean = adata.uns["pca_mean"]
-                exprs.append(pca_to_expr(traj.X, adata.uns["PCs"], pca_mean, func=expr_func))
+                exprs.append(
+                    pca_to_expr(
+                        traj.X, adata.uns["PCs"], pca_mean, func=expr_func
+                    )
+                )
 
         # logger.info(sol_dict["message"], indent_level=1)
         logger.info("optimal action: %f" % action_opt, indent_level=1)
@@ -350,7 +423,13 @@ def least_action(
     }
 
     if min_lap_t:
-        adata.uns[LAP_key]["min_t"] = {"A": A, "T": opt_T, "i_elbow": i_elbow, "paths": laps, "method": elbow_method}
+        adata.uns[LAP_key]["min_t"] = {
+            "A": A,
+            "T": opt_T,
+            "i_elbow": i_elbow,
+            "paths": laps,
+            "method": elbow_method,
+        }
 
     logger.finish_progress(progress_name="least action path")
 
@@ -385,7 +464,9 @@ class LeastActionPath(Trajectory):
 
     def optimize_dt(self):
         dt_0 = self.get_dt()
-        t_dict = minimize(lambda t: action(self.X, self.func, D=self.D, dt=t), dt_0)
+        t_dict = minimize(
+            lambda t: action(self.X, self.func, D=self.D, dt=t), dt_0
+        )
         LoggerManager.main_logger.info(t_dict["message"])
         LoggerManager.main_logger.info("optimal action: %f" % t_dict["fun"])
         dt_sol = t_dict["x"][0]
@@ -394,12 +475,25 @@ class LeastActionPath(Trajectory):
 
 
 class GeneLeastActionPath(GeneTrajectory):
-    def __init__(self, adata, lap: LeastActionPath = None, X_pca=None, vf_func=None, D=1, dt=1, **kwargs) -> None:
+    def __init__(
+        self,
+        adata,
+        lap: LeastActionPath = None,
+        X_pca=None,
+        vf_func=None,
+        D=1,
+        dt=1,
+        **kwargs,
+    ) -> None:
         if lap is not None:
             self.from_lap(adata, lap, **kwargs)
         else:
-            super().__init__(X_pca=X_pca, t=np.arange(X_pca.shape[0]) * dt, **kwargs)
-            self.func = vector_field_function_transformation(vf_func, self.PCs, self.to_pca)
+            super().__init__(
+                X_pca=X_pca, t=np.arange(X_pca.shape[0]) * dt, **kwargs
+            )
+            self.func = vector_field_function_transformation(
+                vf_func, self.PCs, self.to_pca
+            )
             self.D = D
 
         self.adata = adata
@@ -408,7 +502,9 @@ class GeneLeastActionPath(GeneTrajectory):
 
     def from_lap(self, adata, lap: LeastActionPath, **kwargs):
         super().__init__(adata, X_pca=lap.X, t=lap.t, **kwargs)
-        self.func = vector_field_function_transformation(lap.func, self.PCs, self.to_pca)
+        self.func = vector_field_function_transformation(
+            lap.func, self.PCs, self.to_pca
+        )
         self.D = lap.D
 
     def get_t(self):

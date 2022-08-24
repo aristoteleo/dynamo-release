@@ -14,7 +14,9 @@ from ..dynamo_logger import (
 from .utils import cook_dist
 
 
-def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])):
+def parametric_dispersion_fit(
+    disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])
+):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -38,8 +40,12 @@ def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarra
     coefs = initial_coefs
     iter = 0
     while True:
-        residuals = disp_table["disp"] / (coefs[0] + coefs[1] / disp_table["mu"])
-        good = disp_table.loc[(residuals > initial_coefs[0]) & (residuals < 10000), :]
+        residuals = disp_table["disp"] / (
+            coefs[0] + coefs[1] / disp_table["mu"]
+        )
+        good = disp_table.loc[
+            (residuals > initial_coefs[0]) & (residuals < 10000), :
+        ]
         # https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the
         # -gamma-family
         fit = sm.formula.glm(
@@ -69,7 +75,9 @@ def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarra
     return fit, coefs, good
 
 
-def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1) -> pd.DataFrame:
+def disp_calc_helper_NB(
+    adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
+) -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -86,7 +94,9 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         res: :class:`~pandas.DataFrame`
             A pandas dataframe with mu, dispersion for each gene that passes filters.
     """
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
+    layers = DynamoAdataKeyManager.get_available_layer_keys(
+        adata, layers=layers, include_protein=False
+    )
 
     res_list = []
     for layer in layers:
@@ -106,7 +116,11 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         else:
             rounded = CM.round().astype("int")
 
-        lowerDetectedLimit = adata.uns["lowerDetectedLimit"] if "lowerDetectedLimit" in adata.uns.keys() else 1
+        lowerDetectedLimit = (
+            adata.uns["lowerDetectedLimit"]
+            if "lowerDetectedLimit" in adata.uns.keys()
+            else 1
+        )
         nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
         nzGenes = nzGenes > min_cells_detected
 
@@ -127,12 +141,16 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         # For NB: Var(Y) = mu * (1 + mu / k)
         # x.A.var(axis=0, ddof=1)
         f_expression_var = (
-            (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2) * x.shape[0] / (x.shape[0] - 1)
+            (x.multiply(x).mean(0).A1 - f_expression_mean.A1**2)
+            * x.shape[0]
+            / (x.shape[0] - 1)
             if issparse(x)
             else x.var(axis=0, ddof=0) ** 2
         )  # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
         # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
-        disp_guess_meth_moments = f_expression_var - xim * f_expression_mean  # variance - mu
+        disp_guess_meth_moments = (
+            f_expression_var - xim * f_expression_mean
+        )  # variance - mu
 
         disp_guess_meth_moments = disp_guess_meth_moments / np.power(
             f_expression_mean, 2
@@ -186,12 +204,16 @@ def estimate_dispersion(
 
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     # mu = None
-    model_terms = [x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)]
+    model_terms = [
+        x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)
+    ]
     model_terms = list(set(model_terms) - set([""]))
 
     cds_pdata = adata.obs  # .loc[:, model_terms]
     cds_pdata["rowname"] = cds_pdata.index.values
-    layers, disp_tables = disp_calc_helper_NB(adata[:, :], layers, min_cells_detected)
+    layers, disp_tables = disp_calc_helper_NB(
+        adata[:, :], layers, min_cells_detected
+    )
     # disp_table['disp'] = np.random.uniform(0, 10, 11)
     # disp_table = cds_pdata.apply(disp_calc_helper_NB(adata[:, :], min_cells_detected))
 
@@ -203,7 +225,9 @@ def estimate_dispersion(
         layer, disp_table = layers[ind], disp_tables[ind]
 
         if disp_table is None:
-            raise Exception("Parametric dispersion fitting failed, please set a different lowerDetectionLimit")
+            raise Exception(
+                "Parametric dispersion fitting failed, please set a different lowerDetectionLimit"
+            )
 
         disp_table = disp_table.loc[np.where(disp_table["mu"] != np.nan)[0], :]
 
@@ -217,7 +241,9 @@ def estimate_dispersion(
 
             CD = cook_dist(fit, 1 / good["mu"][:, None], good)
             cooksCutoff = 4 / good.shape[0]
-            main_info("Removing " + str(len(CD[CD > cooksCutoff])) + " outliers")
+            main_info(
+                "Removing " + str(len(CD[CD > cooksCutoff])) + " outliers"
+            )
             outliers = CD > cooksCutoff
             # use CD.index.values? remove genes that lost when doing parameter fitting
             lost_gene = set(good.index.values).difference(set(range(len(CD))))
@@ -247,7 +273,9 @@ def estimate_dispersion(
     return adata
 
 
-def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
+def top_table(
+    adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion"
+) -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -260,7 +288,9 @@ def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion"
         disp_df: :class:`~pandas.DataFrame`
             The data frame with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
     """
-    layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
+    layer = DynamoAdataKeyManager.get_available_layer_keys(
+        adata, layers=layer, include_protein=False
+    )[0]
 
     if layer in ["X"]:
         key = "dispFitInfo"
@@ -281,7 +311,9 @@ def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion"
             {
                 "gene_id": adata.uns[key]["disp_table"]["gene_id"],
                 "mean_expression": adata.uns[key]["disp_table"]["mu"],
-                "dispersion_fit": adata.uns[key]["disp_func"](adata.uns[key]["disp_table"]["mu"]),
+                "dispersion_fit": adata.uns[key]["disp_func"](
+                    adata.uns[key]["disp_table"]["mu"]
+                ),
                 "dispersion_empirical": adata.uns[key]["disp_table"]["disp"],
             }
         )

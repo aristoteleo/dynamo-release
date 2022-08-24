@@ -85,12 +85,18 @@ def sol_s(t, s0, u0, alpha, beta, gamma):
     """
     exp_gt = np.exp(-gamma * t)
     if beta == gamma:
-        s = s0 * exp_gt + (beta * u0 - alpha) * t * exp_gt + alpha / gamma * (1 - exp_gt)
+        s = (
+            s0 * exp_gt
+            + (beta * u0 - alpha) * t * exp_gt
+            + alpha / gamma * (1 - exp_gt)
+        )
     else:
         s = (
             s0 * exp_gt
             + alpha / gamma * (1 - exp_gt)
-            + (alpha - u0 * beta) / (gamma - beta) * (exp_gt - np.exp(-beta * t))
+            + (alpha - u0 * beta)
+            / (gamma - beta)
+            * (exp_gt - np.exp(-beta * t))
         )
     return s
 
@@ -132,7 +138,11 @@ def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, delta):
     s = sol_s(t, s0, u0, alpha, beta, gamma)
     exp_gt = np.exp(-delta * t)
     p = p0 * exp_gt + eta / (delta - gamma) * (
-        s - s0 * exp_gt - beta / (delta - beta) * (u - u0 * exp_gt - alpha / delta * (1 - exp_gt))
+        s
+        - s0 * exp_gt
+        - beta
+        / (delta - beta)
+        * (u - u0 * exp_gt - alpha / delta * (1 - exp_gt))
     )
     return p, s, u
 
@@ -297,7 +307,9 @@ def fit_linreg(x, y, mask=None, intercept=False, r2=True):
         return k, b
 
 
-def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method="rlm"):
+def fit_linreg_robust(
+    x, y, mask=None, intercept=False, r2=True, est_method="rlm"
+):
     """Apply robust linear regression of y w.r.t x.
 
     Arguments
@@ -340,9 +352,13 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method="rlm
             res = sm.RLM(yy, xx_).fit()
             k, b = res.params[::-1] if intercept else (res.params[0], 0)
         elif est_method.lower() == "ransac":
-            reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
+            reg = RANSACRegressor(
+                LinearRegression(fit_intercept=intercept), random_state=0
+            )
             reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
-            k, b = reg.estimator_.coef_[0, 0], (reg.estimator_.intercept_[0] if intercept else 0)
+            k, b = reg.estimator_.coef_[0, 0], (
+                reg.estimator_.intercept_[0] if intercept else 0
+            )
         else:
             raise ImportError(
                 f"estimation method {est_method} is not implemented. "
@@ -409,7 +425,9 @@ def fit_stochastic_linreg(u, s, us, ss, fit_2_gammas=True, err_cov=False):
         k = np.array([k1, k2])
         E = y - k[:, None] * x
     else:
-        k = np.mean(np.sum(elem_prod(y, x), 0)) / np.mean(np.sum(elem_prod(x, x), 0))
+        k = np.mean(np.sum(elem_prod(y, x), 0)) / np.mean(
+            np.sum(elem_prod(x, x), 0)
+        )
         E = y - k * x
 
     if err_cov:
@@ -663,14 +681,18 @@ def solve_alpha_degradation(t, u, beta, intercept=False):
     ym = np.mean(y)
 
     # calculate slope
-    var_x = np.mean(x ** 2) - xm ** 2
+    var_x = np.mean(x**2) - xm**2
     cov = np.sum(y.dot(x)) / n - ym * xm
     k = cov / var_x
 
     # calculate intercept
     b = ym - k * xm if intercept else 0
     SS_tot_n = np.var(y)
-    SS_res_n = np.mean((y - k * x - b) ** 2) if b is not None else np.mean((y - k * x) ** 2)
+    SS_res_n = (
+        np.mean((y - k * x - b) ** 2)
+        if b is not None
+        else np.mean((y - k * x) ** 2)
+    )
     r2 = 1 - SS_res_n / SS_tot_n
 
     return k * beta, b, r2
@@ -743,8 +765,14 @@ def fit_all_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1, gamma_0=1):
     tau = np.hstack((0, t))
     x = np.hstack((0, l))
 
-    f_lsq = lambda p: sol_u(tau, 0, p[0], p[1]) + sol_s(tau, 0, 0, p[0], p[1], p[2]) - x
-    ret = least_squares(f_lsq, np.array([alpha_0, beta_0, gamma_0]), bounds=bounds)
+    f_lsq = (
+        lambda p: sol_u(tau, 0, p[0], p[1])
+        + sol_s(tau, 0, 0, p[0], p[1], p[2])
+        - x
+    )
+    ret = least_squares(
+        f_lsq, np.array([alpha_0, beta_0, gamma_0]), bounds=bounds
+    )
     return ret.x[0], ret.x[1], ret.x[2]
 
 
@@ -767,7 +795,9 @@ def concat_time_series_matrices(mats, t=None):
     """
     ret_mat = np.concatenate(mats, axis=1)
     if t is not None:
-        ret_t = np.concatenate([[t[i]] * mats[i].shape[1] for i in range(len(t))])
+        ret_t = np.concatenate(
+            [[t[i]] * mats[i].shape[1] for i in range(len(t))]
+        )
         return ret_mat, ret_t
     else:
         return ret_mat
@@ -776,7 +806,7 @@ def concat_time_series_matrices(mats, t=None):
 # ---------------------------------------------------------------------------------------------------
 # negbin method related
 def compute_dispersion(mX, varX):
-    phi = fit_linreg(mX ** 2, varX - mX, intercept=False)[0]
+    phi = fit_linreg(mX**2, varX - mX, intercept=False)[0]
     return phi
 
 
@@ -786,7 +816,9 @@ def fit_k_negative_binomial(n, r, var, phi=None, k0=None, return_k0=False):
 
     g1 = lambda k: k * r - n
     g2 = lambda k: k * k * var - k * n - phi * n * n
-    g = lambda k: np.hstack((g1(k) / max(g1(k0).std(0), 1e-3), g2(k) / max(g2(k0).std(0), 1e-3)))
+    g = lambda k: np.hstack(
+        (g1(k) / max(g1(k0).std(0), 1e-3), g2(k) / max(g2(k0).std(0), 1e-3))
+    )
     ret = least_squares(g, k0, bounds=(0, np.inf))
     if return_k0:
         return ret.x[0], k0
@@ -806,7 +838,9 @@ def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None, return_phi=False):
         if perc_left is None and perc_right is None:
             K[i] = fit_k_negative_binomial(n, r, var, Phi[i])
         else:
-            eind = find_extreme(n, r, perc_left=perc_left, perc_right=perc_right)
+            eind = find_extreme(
+                n, r, perc_left=perc_left, perc_right=perc_right
+            )
             K[i] = fit_k_negative_binomial(n[eind], r[eind], var[eind], Phi[i])
     if return_phi:
         return K, Phi

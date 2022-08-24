@@ -9,9 +9,13 @@ from sklearn.neighbors import NearestNeighbors
 
 from ..configuration import DKM
 from ..dynamo_logger import main_info
-from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
+from ..preprocessing.preprocessor_utils import (
+    filter_genes_by_outliers as filter_genes,
+)
 from ..preprocessing.preprocessor_utils import log1p_adata as log1p
-from ..preprocessing.preprocessor_utils import normalize_cell_expr_by_size_factors
+from ..preprocessing.preprocessor_utils import (
+    normalize_cell_expr_by_size_factors,
+)
 from ..preprocessing.utils import pca_monocle
 from ..utils import LoggerManager, copy_adata
 from .connectivity import _gen_neighbor_keys, neighbors
@@ -85,7 +89,10 @@ def hdbscan(
     try:
         from hdbscan import HDBSCAN
     except ImportError:
-        raise ImportError("You need to install the package `hdbscan`." "install hdbscan via `pip install hdbscan`")
+        raise ImportError(
+            "You need to install the package `hdbscan`."
+            "install hdbscan via `pip install hdbscan`"
+        )
 
     logger = LoggerManager.gen_logger("dynamo-hdbscan")
     logger.log_time()
@@ -106,9 +113,15 @@ def hdbscan(
             X_data = adata.obsm[basis]
         else:
             reduction_method = basis.split("_")[-1]
-            embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
+            embedding_key = (
+                "X_" + reduction_method
+                if layer is None
+                else layer + "_" + reduction_method
+            )
             neighbor_result_prefix = "" if layer is None else layer
-            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(
+                neighbor_result_prefix
+            )
 
             adata = run_reduce_dim(
                 adata,
@@ -254,7 +267,9 @@ def louvain(
         "randomState instance or None, optional (default=None). If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is the random number generator; If None, the random number generator is the RandomState instance used by np.random." - cdlib
     """
     if directed:
-        raise ValueError("CDlib does not support directed graph for Louvain community detection for now.")
+        raise ValueError(
+            "CDlib does not support directed graph for Louvain community detection for now."
+        )
     kwargs.update(
         {
             "resolution": resolution,
@@ -382,7 +397,10 @@ def cluster_community(
     # try generating required adj_matrix according to
     # user inputs through "neighbors" interface
     if adj_matrix is None:
-        main_info("accessing adj_matrix_key=%s built from args for clustering..." % (adj_matrix_key))
+        main_info(
+            "accessing adj_matrix_key=%s built from args for clustering..."
+            % (adj_matrix_key)
+        )
         if not (adj_matrix_key in adata.obsp):
             if layer is None:
                 if obsm_key is None:
@@ -391,7 +409,9 @@ def cluster_community(
                     X_data = adata.obsm[obsm_key]
                     neighbors(adata, X_data=X_data, result_prefix=obsm_key)
             else:
-                main_info("using PCA genes for clustering based on adata.var.use_for_pca...")
+                main_info(
+                    "using PCA genes for clustering based on adata.var.use_for_pca..."
+                )
                 X_data = adata[:, adata.var.use_for_pca].layers[layer]
                 neighbors(adata, X_data=X_data, result_prefix=layer)
 
@@ -406,18 +426,28 @@ def cluster_community(
     # build result_key for storing results
     if result_key is None:
         if all((cell_subsets is None, cluster_and_subsets is None)):
-            result_key = "%s" % (method) if layer is None else layer + "_" + method
+            result_key = (
+                "%s" % (method) if layer is None else layer + "_" + method
+            )
         else:
-            result_key = "subset_" + method if layer is None else layer + "_subset_" + method
+            result_key = (
+                "subset_" + method
+                if layer is None
+                else layer + "_subset_" + method
+            )
 
     valid_indices = None
     if cell_subsets is not None:
         if type(cell_subsets[0]) == str:
-            valid_indices = [adata.obs_names.get_loc(cur_cell) for cur_cell in cell_subsets]
+            valid_indices = [
+                adata.obs_names.get_loc(cur_cell) for cur_cell in cell_subsets
+            ]
         else:
             valid_indices = cell_subsets
 
-        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][:, valid_indices]
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][
+            :, valid_indices
+        ]
 
     if cluster_and_subsets is not None:
         cluster_col, allowed_clusters = (
@@ -426,13 +456,18 @@ def cluster_community(
         )
         valid_indices_bools = np.isin(adata.obs[cluster_col], allowed_clusters)
         valid_indices = np.argwhere(valid_indices_bools).flatten()
-        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][:, valid_indices]
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][
+            :, valid_indices
+        ]
 
     if not use_weight:
         graph_sparse_matrix.data = 1
 
     community_result = cluster_community_from_graph(
-        method=method, graph_sparse_matrix=graph_sparse_matrix, directed=directed, **kwargs
+        method=method,
+        graph_sparse_matrix=graph_sparse_matrix,
+        directed=directed,
+        **kwargs
     )
 
     labels = np.zeros(len(adata), dtype=int) + no_community_label
@@ -459,7 +494,13 @@ def cluster_community(
         return adata
 
 
-def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", directed=False, **kwargs):
+def cluster_community_from_graph(
+    graph=None,
+    graph_sparse_matrix=None,
+    method="louvain",
+    directed=False,
+    **kwargs
+):
     # -> NodeClustering:
     """Detect communities based on graph inputs and selected methods with arguments passed in kwargs."""
     logger = LoggerManager.get_main_logger()
@@ -469,15 +510,20 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         from cdlib import algorithms
     except ImportError:
         raise ImportError(
-            "You need to install the excellent package `cdlib` if you want to use louvain or leiden " "for clustering."
+            "You need to install the excellent package `cdlib` if you want to use louvain or leiden "
+            "for clustering."
         )
     if graph is not None:
         # highest priority
         pass
     elif graph_sparse_matrix is not None:
-        logger.info("Converting graph_sparse_matrix to networkx object", indent_level=2)
+        logger.info(
+            "Converting graph_sparse_matrix to networkx object", indent_level=2
+        )
         # if graph matrix is with weight, then edge attr "weight" stores weight of edges
-        graph = nx.convert_matrix.from_scipy_sparse_matrix(graph_sparse_matrix, edge_attribute="weight")
+        graph = nx.convert_matrix.from_scipy_sparse_matrix(
+            graph_sparse_matrix, edge_attribute="weight"
+        )
         for i in range(graph_sparse_matrix.shape[0]):
             if not (i in graph.nodes):
                 graph.add_node(i)
@@ -492,7 +538,9 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
     if method == "leiden":
         initial_membership, weights = None, None
         if "initial_membership" in kwargs:
-            logger.info("Detecting community with initial_membership input from caller")
+            logger.info(
+                "Detecting community with initial_membership input from caller"
+            )
             initial_membership = kwargs["initial_membership"]
         if "weights" in kwargs:
             weights = kwargs["weights"]
@@ -504,7 +552,9 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
             )
             initial_membership = None
 
-        coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
+        coms = algorithms.leiden(
+            graph, weights=weights, initial_membership=initial_membership
+        )
     elif method == "louvain":
         if "resolution" not in kwargs:
             raise KeyError("resolution not in louvain input parameters")
@@ -516,13 +566,17 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         resolution = kwargs["resolution"]
         weight = "weight"
         randomize = kwargs["randomize"]
-        coms = algorithms.louvain(graph, weight=weight, resolution=resolution, randomize=randomize)
+        coms = algorithms.louvain(
+            graph, weight=weight, resolution=resolution, randomize=randomize
+        )
     elif method == "infomap":
         coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
 
-    logger.finish_progress(progress_name="Community clustering with %s" % (method))
+    logger.finish_progress(
+        progress_name="Community clustering with %s" % (method)
+    )
 
     return coms
 
@@ -563,12 +617,19 @@ def scc(
     if "X_" + spatial_key not in adata.obsm.keys():
         adata.obsm["X_" + spatial_key] = adata.obsm[spatial_key].copy()
 
-    neighbors(adata, n_neighbors=s_neigh, basis=spatial_key, result_prefix="spatial")
+    neighbors(
+        adata, n_neighbors=s_neigh, basis=spatial_key, result_prefix="spatial"
+    )
     conn = adata.obsp["connectivities"].copy()
     conn.data[conn.data > 0] = 1
     adj = conn + adata.obsp["spatial_connectivities"]
     adj.data[adj.data > 0] = 1
-    leiden(adata, adj_matrix=adj, resolution=resolution, result_key="scc_e" + str(e_neigh) + "_s" + str(s_neigh))
+    leiden(
+        adata,
+        adj_matrix=adj,
+        resolution=resolution,
+        result_key="scc_e" + str(e_neigh) + "_s" + str(s_neigh),
+    )
 
     if copy:
         return adata
@@ -598,12 +659,22 @@ def purity(
     """
 
     if neighbors_key not in adata.obsp.keys():
-        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix=neighbors_key.split("_")[0])
+        neighbors(
+            adata,
+            n_neighbors=neighbor,
+            basis=spatial_key,
+            result_prefix=neighbors_key.split("_")[0],
+        )
 
     neighbor_graph = adata.obsp[neighbors_key]
 
     if cluster_key not in adata.obs.columns:
-        leiden(adata, adj_matrix=neighbor_graph, resolution=resolution, result_key=cluster_key)
+        leiden(
+            adata,
+            adj_matrix=neighbor_graph,
+            resolution=resolution,
+            result_key=cluster_key,
+        )
 
     cluster = adata.obs[cluster_key]
 

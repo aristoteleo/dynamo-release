@@ -18,7 +18,11 @@ from ..utils import areinstance, isarray
 from .trajectory import Trajectory
 
 
-def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable, in_sink_state: Callable) -> float:
+def calc_mean_exit_time(
+    trajectories: List[Trajectory],
+    in_init_state: Callable,
+    in_sink_state: Callable,
+) -> float:
     met = []
     for traj in trajectories:
         t_init = -1
@@ -33,7 +37,10 @@ def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable,
 
 
 def calc_mean_first_passage_time(
-    trajectories: List[Trajectory], in_init_state: Callable, in_target_state: Callable, in_sink_state: Callable
+    trajectories: List[Trajectory],
+    in_init_state: Callable,
+    in_target_state: Callable,
+    in_sink_state: Callable,
 ) -> float:
     mfpt = []
     for traj in trajectories:
@@ -79,7 +86,9 @@ def mean_first_passage_time(
     elif xkey in adata.obsm.keys():
         X = adata.obsm[xkey]
     else:
-        raise Exception(f"Cannot find `{xkey}` in neither `.layers` nor `.obsm`.")
+        raise Exception(
+            f"Cannot find `{xkey}` in neither `.layers` nor `.obsm`."
+        )
 
     T = adata.obs[tkey]
     traj_id = adata.obs[traj_key]
@@ -117,11 +126,16 @@ def mean_first_passage_time(
 
     if target_states is None:
         main_info("No target states is provided. Calculating mean exit time...")
-        mfpt = calc_mean_exit_time(trajs, in_init_state=in_init_state, in_sink_state=in_sink_state)
+        mfpt = calc_mean_exit_time(
+            trajs, in_init_state=in_init_state, in_sink_state=in_sink_state
+        )
     else:
         main_info("Calculating mean first passage time to the target states...")
         mfpt = calc_mean_first_passage_time(
-            trajs, in_init_state=in_init_state, in_target_state=in_target_state, in_sink_state=in_sink_state
+            trajs,
+            in_init_state=in_init_state,
+            in_target_state=in_target_state,
+            in_sink_state=in_sink_state,
         )
 
     return mfpt

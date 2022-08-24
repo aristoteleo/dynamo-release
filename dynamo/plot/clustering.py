@@ -8,7 +8,9 @@ docstrings.delete_params("scatters.parameters", "adata", "basis")
 
 
 @docstrings.with_indent(4)
-def hdbscan(adata: AnnData, basis: str = "umap", color: str = "hdbscan", *args, **kwargs):
+def hdbscan(
+    adata: AnnData, basis: str = "umap", color: str = "hdbscan", *args, **kwargs
+):
     """\
     Scatter plot for hdbscan clustering in selected basis.
 
@@ -27,7 +29,9 @@ def hdbscan(adata: AnnData, basis: str = "umap", color: str = "hdbscan", *args, 
 
 
 @docstrings.with_indent(4)
-def leiden(adata: AnnData, basis: str = "umap", color: str = "leiden", *args, **kwargs):
+def leiden(
+    adata: AnnData, basis: str = "umap", color: str = "leiden", *args, **kwargs
+):
     """\
    Scatter plot for leiden community detection in selected basis.
 
@@ -46,7 +50,14 @@ def leiden(adata: AnnData, basis: str = "umap", color: str = "leiden", *args, **
 
 
 @docstrings.with_indent(4)
-def louvain(adata: AnnData, basis: str = "umap", color: str = "louvain", color_key_cmap="Spectral", *args, **kwargs):
+def louvain(
+    adata: AnnData,
+    basis: str = "umap",
+    color: str = "louvain",
+    color_key_cmap="Spectral",
+    *args,
+    **kwargs
+):
     """\
     Scatter plot for louvain community detection in selected basis.
 
@@ -65,7 +76,9 @@ def louvain(adata: AnnData, basis: str = "umap", color: str = "louvain", color_k
 
 
 @docstrings.with_indent(4)
-def infomap(adata: AnnData, basis: str = "umap", color: str = "infomap", *args, **kwargs):
+def infomap(
+    adata: AnnData, basis: str = "umap", color: str = "infomap", *args, **kwargs
+):
     """\
     Scatter plot for infomap community detection in selected basis.
 
@@ -85,7 +98,12 @@ def infomap(adata: AnnData, basis: str = "umap", color: str = "infomap", *args, 
 
 @docstrings.with_indent(4)
 def streamline_clusters(
-    adata: AnnData, basis: str = "umap", clusters="clusters", color_key_cmap: str = "Spectral", *args, **kwargs
+    adata: AnnData,
+    basis: str = "umap",
+    clusters="clusters",
+    color_key_cmap: str = "Spectral",
+    *args,
+    **kwargs
 ):
     """\
     Scatter plot for visualizing streamline clusters in selected basis.
@@ -112,7 +130,9 @@ def streamline_clusters(
     clusters[np.isnan(clusters)] = -1
     num_labels = len(np.unique(clusters))
 
-    color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
+    color_key = _to_hex(
+        plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+    )
 
     fig, ax = plt.subplots(1, 1)
     for key, values in segments.items():

@@ -26,10 +26,14 @@ def prepare_dim_reduction(
     if genes is not None:
         genes = adata.var_name.intersection(genes).to_list()
         if len(genes) == 0:
-            raise ValueError("no genes from your genes list appear in your adata object.")
+            raise ValueError(
+                "no genes from your genes list appear in your adata object."
+            )
     if layer is not None:
         if not DKM.check_if_layer_exist(adata, layer):
-            raise ValueError(f"the layer {layer} you provided is not included in the adata object!")
+            raise ValueError(
+                f"the layer {layer} you provided is not included in the adata object!"
+            )
 
     prefix = "X_" if layer is None else layer + "_"
 
@@ -54,7 +58,11 @@ def prepare_dim_reduction(
             if genes is not None:
                 X_data = adata[:, genes].X
             else:
-                X_data = adata.X if "use_for_pca" not in adata.var.keys() else adata[:, adata.var.use_for_pca].X
+                X_data = (
+                    adata.X
+                    if "use_for_pca" not in adata.var.keys()
+                    else adata[:, adata.var.use_for_pca].X
+                )
         else:
             if genes is not None:
                 X_data = adata[:, genes].layers[layer]
@@ -68,15 +76,27 @@ def prepare_dim_reduction(
             X_data = log1p_(adata, X_data)
     else:
         pca_key = "X_pca" if layer is None else layer + "_pca"
-        n_pca_components = max(max(dims), n_pca_components) if dims is not None else n_pca_components
+        n_pca_components = (
+            max(max(dims), n_pca_components)
+            if dims is not None
+            else n_pca_components
+        )
 
         if basis not in adata.obsm.keys():
-            if genes is not None or pca_key not in adata.obsm.keys() or adata.obsm[pca_key].shape[1] < n_pca_components:
+            if (
+                genes is not None
+                or pca_key not in adata.obsm.keys()
+                or adata.obsm[pca_key].shape[1] < n_pca_components
+            ):
                 if layer is None:
                     if genes is not None:
                         CM = adata[:, genes].X
                     else:
-                        CM = adata.X if "use_for_pca" not in adata.var.keys() else adata[:, adata.var.use_for_pca].X
+                        CM = (
+                            adata.X
+                            if "use_for_pca" not in adata.var.keys()
+                            else adata[:, adata.var.use_for_pca].X
+                        )
                 else:
                     if genes is not None:
                         CM = adata[:, genes].layers[layer]
@@ -90,7 +110,9 @@ def prepare_dim_reduction(
                     CM = log1p_(adata, CM)
 
                 cm_genesums = CM.sum(axis=0)
-                valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+                valid_ind = np.logical_and(
+                    np.isfinite(cm_genesums), cm_genesums != 0
+                )
                 valid_ind = np.array(valid_ind).flatten()
                 CM = CM[:, valid_ind]
                 adata, fit, _ = pca_monocle(
@@ -100,7 +122,9 @@ def prepare_dim_reduction(
                     pca_key=pca_key,
                     return_all=True,
                 )
-                adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+                adata.uns[
+                    "explained_variance_ratio_"
+                ] = fit.explained_variance_ratio_[1:]
 
                 # valid genes used for dimension reduction calculation
                 adata.uns["pca_valid_ind"] = valid_ind
@@ -120,11 +144,21 @@ def prepare_dim_reduction(
             CM = log1p_(adata, CM)
 
             cm_genesums = CM.sum(axis=0)
-            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+            valid_ind = np.logical_and(
+                np.isfinite(cm_genesums), cm_genesums != 0
+            )
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, fit, _ = pca_monocle(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
-            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+            adata, fit, _ = pca_monocle(
+                adata,
+                CM,
+                n_pca_components=n_pca_components,
+                pca_key=pca_key,
+                return_all=True,
+            )
+            adata.uns[
+                "explained_variance_ratio_"
+            ] = fit.explained_variance_ratio_[1:]
 
             # valid genes used for dimension reduction calculation
             adata.uns["pca_valid_ind"] = valid_ind
@@ -225,7 +259,9 @@ def run_reduce_dim(
                 knn_indices,
                 knn_dists,
                 X_dim,
-            ) = umap_conn_indices_dist_embedding(X_data, n_neighbors, **umap_kwargs)
+            ) = umap_conn_indices_dist_embedding(
+                X_data, n_neighbors, **umap_kwargs
+            )
 
         adata.obsm[embedding_key] = X_dim
         knn_dists = knn_to_adj(knn_indices, knn_dists)
@@ -236,20 +272,30 @@ def run_reduce_dim(
             "indices": knn_indices,
         }
 
-        layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
+        layer = (
+            neighbor_key.split("_")[0]
+            if neighbor_key.__contains__("_")
+            else None
+        )
         neighbor_result_prefix = "" if layer is None else layer
-        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(
+            neighbor_result_prefix
+        )
 
         adata.uns["umap_fit"] = {
             "fit": mapper,
             "n_pca_components": n_pca_components,
         }
     elif reduction_method == "psl":
-        adj_mat, X_dim = psl(X_data, d=n_components, K=n_neighbors)  # this need to be updated
+        adj_mat, X_dim = psl(
+            X_data, d=n_components, K=n_neighbors
+        )  # this need to be updated
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = adj_mat
 
     else:
-        raise Exception("reduction_method {} is not supported.".format(reduction_method))
+        raise Exception(
+            "reduction_method {} is not supported.".format(reduction_method)
+        )
 
     return adata

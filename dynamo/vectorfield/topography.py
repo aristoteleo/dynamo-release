@@ -13,7 +13,12 @@ from scipy.optimize import fsolve
 from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import LoggerManager, main_info, main_warning
-from ..tools.utils import gaussian_1d, inverse_norm, nearest_neighbors, update_dict
+from ..tools.utils import (
+    gaussian_1d,
+    inverse_norm,
+    nearest_neighbors,
+    update_dict,
+)
 from ..utils import copy_adata
 from .FixedPoints import FixedPoints
 from .scVectorField import BaseVectorField, SvcVectorField
@@ -39,7 +44,9 @@ def pac_onestep(x0, func, v0, ds=0.01):
     return x1
 
 
-def continuation(x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_direction=1):
+def continuation(
+    x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_direction=1
+):
     ret = [x0]
     if v0 is None:  # initialize tangent predictor
         v = np.zeros_like(x0)
@@ -110,7 +117,9 @@ def compute_nullclines_2d(X0, fdx, fdy, x_range, y_range, s_max=None, ds=None):
     return NCx, NCy
 
 
-def compute_separatrices(Xss, Js, func, x_range, y_range, t=50, n_sample=500, eps=1e-6):
+def compute_separatrices(
+    Xss, Js, func, x_range, y_range, t=50, n_sample=500, eps=1e-6
+):
     ret = []
     for i, x in enumerate(Xss):
         print(x)
@@ -167,7 +176,9 @@ def find_intersection_2d(curve1, curve2, tol_redundant=1e-4):
     return np.array(P)
 
 
-def find_fixed_points_nullcline(func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4):
+def find_fixed_points_nullcline(
+    func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4
+):
     test_Px = []
     for i in range(len(NCx)):
         test_Px.append(set_test_points_on_curve(NCx[i], sample_interval))
@@ -197,7 +208,9 @@ def calc_fft(x):
 
 def dup_osc_idx(x, n_dom=3, tol=0.05):
     l_int = int(np.floor(len(x) / n_dom))
-    ind_a, ind_b = np.arange((n_dom - 2) * l_int, (n_dom - 1) * l_int), np.arange((n_dom - 1) * l_int, n_dom * l_int)
+    ind_a, ind_b = np.arange(
+        (n_dom - 2) * l_int, (n_dom - 1) * l_int
+    ), np.arange((n_dom - 1) * l_int, n_dom * l_int)
     y1 = x[ind_a]
     y2 = x[ind_b]
 
@@ -307,17 +320,30 @@ class VectorField2D:
             _, dist = nbrs.query(Xss, k=min(k, X.shape[0] - 1))
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=min(k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
+            nbrs = NearestNeighbors(
+                n_neighbors=min(k, X.shape[0] - 1), algorithm=alg, n_jobs=-1
+            ).fit(X)
             dist, _ = nbrs.kneighbors(Xss)
 
         dist_m = dist.mean(1)
         # confidence = 1 - dist_m / dist_m.max()
-        sigma = 0.1 * 0.5 * (np.max(X[:, 0]) - np.min(X[:, 0]) + np.max(X[:, 1]) - np.min(X[:, 1]))
+        sigma = (
+            0.1
+            * 0.5
+            * (
+                np.max(X[:, 0])
+                - np.min(X[:, 0])
+                + np.max(X[:, 1])
+                - np.min(X[:, 1])
+            )
+        )
         confidence = gaussian_1d(dist_m, sigma=sigma)
         confidence /= np.max(confidence)
         return confidence[:-1]
 
-    def find_fixed_points_by_sampling(self, n, x_range, y_range, lhs=True, tol_redundant=1e-4):
+    def find_fixed_points_by_sampling(
+        self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
+    ):
         if lhs:
             from ..tools.sampling import lhsclassic
 
@@ -336,11 +362,15 @@ class VectorField2D:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
     def find_nearest_fixed_point(self, x, x_range, y_range, tol_redundant=1e-4):
-        X, J, _ = find_fixed_points(x, self.func, domain=[x_range, y_range], tol_redundant=tol_redundant)
+        X, J, _ = find_fixed_points(
+            x, self.func, domain=[x_range, y_range], tol_redundant=tol_redundant
+        )
         if len(X) > 0:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def compute_nullclines(self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4):
+    def compute_nullclines(
+        self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4
+    ):
         # compute arguments
         s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
         ds = s_max / 1e3
@@ -355,7 +385,9 @@ class VectorField2D:
         )
         if find_new_fixed_points:
             sample_interval = ds * 10
-            X, J = find_fixed_points_nullcline(self.func, self.NCx, self.NCy, sample_interval, tol_redundant)
+            X, J = find_fixed_points_nullcline(
+                self.func, self.NCx, self.NCy, sample_interval, tol_redundant
+            )
             outside = is_outside(X, [x_range, y_range])
             self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
@@ -627,7 +659,8 @@ def VectorField(
     if basis is not None:
         logger.info(
             "Retrieve X and V based on basis: %s. \n "
-            "       Vector field will be learned in the %s space." % (basis.upper(), basis.upper())
+            "       Vector field will be learned in the %s space."
+            % (basis.upper(), basis.upper())
         )
         X = adata.obsm["X_" + basis].copy()
         V = adata.obsm["velocity_" + basis].copy()
@@ -639,7 +672,8 @@ def VectorField(
     else:
         logger.info(
             "Retrieve X and V based on `genes`, layer: %s. \n "
-            "       Vector field will be learned in the gene expression space." % layer
+            "       Vector field will be learned in the gene expression space."
+            % layer
         )
         valid_genes = (
             list(set(genes).intersection(adata.var.index))
@@ -659,7 +693,9 @@ def VectorField(
 
     Grid = None
     if X.shape[1] < 4 or grid_velocity:
-        logger.info("Generating high dimensional grids and convert into a row matrix.")
+        logger.info(
+            "Generating high dimensional grids and convert into a row matrix."
+        )
         # smart way for generating high dimensional grids and convert into a row matrix
         min_vec, max_vec = (
             X.min(0),
@@ -668,11 +704,15 @@ def VectorField(
         min_vec = min_vec - 0.01 * np.abs(max_vec - min_vec)
         max_vec = max_vec + 0.01 * np.abs(max_vec - min_vec)
 
-        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)])
+        Grid_list = np.meshgrid(
+            *[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)]
+        )
         Grid = np.array([i.flatten() for i in Grid_list]).T
 
     if X is None:
-        raise Exception(f"X is None. Make sure you passed the correct X or {basis} dimension reduction method.")
+        raise Exception(
+            f"X is None. Make sure you passed the correct X or {basis} dimension reduction method."
+        )
     elif V is None:
         raise Exception("V is None. Make sure you passed the correct V.")
 
@@ -704,16 +744,34 @@ def VectorField(
 
             from .scVectorField import dynode_vectorfield
         except ImportError:
-            raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
+            raise ImportError(
+                "You need to install the package `dynode`."
+                "install dynode via `pip install dynode`"
+            )
 
-        velocity_data_sampler = VelocityDataSampler(adata={"X": X, "V": V}, normalize_velocity=normalize)
+        velocity_data_sampler = VelocityDataSampler(
+            adata={"X": X, "V": V}, normalize_velocity=normalize
+        )
         max_iter = 2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
 
         cwd, cwt = os.getcwd(), datetime.datetime.now()
 
         if model_buffer_path is None:
-            model_buffer_path = cwd + "/" + basis + "_" + str(cwt.year) + "_" + str(cwt.month) + "_" + str(cwt.day)
-            main_warning("the buffer path saving the dynode model is in %s" % (model_buffer_path))
+            model_buffer_path = (
+                cwd
+                + "/"
+                + basis
+                + "_"
+                + str(cwt.year)
+                + "_"
+                + str(cwt.month)
+                + "_"
+                + str(cwt.day)
+            )
+            main_warning(
+                "the buffer path saving the dynode model is in %s"
+                % (model_buffer_path)
+            )
 
         vf_kwargs = {
             "model": networkModels,
@@ -759,17 +817,37 @@ def VectorField(
             # from dynode.vectorfield.samplers import VelocityDataSampler
             from .scVectorField import dynode_vectorfield
         except ImportError:
-            raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
+            raise ImportError(
+                "You need to install the package `dynode`."
+                "install dynode via `pip install dynode`"
+            )
 
         if not ("Dynode" in kwargs and type(kwargs["Dynode"]) == Dynode):
-            velocity_data_sampler = VelocityDataSampler(adata={"X": X, "V": V}, normalize_velocity=normalize)
-            max_iter = 2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
+            velocity_data_sampler = VelocityDataSampler(
+                adata={"X": X, "V": V}, normalize_velocity=normalize
+            )
+            max_iter = (
+                2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
+            )
 
             cwd, cwt = os.getcwd(), datetime.datetime.now()
 
             if model_buffer_path is None:
-                model_buffer_path = cwd + "/" + basis + "_" + str(cwt.year) + "_" + str(cwt.month) + "_" + str(cwt.day)
-                main_warning("the buffer path saving the dynode model is in %s" % (model_buffer_path))
+                model_buffer_path = (
+                    cwd
+                    + "/"
+                    + basis
+                    + "_"
+                    + str(cwt.year)
+                    + "_"
+                    + str(cwt.month)
+                    + "_"
+                    + str(cwt.day)
+                )
+                main_warning(
+                    "the buffer path saving the dynode model is in %s"
+                    % (model_buffer_path)
+                )
 
             vf_kwargs = {
                 "model": networkModels,
@@ -809,14 +887,17 @@ def VectorField(
         else:
             vf_kwargs, train_kwargs = {}, {}
     else:
-        raise ValueError("current only support two methods, SparseVFC and dynode")
+        raise ValueError(
+            "current only support two methods, SparseVFC and dynode"
+        )
 
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
     if restart_num > 0:
         if len(restart_seed) != restart_num:
             main_warning(
-                f"the length of {restart_seed} is different from {restart_num}, " f"using `np.range(restart_num) * 100"
+                f"the length of {restart_seed} is different from {restart_num}, "
+                f"using `np.range(restart_num) * 100"
             )
             restart_seed = np.arange(restart_num) * 100
         restart_counter, cur_vf_list, res_list = 0, [], []
@@ -831,7 +912,9 @@ def VectorField(
                 # {"VecFld": VecFld.train(**kwargs)}
                 cur_vf_dict = VecFld.train(**train_kwargs)
             elif method.lower() == "dynode":
-                if not ("Dynode" in kwargs and type(kwargs["Dynode"]) == Dynode):
+                if not (
+                    "Dynode" in kwargs and type(kwargs["Dynode"]) == Dynode
+                ):
                     train_kwargs = update_dict(train_kwargs, kwargs)
                     VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
                     # {"VecFld": VecFld.train(**kwargs)}
@@ -839,12 +922,19 @@ def VectorField(
                 else:
                     Dynode_obj = kwargs["Dynode"]
                     VecFld = dynode_vectorfield.fromDynode(Dynode_obj)
-                    X, Y = Dynode_obj.Velocity["sampler"].X_raw, Dynode_obj.Velocity["sampler"].V_raw
+                    X, Y = (
+                        Dynode_obj.Velocity["sampler"].X_raw,
+                        Dynode_obj.Velocity["sampler"].V_raw,
+                    )
                     cur_vf_dict = {
                         "X": X,
                         "Y": Y,
-                        "V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].X_raw),
-                        "grid_V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].Grid),
+                        "V": Dynode_obj.predict_velocity(
+                            Dynode_obj.Velocity["sampler"].X_raw
+                        ),
+                        "grid_V": Dynode_obj.predict_velocity(
+                            Dynode_obj.Velocity["sampler"].Grid
+                        ),
                         "valid_ind": Dynode_obj.Velocity["sampler"].valid_ind
                         if hasattr(Dynode_obj.Velocity["sampler"], "valid_ind")
                         else np.arange(X.shape[0]),
@@ -857,9 +947,16 @@ def VectorField(
                 cur_vf_dict["Y"][cur_vf_dict["valid_ind"]],
                 cur_vf_dict["V"][cur_vf_dict["valid_ind"]],
             )
-            true_normalized = reference / (np.linalg.norm(reference, axis=1).reshape(-1, 1) + 1e-20)
-            predict_normalized = prediction / (np.linalg.norm(prediction, axis=1).reshape(-1, 1) + 1e-20)
-            res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
+            true_normalized = reference / (
+                np.linalg.norm(reference, axis=1).reshape(-1, 1) + 1e-20
+            )
+            predict_normalized = prediction / (
+                np.linalg.norm(prediction, axis=1).reshape(-1, 1) + 1e-20
+            )
+            res = (
+                np.mean(true_normalized * predict_normalized)
+                * prediction.shape[1]
+            )
 
             cur_vf_list += [cur_vf_dict]
             res_list += [res]
@@ -916,7 +1013,9 @@ def VectorField(
 
         logger.info_insert_adata(key, adata_attr="layers")
         adata.layers[key] = sp.csr_matrix((adata.shape))
-        adata.layers[key][:, [adata.var_names.get_loc(i) for i in valid_genes]] = vf_dict["V"]
+        adata.layers[key][
+            :, [adata.var_names.get_loc(i) for i in valid_genes]
+        ] = vf_dict["V"]
 
         vf_dict["layer"] = layer
         vf_dict["genes"] = genes
@@ -943,7 +1042,9 @@ def VectorField(
                 **tp_kwargs,
             )
     if pot_curl_div:
-        logger.info(f"Running ddhodge to estimate vector field based pseudotime in {basis} basis...")
+        logger.info(
+            f"Running ddhodge to estimate vector field based pseudotime in {basis} basis..."
+        )
         from ..external.hodge import ddhodge
 
         ddhodge(adata, basis=basis, cores=cores)
@@ -964,8 +1065,12 @@ def VectorField(
         logger.info_insert_adata(inlier_prob, adata_attr="obs")
 
         adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
-        adata.obs.loc[adata.obs_names[vf_dict["ctrl_idx"]], control_point] = True
-        adata.obs.loc[adata.obs_names[valid_ids], inlier_prob] = vf_dict["P"].flatten()
+        adata.obs.loc[
+            adata.obs_names[vf_dict["ctrl_idx"]], control_point
+        ] = True
+        adata.obs.loc[adata.obs_names[valid_ids], inlier_prob] = vf_dict[
+            "P"
+        ].flatten()
 
     # angles between observed velocity and that predicted by vector field across cells:
     cell_angles = np.zeros(adata.n_obs, dtype=float)
@@ -1036,7 +1141,9 @@ def assign_fixedpoints(
         valid_fps_type_assignment,
         assignment_id,
     ) = vecfld_class.assign_fixed_points(cores=cores)
-    assignment_id = [str(int(i)) if np.isfinite(i) else None for i in assignment_id]
+    assignment_id = [
+        str(int(i)) if np.isfinite(i) else None for i in assignment_id
+    ]
     adata.obs["fps_assignment"] = assignment_id
     adata.uns["fps_assignment_" + basis] = {
         "X": X,

@@ -31,7 +31,10 @@ class LinearODE:
         elif method == "numerical":
             sol = self.integrate_numerical(t, x0)
         else:
-            raise NotImplementedError("The LinearODE integrate operation currently not supports method: %s." % (method))
+            raise NotImplementedError(
+                "The LinearODE integrate operation currently not supports method: %s."
+                % (method)
+            )
         self.x = sol
         self.t = t
         return sol
@@ -105,7 +108,9 @@ class MixtureModels:
         self.x = np.zeros((len(t), np.sum(self.n_species)))
         for i, mdl in enumerate(self.models):
             x0_ = None if x0 is None else x0[self.get_model_species(i)]
-            method_ = method if method is None or type(method) is str else method[i]
+            method_ = (
+                method if method is None or type(method) is str else method[i]
+            )
             mdl.integrate(t, x0_, method_)
             self.x[:, self.get_model_species(i)] = mdl.x
         self.t = np.array(self.models[0].t, copy=True)
@@ -143,7 +148,10 @@ class LambdaModels_NoSwitching(MixtureModels):
         distributor order: alpha_1, alpha_2, (beta), gamma
         """
         models = [model1, model2]
-        if type(model1) in nosplicing_models and type(model2) in nosplicing_models:
+        if (
+            type(model1) in nosplicing_models
+            and type(model2) in nosplicing_models
+        ):
             param_distributor = [[0, 2], [1, 2]]
         else:
             dist1 = [0, 3] if model1 in nosplicing_models else [0, 2, 3]
@@ -187,7 +195,14 @@ class Moments(LinearODE):
         super().__init__(n_species, x0=x0)
 
         # parameters
-        if not (a is None or b is None or alpha_a is None or alpha_i is None or beta is None or gamma is None):
+        if not (
+            a is None
+            or b is None
+            or alpha_a is None
+            or alpha_i is None
+            or beta is None
+            or gamma is None
+        ):
             self.set_params(a, b, alpha_a, alpha_i, beta, gamma)
 
     def ode_func(self, x, t):
@@ -203,18 +218,31 @@ class Moments(LinearODE):
         # first moments
         dx[self.ua] = aa - be * x[self.ua] + a * (x[self.ui] - x[self.ua])
         dx[self.ui] = ai - be * x[self.ui] - b * (x[self.ui] - x[self.ua])
-        dx[self.xa] = be * x[self.ua] - ga * x[self.xa] + a * (x[self.xi] - x[self.xa])
-        dx[self.xi] = be * x[self.ui] - ga * x[self.xi] - b * (x[self.xi] - x[self.xa])
+        dx[self.xa] = (
+            be * x[self.ua] - ga * x[self.xa] + a * (x[self.xi] - x[self.xa])
+        )
+        dx[self.xi] = (
+            be * x[self.ui] - ga * x[self.xi] - b * (x[self.xi] - x[self.xa])
+        )
 
         # second moments
-        dx[self.uu] = 2 * self.fbar(aa * x[self.ua], ai * x[self.ui]) - 2 * be * x[self.uu]
+        dx[self.uu] = (
+            2 * self.fbar(aa * x[self.ua], ai * x[self.ui])
+            - 2 * be * x[self.uu]
+        )
         dx[self.xx] = 2 * be * x[self.ux] - 2 * ga * x[self.xx]
-        dx[self.ux] = self.fbar(aa * x[self.xa], ai * x[self.xi]) + be * x[self.uu] - (be + ga) * x[self.ux]
+        dx[self.ux] = (
+            self.fbar(aa * x[self.xa], ai * x[self.xi])
+            + be * x[self.uu]
+            - (be + ga) * x[self.ux]
+        )
 
         return dx
 
     def fbar(self, x_a, x_i):
-        return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
+        return (
+            self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
+        )
 
     def set_params(self, a, b, alpha_a, alpha_i, beta, gamma):
         self.a = a
@@ -252,11 +280,11 @@ class Moments(LinearODE):
 
     def get_var_nu(self):
         c = self.get_nu()
-        return self.x[:, self.uu] + c - c ** 2
+        return self.x[:, self.uu] + c - c**2
 
     def get_var_nx(self):
         c = self.get_nx()
-        return self.x[:, self.xx] + c - c ** 2
+        return self.x[:, self.xx] + c - c**2
 
     def get_cov_ux(self):
         cu = self.get_nu()
@@ -321,7 +349,9 @@ class Moments(LinearODE):
 
 
 class Moments_Nosplicing(LinearODE):
-    def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, gamma=None, x0=None):
+    def __init__(
+        self, a=None, b=None, alpha_a=None, alpha_i=None, gamma=None, x0=None
+    ):
         """This class simulates the dynamics of first and second moments of
         a transcription-splicing system with promoter switching."""
         # species
@@ -335,7 +365,13 @@ class Moments_Nosplicing(LinearODE):
         super().__init__(n_species, x0=x0)
 
         # parameters
-        if not (a is None or b is None or alpha_a is None or alpha_i is None or gamma is None):
+        if not (
+            a is None
+            or b is None
+            or alpha_a is None
+            or alpha_i is None
+            or gamma is None
+        ):
             self.set_params(a, b, alpha_a, alpha_i, gamma)
 
     def ode_func(self, x, t):
@@ -352,12 +388,17 @@ class Moments_Nosplicing(LinearODE):
         dx[self.ui] = ai - ga * x[self.ui] - b * (x[self.ui] - x[self.ua])
 
         # second moments
-        dx[self.uu] = 2 * self.fbar(aa * x[self.ua], ai * x[self.ui]) - 2 * ga * x[self.uu]
+        dx[self.uu] = (
+            2 * self.fbar(aa * x[self.ua], ai * x[self.ui])
+            - 2 * ga * x[self.uu]
+        )
 
         return dx
 
     def fbar(self, x_a, x_i):
-        return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
+        return (
+            self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
+        )
 
     def set_params(self, a, b, alpha_a, alpha_i, gamma):
         self.a = a
@@ -380,7 +421,7 @@ class Moments_Nosplicing(LinearODE):
 
     def get_var_nu(self):
         c = self.get_nu()
-        return self.x[:, self.uu] + c - c ** 2
+        return self.x[:, self.uu] + c - c**2
 
     def computeKnp(self):
         # parameters
@@ -443,9 +484,21 @@ class Moments_NoSwitching(LinearODE):
         dx[self.s] = be * x[self.u] - ga * x[self.s]
 
         # second moments
-        dx[self.uu] = al + 2 * al * x[self.u] + be * x[self.u] - 2 * be * x[self.uu]
-        dx[self.us] = al * x[self.s] - be * x[self.u] + be * x[self.uu] - (be + ga) * x[self.us]
-        dx[self.ss] = be * x[self.u] + 2 * be * x[self.us] + ga * x[self.s] - 2 * ga * x[self.ss]
+        dx[self.uu] = (
+            al + 2 * al * x[self.u] + be * x[self.u] - 2 * be * x[self.uu]
+        )
+        dx[self.us] = (
+            al * x[self.s]
+            - be * x[self.u]
+            + be * x[self.uu]
+            - (be + ga) * x[self.us]
+        )
+        dx[self.ss] = (
+            be * x[self.u]
+            + 2 * be * x[self.us]
+            + ga * x[self.s]
+            - 2 * ga * x[self.ss]
+        )
 
         return dx
 
@@ -469,7 +522,9 @@ class Moments_NoSwitching(LinearODE):
     def get_nosplice_central_moments(self):
         ret = np.zeros((2, len(self.t)))
         ret[0] = self.get_mean_u() + self.get_mean_s()
-        ret[1] = self.x[:, self.uu] + self.x[:, self.ss] + 2 * self.x[:, self.us]
+        ret[1] = (
+            self.x[:, self.uu] + self.x[:, self.ss] + 2 * self.x[:, self.us]
+        )
         return ret
 
     def get_mean_u(self):
@@ -480,11 +535,11 @@ class Moments_NoSwitching(LinearODE):
 
     def get_var_u(self):
         c = self.get_mean_u()
-        return self.x[:, self.uu] - c ** 2
+        return self.x[:, self.uu] - c**2
 
     def get_var_s(self):
         c = self.get_mean_s()
-        return self.x[:, self.ss] - c ** 2
+        return self.x[:, self.ss] - c**2
 
     def get_cov_us(self):
         cu = self.get_mean_u()
@@ -576,7 +631,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
 
     def get_var_u(self):
         c = self.get_mean_u()
-        return self.x[:, self.uu] - c ** 2
+        return self.x[:, self.uu] - c**2
 
     def computeKnp(self):
         # parameters

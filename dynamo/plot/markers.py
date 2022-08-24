@@ -157,7 +157,9 @@ def bubble(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = to_hex(_background) if type(_background) is tuple else _background
+        _background = (
+            to_hex(_background) if type(_background) is tuple else _background
+        )
         # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
     else:
         _background = background
@@ -183,18 +185,34 @@ def bubble(
         )
 
         if splicing_labeling:
-            layer = mapper["X_total"] if mapper["X_total"] in adata.layers else "X_total"
+            layer = (
+                mapper["X_total"]
+                if mapper["X_total"] in adata.layers
+                else "X_total"
+            )
         elif has_labeling:
-            layer = mapper["X_total"] if mapper["X_total"] in adata.layers else "X_total"
+            layer = (
+                mapper["X_total"]
+                if mapper["X_total"] in adata.layers
+                else "X_total"
+            )
         else:
-            layer = mapper["X_spliced"] if mapper["X_spliced"] in adata.layers else "X_spliced"
+            layer = (
+                mapper["X_spliced"]
+                if mapper["X_spliced"] in adata.layers
+                else "X_spliced"
+            )
 
     if group not in adata.obs_keys():
-        raise ValueError(f"argument group {group} is not a column name in `adata.obs`")
+        raise ValueError(
+            f"argument group {group} is not a column name in `adata.obs`"
+        )
 
     genes = adata.var_names.intersection(set(genes)).to_list()
     if len(genes) == 0:
-        raise ValueError(f"names from argument genes {genes} don't match any genes from `adata.var_names`.")
+        raise ValueError(
+            f"names from argument genes {genes} don't match any genes from `adata.var_names`."
+        )
 
     # sort gene/cluster to update the orders
     uniq_groups = adata.obs[group].unique()
@@ -203,7 +221,8 @@ def bubble(
     else:
         if not set(group_order).issubset(uniq_groups):
             raise ValueError(
-                f"names from argument group_order {group_order} are not subsets of " f"`adata.obs[group].unique()`."
+                f"names from argument group_order {group_order} are not subsets of "
+                f"`adata.obs[group].unique()`."
             )
         clusters = group_order
 
@@ -222,7 +241,9 @@ def bubble(
     gene_df = gene_df.A if issparse(gene_df) else gene_df
     gene_df = pd.DataFrame(gene_df.T, index=genes, columns=adata.obs_names)
 
-    xmin, xmax = gene_df.quantile(vmin / 100, axis=1), gene_df.quantile(vmax / 100, axis=1)
+    xmin, xmax = gene_df.quantile(vmin / 100, axis=1), gene_df.quantile(
+        vmax / 100, axis=1
+    )
     if sym_c:
         _vmin, _vmax = np.zeros_like(xmin), np.zeros_like(xmax)
         i = 0
@@ -234,7 +255,9 @@ def bubble(
         xmin, xmax = _vmin, _vmax
 
     point_size = (
-        16000.0 / np.sqrt(adata.shape[0]) if pointsize is None else 16000.0 / (len(genes) * len(clusters)) * pointsize
+        16000.0 / np.sqrt(adata.shape[0])
+        if pointsize is None
+        else 16000.0 / (len(genes) * len(clusters)) * pointsize
     )
 
     if color_key is None:
@@ -246,7 +269,9 @@ def bubble(
 
     if figsize is None:
         width = 6 * len(genes) / 14 if transpose else 9 * len(genes) / 14
-        height = 4.5 * len(clusters) / 14 if transpose else 4.5 * len(genes) / 14
+        height = (
+            4.5 * len(clusters) / 14 if transpose else 4.5 * len(genes) / 14
+        )
         figsize = (height, width) if transpose else (width, height)
     else:
         figsize = figsize[::-1] if transpose else figsize
@@ -266,7 +291,9 @@ def bubble(
 
     # may also use clusters when transpose
     for igene, gene in enumerate(genes):
-        cur_gene_df = pd.DataFrame({gene: gene_df.loc[gene, :].values, "clusters_": clusters_vec})
+        cur_gene_df = pd.DataFrame(
+            {gene: gene_df.loc[gene, :].values, "clusters_": clusters_vec}
+        )
         cur_gene_df = cur_gene_df.loc[cur_gene_df["clusters_"].isin(clusters)]
 
         if type == "violin":
@@ -289,7 +316,9 @@ def bubble(
             if transpose:
                 axes[igene].set_ylim(xmin[igene], xmax[igene])
                 axes[igene].set_yticks([])
-                axes[igene].set_ylabel(gene, rotation=rotate_ylabel, ha="right", va="center")
+                axes[igene].set_ylabel(
+                    gene, rotation=rotate_ylabel, ha="right", va="center"
+                )
             else:
                 axes[igene].set_xlim(xmin[igene], xmax[igene])
                 axes[igene].set_xticks([])
@@ -299,7 +328,9 @@ def bubble(
             # use sort here
             avg_perc_cluster = (
                 cur_gene_df.groupby("clusters_")
-                .expression.apply(lambda x: pd.Series([x.mean(), (x != 0).sum() / len(x)]))
+                .expression.apply(
+                    lambda x: pd.Series([x.mean(), (x != 0).sum() / len(x)])
+                )
                 .unstack()
             )
             avg_perc_cluster.columns = ["avg", "perc"]

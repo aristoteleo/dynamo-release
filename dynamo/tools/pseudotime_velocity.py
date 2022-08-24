@@ -18,13 +18,17 @@ def gradient(E, f, tol=1e-5):
 
     G_i, G_j, G_val = np.zeros_like(row), np.zeros_like(col), np.zeros_like(val)
 
-    for ind, i, j, k in zip(np.arange(len(row)), list(row), list(col), list(val)):
+    for ind, i, j, k in zip(
+        np.arange(len(row)), list(row), list(col), list(val)
+    ):
         if i != j and np.abs(k) > tol:
             G_i[ind], G_j[ind] = i, j
             G_val[ind] = f[j] - f[i]
 
     valid_ind = G_val != 0
-    G = csr_matrix((G_val[valid_ind], (G_i[valid_ind], G_j[valid_ind])), shape=E.shape)
+    G = csr_matrix(
+        (G_val[valid_ind], (G_i[valid_ind], G_j[valid_ind])), shape=E.shape
+    )
     G.eliminate_zeros()
 
     return G
@@ -148,7 +152,9 @@ def pseudotime_velocity(
             weights = distances[1:] / meanDis
             weights_exp = np.exp(weights)
 
-            pseudotime_diff = pseudotime_vec[neighbors[1:]] - pseudotime_vec[neighbors[0]]
+            pseudotime_diff = (
+                pseudotime_vec[neighbors[1:]] - pseudotime_vec[neighbors[0]]
+            )
             sumW = np.sum(weights_exp)
             weights_scale = weights_exp / sumW
             weights_scale *= np.sign(pseudotime_diff)
@@ -157,14 +163,22 @@ def pseudotime_velocity(
 
         T = knn_to_adj(knn, T)
     else:
-        raise Exception(f"{method} method is not supported. only `hodge`, `gradient` and `naive` method is supported!")
+        raise Exception(
+            f"{method} method is not supported. only `hodge`, `gradient` and `naive` method is supported!"
+        )
 
-    logger.info("Use pseudotime transition matrix to learn low dimensional velocity projection.")
-    delta_x = projection_with_transition_matrix(T, X_embedding=adata.obsm[embedding_key], correct_density=True)
+    logger.info(
+        "Use pseudotime transition matrix to learn low dimensional velocity projection."
+    )
+    delta_x = projection_with_transition_matrix(
+        T, X_embedding=adata.obsm[embedding_key], correct_density=True
+    )
     logger.info_insert_adata(velocity_key, "obsm")
     adata.obsm[velocity_key] = delta_x
 
-    logger.info("Use pseudotime transition matrix to learn gene-wise velocity vectors.")
+    logger.info(
+        "Use pseudotime transition matrix to learn gene-wise velocity vectors."
+    )
     delta_X = projection_with_transition_matrix(T, adata.layers[ekey].A, True)
     logger.info_insert_adata(vkey, "layers")
     adata.layers[vkey] = csr_matrix(delta_X)
@@ -177,13 +191,19 @@ def pseudotime_velocity(
             logger.info_insert_adata("dynamics", "uns")
             adata.uns["dynamics"] = {}
 
-        logger.info_insert_adata("has_labeling, has_splicing, splicing_labeling", "uns['dynamics']", indent_level=2)
+        logger.info_insert_adata(
+            "has_labeling, has_splicing, splicing_labeling",
+            "uns['dynamics']",
+            indent_level=2,
+        )
         adata.uns["dynamics"]["has_labeling"] = False
         adata.uns["dynamics"]["has_splicing"] = True
         adata.uns["dynamics"]["splicing_labeling"] = False
 
         logger.info_insert_adata(
-            "experiment_type, use_smoothed, NTR_vel, est_method", "uns['dynamics']", indent_level=2
+            "experiment_type, use_smoothed, NTR_vel, est_method",
+            "uns['dynamics']",
+            indent_level=2,
         )
         adata.uns["dynamics"]["experiment_type"] = "conventional"
         adata.uns["dynamics"]["use_smoothed"] = True
@@ -196,7 +216,9 @@ def pseudotime_velocity(
         logger.info_insert_adata(add_ukey, "layers", indent_level=2)
         adata.layers[add_ukey] = adata.layers["velocity_S"].copy()
 
-        logger.info("set gamma to be 0 in .var. so that velocity_S = unspliced RNA.")
+        logger.info(
+            "set gamma to be 0 in .var. so that velocity_S = unspliced RNA."
+        )
         logger.info_insert_adata("gamma", "var", indent_level=2)
         adata.var["gamma"] = 0
         adata.var["gamma_b"] = 0

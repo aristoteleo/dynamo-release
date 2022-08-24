@@ -78,7 +78,9 @@ def reduceDimension(
 
     adata = copy_adata(adata) if copy else adata
 
-    logger.info("retrive data for non-linear dimension reduction...", indent_level=1)
+    logger.info(
+        "retrive data for non-linear dimension reduction...", indent_level=1
+    )
     if X_data is None:
         X_data, n_components, basis = prepare_dim_reduction(
             adata,
@@ -101,10 +103,16 @@ def reduceDimension(
         )
 
     if embedding_key is None:
-        embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
+        embedding_key = (
+            "X_" + reduction_method
+            if layer is None
+            else layer + "_" + reduction_method
+        )
     if neighbor_key is None:
         neighbor_result_prefix = "" if layer is None else layer
-        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(
+            neighbor_result_prefix
+        )
 
     if enforce or not has_basis:
         logger.info(f"perform {reduction_method}...", indent_level=1)

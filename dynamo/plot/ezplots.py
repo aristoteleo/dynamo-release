@@ -65,7 +65,16 @@ def plot_X(
         plt.gca().scatter(x, y, z, c=c, **kwargs)
 
 
-def plot_V(X, V, dim1=0, dim2=1, dims=None, create_figure=False, figsize=(6, 6), **kwargs):
+def plot_V(
+    X,
+    V,
+    dim1=0,
+    dim2=1,
+    dims=None,
+    create_figure=False,
+    figsize=(6, 6),
+    **kwargs,
+):
     if create_figure:
         plt.figure(figsize=figsize)
     if dims is not None:
@@ -214,7 +223,9 @@ def zstreamline(
     #    grid_num = grid_num * np.ones(2)
     # V_grid, X_grid = smoothen_drift_on_grid(X, V, n_grid=grid_num, smoothness=smoothness)
     # V_grid, X_grid = V_grid.T, X_grid.T
-    X_grid, V_grid = velocity_on_grid(X, V, n_grids=grid_num, smoothness=smoothness, cutoff_coeff=cutoff)
+    X_grid, V_grid = velocity_on_grid(
+        X, V, n_grids=grid_num, smoothness=smoothness, cutoff_coeff=cutoff
+    )
     V_grid, X_grid = V_grid.T, X_grid.T
 
     streamplot_kwargs = {
@@ -227,7 +238,7 @@ def zstreamline(
         "zorder": 3,
     }
 
-    mass = np.sqrt((V_grid ** 2).sum(0))
+    mass = np.sqrt((V_grid**2).sum(0))
     # velocity filtering
     if min_vel_mag is not None:
         min_vel_mag = np.clip(min_vel_mag, None, np.quantile(mass, 0.4))
@@ -256,7 +267,9 @@ def zstreamline(
         return X_grid.T, V_grid.T
 
 
-def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)):
+def multiplot(
+    plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)
+):
     if n_col is None and n_row is None:
         n_col = 3
     n = len(arr[list(arr.keys())[0]]) if type(arr) is dict else len(arr)

@@ -26,7 +26,9 @@ def set_logger_level(name, level):
     package_logger.setLevel(level)
 
 
-def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=6):
+def format_logging_message(
+    msg, logging_level, indent_level=1, indent_space_num=6
+):
     indent_str = "-" * indent_space_num
     prefix = indent_str * indent_level
     prefix = "|" + prefix[1:]
@@ -60,7 +62,9 @@ class Logger:
         # ensure only one stream handler exists in one logger instance
         if len(self.logger.handlers) == 0:
             self.logger_stream_handler = logging.StreamHandler(sys.stdout)
-            self.logger_stream_handler.setFormatter(logging.Formatter(self.FORMAT))
+            self.logger_stream_handler.setFormatter(
+                logging.Formatter(self.FORMAT)
+            )
             self.logger.addHandler(self.logger_stream_handler)
         else:
             self.logger_stream_handler = self.logger.handlers[0]
@@ -129,42 +133,64 @@ class Logger:
         return self.logger.setLevel(*args, **kwargs)
 
     def debug(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.DEBUG, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.DEBUG, indent_level=indent_level
+        )
         return self.logger.debug(message, *args, **kwargs)
 
     def info(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.INFO, indent_level=indent_level
+        )
         return self.logger.info(message, *args, **kwargs)
 
     def warning(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.WARNING, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.WARNING, indent_level=indent_level
+        )
         return self.logger.warning(message, *args, **kwargs)
 
     def exception(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.ERROR, indent_level=indent_level
+        )
         return self.logger.exception(message, *args, **kwargs)
 
     def critical(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.CRITICAL, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.CRITICAL, indent_level=indent_level
+        )
         return self.logger.critical(message, *args, **kwargs)
 
     def error(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.ERROR, indent_level=indent_level
+        )
         return self.logger.error(message, *args, **kwargs)
 
-    def info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs):
+    def info_insert_adata(
+        self, key, adata_attr="obsm", indent_level=1, *args, **kwargs
+    ):
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
-        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.INFO, indent_level=indent_level
+        )
         return self.logger.error(message, *args, **kwargs)
 
     def info_insert_adata_var(self, key, indent_level=1, *args, **kwargs):
-        return self.info_insert_adata(self, key, adata_attr="var", indent_level=1, *args, **kwargs)
+        return self.info_insert_adata(
+            self, key, adata_attr="var", indent_level=1, *args, **kwargs
+        )
 
     def info_insert_adata_obsm(self, key, indent_level=1, *args, **kwargs):
-        return self.info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs)
+        return self.info_insert_adata(
+            self, key, adata_attr="obsm", indent_level=1, *args, **kwargs
+        )
 
     def info_insert_adata_uns(self, key, indent_level=1, *args, **kwargs):
-        return self.info_insert_adata(self, key, adata_attr="uns", indent_level=1, *args, **kwargs)
+        return self.info_insert_adata(
+            self, key, adata_attr="uns", indent_level=1, *args, **kwargs
+        )
 
     def log_time(self):
         now = time.time()
@@ -172,7 +198,14 @@ class Logger:
         self.previous_timestamp = now
         return self.time_passed
 
-    def report_progress(self, percent=None, count=None, total=None, progress_name="", indent_level=1):
+    def report_progress(
+        self,
+        percent=None,
+        count=None,
+        total=None,
+        progress_name="",
+        indent_level=1,
+    ):
         if percent is None:
             assert (not count is None) and (not total is None)
             percent = count / total * 100
@@ -181,7 +214,9 @@ class Logger:
         if progress_name != "":
             progress_name = "[" + str(progress_name) + "] "
         message = "\r" + format_logging_message(
-            "%sin progress: %.4f%%" % (progress_name, percent), logging_level=logging.INFO, indent_level=indent_level
+            "%sin progress: %.4f%%" % (progress_name, percent),
+            logging_level=logging.INFO,
+            indent_level=indent_level,
         )
         self.logger.info(message)
         self.logger_stream_handler.flush()
@@ -198,9 +233,16 @@ class Logger:
         self.logger_stream_handler.terminator = saved_terminator
 
         if time_unit == "s":
-            self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed), indent_level=indent_level)
+            self.info(
+                "[%s] finished [%.4fs]" % (progress_name, self.time_passed),
+                indent_level=indent_level,
+            )
         elif time_unit == "ms":
-            self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3), indent_level=indent_level)
+            self.info(
+                "[%s] finished [%.4fms]"
+                % (progress_name, self.time_passed * 1e3),
+                indent_level=indent_level,
+            )
         else:
             raise NotImplementedError
         # self.logger.info("|")
@@ -259,7 +301,9 @@ class LoggerManager:
         return LoggerManager.temp_timer_logger
 
     @staticmethod
-    def progress_logger(generator, logger=None, progress_name="", indent_level=1):
+    def progress_logger(
+        generator, logger=None, progress_name="", indent_level=1
+    ):
         if logger is None:
             logger = LoggerManager.get_temp_timer_logger()
         iterator = iter(generator)
@@ -270,13 +314,21 @@ class LoggerManager:
             i += 1
             new_progress_percent = i / len(generator) * 100
             # report every `interval` percent
-            if new_progress_percent - prev_progress_percent > 1 or new_progress_percent >= 100:
+            if (
+                new_progress_percent - prev_progress_percent > 1
+                or new_progress_percent >= 100
+            ):
                 logger.report_progress(
-                    count=i, total=len(generator), progress_name=progress_name, indent_level=indent_level
+                    count=i,
+                    total=len(generator),
+                    progress_name=progress_name,
+                    indent_level=indent_level,
                 )
                 prev_progress_percent = new_progress_percent
             yield next(iterator)
-        logger.finish_progress(progress_name=progress_name, indent_level=indent_level)
+        logger.finish_progress(
+            progress_name=progress_name, indent_level=indent_level
+        )
 
 
 def main_info(message, indent_level=1):
@@ -299,7 +351,9 @@ def main_critical(message, indent_level=1):
     LoggerManager.main_logger.critical(message, indent_level)
 
 
-def main_tqdm(generator, desc="", indent_level=1, logger=LoggerManager().main_logger):
+def main_tqdm(
+    generator, desc="", indent_level=1, logger=LoggerManager().main_logger
+):
     """a TQDM style wrapper for logging something like a loop.
     e.g.
     for item in main_tqdm(alist, desc=""):
@@ -312,7 +366,9 @@ def main_tqdm(generator, desc="", indent_level=1, logger=LoggerManager().main_lo
     desc : str, optional
         description of your progress
     """
-    return LoggerManager.progress_logger(generator, logger=logger, progress_name=desc, indent_level=indent_level)
+    return LoggerManager.progress_logger(
+        generator, logger=logger, progress_name=desc, indent_level=indent_level
+    )
 
 
 def main_log_time():
@@ -327,8 +383,12 @@ def main_finish_progress(progress_name=""):
     LoggerManager.main_logger.finish_progress(progress_name=progress_name)
 
 
-def main_info_insert_adata(key, adata_attr="obsm", indent_level=1, *args, **kwargs):
-    LoggerManager.main_logger.info_insert_adata(key, adata_attr=adata_attr, indent_level=indent_level, *args, **kwargs)
+def main_info_insert_adata(
+    key, adata_attr="obsm", indent_level=1, *args, **kwargs
+):
+    LoggerManager.main_logger.info_insert_adata(
+        key, adata_attr=adata_attr, indent_level=indent_level, *args, **kwargs
+    )
 
 
 def main_info_insert_adata_var(key, indent_level=1, *args, **kwargs):

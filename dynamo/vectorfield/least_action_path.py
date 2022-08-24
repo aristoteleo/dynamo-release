@@ -31,7 +31,9 @@ def action_grad(path, vf_func, jac_func, D=1, dt=1):
     return grad
 
 
-def action_grad_aux(path_flatten, vf_func, jac_func, dim, start=None, end=None, **kwargs):
+def action_grad_aux(
+    path_flatten, vf_func, jac_func, dim, start=None, end=None, **kwargs
+):
     path = reshape_path(path_flatten, dim, start=start, end=end)
     return action_grad(path, vf_func, jac_func, **kwargs).flatten()
 
@@ -45,17 +47,26 @@ def reshape_path(path_flatten, dim, start=None, end=None):
     return path
 
 
-def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1):
+def least_action_path(
+    start, end, vf_func, jac_func, n_points=20, init_path=None, D=1
+):
     dim = len(start)
     if init_path is None:
         path_0 = (
             np.tile(start, (n_points + 1, 1))
-            + (np.linspace(0, 1, n_points + 1, endpoint=True) * np.tile(end - start, (n_points + 1, 1)).T).T
+            + (
+                np.linspace(0, 1, n_points + 1, endpoint=True)
+                * np.tile(end - start, (n_points + 1, 1)).T
+            ).T
         )
     else:
         path_0 = init_path
-    fun = lambda x: action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D)
-    jac = lambda x: action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D)
+    fun = lambda x: action_aux(
+        x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D
+    )
+    jac = lambda x: action_grad_aux(
+        x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D
+    )
     sol_dict = minimize(fun, path_0[1:-1], jac=jac)
     path_sol = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
 

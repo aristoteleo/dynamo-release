@@ -2,7 +2,12 @@ import numpy as np
 from scipy.sparse import issparse
 from tqdm import tqdm
 
-from ...tools.utils import calc_norm_loglikelihood, calc_R2, elem_prod, find_extreme
+from ...tools.utils import (
+    calc_norm_loglikelihood,
+    calc_R2,
+    elem_prod,
+    find_extreme,
+)
 from ..csc.utils_velocity import fit_linreg, fit_stochastic_linreg
 
 
@@ -28,7 +33,9 @@ def fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5):
     return k, 0, all_r2, all_logLL
 
 
-def fit_labeling_synthesis(new, total, t, intercept=False, perc_left=None, perc_right=None):
+def fit_labeling_synthesis(
+    new, total, t, intercept=False, perc_left=None, perc_right=None
+):
     T = np.unique(t)
     K = np.zeros(len(T))
     R2 = np.zeros(len(T))
@@ -62,7 +69,9 @@ def lin_reg_gamma_synthesis(R, N, time, perc_right=100):
         r = r.A.flatten() if issparse(r) else r.flatten()
         n = n.A.flatten() if issparse(n) else n.flatten()
 
-        K_list[i], R2 = fit_labeling_synthesis(n, r, time, perc_right=perc_right)
+        K_list[i], R2 = fit_labeling_synthesis(
+            n, r, time, perc_right=perc_right
+        )
         gamma[i], r2[i] = compute_gamma_synthesis(K_list[i], np.unique(time))
         K_fit_list[i] = np.unique(time) * gamma[i]
         mean_R2[i] = np.mean(R2)

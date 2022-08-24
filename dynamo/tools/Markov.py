@@ -180,7 +180,9 @@ def compute_tau(X, V, k=100, nbr_idx=None):
             _, dist = nbrs.query(X, k=k)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
+            nbrs = NearestNeighbors(
+                n_neighbors=k, algorithm=alg, n_jobs=-1
+            ).fit(X)
             dists, _ = nbrs.kneighbors(X)
 
     else:
@@ -264,7 +266,7 @@ def grid_velocity_filter(
         ns = int(np.sqrt(V_grid.shape[0]))
         V_grid = V_grid.T.reshape(2, ns, ns)
 
-        mass = np.sqrt((V_grid ** 2).sum(0))
+        mass = np.sqrt((V_grid**2).sum(0))
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
         else:
@@ -274,7 +276,9 @@ def grid_velocity_filter(
             cutoff = mass.reshape(V_grid[0].shape) < min_mass
 
             if neighs is not None:
-                length = np.sum(np.mean(np.abs(V_emb[neighs]), axis=1), axis=1).T.reshape(ns, ns)
+                length = np.sum(
+                    np.mean(np.abs(V_emb[neighs]), axis=1), axis=1
+                ).T.reshape(ns, ns)
                 cutoff |= length < np.percentile(length, 5)
 
             V_grid[0][cutoff] = np.nan
@@ -282,7 +286,7 @@ def grid_velocity_filter(
         from ..plot.utils import quiver_autoscaler
 
         if p_mass is None:
-            p_mass = np.sqrt((V_grid ** 2).sum(1))
+            p_mass = np.sqrt((V_grid**2).sum(1))
             if min_mass is None:
                 min_mass = np.clip(np.percentile(p_mass, 5), 1e-5, None)
         else:
@@ -325,7 +329,9 @@ def velocity_on_grid(
     )
 
     # V_grid = (V_emb[neighs] * (weight / p_mass[:, None])[:, :, None]).sum(1) # / np.maximum(1, p_mass)[:, None]
-    V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
+    V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(
+        1, p_mass
+    )[:, None]
     # calculate diffusion matrix D
     D = diffusionMatrix2D(V_emb[neighs])
 
@@ -356,7 +362,9 @@ def velocity_on_grid(
 
 
 # we might need a separate module/file for discrete vector field and markovian methods in the future
-def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None):
+def graphize_velocity(
+    V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None
+):
     """
         The function generates a graph based on the velocity data. The flow from i- to j-th
         node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
@@ -403,7 +411,9 @@ def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None)
             nbrs_idx, _ = nbrs.query(X, k=k + 1)
         else:
             alg = "ball_tree" if d > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
+            nbrs = NearestNeighbors(
+                n_neighbors=k + 1, algorithm=alg, n_jobs=-1
+            ).fit(X)
             _, nbrs_idx = nbrs.kneighbors(X)
 
     if type(E_func) is str:
@@ -412,14 +422,18 @@ def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None)
         elif E_func == "exp":
             E_func = np.exp
         else:
-            raise NotImplementedError("The specified edge function is not implemented.")
+            raise NotImplementedError(
+                "The specified edge function is not implemented."
+            )
 
     # E = sp.csr_matrix((n, n))      # Making E a csr_matrix will slow down this process. Try lil_matrix maybe?
     E = np.zeros((n, n))
     for i in range(n):
         x = flatten(X[i])
         idx = nbrs_idx[i]
-        if len(idx) > 0 and idx[0] == i:  # excluding the node itself from the neighbors
+        if (
+            len(idx) > 0 and idx[0] == i
+        ):  # excluding the node itself from the neighbors
             idx = idx[1:]
         vi = flatten(V[i])
         if normalize_v:
@@ -490,7 +504,9 @@ class MarkovChain:
                 P_ij = P(j -> i)
         Consequently, each column of P should sum to `sumto`.
         """
-        if check_norm and not self.is_normalized(P, axis=0, sumto=sumto, tol=tol):
+        if check_norm and not self.is_normalized(
+            P, axis=0, sumto=sumto, tol=tol
+        ):
             if self.is_normalized(P, axis=1, sumto=sumto, tol=tol):
                 LoggerManager.main_logger.info(
                     f"Column sums of the input matrix are not {sumto} but row sums are. "
@@ -498,7 +514,9 @@ class MarkovChain:
                 )
                 P = P.T
             else:
-                raise Exception(f"Neither the row nor the column sums of the input matrix are {sumto}.")
+                raise Exception(
+                    f"Neither the row nor the column sums of the input matrix are {sumto}."
+                )
         self.P = P
         self.D = None  # eigenvalues
         self.U = None  # left eigenvectors
@@ -571,7 +589,9 @@ class KernelMarkovChain(MarkovChain):
         super().__init__(P)
         self.Kd = None
         if n_recurse_neighbors is not None and Idx is not None:
-            self.Idx = append_iterative_neighbor_indices(Idx, n_recurse_neighbors)
+            self.Idx = append_iterative_neighbor_indices(
+                Idx, n_recurse_neighbors
+            )
         else:
             self.Idx = Idx
 
@@ -604,11 +624,15 @@ class KernelMarkovChain(MarkovChain):
                 neighbor_idx, _ = nbrs.query(X, k=k)
             else:
                 alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-                nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
+                nbrs = NearestNeighbors(
+                    n_neighbors=k, algorithm=alg, n_jobs=-1
+                ).fit(X)
                 _, neighbor_idx = nbrs.kneighbors(X)
 
         if n_recurse_neighbors is not None:
-            self.Idx = append_iterative_neighbor_indices(neighbor_idx, n_recurse_neighbors)
+            self.Idx = append_iterative_neighbor_indices(
+                neighbor_idx, n_recurse_neighbors
+            )
         else:
             self.Idx = neighbor_idx
 
@@ -630,7 +654,9 @@ class KernelMarkovChain(MarkovChain):
                 ),
                 0,
             )
-            self.Idx = self.Idx[np.arange(neighbor_idx.shape[0])[:, None], sampling_ixs]
+            self.Idx = self.Idx[
+                np.arange(neighbor_idx.shape[0])[:, None], sampling_ixs
+            ]
 
         n = X.shape[0]
         if sparse_construct:
@@ -646,7 +672,9 @@ class KernelMarkovChain(MarkovChain):
                 self.Kd = np.zeros((n, n))
             inv_eps = 1 / epsilon
             for i in range(n):
-                self.Kd[i, self.Idx[i]] = compute_density_kernel(X[i], X[self.Idx[i]], inv_eps)
+                self.Kd[i, self.Idx[i]] = compute_density_kernel(
+                    X[i], X[self.Idx[i]], inv_eps
+                )
             self.Kd = sp.csc_matrix(self.Kd)
             D = np.sum(self.Kd, 0)
 
@@ -744,7 +772,9 @@ class KernelMarkovChain(MarkovChain):
         # Pi_inv_right = sp.csc_matrix(np.linalg.pinv(Pi))
         Pi_inv = sp.csr_matrix(np.diag(np.sqrt(1 / p_st)))
         Pi_inv_right = sp.csc_matrix(np.diag(np.sqrt(1 / p_st)))
-        Theta = 0.5 * (Pi @ self.P @ Pi_inv_right + Pi_inv @ self.P.T @ Pi_right)
+        Theta = 0.5 * (
+            Pi @ self.P @ Pi_inv_right + Pi_inv @ self.P.T @ Pi_right
+        )
 
         return Theta
 
@@ -819,7 +849,9 @@ class DiscreteTimeMarkovChain(MarkovChain):
             V[i] = (X - X[i]).T.dot(P[:, i])
         return V
 
-    def compute_density_corrected_drift(self, X, k=None, normalize_vector=False):
+    def compute_density_corrected_drift(
+        self, X, k=None, normalize_vector=False
+    ):
         n = self.get_num_states()
         if k is None:
             k = n
@@ -839,12 +871,18 @@ class DiscreteTimeMarkovChain(MarkovChain):
         else:
             if self.D is None:
                 self.eigsys()
-            p = np.real(self.W @ np.diag(self.D ** n) @ np.linalg.inv(self.W)).dot(p0)
+            p = np.real(
+                self.W @ np.diag(self.D**n) @ np.linalg.inv(self.W)
+            ).dot(p0)
         return p
 
     def compute_stationary_distribution(self, method="eig"):
         if method == "solve":
-            p = np.real(null_space(self.P - np.eye(self.P.shape[0])[:, 0])[:, 0].flatten())
+            p = np.real(
+                null_space(self.P - np.eye(self.P.shape[0])[:, 0])[
+                    :, 0
+                ].flatten()
+            )
         else:
             if self.W is None:
                 self.eigsys()
@@ -915,7 +953,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         elif np.any(flatten(np.abs(np.sum(P, 1))) <= tol):
             return P.T
         else:
-            raise ValueError("The input transition rate matrix must have a zero row- or column-sum.")
+            raise ValueError(
+                "The input transition rate matrix must have a zero row- or column-sum."
+            )
 
     def compute_drift(self, X, t, n_top=5, normalize_vector=False):
         n = self.get_num_states()
@@ -938,7 +978,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
                 # V[i] = d.dot(q)
         return V
 
-    def compute_density_corrected_drift(self, X, t, k=None, normalize_vector=False):
+    def compute_density_corrected_drift(
+        self, X, t, k=None, normalize_vector=False
+    ):
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.compute_transition_matrix(t)
@@ -996,7 +1038,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         def update_func(c, mu):
             return np.array([mu])
 
-        T, C = directMethod(prop_func, update_func, tspan=tspan, C0=np.array([init_idx]))
+        T, C = directMethod(
+            prop_func, update_func, tspan=tspan, C0=np.array([init_idx])
+        )
 
         return C, T
 

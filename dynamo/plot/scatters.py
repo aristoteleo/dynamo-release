@@ -349,7 +349,9 @@ def scatters(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = to_hex(_background) if type(_background) is tuple else _background
+        _background = (
+            to_hex(_background) if type(_background) is tuple else _background
+        )
         # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
     else:
         _background = background
@@ -362,7 +364,14 @@ def scatters(
         z = [z]
 
     if all([is_gene_name(adata, i) for i in basis]):
-        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
+        if x[0] not in [
+            "M_s",
+            "X_spliced",
+            "M_t",
+            "X_total",
+            "spliced",
+            "total",
+        ] and y[0] not in [
             "M_u",
             "X_unspliced",
             "M_n",
@@ -372,15 +381,26 @@ def scatters(
         ]:
             if "M_t" in adata.layers.keys() and "M_n" in adata.layers.keys():
                 x, y = ["M_t"], ["M_n"]
-            elif "X_total" in adata.layers.keys() and "X_new" in adata.layers.keys():
+            elif (
+                "X_total" in adata.layers.keys()
+                and "X_new" in adata.layers.keys()
+            ):
                 x, y = ["X_total"], ["X_new"]
             elif "M_s" in adata.layers.keys() and "M_u" in adata.layers.keys():
                 x, y = ["M_s"], ["M_u"]
-            elif "X_spliced" in adata.layers.keys() and "X_unspliced" in adata.layers.keys():
+            elif (
+                "X_spliced" in adata.layers.keys()
+                and "X_unspliced" in adata.layers.keys()
+            ):
                 x, y = ["X_spliced"], ["X_unspliced"]
-            elif "spliced" in adata.layers.keys() and "unspliced" in adata.layers.keys():
+            elif (
+                "spliced" in adata.layers.keys()
+                and "unspliced" in adata.layers.keys()
+            ):
                 x, y = ["spliced"], ["unspliced"]
-            elif "total" in adata.layers.keys() and "new" in adata.layers.keys():
+            elif (
+                "total" in adata.layers.keys() and "new" in adata.layers.keys()
+            ):
                 x, y = ["total"], ["new"]
             else:
                 raise ValueError(
@@ -412,9 +432,17 @@ def scatters(
         1 if color is None else len(color),
         1 if layer is None else len(layer),
         1 if basis is None else len(basis),
-        1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x),
+        1
+        if x is None
+        else 1
+        if type(x) in [anndata._core.views.ArrayView, np.ndarray]
+        else len(x),
         # check whether it is an array
-        1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
+        1
+        if y is None
+        else 1
+        if type(y) in [anndata._core.views.ArrayView, np.ndarray]
+        else len(y),
         # check whether it is an array
     )
 
@@ -472,12 +500,25 @@ def scatters(
         """
         nonlocal adata, x, y, z, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
 
-        if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
+        if cur_l in [
+            "acceleration",
+            "curvature",
+            "divergence",
+            "velocity_S",
+            "velocity_T",
+        ]:
             cur_l_smoothed = cur_l
-            cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in the future
+            cmap, sym_c = (
+                "bwr",
+                True,
+            )  # TODO maybe use other divergent color map in the future
         else:
             if use_smoothed:
-                cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
+                cur_l_smoothed = (
+                    cur_l
+                    if cur_l.startswith("M_") | cur_l.startswith("velocity")
+                    else mapper[cur_l]
+                )
                 if cur_l.startswith("velocity"):
                     cmap, sym_c = "bwr", True
 
@@ -489,7 +530,9 @@ def scatters(
             # special case for spatial for compatibility with other packages
             prefix = ""
         else:
-            raise Exception("Please check if basis=%s exists in adata.obsm" % basis)
+            raise Exception(
+                "Please check if basis=%s exists in adata.obsm" % basis
+            )
 
         basis_key = prefix + cur_b
         main_info("plotting with basis key=%s" % basis_key, indent_level=2)
@@ -527,14 +570,21 @@ def scatters(
                 _adata = adata
                 _adata = adata[_color > stack_colors_threshold]
                 _stack_background_adata_indices = np.logical_and(
-                    _stack_background_adata_indices, (_color < stack_colors_threshold)
+                    _stack_background_adata_indices,
+                    (_color < stack_colors_threshold),
                 )
                 if values:
                     _values = values[_color > stack_colors_threshold]
                 _color = _color[_color > stack_colors_threshold]
-                main_debug("stack colors: _adata len after thresholding by color value: %d" % (len(_adata)))
+                main_debug(
+                    "stack colors: _adata len after thresholding by color value: %d"
+                    % (len(_adata))
+                )
                 if len(_color) == 0:
-                    main_info("skipping color %s because no point of %s is above threshold" % (cur_c, cur_c))
+                    main_info(
+                        "skipping color %s because no point of %s is above threshold"
+                        % (cur_c, cur_c)
+                    )
                     continue
             else:
                 _adata = adata
@@ -559,9 +609,14 @@ def scatters(
                 else:
                     z = [np.nan] * len(x)
 
-            assert len(x) == len(y) and len(x) == len(z), "bug: x, y, z does not have the same shape."
+            assert len(x) == len(y) and len(x) == len(
+                z
+            ), "bug: x, y, z does not have the same shape."
             for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
-                main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
+                main_debug(
+                    "handling coordinates, cur_x: %s, cur_y: %s"
+                    % (cur_x, cur_y)
+                )
                 if type(cur_x) is int and type(cur_y) is int:
                     x_col_name = cur_b + "_0"
                     y_col_name = cur_b + "_1"
@@ -585,15 +640,21 @@ def scatters(
                         )
                         points.columns = [x_col_name, y_col_name, z_col_name]
 
-                elif is_gene_name(_adata, cur_x) and is_gene_name(_adata, cur_y):
+                elif is_gene_name(_adata, cur_x) and is_gene_name(
+                    _adata, cur_y
+                ):
                     points = pd.DataFrame(
                         {
                             cur_x: _adata.obs_vector(k=cur_x, layer=None)
                             if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            else _adata.obs_vector(
+                                k=cur_x, layer=cur_l_smoothed
+                            ),
                             cur_y: _adata.obs_vector(k=cur_y, layer=None)
                             if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            else _adata.obs_vector(
+                                k=cur_y, layer=cur_l_smoothed
+                            ),
                         }
                     )
                     # points = points.loc[(points > 0).sum(1) > 1, :]
@@ -602,7 +663,9 @@ def scatters(
                         cur_y + " (" + cur_l_smoothed + ")",
                     ]
                     cur_title = cur_x + " VS " + cur_y
-                elif is_cell_anno_column(_adata, cur_x) and is_cell_anno_column(_adata, cur_y):
+                elif is_cell_anno_column(_adata, cur_x) and is_cell_anno_column(
+                    _adata, cur_y
+                ):
                     points = pd.DataFrame(
                         {
                             cur_x: _adata.obs_vector(cur_x),
@@ -611,13 +674,17 @@ def scatters(
                     )
                     points.columns = [cur_x, cur_y]
                     cur_title = cur_x + " VS " + cur_y
-                elif is_cell_anno_column(_adata, cur_x) and is_gene_name(_adata, cur_y):
+                elif is_cell_anno_column(_adata, cur_x) and is_gene_name(
+                    _adata, cur_y
+                ):
                     points = pd.DataFrame(
                         {
                             cur_x: _adata.obs_vector(cur_x),
                             cur_y: _adata.obs_vector(k=cur_y, layer=None)
                             if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            else _adata.obs_vector(
+                                k=cur_y, layer=cur_l_smoothed
+                            ),
                         }
                     )
                     # points = points.loc[points.iloc[:, 1] > 0, :]
@@ -626,12 +693,16 @@ def scatters(
                         cur_y + " (" + cur_l_smoothed + ")",
                     ]
                     cur_title = cur_y
-                elif is_gene_name(_adata, cur_x) and is_cell_anno_column(_adata, cur_y):
+                elif is_gene_name(_adata, cur_x) and is_cell_anno_column(
+                    _adata, cur_y
+                ):
                     points = pd.DataFrame(
                         {
                             cur_x: _adata.obs_vector(k=cur_x, layer=None)
                             if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            else _adata.obs_vector(
+                                k=cur_x, layer=cur_l_smoothed
+                            ),
                             cur_y: _adata.obs_vector(cur_y),
                         }
                     )
@@ -641,24 +712,35 @@ def scatters(
                         cur_y,
                     ]
                     cur_title = cur_x
-                elif is_layer_keys(_adata, cur_x) and is_layer_keys(_adata, cur_y):
+                elif is_layer_keys(_adata, cur_x) and is_layer_keys(
+                    _adata, cur_y
+                ):
                     cur_x_, cur_y_ = (
                         _adata[:, cur_b].layers[cur_x],
                         _adata[:, cur_b].layers[cur_y],
                     )
-                    points = pd.DataFrame({cur_x: flatten(cur_x_), cur_y: flatten(cur_y_)})
+                    points = pd.DataFrame(
+                        {cur_x: flatten(cur_x_), cur_y: flatten(cur_y_)}
+                    )
                     # points = points.loc[points.iloc[:, 0] > 0, :]
                     points.columns = [cur_x, cur_y]
                     cur_title = cur_b
-                elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and type(cur_y) in [
+                elif type(cur_x) in [
+                    anndata._core.views.ArrayView,
+                    np.ndarray,
+                ] and type(cur_y) in [
                     anndata._core.views.ArrayView,
                     np.ndarray,
                 ]:
-                    points = pd.DataFrame({"x": flatten(cur_x), "y": flatten(cur_y)})
+                    points = pd.DataFrame(
+                        {"x": flatten(cur_x), "y": flatten(cur_y)}
+                    )
                     points.columns = ["x", "y"]
                     cur_title = cur_b
                 else:
-                    raise Exception("Make sure your `x` and `y` are integers, gene names, column names in .obs, etc.")
+                    raise Exception(
+                        "Make sure your `x` and `y` are integers, gene names, column names in .obs, etc."
+                    )
 
                 if aggregate is not None:
                     groups, uniq_grp = (
@@ -668,13 +750,19 @@ def scatters(
                     group_color, group_median = (
                         np.zeros((1, len(uniq_grp))).flatten()
                         if isinstance(_color[0], Number)
-                        else np.zeros((1, len(uniq_grp))).astype("str").flatten(),
+                        else np.zeros((1, len(uniq_grp)))
+                        .astype("str")
+                        .flatten(),
                         np.zeros((len(uniq_grp), 2)),
                     )
 
-                    grp_size = _adata.obs[aggregate].value_counts()[uniq_grp].values
+                    grp_size = (
+                        _adata.obs[aggregate].value_counts()[uniq_grp].values
+                    )
                     scatter_kwargs = (
-                        {"s": grp_size} if scatter_kwargs is None else update_dict(scatter_kwargs, {"s": grp_size})
+                        {"s": grp_size}
+                        if scatter_kwargs is None
+                        else update_dict(scatter_kwargs, {"s": grp_size})
                     )
 
                     for ind, cur_grp in enumerate(uniq_grp):
@@ -683,9 +771,17 @@ def scatters(
                             0,
                         )
                         if isinstance(_color[0], Number):
-                            group_color[ind] = np.nanmedian(np.array(_color)[np.where(groups == cur_grp)[0]])
+                            group_color[ind] = np.nanmedian(
+                                np.array(_color)[np.where(groups == cur_grp)[0]]
+                            )
                         else:
-                            group_color[ind] = pd.Series(_color)[np.where(groups == cur_grp)[0]].value_counts().index[0]
+                            group_color[ind] = (
+                                pd.Series(_color)[
+                                    np.where(groups == cur_grp)[0]
+                                ]
+                                .value_counts()
+                                .index[0]
+                            )
 
                     points, _color = (
                         pd.DataFrame(
@@ -697,10 +793,17 @@ def scatters(
                     )
                 # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
                 # answer from Boris.
-                is_not_continuous = not isinstance(_color[0], Number) or _color.dtype.name == "category"
+                is_not_continuous = (
+                    not isinstance(_color[0], Number)
+                    or _color.dtype.name == "category"
+                )
 
                 if is_not_continuous:
-                    labels = np.asarray(_color) if is_categorical_dtype(_color) else _color
+                    labels = (
+                        np.asarray(_color)
+                        if is_categorical_dtype(_color)
+                        else _color
+                    )
                     if theme is None:
                         if _background in ["#ffffff", "black"]:
                             _theme_ = "glasbey_dark"
@@ -712,16 +815,26 @@ def scatters(
                     _values = _color
                     if theme is None:
                         if _background in ["#ffffff", "black"]:
-                            _theme_ = "inferno" if cur_l != "velocity" else "div_blue_black_red"
+                            _theme_ = (
+                                "inferno"
+                                if cur_l != "velocity"
+                                else "div_blue_black_red"
+                            )
                         else:
-                            _theme_ = "viridis" if not cur_l.startswith("velocity") else "div_blue_red"
+                            _theme_ = (
+                                "viridis"
+                                if not cur_l.startswith("velocity")
+                                else "div_blue_red"
+                            )
                     else:
                         _theme_ = theme
 
                 _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
                 if stack_colors:
                     main_debug("stack colors: changing cmap")
-                    _cmap = stack_colors_cmaps[ax_index % len(stack_colors_cmaps)]
+                    _cmap = stack_colors_cmaps[
+                        ax_index % len(stack_colors_cmaps)
+                    ]
                     max_color = matplotlib.cm.get_cmap(_cmap)(float("inf"))
                     legend_circle = Line2D(
                         [0],
@@ -734,11 +847,21 @@ def scatters(
                     )
                     stack_legend_handles.append(legend_circle)
 
-                _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
-                _background = _themes[_theme_]["background"] if _background is None else _background
+                _color_key_cmap = (
+                    _themes[_theme_]["color_key_cmap"]
+                    if color_key_cmap is None
+                    else color_key_cmap
+                )
+                _background = (
+                    _themes[_theme_]["background"]
+                    if _background is None
+                    else _background
+                )
 
                 if labels is not None and values is not None:
-                    raise ValueError("Conflicting options; only one of labels or values should be set")
+                    raise ValueError(
+                        "Conflicting options; only one of labels or values should be set"
+                    )
 
                 if total_panels > 1 and not stack_colors:
                     ax = plt.subplot(gs[ax_index], projection=projection)
@@ -748,9 +871,17 @@ def scatters(
                 if highlights is not None:
                     if is_list_of_lists(highlights):
                         _highlights = highlights[color.index(cur_c)]
-                        _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                        _highlights = (
+                            _highlights
+                            if all([i in _color for i in _highlights])
+                            else None
+                        )
                     else:
-                        _highlights = highlights if all([i in _color for i in highlights]) else None
+                        _highlights = (
+                            highlights
+                            if all([i in _color for i in highlights])
+                            else None
+                        )
 
                 if smooth and not is_not_continuous:
                     main_debug("smooth and not continuous")
@@ -758,13 +889,15 @@ def scatters(
                     values = (
                         calc_1nd_moment(values, knn)[0]
                         if smooth in [1, True]
-                        else calc_1nd_moment(values, knn ** smooth)[0]
+                        else calc_1nd_moment(values, knn**smooth)[0]
                     )
 
                 if affine_transform_A is None or affine_transform_b is None:
                     point_coords = points.values
                 else:
-                    point_coords = affine_transform(points.values, affine_transform_A, affine_transform_b)
+                    point_coords = affine_transform(
+                        points.values, affine_transform_A, affine_transform_b
+                    )
 
                 if points.shape[0] <= figsize[0] * figsize[1] * 100000:
                     main_debug("drawing with _matplotlib_points function")
@@ -839,14 +972,24 @@ def scatters(
 
                 labels, values = None, None  # reset labels and values
 
-                if add_gamma_fit and cur_b in _adata.var_names[_adata.var.use_for_dynamics]:
+                if (
+                    add_gamma_fit
+                    and cur_b in _adata.var_names[_adata.var.use_for_dynamics]
+                ):
                     xnew = np.linspace(
                         points.iloc[:, 0].min(),
                         points.iloc[:, 0].max() * 0.80,
                     )
-                    k_name = "gamma_k" if _adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
+                    k_name = (
+                        "gamma_k"
+                        if _adata.uns["dynamics"]["experiment_type"]
+                        == "one-shot"
+                        else "gamma"
+                    )
                     if k_name in _adata.var.columns:
-                        if not ("gamma_b" in _adata.var.columns) or all(_adata.var.gamma_b.isna()):
+                        if not ("gamma_b" in _adata.var.columns) or all(
+                            _adata.var.gamma_b.isna()
+                        ):
                             _adata.var.loc[:, "gamma_b"] = 0
                         ax.plot(
                             xnew,
@@ -860,28 +1003,52 @@ def scatters(
                             "_adata does not seem to have %s column. Velocity estimation is required "
                             "before running this function." % k_name
                         )
-                if group is not None and add_group_gamma_fit and cur_b in _adata.var_names[_adata.var.use_for_dynamics]:
+                if (
+                    group is not None
+                    and add_group_gamma_fit
+                    and cur_b in _adata.var_names[_adata.var.use_for_dynamics]
+                ):
                     cell_groups = _adata.obs[group]
                     unique_groups = np.unique(cell_groups)
-                    k_suffix = "gamma_k" if _adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
+                    k_suffix = (
+                        "gamma_k"
+                        if _adata.uns["dynamics"]["experiment_type"]
+                        == "one-shot"
+                        else "gamma"
+                    )
                     for group_idx, cur_group in enumerate(unique_groups):
                         group_k_name = group + "_" + cur_group + "_" + k_suffix
                         group_adata = _adata[_adata.obs[group] == cur_group]
-                        group_points = points.iloc[np.array(_adata.obs[group] == cur_group)]
+                        group_points = points.iloc[
+                            np.array(_adata.obs[group] == cur_group)
+                        ]
                         group_b_key = group + "_" + cur_group + "_" + "gamma_b"
                         group_xnew = np.linspace(
                             group_points.iloc[:, 0].min(),
                             group_points.iloc[:, 0].max() * 0.90,
                         )
                         group_ynew = (
-                            group_xnew * group_adata[:, cur_b].var.loc[:, group_k_name].unique()
-                            + group_adata[:, cur_b].var.loc[:, group_b_key].unique()
+                            group_xnew
+                            * group_adata[:, cur_b]
+                            .var.loc[:, group_k_name]
+                            .unique()
+                            + group_adata[:, cur_b]
+                            .var.loc[:, group_b_key]
+                            .unique()
                         )
-                        ax.annotate(group + "_" + cur_group, xy=(group_xnew[-1], group_ynew[-1]))
+                        ax.annotate(
+                            group + "_" + cur_group,
+                            xy=(group_xnew[-1], group_ynew[-1]),
+                        )
                         if group_k_name in group_adata.var.columns:
-                            if not (group_b_key in group_adata.var.columns) or all(group_adata.var[group_b_key].isna()):
+                            if not (
+                                group_b_key in group_adata.var.columns
+                            ) or all(group_adata.var[group_b_key].isna()):
                                 group_adata.var.loc[:, group_b_key] = 0
-                                main_info("No %s found, setting all bias terms to zero" % group_b_key)
+                                main_info(
+                                    "No %s found, setting all bias terms to zero"
+                                    % group_b_key
+                                )
                             ax.plot(
                                 group_xnew,
                                 group_ynew,
@@ -897,11 +1064,17 @@ def scatters(
         # add legends according to colors and cmaps
         # collected during for loop above
         if stack_colors:
-            ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_colors_legend_size})
+            ax.legend(
+                handles=stack_legend_handles,
+                loc="upper right",
+                prop={"size": stack_colors_legend_size},
+            )
 
     for cur_b in basis:
         for cur_l in layer:
-            main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
+            main_debug(
+                "Plotting basis:%s, layer: %s" % (str(basis), str(layer))
+            )
             main_debug("colors: %s" % (str(color)))
             _plot_basis_layer(cur_b, cur_l)
 
@@ -938,6 +1111,10 @@ def scatters(
             reset_rcParams()
 
         if return_all:
-            return (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
+            return (
+                (axes_list, color_list, font_color)
+                if total_panels > 1
+                else (ax, color_out, font_color)
+            )
         else:
             return axes_list if total_panels > 1 else ax

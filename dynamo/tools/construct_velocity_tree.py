@@ -64,7 +64,9 @@ def construct_velocity_tree_py(X1, X2):
     gamma = 10
 
     # run DDRTree algorithm
-    W, Z, stree, Y, R, history = DDRTree_py(X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma)
+    W, Z, stree, Y, R, history = DDRTree_py(
+        X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma
+    )
 
     # draw velocity figure
 
@@ -118,7 +120,9 @@ def construct_velocity_tree_py(X1, X2):
             )
             velocity_path = []
             while ve_nodeid != nodeid:
-                velocity_path = [shortest_mat[nodeid][ve_nodeid]] + velocity_path
+                velocity_path = [
+                    shortest_mat[nodeid][ve_nodeid]
+                ] + velocity_path
                 ve_nodeid = shortest_mat[nodeid][ve_nodeid]
             velocity_path = [shortest_mat[nodeid][ve_nodeid]] + velocity_path
             ###v_path = G.Nodes.Name(velocity_path)
@@ -197,7 +201,9 @@ def construct_velocity_tree_py(X1, X2):
         p1 = Y[:, row[tn]]
         p2 = Y[:, col[tn]]
         dp = p2 - p1
-        h = plt.quiver(p1(1), p1(2), dp(1), dp(2), "LineWidth", 5)  ###############need to plot it
+        h = plt.quiver(
+            p1(1), p1(2), dp(1), dp(2), "LineWidth", 5
+        )  ###############need to plot it
         set(h, "MaxHeadSize", 1e3, "AutoScaleFactor", 1)  #############
 
     for i in range(n):

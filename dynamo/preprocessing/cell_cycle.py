@@ -13,7 +13,9 @@ from ..tools.utils import einsum_correlation, log1p_
 from ..utils import LoggerManager, copy_adata
 
 
-def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list) -> tuple:
+def group_corr(
+    adata: anndata.AnnData, layer: Union[str, None], gene_list: list
+) -> tuple:
     """Measures the correlation of all genes within a list to the average expression of all genes within that
     list (used for cell cycle position calling)
 
@@ -37,7 +39,9 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
     intersect_genes = [adata.var.index.get_loc(i) for i in tmp]
 
     if len(intersect_genes) == 0:
-        raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
+        raise Exception(
+            f"your adata doesn't have any gene from the gene_list {gene_list}."
+        )
 
     if layer is None:
         expression_matrix = adata.X[:, intersect_genes]
@@ -96,7 +100,9 @@ def refine_gene_list(
         return gene_list[corrs >= threshold]
 
 
-def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list):
+def group_score(
+    adata: anndata.AnnData, layer: Union[str, None], gene_list: list
+):
     """Scores cells within population for expression of a set of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
 
@@ -118,7 +124,9 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list
     intersect_genes = [adata.var_names.get_loc(i) for i in tmp]
 
     if len(intersect_genes) == 0:
-        raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
+        raise Exception(
+            f"your adata doesn't have any gene from the gene_list {gene_list}."
+        )
 
     if layer is None:
         expression_matrix = adata.X[:, intersect_genes]
@@ -129,7 +137,11 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list
     # TODO FutureWarning: Index.is_all_dates is deprecated, will be removed in a future version.
     # check index.inferred_type instead
     if layer is None or layer.startswith("X_"):
-        scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) else expression_matrix.sum(1)
+        scores = (
+            expression_matrix.sum(1).A1
+            if issparse(expression_matrix)
+            else expression_matrix.sum(1)
+        )
     else:
         if issparse(expression_matrix):
             expression_matrix.data = np.log1p(expression_matrix.data)
@@ -142,7 +154,9 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list
     return scores
 
 
-def batch_group_score(adata: anndata.AnnData, layer: Union[str, None], gene_lists: list) -> OrderedDict:
+def batch_group_score(
+    adata: anndata.AnnData, layer: Union[str, None], gene_lists: list
+) -> OrderedDict:
     """Scores cells within population for expression of sets of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
     Returns an OrderedDict of each score.
@@ -161,7 +175,9 @@ def batch_group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list
 
     batch_scores = OrderedDict()
     for gene_list in gene_lists:
-        batch_scores[gene_list] = group_score(adata, layer, gene_lists[gene_list])
+        batch_scores[gene_list] = group_score(
+            adata, layer, gene_lists[gene_list]
+        )
     return batch_scores
 
 
@@ -393,12 +409,21 @@ def get_cell_phase_genes(
             cur_cell_phase_genes = None
             if adata.var_names[0].isupper():
                 cur_cell_phase_genes = cell_phase_genes[phase]
-            elif adata.var_names[0][0].isupper() and adata.var_names[0][1:].islower():
-                cur_cell_phase_genes = [gene.capitalize() for gene in cell_phase_genes[phase]]
+            elif (
+                adata.var_names[0][0].isupper()
+                and adata.var_names[0][1:].islower()
+            ):
+                cur_cell_phase_genes = [
+                    gene.capitalize() for gene in cell_phase_genes[phase]
+                ]
             else:
-                cur_cell_phase_genes = [gene.lower() for gene in cell_phase_genes[phase]]
+                cur_cell_phase_genes = [
+                    gene.lower() for gene in cell_phase_genes[phase]
+                ]
 
-            cell_phase_genes[phase] = refine_gene_list(adata, layer, cur_cell_phase_genes, threshold)
+            cell_phase_genes[phase] = refine_gene_list(
+                adata, layer, cur_cell_phase_genes, threshold
+            )
 
     return cell_phase_genes
 
@@ -435,14 +460,20 @@ def get_cell_phase(
 
     # get list of genes if one is not provided
     if gene_list is None:
-        cell_phase_genes = get_cell_phase_genes(adata, layer, refine=refine, threshold=threshold)
+        cell_phase_genes = get_cell_phase_genes(
+            adata, layer, refine=refine, threshold=threshold
+        )
     else:
         cell_phase_genes = gene_list
 
     adata.uns["cell_phase_genes"] = cell_phase_genes
     # score each cell cycle phase and Z-normalize
-    phase_scores = pd.DataFrame(batch_group_score(adata, layer, cell_phase_genes))
-    normalized_phase_scores = phase_scores.sub(phase_scores.mean(axis=1), axis=0).div(phase_scores.std(axis=1), axis=0)
+    phase_scores = pd.DataFrame(
+        batch_group_score(adata, layer, cell_phase_genes)
+    )
+    normalized_phase_scores = phase_scores.sub(
+        phase_scores.mean(axis=1), axis=0
+    ).div(phase_scores.std(axis=1), axis=0)
 
     normalized_phase_scores_corr = normalized_phase_scores.transpose()
     normalized_phase_scores_corr["G1-S"] = [1, 0, 0, 0, 0]
@@ -460,12 +491,19 @@ def get_cell_phase(
 
     # pick maximal score as the phase for that cell
     cell_cycle_scores["cell_cycle_phase"] = cell_cycle_scores.idxmax(axis=1)
-    cell_cycle_scores["cell_cycle_phase"] = cell_cycle_scores["cell_cycle_phase"].astype("category")
-    cell_cycle_scores["cell_cycle_phase"].cat.set_categories(phase_list, inplace=True)
+    cell_cycle_scores["cell_cycle_phase"] = cell_cycle_scores[
+        "cell_cycle_phase"
+    ].astype("category")
+    cell_cycle_scores["cell_cycle_phase"].cat.set_categories(
+        phase_list, inplace=True
+    )
 
     def progress_ratio(x, phase_list):
         ind = phase_list.index(x["cell_cycle_phase"])
-        return x[phase_list[(ind - 1) % len(phase_list)]] - x[phase_list[(ind + 1) % len(phase_list)]]
+        return (
+            x[phase_list[(ind - 1) % len(phase_list)]]
+            - x[phase_list[(ind + 1) % len(phase_list)]]
+        )
 
     # interpolate position within given cell cycle phase
     cell_cycle_scores["cell_cycle_progress"] = cell_cycle_scores.apply(
@@ -478,10 +516,12 @@ def get_cell_phase(
     )
 
     # order of cell within cell cycle phase
-    cell_cycle_scores["cell_cycle_order"] = cell_cycle_scores.groupby("cell_cycle_phase").cumcount()
-    cell_cycle_scores["cell_cycle_order"] = cell_cycle_scores.groupby("cell_cycle_phase")["cell_cycle_order"].apply(
-        lambda x: x / (len(x) - 1)
-    )
+    cell_cycle_scores["cell_cycle_order"] = cell_cycle_scores.groupby(
+        "cell_cycle_phase"
+    ).cumcount()
+    cell_cycle_scores["cell_cycle_order"] = cell_cycle_scores.groupby(
+        "cell_cycle_phase"
+    )["cell_cycle_order"].apply(lambda x: x / (len(x) - 1))
 
     return cell_cycle_scores
 
@@ -534,10 +574,14 @@ def cell_cycle_scores(
     )
     temp_timer_logger.finish_progress(progress_name="cell phase estimation")
 
-    cell_cycle_scores.index = adata.obs_names[cell_cycle_scores.index.values.astype("int")]
+    cell_cycle_scores.index = adata.obs_names[
+        cell_cycle_scores.index.values.astype("int")
+    ]
 
     logger.info_insert_adata("cell_cycle_phase", adata_attr="obs")
-    adata.obs["cell_cycle_phase"] = cell_cycle_scores["cell_cycle_phase"].astype("category")
+    adata.obs["cell_cycle_phase"] = cell_cycle_scores[
+        "cell_cycle_phase"
+    ].astype("category")
 
     # adata.obsm['cell_cycle_scores'] = cell_cycle_scores.set_index(adata.obs_names)
     # .values

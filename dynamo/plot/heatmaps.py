@@ -37,7 +37,9 @@ def bandwidth_nrd(x):
     x = pd.Series(x)
     h = (x.quantile([0.75]).values - x.quantile([0.25]).values) / 1.34
 
-    return 4 * 1.06 * min(math.sqrt(np.var(x, ddof=1)), h) * (len(x) ** (-1 / 5))
+    return (
+        4 * 1.06 * min(math.sqrt(np.var(x, ddof=1)), h) * (len(x) ** (-1 / 5))
+    )
 
 
 def rep(x, length):
@@ -65,7 +67,9 @@ def rep2(x, length_out):
 
 
 def dnorm(x, u=0, sig=1):
-    return np.exp(-((x - u) ** 2) / (2 * sig ** 2)) / (math.sqrt(2 * math.pi) * sig)
+    return np.exp(-((x - u) ** 2) / (2 * sig**2)) / (
+        math.sqrt(2 * math.pi) * sig
+    )
 
 
 def kde2d(x, y, h=None, n=25, lims=None):
@@ -102,7 +106,9 @@ def kde2d(x, y, h=None, n=25, lims=None):
     if len(y) != nx:
         raise Exception("data vectors must be the same length")
     elif (False in np.isfinite(x)) or (False in np.isfinite(y)):
-        raise Exception("missing or infinite values in the data are not allowed")
+        raise Exception(
+            "missing or infinite values in the data are not allowed"
+        )
     elif False in np.isfinite(lims):
         raise Exception("only finite values are allowed in 'lims'")
     else:
@@ -124,7 +130,9 @@ def kde2d(x, y, h=None, n=25, lims=None):
                 ax[i] = (gx - x[i]) / h[0]
             for i in range(len(y)):
                 ay[i] = (gy - y[i]) / h[1]
-            z = (np.matrix(dnorm(ax)) * np.matrix(dnorm(ay).T)) / (nx * h[0] * h[1])
+            z = (np.matrix(dnorm(ax)) * np.matrix(dnorm(ay).T)) / (
+                nx * h[0] * h[1]
+            )
     return gx, gy, z
 
 
@@ -251,21 +259,26 @@ def response(
     all_genes_in_pair = np.unique(pairs_mat)
 
     if "pp" not in adata.uns_keys():
-        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
+        raise Exception(
+            "You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function."
+        )
 
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
     if ykey is None:
         ykey = "M_n" if adata.uns["pp"]["has_labeling"] else "M_u"
 
-    if not set([xkey, ykey]) <= set(adata.layers.keys()).union(set(["jacobian"])):
+    if not set([xkey, ykey]) <= set(adata.layers.keys()).union(
+        set(["jacobian"])
+    ):
         raise Exception(
             f"adata.layers doesn't have {xkey, ykey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
         )
     if cmap is None:
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-            "response", ["#000000", "#000000", "#000000", "#800080", "#FF0000", "#FFFF00"]
+            "response",
+            ["#000000", "#000000", "#000000", "#800080", "#FF0000", "#FFFF00"],
         )
     inset_dict = {
         "width": "5%",  # width = 5% of parent_bbox width
@@ -286,7 +299,7 @@ def response(
 
     id = 0
     for gene_pairs_ind, gene_pairs in enumerate(pairs_mat):
-        f_ini_ind = (grid_num ** 2) * id
+        f_ini_ind = (grid_num**2) * id
         r_ini_ind = grid_num * id
 
         gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
@@ -326,9 +339,9 @@ def response(
         x, y_ori = x[valid_ids], y_ori[valid_ids]
 
         if log:
-            x, y_ori = x if sum(x < 0) else np.log(np.array(x) + 1), y_ori if sum(y_ori) < 0 else np.log(
-                np.array(y_ori) + 1
-            )
+            x, y_ori = x if sum(x < 0) else np.log(
+                np.array(x) + 1
+            ), y_ori if sum(y_ori) < 0 else np.log(np.array(y_ori) + 1)
 
         if delay != 0:
             x = x[:-delay]
@@ -346,7 +359,11 @@ def response(
 
         # den_res[0, 0] is at the lower bottom; dens[1, 4]: is the 2nd on x-axis and 5th on y-axis
         x_meshgrid, y_meshgrid, den_res = kde2d(
-            x, y, n=[grid_num, grid_num], lims=[min(x), max(x), min(y), max(y)], h=bandwidth
+            x,
+            y,
+            n=[grid_num, grid_num],
+            lims=[min(x), max(x), min(y), max(y)],
+            h=bandwidth,
         )
         den_res = np.array(den_res)
 
@@ -354,13 +371,17 @@ def response(
         max_ind = 0
 
         for i in range(len(x_meshgrid)):
-            tmp = den_res[i] / den_x[i]  # condition on each input x, normalize over y
+            tmp = (
+                den_res[i] / den_x[i]
+            )  # condition on each input x, normalize over y
             max_val = max(tmp)
             min_val = min(tmp)
 
             rescaled_val = (tmp - min_val) / (max_val - min_val)
             if np.sum(den_x[i] != 0):
-                max_ind = np.argmax(rescaled_val)  # the maximal y ind condition on input x
+                max_ind = np.argmax(
+                    rescaled_val
+                )  # the maximal y ind condition on input x
 
             res_Row = pd.DataFrame(
                 [[x_meshgrid[i], y_meshgrid[max_ind], gene_pair_name]],
@@ -376,7 +397,9 @@ def response(
                     "den": rescaled_val,
                     "type": gene_pair_name,
                 },
-                index=[i * len(x_meshgrid) + np.arange(len(y_meshgrid)) + f_ini_ind],
+                index=[
+                    i * len(x_meshgrid) + np.arange(len(y_meshgrid)) + f_ini_ind
+                ],
             )
 
             flat_res = pd.concat([flat_res, res_row])
@@ -391,9 +414,17 @@ def response(
     n_col = gene_pairs_num if n_col is None else n_col
 
     if n_row * n_col < gene_pairs_num:
-        raise Exception("The number of row or column specified is less than the gene pairs")
-    figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
-    fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
+        raise Exception(
+            "The number of row or column specified is less than the gene pairs"
+        )
+    figsize = (
+        (figsize[0] * n_col, figsize[1] * n_row)
+        if figsize is not None
+        else (4 * n_col, 4 * n_row)
+    )
+    fig, axes = plt.subplots(
+        n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False
+    )
 
     fit_dict = None
     if fit_curve:
@@ -415,7 +446,9 @@ def response(
 
         values = flat_res_subset["den"].values.reshape(grid_num, grid_num).T
 
-        axins = inset_axes(axes[i, j], bbox_transform=axes[i, j].transAxes, **inset_dict)
+        axins = inset_axes(
+            axes[i, j], bbox_transform=axes[i, j].transAxes, **inset_dict
+        )
 
         ext_lim = (min(x_val), max(x_val), min(y_val), max(y_val))
         im = axes[i, j].imshow(
@@ -431,38 +464,86 @@ def response(
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
-        closest_x_ind = np.array([np.searchsorted(x_meshgrid, i) for i in xy_subset["x"].values])
-        closest_y_ind = np.array([np.searchsorted(y_meshgrid, i) for i in xy_subset["y"].values])
-        valid_ids = np.logical_and(closest_x_ind < grid_num, closest_y_ind < grid_num)
-        axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
+        closest_x_ind = np.array(
+            [np.searchsorted(x_meshgrid, i) for i in xy_subset["x"].values]
+        )
+        closest_y_ind = np.array(
+            [np.searchsorted(y_meshgrid, i) for i in xy_subset["y"].values]
+        )
+        valid_ids = np.logical_and(
+            closest_x_ind < grid_num, closest_y_ind < grid_num
+        )
+        axes[i, j].scatter(
+            closest_x_ind[valid_ids],
+            closest_y_ind[valid_ids],
+            color="gray",
+            alpha=0.1,
+            s=1,
+        )
 
         if xkey.startswith("jacobian"):
             if stacked_fraction:
-                axes[i, j].set_xlabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].set_xlabel(
+                    r"$\frac{\partial f_{%s}}{\partial x_{%s}}$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
             else:
-                axes[i, j].set_xlabel(r"$\partial f_{%s} / {\partial x_{%s}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].set_xlabel(
+                    r"$\partial f_{%s} / {\partial x_{%s}$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
         else:
             axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
         if ykey.startswith("jacobian"):
             if stacked_fraction:
-                axes[i, j].set_ylabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].set_ylabel(
+                    r"$\frac{\partial f_{%s}}{\partial x_{%s}}$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
                 axes[i, j].title.set_text(
-                    r"$\rho(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0])
+                    r"$\rho(\frac{\partial f_{%s}}{\partial x_{%s}})$"
+                    % (gene_pairs[1], gene_pairs[0])
                 )
             else:
-                axes[i, j].set_ylabel(r"$\partial f_{%s} / \partial x_{%s}$" % (gene_pairs[1], gene_pairs[0]))
-                axes[i, j].title.set_text(r"$\rho(\partial f_{%s} / \partial x_{%s})$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].set_ylabel(
+                    r"$\partial f_{%s} / \partial x_{%s}$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
+                axes[i, j].title.set_text(
+                    r"$\rho(\partial f_{%s} / \partial x_{%s})$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
         else:
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
             axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ (${ykey}$)")
 
         if show_ridge:
-            axes[i, j].plot(ridge_curve_subset["x"].values, ridge_curve_subset["y"].values, color="red")
+            axes[i, j].plot(
+                ridge_curve_subset["x"].values,
+                ridge_curve_subset["y"].values,
+                color="red",
+            )
 
         if show_rug:
-            xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
-            seaborn.rugplot(xy_subset["x"].values, height=0.01, axis="x", ax=axes[i, j], c="darkred", alpha=0.1)
-            seaborn.rugplot(xy_subset["y"].values, height=0.01, axis="y", ax=axes[i, j], c="darkred", alpha=0.1)
+            xy_subset = xy_subset.query(
+                "x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]"
+            )
+            seaborn.rugplot(
+                xy_subset["x"].values,
+                height=0.01,
+                axis="x",
+                ax=axes[i, j],
+                c="darkred",
+                alpha=0.1,
+            )
+            seaborn.rugplot(
+                xy_subset["y"].values,
+                height=0.01,
+                axis="y",
+                ax=axes[i, j],
+                c="darkred",
+                alpha=0.1,
+            )
 
         if not show_extent:
             despline_all(axes[i, j])
@@ -474,7 +555,9 @@ def response(
         # zero indicator
         if zero_indicator:
             axes[i, j].plot(
-                scale_func([np.min(xlabels), np.max(xlabels)], xlabels, grid_num),
+                scale_func(
+                    [np.min(xlabels), np.max(xlabels)], xlabels, grid_num
+                ),
                 scale_func(np.zeros(2), ylabels, grid_num),
                 zero_line_style,
                 linewidth=zero_line_width,
@@ -485,12 +568,23 @@ def response(
             if fit_mode == "hill":
                 if ykey.startswith("jacobian"):
                     x_grid, y_mean, y_sigm = kde2d_to_mean_and_sigma(
-                        np.array(x_val), np.array(y_val), flat_res_subset["den"].values
+                        np.array(x_val),
+                        np.array(y_val),
+                        flat_res_subset["den"].values,
                     )
                     fix_g = 0 if no_degradation else None
 
-                    pdict_act, msd_act = fit_hill_grad(x_grid, y_mean, "act", y_sigm=y_sigm, fix_g=fix_g)
-                    pdict_inh, msd_inh = fit_hill_grad(x_grid, y_mean, "inh", y_sigm=y_sigm, fix_g=fix_g, x_shift=1e-4)
+                    pdict_act, msd_act = fit_hill_grad(
+                        x_grid, y_mean, "act", y_sigm=y_sigm, fix_g=fix_g
+                    )
+                    pdict_inh, msd_inh = fit_hill_grad(
+                        x_grid,
+                        y_mean,
+                        "inh",
+                        y_sigm=y_sigm,
+                        fix_g=fix_g,
+                        x_shift=1e-4,
+                    )
 
                     if msd_act < msd_inh:
                         fit_type = "act"
@@ -517,16 +611,30 @@ def response(
                     xplot = scale_func(xs, xlabels, grid_num)
                     if mean_style is not None:
                         axes[i, j].plot(
-                            scale_func(x_grid, xlabels, grid_num), scale_func(y_mean, ylabels, grid_num), mean_style
+                            scale_func(x_grid, xlabels, grid_num),
+                            scale_func(y_mean, ylabels, grid_num),
+                            mean_style,
                         )
                     axes[i, j].plot(
                         xplot,
-                        scale_func(func(xs, pdict["A"], pdict["K"], pdict["n"], pdict["g"]), ylabels, grid_num),
+                        scale_func(
+                            func(
+                                xs,
+                                pdict["A"],
+                                pdict["K"],
+                                pdict["n"],
+                                pdict["g"],
+                            ),
+                            ylabels,
+                            grid_num,
+                        ),
                         curve_style,
                         linewidth=curve_lw,
                     )
                 else:
-                    raise NotImplementedError("The hill function can be applied to the Jacobian response heatmap only.")
+                    raise NotImplementedError(
+                        "The hill function can be applied to the Jacobian response heatmap only."
+                    )
 
         # set the x/y ticks
         inds = np.linspace(0, grid_num - 1, 5, endpoint=True)
@@ -622,9 +730,13 @@ def plot_hill_function(
     import matplotlib.pyplot as plt
 
     if "response" not in adata.uns.keys():
-        raise Exception("`response` is not found in `.uns`. Run `pl.response` first.")
+        raise Exception(
+            "`response` is not found in `.uns`. Run `pl.response` first."
+        )
     if "fit_curve" not in adata.uns["response"].keys():
-        raise Exception("`fit_curve` is not found. Run `pl.response` with `fit_curve=True` first.")
+        raise Exception(
+            "`fit_curve` is not found. Run `pl.response` with `fit_curve=True` first."
+        )
 
     fit_dict = adata.uns["response"]["fit_curve"]
     if pairs_mat is None:
@@ -644,18 +756,31 @@ def plot_hill_function(
     n_col = gene_pairs_num if n_col is None else n_col
 
     if n_row * n_col < gene_pairs_num:
-        raise Exception("The number of row or column specified is less than the gene pairs")
-    figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
-    fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
+        raise Exception(
+            "The number of row or column specified is less than the gene pairs"
+        )
+    figsize = (
+        (figsize[0] * n_col, figsize[1] * n_row)
+        if figsize is not None
+        else (4 * n_col, 4 * n_row)
+    )
+    fig, axes = plt.subplots(
+        n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False
+    )
 
     for pair_i, gene_pairs in enumerate(pairs_mat):
-        i, j = pair_i % n_row, pair_i // n_row  # %: remainder; //: integer division
+        i, j = (
+            pair_i % n_row,
+            pair_i // n_row,
+        )  # %: remainder; //: integer division
 
         gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
 
         key = f"{gene_pairs[0]}_{gene_pairs[1]}"
         if key not in fit_dict.keys():
-            raise Exception(f"The gene pair {key} is not found in the dictionary.")
+            raise Exception(
+                f"The gene pair {key} is not found in the dictionary."
+            )
 
         mode = fit_dict[key]["mode"]
         x_grid = fit_dict[key]["x_grid"]
@@ -676,14 +801,20 @@ def plot_hill_function(
             elif fit_type == "inh":
                 func = hill_inh_func
             else:
-                raise NotImplementedError(f"Unknown hill function type `{fit_type}`")
+                raise NotImplementedError(
+                    f"Unknown hill function type `{fit_type}`"
+                )
 
-            axes[i, j].plot(xs, func(xs, A, K, n, g), linewidth=linewidth, **plot_kwargs)
+            axes[i, j].plot(
+                xs, func(xs, A, K, n, g), linewidth=linewidth, **plot_kwargs
+            )
             axes[i, j].set_xlabel(gene_pairs[0])
             axes[i, j].set_ylabel(r"$f_{%s}$" % gene_pairs[1])
             axes[i, j].set_title(gene_pair_name)
         else:
-            raise NotImplementedError(f"The fit mode `{mode}` is not supported.")
+            raise NotImplementedError(
+                f"The fit mode `{mode}` is not supported."
+            )
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
     if save_show_or_return in ["save", "both", "all"]:
@@ -802,7 +933,9 @@ def causality(
     all_genes_in_pair = np.unique(pairs_mat)
 
     if "pp" not in adata.uns_keys():
-        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
+        raise Exception(
+            "You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function."
+        )
 
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
@@ -815,10 +948,13 @@ def causality(
             zkey = "M_n" if adata.uns["pp"]["has_labeling"] else "M_u"
     if cmap is None:
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-            "causality", ["#008000", "#ADFF2F", "#FFFF00", "#FFA500", "#FFC0CB", "#FFFFFE"]
+            "causality",
+            ["#008000", "#ADFF2F", "#FFFF00", "#FFA500", "#FFC0CB", "#FFFFFE"],
         )
 
-    if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian", "hessian_pca"])):
+    if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(
+        set(["jacobian", "hessian_pca"])
+    ):
         raise Exception(
             f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
@@ -842,7 +978,7 @@ def causality(
     id = 0
     for gene_pairs_ind in range(0, len(pairs_mat)):
         gene_pairs = pairs_mat[gene_pairs_ind, :]
-        f_ini_ind = (grid_num ** 2) * id
+        f_ini_ind = (grid_num**2) * id
 
         gene_pair_name = reduce(lambda a, b: a + "->" + b, gene_pairs)
 
@@ -916,7 +1052,11 @@ def causality(
         if log:
             x = x if sum(x < 0) else np.log(np.array(x) + 1)
             y_ori = y_ori if sum(y_ori) < 0 else np.log(np.array(y_ori) + 1)
-            z_ori = z_ori if sum(z_ori) < 0 or hessian_matrix else np.log(np.array(z_ori) + 1)
+            z_ori = (
+                z_ori
+                if sum(z_ori) < 0 or hessian_matrix
+                else np.log(np.array(z_ori) + 1)
+            )
 
         if delay != 0:
             x = x[:-delay]
@@ -927,7 +1067,9 @@ def causality(
             z = z_ori
 
         # for xy
-        cur_data = pd.DataFrame({"x": x, "y": y, "z": z, "pair": gene_pair_name})
+        cur_data = pd.DataFrame(
+            {"x": x, "y": y, "z": z, "pair": gene_pair_name}
+        )
         xy = pd.concat([xy, cur_data], axis=0)
 
         x_meshgrid = np.linspace(min(x), max(x), grid_num, endpoint=True)
@@ -945,7 +1087,9 @@ def causality(
             u = (
                 np.exp(-dist_mat[i, 1:])
                 if sum(dist_mat[i] > 0) == 0
-                else np.exp(-dist_mat[i, 1:] / np.min(dist_mat[i][dist_mat[i] > 0]))
+                else np.exp(
+                    -dist_mat[i, 1:] / np.min(dist_mat[i][dist_mat[i] > 0])
+                )
             )
             w = u / np.sum(u)
 
@@ -957,13 +1101,18 @@ def causality(
             )
             flat_res = pd.concat([flat_res, res_Row])
         if normalize:
-            vals = flat_res["expected_z"][(f_ini_ind) : (f_ini_ind + len(dist_mat))]
+            vals = flat_res["expected_z"][
+                (f_ini_ind) : (f_ini_ind + len(dist_mat))
+            ]
             max_val = max(vals.dropna().values.reshape(1, -1)[0])
             if not np.isfinite(max_val):
                 max_val = 1e10
 
             flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), 2] = (
-                flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_z"] / max_val
+                flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :][
+                    "expected_z"
+                ]
+                / max_val
             )
 
         id = id + 1
@@ -973,10 +1122,18 @@ def causality(
     n_col = gene_pairs_num if n_col is None else n_col
 
     if n_row * n_col < gene_pairs_num:
-        raise Exception("The number of row or column specified is less than the gene pairs")
+        raise Exception(
+            "The number of row or column specified is less than the gene pairs"
+        )
 
-    figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
-    fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
+    figsize = (
+        (figsize[0] * n_col, figsize[1] * n_row)
+        if figsize is not None
+        else (4 * n_col, 4 * n_row)
+    )
+    fig, axes = plt.subplots(
+        n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False
+    )
 
     for x, flat_res_type in enumerate(flat_res.pair.unique()):
         gene_pairs = flat_res_type.split("->")
@@ -990,10 +1147,16 @@ def causality(
 
         values = flat_res_subset["expected_z"].values.reshape(xv.shape)
 
-        axins = inset_axes(axes[i, j], bbox_transform=axes[i, j].transAxes, **inset_dict)
+        axins = inset_axes(
+            axes[i, j], bbox_transform=axes[i, j].transAxes, **inset_dict
+        )
 
         ext_lim = (min(x_val), max(x_val), min(y_val), max(y_val))
-        v_min, v_max, v_abs_max = min(values.flatten()), max(values.flatten()), max(abs(values.flatten()))
+        v_min, v_max, v_abs_max = (
+            min(values.flatten()),
+            max(values.flatten()),
+            max(abs(values.flatten())),
+        )
         im = axes[i, j].imshow(
             values,
             interpolation="mitchell",
@@ -1009,50 +1172,102 @@ def causality(
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
-        closest_x_ind = np.array([np.searchsorted(x_meshgrid, i) for i in xy_subset["x"].values])
-        closest_y_ind = np.array([np.searchsorted(y_meshgrid, i) for i in xy_subset["y"].values])
-        valid_ids = np.logical_and(closest_x_ind < grid_num, closest_y_ind < grid_num)
-        axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
+        closest_x_ind = np.array(
+            [np.searchsorted(x_meshgrid, i) for i in xy_subset["x"].values]
+        )
+        closest_y_ind = np.array(
+            [np.searchsorted(y_meshgrid, i) for i in xy_subset["y"].values]
+        )
+        valid_ids = np.logical_and(
+            closest_x_ind < grid_num, closest_y_ind < grid_num
+        )
+        axes[i, j].scatter(
+            closest_x_ind[valid_ids],
+            closest_y_ind[valid_ids],
+            color="gray",
+            alpha=0.1,
+            s=1,
+        )
 
         if xkey.startswith("jacobian"):
             if stacked_fraction:
-                axes[i, j].set_xlabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].set_xlabel(
+                    r"$\frac{\partial f_{%s}}{\partial x_{%s}}$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
             else:
-                axes[i, j].set_xlabel(r"$\partial f_{%s} / \partial x_{%s}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].set_xlabel(
+                    r"$\partial f_{%s} / \partial x_{%s}$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
         else:
             axes[i, j].set_xlabel(gene_pairs[0] + rf" (${xkey}$)")
 
         if ykey.startswith("jacobian"):
             if stacked_fraction:
-                axes[i, j].set_ylabel(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].set_ylabel(
+                    r"$\frac{\partial f_{%s}}{\partial x_{%s}}$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
             else:
-                axes[i, j].set_ylabel(r"$\partial f_{%s} / \partial x_{%s}$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].set_ylabel(
+                    r"$\partial f_{%s} / \partial x_{%s}$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
         else:
             axes[i, j].set_ylabel(gene_pairs[1] + rf" (${ykey}$)")
 
         if zkey.startswith("jacobian"):
             if stacked_fraction:
                 axes[i, j].title.set_text(
-                    r"$E(\frac{\partial f_{%s}}{\partial x_{%s}})$" % (gene_pairs[1], gene_pairs[0])
+                    r"$E(\frac{\partial f_{%s}}{\partial x_{%s}})$"
+                    % (gene_pairs[1], gene_pairs[0])
                 )
             else:
-                axes[i, j].title.set_text(r"$E(\partial f_{%s} / \partial x_{%s})$" % (gene_pairs[1], gene_pairs[0]))
+                axes[i, j].title.set_text(
+                    r"$E(\partial f_{%s} / \partial x_{%s})$"
+                    % (gene_pairs[1], gene_pairs[0])
+                )
         else:
             if hessian_matrix:
                 if len(gene_pairs) == 3:
-                    axes[i, j].title.set_text(rf"$Hessian_{{{gene_pairs[2]}}}$ (${zkey}$)")
+                    axes[i, j].title.set_text(
+                        rf"$Hessian_{{{gene_pairs[2]}}}$ (${zkey}$)"
+                    )
                 else:
-                    axes[i, j].title.set_text(rf"$Hessian_{{{gene_pairs[1]}}}$ (${zkey}$)")
+                    axes[i, j].title.set_text(
+                        rf"$Hessian_{{{gene_pairs[1]}}}$ (${zkey}$)"
+                    )
             else:
                 if len(gene_pairs) == 3:
-                    axes[i, j].title.set_text(rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)")
+                    axes[i, j].title.set_text(
+                        rf"$E_{{{gene_pairs[2]}}}$ (${zkey}$)"
+                    )
                 else:
-                    axes[i, j].title.set_text(rf"$E_{{{gene_pairs[1]}}}$ (${zkey}$)")
+                    axes[i, j].title.set_text(
+                        rf"$E_{{{gene_pairs[1]}}}$ (${zkey}$)"
+                    )
 
         if show_rug:
-            xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
-            seaborn.rugplot(xy_subset["x"].values, height=0.01, axis="x", ax=axes[i, j], c="darkred", alpha=0.1)
-            seaborn.rugplot(xy_subset["y"].values, height=0.01, axis="y", ax=axes[i, j], c="darkred", alpha=0.1)
+            xy_subset = xy_subset.query(
+                "x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]"
+            )
+            seaborn.rugplot(
+                xy_subset["x"].values,
+                height=0.01,
+                axis="x",
+                ax=axes[i, j],
+                c="darkred",
+                alpha=0.1,
+            )
+            seaborn.rugplot(
+                xy_subset["y"].values,
+                height=0.01,
+                axis="y",
+                ax=axes[i, j],
+                c="darkred",
+                alpha=0.1,
+            )
 
         #         axes[i, j].plot(flat_res_subset['x'], [0.01]*len(flat_res_subset['x']), '|', color='k')
         #         axes[i, j].plot([0.01]*len(flat_res_subset['z']), flat_res_subset['z'], '|', color='k')
@@ -1215,7 +1430,9 @@ def comb_logic(
     from matplotlib.colors import ListedColormap
 
     if "pp" not in adata.uns_keys():
-        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
+        raise Exception(
+            "You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function."
+        )
 
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
@@ -1224,14 +1441,18 @@ def comb_logic(
     if zkey is None:
         zkey = "velocity_T" if adata.uns["pp"]["has_labeling"] else "velocity_S"
 
-    if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian"])):
+    if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(
+        set(["jacobian"])
+    ):
         raise Exception(
             f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
         )
 
     if cmap is None:
-        cmap = matplotlib.colors.LinearSegmentedColormap.from_list("comb_logic", ["#00CF8D", "#FFFF99", "#FF0000"])
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+            "comb_logic", ["#00CF8D", "#FFFF99", "#FF0000"]
+        )
 
     if return_data:
         flat_res = causality(
@@ -1365,7 +1586,9 @@ def hessian(
     from matplotlib.colors import ListedColormap
 
     if cmap is None:
-        cmap = matplotlib.colors.LinearSegmentedColormap.from_list("comb_logic", ["#00CF8D", "#FFFF99", "#FF0000"])
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+            "comb_logic", ["#00CF8D", "#FFFF99", "#FF0000"]
+        )
 
     if return_data:
         flat_res = causality(

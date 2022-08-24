@@ -19,7 +19,11 @@ def download_data(url, file_path=None, dir="./data"):
             os.mkdir("data")
 
         # download the data
-        urlretrieve(url, file_path, reporthook=LoggerManager.get_main_logger().request_report_hook)
+        urlretrieve(
+            url,
+            file_path,
+            reporthook=LoggerManager.get_main_logger().request_report_hook,
+        )
 
     return file_path
 
@@ -157,7 +161,9 @@ def Haber(
         "data/goatools_cellcycle_genes.txt",
     )
     cell_cycle_genes = open("data/goatools_cellcycle_genes.txt").read().split()
-    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(cell_cycle_genes)
+    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(
+        cell_cycle_genes
+    )
 
     return adata
 
@@ -179,7 +185,9 @@ def hgForebrainGlutamatergic(
         "data/goatools_cellcycle_genes.txt",
     )
     cell_cycle_genes = open("data/goatools_cellcycle_genes.txt").read().split()
-    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(cell_cycle_genes)
+    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(
+        cell_cycle_genes
+    )
 
     return adata
 
@@ -313,7 +321,10 @@ def hematopoiesis_raw(
     return adata
 
 
-def human_tfs(url="https://pitt.box.com/shared/static/spr7mi9rl2s7kgstrvrpidg138quuo4c.txt", filename="human_tfs.txt"):
+def human_tfs(
+    url="https://pitt.box.com/shared/static/spr7mi9rl2s7kgstrvrpidg138quuo4c.txt",
+    filename="human_tfs.txt",
+):
     file_path = download_data(url, filename)
     tfs = pd.read_csv(file_path, sep="\t")
     return tfs

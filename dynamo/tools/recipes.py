@@ -101,7 +101,12 @@ def recipe_kin_data(
         del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY
     )
 
-    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
+    (
+        has_splicing,
+        has_labeling,
+        splicing_labeling,
+        _,
+    ) = detect_experiment_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
         layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
@@ -280,7 +285,12 @@ def recipe_deg_data(
         keep_raw_layers, DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY
     )
 
-    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
+    (
+        has_splicing,
+        has_labeling,
+        splicing_labeling,
+        _,
+    ) = detect_experiment_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
         layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
@@ -343,7 +353,9 @@ def recipe_deg_data(
         # lastly, project RNA velocity to low dimensional embedding.
         try:
             set_transition_genes(adata)
-            cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+            cell_velocities(
+                adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis
+            )
         except BaseException:
             cell_velocities(
                 adata,
@@ -469,7 +481,12 @@ def recipe_mix_kin_deg_data(
         del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY
     )
 
-    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
+    (
+        has_splicing,
+        has_labeling,
+        splicing_labeling,
+        _,
+    ) = detect_experiment_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
         layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
@@ -651,7 +668,12 @@ def recipe_one_shot_data(
         del_2nd_moments, DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY
     )
 
-    has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
+    (
+        has_splicing,
+        has_labeling,
+        splicing_labeling,
+        _,
+    ) = detect_experiment_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
         layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
@@ -783,7 +805,9 @@ def velocity_N(
 
     # check velocity_N, velocity_T, X_new, X_total
     if not np.all([i in layer_keys for i in ["X_new", "X_total"]]):
-        raise Exception(f"The `X_new`, `X_total` has to exist in your data before running velocity_N function.")
+        raise Exception(
+            f"The `X_new`, `X_total` has to exist in your data before running velocity_N function."
+        )
 
     # delete the moments and velocities that generated via total RNA
     for i in ["M_t", "M_tt", "M_n", "M_tn", "M_nn", "velocity_N", "velocity_T"]:
@@ -819,7 +843,9 @@ def velocity_N(
             del adata.var[i]
 
     if group is not None:
-        group_prefixes = [group + "_" + str(i) + "_" for i in adata.obs[group].unique()]
+        group_prefixes = [
+            group + "_" + str(i) + "_" for i in adata.obs[group].unique()
+        ]
         for i in group_prefixes:
             for j in [
                 "alpha",
@@ -850,7 +876,11 @@ def velocity_N(
 
     # now let us first run pca with new RNA
     if recalculate_pca:
-        pca_monocle(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]), pca_key="X_pca")
+        pca_monocle(
+            adata,
+            np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]),
+            pca_key="X_pca",
+        )
 
     # if there are unspliced / spliced data, delete them for now:
     for i in ["spliced", "unspliced", "X_spliced", "X_unspliced"]:

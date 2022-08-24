@@ -44,11 +44,15 @@ class vfGraph(ConverterMixin, ig.Graph):
         self.add_vertices(2)
         self.add_edges(new_edges)
         w_sum = sum(self.es.get_attribute_values("weight")[:e_num])
-        self.es["weight"] = [i if i is not None else w_sum for i in self.es["weight"]]
+        self.es["weight"] = [
+            i if i is not None else w_sum for i in self.es["weight"]
+        ]
 
         mf = self.maxflow(usrc, usink, self.es.get_attribute_values("weight"))
         self.es.set_attribute_values("flow", mf.flow)
-        self.vs.set_attribute_values("pass", self.strength(mode="in", weights=mf.flow))
+        self.vs.set_attribute_values(
+            "pass", self.strength(mode="in", weights=mf.flow)
+        )
         self.delete_vertices([usrc, usink])
 
     # add gradop, ...

@@ -21,7 +21,9 @@ def test_neighbors_subset(adata):
 
     # check obsp keys subsetting by AnnData Obj
     neighbor_result_prefix = ""
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(
+        neighbor_result_prefix
+    )
     check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
     expected_conn_mat = adata.obsp[conn_key][indices][:, indices]
     expected_dist_mat = adata.obsp[dist_key][indices][:, indices]

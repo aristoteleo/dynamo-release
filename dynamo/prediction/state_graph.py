@@ -23,11 +23,18 @@ from .utils import (
 # from sklearn.preprocessing import OrdinalEncoder
 
 
-def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):
+def classify_clone_cell_type(
+    adata, clone, clone_column, cell_type_column, cell_type_to_excluded
+):
     """find the dominant cell type of all the cells that are from the same clone"""
     cell_ids = np.where(adata.obs[clone_column] == clone)[0]
 
-    to_check = adata[cell_ids].obs[cell_type_column].value_counts().index.isin(list(cell_type_to_excluded))
+    to_check = (
+        adata[cell_ids]
+        .obs[cell_type_column]
+        .value_counts()
+        .index.isin(list(cell_type_to_excluded))
+    )
 
     cell_type = np.where(to_check)[0]
 
@@ -82,7 +89,9 @@ def prune_transition(
     from patsy import dmatrix
 
     if group not in adata.obs.columns:
-        raise Exception(f"group has to be in adata.obs.columns, but you have {group}. ")
+        raise Exception(
+            f"group has to be in adata.obs.columns, but you have {group}. "
+        )
 
     data = adata.obs
     groups = data[group]
@@ -91,34 +100,55 @@ def prune_transition(
 
     if graph_mat is not None:
         if graph_mat.shape != (len(uniq_grps), len(uniq_grps)):
-            raise Exception(f"the input graph_mat has to have the same shape as ({len(uniq_grps), len(uniq_grps)})")
+            raise Exception(
+                f"the input graph_mat has to have the same shape as ({len(uniq_grps), len(uniq_grps)})"
+            )
 
         group_graph = graph_mat
     else:
         if group + "_graph" not in adata.uns_keys():
             main_info(f"build state graph `g` via {state_graph_method}")
-            state_graph(adata, group=group, basis=basis, method=state_graph_method)  # the markov method
+            state_graph(
+                adata, group=group, basis=basis, method=state_graph_method
+            )  # the markov method
         group_graph = adata.uns[group + "_graph"]["group_graph"]
 
     if neighbor_key is None:
-        main_info(f"build knn graph with {n_neighbors} neighbors in {basis} basis.")
-        neighbors(adata, basis=basis, result_prefix=basis + "_knn", n_neighbors=n_neighbors)
+        main_info(
+            f"build knn graph with {n_neighbors} neighbors in {basis} basis."
+        )
+        neighbors(
+            adata,
+            basis=basis,
+            result_prefix=basis + "_knn",
+            n_neighbors=n_neighbors,
+        )
         transition_matrix = adata.obsp[basis + "_knn_distances"]
     else:
         main_info(f"retrieve knn graph via {neighbor_key} ley.")
         transition_matrix = adata.obsp[neighbor_key]
 
-    main_info("build cell to cell graph assignment matrix via `dmatrix` from `pasty`")
+    main_info(
+        "build cell to cell graph assignment matrix via `dmatrix` from `pasty`"
+    )
     cell_membership = csr_matrix(dmatrix(f"~{group}+0", data=data))
 
-    main_info("build lumped cell group to cell group connectivity matrix via `t(M) n M`.")
-    membership_matrix = cell_membership.T.dot(transition_matrix).dot(cell_membership)
+    main_info(
+        "build lumped cell group to cell group connectivity matrix via `t(M) n M`."
+    )
+    membership_matrix = cell_membership.T.dot(transition_matrix).dot(
+        cell_membership
+    )
 
     main_info("prune vf based cell graph transition graph via g' = `M' g")
     # note that dmatrix will first sort the unique group names and then construct the design matrix, so this is needed.
-    membership_df = pd.DataFrame(membership_matrix.A > 0, index=sorted_grps, columns=sorted_grps)
+    membership_df = pd.DataFrame(
+        membership_matrix.A > 0, index=sorted_grps, columns=sorted_grps
+    )
 
-    M = (group_graph * (membership_df.loc[uniq_grps, uniq_grps].values > 0) > 0).astype(float)
+    M = (
+        group_graph * (membership_df.loc[uniq_grps, uniq_grps].values > 0) > 0
+    ).astype(float)
 
     logger.finish_progress(progress_name="prune_transition")
 
@@ -189,7 +219,9 @@ def state_graph(
         logger.info("Applying kernel Markov chain")
         T = adata.obsp[transition_mat_key]
         if np.isclose(T.sum(1), 1).sum() > np.isclose(T.sum(0), 1).sum():
-            logger.info("KernelMarkovChain assuming column sum to be 1. Transposing transition matrix")
+            logger.info(
+                "KernelMarkovChain assuming column sum to be 1. Transposing transition matrix"
+            )
             T = T.T
         if sp.issparse(T):
             T = T.A
@@ -202,7 +234,11 @@ def state_graph(
         for i, grp in enumerate(uniq_grp):
             labels[groups == grp] = i
 
-        grp_graph = dtmc.lump(labels).T if method == "markov" else dtmc.naive_lump(T.A, labels).T
+        grp_graph = (
+            dtmc.lump(labels).T
+            if method == "markov"
+            else dtmc.naive_lump(T.A, labels).T
+        )
         label_len, grp_avg_time = len(np.unique(labels)), None
         grp_graph = grp_graph[:label_len, :label_len]
 
@@ -220,13 +256,19 @@ def state_graph(
             average=False,
             t_end=None,
         )
-        logger.report_progress(percent=0, progress_name="KDTree parameter preparation computation")
+        logger.report_progress(
+            percent=0, progress_name="KDTree parameter preparation computation"
+        )
         logger.log_time()
         kdt = cKDTree(all_X, leafsize=30)
         logger.finish_progress(progress_name="KDTree computation")
         vf_dict = adata.uns["VecFld_" + basis]
 
-        for i, cur_grp in enumerate(LoggerManager.progress_logger(uniq_grp, progress_name="iterate groups")):
+        for i, cur_grp in enumerate(
+            LoggerManager.progress_logger(
+                uniq_grp, progress_name="iterate groups"
+            )
+        ):
             init_cells = adata.obs_names[groups == cur_grp]
             if sample_num is not None:
                 cell_num = np.min((sample_num, len(init_cells)))
@@ -249,7 +291,9 @@ def state_graph(
                 )
                 N = int(np.sqrt(V_grid.shape[0]))
                 X_grid, V_grid = (
-                    np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
+                    np.array(
+                        [np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]
+                    ),
                     np.array(
                         [
                             V_grid[:, 0].reshape((N, N)),
@@ -291,23 +335,31 @@ def state_graph(
 
             for j in np.arange(cell_num):
                 if len_per_cell is not None:
-                    cur_ind = np.arange(j * len_per_cell, (j + 1) * len_per_cell)
+                    cur_ind = np.arange(
+                        j * len_per_cell, (j + 1) * len_per_cell
+                    )
                     Y, arclength, T_bool = remove_redundant_points_trajectory(
                         X[cur_ind], tol=dist_min, output_discard=True
                     )
 
                     if arc_sample:
-                        Y, arclength, T = arclength_sampling(Y, arclength / 1000, t=t[~T_bool])
+                        Y, arclength, T = arclength_sampling(
+                            Y, arclength / 1000, t=t[~T_bool]
+                        )
                     else:
                         T = t[~T_bool]
                 else:
-                    Y, T = X[j].T, t[j] if type(t[j]) == np.ndarray else np.array(t[j])
+                    Y, T = X[j].T, t[j] if type(
+                        t[j]
+                    ) == np.ndarray else np.array(t[j])
 
                 knn_dist, knn_ind = kdt.query(Y, k=1)
 
                 # set up a dataframe with group and time
                 pass_t = np.where(knn_dist < dist_threshold)[0]
-                pass_df = pd.DataFrame({"group": adata[knn_ind[pass_t]].obs[group], "t": T[pass_t]})
+                pass_df = pd.DataFrame(
+                    {"group": adata[knn_ind[pass_t]].obs[group], "t": T[pass_t]}
+                )
                 # only consider trajectory that pass at least 10 cells in group as confident pass
                 pass_group_counter = pass_df.group.value_counts()
                 pass_groups, confident_pass_check = (
@@ -316,10 +368,15 @@ def state_graph(
                 )
                 # assign the transition matrix and average transition time
                 if len(confident_pass_check) > 0:
-                    ind_other_cell_type = [uniq_grp.index(k) for k in np.array(pass_groups)[confident_pass_check]]
+                    ind_other_cell_type = [
+                        uniq_grp.index(k)
+                        for k in np.array(pass_groups)[confident_pass_check]
+                    ]
                     grp_graph[i, ind_other_cell_type] += 1
                     grp_avg_time[i, ind_other_cell_type] += (
-                        pass_df.groupby("group")["t"].mean()[confident_pass_check].values
+                        pass_df.groupby("group")["t"]
+                        .mean()[confident_pass_check]
+                        .values
                     )
 
             # average across cells
@@ -327,7 +384,9 @@ def state_graph(
             grp_graph[i, :] /= cell_num
 
     else:
-        raise NotImplementedError("Only vector field (vf) or Markov chain (markov) based lumping are supported.")
+        raise NotImplementedError(
+            "Only vector field (vf) or Markov chain (markov) based lumping are supported."
+        )
 
     if prune_graph:
         grp_graph = prune_transition(
@@ -337,7 +396,11 @@ def state_graph(
             graph_mat=grp_graph,
             **kwargs,
         )
-    adata.uns[group + "_graph"] = {"group_graph": grp_graph, "group_avg_time": grp_avg_time, "group_names": uniq_grp}
+    adata.uns[group + "_graph"] = {
+        "group_graph": grp_graph,
+        "group_avg_time": grp_avg_time,
+        "group_names": uniq_grp,
+    }
     timer_logger.finish_progress(progress_name="State graph estimation")
     return adata
 
@@ -421,12 +484,16 @@ def tree_model(
 
     progenitor = progenitor[0] if type(progenitor) is not str else progenitor
     if progenitor not in uniq_grps:
-        raise Exception(f"progenitor has to be in adata.obs[{group}], but you have {progenitor}. ")
+        raise Exception(
+            f"progenitor has to be in adata.obs[{group}], but you have {progenitor}. "
+        )
     else:
         progenitor = list(uniq_grps).index(progenitor)
 
     if not set(terminators) <= set(uniq_grps):
-        raise Exception(f"all terminators have to be in adata.obs[{group}], but you have {terminators}.")
+        raise Exception(
+            f"all terminators have to be in adata.obs[{group}], but you have {terminators}."
+        )
     else:
         terminators = [list(uniq_grps).index(i) for i in terminators]
 
@@ -451,13 +518,22 @@ def tree_model(
     if row_norm:
         M /= M.sum(1)
 
-    M[M > 0] = 1 - M[M > 0]  # because it is shortest path, so we need to use 1 - M[M > 0]
+    M[M > 0] = (
+        1 - M[M > 0]
+    )  # because it is shortest path, so we need to use 1 - M[M > 0]
 
-    D, Pr = shortest_path(np.copy(M, order="c"), directed=False, method="FW", return_predecessors=True)
+    D, Pr = shortest_path(
+        np.copy(M, order="c"),
+        directed=False,
+        method="FW",
+        return_predecessors=True,
+    )
     res = np.zeros(M.shape)
 
     # this builds the tree based on each shortest path connecting the source to each target cell type
-    main_info("builds the tree model based on each shortest path connecting the source to each target cell type in g'.")
+    main_info(
+        "builds the tree model based on each shortest path connecting the source to each target cell type in g'."
+    )
     for j in terminators:
         p = j
         while Pr[progenitor, p] != -9999:

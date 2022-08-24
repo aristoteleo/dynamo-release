@@ -46,7 +46,9 @@ def test_simple_cluster_subset(adata):
         selected_cluster_subset=["Cluster", [0, 1, 2]],
     )
     print(result.obs["subset_infomap"])
-    result = dyn.tl.infomap(adata, directed=True, copy=True, selected_cell_subset=np.arange(0, 10))
+    result = dyn.tl.infomap(
+        adata, directed=True, copy=True, selected_cell_subset=np.arange(0, 10)
+    )
     print(result.obs["subset_infomap"])
 
 
@@ -68,10 +70,14 @@ def test_simple_cluster_keys(adata):
 def test_leiden_membership_input(adata):
     # TODO fix the following test cases
     # somehow this initial member ship works before, but not now
-    initial_membership = np.random.randint(low=0, high=min(100, len(adata)), size=len(adata), dtype=int)
+    initial_membership = np.random.randint(
+        low=0, high=min(100, len(adata)), size=len(adata), dtype=int
+    )
     dyn.tl.leiden(adata, initial_membership=initial_membership)
 
-    initial_membership = np.random.randint(low=0, high=100, size=len(adata), dtype=int)
+    initial_membership = np.random.randint(
+        low=0, high=100, size=len(adata), dtype=int
+    )
     dyn.tl.leiden(adata, directed=True, initial_membership=initial_membership)
 
 

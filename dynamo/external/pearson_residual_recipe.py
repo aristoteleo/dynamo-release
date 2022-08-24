@@ -101,7 +101,11 @@ def _highly_variable_pearson_residuals(
         # Filter out zero genes
 
         nonzero_genes = filter_genes_by_outliers(
-            adata_subset, min_cell_s=1, min_cell_u=0, min_cell_p=0, shared_count=None
+            adata_subset,
+            min_cell_s=1,
+            min_cell_u=0,
+            min_cell_p=0,
+            shared_count=None,
         )
         # nonzero_genes = filter_genes(adata_subset, min_cells=1, inplace=False)[0]
         adata_subset = adata_subset[:, nonzero_genes]
@@ -116,7 +120,9 @@ def _highly_variable_pearson_residuals(
             n = X_batch.shape[0]
             clip = np.sqrt(n)
         if clip < 0:
-            raise ValueError("Pearson residuals normalization requires `clip>=0` or `clip=None`.")
+            raise ValueError(
+                "Pearson residuals normalization requires `clip>=0` or `clip=None`."
+            )
 
         if sp_sparse.issparse(X_batch):
             sums_genes = np.sum(X_batch, axis=0)
@@ -133,28 +139,38 @@ def _highly_variable_pearson_residuals(
             stop = start + chunksize
             mu = np.array(sums_cells @ sums_genes[:, start:stop] / sum_total)
             X_dense = X_batch[:, start:stop].toarray()
-            residuals = (X_dense - mu) / np.sqrt(mu + mu ** 2 / theta)
+            residuals = (X_dense - mu) / np.sqrt(mu + mu**2 / theta)
             residuals = np.clip(residuals, a_min=-clip, a_max=clip)
             residual_gene_var[start:stop] = np.var(residuals, axis=0)
 
         # Add 0 values for genes that were filtered out
         unmasked_residual_gene_var = np.zeros(len(nonzero_genes))
         unmasked_residual_gene_var[nonzero_genes] = residual_gene_var
-        residual_gene_vars_by_batch.append(unmasked_residual_gene_var.reshape(1, -1))
+        residual_gene_vars_by_batch.append(
+            unmasked_residual_gene_var.reshape(1, -1)
+        )
 
-    residual_gene_vars_by_batch = np.concatenate(residual_gene_vars_by_batch, axis=0)
+    residual_gene_vars_by_batch = np.concatenate(
+        residual_gene_vars_by_batch, axis=0
+    )
 
     # Get rank per gene within each batch
     # argsort twice gives ranks, small rank means most variable
-    ranks_residual_var = np.argsort(np.argsort(-residual_gene_vars_by_batch, axis=1), axis=1)
+    ranks_residual_var = np.argsort(
+        np.argsort(-residual_gene_vars_by_batch, axis=1), axis=1
+    )
     ranks_residual_var = ranks_residual_var.astype(np.float32)
     # count in how many batches a genes was among the n_top_genes
-    highly_variable_nbatches = np.sum((ranks_residual_var < n_top_genes).astype(int), axis=0)
+    highly_variable_nbatches = np.sum(
+        (ranks_residual_var < n_top_genes).astype(int), axis=0
+    )
     # set non-top genes within each batch to nan
     ranks_residual_var[ranks_residual_var >= n_top_genes] = np.nan
     ranks_masked_array = np.ma.masked_invalid(ranks_residual_var)
     # Median rank across batches, ignoring batches in which gene was not selected
-    medianrank_residual_var = np.ma.median(ranks_masked_array, axis=0).filled(np.nan)
+    medianrank_residual_var = np.ma.median(ranks_masked_array, axis=0).filled(
+        np.nan
+    )
 
     means, variances = seurat_get_mean_var(X)
     df = pd.DataFrame.from_dict(
@@ -185,7 +201,10 @@ def _highly_variable_pearson_residuals(
     df = df.loc[adata.var_names, :]
 
     if inplace:
-        adata.uns[DKM.UNS_PP_KEY]["hvg"] = {"flavor": "pearson_residuals", "computed_on": _computed_on_prompt_str}
+        adata.uns[DKM.UNS_PP_KEY]["hvg"] = {
+            "flavor": "pearson_residuals",
+            "computed_on": _computed_on_prompt_str,
+        }
         main_logger.debug(
             "added\n"
             "    'highly_variable', boolean vector (adata.var)\n"
@@ -201,19 +220,30 @@ def _highly_variable_pearson_residuals(
         adata.var["residual_variances"] = df["residual_variances"]
         adata.var["highly_variable_rank"] = df["highly_variable_rank"].values
         if batch_key is not None:
-            adata.var["highly_variable_nbatches"] = df["highly_variable_nbatches"].values
-            adata.var["highly_variable_intersection"] = df["highly_variable_intersection"].values
-        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = df[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY].values
+            adata.var["highly_variable_nbatches"] = df[
+                "highly_variable_nbatches"
+            ].values
+            adata.var["highly_variable_intersection"] = df[
+                "highly_variable_intersection"
+            ].values
+        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = df[
+            DKM.VAR_GENE_HIGHLY_VARIABLE_KEY
+        ].values
         adata.var[DKM.VAR_USE_FOR_PCA] = df[
             DKM.VAR_GENE_HIGHLY_VARIABLE_KEY
         ].values  # set use_for_pca for down stream analysis in dynamo
 
         if subset:
-            adata._inplace_subset_var(df[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY].values)
+            adata._inplace_subset_var(
+                df[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY].values
+            )
 
     else:
         if batch_key is None:
-            df = df.drop(["highly_variable_nbatches", "highly_variable_intersection"], axis=1)
+            df = df.drop(
+                ["highly_variable_nbatches", "highly_variable_intersection"],
+                axis=1,
+            )
         if subset:
             df = df.iloc[df.highly_variable.values, :]
 
@@ -328,7 +358,8 @@ def compute_highly_variable_genes(
     if recipe == "pearson_residuals":
         if n_top_genes is None:
             raise ValueError(
-                "`pp.highly_variable_genes` requires the argument `n_top_genes`" " for `flavor='pearson_residuals'`"
+                "`pp.highly_variable_genes` requires the argument `n_top_genes`"
+                " for `flavor='pearson_residuals'`"
             )
         return _highly_variable_pearson_residuals(
             adata,
@@ -377,7 +408,7 @@ def compute_pearson_residuals(X, theta, clip, check_values, copy=False):
 
     mu = np.array(sums_cells @ sums_genes / sum_total)
     diff = np.array(X - mu)
-    residuals = diff / np.sqrt(mu + mu ** 2 / theta)
+    residuals = diff / np.sqrt(mu + mu**2 / theta)
 
     # clip
     residuals = np.clip(residuals, a_min=-clip, a_max=clip)
@@ -452,11 +483,16 @@ def _normalize_single_layer_pearson_residuals(
     main_logger.info(msg)
     main_logger.log_time()
 
-    residuals = compute_pearson_residuals(X, theta, clip, check_values, copy=copy)
+    residuals = compute_pearson_residuals(
+        X, theta, clip, check_values, copy=copy
+    )
     pearson_residual_params_dict = dict(theta=theta, clip=clip, layer=layer)
 
     if not copy:
-        main_logger.info("replacing layer <%s> with pearson residual normalized data." % (layer))
+        main_logger.info(
+            "replacing layer <%s> with pearson residual normalized data."
+            % (layer)
+        )
         DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
         adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
     else:
@@ -477,7 +513,9 @@ def normalize_layers_pearson_residuals(
     **normalize_pearson_residual_args,
 ):
     if len(layers) == 0:
-        main_warning("layers arg has zero length. return and do nothing in normalize_layers_pearson_residuals.")
+        main_warning(
+            "layers arg has zero length. return and do nothing in normalize_layers_pearson_residuals."
+        )
     if not select_genes_layer in layers:
         main_warning(
             "select_genes_layer: %s not in layers, using layer: %s instead to select genes instead."
@@ -493,7 +531,11 @@ def normalize_layers_pearson_residuals(
             temp_select_genes_key = select_genes_key
 
         temp_adata = _normalize_single_layer_pearson_residuals(
-            adata, layer=layer, var_select_genes_key=temp_select_genes_key, copy=copy, **normalize_pearson_residual_args
+            adata,
+            layer=layer,
+            var_select_genes_key=temp_select_genes_key,
+            copy=copy,
+            **normalize_pearson_residual_args,
         )
 
         # copy is False

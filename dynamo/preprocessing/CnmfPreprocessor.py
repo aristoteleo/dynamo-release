@@ -35,7 +35,9 @@ class CnmfPreprocessor(Preprocessor):
 
         make_dir(self.output_dir)
         counts_fn = self.adata_h5ad_path
-        self.standardize_adata(adata, tkey=self.tkey, experiment_type=self.experiment_type)
+        self.standardize_adata(
+            adata, tkey=self.tkey, experiment_type=self.experiment_type
+        )
 
         adata.write_h5ad(counts_fn)
         cnmf_obj = cNMF(output_dir=self.output_dir, name=self.run_name)
@@ -55,7 +57,11 @@ class CnmfPreprocessor(Preprocessor):
             close_clustergram_fig=False,
         )
         adata = read_h5ad(counts_fn)
-        hvg_path = os.path.join(self.output_dir, self.run_name, self.run_name + ".overdispersed_genes.txt")
+        hvg_path = os.path.join(
+            self.output_dir,
+            self.run_name,
+            self.run_name + ".overdispersed_genes.txt",
+        )
         hvgs = open(hvg_path).read().split("\n")
 
         self.force_gene_list = hvgs

@@ -13,7 +13,9 @@ def sol_u(t, u0, alpha, beta):
 def sol_s(t, s0, u0, alpha, beta, gamma):
     exp_gt = np.exp(-gamma * t)
     return (
-        s0 * exp_gt + alpha / gamma * (1 - exp_gt) + (alpha + u0 * beta) / (gamma - beta) * (exp_gt - np.exp(-beta * t))
+        s0 * exp_gt
+        + alpha / gamma * (1 - exp_gt)
+        + (alpha + u0 * beta) / (gamma - beta) * (exp_gt - np.exp(-beta * t))
     )
 
 
@@ -29,7 +31,7 @@ def fit_gamma_labelling(t, l, mode=None, lbound=None):
     ym = np.mean(y)
 
     # calculate slope
-    var_t = np.mean(tau ** 2) - tm ** 2
+    var_t = np.mean(tau**2) - tm**2
     cov = np.sum(y.dot(tau)) / n - ym * tm
     k = cov / var_t
 
@@ -53,7 +55,7 @@ def fit_alpha_labelling(t, u, gamma, mode=None):
     ym = np.mean(y)
 
     # calculate slope
-    var_x = np.mean(x ** 2) - xm ** 2
+    var_x = np.mean(x**2) - xm**2
     cov = np.sum(y.dot(x)) / n - ym * xm
     k = cov / var_x
 

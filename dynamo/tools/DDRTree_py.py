@@ -10,21 +10,24 @@ from scipy.sparse.linalg import inv
 
 def cal_ncenter(ncells, ncells_limit=100):
     res = np.round(
-        2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit))
+        2
+        * ncells_limit
+        * np.log(ncells)
+        / (np.log(ncells) + np.log(ncells_limit))
     )
 
     return res
 
 
 def pca_projection(C, L):
-    """solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I	
-    Arguments	
-    ---------	
-    C: (ndarrya) The matrix of	
-    L: (int) The number of Eigenvalues	
-    Return	
-    ------	
-    W: The L largest Eigenvalues	
+    """solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I
+    Arguments
+    ---------
+    C: (ndarrya) The matrix of
+    L: (int) The number of Eigenvalues
+    Return
+    ------
+    W: The L largest Eigenvalues
     """
 
     V, U = eig(C)
@@ -35,20 +38,20 @@ def pca_projection(C, L):
 
 
 def sqdist(a, b):
-    """calculate the square distance between a, b	
-    Arguments	
-    ---------	
-        a: 'np.ndarray'	
-            A matrix with :math:`D \times N` dimension	
-        b: 'np.ndarray'	
-            A matrix with :math:`D \times N` dimension	
-    Returns	
-    -------	
-    dist: 'np.ndarray'	
-        A numeric value for the different between a and b	
+    """calculate the square distance between a, b
+    Arguments
+    ---------
+        a: 'np.ndarray'
+            A matrix with :math:`D \times N` dimension
+        b: 'np.ndarray'
+            A matrix with :math:`D \times N` dimension
+    Returns
+    -------
+    dist: 'np.ndarray'
+        A numeric value for the different between a and b
     """
-    aa = np.sum(a ** 2, axis=0)
-    bb = np.sum(b ** 2, axis=0)
+    aa = np.sum(a**2, axis=0)
+    bb = np.sum(b**2, axis=0)
     ab = a.T.dot(b)
 
     aa_repmat = matlib.repmat(aa[:, None], 1, b.shape[1])
@@ -60,20 +63,20 @@ def sqdist(a, b):
 
 
 def repmat(X, m, n):
-    """This function returns an array containing m (n) copies of A in the row (column) dimensions. The size of B is	
-    size(A)*n when A is a matrix.For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix.	
-    Arguments	
-    ---------	
-        X: 'np.ndarray'	
-            An array like matrix.	
-        m: 'int'	
-            Number of copies on row dimension	
-        n: 'int'	
-            Number of copies on column dimension	
-    Returns	
-    -------	
-    xy_rep: 'np.ndarray'	
-        A matrix of repmat	
+    """This function returns an array containing m (n) copies of A in the row (column) dimensions. The size of B is
+    size(A)*n when A is a matrix.For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix.
+    Arguments
+    ---------
+        X: 'np.ndarray'
+            An array like matrix.
+        m: 'int'
+            Number of copies on row dimension
+        n: 'int'
+            Number of copies on column dimension
+    Returns
+    -------
+    xy_rep: 'np.ndarray'
+        A matrix of repmat
     """
     xy_rep = matlib.repmat(X, m, n)
 
@@ -81,46 +84,54 @@ def repmat(X, m, n):
 
 
 def eye(m, n):
-    """Equivalent of eye (matlab)	
-    Arguments	
-    ---------	
-        m: 'int'	
-            Number of rows	
-        n: 'int'	
-            Number of columns	
-    Returns	
-    -------	
-    mat: 'np.ndarray'	
-        A matrix of eye	
+    """Equivalent of eye (matlab)
+    Arguments
+    ---------
+        m: 'int'
+            Number of rows
+        n: 'int'
+            Number of columns
+    Returns
+    -------
+    mat: 'np.ndarray'
+        A matrix of eye
     """
     mat = np.eye(m, n)
     return mat
 
 
 def DDRTree(
-        X, maxIter, sigma, gamma, eps=0, dim=2, Lambda=1.0, ncenter=None, keep_history=False
+    X,
+    maxIter,
+    sigma,
+    gamma,
+    eps=0,
+    dim=2,
+    Lambda=1.0,
+    ncenter=None,
+    keep_history=False,
 ):
-    """	This function is a pure Python implementation of the DDRTree algorithm.
+    """This function is a pure Python implementation of the DDRTree algorithm.
 
-    Arguments	
-    ---------	
-        X : DxN:'np.ndarray'	
-            data matrix list	
-        maxIter : maximum iterations	
-        eps: 'int'	
-                relative objective difference	
-        dim: 'int'	
-                reduced dimension	
-        Lambda: 'float'	
-                regularization parameter for inverse graph embedding	
-        sigma: 'float'	
-                bandwidth parameter	
-        gamma:'float'	
-                regularization parameter for k-means	
+    Arguments
+    ---------
+        X : DxN:'np.ndarray'
+            data matrix list
+        maxIter : maximum iterations
+        eps: 'int'
+                relative objective difference
+        dim: 'int'
+                reduced dimension
+        Lambda: 'float'
+                regularization parameter for inverse graph embedding
+        sigma: 'float'
+                bandwidth parameter
+        gamma:'float'
+                regularization parameter for k-means
         ncenter :(int)
 
-    Returns	
-    -------	
+    Returns
+    -------
         1). if `keep_history` is True return history: 'DataFrame'
                 the results dataframe of return
         2). else return a tuple of Z, Y, stree, R, W, Q, C, objs
@@ -175,7 +186,8 @@ def DDRTree(
 
         # termination condition
         obj1 = -sigma * sum(
-            np.log(np.sum(np.exp(-tmp_distZY / sigma), 1)) - tem_min_dist.T[0] / sigma
+            np.log(np.sum(np.exp(-tmp_distZY / sigma), 1))
+            - tem_min_dist.T[0] / sigma
         )
         xwz = np.linalg.norm(X - np.dot(W, Z), 2)
         objs.append(
@@ -213,7 +225,8 @@ def DDRTree(
         W = pca_projection((tmp1 + tmp1.T) / 2, dim)
         Z = np.dot(W.T, C)
         Y = np.dot(
-            np.dot(Z, R), inv(csr_matrix((Lambda / gamma) * L + Gamma)).toarray()
+            np.dot(Z, R),
+            inv(csr_matrix((Lambda / gamma) * L + Gamma)).toarray(),
         )
 
     if keep_history:

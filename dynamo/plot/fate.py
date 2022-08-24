@@ -59,13 +59,24 @@ def fate_bias(
 
     import matplotlib.pyplot as plt
 
-    fate_bias = fate_bias_pd(adata, group=group, basis=basis) if fate_bias_df is None else fate_bias_df
+    fate_bias = (
+        fate_bias_pd(adata, group=group, basis=basis)
+        if fate_bias_df is None
+        else fate_bias_df
+    )
 
     if "confidence" in fate_bias.keys():
-        fate_bias.set_index([fate_bias.index, fate_bias.confidence], inplace=True)
+        fate_bias.set_index(
+            [fate_bias.index, fate_bias.confidence], inplace=True
+        )
 
     ax = sns.clustermap(
-        fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False, **cluster_maps_kwargs
+        fate_bias,
+        col_cluster=True,
+        row_cluster=True,
+        figsize=figsize,
+        yticklabels=False,
+        **cluster_maps_kwargs
     )
 
     if save_show_or_return == "save":
@@ -136,7 +147,14 @@ def fate(
 
     import matplotlib.pyplot as plt
 
-    ax = scatters(adata, basis=basis, color=color, save_show_or_return="return", ax=ax, **kwargs)
+    ax = scatters(
+        adata,
+        basis=basis,
+        color=color,
+        save_show_or_return="return",
+        ax=ax,
+        **kwargs
+    )
 
     fate_key = "fate" if basis is None else "fate_" + basis
     lap_dict = adata.uns[fate_key]

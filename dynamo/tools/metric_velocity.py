@@ -4,14 +4,24 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from ..dynamo_logger import LoggerManager, main_critical, main_info, main_warning
+from ..dynamo_logger import (
+    LoggerManager,
+    main_critical,
+    main_info,
+    main_warning,
+)
 from .connectivity import (
     adj_to_knn,
     check_and_recompute_neighbors,
     mnn_from_list,
     umap_conn_indices_dist_embedding,
 )
-from .utils import einsum_correlation, fetch_X_data, get_finite_inds, inverse_norm
+from .utils import (
+    einsum_correlation,
+    fetch_X_data,
+    get_finite_inds,
+    inverse_norm,
+)
 
 
 def cell_wise_confidence(
@@ -60,7 +70,8 @@ def cell_wise_confidence(
     if method in ["cosine", "consensus", "correlation"]:
         if "indices" not in adata.uns["neighbors"].keys():
             adata.uns["neighbors"]["indices"], _ = adj_to_knn(
-                adata.obsp["connectivities"], n_neighbors=adata.uns["neighbors"]["params"]["n_neighbors"]
+                adata.obsp["connectivities"],
+                n_neighbors=adata.uns["neighbors"]["params"]["n_neighbors"],
             )
 
     if ekey == "X":
@@ -101,7 +112,9 @@ def cell_wise_confidence(
             nbrs_idx, dist = nbrs.query(X, k=n_neigh + 1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=n_neigh + 1, algorithm=alg, n_jobs=-1).fit(X)
+            nbrs = NearestNeighbors(
+                n_neighbors=n_neigh + 1, algorithm=alg, n_jobs=-1
+            ).fit(X)
             dist, nbrs_idx = nbrs.kneighbors(X)
 
         row = np.repeat(nbrs_idx[:, 0], n_neigh)
@@ -122,18 +135,36 @@ def cell_wise_confidence(
 
     elif method == "hybrid":
         # this is inspired from the locality preservation paper
-        jac, intersect_, _ = jaccard(X, V, n_pca_components, n_neigh, X_neighbors)
+        jac, intersect_, _ = jaccard(
+            X, V, n_pca_components, n_neigh, X_neighbors
+        )
 
         confidence = np.zeros(adata.n_obs)
         for i in tqdm(
             range(adata.n_obs),
             desc="calculating hybrid method (jaccard + consensus) based cell wise confidence",
         ):
-            neigh_ids = np.where(intersect_[i].A)[0] if issparse(intersect_) else np.where(intersect_[i])[0]
+            neigh_ids = (
+                np.where(intersect_[i].A)[0]
+                if issparse(intersect_)
+                else np.where(intersect_[i])[0]
+            )
             confidence[i] = (
-                jac[i] * np.mean([consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids])
+                jac[i]
+                * np.mean(
+                    [
+                        consensus(V[i].A.flatten(), V[j].A.flatten())
+                        for j in neigh_ids
+                    ]
+                )
                 if issparse(V)
-                else jac[i] * np.mean([consensus(V[i].flatten(), V[j].flatten()) for j in neigh_ids])
+                else jac[i]
+                * np.mean(
+                    [
+                        consensus(V[i].flatten(), V[j].flatten())
+                        for j in neigh_ids
+                    ]
+                )
             )
 
     elif method == "cosine":
@@ -146,10 +177,22 @@ def cell_wise_confidence(
         ):
             neigh_ids = indices[i]
             confidence[i] = (
-                np.mean([einsum_correlation(V[i].A, V[j].A.flatten(), type="cosine")[0, 0] for j in neigh_ids])
+                np.mean(
+                    [
+                        einsum_correlation(
+                            V[i].A, V[j].A.flatten(), type="cosine"
+                        )[0, 0]
+                        for j in neigh_ids
+                    ]
+                )
                 if issparse(V)
                 else np.mean(
-                    [einsum_correlation(V[i][None, :], V[j].flatten(), type="cosine")[0, 0] for j in neigh_ids]
+                    [
+                        einsum_correlation(
+                            V[i][None, :], V[j].flatten(), type="cosine"
+                        )[0, 0]
+                        for j in neigh_ids
+                    ]
                 )
             )
 
@@ -163,9 +206,16 @@ def cell_wise_confidence(
         ):
             neigh_ids = indices[i]
             confidence[i] = (
-                np.mean([consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids])
+                np.mean(
+                    [
+                        consensus(V[i].A.flatten(), V[j].A.flatten())
+                        for j in neigh_ids
+                    ]
+                )
                 if issparse(V)
-                else np.mean([consensus(V[i], V[j].flatten()) for j in neigh_ids])
+                else np.mean(
+                    [consensus(V[i], V[j].flatten()) for j in neigh_ids]
+                )
             )
 
     elif method == "correlation":
@@ -179,10 +229,22 @@ def cell_wise_confidence(
         ):
             neigh_ids = indices[i]
             confidence[i] = (
-                np.mean([einsum_correlation(V[i].A, V[j].A.flatten(), type="pearson")[0, 0] for j in neigh_ids])
+                np.mean(
+                    [
+                        einsum_correlation(
+                            V[i].A, V[j].A.flatten(), type="pearson"
+                        )[0, 0]
+                        for j in neigh_ids
+                    ]
+                )
                 if issparse(V)
                 else np.mean(
-                    [einsum_correlation(V[i][None, :], V[j].flatten(), type="pearson")[0, 0] for j in neigh_ids]
+                    [
+                        einsum_correlation(
+                            V[i][None, :], V[j].flatten(), type="pearson"
+                        )[0, 0]
+                        for j in neigh_ids
+                    ]
                 )
             )
 
@@ -191,7 +253,8 @@ def cell_wise_confidence(
 
     else:
         raise Exception(
-            "The input {} method for cell-wise velocity confidence calculation is not implemented" " yet".format(method)
+            "The input {} method for cell-wise velocity confidence calculation is not implemented"
+            " yet".format(method)
         )
 
     adata.obs[method + "_velocity_confidence"] = confidence
@@ -202,7 +265,9 @@ def cell_wise_confidence(
 def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
     from sklearn.decomposition import TruncatedSVD
 
-    transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
+    transformer = TruncatedSVD(
+        n_components=n_pca_components + 1, random_state=0
+    )
     Xt = X + V
     if issparse(Xt):
         Xt.data[Xt.data < 0] = 0
@@ -212,7 +277,9 @@ def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
     X_fit = transformer.fit(Xt)
     Xt_pca = X_fit.transform(Xt)[:, 1:]
 
-    V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(Xt_pca, n_neighbors=n_neigh, return_mapper=False)
+    V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(
+        Xt_pca, n_neighbors=n_neigh, return_mapper=False
+    )
     X_neighbors_, V_neighbors_ = (
         X_neighbors.dot(X_neighbors),
         V_neighbors.dot(V_neighbors),
@@ -220,7 +287,11 @@ def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
     union_ = X_neighbors_ + V_neighbors_ > 0
     intersect_ = mnn_from_list([X_neighbors_, V_neighbors_]) > 0
 
-    jaccard = (intersect_.sum(1) / union_.sum(1)).A1 if issparse(X) else intersect_.sum(1) / union_.sum(1)
+    jaccard = (
+        (intersect_.sum(1) / union_.sum(1)).A1
+        if issparse(X)
+        else intersect_.sum(1) / union_.sum(1)
+    )
 
     return jaccard, intersect_, union_
 
@@ -228,7 +299,9 @@ def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
 def consensus(x, y):
     x_norm, y_norm = np.linalg.norm(x), np.linalg.norm(y)
     consensus = (
-        einsum_correlation(x[None, :], y, type="cosine")[0, 0] * np.min([x_norm, y_norm]) / np.max([x_norm, y_norm])
+        einsum_correlation(x[None, :], y, type="cosine")[0, 0]
+        * np.min([x_norm, y_norm])
+        / np.max([x_norm, y_norm])
     )
 
     return consensus
@@ -352,7 +425,9 @@ def gene_wise_confidence(
                 prog_vals = all_vals[adata.obs[group] == progenitor]
                 prog_vals_v = all_vals_v[adata.obs[group] == progenitor]
                 if len(prog_vals_v) == 0:
-                    logger.error(f"The progenitor cell type {progenitor} is not in adata.obs[{group}].")
+                    logger.error(
+                        f"The progenitor cell type {progenitor} is not in adata.obs[{group}]."
+                    )
                     raise Exception()
 
                 threshold_val = np.percentile(abs(all_vals_v), V_threshold)
@@ -361,23 +436,33 @@ def gene_wise_confidence(
                     mature_vals = all_vals[adata.obs[group] == mature]
                     mature_vals_v = all_vals_v[adata.obs[group] == mature]
                     if len(mature_vals_v) == 0:
-                        logger.error(f"The terminal cell type {progenitor} is not in adata.obs[{group}].")
+                        logger.error(
+                            f"The terminal cell type {progenitor} is not in adata.obs[{group}]."
+                        )
                         raise Exception()
 
                     if np.nanmedian(prog_vals) - np.nanmedian(mature_vals) > 0:
                         # repression phase (bottom curve -- phase curve below the linear line indicates steady states)
-                        prog_confidence = 1 - sum(prog_vals_v > -threshold_val)[0] / len(
+                        prog_confidence = 1 - sum(prog_vals_v > -threshold_val)[
+                            0
+                        ] / len(
                             prog_vals_v
                         )  # most cells should downregulate / ss
-                        mature_confidence = 1 - sum(mature_vals_v > -threshold_val)[0] / len(
+                        mature_confidence = 1 - sum(
+                            mature_vals_v > -threshold_val
+                        )[0] / len(
                             mature_vals_v
                         )  # most cell should downregulate / ss
                     else:
                         # induction phase (upper curve -- phase curve above the linear line indicates steady states)
-                        prog_confidence = 1 - sum(prog_vals_v < threshold_val)[0] / len(
+                        prog_confidence = 1 - sum(prog_vals_v < threshold_val)[
+                            0
+                        ] / len(
                             prog_vals_v
                         )  # most cells should upregulate / ss
-                        mature_confidence = 1 - sum(mature_vals_v < threshold_val)[0] / len(
+                        mature_confidence = 1 - sum(
+                            mature_vals_v < threshold_val
+                        )[0] / len(
                             mature_vals_v
                         )  # most cell should upregulate / ss
 
@@ -401,14 +486,22 @@ def gene_wise_confidence(
             "mature_confidence",
         ],
     )
-    confidence.astype(dtype={"prog_confidence": "float64", "prog_confidence": "float64"})
+    confidence.astype(
+        dtype={"prog_confidence": "float64", "prog_confidence": "float64"}
+    )
     adata.var["avg_prog_confidence"], adata.var["avg_mature_confidence"] = (
         np.nan,
         np.nan,
     )
-    avg = confidence.groupby("gene")["prog_confidence", "mature_confidence"].mean()
+    avg = confidence.groupby("gene")[
+        "prog_confidence", "mature_confidence"
+    ].mean()
     avg = avg.reset_index().set_index("gene")
-    adata.var.loc[genes, "avg_prog_confidence"] = avg.loc[genes, "prog_confidence"]
-    adata.var.loc[genes, "avg_mature_confidence"] = avg.loc[genes, "mature_confidence"]
+    adata.var.loc[genes, "avg_prog_confidence"] = avg.loc[
+        genes, "prog_confidence"
+    ]
+    adata.var.loc[genes, "avg_mature_confidence"] = avg.loc[
+        genes, "mature_confidence"
+    ]
 
     adata.uns["gene_wise_confidence"] = confidence
