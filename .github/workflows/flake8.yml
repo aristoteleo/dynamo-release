@@ -18,4 +18,4 @@ jobs:
           python -m pip install -r requirements.txt
       - name: "Run Flake8"
         run: |
-          python -m flake8 --config=.flake8
+          python -m flake8 --config=.flake8 dynamo tests
