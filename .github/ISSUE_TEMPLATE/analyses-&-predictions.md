@@ -1,7 +1,6 @@
 ---
 name: Vector field analyses & predictions
-about: Help wanted in addressing questions surrounding vector field learning, analyses
-  and predictions
+about: Help wanted in addressing questions surrounding vector field learning, analyses and predictions
 title: ''
 labels: help wanted
 assignees: ''
