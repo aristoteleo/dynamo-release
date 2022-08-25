@@ -1017,6 +1017,21 @@ def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
     -------
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the `torsion` key in the .obs.
+
+    Examples
+    --------
+    >>> adata = dyn.sample_data.hematopoiesis()
+    >>> dyn.tl.reduceDimension(adata, n_components=3, enforce=True, embedding_key='X_umap_3d')
+    >>> adata
+    >>> dyn.tl.cell_velocities(adata,
+    >>>                        X=adata.layers["M_t"],
+    >>>                        V=adata.layers["velocity_alpha_minus_gamma_s"],
+    >>>                        basis='umap_3d',
+    >>>                        )
+    >>> dyn.vf.VectorField(adata, basis='umap_3d')
+    >>> dyn.vf.torsion(adata, basis='umap_3d')
+    >>> dyn.pl.streamline_plot(adata, color='torsion_umap_3d', basis='umap_3d')
+    >>> dyn.pl.streamline_plot(adata, color='torsion_umap_3d')
     """
 
     if vector_field_class is None:

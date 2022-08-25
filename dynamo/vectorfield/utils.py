@@ -796,7 +796,7 @@ def compute_torsion(vf, f_jac, X):
     n = len(X)
 
     tor = np.zeros((n, X.shape[1], X.shape[1]))
-    v, J, a = compute_acceleration(vf, f_jac, X, return_all=True)
+    v, J, a_, a = compute_acceleration(vf, f_jac, X, return_all=True)
 
     for i in tqdm(range(n), desc="Calculating torsion"):
         tor[i] = torsion_(v[i], J[:, :, i], a[i])
