@@ -86,9 +86,7 @@ def mean_first_passage_time(
     elif xkey in adata.obsm.keys():
         X = adata.obsm[xkey]
     else:
-        raise Exception(
-            f"Cannot find `{xkey}` in neither `.layers` nor `.obsm`."
-        )
+        raise Exception(f"Cannot find `{xkey}` in neither `.layers` nor `.obsm`.")
 
     T = adata.obs[tkey]
     traj_id = adata.obs[traj_key]
@@ -126,9 +124,7 @@ def mean_first_passage_time(
 
     if target_states is None:
         main_info("No target states is provided. Calculating mean exit time...")
-        mfpt = calc_mean_exit_time(
-            trajs, in_init_state=in_init_state, in_sink_state=in_sink_state
-        )
+        mfpt = calc_mean_exit_time(trajs, in_init_state=in_init_state, in_sink_state=in_sink_state)
     else:
         main_info("Calculating mean first passage time to the target states...")
         mfpt = calc_mean_first_passage_time(

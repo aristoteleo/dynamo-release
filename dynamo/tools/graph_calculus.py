@@ -72,9 +72,7 @@ def graphize_velocity(
 
     if nbrs_idx is None or return_nbrs:
         main_info("calculating neighbor indices...", indent_level=2)
-        nbrs_idx, dists, nbrs = k_nearest_neighbors(
-            X, k, exclude_self=True, return_nbrs=True
-        )
+        nbrs_idx, dists, nbrs = k_nearest_neighbors(X, k, exclude_self=True, return_nbrs=True)
 
     if dists is None:
         dists = nbrs_to_dists(X, nbrs_idx)
@@ -85,9 +83,7 @@ def graphize_velocity(
         elif E_func == "exp":
             E_func = np.exp
         else:
-            raise NotImplementedError(
-                "The specified edge function is not implemented."
-            )
+            raise NotImplementedError("The specified edge function is not implemented.")
 
     if normalize_v:
         V_norm = np.linalg.norm(V, axis=1)
@@ -104,9 +100,7 @@ def graphize_velocity(
         x = flatten(X[i])
         idx = nbrs_idx[i]
         dist = dists[i]
-        if (
-            len(idx) > 0 and idx[0] == i
-        ):  # excluding the node itself from the neighbors
+        if len(idx) > 0 and idx[0] == i:  # excluding the node itself from the neighbors
             idx = idx[1:]
             dist = dist[1:]
         vi = flatten(V[i])
@@ -245,11 +239,7 @@ def graphize_velocity_coopt(
             if v_norm == 0 or b == 0:
                 jac_sim = 0
             else:
-                jac_sim = (
-                    b
-                    / v_norm**2
-                    * (v_norm * D @ u_ - v_.dot(u_) * v_ @ D.T / v_norm)
-                )
+                jac_sim = b / v_norm**2 * (v_norm * D @ u_ - v_.dot(u_) * v_ @ D.T / v_norm)
 
             # regularization
             if r == 0:
@@ -319,9 +309,7 @@ def calc_gaussian_weight(
         w = np.exp(-0.5 * dists[i] * dists[i] / sig2)
 
         if format == "condense":
-            idx = np.array(
-                [index_condensed_matrix(n, i, j) for j in nbrs_idx[i]]
-            )
+            idx = np.array([index_condensed_matrix(n, i, j) for j in nbrs_idx[i]])
             W[idx] = w
         else:
             W[i, nbrs_idx[i]] = w
@@ -390,17 +378,11 @@ def fp_operator(
     # diffusion
     if W is None:
         if E is not None:
-            L = calc_laplacian(
-                E, E=E, convention="diffusion", weight_mode="naive"
-            )
+            L = calc_laplacian(E, E=E, convention="diffusion", weight_mode="naive")
         else:
-            L = calc_laplacian(
-                F, E=E, convention="diffusion", weight_mode="naive"
-            )
+            L = calc_laplacian(F, E=E, convention="diffusion", weight_mode="naive")
     else:
-        L = calc_laplacian(
-            W, E=E, convention="diffusion", weight_mode=weight_mode
-        )
+        L = calc_laplacian(W, E=E, convention="diffusion", weight_mode=weight_mode)
 
     # return - Mu + D * L
     # TODO: make sure the 0.5 factor here is needed when there's already 0.5 in symmetrize dvf
@@ -482,34 +464,24 @@ class GraphVectorField:
         self._div = None
 
         if W is None and E is None:
-            main_info(
-                "Neither edge weight nor length matrix is provided. Inferring adjacency matrix from `F`."
-            )
+            main_info("Neither edge weight nor length matrix is provided. Inferring adjacency matrix from `F`.")
             self.adj = np.abs(np.sign(self.F))
             self.adj = symmetrize_symmetric_matrix(self.adj).A
             self.W = self.adj
             self.E = self.adj
         else:
             if E is not None and E.shape != F.shape:
-                raise Exception(
-                    "Edge length and graph vector field dimensions do not match."
-                )
+                raise Exception("Edge length and graph vector field dimensions do not match.")
             if W is not None and W.shape != F.shape:
-                raise Exception(
-                    "Edge weight and graph vector field dimensions do not match."
-                )
+                raise Exception("Edge weight and graph vector field dimensions do not match.")
 
-            self.adj = (
-                np.abs(np.sign(E)) if E is not None else np.abs(np.sign(W))
-            )
+            self.adj = np.abs(np.sign(E)) if E is not None else np.abs(np.sign(W))
             self.adj = symmetrize_symmetric_matrix(self.adj).A
             self.W = W if W is not None else self.adj
 
             if E is not None:
                 E_ = symmetrize_symmetric_matrix(E)
-                if (
-                    E_tol is not None
-                ):  # prevent numerical instability due to extremely small e_ij
+                if E_tol is not None:  # prevent numerical instability due to extremely small e_ij
                     E_[E_.nonzero()] = np.clip(E_[E_.nonzero()], 1e-5, None)
                 self.E = E_.A
             else:
@@ -541,14 +513,10 @@ class GraphVectorField:
             F_ = self.F
         elif mode == "asym":
             F_ = self.asym()
-        return potential(
-            F_, E=self.E, W=self.W, div=self.divergence(), **kwargs
-        )
+        return potential(F_, E=self.E, W=self.W, div=self.divergence(), **kwargs)
 
     def fp_operator(self, D, **kwargs):
-        return fp_operator(
-            self.asym(), D, E=self.E, W=self.W, symmetrize_E=False, **kwargs
-        )
+        return fp_operator(self.asym(), D, E=self.E, W=self.W, symmetrize_E=False, **kwargs)
 
     def project_velocity(
         self,

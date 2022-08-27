@@ -70,9 +70,7 @@ def lambda_correction(
 
     logger.info(f"the data type identified is {datatype}", indent_level=2)
 
-    logger.info(
-        "retrieve relevant layers for detection rate correction", indent_level=1
-    )
+    logger.info("retrieve relevant layers for detection rate correction", indent_level=1)
     if datatype == "splicing_labeling":
         layers, match_tot_layer = [], []
         for layer in all_layers:
@@ -117,13 +115,9 @@ def lambda_correction(
                 )
 
     logger.info("detection rate correction starts", indent_level=1)
-    for i, layer in enumerate(
-        main_tqdm(layers, desc="iterating all relevant layers")
-    ):
+    for i, layer in enumerate(main_tqdm(layers, desc="iterating all relevant layers")):
         if i < len(match_tot_layer):
-            cur_layer = (
-                adata.layers[layer] if inplace else adata.layers[layer].copy()
-            )
+            cur_layer = adata.layers[layer] if inplace else adata.layers[layer].copy()
             cur_total = adata.layers[match_tot_layer[i]]
 
             # even layers is labeled RNA and odd unlabeled RNA
@@ -136,17 +130,13 @@ def lambda_correction(
                 if inplace:
                     adata.layers[layer] = sparse_mimmax(cur_layer, cur_total)
                 else:
-                    adata.layers[layer + "_corrected"] = sparse_mimmax(
-                        cur_layer, cur_total
-                    )
+                    adata.layers[layer + "_corrected"] = sparse_mimmax(cur_layer, cur_total)
 
             else:
                 if inplace:
                     adata.layers[layer] = cur_total - adata.layers[layer[i - 1]]
                 else:
-                    adata.layers[layer + "_corrected"] = (
-                        cur_total - adata.layers[layer[i - 1]]
-                    )
+                    adata.layers[layer + "_corrected"] = cur_total - adata.layers[layer[i - 1]]
 
     logger.finish_progress(progress_name="lambda_correction")
 

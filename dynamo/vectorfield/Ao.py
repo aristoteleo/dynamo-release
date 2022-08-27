@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.sparse as sp
 from scipy.optimize import least_squares
 from tqdm import tqdm
 
@@ -59,14 +58,12 @@ def solveQ(D, F, q0=None, debug=False, precompute_jac=True, **kwargs):
     n = D.shape[0]
     m = int(n * (n - 1) / 2)
     C = f_left(D, F)
-    f_obj = lambda q: (f_left(squareform(q, True), F) - C).flatten()
+
+    def f_obj(q):
+        return (f_left(squareform(q, True), F) - C).flatten()
+
     q0 = np.ones(m, dtype=float) if q0 is None else q0
-    if precompute_jac:
-        J = f_left_jac(q0, F)
-        f_jac = lambda q: J
-    else:
-        f_jac = "2-point"
-    sol = least_squares(f_obj, q0, jac=f_jac, **kwargs)
+    sol = least_squares(f_obj, q0, jac=lambda q: f_left_jac(q0, F) if precompute_jac else "2-point", **kwargs)
     Q = squareform(sol.x, True)
     if debug:
         C_left = f_left(Q, F)

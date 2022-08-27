@@ -108,9 +108,7 @@ def ddhodge(
         X_data_full = VecFld["X"].copy()
     else:
         if X_data.shape[0] != adata.n_obs:
-            raise ValueError(
-                f"The X_data you provided doesn't correspond to exactly {adata.n_obs} cells"
-            )
+            raise ValueError(f"The X_data you provided doesn't correspond to exactly {adata.n_obs} cells")
         X_data_full = X_data.copy()
 
     if to_downsample:
@@ -133,30 +131,19 @@ def ddhodge(
     X_data = X_data_full[cell_idx, :]
     adata_ = adata[cell_idx].copy()
 
-    if (
-        prefix + "ddhodge" in adata_.obsp.keys()
-        and not enforce
-        and not to_downsample
-    ):
-        main_info(
-            "fetch computation results from adata.obsp[%s]..."
-            % (prefix + "ddhodge")
-        )
+    if prefix + "ddhodge" in adata_.obsp.keys() and not enforce and not to_downsample:
+        main_info("fetch computation results from adata.obsp[%s]..." % (prefix + "ddhodge"))
         adj_mat = adata_.obsp[prefix + "ddhodge"]
     else:
         if adjmethod == "graphize_vecfld":
             main_info("graphizing vectorfield...")
             V_data = func(X_data)
             neighbor_result_prefix = "" if layer is None else layer
-            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(
-                neighbor_result_prefix
-            )
+            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
             if neighbor_key not in adata_.uns_keys() or to_downsample:
                 existing_nbrs_idx = None
             else:
-                check_and_recompute_neighbors(
-                    adata, result_prefix=neighbor_result_prefix
-                )
+                check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
                 neighbors = adata_.obsp[conn_key]
                 existing_nbrs_idx = neighbors.tolil().rows
 
@@ -189,9 +176,7 @@ def ddhodge(
 
             adj_mat = adata_.uns["transition_matrix"][cell_idx, cell_idx]
         else:
-            raise ValueError(
-                f"adjmethod can be only one of {'naive', 'graphize_vecfld'}"
-            )
+            raise ValueError(f"adjmethod can be only one of {'naive', 'graphize_vecfld'}")
 
     # TODO transform the type of adj_mat here so that we can maintain one set of API (either sparse or numpy)
     # if not issparse(adj_mat):
@@ -217,9 +202,7 @@ def ddhodge(
     # TODO the following line does not work on sparse matrix.
     A = np.abs(np.sign(adj_mat))
 
-    if (
-        prefix + "ddhodge" not in adata.obsp.keys() or enforce
-    ) and not to_downsample:
+    if (prefix + "ddhodge" not in adata.obsp.keys() or enforce) and not to_downsample:
         adata.obsp[prefix + "ddhodge"] = adj_mat
 
     # ddhodge_div = div(g)
@@ -233,9 +216,7 @@ def ddhodge(
             indent_level=2,
         )
 
-        query_idx = np.array(
-            list(set(np.arange(adata.n_obs)).difference(cell_idx))
-        )
+        query_idx = np.array(list(set(np.arange(adata.n_obs)).difference(cell_idx)))
         query_data = X_data_full[query_idx, :]
 
         # construct nbrs of query points based on two types of nbrs: from NNDescent (pynndescent) or NearestNeighbors
@@ -257,30 +238,16 @@ def ddhodge(
             W.dot(ddhodge_div),
             W.dot(potential_),
         )
-        (
-            adata.obs[prefix + "ddhodge_sampled"],
-            adata.obs[prefix + "ddhodge_div"],
-            adata.obs[prefix + "potential"],
-        ) = (
+        (adata.obs[prefix + "ddhodge_sampled"], adata.obs[prefix + "ddhodge_div"], adata.obs[prefix + "potential"],) = (
             False,
             0,
             0,
         )
-        adata.obs.loc[
-            adata.obs_names[cell_idx], prefix + "ddhodge_sampled"
-        ] = True
-        adata.obs.loc[
-            adata.obs_names[cell_idx], prefix + "ddhodge_div"
-        ] = ddhodge_div
-        adata.obs.loc[
-            adata.obs_names[cell_idx], prefix + "ddhodge_potential"
-        ] = potential_
-        adata.obs.loc[
-            adata.obs_names[query_idx], prefix + "ddhodge_div"
-        ] = query_data_div
-        adata.obs.loc[
-            adata.obs_names[query_idx], prefix + "ddhodge_potential"
-        ] = query_data_potential
+        adata.obs.loc[adata.obs_names[cell_idx], prefix + "ddhodge_sampled"] = True
+        adata.obs.loc[adata.obs_names[cell_idx], prefix + "ddhodge_div"] = ddhodge_div
+        adata.obs.loc[adata.obs_names[cell_idx], prefix + "ddhodge_potential"] = potential_
+        adata.obs.loc[adata.obs_names[query_idx], prefix + "ddhodge_div"] = query_data_div
+        adata.obs.loc[adata.obs_names[query_idx], prefix + "ddhodge_potential"] = query_data_potential
     else:
         adata.obs[prefix + "ddhodge_div"] = ddhodge_div
         adata.obs[prefix + "ddhodge_potential"] = potential_

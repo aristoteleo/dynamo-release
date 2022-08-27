@@ -20,9 +20,7 @@ def test_smallest_distance_simple_1():
     dist = dynamo.tl.compute_smallest_distance(input_mat)
     assert abs(dist - 2.23606797749979) < 1e-7
     input_mat = np.array([[0, 0], [3, 4], [5, 6], [0, 0]])
-    dist = dynamo.tl.compute_smallest_distance(
-        input_mat, use_unique_coords=False
-    )
+    dist = dynamo.tl.compute_smallest_distance(input_mat, use_unique_coords=False)
     assert dist == 0
 
 
@@ -33,13 +31,7 @@ def test_smallest_distance_simple_random():
         coords.append(np.random.rand(2) * 1000)
     coords = np.array(coords)
 
-    assert (
-        abs(
-            smallest_distance_bf(coords)
-            - dynamo.tl.compute_smallest_distance(coords)
-        )
-        < 1e-8
-    )
+    assert abs(smallest_distance_bf(coords) - dynamo.tl.compute_smallest_distance(coords)) < 1e-8
 
 
 if __name__ == "__main__":

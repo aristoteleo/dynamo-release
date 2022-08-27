@@ -9,9 +9,7 @@ import dynamo as dyn
 
 
 def test_scatter_contour(adata):
-    dyn.pl.scatters(
-        adata, layer="curvature", save_show_or_return="return", contour=True
-    )
+    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True)
     dyn.pl.scatters(
         adata,
         layer="curvature",
@@ -103,9 +101,7 @@ def test_nxviz7_circosplot(utils):
     adata_layer_key = "M_s"
 
     for node in network.nodes:
-        network.nodes[node][adata_layer_key] = (
-            adata[:, node].layers[adata_layer_key].mean()
-        )
+        network.nodes[node][adata_layer_key] = adata[:, node].layers[adata_layer_key].mean()
     dyn.pl.circosPlot(
         network,
         node_color_key="M_s",

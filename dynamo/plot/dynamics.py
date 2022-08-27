@@ -202,22 +202,16 @@ def phase_portraits(
     )
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
     mapper = get_mapper(smoothed=use_smoothed)
 
     point_size = (
-        500.0 / np.sqrt(adata.shape[0]) * 5
-        if pointsize is None
-        else 500.0 / np.sqrt(adata.shape[0]) * 5 * pointsize
+        500.0 / np.sqrt(adata.shape[0]) * 5 if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * 5 * pointsize
     )
-    scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0
-    )  # (0, 0, 0, 1)
+    scatter_kwargs = dict(alpha=0.2, s=point_size, edgecolor=None, linewidth=0)  # (0, 0, 0, 1)
 
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
@@ -240,9 +234,7 @@ def phase_portraits(
     else:
         k_name = "gamma"
 
-    valid_id = np.isfinite(
-        np.array(adata.var.loc[_genes, k_name], dtype="float")
-    ).flatten()
+    valid_id = np.isfinite(np.array(adata.var.loc[_genes, k_name], dtype="float")).flatten()
     genes = np.array(_genes)[valid_id].tolist()
     # idx = [adata.var.index.to_list().index(i) for i in genes]
 
@@ -297,15 +289,13 @@ def phase_portraits(
         elif ekey in ["protein", "X_protein"]:
             E_vec = (
                 index_gene(adata, adata.layers[mapper[ekey]], genes)
-                if (ekey in mapper.keys())
-                and (mapper[ekey] in adata.obsm_keys())
+                if (ekey in mapper.keys()) and (mapper[ekey] in adata.obsm_keys())
                 else index_gene(adata, adata.obsm[ekey], genes)
             )
         else:
             E_vec = (
                 index_gene(adata, adata.layers[mapper[ekey]], genes)
-                if (ekey in mapper.keys())
-                and (mapper[ekey] in adata.layers.keys())
+                if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys())
                 else index_gene(adata, adata.layers[ekey], genes)
             )
 
@@ -342,11 +332,7 @@ def phase_portraits(
             if "velocity_P" in adata.obsm.keys():
                 P_vec = index_gene(adata, adata.layers["velocity_P"], genes)
         else:
-            raise Exception(
-                "adata has no vkey {} in either the layers or the obsm slot".format(
-                    vkey
-                )
-            )
+            raise Exception("adata has no vkey {} in either the layers or the obsm slot".format(vkey))
 
     E_vec, V_vec = (
         E_vec.A if issparse(E_vec) else E_vec,
@@ -354,9 +340,7 @@ def phase_portraits(
     )
 
     if k_name in adata.var.columns:
-        if not ("gamma_b" in adata.var.columns) or all(
-            adata.var.gamma_b.isna()
-        ):
+        if not ("gamma_b" in adata.var.columns) or all(adata.var.gamma_b.isna()):
             adata.var.loc[:, "gamma_b"] = 0
         gamma, velocity_offset = (
             index_gene(adata, adata.var.loc[:, k_name].values, genes),
@@ -378,9 +362,7 @@ def phase_portraits(
             index_gene(adata, adata.layers[mapper["X_total"]], genes),
         )
 
-        new_mat, tot_mat = (
-            (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
-        )
+        new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
 
         vel_u, vel_s = (
             index_gene(adata, adata.layers["velocity_N"].A, genes),
@@ -410,15 +392,11 @@ def phase_portraits(
         )
 
         unspliced_mat, spliced_mat = (
-            (unspliced_mat.A, spliced_mat.A)
-            if issparse(unspliced_mat)
-            else (unspliced_mat, spliced_mat)
+            (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
         )
 
         vel_u, vel_s = (
-            np.zeros_like(
-                index_gene(adata, adata.layers["velocity_S"].A, genes)
-            ),
+            np.zeros_like(index_gene(adata, adata.layers["velocity_S"].A, genes)),
             index_gene(adata, adata.layers["velocity_S"].A, genes),
         )
 
@@ -449,16 +427,12 @@ def phase_portraits(
 
         vel_u, vel_s = (
             (
-                index_gene(adata, adata.layers["velocity_U"].A, genes)
-                if "velocity_U" in adata.layers.keys()
-                else None,
+                index_gene(adata, adata.layers["velocity_U"].A, genes) if "velocity_U" in adata.layers.keys() else None,
                 index_gene(adata, adata.layers["velocity_S"].A, genes),
             )
             if vkey == "velocity_S"
             else (
-                index_gene(adata, adata.layers["velocity_N"].A, genes)
-                if "velocity_U" in adata.layers.keys()
-                else None,
+                index_gene(adata, adata.layers["velocity_N"].A, genes) if "velocity_U" in adata.layers.keys() else None,
                 index_gene(adata, adata.layers["velocity_T"].A, genes),
             )
         )
@@ -467,10 +441,7 @@ def phase_portraits(
                 gamma_P = adata.var.delta[genes].values
                 velocity_offset_P = (
                     [0] * n_cells
-                    if (
-                        not ("delta_b" in adata.var.columns)
-                        or adata.var.delta_b.unique() is None
-                    )
+                    if (not ("delta_b" in adata.var.columns) or adata.var.delta_b.unique() is None)
                     else adata.var.delta_b[genes].values
                 )
             else:
@@ -481,10 +452,7 @@ def phase_portraits(
 
             P = (
                 index_gene(adata, adata.obsm[mapper["X_protein"]], genes)
-                if (
-                    ["X_protein"] in adata.obsm.keys()
-                    or [mapper["X_protein"]] in adata.obsm.keys()
-                )
+                if (["X_protein"] in adata.obsm.keys() or [mapper["X_protein"]] in adata.obsm.keys())
                 else index_gene(adata, adata.obsm["protein"], genes)
             )
             P = P.A if issparse(P) else P
@@ -542,19 +510,13 @@ def phase_portraits(
             "spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode"
         )
 
-    num_per_gene = (
-        6 if ("protein" in adata.obsm.keys() and mode == "full") else 3
-    )
+    num_per_gene = 6 if ("protein" in adata.obsm.keys() and mode == "full") else 3
     ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
-        g = plt.figure(
-            None, (3 * ncol, 3 * nrow), facecolor=_background
-        )  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
     else:
-        g = plt.figure(
-            None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background
-        )  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
     if discrete_continous_div_themes is None:
         if _background in ["#ffffff", "black"]:
@@ -577,27 +539,21 @@ def phase_portraits(
         ) = discrete_continous_div_themes
 
     discrete_cmap, discrete_color_key_cmap, discrete_background = (
-        _themes[discrete_theme]["cmap"]
-        if discrete_continous_div_cmap is None
-        else discrete_continous_div_cmap[0],
+        _themes[discrete_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[0],
         _themes[discrete_theme]["color_key_cmap"]
         if discrete_continous_div_color_key_cmap is None
         else discrete_continous_div_color_key_cmap[0],
         _themes[discrete_theme]["background"],
     )
     continous_cmap, continous_color_key_cmap, continous_background = (
-        _themes[continous_theme]["cmap"]
-        if discrete_continous_div_cmap is None
-        else discrete_continous_div_cmap[1],
+        _themes[continous_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[1],
         _themes[continous_theme]["color_key_cmap"]
         if discrete_continous_div_color_key_cmap is None
         else discrete_continous_div_color_key_cmap[1],
         _themes[continous_theme]["background"],
     )
     divergent_cmap, divergent_color_key_cmap, divergent_background = (
-        _themes[divergent_theme]["cmap"]
-        if discrete_continous_div_cmap is None
-        else discrete_continous_div_cmap[2],
+        _themes[divergent_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[2],
         _themes[divergent_theme]["color_key_cmap"]
         if discrete_continous_div_color_key_cmap is None
         else discrete_continous_div_color_key_cmap[2],
@@ -715,9 +671,7 @@ def phase_portraits(
         # only linear regression fitting of extreme cells will be plotted together with U-S phase plane.
         if vkey in ["velocity_S", "velocity_T"]:
             xnew = (
-                np.linspace(
-                    cur_pd.loc[:, "S"].min(), cur_pd.loc[:, "S"].max() * 0.80
-                )
+                np.linspace(cur_pd.loc[:, "S"].min(), cur_pd.loc[:, "S"].max() * 0.80)
                 if vkey == "velocity_S"
                 else np.linspace(
                     cur_pd.loc[:, "total"].min(),
@@ -726,16 +680,13 @@ def phase_portraits(
             )
             ax1.plot(
                 xnew,
-                xnew * cur_pd.loc[:, "gamma"].unique()
-                + cur_pd.loc[:, "velocity_offset"].unique(),
+                xnew * cur_pd.loc[:, "gamma"].unique() + cur_pd.loc[:, "velocity_offset"].unique(),
                 dashes=[6, 2],
                 c=font_color,
             )
 
         X_array, V_array = (
-            cur_pd.loc[:, ["S", "U"]].values
-            if vkey == "velocity_S"
-            else cur_pd.loc[:, ["total", "new"]].values,
+            cur_pd.loc[:, ["S", "U"]].values if vkey == "velocity_S" else cur_pd.loc[:, ["total", "new"]].values,
             cur_pd.loc[:, ["vel_s", "vel_u"]].values,
         )
         if no_vel_u and vkey == "velocity_S":
@@ -753,9 +704,7 @@ def phase_portraits(
             else:
                 edgecolors = "black"
 
-            head_w, head_l, ax_l, scale = default_quiver_args(
-                quiver_size, quiver_length
-            )
+            head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)
 
             quiver_kwargs = {
                 "angles": "xy",
@@ -843,11 +792,7 @@ def phase_portraits(
             despline_all(ax2)
             deaxis_all(ax2)
 
-        v_max = (
-            0.01
-            if min(V_vec) + max(V_vec) == 0
-            else np.max(np.abs(V_vec.values))
-        )
+        v_max = 0.01 if min(V_vec) + max(V_vec) == 0 else np.max(np.abs(V_vec.values))
         div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
@@ -897,9 +842,7 @@ def phase_portraits(
         if (
             "protein" in adata.obsm.keys()
             and mode == "full"
-            and all(
-                [i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]]
-            )
+            and all([i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]])
         ):
             if cur_pd.color.unique() != np.nan:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
@@ -972,13 +915,10 @@ def phase_portraits(
             ax4.set_xlabel("spliced (1st moment)")
             ax4.set_ylabel("protein (1st moment)")
 
-            xnew = np.linspace(
-                cur_pd.loc[:, "P"].min(), cur_pd.loc[:, "P"].max()
-            )
+            xnew = np.linspace(cur_pd.loc[:, "P"].min(), cur_pd.loc[:, "P"].max())
             ax4.plot(
                 xnew,
-                xnew * cur_pd.loc[:, "gamma_P"].unique()
-                + cur_pd.loc[:, "velocity_offset_P"].unique(),
+                xnew * cur_pd.loc[:, "gamma_P"].unique() + cur_pd.loc[:, "velocity_offset_P"].unique(),
                 dashes=[6, 2],
                 c=font_color,
             )
@@ -1000,9 +940,7 @@ def phase_portraits(
                 else:
                     edgecolors = "black"
 
-                head_w, head_l, ax_l, scale = default_quiver_args(
-                    quiver_size, quiver_length
-                )
+                head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)
 
                 quiver_kwargs = {
                     "angles": "xy",
@@ -1037,14 +975,10 @@ def phase_portraits(
 
             V_vec = df_embedding.loc[:, "velocity_p"]
 
-            limit = np.nanmax(
-                np.abs(np.nanpercentile(V_vec, [1, 99]))
-            )  # upper and lowe limit / saturation
+            limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
             V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-            V_vec = V_vec / (
-                2 * limit
-            )  # that is: tmp_colorandum / (limit - (-limit))
+            V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
             V_vec = np.clip(V_vec, 0, 1)
 
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
@@ -1253,12 +1187,7 @@ def dynamics(
     show_kin_parameters = True if true_param_prefix else show_kin_parameters
 
     uns_keys = np.array(adata.uns_keys())
-    tmp = np.array(
-        [
-            i.split("_dynamics")[0] if i.endswith("_dynamics") else None
-            for i in uns_keys
-        ]
-    )
+    tmp = np.array([i.split("_dynamics")[0] if i.endswith("_dynamics") else None for i in uns_keys])
     tmp1 = [False if i is None else True for i in tmp]
     group = tmp[tmp1][0] if sum(tmp1) > 0 else None
 
@@ -1277,10 +1206,7 @@ def dynamics(
     filter_gene_mode = adata.uns[uns_key]["filter_gene_mode"]
     X_data = adata.uns[uns_key]["X_data"]
     X_fit_data = adata.uns[uns_key]["X_fit_data"]
-    has_splicing = (
-        adata.uns[uns_key]["has_splicing"]
-        and adata.uns[uns_key]["splicing_labeling"]
-    )
+    has_splicing = adata.uns[uns_key]["has_splicing"] and adata.uns[uns_key]["splicing_labeling"]
     model = adata.uns[uns_key]["model"]
     use_smoothed = adata.uns[uns_key]["use_smoothed"]
     est_method = adata.uns[uns_key]["est_method"]
@@ -1307,9 +1233,7 @@ def dynamics(
         )
 
     valid_adata = adata[:, valid_gene_names]
-    gene_idx = np.array(
-        [np.where(valid_genes == gene)[0][0] for gene in valid_gene_names]
-    )
+    gene_idx = np.array([np.where(valid_genes == gene)[0][0] for gene in valid_gene_names])
     X_data, X_fit_data = (
         [X_data[i] for i in gene_idx],
         [X_fit_data[i] for i in gene_idx],
@@ -1381,9 +1305,7 @@ def dynamics(
             sub_plot_n = 2
 
     ncols = (  # each column correspond to one gene
-        len(gene_idx) * grp_len
-        if ncols is None
-        else min(len(gene_idx) * grp_len, ncols)
+        len(gene_idx) * grp_len if ncols is None else min(len(gene_idx) * grp_len, ncols)
     )
     nrows = int(np.ceil(len(gene_idx) * sub_plot_n * grp_len / ncols))
     figsize = [7, 5] if figsize is None else figsize
@@ -1709,53 +1631,26 @@ def dynamics(
                     }  # "la": 1, "si": 0,
                     mom = moments(*list(params.values()))
                     mom.integrate(t)
-                    mom_data = (
-                        mom.get_all_central_moments()
-                        if has_splicing
-                        else mom.get_nosplice_central_moments()
-                    )
+                    mom_data = mom.get_all_central_moments() if has_splicing else mom.get_nosplice_central_moments()
                     if true_param_prefix is not None:
-                        (
-                            true_a,
-                            true_b,
-                            true_alpha_a,
-                            true_alpha_i,
-                            true_beta,
-                            true_gamma,
-                        ) = (
-                            valid_adata.var.loc[
-                                gene_name, true_param_prefix + "a"
-                            ]
+                        (true_a, true_b, true_alpha_a, true_alpha_i, true_beta, true_gamma,) = (
+                            valid_adata.var.loc[gene_name, true_param_prefix + "a"]
                             if true_param_prefix + "a" in valid_adata.var_keys()
                             else -np.inf,
-                            valid_adata.var.loc[
-                                gene_name, true_param_prefix + "b"
-                            ]
+                            valid_adata.var.loc[gene_name, true_param_prefix + "b"]
                             if true_param_prefix + "b" in valid_adata.var_keys()
                             else -np.inf,
-                            valid_adata.var.loc[
-                                gene_name, true_param_prefix + "alpha_a"
-                            ]
-                            if true_param_prefix + "alpha_a"
-                            in valid_adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "alpha_a"]
+                            if true_param_prefix + "alpha_a" in valid_adata.var_keys()
                             else -np.inf,
-                            valid_adata.var.loc[
-                                gene_name, true_param_prefix + "alpha_i"
-                            ]
-                            if true_param_prefix + "alpha_i"
-                            in valid_adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "alpha_i"]
+                            if true_param_prefix + "alpha_i" in valid_adata.var_keys()
                             else -np.inf,
-                            valid_adata.var.loc[
-                                gene_name, true_param_prefix + "beta"
-                            ]
-                            if true_param_prefix + "beta"
-                            in valid_adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                            if true_param_prefix + "beta" in valid_adata.var_keys()
                             else -np.inf,
-                            valid_adata.var.loc[
-                                gene_name, true_param_prefix + "gamma"
-                            ]
-                            if true_param_prefix + "gamma"
-                            in valid_adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                            if true_param_prefix + "gamma" in valid_adata.var_keys()
                             else -np.inf,
                         )
 
@@ -1788,13 +1683,8 @@ def dynamics(
                                 valid_adata.layers["sl"].A.T,
                             ]
                         )
-                        x_data = (
-                            [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
-                        )
-                        if (
-                            log_unnormalized
-                            and "X_ul" not in valid_adata.layers.keys()
-                        ):
+                        x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
+                        if log_unnormalized and "X_ul" not in valid_adata.layers.keys():
                             x_data = [np.log1p(tmp[0]), np.log1p(tmp[1])]
 
                         title_ = [
@@ -1820,10 +1710,7 @@ def dynamics(
                         )
                         x_data = [tmp.A] if issparse(tmp) else [tmp]
 
-                        if (
-                            log_unnormalized
-                            and "X_new" not in valid_adata.layers.keys()
-                        ):
+                        if log_unnormalized and "X_new" not in valid_adata.layers.keys():
                             x_data = [np.log1p(x_data[0])]
                         # only use new key for calculation, so we only have M, V
                         title_ = [" (labeled)", " (labeled)"]
@@ -1838,11 +1725,7 @@ def dynamics(
                             np.floor(i / ncols)
                         )  # make sure all related plots for the same gene in the same column.
 
-                        col_loc = (
-                            (row_ind * sub_plot_n + j) * ncols * grp_len
-                            + (i % ncols - 1) * grp_len
-                            + 1
-                        )
+                        col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
                         row_i, col_i = np.where(fig_mat == col_loc)
                         ax = (
                             plt.subplot(gs[col_loc])
@@ -1929,9 +1812,7 @@ def dynamics(
                             if true_param_prefix is not None:
                                 ax.plot(t, true_mom_data[j], "r--")
                         else:
-                            ax.scatter(
-                                T_uniq, Obs_v[j - j_species][i]
-                            )  # , c='r'
+                            ax.scatter(T_uniq, Obs_v[j - j_species][i])  # , c='r'
                             if y_log_scale:
                                 ax.set_yscale("log")
                             if log_unnormalized:
@@ -1987,15 +1868,7 @@ def dynamics(
                                 np.log1p(sl),
                             )
 
-                        (
-                            alpha,
-                            beta,
-                            gamma,
-                            ul0,
-                            sl0,
-                            uu0,
-                            half_life,
-                        ) = valid_adata.var.loc[
+                        (alpha, beta, gamma, ul0, sl0, uu0, half_life,) = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -2015,42 +1888,27 @@ def dynamics(
                         beta = sys.float_info.epsilon if beta == 0 else beta
                         gamma = sys.float_info.epsilon if gamma == 0 else gamma
                         u = sol_u(t, uu0, alpha, beta)
-                        su0 = np.mean(
-                            su[T == np.min(T)]
-                        )  # this should also be estimated
+                        su0 = np.mean(su[T == np.min(T)])  # this should also be estimated
                         s = sol_s(t, su0, uu0, alpha, beta, gamma)
                         w = sol_u(t, ul0, 0, beta)
                         l = sol_s(t, sl0, ul0, 0, beta, gamma)
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "alpha"
-                                ]
-                                if true_param_prefix + "alpha"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "beta"
-                                ]
-                                if true_param_prefix + "beta"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in valid_adata.var_keys()
                                 else -np.inf,
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "gamma"
-                                ]
-                                if true_param_prefix + "gamma"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
 
                             true_u = sol_u(t, uu0, true_alpha, true_beta)
-                            true_s = sol_s(
-                                t, su0, uu0, true_alpha, true_beta, true_gamma
-                            )
+                            true_s = sol_s(t, su0, uu0, true_alpha, true_beta, true_gamma)
                             true_w = sol_u(t, ul0, 0, true_beta)
-                            true_l = sol_s(
-                                t, sl0, ul0, 0, true_beta, true_gamma
-                            )
+                            true_l = sol_s(t, sl0, ul0, 0, true_beta, true_gamma)
 
                             true_p = np.vstack((true_u, true_w, true_s, true_l))
 
@@ -2066,14 +1924,9 @@ def dynamics(
                             np.vstack((u, w, s, l)),
                         )
                     else:
-                        layers = (
-                            ["X_new", "X_total"]
-                            if "X_new" in valid_adata.layers.keys()
-                            else ["new", "total"]
-                        )
+                        layers = ["X_new", "X_total"] if "X_new" in valid_adata.layers.keys() else ["new", "total"]
                         uu, ul = (
-                            valid_adata[:, gene_name].layers[layers[1]]
-                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]] - valid_adata[:, gene_name].layers[layers[0]],
                             valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
@@ -2104,17 +1957,11 @@ def dynamics(
                         title_ = ["(unlabeled)", "(labeled)"]
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "alpha"
-                                ]
-                                if true_param_prefix + "alpha"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "gamma"
-                                ]
-                                if true_param_prefix + "gamma"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
                             true_u = sol_u(t, uu0, true_alpha, true_gamma)
@@ -2125,15 +1972,9 @@ def dynamics(
                         Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
 
                     for j in range(sub_plot_n):
-                        row_ind = int(
-                            np.floor(i / ncols)
-                        )  # make sure unlabled and labeled are in the same column.
+                        row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-                        col_loc = (
-                            (row_ind * sub_plot_n + j) * ncols * grp_len
-                            + (i % ncols - 1) * grp_len
-                            + 1
-                        )
+                        col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
                         row_i, col_i = np.where(fig_mat == col_loc)
                         ax = (
                             plt.subplot(gs[col_loc])
@@ -2192,9 +2033,7 @@ def dynamics(
                             ax.text(
                                 0.8,
                                 0.8,
-                                r"$t_{1/2} = $"
-                                + "{0:.2f}".format(half_life)
-                                + unit[0],
+                                r"$t_{1/2} = $" + "{0:.2f}".format(half_life) + unit[0],
                                 ha="right",
                                 va="top",
                                 transform=ax.transAxes,
@@ -2209,9 +2048,7 @@ def dynamics(
                         ax.set_title(gene_name + " " + title_[j])
                 elif experiment_type == "kin":
                     if model == "deterministic":
-                        logLL = valid_adata.var.loc[
-                            valid_gene_names, prefix + "logLL"
-                        ]
+                        logLL = valid_adata.var.loc[valid_gene_names, prefix + "logLL"]
                         alpha, beta, gamma, half_life = valid_adata.var.loc[
                             gene_name,
                             [
@@ -2329,46 +2166,29 @@ def dynamics(
                             # $l$ - labeled, spliced
                             #
                             beta = sys.float_info.epsilon if beta == 0 else beta
-                            gamma = (
-                                sys.float_info.epsilon if gamma == 0 else gamma
-                            )
+                            gamma = sys.float_info.epsilon if gamma == 0 else gamma
                             u = sol_u(t, uu0, 0, beta)
                             s = sol_s(t, su0, uu0, 0, beta, gamma)
                             w = sol_u(t, 0, alpha, beta)
                             l = sol_s(t, 0, 0, alpha, beta, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_beta, true_gamma = (
-                                    valid_adata.var.loc[
-                                        gene_name, true_param_prefix + "alpha"
-                                    ]
-                                    if true_param_prefix + "alpha"
-                                    in valid_adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in valid_adata.var_keys()
                                     else -np.inf,
-                                    valid_adata.var.loc[
-                                        gene_name, true_param_prefix + "beta"
-                                    ]
-                                    if true_param_prefix + "beta"
-                                    in valid_adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                    if true_param_prefix + "beta" in valid_adata.var_keys()
                                     else -np.inf,
-                                    valid_adata.var.loc[
-                                        gene_name, true_param_prefix + "gamma"
-                                    ]
-                                    if true_param_prefix + "gamma"
-                                    in valid_adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in valid_adata.var_keys()
                                     else -np.inf,
                                 )
                                 true_u = sol_u(t, uu0, 0, true_beta)
-                                true_s = sol_s(
-                                    t, su0, uu0, 0, true_beta, true_gamma
-                                )
+                                true_s = sol_s(t, su0, uu0, 0, true_beta, true_gamma)
                                 true_w = sol_u(t, 0, true_alpha, true_beta)
-                                true_l = sol_s(
-                                    t, 0, 0, true_alpha, true_beta, true_gamma
-                                )
+                                true_l = sol_s(t, 0, 0, true_alpha, true_beta, true_gamma)
 
-                                true_p = np.vstack(
-                                    (true_u, true_w, true_s, true_l)
-                                )
+                                true_p = np.vstack((true_u, true_w, true_s, true_l))
 
                             title_ = [
                                 "(unspliced unlabeled)",
@@ -2382,11 +2202,7 @@ def dynamics(
                                 np.vstack((u, w, s, l)),
                             )
                         else:
-                            layers = (
-                                ["X_new", "X_total"]
-                                if "X_new" in valid_adata.layers.keys()
-                                else ["new", "total"]
-                            )
+                            layers = ["X_new", "X_total"] if "X_new" in valid_adata.layers.keys() else ["new", "total"]
                             uu, ul = (
                                 valid_adata[:, gene_name].layers[layers[1]]
                                 - valid_adata[:, gene_name].layers[layers[0]],
@@ -2417,17 +2233,11 @@ def dynamics(
                             l = None  # sol_s(t, 0, 0, alpha, 1, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_gamma = (
-                                    valid_adata.var.loc[
-                                        gene_name, true_param_prefix + "alpha"
-                                    ]
-                                    if true_param_prefix + "alpha"
-                                    in valid_adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in valid_adata.var_keys()
                                     else -np.inf,
-                                    valid_adata.var.loc[
-                                        gene_name, true_param_prefix + "gamma"
-                                    ]
-                                    if true_param_prefix + "gamma"
-                                    in valid_adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in valid_adata.var_keys()
                                     else -np.inf,
                                 )
                                 true_u = sol_u(t, uu0, 0, true_gamma)
@@ -2440,15 +2250,9 @@ def dynamics(
                             Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
 
                     for j in range(sub_plot_n):
-                        row_ind = int(
-                            np.floor(i / ncols)
-                        )  # make sure unlabled and labeled are in the same column.
+                        row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-                        col_loc = (
-                            (row_ind * sub_plot_n + j) * ncols * grp_len
-                            + (i % ncols - 1) * grp_len
-                            + 1
-                        )
+                        col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
                         row_i, col_i = np.where(fig_mat == col_loc)
                         ax = (
                             plt.subplot(gs[col_loc])
@@ -2572,29 +2376,18 @@ def dynamics(
                         gamma = sys.float_info.epsilon if gamma == 0 else gamma
                         U_sol = sol_u(t, U0, 0, beta)
                         S_sol = sol_u(t, S0, 0, gamma)
-                        l = sol_u(t, 0, alpha, beta) + sol_s(
-                            t, 0, 0, alpha, beta, gamma
-                        )
+                        l = sol_u(t, 0, alpha, beta) + sol_s(t, 0, 0, alpha, beta, gamma)
                         L = sl + ul
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "alpha"
-                                ]
-                                if true_param_prefix + "alpha"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "beta"
-                                ]
-                                if true_param_prefix + "beta"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in valid_adata.var_keys()
                                 else -np.inf,
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "gamma"
-                                ]
-                                if true_param_prefix + "gamma"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
                             true_l = sol_u(t, 0, true_alpha, true_beta) + sol_s(
@@ -2603,14 +2396,9 @@ def dynamics(
 
                         title_ = ["labeled"]
                     else:
-                        layers = (
-                            ["X_new", "X_total"]
-                            if "X_new" in valid_adata.layers.keys()
-                            else ["new", "total"]
-                        )
+                        layers = ["X_new", "X_total"] if "X_new" in valid_adata.layers.keys() else ["new", "total"]
                         uu, ul = (
-                            valid_adata[:, gene_name].layers[layers[1]]
-                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]] - valid_adata[:, gene_name].layers[layers[0]],
                             valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
@@ -2635,28 +2423,18 @@ def dynamics(
                         old = sol_u(t, total0, 0, gamma)
                         s = None  # sol_s(t, su0, uu0, 0, 1, gamma)
                         w = None
-                        l = sol_u(
-                            t, 0, alpha, gamma
-                        )  # sol_s(t, 0, 0, alpha, 1, gamma)
+                        l = sol_u(t, 0, alpha, gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
                         L = ul
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "alpha"
-                                ]
-                                if true_param_prefix + "alpha"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                valid_adata.var.loc[
-                                    gene_name, true_param_prefix + "gamma"
-                                ]
-                                if true_param_prefix + "gamma"
-                                in valid_adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
-                            true_l = sol_u(
-                                t, 0, true_alpha, true_gamma
-                            )  # sol_s(t, 0, 0, alpha, 1, gamma)
+                            true_l = sol_u(t, 0, true_alpha, true_gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
 
                         title_ = ["labeled"]
 
@@ -2664,21 +2442,11 @@ def dynamics(
                     if true_param_prefix is not None:
                         true_p = np.hstack(true_l)
 
-                    row_ind = int(
-                        np.floor(i / ncols)
-                    )  # make sure unlabled and labeled are in the same column.
+                    row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-                    col_loc = (
-                        (row_ind * sub_plot_n) * ncols * grp_len
-                        + (i % ncols - 1) * grp_len
-                        + 1
-                    )
+                    col_loc = (row_ind * sub_plot_n) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
                     row_i, col_i = np.where(fig_mat == col_loc)
-                    ax = (
-                        plt.subplot(gs[col_loc])
-                        if gene_order == "column"
-                        else plt.subplot(gs[fig_mat[col_i, row_i]])
-                    )
+                    ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i]])
                     if true_param_prefix is not None:
                         if has_splicing:
                             ax.text(
@@ -2717,10 +2485,7 @@ def dynamics(
                                 transform=ax.transAxes,
                             )
                     ax.boxplot(
-                        x=[
-                            Obs[np.hstack((np.zeros_like(T), T)) == std]
-                            for std in [0, T_uniq[0]]
-                        ],
+                        x=[Obs[np.hstack((np.zeros_like(T), T)) == std] for std in [0, T_uniq[0]]],
                         positions=[0, T_uniq[0]],
                         widths=boxwidth,
                         showfliers=False,
@@ -2787,14 +2552,8 @@ def dynamics(
                                 prefix + "alpha_std",
                             ],
                         ]
-                        alpha_stm = (
-                            valid_adata[:, gene_name]
-                            .varm[prefix + "alpha"]
-                            .flatten()[1:]
-                        )
-                        alpha_stm0, k, _ = solve_first_order_deg(
-                            T_uniq[1:], alpha_stm
-                        )
+                        alpha_stm = valid_adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
+                        alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
 
                         # $u$ - unlabeled, unspliced
                         # $s$ - unlabeled, spliced
@@ -2841,14 +2600,9 @@ def dynamics(
                             ],
                         )
                     else:
-                        layers = (
-                            ["X_new", "X_total"]
-                            if "X_new" in valid_adata.layers.keys()
-                            else ["new", "total"]
-                        )
+                        layers = ["X_new", "X_total"] if "X_new" in valid_adata.layers.keys() else ["new", "total"]
                         uu, ul = (
-                            valid_adata[:, gene_name].layers[layers[1]]
-                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]] - valid_adata[:, gene_name].layers[layers[0]],
                             valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
@@ -2860,18 +2614,10 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log1p(uu), np.log1p(ul)
 
-                        gamma, alpha_std = valid_adata.var.loc[
-                            gene_name, [prefix + "gamma", prefix + "alpha_std"]
-                        ]
-                        alpha_stm = (
-                            valid_adata[:, gene_name]
-                            .varm[prefix + "alpha"]
-                            .flatten()[1:]
-                        )
+                        gamma, alpha_std = valid_adata.var.loc[gene_name, [prefix + "gamma", prefix + "alpha_std"]]
+                        alpha_stm = valid_adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
 
-                        alpha_stm0, k, _ = solve_first_order_deg(
-                            T_uniq[1:], alpha_stm
-                        )
+                        alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
                         # require no beta functions
                         u1, u1_ = (
                             np.zeros(len(t) - 1),
@@ -2885,9 +2631,7 @@ def dynamics(
 
                         for ind in np.arange(1, len(T_uniq)):
                             t_i = T_uniq[ind]
-                            u0 = sol_u(
-                                np.max(T_uniq) - t_i, 0, alpha_std, gamma
-                            )
+                            u0 = sol_u(np.max(T_uniq) - t_i, 0, alpha_std, gamma)
                             alpha_stm_t_i = alpha_stm[ind - 1]
                             u1_[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, gamma)
 
@@ -2915,11 +2659,7 @@ def dynamics(
                             np.floor(i / ncols)
                         )  # make sure all related plots for the same gene in the same column.
 
-                        col_loc = (
-                            (row_ind * sub_plot_n + j) * ncols * grp_len
-                            + (i % ncols - 1) * grp_len
-                            + 1
-                        )
+                        col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
                         row_i, col_i = np.where(fig_mat == col_loc)
                         ax = (
                             plt.subplot(gs[col_loc])

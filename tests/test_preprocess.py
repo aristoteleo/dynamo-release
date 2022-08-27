@@ -72,12 +72,8 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
 
 def test_highest_frac_genes_plot_prefix_list(adata, is_X_sparse=True):
     sample_list = ["MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"]
-    dyn.pl.highest_frac_genes(
-        adata, show=SHOW_FIG, gene_prefix_list=sample_list
-    )
-    dyn.pl.highest_frac_genes(
-        adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"]
-    )
+    dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=sample_list)
+    dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"])
 
     dyn.pl.highest_frac_genes(
         adata,
@@ -126,9 +122,7 @@ def test_recipe_monocle_feature_selection_layer_simple0():
 
 def test_calc_dispersion_sparse():
     # TODO add randomize tests
-    sparse_mat = csr_matrix(
-        [[1, 2, 0, 1, 5], [0, 0, 3, 1, 299], [4, 0, 5, 1, 399]]
-    )
+    sparse_mat = csr_matrix([[1, 2, 0, 1, 5], [0, 0, 3, 1, 299], [4, 0, 5, 1, 399]])
     mean, var, dispersion = calc_mean_var_dispersion_sparse(sparse_mat)
     expected_mean = np.mean(sparse_mat.toarray(), axis=0)
     expected_var = np.var(sparse_mat.toarray(), axis=0)
@@ -189,9 +183,7 @@ def test_preprocessor_seurat(adata):
 
 
 def test_is_nonnegative():
-    test_mat = csr_matrix(
-        [[1, 2, 0, 1, 5], [0, 0, 3, 1, 299], [4, 0, 5, 1, 399]]
-    )
+    test_mat = csr_matrix([[1, 2, 0, 1, 5], [0, 0, 3, 1, 299], [4, 0, 5, 1, 399]])
     assert is_integer_arr(test_mat)
     assert is_nonnegative(test_mat)
     assert is_nonnegative_integer_arr(test_mat)
@@ -200,36 +192,28 @@ def test_is_nonnegative():
     assert is_nonnegative(test_mat)
     assert is_nonnegative_integer_arr(test_mat)
 
-    test_mat = csr_matrix(
-        [[-1, 2, 0, 1, 5], [0, 0, 3, 1, 299], [4, 0, 5, 1, 399]]
-    )
+    test_mat = csr_matrix([[-1, 2, 0, 1, 5], [0, 0, 3, 1, 299], [4, 0, 5, 1, 399]])
     assert is_integer_arr(test_mat)
     assert not is_nonnegative(test_mat)
     test_mat = test_mat.toarray()
     assert is_integer_arr(test_mat)
     assert not is_nonnegative(test_mat)
 
-    test_mat = csr_matrix(
-        [[0, 2, 0, 1, 5], [0, 0, -3, 1, 299], [4, 0, 5, -1, 399]]
-    )
+    test_mat = csr_matrix([[0, 2, 0, 1, 5], [0, 0, -3, 1, 299], [4, 0, 5, -1, 399]])
     assert is_integer_arr(test_mat)
     assert not is_nonnegative(test_mat)
     test_mat = test_mat.toarray()
     assert is_integer_arr(test_mat)
     assert not is_nonnegative(test_mat)
 
-    test_mat = csr_matrix(
-        [[0, 2, 0, 1, 5], [0, 0, 5, 1, 299], [4, 0, 5, 5, 399]], dtype=float
-    )
+    test_mat = csr_matrix([[0, 2, 0, 1, 5], [0, 0, 5, 1, 299], [4, 0, 5, 5, 399]], dtype=float)
     assert is_float_integer_arr(test_mat)
     assert is_nonnegative_integer_arr(test_mat)
     test_mat = test_mat.toarray()
     assert is_float_integer_arr(test_mat)
     assert is_nonnegative_integer_arr(test_mat)
 
-    test_mat = csr_matrix(
-        [[0, 2, 0, 1, 5], [0, 0, -3, 1, 299], [4, 0, 5, -1, 399.1]], dtype=float
-    )
+    test_mat = csr_matrix([[0, 2, 0, 1, 5], [0, 0, -3, 1, 299], [4, 0, 5, -1, 399.1]], dtype=float)
     assert not is_nonnegative_integer_arr(test_mat)
     test_mat = test_mat.toarray()
     assert not is_nonnegative_integer_arr(test_mat)

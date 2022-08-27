@@ -124,21 +124,15 @@ def scribe(
     # filter genes
     print(f"Original gene number: {n_var}")
 
-    gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (
-        gene_filter_rate * n_obs
-    )
-    gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (
-        gene_filter_rate * n_obs
-    )
+    gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (gene_filter_rate * n_obs)
+    gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (gene_filter_rate * n_obs)
     if issparse(adata.layers[nt_layers[0]]):
         gene_filter_new = gene_filter_new.A1
     if issparse(adata.layers[nt_layers[1]]):
         gene_filter_tot = gene_filter_tot.A1
     adata = adata[:, gene_filter_new * gene_filter_tot]
 
-    print(
-        f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}"
-    )
+    print(f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}")
 
     # filter cells
     print(f"Original cell number: {n_obs}")
@@ -148,9 +142,7 @@ def scribe(
         cell_filter = cell_filter.A1
     adata = adata[cell_filter, :]
     if adata.n_obs == 0:
-        raise Exception(
-            "No cells remaining after filtering, try relaxing `cell_filtering_UMI`."
-        )
+        raise Exception("No cells remaining after filtering, try relaxing `cell_filtering_UMI`.")
 
     print(f"Cell number after filtering: {adata.n_obs}")
 
@@ -170,24 +162,12 @@ def scribe(
         szfactors = adata.obs["Size_Factor"][:, None]
 
         # normalize data (size factor correction, log transform and the scaling)
-        adata.layers[nt_layers[0]] = normalize_data(
-            new, szfactors, pseudo_expr=0.1
-        )
-        adata.layers[nt_layers[1]] = normalize_data(
-            total, szfactors, pseudo_expr=0.1
-        )
+        adata.layers[nt_layers[0]] = normalize_data(new, szfactors, pseudo_expr=0.1)
+        adata.layers[nt_layers[1]] = normalize_data(total, szfactors, pseudo_expr=0.1)
 
-    TFs = (
-        adata.var_names[adata.var.index.isin(TF_list)].to_list()
-        if TFs is None
-        else np.unique(TFs)
-    )
+    TFs = adata.var_names[adata.var.index.isin(TF_list)].to_list() if TFs is None else np.unique(TFs)
 
-    Targets = (
-        adata.var_names.difference(TFs).to_list()
-        if Targets is None
-        else np.unique(Targets)
-    )
+    Targets = adata.var_names.difference(TFs).to_list() if Targets is None else np.unique(Targets)
 
     if genes is not None:
         TFs = list(set(genes).intersection(TFs))
@@ -217,9 +197,7 @@ def scribe(
     if TF_link_ENCODE_ref is not None:
         df_gene_TF_link_ENCODE = pd.read_csv(TF_link_ENCODE_ref, sep="\t")
         df_gene_TF_link_ENCODE["id_gene"] = (
-            df_gene_TF_link_ENCODE["id"].astype("str")
-            + "_"
-            + df_gene_TF_link_ENCODE["linked_gene_name"].astype("str")
+            df_gene_TF_link_ENCODE["id"].astype("str") + "_" + df_gene_TF_link_ENCODE["linked_gene_name"].astype("str")
         )
 
         df_gene = pd.DataFrame(adata.var.index, index=adata.var.index)
@@ -233,15 +211,9 @@ def scribe(
             value_name="corcoef",
         )
         net_var = net.merge(df_gene)
-        net_var["id_gene"] = (
-            net_var["id"].astype("str")
-            + "_"
-            + net_var["linked_gene_name"].astype("str")
-        )
+        net_var["id_gene"] = net_var["id"].astype("str") + "_" + net_var["linked_gene_name"].astype("str")
 
-        filtered = TF_link_gene_chip(
-            net_var, df_gene_TF_link_ENCODE, adata.var, cor_thresh=0.02
-        )
+        filtered = TF_link_gene_chip(net_var, df_gene_TF_link_ENCODE, adata.var, cor_thresh=0.02)
         res_dict.update({"filtered": filtered})
 
     adata.uns["causal_net"] = res_dict
@@ -433,9 +405,7 @@ def coexp_measure_mat(
             columns=genes,
         )
         if isspmatrix(adata.layers[t0_key])
-        else pd.DataFrame(
-            adata[:, genes].layers[t0_key], index=adata.obs_names, columns=genes
-        )
+        else pd.DataFrame(adata[:, genes].layers[t0_key], index=adata.obs_names, columns=genes)
     )
 
     t1_df = (
@@ -445,9 +415,7 @@ def coexp_measure_mat(
             columns=genes,
         )
         if isspmatrix(adata.layers[t1_key])
-        else pd.DataFrame(
-            adata[:, genes].layers[t1_key], index=adata.obs_names, columns=genes
-        )
+        else pd.DataFrame(adata[:, genes].layers[t1_key], index=adata.obs_names, columns=genes)
     )
 
     t1_df[pd.isna(t1_df)] = 0  # set NaN value to 0
@@ -456,23 +424,18 @@ def coexp_measure_mat(
         t0_df = (t0_df - t0_df.min()) / (t0_df.max() - t0_df.min())
         t1_df = (t1_df - t1_df.min()) / (t1_df.max() - t1_df.min())
 
-    pearson_mat, mi_mat = np.zeros((t0_df.shape[1], t0_df.shape[1])), np.zeros(
-        (t0_df.shape[1], t0_df.shape[1])
-    )
+    pearson_mat, mi_mat = np.zeros((t0_df.shape[1], t0_df.shape[1])), np.zeros((t0_df.shape[1], t0_df.shape[1]))
 
     for g_a_ind, g_a in tqdm(
         enumerate(TFs),
-        desc="Calculate pearson correlation or mutual information from each TF to "
-        "potential target:",
+        desc="Calculate pearson correlation or mutual information from each TF to " "potential target:",
     ):
         for g_b_ind, g_b in enumerate(Targets):
             x, y = t0_df.loc[:, g_a].values, t1_df.loc[:, g_b].values
             x, y = flatten(x), flatten(y)
 
             mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-            pearson_mat[g_a_ind, g_b_ind] = einsum_correlation(
-                x[None, mask], y[mask], type="pearson"
-            )[0]
+            pearson_mat[g_a_ind, g_b_ind] = einsum_correlation(x[None, mask], y[mask], type="pearson")[0]
             x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
 
             if not skip_mi and cores == 1:
@@ -491,11 +454,7 @@ def coexp_measure_mat(
                     return mi(x, y, k)
 
                 X = np.repeat(x[:, None], len(Targets), axis=1)
-                Y = (
-                    t1_df[:, Targets]
-                    if issparse(t1_df)
-                    else t1_df[:, Targets].A
-                )
+                Y = t1_df[:, Targets] if issparse(t1_df) else t1_df[:, Targets].A
                 pool = ThreadPool(cores)
                 res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
                 pool.close()

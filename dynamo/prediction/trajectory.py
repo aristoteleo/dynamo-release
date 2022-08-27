@@ -56,9 +56,7 @@ class Trajectory:
         kappa = np.zeros(self.X.shape[0])
         for i in range(1, self.X.shape[0] - 1):
             # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf (p. 55)
-            kappa[i] = angle(tvec[i - 1], tvec[i]) / (
-                np.linalg.norm(tvec[i - 1] / 2) + np.linalg.norm(tvec[i] / 2)
-            )
+            kappa[i] = angle(tvec[i - 1], tvec[i]) / (np.linalg.norm(tvec[i - 1] / 2) + np.linalg.norm(tvec[i] / 2))
         return kappa
 
     def resample(self, n_points, tol=1e-4, inplace=True):
@@ -88,23 +86,17 @@ class Trajectory:
 
     def interpolate(self, t, **interp_kwargs):
         if self.t is None:
-            raise Exception(
-                "`self.t` is `None`, which is needed for interpolation."
-            )
+            raise Exception("`self.t` is `None`, which is needed for interpolation.")
         return interp1d(self.t, self.X, axis=0, **interp_kwargs)(t)
 
     def interp_t(self, num=100):
         if self.t is None:
-            raise Exception(
-                "`self.t` is `None`, which is needed for interpolation."
-            )
+            raise Exception("`self.t` is `None`, which is needed for interpolation.")
         return np.linspace(self.t[0], self.t[-1], num=num)
 
     def interp_X(self, num=100, **interp_kwargs):
         if self.t is None:
-            raise Exception(
-                "`self.t` is `None`, which is needed for interpolation."
-            )
+            raise Exception("`self.t` is `None`, which is needed for interpolation.")
         return self.interpolate(self.interp_t(num=num), **interp_kwargs)
 
     def integrate(self, func):
@@ -113,11 +105,7 @@ class Trajectory:
         tvec = self.calc_tangent(normalize=False)
         for i in range(1, self.X.shape[0] - 1):
             # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf P. 47
-            F += (
-                func(self.X[i])
-                * (np.linalg.norm(tvec[i - 1]) + np.linalg.norm(tvec[i]))
-                / 2
-            )
+            F += func(self.X[i]) * (np.linalg.norm(tvec[i - 1]) + np.linalg.norm(tvec[i])) / 2
         return F
 
     def calc_msd(self, decomp_dim=True, ref=0):
@@ -157,27 +145,21 @@ class VectorFieldTrajectory(Trajectory):
         if self.data["acceleration"] is None:
             if self.Js is None:
                 self.Js = self.get_jacobians(method=method)
-            self.data["acceleration"] = self.vecfld.compute_acceleration(
-                self.X, Js=self.Js, **kwargs
-            )
+            self.data["acceleration"] = self.vecfld.compute_acceleration(self.X, Js=self.Js, **kwargs)
         return self.data["acceleration"]
 
     def get_curvatures(self, method=None, **kwargs):
         if self.data["curvature"] is None:
             if self.Js is None:
                 self.Js = self.get_jacobians(method=method)
-            self.data["curvature"] = self.vecfld.compute_curvature(
-                self.X, Js=self.Js, **kwargs
-            )
+            self.data["curvature"] = self.vecfld.compute_curvature(self.X, Js=self.Js, **kwargs)
         return self.data["curvature"]
 
     def get_divergences(self, method=None, **kwargs):
         if self.data["divergence"] is None:
             if self.Js is None:
                 self.Js = self.get_jacobians(method=method)
-            self.data["divergence"] = self.vecfld.compute_divergence(
-                self.X, Js=self.Js, **kwargs
-            )
+            self.data["divergence"] = self.vecfld.compute_divergence(self.X, Js=self.Js, **kwargs)
         return self.data["divergence"]
 
     def calc_vector_msd(self, key, decomp_dim=True, ref=0):
@@ -254,9 +236,7 @@ class GeneTrajectory(Trajectory):
 
     def save(self, save_key="gene_trajectory"):
         LoggerManager.main_logger.info_insert_adata(save_key, "varm")
-        self.adata.varm[save_key] = (
-            np.ones((self.adata.n_vars, self.X.shape[0])) * np.nan
-        )
+        self.adata.varm[save_key] = np.ones((self.adata.n_vars, self.X.shape[0])) * np.nan
         self.adata.varm[save_key][self.genes_to_mask(), :] = self.X.T
 
     def select_gene(self, genes, arr=None, axis=None):
@@ -271,9 +251,7 @@ class GeneTrajectory(Trajectory):
         if self.genes is not None:
             for g in genes:
                 if g not in self.genes:
-                    LoggerManager.main_logger.warning(
-                        f"{g} is not in `self.genes`."
-                    )
+                    LoggerManager.main_logger.warning(f"{g} is not in `self.genes`.")
                 else:
                     if axis == 0:
                         y.append(flatten(arr[self.genes == g]))

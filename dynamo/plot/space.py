@@ -104,18 +104,14 @@ def space(
 
     show_colorbar = True
     if stack_genes:
-        main_warning(
-            "disable side colorbar due to colorbar scale (numeric tick) related issue."
-        )
+        main_warning("disable side colorbar due to colorbar scale (numeric tick) related issue.")
         show_colorbar = False
 
     if genes is None or (len(genes) == 0):
         if color is not None:
             genes = color
         else:
-            main_critical(
-                "No genes provided. Please check your argument passed in."
-            )
+            main_critical("No genes provided. Please check your argument passed in.")
             return
     ptp_vec = adata.obsm[space_key].ptp(0)
     # calculate the figure size based on the width and the ratio between width and height
@@ -125,9 +121,7 @@ def space(
 
     # calculate point size based on minimum radius
     if pointsize is None:
-        pointsize = compute_smallest_distance(
-            adata.obsm[space_key], sample_num=ps_sample_num
-        )
+        pointsize = compute_smallest_distance(adata.obsm[space_key], sample_num=ps_sample_num)
         # here we will scale the point size by the dpi and the figure size in inch.
         pointsize *= figsize[0] / ptp_vec[0] * dpi
         # meaning of s in scatters:
@@ -135,10 +129,7 @@ def space(
         # Note that np.sqrt(adata.shape[0]) / 16000.0 is used in pl.scatters
         pointsize = pointsize**2 * np.sqrt(adata.shape[0]) / 16000.0
 
-        main_info(
-            "estimated point size for plotting each cell in space: %f"
-            % (pointsize)
-        )
+        main_info("estimated point size for plotting each cell in space: %f" % (pointsize))
 
     # here we should pass different point size, type (square or hexogon, etc), etc.
     res = scatters(

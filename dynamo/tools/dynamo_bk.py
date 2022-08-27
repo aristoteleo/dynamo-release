@@ -13,9 +13,7 @@ def sol_u(t, u0, alpha, beta):
 def sol_s(t, s0, u0, alpha, beta, gamma):
     exp_gt = np.exp(-gamma * t)
     return (
-        s0 * exp_gt
-        + alpha / gamma * (1 - exp_gt)
-        + (alpha + u0 * beta) / (gamma - beta) * (exp_gt - np.exp(-beta * t))
+        s0 * exp_gt + alpha / gamma * (1 - exp_gt) + (alpha + u0 * beta) / (gamma - beta) * (exp_gt - np.exp(-beta * t))
     )
 
 

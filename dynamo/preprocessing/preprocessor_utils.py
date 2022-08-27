@@ -67,9 +67,7 @@ def _infer_labeling_experiment_type(adata, tkey):
     if len(np.unique(tkey_val)) == 1:
         experiment_type = "one-shot"
     else:
-        labeled_frac = adata.layers["new"].T.sum(0) / adata.layers[
-            "total"
-        ].T.sum(0)
+        labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
         xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
 
         yy = tkey_val
@@ -108,9 +106,7 @@ def calc_mean_var_dispersion_general_mat(data_mat, axis=0):
         return calc_mean_var_dispersion_sparse(data_mat, axis)
 
 
-def calc_mean_var_dispersion_ndarray(
-    data_mat: np.array, axis=0
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def calc_mean_var_dispersion_ndarray(data_mat: np.array, axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate mean, variance and dispersion of data_mat, a numpy array."""
     # per gene mean, var and dispersion
     mean = np.nanmean(data_mat, axis=axis).flatten()
@@ -237,14 +233,10 @@ def select_genes_by_dispersion_general(
         pass_filter_genes = adata.var_names[adata.var[var_filter_key]]
 
     if len(pass_filter_genes) != len(set(pass_filter_genes)):
-        main_warning(
-            "gene names are not unique, please check your preprocessing procedure."
-        )
+        main_warning("gene names are not unique, please check your preprocessing procedure.")
     subset_adata = adata[:, pass_filter_genes]
     if n_top_genes is None:
-        main_info(
-            "n_top_genes is None, reserve all genes and add filter gene information"
-        )
+        main_info("n_top_genes is None, reserve all genes and add filter gene information")
         n_top_genes = adata.n_vars
     layer_mat = DKM.select_layer_data(subset_adata, layer)
     if nan_replace_val:
@@ -261,12 +253,7 @@ def select_genes_by_dispersion_general(
             highly_variable_scores,
         ) = select_genes_by_dispersion_svr(subset_adata, layer_mat, n_top_genes)
     elif recipe == "seurat":
-        (
-            mean,
-            variance,
-            highly_variable_mask,
-            highly_variable_scores,
-        ) = select_genes_by_seurat_recipe(
+        (mean, variance, highly_variable_mask, highly_variable_scores,) = select_genes_by_seurat_recipe(
             subset_adata,
             layer_mat,
             min_disp=seurat_min_disp,
@@ -280,14 +267,10 @@ def select_genes_by_dispersion_general(
         # the logics here for dynamo recipe is different from the above recipes
         # Note we do not need to pass subset_adata here because monocle takes care of everything regarding dynamo convention
         select_genes_monocle(adata, **monocle_kwargs)
-        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[
-            DKM.VAR_USE_FOR_PCA
-        ]
+        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[DKM.VAR_USE_FOR_PCA]
         return
     else:
-        raise NotImplementedError(
-            "Selected gene seletion recipe not supported."
-        )
+        raise NotImplementedError("Selected gene seletion recipe not supported.")
 
     main_info_insert_adata_var(DKM.VAR_GENE_MEAN_KEY)
     main_info_insert_adata_var(DKM.VAR_GENE_VAR_KEY)
@@ -301,22 +284,15 @@ def select_genes_by_dispersion_general(
 
     adata.var[DKM.VAR_GENE_MEAN_KEY][pass_filter_genes] = mean.flatten()
     adata.var[DKM.VAR_GENE_VAR_KEY][pass_filter_genes] = variance
-    adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY][
-        pass_filter_genes
-    ] = highly_variable_mask
+    adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY][pass_filter_genes] = highly_variable_mask
     adata.var[DKM.VAR_USE_FOR_PCA][pass_filter_genes] = highly_variable_mask
 
-    main_info(
-        "number of selected highly variable genes: "
-        + str(adata.var[DKM.VAR_USE_FOR_PCA].sum())
-    )
+    main_info("number of selected highly variable genes: " + str(adata.var[DKM.VAR_USE_FOR_PCA].sum()))
     if recipe == "svr":
         # SVR can give highly_variable_scores
         main_info_insert_adata_var(DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES)
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES] = np.nan
-        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES][
-            pass_filter_genes
-        ] = highly_variable_scores.flatten()
+        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES][pass_filter_genes] = highly_variable_scores.flatten()
 
     if inplace:
         main_info("inplace is True, subset adata according to selected genes.")
@@ -346,9 +322,7 @@ def select_genes_by_seurat_recipe(
     if max_mean is None:
         max_mean = 3
 
-    mean, variance, dispersion = calc_mean_var_dispersion_sparse(
-        sparse_layer_mat
-    )
+    mean, variance, dispersion = calc_mean_var_dispersion_sparse(sparse_layer_mat)
     sc_mean, sc_var = seurat_get_mean_var(sparse_layer_mat)
     mean, variance = sc_mean, sc_var
     dispersion = variance / mean
@@ -376,9 +350,7 @@ def select_genes_by_seurat_recipe(
     mean = disp_mean_bin[temp_df["mean_bin"].values].values
     std = disp_std_bin[temp_df["mean_bin"].values].values
     variance = std**2
-    temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) / std).fillna(
-        0
-    )
+    temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) / std).fillna(0)
     dispersion_norm = temp_df["dispersion_norm"].values
 
     highly_variable_mask = None
@@ -387,9 +359,7 @@ def select_genes_by_seurat_recipe(
         threshold = temp_df["dispersion_norm"].nlargest(n_top_genes).values[-1]
         highly_variable_mask = temp_df["dispersion_norm"].values >= threshold
     else:
-        main_info(
-            "choose genes by mean and dispersion norm threshold", indent_level=2
-        )
+        main_info("choose genes by mean and dispersion norm threshold", indent_level=2)
         highly_variable_mask = np.logical_and.reduce(
             (
                 mean > min_mean,
@@ -500,26 +470,14 @@ def SVRs(
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            adata = (
-                adata_ori[:, filter_bool].copy()
-                if filter_bool is not None
-                else adata_ori
-            )
+            adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
     else:
-        cell_inds = (
-            adata_ori.obs.use_for_pca
-            if "use_for_pca" in adata_ori.obs.columns
-            else adata_ori.obs.index
-        )
+        cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
         filter_list = ["use_for_pca", "pass_basic_filter"]
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
-        gene_inds = (
-            adata_ori.var[filter_list[which_filter[0]]]
-            if len(which_filter) > 0
-            else adata_ori.var.index
-        )
+        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
@@ -553,11 +511,7 @@ def SVRs(
             )
 
         if total_szfactor is not None and total_szfactor in adata.obs.keys():
-            szfactors = (
-                adata.obs[total_szfactor].values[:, None]
-                if total_szfactor in adata.obs.columns
-                else None
-            )
+            szfactors = adata.obs[total_szfactor].values[:, None] if total_szfactor in adata.obs.columns else None
 
         if szfactors is not None and relative_expr:
             if issparse(CM):
@@ -567,15 +521,10 @@ def SVRs(
 
         if winsorize:
             if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
-                min_expr_cells = (
-                    int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01))
-                    + 2
-                )
+                min_expr_cells = int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
 
         detected_bool = np.array(
-            ((CM > 0).sum(0) >= min_expr_cells)
-            & (CM.mean(0) <= max_expr_avg)
-            & (CM.mean(0) >= min_expr_avg)
+            ((CM > 0).sum(0) >= min_expr_cells) & (CM.mean(0) <= max_expr_avg) & (CM.mean(0) >= min_expr_avg)
         ).flatten()
 
         valid_CM = CM[:, detected_bool]
@@ -623,11 +572,7 @@ def SVRs(
             score = -score
 
         prefix = "" if layer == "X" else layer + "_"
-        (
-            adata.var[prefix + "log_m"],
-            adata.var[prefix + "log_cv"],
-            adata.var[prefix + "score"],
-        ) = (
+        (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
             np.nan,
             np.nan,
             -np.inf,
@@ -642,11 +587,7 @@ def SVRs(
             np.array(score).flatten(),
         )
 
-        key = (
-            "velocyto_SVR"
-            if layer == "raw" or layer == "X"
-            else layer + "_velocyto_SVR"
-        )
+        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
         adata_ori.uns[key] = {"SVR": fitted_fun}
 
     adata_ori = merge_adata_attrs(adata_ori, adata, attr="var")
@@ -716,14 +657,10 @@ def select_genes_monocle(
             table = top_table(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
             valid_table = valid_table.loc[
-                set(adata.var.index[filter_bool]).intersection(
-                    valid_table.index
-                ),
+                set(adata.var.index[filter_bool]).intersection(valid_table.index),
                 :,
             ]
-            gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[
-                :n_top_genes
-            ]
+            gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[:n_top_genes]
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
         elif sort_by == "gini":
@@ -751,14 +688,10 @@ def select_genes_monocle(
                 **SVRs_args,
             )
 
-            filter_bool = get_svr_filter(
-                adata, layer=layer, n_top_genes=n_top_genes, return_adata=False
-            )
+            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
 
     # filter genes by gene expression fraction as well
-    adata.var["frac"], invalid_ids = compute_gene_exp_fraction(
-        X=adata.X, threshold=exprs_frac_for_gene_exclusion
-    )
+    adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
     genes_to_exclude = (
         list(adata.var_names[invalid_ids])
         if genes_to_exclude is None
@@ -806,9 +739,7 @@ def get_highly_variable_mask_by_dispersion_svr(
     )
     scores = np.repeat(np.nan, len(mean_log))
     # TODO handle nan values during prediction here
-    scores[~is_nan_indices] = cv_log[~is_nan_indices] - classifier.predict(
-        mean_log[~is_nan_indices, np.newaxis]
-    )
+    scores[~is_nan_indices] = cv_log[~is_nan_indices] - classifier.predict(mean_log[~is_nan_indices, np.newaxis])
     scores = scores.reshape([-1, 1])  # shape should be #genes x 1
 
     # score threshold based on n top genes
@@ -821,9 +752,7 @@ def get_highly_variable_mask_by_dispersion_svr(
     return highly_variable_mask
 
 
-def log1p_adata_layer(
-    adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False
-) -> AnnData:
+def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
     """returns log1p  of adata's specific layer data. If copy is true, operates on a copy of adata and returns the copy."""
     _adata = adata
     if copy:
@@ -832,9 +761,7 @@ def log1p_adata_layer(
     return _adata
 
 
-def log1p_adata(
-    adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False
-) -> AnnData:
+def log1p_adata(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
     """perform log1p transform on selected adata layers
 
     Parameters
@@ -943,9 +870,7 @@ def filter_genes_by_outliers(
     # add our filtering for labeling data below
 
     # TODO refactor with get_in_range_mask
-    if "spliced" in adata.layers.keys() and (
-        layer == "spliced" or layer == "all"
-    ):
+    if "spliced" in adata.layers.keys() and (layer == "spliced" or layer == "all"):
         detected_bool = (
             detected_bool
             & np.array(
@@ -955,9 +880,7 @@ def filter_genes_by_outliers(
                 & (adata.layers["spliced"].sum(0) >= min_count_s)
             ).flatten()
         )
-    if "unspliced" in adata.layers.keys() and (
-        layer == "unspliced" or layer == "all"
-    ):
+    if "unspliced" in adata.layers.keys() and (layer == "unspliced" or layer == "all"):
         detected_bool = (
             detected_bool
             & np.array(
@@ -970,9 +893,7 @@ def filter_genes_by_outliers(
     if shared_count is not None:
         # layers = DKM.get_available_layer_keys(adata, "all", False)
         layers = DKM.get_raw_data_layers(adata)
-        tmp = get_inrange_shared_counts_mask(
-            adata, layers, shared_count, "gene"
-        )
+        tmp = get_inrange_shared_counts_mask(adata, layers, shared_count, "gene")
         if tmp.sum() > 2000:
             detected_bool &= tmp
         else:
@@ -995,17 +916,11 @@ def filter_genes_by_outliers(
                 ((adata.obsm["protein"] > 0).sum(0) >= min_cell_p)
                 & (adata.obsm["protein"].mean(0) >= min_avg_exp_p)
                 & (adata.obsm["protein"].mean(0) <= max_avg_exp)
-                & (
-                    adata.layers["protein"].sum(0) >= min_count_p
-                )  # TODO potential bug confirmation: obsm?
+                & (adata.layers["protein"].sum(0) >= min_count_p)  # TODO potential bug confirmation: obsm?
             ).flatten()
         )
 
-    filter_bool = (
-        filter_bool & detected_bool
-        if filter_bool is not None
-        else detected_bool
-    )
+    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
@@ -1015,9 +930,7 @@ def filter_genes_by_outliers(
     return adata.var["pass_basic_filter"]
 
 
-def get_sum_in_range_mask(
-    data_mat, min_val, max_val, axis=0, data_min_val_threshold=0
-):
+def get_sum_in_range_mask(data_mat, min_val, max_val, axis=0, data_min_val_threshold=0):
     """check if data_mat's sum is inrange or not along an axis. data_mat's values < data_min_val_threshold is ignored."""
     return (
         ((data_mat > data_min_val_threshold).sum(axis) >= min_val)
@@ -1094,9 +1007,7 @@ def filter_cells_by_outliers(
         layer_keys_used_for_filtering = predefined_layers_for_filtering
     elif isinstance(layer, str) and layer in predefined_layers_for_filtering:
         layer_keys_used_for_filtering = [layer]
-    elif isinstance(layer, list) and set(layer) <= set(
-        predefined_layers_for_filtering
-    ):
+    elif isinstance(layer, list) and set(layer) <= set(predefined_layers_for_filtering):
         layer_keys_used_for_filtering = layer
     else:
         raise ValueError(
@@ -1162,15 +1073,12 @@ def get_filter_mask_cells_by_outliers(
     for i, layer in enumerate(layers):
         if layer not in layer2range:
             main_info(
-                "skip filtering cells by layer: %s as it is not in the layer2range mapping passed in:"
-                % layer,
+                "skip filtering cells by layer: %s as it is not in the layer2range mapping passed in:" % layer,
                 indent_level=2,
             )
             continue
         if not DKM.check_if_layer_exist(adata, layer):
-            main_info(
-                "skip filtering by layer:%s as it is not in adata." % layer
-            )
+            main_info("skip filtering by layer:%s as it is not in adata." % layer)
             continue
 
         main_info("filtering cells by layer:%s" % layer, indent_level=2)
@@ -1184,13 +1092,9 @@ def get_filter_mask_cells_by_outliers(
         )
 
     if shared_count is not None:
-        main_info(
-            "filtering cells by shared counts from all layers", indent_level=2
-        )
+        main_info("filtering cells by shared counts from all layers", indent_level=2)
         layers = DKM.get_available_layer_keys(adata, layers, False)
-        detected_mask = detected_mask & get_inrange_shared_counts_mask(
-            adata, layers, shared_count, "cell"
-        )
+        detected_mask = detected_mask & get_inrange_shared_counts_mask(adata, layers, shared_count, "cell")
 
     detected_mask = np.array(detected_mask).flatten()
     return detected_mask
@@ -1253,26 +1157,14 @@ def calc_sz_factor(
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            _adata = (
-                adata_ori
-                if genes_use_for_norm is None
-                else adata_ori[:, genes_use_for_norm]
-            )
+            _adata = adata_ori if genes_use_for_norm is None else adata_ori[:, genes_use_for_norm]
     else:
-        cell_inds = (
-            adata_ori.obs.use_for_pca
-            if "use_for_pca" in adata_ori.obs.columns
-            else adata_ori.obs.index
-        )
+        cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
         filter_list = ["use_for_pca", "pass_basic_filter"]
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
-        gene_inds = (
-            adata_ori.var[filter_list[which_filter[0]]]
-            if len(which_filter) > 0
-            else adata_ori.var.index
-        )
+        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
         _adata = adata_ori[cell_inds, :][:, gene_inds]
 
@@ -1281,9 +1173,7 @@ def calc_sz_factor(
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
 
-                _adata = _adata[
-                    :, _adata.var_names.intersection(genes_use_for_norm)
-                ]
+                _adata = _adata[:, _adata.var_names.intersection(genes_use_for_norm)]
 
     if total_layers is not None:
         if not isinstance(total_layers, list):
@@ -1291,11 +1181,7 @@ def calc_sz_factor(
         if len(set(total_layers).difference(_adata.layers.keys())) == 0:
             total = None
             for t_key in total_layers:
-                total = (
-                    _adata.layers[t_key]
-                    if total is None
-                    else total + _adata.layers[t_key]
-                )
+                total = _adata.layers[t_key] if total is None else total + _adata.layers[t_key]
             _adata.layers["_total_"] = total
             layers.extend(["_total_"])
 
@@ -1415,25 +1301,16 @@ def normalize_cell_expr_by_size_factors(
         if "use_for_pca" in adata.var.columns and keep_filtered is False:
             adata = adata[:, adata.var.loc[:, "use_for_pca"]]
 
-        adata.obs = adata.obs.loc[
-            :, ~adata.obs.columns.str.contains("Size_Factor")
-        ]
+        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
     layers = DKM.get_available_layer_keys(adata, layers)
 
-    layer_sz_column_names = [
-        i + "_Size_Factor" for i in set(layers).difference("X")
-    ]
+    layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
     # layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
     layers_to_sz = list(set(layer_sz_column_names))
     if len(layers_to_sz) > 0:
-        layers = (
-            pd.Series(layers_to_sz)
-            .str.split("_Size_Factor", expand=True)
-            .iloc[:, 0]
-            .tolist()
-        )
+        layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
         if "Size_Factor" in layers:
             layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
         calc_sz_factor(
@@ -1456,9 +1333,7 @@ def normalize_cell_expr_by_size_factors(
         if layer in excluded_layers:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
         else:
-            szfactors, CM = get_sz_exprs(
-                adata, layer, total_szfactor=total_szfactor
-            )
+            szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
         # log transforms
 
@@ -1472,14 +1347,9 @@ def normalize_cell_expr_by_size_factors(
             main_info("skipping log transformation as input requires...")
             _norm_method = None
 
-        if (
-            _norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None]
-            and layer != "protein"
-        ):
+        if _norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
             main_info("applying %s to layer<%s>" % (_norm_method, layer))
-            CM = normalize_mat_monocle(
-                CM, szfactors, relative_expr, pseudo_expr, _norm_method
-            )
+            CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, _norm_method)
 
         elif layer == "protein":  # norm_method == 'clr':
             if _norm_method != "clr":
@@ -1494,9 +1364,7 @@ def normalize_cell_expr_by_size_factors(
 
             for i in range(CM.shape[0]):
                 x = CM[i].A if issparse(CM) else CM[i]
-                res = np.log1p(
-                    x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature))
-                )
+                res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
                 # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
@@ -1517,9 +1385,7 @@ def normalize_cell_expr_by_size_factors(
             adata.layers["X_" + layer] = CM
 
         main_info_insert_adata_uns("pp.norm_method")
-        adata.uns["pp"]["norm_method"] = (
-            _norm_method.__name__ if callable(_norm_method) else _norm_method
-        )
+        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
 
     return adata
 
@@ -1534,17 +1400,13 @@ def is_integer_arr(arr: Union[np.ndarray, scipy.sparse.spmatrix, list]) -> bool:
     return np.issubdtype(arr.dtype, np.integer) or np.issubdtype(arr.dtype, int)
 
 
-def is_float_integer_arr(
-    arr: Union[np.ndarray, scipy.sparse.spmatrix, list]
-) -> bool:
+def is_float_integer_arr(arr: Union[np.ndarray, scipy.sparse.spmatrix, list]) -> bool:
     if issparse(arr):
         arr = arr.data
     return np.all(np.equal(np.mod(arr, 1), 0))
 
 
-def is_nonnegative_integer_arr(
-    mat: Union[np.ndarray, scipy.sparse.spmatrix, list]
-):
+def is_nonnegative_integer_arr(mat: Union[np.ndarray, scipy.sparse.spmatrix, list]):
     if (not is_integer_arr(mat)) and (not is_float_integer_arr(mat)):
         return False
     return is_nonnegative(mat)
@@ -1556,6 +1418,4 @@ def pca_selected_genes_wrapper(
     n_pca_components: int = 30,
     key: str = "X_pca",
 ):
-    adata = pca_monocle(
-        adata, pca_input, n_pca_components=n_pca_components, pca_key=key
-    )
+    adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)

@@ -81,9 +81,7 @@ def plot_kin_det(
             total_layer = "X_total"
             layer = "X_new"
 
-        _, X_raw = prepare_data_no_splicing(
-            adata, adata.var.index, T, layer=layer, total_layer=total_layer
-        )
+        _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer, total_layer=total_layer)
 
     padding = 0.185 if not show_variance else 0
     for i, gene_name in enumerate(genes):
@@ -95,21 +93,11 @@ def plot_kin_det(
 
         for j in range(sub_plot_n):
 
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
             if j == 0:
                 ax.text(
                     0.01 + padding,
@@ -191,17 +179,9 @@ def plot_kin_det(
                             )
             if show_variance:
                 if has_splicing:
-                    Obs = (
-                        X_raw[i][j][0].A.flatten()
-                        if issparse(X_raw[i][j][0])
-                        else X_raw[i][j][0].flatten()
-                    )
+                    Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                 else:
-                    Obs = (
-                        X_raw[i].A.flatten()
-                        if issparse(X_raw[i][0])
-                        else X_raw[i].flatten()
-                    )
+                    Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
                 ax.boxplot(
                     x=[Obs[T == std] for std in T_uniq],
                     positions=T_uniq,
@@ -286,19 +266,11 @@ def plot_kin_sto(
 
     if has_splicing:
         if "M_ul" in adata.layers.keys() and use_smoothed:
-            title_ = (
-                ["M_ul", "M_sl", "M_ul2", "M_sl2", "M_ul_sl"]
-                if show_moms_fit
-                else ["M_ul", "M_sl"]
-            )
+            title_ = ["M_ul", "M_sl", "M_ul2", "M_sl2", "M_ul_sl"] if show_moms_fit else ["M_ul", "M_sl"]
             layers = ["M_ul", "M_sl", "M_uu", "M_su"]
             layer_u, layer_s = "M_ul", "M_sl"
         else:
-            title_ = (
-                ["X_ul", "X_sl", "X_ul2", "X_sl2", "X_ul_sl"]
-                if show_moms_fit
-                else ["X_ul", "X_sl"]
-            )
+            title_ = ["X_ul", "X_sl", "X_ul2", "X_sl2", "X_ul_sl"] if show_moms_fit else ["X_ul", "X_sl"]
             layers = ["X_ul", "X_sl", "X_uu", "X_su"]
             layer_u, layer_s = "X_ul", "X_sl"
 
@@ -320,9 +292,7 @@ def plot_kin_sto(
             total_layer = "total"
             layer = "new"
 
-        _, X_raw = prepare_data_no_splicing(
-            adata, adata.var.index, T, layer=layer, total_layer=total_layer
-        )
+        _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer, total_layer=total_layer)
 
     padding = 0.185 if not show_variance else 0
     for i, gene_name in enumerate(genes):
@@ -333,21 +303,11 @@ def plot_kin_sto(
         )
 
         for j in range(sub_plot_n):
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
             if j == 0:
                 ax.text(
                     0.01 + padding,
@@ -431,17 +391,9 @@ def plot_kin_sto(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = (
-                            X_raw[i][j][0].A.flatten()
-                            if issparse(X_raw[i][j][0])
-                            else X_raw[i][j][0].flatten()
-                        )
+                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = (
-                            X_raw[i].A.flatten()
-                            if issparse(X_raw[i][0])
-                            else X_raw[i].flatten()
-                        )
+                        Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -467,10 +419,7 @@ def plot_kin_sto(
                     ax.set_title(gene_name)
 
             # other subplots
-            if not (
-                (show_variance and j < max_box_plots)
-                or (not show_variance and j == 0)
-            ):
+            if not ((show_variance and j < max_box_plots) or (not show_variance and j == 0)):
                 ax.plot(T_uniq, cur_X_fit_data[j].T)
                 ax.plot(T_uniq, cur_X_data[j], "k--")
                 if show_variance:
@@ -586,21 +535,11 @@ def plot_kin_mix(
         )
 
         for j in range(sub_plot_n):
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
             if j == 0:
                 ax.text(
                     0.01 + padding,
@@ -685,17 +624,9 @@ def plot_kin_mix(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = (
-                            X_raw[i][j][0].A.flatten()
-                            if issparse(X_raw[i][j][0])
-                            else X_raw[i][j][0].flatten()
-                        )
+                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = (
-                            X_raw[i][j][0].A.flatten()
-                            if issparse(X_raw[i][j][0])
-                            else X_raw[i][j][0].flatten()
-                        )
+                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -726,10 +657,7 @@ def plot_kin_mix(
                         ax.legend(title_[:2])
                     ax.set_title(gene_name)
             # other subplots
-            if not (
-                (show_variance and j < max_box_plots)
-                or (not show_variance and j < max_line_plots)
-            ):
+            if not ((show_variance and j < max_box_plots) or (not show_variance and j < max_line_plots)):
                 ax.plot(T_uniq, cur_X_fit_data[j].T)
                 ax.plot(T_uniq, cur_X_data[j], "k--")
                 if show_variance:
@@ -833,11 +761,7 @@ def plot_kin_mix_det_sto(
             layers = ["M_n", "M_t"]
             total_layer = "M_t"
         else:
-            title_ = (
-                ["X_new", "X_old", "X_o2"]
-                if show_moms_fit
-                else ["X_new", "X_old"]
-            )
+            title_ = ["X_new", "X_old", "X_o2"] if show_moms_fit else ["X_new", "X_old"]
             layers = ["X_new", "X_total"]
             total_layer = "X_total"
 
@@ -860,21 +784,11 @@ def plot_kin_mix_det_sto(
         )
 
         for j in range(sub_plot_n):
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
             if j == 0:
                 ax.text(
                     0.01 + padding,
@@ -960,17 +874,9 @@ def plot_kin_mix_det_sto(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = (
-                            X_raw[i][j][0].A.flatten()
-                            if issparse(X_raw[i][j][0])
-                            else X_raw[i][j][0].flatten()
-                        )
+                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = (
-                            X_raw[i][j][0].A.flatten()
-                            if issparse(X_raw[i][j][0])
-                            else X_raw[i][j][0].flatten()
-                        )
+                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -1001,10 +907,7 @@ def plot_kin_mix_det_sto(
                         ax.legend(title_[:2])
                     ax.set_title(gene_name)
             # other subplots
-            if not (
-                (show_variance and j < max_box_plots)
-                or (not show_variance and j < max_line_plots)
-            ):
+            if not ((show_variance and j < max_box_plots) or (not show_variance and j < max_line_plots)):
                 ax.plot(T_uniq, cur_X_fit_data[j].T)
                 ax.plot(T_uniq, cur_X_data[j], "k--")
                 if show_variance:
@@ -1126,19 +1029,11 @@ def plot_kin_mix_sto_sto(
         )
     else:
         if "M_t" in adata.layers.keys() and use_smoothed:
-            title_ = (
-                ["M_n", "M_o", "M_n2", "M_o2"]
-                if show_moms_fit
-                else ["M_n", "M_o"]
-            )
+            title_ = ["M_n", "M_o", "M_n2", "M_o2"] if show_moms_fit else ["M_n", "M_o"]
             total_layer = "M_t"
             layers = ["M_n", "M_t"]
         else:
-            title_ = (
-                ["X_new", "X_old", "X_n2", "X_o2"]
-                if show_moms_fit
-                else ["X_new", "X_old"]
-            )
+            title_ = ["X_new", "X_old", "X_n2", "X_o2"] if show_moms_fit else ["X_new", "X_old"]
             total_layer = "X_total"
             layers = ["X_new", "X_total"]
 
@@ -1165,21 +1060,11 @@ def plot_kin_mix_sto_sto(
         cur_X_data = cur_X_data[reorder_inds]
 
         for j in range(sub_plot_n):
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
             if j == 0:
                 ax.text(
                     0.01 + padding,
@@ -1264,17 +1149,9 @@ def plot_kin_mix_sto_sto(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = (
-                            X_raw[i][j][0].A.flatten()
-                            if issparse(X_raw[i][j][0])
-                            else X_raw[i][j][0].flatten()
-                        )
+                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = (
-                            X_raw[i][j][0].A.flatten()
-                            if issparse(X_raw[i][j][0])
-                            else X_raw[i][j][0].flatten()
-                        )
+                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -1305,10 +1182,7 @@ def plot_kin_mix_sto_sto(
                         ax.legend(title_[:2])
                     ax.set_title(gene_name)
             # other subplots
-            if not (
-                (show_variance and j < max_box_plots)
-                or (not show_variance and j < max_line_plots)
-            ):
+            if not ((show_variance and j < max_box_plots) or (not show_variance and j < max_line_plots)):
                 ax.plot(T_uniq, cur_X_fit_data[j].T)
                 ax.plot(T_uniq, cur_X_data[j], "k--")
                 if show_variance:
@@ -1406,9 +1280,7 @@ def plot_deg_det(
             total_layer = "X_total"
             layer = "X_new"
 
-        _, X_raw = prepare_data_no_splicing(
-            adata, adata.var.index, T, layer=layer, total_layer=total_layer
-        )
+        _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer, total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_X_fit_data, cur_logLL = (
@@ -1419,21 +1291,11 @@ def plot_deg_det(
 
         for j in range(sub_plot_n):
 
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
             if j == 0:
                 ax.text(
                     0.65,
@@ -1506,25 +1368,16 @@ def plot_deg_det(
                                 0.99,
                                 # r"$\hat \alpha$"
                                 # + ": {0:.2f} \n".format(alpha[i])
-                                r"$\hat \gamma$"
-                                + ": {0:.2f} \n".format(gamma[i]),
+                                r"$\hat \gamma$" + ": {0:.2f} \n".format(gamma[i]),
                                 ha="left",
                                 va="top",
                                 transform=ax.transAxes,
                             )
             if show_variance:
                 if has_splicing:
-                    Obs = (
-                        X_raw[i][j][0].A.flatten()
-                        if issparse(X_raw[i][j][0])
-                        else X_raw[i][j][0].flatten()
-                    )
+                    Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                 else:
-                    Obs = (
-                        X_raw[i].A.flatten()
-                        if issparse(X_raw[i][0])
-                        else X_raw[i].flatten()
-                    )
+                    Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
                 ax.boxplot(
                     x=[Obs[T == std] for std in T_uniq],
                     positions=T_uniq,
@@ -1608,19 +1461,11 @@ def plot_deg_sto(
 
     if has_splicing:
         if "M_ul" in adata.layers.keys() and use_smoothed:
-            title_ = (
-                ["M_ul", "M_sl", "M_ul2", "M_sl2", "M_ul_sl"]
-                if show_moms_fit
-                else ["M_ul", "M_sl"]
-            )
+            title_ = ["M_ul", "M_sl", "M_ul2", "M_sl2", "M_ul_sl"] if show_moms_fit else ["M_ul", "M_sl"]
             layers = ["M_ul", "M_sl", "M_uu", "M_su"]
             layer_u, layer_s = "M_ul", "M_sl"
         else:
-            title_ = (
-                ["X_ul", "X_sl", "X_ul2", "X_sl2", "X_ul_sl"]
-                if show_moms_fit
-                else ["X_ul", "X_sl"]
-            )
+            title_ = ["X_ul", "X_sl", "X_ul2", "X_sl2", "X_ul_sl"] if show_moms_fit else ["X_ul", "X_sl"]
             layers = ["X_ul", "X_sl", "X_uu", "X_su"]
             layer_u, layer_s = "X_ul", "X_sl"
 
@@ -1642,9 +1487,7 @@ def plot_deg_sto(
             total_layer = "X_total"
             layer = "X_new"
 
-        _, X_raw = prepare_data_no_splicing(
-            adata, adata.var.index, T, layer=layer, total_layer=total_layer
-        )
+        _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer, total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_X_fit_data, cur_logLL = (
@@ -1654,21 +1497,11 @@ def plot_deg_sto(
         )
 
         for j in range(sub_plot_n):
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
             if j == 0:
                 ax.text(
                     0.65,
@@ -1742,8 +1575,7 @@ def plot_deg_sto(
                                 0.99,
                                 # r"$\hat \alpha$"
                                 # + ": {0:.2f} \n".format(alpha[i])
-                                r"$\hat \gamma$"
-                                + ": {0:.2f} \n".format(gamma[i]),
+                                r"$\hat \gamma$" + ": {0:.2f} \n".format(gamma[i]),
                                 ha="left",
                                 va="top",
                                 transform=ax.transAxes,
@@ -1753,17 +1585,9 @@ def plot_deg_sto(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = (
-                            X_raw[i][j][0].A.flatten()
-                            if issparse(X_raw[i][j][0])
-                            else X_raw[i][j][0].flatten()
-                        )
+                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = (
-                            X_raw[i].A.flatten()
-                            if issparse(X_raw[i][0])
-                            else X_raw[i].flatten()
-                        )
+                        Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -1788,10 +1612,7 @@ def plot_deg_sto(
                         ax.plot(T_uniq, cur_X_data[j].T, "k--")
                     ax.set_title(gene_name)
             # other subplots
-            if not (
-                (show_variance and j < max_box_plots)
-                or (not show_variance and j == 0)
-            ):
+            if not ((show_variance and j < max_box_plots) or (not show_variance and j == 0)):
                 ax.plot(T_uniq, cur_X_fit_data[j].T)
                 ax.plot(T_uniq, cur_X_data[j], "k--")
                 if show_variance:
@@ -1858,9 +1679,7 @@ def plot_kin_twostep(
         xticks, xticks_labels = T_uniq, T_uniq
 
     unique_labels = np.unique(T_uniq)
-    color_key = _to_hex(
-        plt.get_cmap("viridis")(np.linspace(0, 1, len(unique_labels)))
-    )
+    color_key = _to_hex(plt.get_cmap("viridis")(np.linspace(0, 1, len(unique_labels))))
 
     new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
 
@@ -1875,35 +1694,17 @@ def plot_kin_twostep(
             X_fit_data[i],
             logLL[i],
         )
-        r = (
-            adata[:, gene_name].layers[mapper["X_total"]]
-            if use_smoothed
-            else adata[:, gene_name].layers["X_total"]
-        )
-        n = (
-            adata[:, gene_name].layers[mapper["X_new"]]
-            if use_smoothed
-            else adata[:, gene_name].layers["X_new"]
-        )
+        r = adata[:, gene_name].layers[mapper["X_total"]] if use_smoothed else adata[:, gene_name].layers["X_total"]
+        n = adata[:, gene_name].layers[mapper["X_new"]] if use_smoothed else adata[:, gene_name].layers["X_new"]
         r = r.A.flatten() if issparse(r) else r.flatten()
         n = n.A.flatten() if issparse(n) else n.flatten()
 
         for j in range(sub_plot_n):
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
             if j == 0:
                 if cur_logLL is not None:
                     ax.text(
@@ -2095,15 +1896,9 @@ def plot_kin_deg_twostep(
     else:
         xticks, xticks_labels = T_uniq, T_uniq
 
-    layer = (
-        "M_n" if ("M_n" in adata.layers.keys() and use_smoothed) else "X_new"
-    )
-    total_layer = (
-        "M_t" if ("M_t" in adata.layers.keys() and use_smoothed) else "X_total"
-    )
-    _, X_raw = prepare_data_no_splicing(
-        adata, adata.var.index, T, layer=layer, total_layer=total_layer
-    )
+    layer = "M_n" if ("M_n" in adata.layers.keys() and use_smoothed) else "X_new"
+    total_layer = "M_t" if ("M_t" in adata.layers.keys() and use_smoothed) else "X_total"
+    _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer, total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_logLL = X_data[i], logLL[i]
@@ -2113,27 +1908,13 @@ def plot_kin_deg_twostep(
             X_fit_data[i][1][1],
         )
 
-        Obs = (
-            X_raw[i].A.flatten()
-            if issparse(X_raw[i][0])
-            else X_raw[i].flatten()
-        )
+        Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
         for j in range(sub_plot_n):
-            row_ind = int(
-                np.floor(i / ncols)
-            )  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 
-            col_loc = (
-                (row_ind * sub_plot_n + j) * ncols * grp_len
-                + (i % ncols - 1) * grp_len
-                + 1
-            )
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1
             row_i, col_i = np.where(fig_mat == col_loc)
-            ax = (
-                plt.subplot(gs[col_loc])
-                if gene_order == "column"
-                else plt.subplot(gs[fig_mat[col_i, row_i][0]])
-            )
+            ax = plt.subplot(gs[col_loc]) if gene_order == "column" else plt.subplot(gs[fig_mat[col_i, row_i][0]])
 
             if j == 0:
                 ax.text(
@@ -2157,12 +1938,8 @@ def plot_kin_deg_twostep(
                         showfliers=False,
                         showmeans=True,
                     )
-                    ax.plot(
-                        T_uniq, cur_X_fit_data, "b"
-                    )  # ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
-                    ax.plot(
-                        T_uniq, cur_X_data, "k--"
-                    )  # ax.plot(T_uniq, cur_X_data[j], "k--")
+                    ax.plot(T_uniq, cur_X_fit_data, "b")  # ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
+                    ax.plot(T_uniq, cur_X_data, "k--")  # ax.plot(T_uniq, cur_X_data[j], "k--")
                     ax.set_ylabel("labeled")
                     ax.set_title(gene_name + str(cur_logLL))
                 else:

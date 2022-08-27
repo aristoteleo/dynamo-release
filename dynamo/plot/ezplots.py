@@ -223,9 +223,7 @@ def zstreamline(
     #    grid_num = grid_num * np.ones(2)
     # V_grid, X_grid = smoothen_drift_on_grid(X, V, n_grid=grid_num, smoothness=smoothness)
     # V_grid, X_grid = V_grid.T, X_grid.T
-    X_grid, V_grid = velocity_on_grid(
-        X, V, n_grids=grid_num, smoothness=smoothness, cutoff_coeff=cutoff
-    )
+    X_grid, V_grid = velocity_on_grid(X, V, n_grids=grid_num, smoothness=smoothness, cutoff_coeff=cutoff)
     V_grid, X_grid = V_grid.T, X_grid.T
 
     streamplot_kwargs = {
@@ -267,9 +265,7 @@ def zstreamline(
         return X_grid.T, V_grid.T
 
 
-def multiplot(
-    plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)
-):
+def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)):
     if n_col is None and n_row is None:
         n_col = 3
     n = len(arr[list(arr.keys())[0]]) if type(arr) is dict else len(arr)

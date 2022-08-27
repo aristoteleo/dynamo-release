@@ -19,9 +19,7 @@ ON_RTD = os.environ.get("READTHEDOCS") == "True"
 def match_groups(regex, target):
     match = re.match(regex, target)
     if match is None:
-        raise re.error(
-            f"Regex does not match “{target}”. RE Pattern: {regex}", regex
-        )
+        raise re.error(f"Regex does not match “{target}”. RE Pattern: {regex}", regex)
     return match.groups()
 
 
@@ -88,9 +86,7 @@ def get_version_from_git(parent):
         check=True,
     )
 
-    release, dev, hex_, dirty = match_groups(
-        f"{RE_GIT_DESCRIBE}", p.stdout.rstrip("\r\n")
-    )
+    release, dev, hex_, dirty = match_groups(f"{RE_GIT_DESCRIBE}", p.stdout.rstrip("\r\n"))
 
     labels = []
     if dev == "0":
@@ -192,9 +188,7 @@ def get_all_dependencies_version(display=True):
     _package_name = "dynamo-release"
     _package = pkg_resources.working_set.by_key[_package_name]
 
-    all_dependencies = [
-        str(r).split(">")[0] for r in _package.requires()
-    ]  # retrieve deps from setup.py
+    all_dependencies = [str(r).split(">")[0] for r in _package.requires()]  # retrieve deps from setup.py
     all_dependencies.sort(reverse=True)
     all_dependencies.insert(0, "dynamo-release")
 
@@ -204,13 +198,7 @@ def get_all_dependencies_version(display=True):
         if m.project_name.lower() in all_dependencies:
             all_dependencies_list.append([m.project_name, m.version])
 
-    df = (
-        pd.DataFrame(
-            all_dependencies_list[::-1], columns=["package", "version"]
-        )
-        .set_index("package")
-        .T
-    )
+    df = pd.DataFrame(all_dependencies_list[::-1], columns=["package", "version"]).set_index("package").T
 
     if display:
         pd.options.display.max_columns = None

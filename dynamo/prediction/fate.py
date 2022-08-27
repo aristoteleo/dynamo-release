@@ -151,9 +151,7 @@ def fate(
         init_states = init_states[:, dims]
 
     vf = (
-        (lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims))
-        if VecFld_true is None
-        else VecFld_true
+        (lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)) if VecFld_true is None else VecFld_true
     )
     t, prediction = _fate(
         vf,
@@ -171,10 +169,7 @@ def fate(
     if basis == "pca" and inverse_transform:
         Qkey = "PCs"
         if type(prediction) == list:
-            exprs = [
-                vector_transformation(cur_pred.T, adata.uns[Qkey])
-                for cur_pred in prediction
-            ]
+            exprs = [vector_transformation(cur_pred.T, adata.uns[Qkey]) for cur_pred in prediction]
             high_p_n = exprs[0].shape[1]
         else:
             exprs = vector_transformation(prediction.T, adata.uns[Qkey])
@@ -326,9 +321,7 @@ def _fate(
             avg = np.zeros((n_feature, t_len))
 
             for i in range(t_len):
-                avg[:, i] = np.mean(
-                    prediction_stack[:, np.arange(n_cell) * t_len + i], 1
-                )
+                avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
 
             prediction = [avg]
             t = [np.sort(np.unique(t))]
@@ -438,9 +431,7 @@ def fate_bias(
         dist_threshold = 1
 
     if group not in adata.obs.keys():
-        raise ValueError(
-            f"The group {group} you provided is not a key of .obs attribute."
-        )
+        raise ValueError(f"The group {group} you provided is not a key of .obs attribute.")
     else:
         clusters = adata.obs[group]
 
@@ -448,9 +439,7 @@ def fate_bias(
     fate_key = "fate_" + basis if basis is not None else "fate"
 
     if basis_key not in adata.obsm.keys():
-        raise ValueError(
-            f"The basis {basis_key} you provided is not a key of .obsm attribute."
-        )
+        raise ValueError(f"The basis {basis_key} you provided is not a key of .obsm attribute.")
     if fate_key not in adata.uns.keys():
         raise ValueError(
             f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
@@ -484,9 +473,7 @@ def fate_bias(
         knn, distances = nbrs.query(X, k=30)
     else:
         alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(
-            n_neighbors=30, algorithm=alg, n_jobs=cores
-        ).fit(X)
+        nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg, n_jobs=cores).fit(X)
         distances, knn = nbrs.kneighbors(X)
 
     median_dist = np.median(distances[:, 1])
@@ -499,9 +486,7 @@ def fate_bias(
     t = adata.uns[fate_key]["t"]
     confidence = np.zeros(len(t))
 
-    for i, prediction in tqdm(
-        enumerate(cell_predictions), desc="calculating fate distributions"
-    ):
+    for i, prediction in tqdm(enumerate(cell_predictions), desc="calculating fate distributions"):
         cur_t, n_steps = t[i], len(t[i])
 
         # Generate or set indices as step sample points. Meanwhile ensure
@@ -512,17 +497,11 @@ def fate_bias(
         if inds is not None:
             indices = inds
         elif use_sink_percentage:
-            avg_speed = np.array(
-                [np.linalg.norm(i) for i in np.diff(prediction, 1).T]
-            ) / np.diff(cur_t)
-            sink_checker = np.where(
-                avg_speed[::-1] > np.percentile(avg_speed, speed_percentile)
-            )[0]
+            avg_speed = np.array([np.linalg.norm(i) for i in np.diff(prediction, 1).T]) / np.diff(cur_t)
+            sink_checker = np.where(avg_speed[::-1] > np.percentile(avg_speed, speed_percentile))[0]
             indices = np.arange(n_steps - max(min(sink_checker), 10), n_steps)
         elif step_used_percentage is float:
-            indices = np.arange(
-                int(n_steps - step_used_percentage * n_steps), n_steps
-            )
+            indices = np.arange(int(n_steps - step_used_percentage * n_steps), n_steps)
         else:
             main_info("using all steps data")
             indices = np.arange(0, n_steps)
@@ -535,9 +514,7 @@ def fate_bias(
             # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
         while True:
-            is_dist_larger_than_threshold = (
-                distances.flatten() < dist_threshold * median_dist
-            )
+            is_dist_larger_than_threshold = distances.flatten() < dist_threshold * median_dist
             if any(is_dist_larger_than_threshold):
 
                 # let us diffuse one step further to identify cells from terminal cell types in case
@@ -547,9 +524,7 @@ def fate_bias(
                 else:
                     _, knn = nbrs.kneighbors(X[knn.flatten(), :])
 
-                fate_prob = clusters[knn.flatten()].value_counts() / len(
-                    knn.flatten()
-                )
+                fate_prob = clusters[knn.flatten()].value_counts() / len(knn.flatten())
                 if source_groups is not None:
                     source_p = fate_prob[source_groups].sum()
                     if 1 > source_p > 0:
@@ -558,28 +533,22 @@ def fate_bias(
 
                 pred_dict[i] = fate_prob
 
-                confidence[i] = 1 - (
-                    sum(~is_dist_larger_than_threshold) + walk_back_steps
-                ) / (len(is_dist_larger_than_threshold) + walk_back_steps)
+                confidence[i] = 1 - (sum(~is_dist_larger_than_threshold) + walk_back_steps) / (
+                    len(is_dist_larger_than_threshold) + walk_back_steps
+                )
 
                 break
             else:
                 walk_back_steps += 1
 
                 if any(indices - 1 < 0):
-                    pred_dict[i] = (
-                        clusters[knn.flatten()].value_counts() * np.nan
-                    )
+                    pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
                     break
 
                 if hasattr(nbrs, "query"):
-                    knn, distances = nbrs.query(
-                        prediction[:, indices - 1].T, k=30
-                    )
+                    knn, distances = nbrs.query(prediction[:, indices - 1].T, k=30)
                 else:
-                    distances, knn = nbrs.kneighbors(
-                        prediction[:, indices - 1].T
-                    )
+                    distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T)
 
                 knn, distances = knn[:, 0], distances[:, 0]
                 indices = indices - 1
@@ -689,9 +658,7 @@ def andecestor(
     basis_key = "X_" + basis
     X = adata.obsm[basis_key].copy()
 
-    main_info(
-        "build a kNN graph structure so we can query the nearest cells of the predicted states."
-    )
+    main_info("build a kNN graph structure so we can query the nearest cells of the predicted states.")
     if X.shape[0] > 5000 and X.shape[1] > 2:
         alg = "NNDescent"
         from pynndescent import NNDescent
@@ -707,9 +674,7 @@ def andecestor(
         )
     else:
         alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(
-            n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores
-        ).fit(X)
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores).fit(X)
 
     if init_states is None:
         init_states = adata[init_cells, :].obsm[basis_key]
@@ -720,9 +685,7 @@ def andecestor(
                 f"{init_states.shape[1]}"
             )
 
-    main_info(
-        "predict cell state trajectory via integrating vector field function."
-    )
+    main_info("predict cell state trajectory via integrating vector field function.")
     t, pred = _fate(
         vecfld,
         init_states,
@@ -736,9 +699,7 @@ def andecestor(
 
     nearest_cell_inds = []
 
-    main_info(
-        "identify the progenitors/descendants by finding predicted cell states' nearest cells."
-    )
+    main_info("identify the progenitors/descendants by finding predicted cell states' nearest cells.")
     for j in range(len(pred)):
         last_indices = [0, -1] if direction == "both" else [-1]
         queries = pred[j].T[last_indices] if last_point_only else pred[j].T
@@ -756,19 +717,11 @@ def andecestor(
         if type(init_cells[0]) is int:
             init_cells = adata.obs_names[init_cells]
 
-        nearest_cells = list(
-            set(adata.obs_names[nearest_cell_inds]).difference(init_cells)
-        )
+        nearest_cells = list(set(adata.obs_names[nearest_cell_inds]).difference(init_cells))
     else:
         nearest_cells = list(adata.obs_names[nearest_cell_inds])
 
-    obs_key = (
-        "descendant"
-        if direction == "forward"
-        else "ancestor"
-        if direction == "backward"
-        else "lineage"
-    )
+    obs_key = "descendant" if direction == "forward" else "ancestor" if direction == "backward" else "lineage"
 
     main_info_insert_adata(obs_key)
     adata.obs[obs_key] = False

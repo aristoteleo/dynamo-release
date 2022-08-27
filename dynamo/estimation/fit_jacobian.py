@@ -89,9 +89,7 @@ def fit_hill_grad(
             else:
                 A, K, n, g = p_opt[0], p_opt[1], np.exp(p_opt[2]), fix_g
 
-            msd = calc_mean_squared_deviation(
-                lambda x: func(x, A, K, n, g), x_data_, y_mean, y_sigm
-            )
+            msd = calc_mean_squared_deviation(lambda x: func(x, A, K, n, g), x_data_, y_mean, y_sigm)
 
             if msd < msd_min:
                 msd_min = msd
@@ -104,15 +102,11 @@ def fit_hill_grad(
         return None, np.inf
     else:
         A, K, n, g = p_opt_min[0], p_opt_min[1], p_opt_min[2], p_opt_min[3]
-        msd_min = calc_mean_squared_deviation(
-            lambda x: func(x, A, K, n, g), x_data, y_mean, y_sigm
-        )
+        msd_min = calc_mean_squared_deviation(lambda x: func(x, A, K, n, g), x_data, y_mean, y_sigm)
         return {"A": A, "K": K, "n": n, "g": g}, msd_min
 
 
-def fit_hill_inh_grad(
-    x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=1e-4
-):
+def fit_hill_inh_grad(x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=1e-4):
     A0 = -np.min(y_mean)
     K0 = (x_data[0] + x_data[-1]) / 2
     g0 = 0
@@ -132,9 +126,7 @@ def fit_hill_inh_grad(
     for logn0 in logN0:
         try:
             p_opt, _ = curve_fit(
-                lambda x, A, K, logn, g: hill_inh_grad(
-                    x, A, K, np.exp(logn), g
-                ),
+                lambda x, A, K, logn, g: hill_inh_grad(x, A, K, np.exp(logn), g),
                 x_data[x_data > x_tol],
                 y_mean[x_data > x_tol],
                 p0=[A0, K0, logn0, g0],
@@ -142,9 +134,7 @@ def fit_hill_inh_grad(
                 bounds=[(0, 0, -np.inf, 0), (np.inf, np.inf, np.inf, np.inf)],
             )
             A, K, n, g = p_opt[0], p_opt[1], np.exp(p_opt[2]), p_opt[3]
-            msd = calc_mean_squared_deviation(
-                lambda x: hill_inh_grad(x, A, K, n, g), x_data, y_mean, y_sigm
-            )
+            msd = calc_mean_squared_deviation(lambda x: hill_inh_grad(x, A, K, n, g), x_data, y_mean, y_sigm)
 
             if msd < msd_min:
                 msd_min = msd
@@ -161,9 +151,7 @@ def fit_hill_inh_grad(
     }, msd_min
 
 
-def fit_hill_act_grad(
-    x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=1e-4
-):
+def fit_hill_act_grad(x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=1e-4):
     A0 = np.max(y_mean)
     K0 = (x_data[0] + x_data[-1]) / 2
     g0 = 0
@@ -183,9 +171,7 @@ def fit_hill_act_grad(
     for logn0 in logN0:
         try:
             p_opt, _ = curve_fit(
-                lambda x, A, K, logn, g: hill_act_grad(
-                    x, A, K, np.exp(logn), g
-                ),
+                lambda x, A, K, logn, g: hill_act_grad(x, A, K, np.exp(logn), g),
                 x_data[x_data > x_tol],
                 y_mean[x_data > x_tol],
                 p0=[A0, K0, logn0, g0],
@@ -193,9 +179,7 @@ def fit_hill_act_grad(
                 bounds=[(0, 0, -np.inf, 0), (np.inf, np.inf, np.inf, np.inf)],
             )
             A, K, n, g = p_opt[0], p_opt[1], np.exp(p_opt[2]), p_opt[3]
-            msd = calc_mean_squared_deviation(
-                lambda x: hill_act_grad(x, A, K, n, g), x_data, y_mean, y_sigm
-            )
+            msd = calc_mean_squared_deviation(lambda x: hill_act_grad(x, A, K, n, g), x_data, y_mean, y_sigm)
 
             if msd < msd_min:
                 msd_min = msd

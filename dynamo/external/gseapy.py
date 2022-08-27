@@ -61,10 +61,7 @@ def enrichr(
     try:
         import gseapy as gp
     except ImportError:
-        raise ImportError(
-            "You need to install the package `gseapy`."
-            "install gseapy via `pip install gseapy`"
-        )
+        raise ImportError("You need to install the package `gseapy`." "install gseapy via `pip install gseapy`")
 
     Path(outdir).mkdir(parents=True, exist_ok=True)
 

@@ -55,13 +55,9 @@ def adj_to_knn(adj, n_neighbors):
         cur_n_neighbors = len(cur_neighbors[1])
 
         if cur_n_neighbors > n_neighbors - 1:
-            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[
-                0
-            ][: (n_neighbors - 1)]
+            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[0][: (n_neighbors - 1)]
             idx[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
-            wgt[cur_cell, 1:] = adj[cur_cell][
-                0, cur_neighbors[1][sorted_indices]
-            ].A
+            wgt[cur_cell, 1:] = adj[cur_cell][0, cur_neighbors[1][sorted_indices]].A
         else:
             idx_ = np.arange(1, (cur_n_neighbors + 1))
             idx[cur_cell, idx_] = cur_neighbors[1]
@@ -417,18 +413,13 @@ def mnn(
         if "pca_fit" in adata.uns.keys():
             fiter = adata.uns["pca_fit"]
         else:
-            raise Exception(
-                "use_pca_fit is set to be True, but there is no pca fit results in .uns attribute."
-            )
+            raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(
-        adata, layers, False, False
-    )
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
-        if layer.startswith("X_")
-        and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
+        if layer.startswith("X_") and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
     ]
     knn_graph_list = []
     for layer in layers:
@@ -437,9 +428,7 @@ def mnn(
         if use_pca_fit:
             layer_pca = fiter.fit_transform(layer_X)[:, 1:]
         else:
-            transformer = TruncatedSVD(
-                n_components=n_pca_components + 1, random_state=0
-            )
+            transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
             layer_pca = transformer.fit_transform(layer_X)[:, 1:]
 
         with warnings.catch_warnings():
@@ -449,18 +438,14 @@ def mnn(
                 knn_indices,
                 knn_dists,
                 X_dim,
-            ) = umap_conn_indices_dist_embedding(
-                layer_pca, n_neighbors=n_neighbors, return_mapper=False
-            )
+            ) = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors, return_mapper=False)
 
         if save_all_to_adata:
             adata.obsm[layer + "_pca"], adata.obsm[layer + "_umap"] = (
                 layer_pca,
                 X_dim,
             )
-            n_neighbors = signature(
-                umap_conn_indices_dist_embedding
-            ).parameters["n_neighbors"]
+            n_neighbors = signature(umap_conn_indices_dist_embedding).parameters["n_neighbors"]
 
             adata.uns[layer + "_neighbors"] = {
                 "params": {"n_neighbors": eval(n_neighbors), "method": "umap"},
@@ -496,11 +481,7 @@ def _gen_neighbor_keys(result_prefix="") -> tuple:
 
     """
     if result_prefix:
-        result_prefix = (
-            result_prefix
-            if result_prefix.endswith("_")
-            else result_prefix + "_"
-        )
+        result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
     if result_prefix is None:
         result_prefix = ""
 
@@ -580,20 +561,14 @@ def neighbors(
     logger.log_time()
 
     if X_data is None:
-        logger.info(
-            "X_data is None, fetching or recomputing...", indent_level=2
-        )
+        logger.info("X_data is None, fetching or recomputing...", indent_level=2)
         if basis == "pca" and "X_pca" not in adata.obsm_keys():
-            logger.info(
-                "PCA as basis not X_pca not found, doing PCAs", indent_level=2
-            )
+            logger.info("PCA as basis not X_pca not found, doing PCAs", indent_level=2)
             from ..preprocessing.utils import pca_monocle
 
             CM = adata.X if genes is None else adata[:, genes].X
             cm_genesums = CM.sum(axis=0)
-            valid_ind = np.logical_and(
-                np.isfinite(cm_genesums), cm_genesums != 0
-            )
+            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
             adata, _, _ = pca_monocle(
@@ -606,10 +581,7 @@ def neighbors(
 
             X_data = adata.obsm["X_pca"]
         else:
-            logger.info(
-                "fetching X data from layer:%s, basis:%s"
-                % (str(layer), str(basis))
-            )
+            logger.info("fetching X data from layer:%s, basis:%s" % (str(layer), str(basis)))
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
     if method is None:
@@ -650,16 +622,12 @@ def neighbors(
         ).fit(X_data)
         distances, knn = nbrs.kneighbors(X_data)
     else:
-        raise ImportError(
-            f"nearest neighbor search method {method} is not supported"
-        )
+        raise ImportError(f"nearest neighbor search method {method} is not supported")
 
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
     logger.info_insert_adata(conn_key, adata_attr="obsp")
     logger.info_insert_adata(dist_key, adata_attr="obsp")
-    adata.obsp[dist_key], adata.obsp[conn_key] = get_conn_dist_graph(
-        knn, distances
-    )
+    adata.obsp[dist_key], adata.obsp[conn_key] = get_conn_dist_graph(knn, distances)
 
     logger.info_insert_adata(neighbor_key, adata_attr="uns")
     logger.info_insert_adata(neighbor_key + ".indices", adata_attr="uns")
@@ -712,11 +680,7 @@ def check_neighbors_completeness(
     # Old anndata version version
     # conn_mat = adata.uns[neighbor_key]["connectivities"]
     # dist_mat = adata.uns[neighbor_key]["distances"]
-    if (
-        (conn_key not in adata.obsp)
-        or (dist_key not in adata.obsp)
-        or ("indices" not in adata.uns[neighbor_key])
-    ):
+    if (conn_key not in adata.obsp) or (dist_key not in adata.obsp) or ("indices" not in adata.uns[neighbor_key]):
         main_info(
             "incomplete neighbor graph info detected: %s and %s do not exist in adata.obsp, indices not in adata.uns.%s."
             % (conn_key, dist_key, neighbor_key)
@@ -743,8 +707,7 @@ def check_neighbors_completeness(
     is_indices_valid = np.all(neighbor_mat < n_obs)
     if not is_indices_valid:
         main_warning(
-            "Some indices in %s are larger than the number of observations and thus not valid."
-            % (neighbor_key)
+            "Some indices in %s are larger than the number of observations and thus not valid." % (neighbor_key)
         )
         return False
     is_valid = is_valid and is_indices_valid
@@ -754,22 +717,14 @@ def check_neighbors_completeness(
         return np.all(sums > 0)
 
     if check_nonzero_row:
-        is_row_valid = _check_nonzero_sum(dist_mat, 1) and _check_nonzero_sum(
-            conn_mat, 1
-        )
+        is_row_valid = _check_nonzero_sum(dist_mat, 1) and _check_nonzero_sum(conn_mat, 1)
         if not is_row_valid:
-            main_warning(
-                "Some row sums(out degree) in adata's neighbor graph are zero."
-            )
+            main_warning("Some row sums(out degree) in adata's neighbor graph are zero.")
         is_valid = is_valid and is_row_valid
     if check_nonzero_col:
-        is_col_valid = _check_nonzero_sum(dist_mat, 0) and _check_nonzero_sum(
-            conn_mat, 0
-        )
+        is_col_valid = _check_nonzero_sum(dist_mat, 0) and _check_nonzero_sum(conn_mat, 0)
         if not is_col_valid:
-            main_warning(
-                "Some column sums(in degree) in adata's neighbor graph are zero."
-            )
+            main_warning("Some column sums(in degree) in adata's neighbor graph are zero.")
         is_valid = is_valid and is_col_valid
 
     return is_valid
@@ -788,8 +743,6 @@ def check_and_recompute_neighbors(adata: AnnData, result_prefix: str = ""):
         result_prefix = ""
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
 
-    if not check_neighbors_completeness(
-        adata, conn_key=conn_key, dist_key=dist_key, result_prefix=result_prefix
-    ):
+    if not check_neighbors_completeness(adata, conn_key=conn_key, dist_key=dist_key, result_prefix=result_prefix):
         main_info("Neighbor graph is broken, recomputing....")
         neighbors(adata, result_prefix=result_prefix)

@@ -137,9 +137,7 @@ class Preprocessor:
 
         # kwargs pass to the functions above
         self.filter_genes_by_outliers_kwargs = filter_genes_by_outliers_kwargs
-        self.normalize_by_cells_function_kwargs = (
-            normalize_by_cells_function_kwargs
-        )
+        self.normalize_by_cells_function_kwargs = normalize_by_cells_function_kwargs
         self.filter_cells_by_outliers_kwargs = filter_cells_by_outliers_kwargs
         self.select_genes_kwargs = select_genes_kwargs
         self.sctransform_kwargs = sctransform_kwargs
@@ -153,9 +151,7 @@ class Preprocessor:
     ):
         if DKM.UNS_PP_KEY not in adata.uns.keys():
             adata.uns[DKM.UNS_PP_KEY] = {}
-        main_info_insert_adata(
-            "%s" % adata.uns["pp"], "uns['pp']", indent_level=2
-        )
+        main_info_insert_adata("%s" % adata.uns["pp"], "uns['pp']", indent_level=2)
 
         (
             has_splicing,
@@ -167,10 +163,7 @@ class Preprocessor:
         if has_labeling:
             main_info("data contains labeling info, checking tkey:" + str(tkey))
             if tkey not in adata.obs.keys():
-                raise ValueError(
-                    "tkey:%s encoding the labeling time is not existed in your adata."
-                    % (str(tkey))
-                )
+                raise ValueError("tkey:%s encoding the labeling time is not existed in your adata." % (str(tkey)))
             if tkey is not None and adata.obs[tkey].max() > 60:
                 main_warning(
                     "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
@@ -215,16 +208,12 @@ class Preprocessor:
         adata.uns["pp"]["experiment_layers"] = layers
         adata.uns["pp"]["experiment_total_layers"] = total_layers
 
-    def standardize_adata(
-        self, adata: AnnData, tkey: str, experiment_type: str
-    ):
+    def standardize_adata(self, adata: AnnData, tkey: str, experiment_type: str):
         adata.uns["pp"] = {}
         adata.uns["pp"]["norm_method"] = None
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
-        main_info_insert_adata(
-            "experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2
-        )
+        main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
         main_info("making adata observation index unique...")
         self.unique_var_obs_adata(adata)
         self.convert_layers2csr(adata)
@@ -236,32 +225,20 @@ class Preprocessor:
         if self.convert_gene_name:
             main_info("applying convert_gene_name function...")
             self.convert_gene_name(adata)
-            main_info(
-                "making adata observation index unique after gene name conversion..."
-            )
+            main_info("making adata observation index unique after gene name conversion...")
             self.unique_var_obs_adata(adata)
 
     def _filter_cells_by_outliers(self, adata: AnnData):
         if self.filter_cells_by_outliers:
             main_info("filtering outlier cells...")
-            main_info(
-                "cell filter kwargs:"
-                + str(self.filter_cells_by_outliers_kwargs)
-            )
-            self.filter_cells_by_outliers(
-                adata, **self.filter_cells_by_outliers_kwargs
-            )
+            main_info("cell filter kwargs:" + str(self.filter_cells_by_outliers_kwargs))
+            self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
 
     def _filter_genes_by_outliers(self, adata: AnnData):
         if self.filter_genes_by_outliers:
             main_info("filtering outlier genes...")
-            main_info(
-                "gene filter kwargs:"
-                + str(self.filter_genes_by_outliers_kwargs)
-            )
-            self.filter_genes_by_outliers(
-                adata, **self.filter_genes_by_outliers_kwargs
-            )
+            main_info("gene filter kwargs:" + str(self.filter_genes_by_outliers_kwargs))
+            self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
 
     def _select_genes(self, adata: AnnData):
         if self.select_genes:
@@ -273,9 +250,7 @@ class Preprocessor:
         if self.gene_append_list is not None:
             append_genes = adata.var.index.intersection(self.gene_append_list)
             adata.var.loc[append_genes, DKM.VAR_USE_FOR_PCA] = True
-            main_info(
-                "appended %d extra genes as required..." % len(append_genes)
-            )
+            main_info("appended %d extra genes as required..." % len(append_genes))
 
     def _exclude_gene_list(self, adata: AnnData):
         if self.gene_exclude_list is not None:
@@ -293,9 +268,7 @@ class Preprocessor:
                 % len(forced_genes)
             )
         else:
-            main_info(
-                "self.force_gene_list is None, skipping filtering by gene list..."
-            )
+            main_info("self.force_gene_list is None, skipping filtering by gene list...")
 
     def _normalize_selected_genes(self, adata: AnnData):
         if not callable(self.normalize_selected_genes):
@@ -305,21 +278,15 @@ class Preprocessor:
             return
 
         main_info("normalizing selected genes...")
-        self.normalize_selected_genes(
-            adata, **self.normalize_selected_genes_kwargs
-        )
+        self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
 
     def _normalize_by_cells(self, adata: AnnData):
         if not callable(self.normalize_by_cells):
-            main_info(
-                "skipping normalize by cells as preprocessor normalize_by_cells is not callable..."
-            )
+            main_info("skipping normalize by cells as preprocessor normalize_by_cells is not callable...")
             return
 
         main_info("applying normalize by cells function...")
-        self.normalize_by_cells(
-            adata, **self.normalize_by_cells_function_kwargs
-        )
+        self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
 
     def _log1p(self, adata: AnnData):
         if self.use_log1p:
@@ -330,9 +297,7 @@ class Preprocessor:
             # TODO: the following line is for monocle recipe and later dynamics matrix recovery
             # refactor with dynamics module
             adata.uns["pp"]["norm_method"] = "log1p"
-            main_info(
-                "applying log1p transformation on expression matrix data (adata.X)..."
-            )
+            main_info("applying log1p transformation on expression matrix data (adata.X)...")
             self.log1p(adata, **self.log1p_kwargs)
 
     def _pca(self, adata):
@@ -522,9 +487,7 @@ class Preprocessor:
         self.sctransform(adata, **self.sctransform_kwargs)
         self._pca(adata)
 
-        temp_logger.finish_progress(
-            progress_name="preprocess by sctransform recipe"
-        )
+        temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
 
     def config_pearson_residuals_recipe(self, adata: AnnData):
         self.filter_cells_by_outliers = None
@@ -567,9 +530,7 @@ class Preprocessor:
         self._normalize_selected_genes(adata)
         self._pca(adata)
 
-        temp_logger.finish_progress(
-            progress_name="preprocess by pearson residual recipe"
-        )
+        temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
 
     def config_monocle_pearson_residuals_recipe(self, adata: AnnData):
         self.config_monocle_recipe(adata)
@@ -604,9 +565,7 @@ class Preprocessor:
             experiment type of data, by default None
 
         """
-        temp_logger = LoggerManager.gen_logger(
-            "preprocessor-monocle-pearson-residual"
-        )
+        temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
         self._select_genes(adata)
@@ -623,9 +582,7 @@ class Preprocessor:
         #         adata.layers[layer] = adata.
 
         self.pca(adata, **self.pca_kwargs)
-        temp_logger.finish_progress(
-            progress_name="preprocess by monocle pearson residual recipe"
-        )
+        temp_logger.finish_progress(progress_name="preprocess by monocle pearson residual recipe")
 
     def preprocess_adata(
         self,
@@ -650,6 +607,4 @@ class Preprocessor:
             self.config_monocle_pearson_residuals_recipe(adata)
             self.preprocess_adata_monocle_pearson_residuals(adata, tkey=tkey)
         else:
-            raise NotImplementedError(
-                "preprocess recipe chosen not implemented: %s" % (recipe)
-            )
+            raise NotImplementedError("preprocess recipe chosen not implemented: %s" % (recipe))

@@ -8,10 +8,8 @@ from anndata._core.anndata import AnnData
 
 from ..dynamo_logger import (
     LoggerManager,
-    main_info,
     main_info_insert_adata,
     main_info_insert_adata_uns,
-    main_warning,
 )
 from ..tools.sampling import sample
 from ..tools.utils import (
@@ -104,17 +102,11 @@ def velocities(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
-    init_states, _, _, _ = fetch_states(
-        adata, init_states, init_cells, basis, layer, False, None
-    )
+    init_states, _, _, _ = fetch_states(adata, init_states, init_cells, basis, layer, False, None)
 
     if vector_field_class.vf_dict["normalize"]:
         xm, xscale = (
@@ -139,9 +131,7 @@ def velocities(
         elif Qkey in adata.varm.keys():
             Q = adata.varm[Qkey]
         else:
-            raise Exception(
-                f"No PC matrix {Qkey} found in neither .uns nor .varm."
-            )
+            raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
 
         vel = adata.uns["velocities_pca"].copy()
         vel_hi = vector_transformation(vel, Q)
@@ -192,24 +182,16 @@ def speed(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     X, V = vector_field_class.get_data()
 
     if method == "analytical":
         vec_mat = vector_field_class.func(X)
     else:
-        vec_mat = (
-            adata.obsm["velocity_" + basis]
-            if basis is not None
-            else vector_field_class.vf_dict["Y"]
-        )
+        vec_mat = adata.obsm["velocity_" + basis] if basis is not None else vector_field_class.vf_dict["Y"]
 
     speed = np.array([np.linalg.norm(i) for i in vec_mat])
 
@@ -293,13 +275,9 @@ def jacobian(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     if basis == "umap":
         cell_idx = np.arange(adata.n_obs)
@@ -309,9 +287,7 @@ def jacobian(
         if sampling is None or sampling == "all":
             cell_idx = np.arange(adata.n_obs)
         else:
-            cell_idx = sample(
-                np.arange(adata.n_obs), sample_ncells, sampling, X, V
-            )
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
 
     Jac_func = vector_field_class.get_Jacobian(method=method)
     Js = Jac_func(X[cell_idx])
@@ -355,9 +331,7 @@ def jacobian(
             elif Qkey in adata.varm.keys():
                 Q = adata.varm[Qkey]
             else:
-                raise Exception(
-                    f"No PC matrix {Qkey} found in neither .uns nor .varm."
-                )
+                raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
             Q = Q[:, : X.shape[1]]
             if len(regulators) == 1 and len(effectors) == 1:
                 Jacobian = elementwise_jacobian_transformation(
@@ -367,9 +341,7 @@ def jacobian(
                     **kwargs,
                 )
             else:
-                Jacobian = subset_jacobian_transformation(
-                    Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs
-                )
+                Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
         else:
             Jacobian = Js.copy()
     else:
@@ -385,9 +357,7 @@ def jacobian(
         ret_dict["effectors"] = effectors.to_list()
 
     Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
-    jacobian_det_key = (
-        "jacobian_det" if basis is None else "jacobian_det_" + basis
-    )
+    jacobian_det_key = "jacobian_det" if basis is None else "jacobian_det_" + basis
     adata.obs[jacobian_det_key] = np.nan
     adata.obs.loc[adata.obs_names[cell_idx], jacobian_det_key] = Js_det
 
@@ -481,13 +451,9 @@ def hessian(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     if basis == "umap":
         cell_idx = np.arange(adata.n_obs)
@@ -497,20 +463,14 @@ def hessian(
         if sampling is None or sampling == "all":
             cell_idx = np.arange(adata.n_obs)
         else:
-            cell_idx = sample(
-                np.arange(adata.n_obs), sample_ncells, sampling, X, V
-            )
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
 
     Hessian_func = vector_field_class.get_Hessian(method=method)
     Hs = np.zeros([X.shape[1], X.shape[1], X.shape[1], X.shape[0]])
     for ind, i in enumerate(cell_idx):
         Hs[:, :, :, ind] = Hessian_func(X[i])
 
-    if (
-        regulators is not None
-        and coregulators is not None
-        and effector is not None
-    ):
+    if regulators is not None and coregulators is not None and effector is not None:
         if type(regulators) is str:
             if regulators in adata.var.keys():
                 regulators = adata.var.index[adata.var[regulators]]
@@ -528,9 +488,7 @@ def hessian(
                 effector = [effector]
 
             if len(effector) > 1:
-                raise Exception(
-                    f"effector must be a single gene but you have {effector}. "
-                )
+                raise Exception(f"effector must be a single gene but you have {effector}. ")
 
         regulators = np.unique(regulators)
         coregulators = np.unique(coregulators)
@@ -557,15 +515,9 @@ def hessian(
             elif Qkey in adata.varm.keys():
                 Q = adata.varm[Qkey]
             else:
-                raise Exception(
-                    f"No PC matrix {Qkey} found in neither .uns nor .varm."
-                )
+                raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
             Q = Q[:, : X.shape[1]]
-            if (
-                len(regulators) == 1
-                and len(coregulators) == 1
-                and len(effector) == 1
-            ):
+            if len(regulators) == 1 and len(coregulators) == 1 and len(effector) == 1:
                 Hessian = [
                     elementwise_hessian_transformation(
                         Hs[:, :, :, i],
@@ -674,13 +626,9 @@ def laplacian(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     Laplacian_func = vector_field_class.get_Laplacian(method=method)
     Ls = Laplacian_func(H)
@@ -694,9 +642,7 @@ def laplacian(
         elif Qkey in adata.varm.keys():
             Q = adata.varm[Qkey]
         else:
-            raise Exception(
-                f"No PC matrix {Qkey} found in neither .uns nor .varm."
-            )
+            raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
         Ls_hi = vector_transformation(Ls, Q)
         create_layer(
             adata,
@@ -801,13 +747,9 @@ def sensitivity(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     if basis == "umap":
         cell_idx = np.arange(adata.n_obs)
@@ -817,9 +759,7 @@ def sensitivity(
         if sampling is None or sampling == "all":
             cell_idx = np.arange(adata.n_obs)
         else:
-            cell_idx = sample(
-                np.arange(adata.n_obs), sample_ncells, sampling, X, V
-            )
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
 
     S = vector_field_class.compute_sensitivity(method=method)
 
@@ -862,9 +802,7 @@ def sensitivity(
                     **kwargs,
                 )
             else:
-                Sensitivity = subset_jacobian_transformation(
-                    S, Q[eff_idx, :], Q[reg_idx, :], **kwargs
-                )
+                Sensitivity = subset_jacobian_transformation(S, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
         elif projection_method == "from_jacobian":
             Js = jacobian(
                 adata,
@@ -896,9 +834,7 @@ def sensitivity(
                 s = np.linalg.inv(idenity - J[:, :, i])  # np.transpose(J)
                 Sensitivity[:, :, i] = s.dot(np.diag(1 / np.diag(s)))
         else:
-            raise ValueError(
-                "`projection_method` can only be `from_jacoian` or `direct`!"
-            )
+            raise ValueError("`projection_method` can only be `from_jacoian` or `direct`!")
     else:
         Sensitivity = None
 
@@ -907,13 +843,9 @@ def sensitivity(
     if Sensitivity is not None:
         ret_dict["sensitivity_gene"] = Sensitivity
     if regulators is not None:
-        ret_dict["regulators"] = (
-            regulators if type(regulators) == list else regulators.to_list()
-        )
+        ret_dict["regulators"] = regulators if type(regulators) == list else regulators.to_list()
     if effectors is not None:
-        ret_dict["effectors"] = (
-            effectors if type(effectors) == list else effectors.to_list()
-        )
+        ret_dict["effectors"] = effectors if type(effectors) == list else effectors.to_list()
 
     S_det = [np.linalg.det(S[:, :, i]) for i in np.arange(S.shape[2])]
     adata.obs["sensitivity_det_" + basis] = np.nan
@@ -970,19 +902,13 @@ def acceleration(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     X, V = vector_field_class.get_data()
 
-    acce_norm, acce = vector_field_class.compute_acceleration(
-        X=X, method=method, **kwargs
-    )
+    acce_norm, acce = vector_field_class.compute_acceleration(X=X, method=method, **kwargs)
 
     acce_key = "acceleration" if basis is None else "acceleration_" + basis
     adata.obsm[acce_key] = acce
@@ -993,9 +919,7 @@ def acceleration(
         elif Qkey in adata.varm.keys():
             Q = adata.varm[Qkey]
         else:
-            raise Exception(
-                f"No PC matrix {Qkey} found in neither .uns nor .varm."
-            )
+            raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
         acce_hi = vector_transformation(acce, Q)
         create_layer(
             adata,
@@ -1060,13 +984,9 @@ def curvature(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     if formula not in [1, 2]:
         raise ValueError(
@@ -1076,9 +996,7 @@ def curvature(
 
     X, V = vector_field_class.get_data()
 
-    curv, curv_mat = vector_field_class.compute_curvature(
-        X=X, formula=formula, method=method, **kwargs
-    )
+    curv, curv_mat = vector_field_class.compute_curvature(X=X, formula=formula, method=method, **kwargs)
 
     curv_key = "curvature" if basis is None else "curvature_" + basis
 
@@ -1089,9 +1007,7 @@ def curvature(
     adata.obsm[curv_key] = curv_mat
     if basis == "pca":
         curv_hi = vector_transformation(curv_mat, adata.uns[Qkey])
-        create_layer(
-            adata, curv_hi, layer_key="curvature", genes=adata.var.use_for_pca
-        )
+        create_layer(adata, curv_hi, layer_key="curvature", genes=adata.var.use_for_pca)
     elif basis is None:
         create_layer(
             adata,
@@ -1130,13 +1046,9 @@ def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     X, V = vector_field_class.get_data()
     torsion_mat = vector_field_class.compute_torsion(X=X, **kwargs)
@@ -1148,9 +1060,7 @@ def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
     adata.uns[torsion_key] = torsion_mat
 
 
-def curl(
-    adata, basis="umap", vector_field_class=None, method="analytical", **kwargs
-):
+def curl(adata, basis="umap", vector_field_class=None, method="analytical", **kwargs):
     """Calculate Curl for each cell with the reconstructed vector field function.
 
     Parameters
@@ -1183,13 +1093,9 @@ def curl(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     X, V = vector_field_class.get_data()
     curl = vector_field_class.compute_curl(X=X, method=method, **kwargs)
@@ -1243,13 +1149,9 @@ def divergence(
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict["method"].lower() == "dynode":
             vf_dict["parameters"]["load_model_from_buffer"] = True
-            vector_field_class = vf_dict[
-                "dynode_object"
-            ]  # dynode_vectorfield(**vf_dict["parameters"])
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
         else:
-            raise ValueError(
-                "current only support two methods, SparseVFC and dynode"
-            )
+            raise ValueError("current only support two methods, SparseVFC and dynode")
 
     if basis == "umap":
         cell_idx = np.arange(adata.n_obs)
@@ -1259,9 +1161,7 @@ def divergence(
         if sampling is None or sampling == "all":
             cell_idx = np.arange(adata.n_obs)
         else:
-            cell_idx = sample(
-                np.arange(adata.n_obs), sample_ncells, sampling, X, V
-            )
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
 
     jkey = "jacobian" if basis is None else "jacobian_" + basis
 
@@ -1278,23 +1178,13 @@ def divergence(
         ):
             if c in cidx:
                 calculated[i] = True
-                div[i] = (
-                    np.trace(Js[:, :, i])
-                    if Js.shape[2] == len(cell_idx)
-                    else np.trace(Js[:, :, c])
-                )
+                div[i] = np.trace(Js[:, :, i]) if Js.shape[2] == len(cell_idx) else np.trace(Js[:, :, c])
 
-    div[~calculated] = vector_field_class.compute_divergence(
-        X[cell_idx[~calculated]], method=method, **kwargs
-    )
+    div[~calculated] = vector_field_class.compute_divergence(X[cell_idx[~calculated]], method=method, **kwargs)
 
     if store_in_adata:
         div_key = "divergence" if basis is None else "divergence_" + basis
-        Div = (
-            np.array(adata.obs[div_key])
-            if div_key in adata.obs.keys()
-            else np.ones(adata.n_obs) * np.nan
-        )
+        Div = np.array(adata.obs[div_key]) if div_key in adata.obs.keys() else np.ones(adata.n_obs) * np.nan
         Div[cell_idx] = div
         adata.obs[div_key] = Div
     else:
@@ -1361,9 +1251,7 @@ def rank_genes(
             elif isarray(groups):
                 grps = np.array(groups)
             else:
-                raise Exception(
-                    f"The group information {groups} you provided is not in your adata object."
-                )
+                raise Exception(f"The group information {groups} you provided is not in your adata object.")
             arr_dict = {}
             for g in np.unique(grps):
                 arr_dict[g] = fcn_pool(arr[grps == g])
@@ -1377,9 +1265,7 @@ def rank_genes(
     for g, arr in arr_dict.items():
         if ismatrix(arr):
             arr = arr.A.flatten()
-        glst, sarr = list_top_genes(
-            arr, var_names, None, return_sorted_array=True
-        )
+        glst, sarr = list_top_genes(arr, var_names, None, return_sorted_array=True)
         # ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
         ret_dict[g] = glst
         if output_values:
@@ -1438,9 +1324,7 @@ def rank_cells(
             elif isarray(groups):
                 grps = np.array(groups)
             else:
-                raise Exception(
-                    f"The group information {groups} you provided is not in your adata object."
-                )
+                raise Exception(f"The group information {groups} you provided is not in your adata object.")
             arr_dict = {}
             for g in np.unique(grps):
                 arr_dict[g] = fcn_pool(arr[grps == g])
@@ -1454,9 +1338,7 @@ def rank_cells(
     for g, arr in arr_dict.items():
         if ismatrix(arr):
             arr = arr.A.flatten()
-        glst, sarr = list_top_genes(
-            arr, cell_names, None, return_sorted_array=True
-        )
+        glst, sarr = list_top_genes(arr, cell_names, None, return_sorted_array=True)
         # ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
         ret_dict[g] = glst
         if output_values:
@@ -1515,9 +1397,7 @@ def rank_cell_groups(
             elif isarray(groups):
                 grps = np.array(groups)
             else:
-                raise Exception(
-                    f"The group information {groups} you provided is not in your adata object."
-                )
+                raise Exception(f"The group information {groups} you provided is not in your adata object.")
             arr_dict = {}
             for g in np.unique(grps):
                 arr_dict[g] = fcn_pool(arr[grps == g])
@@ -1531,9 +1411,7 @@ def rank_cell_groups(
     for g, arr in arr_dict.items():
         if ismatrix(arr):
             arr = arr.A.flatten()
-        glst, sarr = list_top_genes(
-            arr, cell_names, None, return_sorted_array=True
-        )
+        glst, sarr = list_top_genes(arr, cell_names, None, return_sorted_array=True)
         # ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
         ret_dict[g] = glst
         if output_values:
@@ -1578,9 +1456,7 @@ def rank_expression_genes(adata, ekey="M_s", prefix_store="rank", **kwargs):
     return adata
 
 
-def rank_velocity_genes(
-    adata, vkey="velocity_S", prefix_store="rank", **kwargs
-):
+def rank_velocity_genes(adata, vkey="velocity_S", prefix_store="rank", **kwargs):
     """Rank genes based on their raw and absolute velocities for each cell group.
 
     Parameters
@@ -1668,16 +1544,12 @@ def rank_divergence_genes(
     reg = [x for x in adata.uns[jkey]["regulators"]]
     eff = [x for x in adata.uns[jkey]["effectors"]]
     if reg != eff:
-        raise Exception(
-            "The Jacobian should have the same regulators and effectors."
-        )
+        raise Exception("The Jacobian should have the same regulators and effectors.")
     else:
         Genes = adata.uns[jkey]["regulators"]
     cell_idx = adata.uns[jkey]["cell_idx"]
     div = np.einsum("iij->ji", adata.uns[jkey]["jacobian_gene"])
-    Div = create_layer(
-        adata, div, genes=Genes, cells=cell_idx, dtype=np.float32
-    )
+    Div = create_layer(adata, div, genes=Genes, cells=cell_idx, dtype=np.float32)
 
     if genes is not None:
         Genes = list(set(Genes).intersection(genes))
@@ -1743,16 +1615,12 @@ def rank_s_divergence_genes(
     reg = [x for x in adata.uns[skey]["regulators"]]
     eff = [x for x in adata.uns[skey]["effectors"]]
     if reg != eff:
-        raise Exception(
-            "The Jacobian should have the same regulators and effectors."
-        )
+        raise Exception("The Jacobian should have the same regulators and effectors.")
     else:
         Genes = adata.uns[skey]["regulators"]
     cell_idx = adata.uns[skey]["cell_idx"]
     div = np.einsum("iij->ji", adata.uns[skey]["sensitivity_gene"])
-    Div = create_layer(
-        adata, div, genes=Genes, cells=cell_idx, dtype=np.float32
-    )
+    Div = create_layer(adata, div, genes=Genes, cells=cell_idx, dtype=np.float32)
 
     if genes is not None:
         Genes = list(set(Genes).intersection(genes))
@@ -1768,9 +1636,7 @@ def rank_s_divergence_genes(
     return rdict
 
 
-def rank_acceleration_genes(
-    adata, akey="acceleration", prefix_store="rank", **kwargs
-):
+def rank_acceleration_genes(adata, akey="acceleration", prefix_store="rank", **kwargs):
     """Rank genes based on their absolute, positive, negative accelerations for each cell group.
 
     Parameters
@@ -1809,9 +1675,7 @@ def rank_acceleration_genes(
     return adata
 
 
-def rank_curvature_genes(
-    adata, ckey="curvature", prefix_store="rank", **kwargs
-):
+def rank_curvature_genes(adata, ckey="curvature", prefix_store="rank", **kwargs):
     """Rank gene's absolute, positive, negative curvature by different cell groups.
 
     Parameters
@@ -1926,9 +1790,7 @@ def rank_jacobian_genes(
         elif isarray(groups):
             grps = np.array(groups)
         else:
-            raise Exception(
-                f"The group information {groups} you provided is not in your adata object."
-            )
+            raise Exception(f"The group information {groups} you provided is not in your adata object.")
         J_mean = average_jacobian_by_group(J, grps[J_dict["cell_idx"]])
 
     eff = np.array([x for x in J_dict["effectors"]])
@@ -1937,14 +1799,10 @@ def rank_jacobian_genes(
     ov = kwargs.pop("output_values", True)
     if mode in ["full reg", "full_reg"]:
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(
-                J, eff, reg, n_top_genes=None, output_values=ov, **kwargs
-            )
+            rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, output_values=ov, **kwargs)
     elif mode in ["full eff", "full_eff"]:
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(
-                J.T, reg, eff, n_top_genes=None, output_values=ov, **kwargs
-            )
+            rank_dict[k] = table_top_genes(J.T, reg, eff, n_top_genes=None, output_values=ov, **kwargs)
     elif mode == "reg":
         for k, J in J_mean.items():
             if exclude_diagonal:
@@ -2049,9 +1907,7 @@ def rank_sensitivity_genes(
         elif isarray(groups):
             grps = np.array(groups)
         else:
-            raise Exception(
-                f"The group information {groups} you provided is not in your adata object."
-            )
+            raise Exception(f"The group information {groups} you provided is not in your adata object.")
         S_mean = average_jacobian_by_group(S, grps[S_dict["cell_idx"]])
 
     eff = np.array([x for x in S_dict["effectors"]])
@@ -2059,14 +1915,10 @@ def rank_sensitivity_genes(
     rank_dict = {}
     if mode in ["full reg", "full_reg"]:
         for k, S in S_mean.items():
-            rank_dict[k] = table_top_genes(
-                S, eff, reg, n_top_genes=None, **kwargs
-            )
+            rank_dict[k] = table_top_genes(S, eff, reg, n_top_genes=None, **kwargs)
     elif mode in ["full eff", "full_eff"]:
         for k, S in S_mean.items():
-            rank_dict[k] = table_top_genes(
-                S.T, reg, eff, n_top_genes=None, **kwargs
-            )
+            rank_dict[k] = table_top_genes(S.T, reg, eff, n_top_genes=None, **kwargs)
     elif mode == "reg":
         ov = kwargs.pop("output_values", False)
         for k, S in S_mean.items():
@@ -2193,9 +2045,7 @@ def aggregateRegEffs(
                 tensor if tensor_gene is None else tensor_gene,
             )
             if len(source_genes) + len(target_genes) > 0:
-                Aggregation[eff_ind, reg_ind, :] = Der.sum(
-                    axis=(0, 1)
-                )  # dim 0: target; dim 1: source
+                Aggregation[eff_ind, reg_ind, :] = Der.sum(axis=(0, 1))  # dim 0: target; dim 1: source
             else:
                 Aggregation[eff_ind, reg_ind, :] = np.nan
             eff_ind += 1
@@ -2210,13 +2060,8 @@ def aggregateRegEffs(
     if eff_dict.keys() is not None:
         ret_dict["effectors"] = list(eff_dict.keys())
 
-    det = [
-        np.linalg.det(Aggregation[:, :, i])
-        for i in np.arange(Aggregation.shape[2])
-    ]
-    key = (
-        key + "_aggregation" if basis is None else key + "_aggregation_" + basis
-    )
+    det = [np.linalg.det(Aggregation[:, :, i]) for i in np.arange(Aggregation.shape[2])]
+    key = key + "_aggregation" if basis is None else key + "_aggregation_" + basis
     adata.obs[key + "_det"] = np.nan
     adata.obs[key + "_det"][cell_idx] = det
     if store_in_adata:

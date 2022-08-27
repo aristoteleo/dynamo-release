@@ -62,16 +62,12 @@ def test_run_rpe1_tutorial():
         cores=16,
     )
     dyn.tl.reduceDimension(rpe1_kinetics, reduction_method="umap")
-    dyn.tl.cell_velocities(
-        rpe1_kinetics, enforce=True, vkey="velocity_T", ekey="M_t"
-    )
+    dyn.tl.cell_velocities(rpe1_kinetics, enforce=True, vkey="velocity_T", ekey="M_t")
 
     rpe1_kinetics.obsm["X_RFP_GFP"] = rpe1_kinetics.obs.loc[
         :, ["RFP_log10_corrected", "GFP_log10_corrected"]
     ].values.astype("float")
-    rpe1_kinetics.layers["velocity_S"] = rpe1_kinetics.layers[
-        "velocity_T"
-    ].copy()
+    rpe1_kinetics.layers["velocity_S"] = rpe1_kinetics.layers["velocity_T"].copy()
     dyn.tl.cell_velocities(
         rpe1_kinetics,
         enforce=True,
@@ -80,12 +76,8 @@ def test_run_rpe1_tutorial():
         basis="RFP_GFP",
     )
 
-    rpe1_kinetics.obs.Cell_cycle_relativePos = (
-        rpe1_kinetics.obs.Cell_cycle_relativePos.astype(float)
-    )
-    rpe1_kinetics.obs.Cell_cycle_possition = (
-        rpe1_kinetics.obs.Cell_cycle_possition.astype(float)
-    )
+    rpe1_kinetics.obs.Cell_cycle_relativePos = rpe1_kinetics.obs.Cell_cycle_relativePos.astype(float)
+    rpe1_kinetics.obs.Cell_cycle_possition = rpe1_kinetics.obs.Cell_cycle_possition.astype(float)
 
     dyn.pl.streamline_plot(
         rpe1_kinetics,
@@ -100,9 +92,7 @@ def test_run_rpe1_tutorial():
         save_show_or_return="return",
     )
     dyn.vf.VectorField(rpe1_kinetics, basis="RFP_GFP")
-    progenitor = rpe1_kinetics.obs_names[
-        rpe1_kinetics.obs.Cell_cycle_relativePos < 0.1
-    ]
+    progenitor = rpe1_kinetics.obs_names[rpe1_kinetics.obs.Cell_cycle_relativePos < 0.1]
 
     np.random.seed(19491001)
 

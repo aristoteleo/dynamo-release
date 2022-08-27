@@ -60,9 +60,7 @@ def get_mapper_inverse(smoothed=True):
 
 
 def get_finite_inds(X, ax=0):
-    finite_inds = (
-        np.isfinite(X.sum(ax).A1) if sp.issparse(X) else np.isfinite(X.sum(ax))
-    )
+    finite_inds = np.isfinite(X.sum(ax).A1) if sp.issparse(X) else np.isfinite(X.sum(ax))
 
     return finite_inds
 
@@ -89,13 +87,7 @@ def get_pd_row_column_idx(df, queries, type="column"):
             One dimensional array for the numeric indices that corresponds to the matches of the queries.
     """
 
-    names = (
-        df.columns.values
-        if type == "column"
-        else df.index.values
-        if type == "row"
-        else None
-    )
+    names = df.columns.values if type == "column" else df.index.values if type == "row" else None
     sidx = np.argsort(names)
     Indices = sidx[np.searchsorted(names, queries, sorter=sidx)]
 
@@ -159,9 +151,7 @@ def k_nearest_neighbors(
         nbrs_idx, dists = nbrs.query(X, k=k + 1)
     else:
         alg = "ball_tree" if d > knn_dim else "kd_tree"
-        nbrs = NearestNeighbors(
-            n_neighbors=k + 1, algorithm=alg, n_jobs=n_jobs
-        ).fit(X)
+        nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=n_jobs).fit(X)
         dists, nbrs_idx = nbrs.kneighbors(X)
 
     nbrs_idx = np.array(nbrs_idx)
@@ -198,9 +188,7 @@ def symmetrize_symmetric_matrix(W):
     col_inds = np.hstack((_col_inds, _row_inds))
     data = np.hstack((_data, _data))
 
-    I = np.unique(np.vstack((row_inds, col_inds)).T, axis=0, return_index=True)[
-        1
-    ]
+    I = np.unique(np.vstack((row_inds, col_inds)).T, axis=0, return_index=True)[1]
     W = sp.csr_matrix((data[I], (row_inds[I], col_inds[I])))
     return W
 
@@ -261,22 +249,16 @@ def index_gene(adata, arr, genes):
             if g in all_genes:
                 mask[i] = all_genes.get_loc(g)
             else:
-                raise ValueError(
-                    f"the gene {g} you provided is not included in the data."
-                )
+                raise ValueError(f"the gene {g} you provided is not included in the data.")
 
     if arr.ndim == 1:
         if len(arr) != adata.n_vars:
-            raise Exception(
-                "The length of the input array does not match the number of genes."
-            )
+            raise Exception("The length of the input array does not match the number of genes.")
         else:
             return arr[mask]
     else:
         if arr.shape[1] != adata.n_vars:
-            raise Exception(
-                "The dimension of the input array does not match the number of genes."
-            )
+            raise Exception("The dimension of the input array does not match the number of genes.")
         else:
             return arr[:, mask]
 
@@ -298,10 +280,7 @@ def reserve_minimal_genes_by_gamma_r2(
     """
 
     # already satisfy the requirement
-    if (
-        var_store_key in adata.var.columns
-        and adata.var[var_store_key].sum() >= minimal_gene_num
-    ):
+    if var_store_key in adata.var.columns and adata.var[var_store_key].sum() >= minimal_gene_num:
         return adata.var[var_store_key]
 
     if var_store_key not in adata.var.columns:
@@ -309,10 +288,7 @@ def reserve_minimal_genes_by_gamma_r2(
 
     gamma_r2_not_na = np.array(adata.var.gamma_r2[adata.var.gamma_r2.notna()])
     if len(gamma_r2_not_na) < minimal_gene_num:
-        raise ValueError(
-            "adata.var.%s does not have enough values that are not NA."
-            % (var_store_key)
-        )
+        raise ValueError("adata.var.%s does not have enough values that are not NA." % (var_store_key))
 
     argsort_result = np.argsort(-np.abs(gamma_r2_not_na))
     adata.var[var_store_key] = False
@@ -320,9 +296,7 @@ def reserve_minimal_genes_by_gamma_r2(
     return adata.var[var_store_key]
 
 
-def select_cell(
-    adata, grp_keys, grps, presel=None, mode="union", output_format="index"
-):
+def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format="index"):
     """
     Select cells based on `grp_keys` in .obs
 
@@ -394,9 +368,7 @@ def select_cell(
     elif output_format == "mask":
         pass
     else:
-        raise NotImplementedError(
-            f"The output format `{output_format}` is not supported."
-        )
+        raise NotImplementedError(f"The output format `{output_format}` is not supported.")
 
     return cell_idx
 
@@ -536,9 +508,7 @@ def index_condensed_matrix(n, i, j):
             The index of the element in the condensed matrix.
     """
     if i == j:
-        main_warning(
-            "Diagonal elements (i=j) are not stored in condensed matrices."
-        )
+        main_warning("Diagonal elements (i=j) are not stored in condensed matrices.")
         return None
     elif i > j:
         i, j = j, i
@@ -589,9 +559,7 @@ def timeit(method):
             ts = time.time()
             result = method(*args, **kw)
             te = time.time()
-            main_info_verbose_timeit(
-                "Time elapsed for %r: %.4f s" % (method.__name__, (te - ts))
-            )
+            main_info_verbose_timeit("Time elapsed for %r: %.4f s" % (method.__name__, (te - ts)))
         else:
             result = method(*args, **kw)
         return result
@@ -638,9 +606,7 @@ def velocity_on_grid(
             )
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(
-                n_neighbors=k + 1, algorithm=alg, n_jobs=-1
-            ).fit(X)
+            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
 
     if hasattr(nbrs, "kneighbors"):
         dists, neighs = nbrs.kneighbors(X_grid)
@@ -671,9 +637,7 @@ def argsort_mat(mat, order=1):
     return [(index[i, 0], index[i, 1]) for i in range(len(isort))]
 
 
-def list_top_genes(
-    arr, gene_names, n_top_genes=30, order=-1, return_sorted_array=False
-):
+def list_top_genes(arr, gene_names, n_top_genes=30, order=-1, return_sorted_array=False):
     imax = np.argsort(arr)[::order]
     if return_sorted_array:
         return gene_names[imax][:n_top_genes], arr[imax][:n_top_genes]
@@ -691,9 +655,7 @@ def list_top_interactions(mat, row_names, column_names, order=-1):
     return ints, np.array(sorted_mat)
 
 
-def table_top_genes(
-    arrs, item_names, gene_names, return_df=True, output_values=False, **kwargs
-):
+def table_top_genes(arrs, item_names, gene_names, return_df=True, output_values=False, **kwargs):
     table = {}
     for i, item in enumerate(item_names):
         if output_values:
@@ -792,9 +754,7 @@ def one_shot_alpha(labeled, gamma, t):
 
 
 def one_shot_alpha_matrix(labeled, gamma, t):
-    alpha = elem_prod(gamma[:, None], labeled) / (
-        1 - np.exp(-elem_prod(gamma[:, None], t[None, :]))
-    )
+    alpha = elem_prod(gamma[:, None], labeled) / (1 - np.exp(-elem_prod(gamma[:, None], t[None, :])))
     return sp.csr_matrix(alpha)
 
 
@@ -901,47 +861,26 @@ def get_data_for_kin_params_estimation(
     mapper = get_mapper()
 
     # labeling plus splicing
-    if np.all(
-        ([i in subset_adata.layers.keys() for i in ["X_ul", "X_sl", "X_su"]])
-    ) or np.all(
-        (
-            [
-                mapper[i] in subset_adata.layers.keys()
-                for i in ["X_ul", "X_sl", "X_su"]
-            ]
-        )
+    if np.all(([i in subset_adata.layers.keys() for i in ["X_ul", "X_sl", "X_su"]])) or np.all(
+        ([mapper[i] in subset_adata.layers.keys() for i in ["X_ul", "X_sl", "X_su"]])
     ):  # only uu, ul, su, sl provided
         normalized, assumption_mRNA = (
             True,
             "ss" if NTR_vel else "kinetic",
         )
         U = (
-            subset_adata.layers[mapper["X_uu"]].T
-            if use_moments
-            else subset_adata.layers["X_uu"].T
+            subset_adata.layers[mapper["X_uu"]].T if use_moments else subset_adata.layers["X_uu"].T
         )  # unlabel unspliced: U
 
-        Ul = (
-            subset_adata.layers[mapper["X_ul"]].T
-            if use_moments
-            else subset_adata.layers["X_ul"].T
-        )
+        Ul = subset_adata.layers[mapper["X_ul"]].T if use_moments else subset_adata.layers["X_ul"].T
 
-        Sl = (
-            subset_adata.layers[mapper["X_sl"]].T
-            if use_moments
-            else subset_adata.layers["X_sl"].T
-        )
+        Sl = subset_adata.layers[mapper["X_sl"]].T if use_moments else subset_adata.layers["X_sl"].T
 
         S = (
-            subset_adata.layers[mapper["X_su"]].T
-            if use_moments
-            else subset_adata.layers["X_su"].T
+            subset_adata.layers[mapper["X_su"]].T if use_moments else subset_adata.layers["X_su"].T
         )  # unlabel spliced: S
 
-    elif np.all(
-        ([i in subset_adata.layers.keys() for i in ["uu", "ul", "sl", "su"]])
-    ):
+    elif np.all(([i in subset_adata.layers.keys() for i in ["uu", "ul", "sl", "su"]])):
         normalized, assumption_mRNA = (
             False,
             "ss" if NTR_vel else "kinetic",
@@ -968,17 +907,11 @@ def get_data_for_kin_params_estimation(
             "ss" if NTR_vel else "kinetic",
         )
         U = (
-            subset_adata.layers[mapper["X_total"]].T
-            - subset_adata.layers[mapper["X_new"]].T
+            subset_adata.layers[mapper["X_total"]].T - subset_adata.layers[mapper["X_new"]].T
             if use_moments
-            else subset_adata.layers["X_total"].T
-            - subset_adata.layers["X_new"].T
+            else subset_adata.layers["X_total"].T - subset_adata.layers["X_new"].T
         )
-        Ul = (
-            subset_adata.layers[mapper["X_new"]].T
-            if use_moments
-            else subset_adata.layers["X_new"].T
-        )
+        Ul = subset_adata.layers[mapper["X_new"]].T if use_moments else subset_adata.layers["X_new"].T
 
     elif not has_splicing and "new" in subset_adata.layers.keys():
         assumption_mRNA = ("ss" if NTR_vel else "kinetic",)
@@ -1005,15 +938,9 @@ def get_data_for_kin_params_estimation(
             True,
             "kinetic" if tkey in subset_adata.obs.columns else "ss",
         )
-        U = (
-            subset_adata.layers[mapper["X_unspliced"]].T
-            if use_moments
-            else subset_adata.layers["X_unspliced"].T
-        )
+        U = subset_adata.layers[mapper["X_unspliced"]].T if use_moments else subset_adata.layers["X_unspliced"].T
     elif not has_labeling and "unspliced" in subset_adata.layers.keys():
-        assumption_mRNA = (
-            "kinetic" if tkey in subset_adata.obs.columns else "ss"
-        )
+        assumption_mRNA = "kinetic" if tkey in subset_adata.obs.columns else "ss"
         raw, _ = (
             subset_adata.layers["unspliced"].T,
             subset_adata.layers["unspliced"].T,
@@ -1027,11 +954,7 @@ def get_data_for_kin_params_estimation(
         ("X_spliced" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_spliced"] in subset_adata.layers.keys() and use_moments)
     ):
-        S = (
-            subset_adata.layers[mapper["X_spliced"]].T
-            if use_moments
-            else subset_adata.layers["X_spliced"].T
-        )
+        S = subset_adata.layers[mapper["X_spliced"]].T if use_moments else subset_adata.layers["X_spliced"].T
     elif not has_labeling and "spliced" in subset_adata.layers.keys():
         raw, _ = (
             subset_adata.layers["spliced"].T,
@@ -1048,11 +971,7 @@ def get_data_for_kin_params_estimation(
     if ("X_protein" in subset_adata.obsm.keys() and not use_moments) or (
         mapper["X_protein"] in subset_adata.obsm.keys() and use_moments
     ):
-        P = (
-            subset_adata.obsm[mapper["X_protein"]].T
-            if use_moments
-            else subset_adata.obsm["X_protein"].T
-        )
+        P = subset_adata.obsm[mapper["X_protein"]].T if use_moments else subset_adata.obsm["X_protein"].T
     elif "protein" in subset_adata.obsm.keys():
         P = subset_adata.obsm["protein"].T
     if P is not None:
@@ -1062,17 +981,10 @@ def get_data_for_kin_params_estimation(
                 "data."
             )
         else:
-            protein_names = list(
-                set(subset_adata.var.index).intersection(protein_names)
-            )
-            ind_for_proteins = [
-                np.where(subset_adata.var.index == i)[0][0]
-                for i in protein_names
-            ]
+            protein_names = list(set(subset_adata.var.index).intersection(protein_names))
+            ind_for_proteins = [np.where(subset_adata.var.index == i)[0][0] for i in protein_names]
             subset_adata.var["is_protein_dynamics_genes"] = False
-            subset_adata.var.loc[
-                ind_for_proteins, "is_protein_dynamics_genes"
-            ] = True
+            subset_adata.var.loc[ind_for_proteins, "is_protein_dynamics_genes"] = True
 
     if has_labeling:
         if assumption_mRNA is None:
@@ -1085,19 +997,11 @@ def get_data_for_kin_params_estimation(
                 tkey,
                 " provided is not a valid column name in .obs.",
             )
-        if model == "stochastic" and all(
-            [x in subset_adata.layers.keys() for x in ["M_tn", "M_nn", "M_tt"]]
-        ):
+        if model == "stochastic" and all([x in subset_adata.layers.keys() for x in ["M_tn", "M_nn", "M_tt"]]):
             US, U2, S2 = (
-                subset_adata.layers["M_tn"].T
-                if NTR_vel
-                else subset_adata.layers["M_us"].T,
-                subset_adata.layers["M_nn"].T
-                if NTR_vel
-                else subset_adata.layers["M_uu"].T,
-                subset_adata.layers["M_tt"].T
-                if NTR_vel
-                else subset_adata.layers["M_ss"].T,
+                subset_adata.layers["M_tn"].T if NTR_vel else subset_adata.layers["M_us"].T,
+                subset_adata.layers["M_nn"].T if NTR_vel else subset_adata.layers["M_uu"].T,
+                subset_adata.layers["M_tt"].T if NTR_vel else subset_adata.layers["M_ss"].T,
             )
     else:
         t = None
@@ -1143,57 +1047,29 @@ def set_velocity(
     )
     if type(vel_U) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_U"] = sp.csr_matrix(
-                (adata.shape), dtype=np.float64
-            )
-        vel_U = (
-            vel_U.T.tocsr()
-            if sp.issparse(vel_U)
-            else sp.csr_matrix(vel_U, dtype=np.float64).T
-        )
+            adata.layers["velocity_U"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        vel_U = vel_U.T.tocsr() if sp.issparse(vel_U) else sp.csr_matrix(vel_U, dtype=np.float64).T
         adata.layers["velocity_U"][cur_cells_ind, valid_ind_] = vel_U
     if type(vel_S) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_S"] = sp.csr_matrix(
-                (adata.shape), dtype=np.float64
-            )
-        vel_S = (
-            vel_S.T.tocsr()
-            if sp.issparse(vel_S)
-            else sp.csr_matrix(vel_S, dtype=np.float64).T
-        )
+            adata.layers["velocity_S"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        vel_S = vel_S.T.tocsr() if sp.issparse(vel_S) else sp.csr_matrix(vel_S, dtype=np.float64).T
         adata.layers["velocity_S"][cur_cells_ind, valid_ind_] = vel_S
     if type(vel_N) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_N"] = sp.csr_matrix(
-                (adata.shape), dtype=np.float64
-            )
-        vel_N = (
-            vel_N.T.tocsr()
-            if sp.issparse(vel_N)
-            else sp.csr_matrix(vel_N, dtype=np.float64).T
-        )
+            adata.layers["velocity_N"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        vel_N = vel_N.T.tocsr() if sp.issparse(vel_N) else sp.csr_matrix(vel_N, dtype=np.float64).T
         adata.layers["velocity_N"][cur_cells_ind, valid_ind_] = vel_N
     if type(vel_T) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_T"] = sp.csr_matrix(
-                (adata.shape), dtype=np.float64
-            )
-        vel_T = (
-            vel_T.T.tocsr()
-            if sp.issparse(vel_T)
-            else sp.csr_matrix(vel_T, dtype=np.float64).T
-        )
+            adata.layers["velocity_T"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        vel_T = vel_T.T.tocsr() if sp.issparse(vel_T) else sp.csr_matrix(vel_T, dtype=np.float64).T
         adata.layers["velocity_T"][cur_cells_ind, valid_ind_] = vel_T
     if type(vel_P) is not float:
         if cur_grp == _group[0]:
-            adata.obsm["velocity_P"] = sp.csr_matrix(
-                (adata.obsm["P"].shape[0], len(ind_for_proteins)), dtype=float
-            )
+            adata.obsm["velocity_P"] = sp.csr_matrix((adata.obsm["P"].shape[0], len(ind_for_proteins)), dtype=float)
         adata.obsm["velocity_P"][cur_cells_bools, :] = (
-            vel_P.T.tocsr()
-            if sp.issparse(vel_P)
-            else sp.csr_matrix(vel_P, dtype=float).T
+            vel_P.T.tocsr() if sp.issparse(vel_P) else sp.csr_matrix(vel_P, dtype=float).T
         )
 
     return adata
@@ -1217,9 +1093,7 @@ def set_param_ss(
     if experiment_type == "mix_std_stm":
         if alpha is not None:
             if cur_grp == _group[0]:
-                adata.varm[kin_param_pre + "alpha"] = np.zeros(
-                    (adata.shape[1], alpha[1].shape[1])
-                )
+                adata.varm[kin_param_pre + "alpha"] = np.zeros((adata.shape[1], alpha[1].shape[1]))
             adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha[1]
             (
                 adata.var[kin_param_pre + "alpha"],
@@ -1239,9 +1113,7 @@ def set_param_ss(
 
         adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
         adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = (
-            np.log(2) / gamma
-        )
+        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
     else:
         if alpha is not None:
             if len(alpha.shape) > 1:  # for each cell
@@ -1252,9 +1124,7 @@ def set_param_ss(
                         else np.zeros(adata.shape[::-1])
                     )  #
                 adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha  #
-                adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(
-                    1
-                )
+                adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
             elif len(alpha.shape) == 1:
                 if cur_grp == _group[0]:
                     adata.var[kin_param_pre + "alpha"] = None
@@ -1268,9 +1138,7 @@ def set_param_ss(
             ) = (None, None, None)
         adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
         adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = (
-            None if gamma is None else np.log(2) / gamma
-        )
+        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = None if gamma is None else np.log(2) / gamma
 
         (
             alpha_intercept,
@@ -1367,21 +1235,11 @@ def set_param_ss(
                     adata.var[kin_param_pre + "delta_r2"],
                     adata.var[kin_param_pre + "p_half_life"],
                 ) = (None, None, None, None, None)
-            adata.var.loc[valid_ind, kin_param_pre + "eta"][
-                ind_for_proteins
-            ] = eta
-            adata.var.loc[valid_ind, kin_param_pre + "delta"][
-                ind_for_proteins
-            ] = delta
-            adata.var.loc[valid_ind, kin_param_pre + "delta_b"][
-                ind_for_proteins
-            ] = delta_intercept
-            adata.var.loc[valid_ind, kin_param_pre + "delta_r2"][
-                ind_for_proteins
-            ] = delta_r2
-            adata.var.loc[valid_ind, kin_param_pre + "p_half_life"][
-                ind_for_proteins
-            ] = (np.log(2) / delta)
+            adata.var.loc[valid_ind, kin_param_pre + "eta"][ind_for_proteins] = eta
+            adata.var.loc[valid_ind, kin_param_pre + "delta"][ind_for_proteins] = delta
+            adata.var.loc[valid_ind, kin_param_pre + "delta_b"][ind_for_proteins] = delta_intercept
+            adata.var.loc[valid_ind, kin_param_pre + "delta_r2"][ind_for_proteins] = delta_r2
+            adata.var.loc[valid_ind, kin_param_pre + "p_half_life"][ind_for_proteins] = np.log(2) / delta
 
     return adata
 
@@ -1426,14 +1284,8 @@ def set_param_kinetic(
             np.where(valid_ind)[0],
         )
         if cur_grp == _group[0]:
-            adata.layers["cell_wise_alpha"] = sp.csr_matrix(
-                (adata.shape), dtype=np.float64
-            )
-        alpha = (
-            alpha.T.tocsr()
-            if sp.issparse(alpha)
-            else sp.csr_matrix(alpha, dtype=np.float64).T
-        )
+            adata.layers["cell_wise_alpha"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        alpha = alpha.T.tocsr() if sp.issparse(alpha) else sp.csr_matrix(alpha, dtype=np.float64).T
         adata.layers["cell_wise_alpha"][cur_cells_ind, valid_ind_] = alpha
     else:
         adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
@@ -1455,9 +1307,7 @@ def set_param_kinetic(
     return adata
 
 
-def get_U_S_for_velocity_estimation(
-    subset_adata, use_moments, has_splicing, has_labeling, log_unnormalized, NTR
-):
+def get_U_S_for_velocity_estimation(subset_adata, use_moments, has_splicing, has_labeling, log_unnormalized, NTR):
     mapper = get_mapper()
 
     if has_splicing:
@@ -1582,9 +1432,7 @@ def fetch_X_data(adata, genes, layer, basis=None):
     if genes is not None:
         genes = adata.var_names.intersection(genes).to_list()
         if len(genes) == 0:
-            raise ValueError(
-                "No genes from your genes list appear in your adata object."
-            )
+            raise ValueError("No genes from your genes list appear in your adata object.")
 
     if layer is None:
         if genes is not None:
@@ -1707,20 +1555,14 @@ class AnnDataPredicates(object):
         elif isinstance(other, AnnDataPredicates):
             return op(*self.predicates, *other)
         else:
-            raise NotImplementedError(
-                f"Unidentified predicate type {type(other)}!"
-            )
+            raise NotImplementedError(f"Unidentified predicate type {type(other)}!")
 
 
 class PredicateUnion(AnnDataPredicates):
     def check(self, data):
         ret = None
         for pred in self.predicates:
-            ret = (
-                np.logical_or(ret, pred.check(data))
-                if ret is not None
-                else pred.check(data)
-            )
+            ret = np.logical_or(ret, pred.check(data)) if ret is not None else pred.check(data)
         return ret
 
     def __or__(self, other):
@@ -1734,11 +1576,7 @@ class PredicateIntersection(AnnDataPredicates):
     def check(self, data):
         ret = None
         for pred in self.predicates:
-            ret = (
-                np.logical_and(ret, pred.check(data))
-                if ret is not None
-                else pred.check(data)
-            )
+            ret = np.logical_and(ret, pred.check(data)) if ret is not None else pred.check(data)
         return ret
 
     def __or__(self, other):
@@ -1784,17 +1622,11 @@ def calc_R2(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)):
 def norm_loglikelihood(x, mu, sig):
     """Calculate log-likelihood for the data."""
     err = (x - mu) / sig
-    ll = (
-        -len(err) / 2 * np.log(2 * np.pi)
-        - np.sum(np.log(sig))
-        - 0.5 * err.dot(err.T)
-    )
+    ll = -len(err) / 2 * np.log(2 * np.pi) - np.sum(np.log(sig)) - 0.5 * err.dot(err.T)
     return np.sum(ll, 0)
 
 
-def calc_norm_loglikelihood(
-    X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)
-):
+def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)):
     """calculate log likelihood based on normal distribution. X, Y: n_species (mu, sigma) x n_obs"""
     if X.ndim == 1:
         X = X[None]
@@ -1857,10 +1689,7 @@ def set_transition_genes(
 ):
     layer = vkey.split("_")[1]
 
-    if (
-        adata.uns["dynamics"]["est_method"] == "twostep"
-        and adata.uns["dynamics"]["experiment_type"] == "kin"
-    ):
+    if adata.uns["dynamics"]["est_method"] == "twostep" and adata.uns["dynamics"]["experiment_type"] == "kin":
         # if adata.uns['dynamics']['has_splicing']:
         #     min_r2 = 0.5 if min_r2 is None else min_r2
         # else:
@@ -1874,9 +1703,9 @@ def set_transition_genes(
         if len(logLL_col) > 1:
             main_warning(f"there are two columns ends with logLL: {logLL_col}")
 
-        adata.var[store_key] = adata.var[logLL_col[-1]].astype(
-            float
-        ) < np.nanpercentile(adata.var[logLL_col[-1]].astype(float), 10)
+        adata.var[store_key] = adata.var[logLL_col[-1]].astype(float) < np.nanpercentile(
+            adata.var[logLL_col[-1]].astype(float), 10
+        )
         if layer in ["N", "T"]:
             return adata
         else:
@@ -1899,25 +1728,17 @@ def set_transition_genes(
                 get_group_params_indices(adata, "alpha_r2"),
             )
             if is_group_alpha.sum() > 0:
-                adata.var["alpha"] = adata.var.loc[:, is_group_alpha].mean(
-                    1, skipna=True
-                )
-                adata.var["alpha_r2"] = adata.var.loc[
-                    :, np.hstack((is_group_alpha_r2, False))
-                ].mean(1, skipna=True)
+                adata.var["alpha"] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
+                adata.var["alpha_r2"] = adata.var.loc[:, np.hstack((is_group_alpha_r2, False))].mean(1, skipna=True)
             else:
-                raise Exception(
-                    "there is no alpha/alpha_r2 parameter estimated for your adata object"
-                )
+                raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
 
         if "alpha_r2" not in adata.var.columns:
             adata.var["alpha_r2"] = None
         if np.all(adata.var.alpha_r2.values is None):
             adata.var.alpha_r2 = 1
         adata.var[store_key] = (
-            (adata.var.alpha > min_alpha)
-            & (adata.var.alpha_r2 > min_r2)
-            & adata.var.use_for_dynamics
+            (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamics
             if use_for_dynamics
             else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
         )
@@ -1928,35 +1749,21 @@ def set_transition_genes(
                 get_group_params_indices(adata, "gamma_r2"),
             )
             if is_group_gamma.sum() > 0:
-                adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(
-                    1, skipna=True
-                )
-                adata.var["gamma_r2"] = adata.var.loc[
-                    :, np.hstack((is_group_gamma_r2, False))
-                ].mean(1, skipna=True)
+                adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
+                adata.var["gamma_r2"] = adata.var.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
             else:
-                raise Exception(
-                    "there is no gamma/gamma_r2 parameter estimated for your adata object"
-                )
+                raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
         if "gamma_r2" not in adata.var.columns:
             main_debug("setting all gamma_r2 to 1")
             adata.var["gamma_r2"] = 1
-        if np.all(adata.var.gamma_r2.values is None) or np.all(
-            adata.var.gamma_r2.values == ""
-        ):
-            main_debug(
-                "Since all adata.var.gamma_r2 values are None or '', setting all gamma_r2 values to 1."
-            )
+        if np.all(adata.var.gamma_r2.values is None) or np.all(adata.var.gamma_r2.values == ""):
+            main_debug("Since all adata.var.gamma_r2 values are None or '', setting all gamma_r2 values to 1.")
             adata.var.gamma_r2 = 1
 
-        adata.var[store_key] = (adata.var.gamma > min_gamma) & (
-            adata.var.gamma_r2 > min_r2
-        )
+        adata.var[store_key] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         if use_for_dynamics:
-            adata.var[store_key] = (
-                adata.var[store_key] & adata.var.use_for_dynamics
-            )
+            adata.var[store_key] = adata.var[store_key] & adata.var.use_for_dynamics
 
     elif layer == "P":
         if "delta" not in adata.var.columns:
@@ -1965,25 +1772,17 @@ def set_transition_genes(
                 get_group_params_indices(adata, "delta_r2"),
             )
             if is_group_delta.sum() > 0:
-                adata.var["delta"] = adata.var.loc[:, is_group_delta].mean(
-                    1, skipna=True
-                )
-                adata.var["delta_r2"] = adata.var.loc[
-                    :, np.hstack((is_group_delta_r2, False))
-                ].mean(1, skipna=True)
+                adata.var["delta"] = adata.var.loc[:, is_group_delta].mean(1, skipna=True)
+                adata.var["delta_r2"] = adata.var.loc[:, np.hstack((is_group_delta_r2, False))].mean(1, skipna=True)
             else:
-                raise Exception(
-                    "there is no delta/delta_r2 parameter estimated for your adata object"
-                )
+                raise Exception("there is no delta/delta_r2 parameter estimated for your adata object")
 
         if "delta_r2" not in adata.var.columns:
             adata.var["delta_r2"] = None
         if np.all(adata.var.delta_r2.values is None):
             adata.var.delta_r2 = 1
         adata.var[store_key] = (
-            (adata.var.delta > min_delta)
-            & (adata.var.delta_r2 > min_r2)
-            & adata.var.use_for_dynamics
+            (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamics
             if use_for_dynamics
             else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
         )
@@ -1994,16 +1793,10 @@ def set_transition_genes(
                 get_group_params_indices(adata, "gamma_r2"),
             )
             if is_group_gamma.sum() > 0:
-                adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(
-                    1, skipna=True
-                )
-                adata.var["gamma_r2"] = adata.var.loc[
-                    :, np.hstack((is_group_gamma_r2, False))
-                ].mean(1, skipna=True)
+                adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
+                adata.var["gamma_r2"] = adata.var.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
             else:
-                raise Exception(
-                    "there is no gamma/gamma_r2 parameter estimated for your adata object"
-                )
+                raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
         if "gamma_r2" not in adata.var.columns:
             adata.var["gamma_r2"] = None
@@ -2014,9 +1807,7 @@ def set_transition_genes(
         else:
             gamm_r2_checker = adata.var.gamma_r2 > min_r2
         adata.var[store_key] = (
-            (adata.var.gamma > min_gamma)
-            & gamm_r2_checker
-            & adata.var.use_for_dynamics
+            (adata.var.gamma > min_gamma) & gamm_r2_checker & adata.var.use_for_dynamics
             if use_for_dynamics
             else (adata.var.gamma > min_gamma) & gamm_r2_checker
         )
@@ -2030,9 +1821,7 @@ def set_transition_genes(
             "  3. Your data has strange expression kinetics. Welcome to report to dynamo team for more insights.\n"
             "We auto correct this behavior by selecting the %d top genes according to gamma_r2 values."
         )
-        reserve_minimal_genes_by_gamma_r2(
-            adata, store_key, minimal_gene_num=minimal_gene_num
-        )
+        reserve_minimal_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
 
     return adata
 
@@ -2060,9 +1849,7 @@ def get_ekey_vkey_from_adata(adata):
     if has_splicing:
         if has_labeling:
             if "X_new" not in adata.layers.keys():  # unlabel spliced: S
-                raise Exception(
-                    "The input data you have is not normalized or normalized + smoothed!"
-                )
+                raise Exception("The input data you have is not normalized or normalized + smoothed!")
 
             if experiment_type.lower() in [
                 "kin",
@@ -2125,10 +1912,7 @@ def get_ekey_vkey_from_adata(adata):
                     )
                 )
         else:
-            if not (
-                ("X_unspliced" in adata.layers.keys())
-                or (mapper["X_unspliced"] in adata.layers.keys())
-            ):
+            if not (("X_unspliced" in adata.layers.keys()) or (mapper["X_unspliced"] in adata.layers.keys())):
                 raise Exception(
                     "The input data you have is not normalized/log transformed or smoothed and normalized/log "
                     "transformed!"
@@ -2140,9 +1924,7 @@ def get_ekey_vkey_from_adata(adata):
             )
     else:
         # use_smoothed: False
-        if ("X_new" in adata.layers.keys()) or (
-            mapper["X_new"] in adata.layers.keys
-        ):  # run new / total ratio (NTR)
+        if ("X_new" in adata.layers.keys()) or (mapper["X_new"] in adata.layers.keys):  # run new / total ratio (NTR)
             # we may also create M_U, M_S layers?
             if experiment_type == "kin":
                 ekey, vkey, layer = (
@@ -2179,9 +1961,7 @@ def get_ekey_vkey_from_adata(adata):
 
 # ---------------------------------------------------------------------------------------------------
 # cell velocities related
-def get_neighbor_indices(
-    adjacency_list, source_idx, n_order_neighbors=2, max_neighbors_num=None
-):
+def get_neighbor_indices(adjacency_list, source_idx, n_order_neighbors=2, max_neighbors_num=None):
     """returns a list (np.array) of `n_order_neighbors` neighbor indices of source_idx. If `max_neighbors_num` is set and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list of neighbors will be randomly chosen and returned."""
     _indices = [source_idx]
     for _ in range(n_order_neighbors):
@@ -2194,14 +1974,10 @@ def get_neighbor_indices(
     return _indices
 
 
-def append_iterative_neighbor_indices(
-    indices, n_recurse_neighbors=2, max_neighbors_num=None
-):
+def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighbors_num=None):
     indices_rec = []
     for i in range(indices.shape[0]):
-        neig = get_neighbor_indices(
-            indices, i, n_recurse_neighbors, max_neighbors_num
-        )
+        neig = get_neighbor_indices(indices, i, n_recurse_neighbors, max_neighbors_num)
         indices_rec.append(neig)
     return indices_rec
 
@@ -2342,15 +2118,11 @@ def integrate_vf(
             if interpolation_num is not None:
                 interpolation_num = interpolation_num * 2
         else:
-            raise Exception(
-                "both, forward, backward are the only valid direction argument strings"
-            )
+            raise Exception("both, forward, backward are the only valid direction argument strings")
 
         if interpolation_num is not None:
             vids = np.where((np.diff(y.T) < 1e-3).sum(0) < y.shape[1])[0]
-            valid_ids = (
-                vids if valid_ids is None else list(set(valid_ids).union(vids))
-            )
+            valid_ids = vids if valid_ids is None else list(set(valid_ids).union(vids))
 
         Y = y if Y is None else np.vstack((Y, y))
 
@@ -2361,9 +2133,7 @@ def integrate_vf(
         for i in range(n_cell):
             ind_vec = np.arange(i, (i + 1) * len(t_trans))
             cur_Y = Y[ind_vec, :][valid_ids, :]
-            t_linspace = np.linspace(
-                valid_t_trans[0], valid_t_trans[-1], interpolation_num
-            )
+            t_linspace = np.linspace(valid_t_trans[0], valid_t_trans[-1], interpolation_num)
             f = interpolate.interp1d(valid_t_trans, cur_Y.T)
             _Y = f(t_linspace) if _Y is None else np.hstack((_Y, f(t_linspace)))
             _t = t_linspace if _t is None else np.hstack((_t, t_linspace))
@@ -2399,11 +2169,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             set(init_cells).intersection(adata.obs_names),
             key=lambda x: list(init_cells).index(x),
         )
-        _cell_names = (
-            init_cells
-            if len(intersect_cell_names) == 0
-            else intersect_cell_names
-        )
+        _cell_names = init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
 
         if basis is not None:
             init_states = adata[_cell_names].obsm["X_" + basis].copy()
@@ -2412,9 +2178,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             VecFld = adata.uns["VecFld_" + basis]
             X = adata.obsm["X_" + basis]
 
-            valid_genes = [
-                basis + "_" + str(i) for i in np.arange(init_states.shape[1])
-            ]
+            valid_genes = [basis + "_" + str(i) for i in np.arange(init_states.shape[1])]
         else:
             # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_transition]) if genes is not
             # None \
@@ -2426,9 +2190,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             init_states = (
                 adata[_cell_names, :][:, valid_genes].X
                 if layer == "X"
-                else log1p_(
-                    adata, adata[_cell_names, :][:, valid_genes].layers[layer]
-                )
+                else log1p_(adata, adata[_cell_names, :][:, valid_genes].layers[layer])
             )
             if sp.issparse(init_states):
                 init_states = init_states.A
@@ -2464,14 +2226,8 @@ def getTend(X, V):
 
 def getTseq(init_states, t_end, step_size=None):
     if step_size is None:
-        max_steps = (
-            int(max(7 / (init_states.shape[1] / 300), 4))
-            if init_states.shape[1] > 300
-            else 7
-        )
-        t_linspace = np.linspace(
-            0, t_end, 10 ** (np.min([int(np.log10(t_end)), max_steps]))
-        )
+        max_steps = int(max(7 / (init_states.shape[1] / 300), 4)) if init_states.shape[1] > 300 else 7
+        t_linspace = np.linspace(0, t_end, 10 ** (np.min([int(np.log10(t_end)), max_steps])))
     else:
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
@@ -2480,9 +2236,7 @@ def getTseq(init_states, t_end, step_size=None):
 
 # ---------------------------------------------------------------------------------------------------
 # spatial related
-def compute_smallest_distance(
-    coords: list, leaf_size: int = 40, sample_num=None, use_unique_coords=True
-) -> float:
+def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None, use_unique_coords=True) -> float:
     """Compute and return smallest distance. A wrapper for sklearn API
 
     Parameters
@@ -2513,9 +2267,7 @@ def compute_smallest_distance(
     if sample_num is None:
         sample_num = len(coords)
     N, _ = min(len(coords), sample_num), coords.shape[1]
-    selected_estimation_indices = np.random.choice(
-        len(coords), size=N, replace=False
-    )
+    selected_estimation_indices = np.random.choice(len(coords), size=N, replace=False)
 
     # Note k=2 here because the nearest query is always a point itself.
     distances, _ = kd_tree.query(coords[selected_estimation_indices, :], k=2)
@@ -2574,18 +2326,14 @@ def get_rank_array(
     """
 
     dynamics_genes = (
-        adata.var.use_for_dynamics
-        if "use_for_dynamics" in adata.var.keys()
-        else np.ones(adata.n_vars, dtype=bool)
+        adata.var.use_for_dynamics if "use_for_dynamics" in adata.var.keys() else np.ones(adata.n_vars, dtype=bool)
     )
     if genes is not None:
         if type(genes) is str:
             genes = adata.var[genes].to_list()
             genes = np.logical_and(genes, dynamics_genes.to_list())
         elif areinstance(genes, str):
-            genes_ = (
-                adata.var_names[dynamics_genes].intersection(genes).to_list()
-            )
+            genes_ = adata.var_names[dynamics_genes].intersection(genes).to_list()
             genes = adata.var_names.isin(genes_)
         elif areinstance(genes, bool) or areinstance(genes, np.bool_):
             genes = np.array(genes)
@@ -2598,9 +2346,7 @@ def get_rank_array(
         genes = dynamics_genes
 
     if not np.any(genes):
-        raise ValueError(
-            "The list of genes provided does not contain any dynamics genes."
-        )
+        raise ValueError("The list of genes provided does not contain any dynamics genes.")
 
     if type(arr_key) is str:
         if arr_key in adata.layers.keys():
@@ -2608,9 +2354,7 @@ def get_rank_array(
         elif arr_key in adata.var.keys():
             arr = index_gene(adata, adata.var[arr_key], genes)
         else:
-            raise Exception(
-                f"Key {arr_key} not found in neither .layers nor .var."
-            )
+            raise Exception(f"Key {arr_key} not found in neither .layers nor .var.")
     else:
         arr = index_gene(adata, arr_key, genes)
 
@@ -2630,9 +2374,7 @@ def get_rank_array(
 
 # ---------------------------------------------------------------------------------------------------
 # projection related
-def projection_with_transition_matrix(
-    T, X_embedding, correct_density=True, norm_dist=True
-):
+def projection_with_transition_matrix(T, X_embedding, correct_density=True, norm_dist=True):
     n = T.shape[0]
     delta_X = np.zeros((n, X_embedding.shape[1]))
 

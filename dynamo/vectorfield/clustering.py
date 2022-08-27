@@ -1,13 +1,9 @@
-from typing import Union
-
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 from scipy.stats import mode
 from sklearn.neighbors import NearestNeighbors
 
-from ..dynamo_logger import main_info
 from ..preprocessing.utils import pca_monocle
 from ..tools.clustering import hdbscan, infomap, leiden, louvain
 from ..tools.Markov import (
@@ -128,51 +124,30 @@ def cluster_field(
         "curvature_" + basis,
         "curl_" + basis,
     ]
-    feature_list = [
-        i + "_" + basis if i != "potential" else basis + "_ddhodge_" + i
-        for i in features
-    ]
+    feature_list = [i + "_" + basis if i != "potential" else basis + "_ddhodge_" + i for i in features]
 
-    if (
-        feature_key[0] not in adata.obs.keys()
-        and feature_key[0] in feature_list
-    ):
+    if feature_key[0] not in adata.obs.keys() and feature_key[0] in feature_list:
         from ..vectorfield import speed
 
         speed(adata, basis=basis)
-    if (
-        feature_key[1] not in adata.obs.keys()
-        and feature_key[1] in feature_list
-    ):
+    if feature_key[1] not in adata.obs.keys() and feature_key[1] in feature_list:
         from ..ext import ddhodge
 
         ddhodge(adata, basis=basis)
-    if (
-        feature_key[2] not in adata.obs.keys()
-        and feature_key[2] in feature_list
-    ):
+    if feature_key[2] not in adata.obs.keys() and feature_key[2] in feature_list:
         from ..vectorfield import divergence
 
         divergence(adata, basis=basis)
-    if (
-        feature_key[3] not in adata.obs.keys()
-        and feature_key[3] in feature_list
-    ):
+    if feature_key[3] not in adata.obs.keys() and feature_key[3] in feature_list:
         from ..vectorfield import acceleration
 
         acceleration(adata, basis=basis)
-    if (
-        feature_key[4] not in adata.obs.keys()
-        and feature_key[4] in feature_list
-    ):
+    if feature_key[4] not in adata.obs.keys() and feature_key[4] in feature_list:
         from ..vectorfield import curvature
 
         curvature(adata, basis=basis)
 
-    if (
-        feature_key[5] not in adata.obs.keys()
-        and feature_key[5] in feature_list
-    ):
+    if feature_key[5] not in adata.obs.keys() and feature_key[5] in feature_list:
         from ..vectorfield import curl
 
         curl(adata, basis=basis)
@@ -331,9 +306,7 @@ def streamline_clusters(
             grid_kwargs_dict.pop(i)
 
         V_emb = func(X)
-        V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(
-            1, p_mass
-        )[:, None]
+        V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
         X_grid, V_grid = grid_velocity_filter(
             V_emb=V,
             neighs=neighs,
@@ -351,7 +324,7 @@ def streamline_clusters(
             **grid_kwargs_dict,
         )
     else:
-        raise ValueError(f"only `sparsevfc` and `gaussian` method supported")
+        raise ValueError("only `sparsevfc` and `gaussian` method supported")
 
     strm = plt.streamplot(
         X_grid[0],
@@ -422,15 +395,11 @@ def streamline_clusters(
             ) = vector_field_class.compute_acceleration(values)
             acc_dict[key] = acceleration_val
 
-            _, acc_hist = np.histogram(
-                acceleration_val, bins=(bins - 1), density=True
-            )
+            _, acc_hist = np.histogram(acceleration_val, bins=(bins - 1), density=True)
             if tmp is None:
                 tmp = acc_hist
         if has_curv:
-            curvature_val_1 = vector_field_class.compute_curvature(
-                values, formula=1
-            )[0]
+            curvature_val_1 = vector_field_class.compute_curvature(values, formula=1)[0]
             cur_1_dict[key] = curvature_val_1
 
             (
@@ -439,25 +408,17 @@ def streamline_clusters(
             ) = vector_field_class.compute_curvature(values)
             cur_2_dict[key] = curvature_val_2
 
-            _, cur_1_hist = np.histogram(
-                curvature_val_1, bins=(bins - 1), density=True
-            )
-            _, cur_2_hist = np.histogram(
-                curvature_val_2, bins=(bins - 1), density=True
-            )
+            _, cur_1_hist = np.histogram(curvature_val_1, bins=(bins - 1), density=True)
+            _, cur_2_hist = np.histogram(curvature_val_2, bins=(bins - 1), density=True)
             if tmp is None:
                 tmp = cur_1_hist if curvature_method == 1 else cur_2_hist
             else:
-                tmp = np.hstack(
-                    (tmp, cur_1_hist if curvature_method == 1 else cur_2_hist)
-                )
+                tmp = np.hstack((tmp, cur_1_hist if curvature_method == 1 else cur_2_hist))
         if has_div:
             divergence_val = vector_field_class.compute_divergence(values)
             div_dict[key] = divergence_val
 
-            _, div_hist = np.histogram(
-                divergence_val, bins=(bins - 1), density=True
-            )
+            _, div_hist = np.histogram(divergence_val, bins=(bins - 1), density=True)
             if tmp is None:
                 tmp = div_hist
             else:
@@ -467,9 +428,7 @@ def streamline_clusters(
             speed_val = np.linalg.norm(speed_vec)
             speed_dict[key] = speed_val
 
-            _, speed_hist = np.histogram(
-                speed_val, bins=(bins - 1), density=True
-            )
+            _, speed_hist = np.histogram(speed_val, bins=(bins - 1), density=True)
             if tmp is None:
                 tmp = speed_hist
             else:
@@ -539,14 +498,7 @@ def streamline_clusters(
 
         data_X = vector_field_class.data["X"]
         for key, values in line_list.items():
-            indices = [
-                np.where(
-                    np.logical_and(
-                        data_X[:, 0] == val[0], data_X[:, 1] == val[1]
-                    )
-                )[0][0]
-                for val in values
-            ]
+            indices = [np.where(np.logical_and(data_X[:, 0] == val[0], data_X[:, 1] == val[1]))[0][0] for val in values]
 
             # assign fixed point to the most frequent point
             if assign_fixedpoints:
@@ -556,9 +508,7 @@ def streamline_clusters(
             if reversed_fixedpoints:
                 mode_val = mode(assignment_id_rev[indices])[0][0]
                 if not np.isnan(mode_val):
-                    feature_adata.obs.loc[
-                        str(key), "rev_fixed_point"
-                    ] = mode_val
+                    feature_adata.obs.loc[str(key), "rev_fixed_point"] = mode_val
 
     adata.uns["streamline_clusters_" + basis] = {
         "feature_df": feature_df,
@@ -571,10 +521,6 @@ def streamline_clusters(
     }
 
     if assign_fixedpoints:
-        adata.uns["streamline_clusters_" + basis][
-            "fixed_point"
-        ] = feature_adata.obs["fixed_point"]
+        adata.uns["streamline_clusters_" + basis]["fixed_point"] = feature_adata.obs["fixed_point"]
     if reversed_fixedpoints:
-        adata.uns["streamline_clusters_" + basis][
-            "rev_fixed_point"
-        ] = feature_adata.obs["rev_fixed_point"]
+        adata.uns["streamline_clusters_" + basis]["rev_fixed_point"] = feature_adata.obs["rev_fixed_point"]

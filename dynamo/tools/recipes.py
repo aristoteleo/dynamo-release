@@ -353,9 +353,7 @@ def recipe_deg_data(
         # lastly, project RNA velocity to low dimensional embedding.
         try:
             set_transition_genes(adata)
-            cell_velocities(
-                adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis
-            )
+            cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
         except BaseException:
             cell_velocities(
                 adata,
@@ -805,9 +803,7 @@ def velocity_N(
 
     # check velocity_N, velocity_T, X_new, X_total
     if not np.all([i in layer_keys for i in ["X_new", "X_total"]]):
-        raise Exception(
-            f"The `X_new`, `X_total` has to exist in your data before running velocity_N function."
-        )
+        raise Exception(f"The `X_new`, `X_total` has to exist in your data before running velocity_N function.")
 
     # delete the moments and velocities that generated via total RNA
     for i in ["M_t", "M_tt", "M_n", "M_tn", "M_nn", "velocity_N", "velocity_T"]:
@@ -843,9 +839,7 @@ def velocity_N(
             del adata.var[i]
 
     if group is not None:
-        group_prefixes = [
-            group + "_" + str(i) + "_" for i in adata.obs[group].unique()
-        ]
+        group_prefixes = [group + "_" + str(i) + "_" for i in adata.obs[group].unique()]
         for i in group_prefixes:
             for j in [
                 "alpha",

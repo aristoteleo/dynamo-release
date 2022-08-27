@@ -1,5 +1,3 @@
-import functools
-import inspect
 import itertools
 import multiprocessing as mp
 from multiprocessing.dummy import Pool as ThreadPool
@@ -17,10 +15,8 @@ from ..dynamo_logger import LoggerManager, main_info
 from ..tools.utils import (
     form_triu_matrix,
     index_condensed_matrix,
-    subset_dict_with_key_list,
     timeit,
 )
-from .FixedPoints import FixedPoints
 
 
 def is_outside_domain(x, domain):
@@ -42,9 +38,7 @@ def laplacian(f, x):
 # ---------------------------------------------------------------------------------------------------
 # vector field function
 @timeit
-def vector_field_function(
-    x, vf_dict, dim=None, kernel="full", X_ctrl_ind=None, **kernel_kwargs
-):
+def vector_field_function(x, vf_dict, dim=None, kernel="full", X_ctrl_ind=None, **kernel_kwargs):
     """vector field function constructed by sparseVFC.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
@@ -66,9 +60,7 @@ def vector_field_function(
         elif kernel == "cf_kernel":
             kernel_ind = 2
         else:
-            raise ValueError(
-                f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!"
-            )
+            raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
 
         K = con_K_div_cur_free(
             x,
@@ -160,9 +152,7 @@ def con_K(x, y, beta, method="cdist", return_d=False):
 
         # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
         # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-        D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-            np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0]
-        )
+        D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
         K = np.squeeze(np.sum(D**2, 1))
     K = -beta * K
     K = np.exp(K)
@@ -198,9 +188,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     m, d = x.shape
     n, d = y.shape
     sigma2 = sigma**2
-    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0]
-    )
+    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0])
     G_tmp = np.squeeze(np.sum(G_tmp**2, 1))
     G_tmp3 = -G_tmp / sigma2
     G_tmp = -G_tmp / (2 * sigma2)
@@ -214,9 +202,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     G_tmp2 = np.zeros((d * m, d * n))
 
     tmp4_ = np.zeros((d, d))
-    for i in tqdm(
-        range(d), desc="Iterating each dimension in con_K_div_cur_free:"
-    ):
+    for i in tqdm(range(d), desc="Iterating each dimension in con_K_div_cur_free:"):
         for j in np.arange(i, d):
             tmp1 = xminusy[:, i].reshape((m, n), order="F")
             tmp2 = xminusy[:, j].reshape((m, n), order="F")
@@ -229,9 +215,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     G_tmp2 = G_tmp2 / sigma2
     G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
     G_tmp4 = np.kron(np.ones((m, n)), np.eye(d)) - G_tmp2
-    df_kernel, cf_kernel = (1 - eta) * G_tmp * (
-        G_tmp2 + G_tmp3
-    ), eta * G_tmp * G_tmp4
+    df_kernel, cf_kernel = (1 - eta) * G_tmp * (G_tmp2 + G_tmp3), eta * G_tmp * G_tmp4
     G = df_kernel + cf_kernel
 
     return G, df_kernel, cf_kernel
@@ -257,13 +241,11 @@ def vecfld_from_adata(adata, basis="", vf_key="VecFld"):
 
     method = vf_dict["method"]
     if method.lower() == "sparsevfc":
-        func = lambda x: vector_field_function(x, vf_dict)
+        func = lambda x: vector_field_function(x, vf_dict) # noqa: E731
     elif method.lower() == "dynode":
-        func = lambda x: dynode_vector_field_function(x, vf_dict)
+        func = lambda x: dynode_vector_field_function(x, vf_dict) # noqa: E731
     else:
-        raise ValueError(
-            f"current only support two methods, SparseVFC and dynode"
-        )
+        raise ValueError("current only support two methods, SparseVFC and dynode")
 
     return vf_dict, func
 
@@ -339,17 +321,13 @@ def Jacobian_rkhs_gaussian(x, vf_dict, vectorize=False):
         d is the number of dimensions and n the number of coordinates in x.
     """
     if x.ndim == 1:
-        K, D = con_K(
-            x[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True
-        )
+        K, D = con_K(x[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
         J = (vf_dict["C"].T * K) @ D[0].T
     elif not vectorize:
         n, d = x.shape
         J = np.zeros((d, d, n))
         for i, xi in enumerate(x):
-            K, D = con_K(
-                xi[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True
-            )
+            K, D = con_K(xi[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
             J[:, :, i] = (vf_dict["C"].T * K) @ D[0].T
     else:
         K, D = con_K(x, vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
@@ -371,15 +349,13 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     # with mp.Pool(cores) as p:
     #    ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
     with ThreadPool(cores) as p:
-        ret = p.starmap(
-            Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict))
-        )
+        ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
     ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
     ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
     return ret
 
 
-def Jacobian_numerical(f: Callable, input_vector_convention: str = "row"):
+def Jacobian_numerical(f :Callable, input_vector_convention: str = "row"):
     """
     Get the numerical Jacobian of the vector field function.
     If the input_vector_convention is 'row', it means that fjac takes row vectors
@@ -465,9 +441,7 @@ def Jacobian_kovf(x, fjac_base, K, Q, exact=False, mu=None):
 
     if exact:
         if mu is None:
-            raise Exception(
-                "For exact calculations of the Jacobian, the mean of the PCA transformation is needed."
-            )
+            raise Exception("For exact calculations of the Jacobian, the mean of the PCA transformation is needed.")
 
         s = np.sign(x @ Q.T + mu)
         if x.ndim > 1:
@@ -533,7 +507,7 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
         n_j_per_core = int(np.ceil(n / cores))
         JJ = []
         for i in range(0, n, n_j_per_core):
-            JJ.append(Js[:, :, i : i + n_j_per_core])
+            JJ.append(Js[:, :, i:(i + n_j_per_core)])
         with ThreadPool(cores) as p:
             ret = p.starmap(
                 transform_jacobian,
@@ -684,9 +658,7 @@ def Laplacian(H):
         L = np.zeros([H.shape[2], H.shape[3]])
         for sample_indx, i in enumerate(H):
             for out_indx in range(L.shape[0]):
-                L[out_indx, sample_indx] = np.diag(
-                    i[:, :, out_indx, sample_indx]
-                ).sum()
+                L[out_indx, sample_indx] = np.diag(i[:, :, out_indx, sample_indx]).sum()
     else:
         L = np.zeros([H.shape[2], 1])
         for out_indx in range(L.shape[0]):
@@ -715,12 +687,8 @@ def compute_divergence(f_jac, X, Js=None, vectorize_size=1000):
 
     div = np.zeros(n)
     for i in tqdm(range(0, n, vectorize_size), desc="Calculating divergence"):
-        J = (
-            f_jac(X[i : i + vectorize_size])
-            if Js is None
-            else Js[:, :, i : i + vectorize_size]
-        )
-        div[i : i + vectorize_size] = np.trace(J)
+        J = f_jac(X[i:(i + vectorize_size)]) if Js is None else Js[:, :, i:(i + vectorize_size)]
+        div[i:(i + vectorize_size)] = np.trace(J)
     return div
 
 
@@ -742,9 +710,7 @@ def curvature_method1(a: np.array, v: np.array):
 def curvature_method2(a: np.array, v: np.array):
     """https://dl.acm.org/doi/10.5555/319351.319441"""
     # if v.ndim == 1: v = v[:, None]
-    kappa = (
-        np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))
-    ) / np.linalg.norm(v) ** 4
+    kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v) ** 4
 
     return kappa
 
@@ -773,9 +739,7 @@ def compute_acceleration(vf, f_jac, X, Js=None, return_all=False):
     v_ = vf(X)
     J_ = f_jac(X) if Js is None else Js
     temp_logger = LoggerManager.get_temp_timer_logger()
-    for i in LoggerManager.progress_logger(
-        range(n), temp_logger, progress_name="Calculating acceleration"
-    ):
+    for i in LoggerManager.progress_logger(range(n), temp_logger, progress_name="Calculating acceleration"):
         v = v_[i]
         J = J_[:, :, i]
         acce_mat[i] = acceleration_(v, J).flatten()
@@ -805,9 +769,7 @@ def compute_curvature(vf, f_jac, X, Js=None, formula=2):
     v, _, _, a = compute_acceleration(vf, f_jac, X, Js=Js, return_all=True)
     cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
-    for i in LoggerManager.progress_logger(
-        range(n), progress_name="Calculating curvature"
-    ):
+    for i in LoggerManager.progress_logger(range(n), progress_name="Calculating curvature"):
         if formula == 1:
             curv[i] = curvature_method1(a[i], v[i])
         elif formula == 2:
@@ -825,7 +787,7 @@ def compute_torsion(vf, f_jac, X):
     \tau = \frac{(\mathbf{v} \times \mathbf{a}) \cdot (\mathbf{J} \cdot \mathbf{a})}{||\mathbf{V} \times \mathbf{a}||^2}
     """
     if X.shape[1] != 3:
-        raise Exception(f"torsion is only defined in 3 dimension.")
+        raise Exception("torsion is only defined in 3 dimension.")
 
     n = len(X)
 
@@ -872,9 +834,7 @@ def _curl(f, x, method="analytical", VecFld=None, jac=None):
         else:
             jac = nd.Jacobian(f)(x)
 
-    return np.array(
-        [jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]]
-    )
+    return np.array([jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]])
 
 
 def curl2d(f, x, method="analytical", VecFld=None, jac=None):
@@ -894,7 +854,7 @@ def curl2d(f, x, method="analytical", VecFld=None, jac=None):
 def compute_curl(f_jac, X):
     """Calculate curl for many samples for 2/3 D systems."""
     if X.shape[1] > 3:
-        raise Exception(f"curl is only defined in 2/3 dimension.")
+        raise Exception("curl is only defined in 2/3 dimension.")
 
     n = len(X)
 
@@ -937,45 +897,29 @@ def get_metric_gene_in_rank_by_group(
         mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0),
         mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0),
     )
-    rank = (
-        gene_wise_metrics.argsort()
-        if neg
-        else gene_wise_metrics.argsort()[::-1]
-    )
+    rank = gene_wise_metrics.argsort() if neg else gene_wise_metrics.argsort()[::-1]
     gene_wise_metrics, genes_in_rank = gene_wise_metrics[rank], genes[rank]
 
     return gene_wise_metrics, group_wise_metrics, genes_in_rank
 
 
-def get_sorted_metric_genes_df(
-    df: pd.DataFrame, genes: list, neg: bool = False
-) -> tuple:
+def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False) -> tuple:
     sorted_metric = pd.DataFrame(
         {
-            key: (
-                sorted(values, reverse=False)
-                if neg
-                else sorted(values, reverse=True)
-            )
+            key: (sorted(values, reverse=False) if neg else sorted(values, reverse=True))
             for key, values in df.transpose().iterrows()
         }
     )
     sorted_genes = pd.DataFrame(
         {
-            key: (
-                genes[values.argsort()]
-                if neg
-                else genes[values.argsort()[::-1]]
-            )
+            key: (genes[values.argsort()] if neg else genes[values.argsort()[::-1]])
             for key, values in df.transpose().iterrows()
         }
     )
     return sorted_metric, sorted_genes
 
 
-def rank_vector_calculus_metrics(
-    mat: np.mat, genes: list, group, groups: list, uniq_group: list
-) -> tuple:
+def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, uniq_group: list) -> tuple:
     main_info("split mat to a positive matrix and a negative matrix.")
     if issparse(mat):
         mask = mat.data > 0
@@ -992,13 +936,9 @@ def rank_vector_calculus_metrics(
         main_info("ranking vector calculus in group: %s" % (group))
         metric_in_rank, genes_in_rank = get_metric_gene_in_rank(abs(mat), genes)
 
-        pos_metric_in_rank, pos_genes_in_rank = get_metric_gene_in_rank(
-            pos_mat, genes
-        )
+        pos_metric_in_rank, pos_genes_in_rank = get_metric_gene_in_rank(pos_mat, genes)
 
-        neg_metric_in_rank, neg_genes_in_rank = get_metric_gene_in_rank(
-            neg_mat, genes, neg=True
-        )
+        neg_metric_in_rank, neg_genes_in_rank = get_metric_gene_in_rank(neg_mat, genes, neg=True)
 
         return (
             metric_in_rank,
@@ -1025,9 +965,7 @@ def rank_vector_calculus_metrics(
             group_wise_neg_metrics,
             group_wise_neg_genes,
         ) = ({}, {}, {}, {}, {}, {})
-        for i, grp in tqdm(
-            enumerate(uniq_group), desc="ranking genes across groups"
-        ):
+        for i, grp in tqdm(enumerate(uniq_group), desc="ranking genes across groups"):
             (
                 gene_wise_metrics[grp],
                 group_wise_metrics[grp],
@@ -1059,9 +997,7 @@ def rank_vector_calculus_metrics(
                 gene_wise_neg_metrics[grp],
                 group_wise_neg_metrics[grp],
                 gene_wise_neg_genes[grp],
-            ) = get_metric_gene_in_rank_by_group(
-                neg_mat, genes, groups, grp, neg=True
-            )
+            ) = get_metric_gene_in_rank_by_group(neg_mat, genes, groups, grp, neg=True)
 
         (
             metric_in_group_rank_by_gene,
@@ -1070,15 +1006,11 @@ def rank_vector_calculus_metrics(
         (
             pos_metric_gene_rank_by_group,
             pos_genes_group_rank_by_gene,
-        ) = get_sorted_metric_genes_df(
-            pd.DataFrame(group_wise_pos_metrics), genes
-        )
+        ) = get_sorted_metric_genes_df(pd.DataFrame(group_wise_pos_metrics), genes)
         (
             neg_metric_in_group_rank_by_gene,
             neg_genes_in_group_rank_by_gene,
-        ) = get_sorted_metric_genes_df(
-            pd.DataFrame(group_wise_neg_metrics), genes, neg=True
-        )
+        ) = get_sorted_metric_genes_df(pd.DataFrame(group_wise_neg_metrics), genes, neg=True)
 
         metric_in_gene_rank_by_group, genes_in_gene_rank_by_group = (
             pd.DataFrame(gene_wise_metrics),
@@ -1199,9 +1131,7 @@ def find_fixed_points(
     for x0 in x0_list:
         x, info_dict, _, _ = fsolve(vf_aux, x0, full_output=True)
 
-        outside = (
-            is_outside(x[None, :], domain)[0] if domain is not None else False
-        )
+        outside = is_outside(x[None, :], domain)[0] if domain is not None else False
         if not outside:
             fval.append(info_dict["fvec"])
             # compute Jacobian
@@ -1222,9 +1152,7 @@ def find_fixed_points(
     else:
         if X.size != 0:
             if tol_redundant is not None:
-                X, discard = remove_redundant_points(
-                    X, tol_redundant, output_discard=True
-                )
+                X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
                 J = J[~discard]
                 fval = fval[~discard]
 
@@ -1235,9 +1163,7 @@ def find_fixed_points(
 
 # ---------------------------------------------------------------------------------------------------
 # data retrieval related utilies
-def intersect_sources_targets(
-    regulators, regulators_, effectors, effectors_, Der
-):
+def intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der):
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
     if type(regulators) == str:
@@ -1398,11 +1324,7 @@ def subset_jacobian(adata, cells, basis="pca"):
     # assume all cells are used to calculate Jacobian for now
     adata_subset.uns[jkey]["cell_idx"] = np.arange(len(cells))
 
-    adata_subset.uns[jkey]["jacobian_gene"] = adata_subset.uns[jkey][
-        "jacobian_gene"
-    ][:, :, cells]
-    adata_subset.uns[jkey]["jacobian"] = adata_subset.uns[jkey]["jacobian"][
-        :, :, cells
-    ]
+    adata_subset.uns[jkey]["jacobian_gene"] = adata_subset.uns[jkey]["jacobian_gene"][:, :, cells]
+    adata_subset.uns[jkey]["jacobian"] = adata_subset.uns[jkey]["jacobian"][:, :, cells]
 
     return adata_subset

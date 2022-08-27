@@ -161,9 +161,7 @@ def Haber(
         "data/goatools_cellcycle_genes.txt",
     )
     cell_cycle_genes = open("data/goatools_cellcycle_genes.txt").read().split()
-    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(
-        cell_cycle_genes
-    )
+    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(cell_cycle_genes)
 
     return adata
 
@@ -185,9 +183,7 @@ def hgForebrainGlutamatergic(
         "data/goatools_cellcycle_genes.txt",
     )
     cell_cycle_genes = open("data/goatools_cellcycle_genes.txt").read().split()
-    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(
-        cell_cycle_genes
-    )
+    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(cell_cycle_genes)
 
     return adata
 

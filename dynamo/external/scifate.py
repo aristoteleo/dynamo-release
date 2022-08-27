@@ -106,31 +106,21 @@ def scifate_glmnet(
 
     # Apply LASSO for TF-gene linkage analysis
     new_size_factor = obs.loc[:, "Size_Factor"]
-    new_size_factor = (new_size_factor - np.mean(new_size_factor)) / np.std(
-        new_size_factor
-    )
+    new_size_factor = (new_size_factor - np.mean(new_size_factor)) / np.std(new_size_factor)
 
     TF_matrix.loc["new_size_factor"] = new_size_factor
     labeling_rate = obs["labeling_rate"]
     if np.std(labeling_rate) != 0:
-        labeling_ratio = (labeling_rate - np.mean(labeling_rate)) / np.std(
-            labeling_rate
-        )
+        labeling_ratio = (labeling_rate - np.mean(labeling_rate)) / np.std(labeling_rate)
         TF_matrix.loc["labeling_ratio", :] = labeling_ratio
 
     # link TF and genes based on covariance
-    link_result = link_TF_gene_analysis(
-        TF_matrix, new_mat, var_TF, core_num=core_n_lasso
-    )
-    link_result = pd.concat(
-        [i if type(i) != str else None for i in link_result], axis=0
-    )
+    link_result = link_TF_gene_analysis(TF_matrix, new_mat, var_TF, core_num=core_n_lasso)
+    link_result = pd.concat([i if type(i) != str else None for i in link_result], axis=0)
 
     # filtering the links using TF-gene binding data and store the result in the target folder
     # note that currently the motif filtering is not implement
-    df_gene_TF_link_chip = TF_gene_filter_links(
-        link_result, var, core_n_filtering, motif_ref, df_gene_TF_link_ENCODE
-    )
+    df_gene_TF_link_chip = TF_gene_filter_links(link_result, var, core_n_filtering, motif_ref, df_gene_TF_link_ENCODE)
 
     adata.uns["scifate"] = {
         "glmnet_res": link_result,
@@ -154,21 +144,15 @@ def adata_processing_TF_link(
     # filter genes
     print(f"Original gene number: {n_var}")
 
-    gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (
-        gene_filter_rate * n_obs
-    )
-    gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (
-        gene_filter_rate * n_obs
-    )
+    gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (gene_filter_rate * n_obs)
+    gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (gene_filter_rate * n_obs)
     if issparse(adata.layers[nt_layers[0]]):
         gene_filter_new = gene_filter_new.A1
     if issparse(adata.layers[nt_layers[1]]):
         gene_filter_tot = gene_filter_tot.A1
     adata = adata[:, gene_filter_new * gene_filter_tot]
 
-    print(
-        f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}"
-    )
+    print(f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}")
 
     # filter cells
     print(f"Original cell number: {n_obs}")
@@ -202,19 +186,13 @@ def adata_processing_TF_link(
         total = total.A
     new_mat = normalize_data(new, szfactors, pseudo_expr=0.1)
     tot_mat = normalize_data(total, szfactors, pseudo_expr=0.1)
-    new_mat = pd.DataFrame(
-        new_mat, index=adata.obs_names, columns=adata.var_names
-    )
-    tot_mat = pd.DataFrame(
-        tot_mat, index=adata.obs_names, columns=adata.var_names
-    )
+    new_mat = pd.DataFrame(new_mat, index=adata.obs_names, columns=adata.var_names)
+    tot_mat = pd.DataFrame(tot_mat, index=adata.obs_names, columns=adata.var_names)
 
     # compute the labeling reads rate in each cell
     obs = adata.obs
     var = adata.var
-    var.loc[:, "gene_short_name"] = make_index_unique(
-        var.loc[:, "gene_short_name"].astype("str")
-    )
+    var.loc[:, "gene_short_name"] = make_index_unique(var.loc[:, "gene_short_name"].astype("str"))
     ntr = adata.layers["new"].sum(1).A1 / adata.layers["total"].sum(1).A1
     if issparse(ntr):
         obs.loc[:, "labeling_rate"] = ntr.A1
@@ -244,18 +222,12 @@ def link_TF_gene_analysis(
     gene_list = gene_matrix.index
     link_result = [None] * len(gene_list)
 
-    for i, linked_gene in tqdm(
-        enumerate(gene_list), desc=f"Perform lasso regression for each gene:"
-    ):
+    for i, linked_gene in tqdm(enumerate(gene_list), desc=f"Perform lasso regression for each gene:"):
         gene_name, TFs = (
-            var_TF.loc[linked_gene, "gene_short_name"]
-            if linked_gene in var_TF.index
-            else None,
+            var_TF.loc[linked_gene, "gene_short_name"] if linked_gene in var_TF.index else None,
             TF_matrix.index,
         )
-        valid_gene_ids = (
-            TFs if gene_name is None else list(TFs.difference(set(gene_name)))
-        )
+        valid_gene_ids = TFs if gene_name is None else list(TFs.difference(set(gene_name)))
         input_TF_matrix = TF_matrix.loc[valid_gene_ids, :]
 
         result = TF_gene_link(
@@ -281,17 +253,13 @@ def TF_gene_link(
 ):
     """Estimate the regulatory weight of each TF to its potential targets via lasso regression for each gene."""
 
-    expr_cor = einsum_correlation(
-        TF_matrix.values, linked_gene_expr_vector.values
-    )[0]
+    expr_cor = einsum_correlation(TF_matrix.values, linked_gene_expr_vector.values)[0]
     select_sites = abs(expr_cor) > cor_thresh
     TF_matrix = TF_matrix.iloc[select_sites, :]
 
     if select_sites.sum() > 1:
         TF_matrix = TF_matrix.T
-        result = lasso_regression_expression(
-            TF_matrix, linked_gene, linked_gene_expr_vector, seed, core_num
-        )
+        result = lasso_regression_expression(TF_matrix, linked_gene, linked_gene_expr_vector, seed, core_num)
 
         return result
     else:
@@ -351,9 +319,7 @@ def r2_glmnet(cv_out, y):
     return r2[0]
 
 
-def TF_gene_filter_links(
-    raw_glmnet_res: pd.DataFrame, var, core_n, motif_ref, df_gene_TF_link_ENCODE
-):
+def TF_gene_filter_links(raw_glmnet_res: pd.DataFrame, var, core_n, motif_ref, df_gene_TF_link_ENCODE):
     """prepare data for TF-target gene link filtering"""
 
     var_ori = var.copy()
@@ -363,13 +329,9 @@ def TF_gene_filter_links(
     df_gene.columns = ["linked_gene", "linked_gene_name", "gene_type"]
 
     raw_glmnet_res_var = raw_glmnet_res.merge(df_gene)
-    raw_glmnet_res_var = raw_glmnet_res_var.query(
-        "id != 'labeling_ratio' and id != 'new_size_factor'"
-    )
+    raw_glmnet_res_var = raw_glmnet_res_var.query("id != 'labeling_ratio' and id != 'new_size_factor'")
 
     # filter the link by ChIP-seq analysis
-    df_gene_TF_link_chip = TF_link_gene_chip(
-        raw_glmnet_res_var, df_gene_TF_link_ENCODE, var_ori, cor_thresh=0.04
-    )
+    df_gene_TF_link_chip = TF_link_gene_chip(raw_glmnet_res_var, df_gene_TF_link_ENCODE, var_ori, cor_thresh=0.04)
 
     return df_gene_TF_link_chip

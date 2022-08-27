@@ -10,9 +10,7 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 
 
-def vlm_to_adata(
-    vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None
-):
+def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None):
     """Conversion function from the velocyto world to the dynamo world.
     Code original from scSLAM-seq repository
 
@@ -157,16 +155,10 @@ def vlm_to_adata(
     if hasattr(vlm, "S_norm"):
         X = csr_matrix(vlm.S_norm.T)
     else:
-        X = (
-            csr_matrix(vlm.S_sz.T)
-            if hasattr(vlm, "S_sz")
-            else csr_matrix(vlm.S.T)
-        )
+        X = csr_matrix(vlm.S_sz.T) if hasattr(vlm, "S_sz") else csr_matrix(vlm.S.T)
 
     # create an anndata object with Dynamo characteristics.
-    dyn_adata = anndata.AnnData(
-        X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, layers=layers, uns=uns
-    )
+    dyn_adata = anndata.AnnData(X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, layers=layers, uns=uns)
 
     return dyn_adata
 
@@ -180,10 +172,7 @@ def converter(data_in, from_type="adata", to_type="vlm", dir="."):
     try:
         import velocyto as vcy
     except ImportError:
-        raise ImportError(
-            "You need to install the package `velocyto`."
-            "install velocyto via `pip install velocyto`"
-        )
+        raise ImportError("You need to install the package `velocyto`." "install velocyto via `pip install velocyto`")
 
     if from_type == "adata":
         if to_type == "vlm":
@@ -261,10 +250,7 @@ def run_scvelo(adata):
     try:
         import scvelo as scv
     except ImportError:
-        raise ImportError(
-            "You need to install the package `scvelo`."
-            "install scvelo via `pip install scvelo`"
-        )
+        raise ImportError("You need to install the package `scvelo`." "install scvelo via `pip install scvelo`")
 
     # scv.pp.filter_and_normalize(adata, min_counts=2, min_counts_u=1, n_top_genes=3000)
     scv.pp.moments(adata)  # , n_pcs = 12, n_neighbors = 15, mode = 'distances'

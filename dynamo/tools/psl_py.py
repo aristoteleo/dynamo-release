@@ -160,20 +160,14 @@ def psl(
                 dists[location : location + K] = distances[i]
                 location = location + K
             sG = csr_matrix((np.array(dists) ** 2, (rows, cols)), shape=(N, N))
-            sG = scipy.sparse.csc_matrix.maximum(
-                sG, sG.T
-            )  # symmetrize the matrix
+            sG = scipy.sparse.csc_matrix.maximum(sG, sG.T)  # symmetrize the matrix
         else:
             N = Y.shape[0]
             sidx = np.argsort(dist)
             # flatten first rows and then cols
-            i = repmat(
-                sidx[:, 0][:, None], K, 1
-            ).flatten()  # .reshape(1, -1)[0]
+            i = repmat(sidx[:, 0][:, None], K, 1).flatten()  # .reshape(1, -1)[0]
             j = sidx[:, 1 : K + 1].T.flatten()  # .reshape(1, -1)[0]
-            sG = csr_matrix(
-                (np.repeat(1, N * K), (i, j)), shape=(N, N)
-            )  # [1 for k in range(N * K)]
+            sG = csr_matrix((np.repeat(1, N * K), (i, j)), shape=(N, N))  # [1 for k in range(N * K)]
 
     if not dist:
         if list(set(sG.data)) == [1]:
@@ -200,15 +194,11 @@ def psl(
         S = csr_matrix((s, (rows, cols)), shape=(N, N))  # .toarray()
         S = S + S.T
         Q = (
-            scipy.sparse.diags(
-                functools.reduce(operator.concat, S.sum(axis=1)[:, 0].tolist())
-            )
+            scipy.sparse.diags(functools.reduce(operator.concat, S.sum(axis=1)[:, 0].tolist()))
             - S
             + 0.25 * (param_gamma + 1) * scipy.sparse.eye(N, N)
         )  ##################
-        R = scipy.linalg.cholesky(
-            Q.toarray()
-        )  # Cholesky Decomposition of a Sparse Matrix
+        R = scipy.linalg.cholesky(Q.toarray())  # Cholesky Decomposition of a Sparse Matrix
         invR = scipy.sparse.linalg.inv(csr_matrix(R))  # R:solve(R)
         # invR = np.matrix(invR)
         # invQ = invR*invR.T
@@ -228,17 +218,9 @@ def psl(
         # log(det(Q))
         obj = (
             0.5 * D * logdet_Q
-            - scipy.sparse.csr_matrix.sum(
-                scipy.sparse.csr_matrix.multiply(S, dist)
-            )
-            + 0.25
-            / C
-            * scipy.sparse.csr_matrix.sum(
-                scipy.sparse.csr_matrix.multiply(S, S)
-            )
-            - 0.125
-            * param_gamma**2
-            * sum(np.diag(np.dot(W.T, np.dot(Y.T, invQYW))))
+            - scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, dist))
+            + 0.25 / C * scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, S))
+            - 0.125 * param_gamma**2 * sum(np.diag(np.dot(W.T, np.dot(Y.T, invQYW))))
         )  # trace: #sum(diag(m))
         objs[iter] = obj
 

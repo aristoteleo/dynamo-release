@@ -109,9 +109,7 @@ def prop_slam(C, a, b, la, aa, ai, si, be, ga):
     return prop
 
 
-def simulate_Gillespie(
-    a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=False
-):
+def simulate_Gillespie(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=False):
     # species
     s = 0
     u_l = 1
@@ -171,13 +169,9 @@ def prop_2bifurgenes(C, a, b, S, K, m, n, gamma):
 
     # propensities
     prop = np.zeros(4)
-    prop[0] = a1 * x**m1 / (S1**m1 + x**m1) + b1 * K1**n1 / (
-        K1**n1 + y**n1
-    )  # 0 -> x
+    prop[0] = a1 * x**m1 / (S1**m1 + x**m1) + b1 * K1**n1 / (K1**n1 + y**n1)  # 0 -> x
     prop[1] = ga1 * x  # x -> 0
-    prop[2] = a2 * y**m2 / (S2**m2 + y**m2) + b2 * K2**n2 / (
-        K2**n2 + x**n2
-    )  # 0 -> y
+    prop[2] = a2 * y**m2 / (S2**m2 + y**m2) + b2 * K2**n2 / (K2**n2 + x**n2)  # 0 -> y
     prop[3] = ga2 * y  # y -> 0
 
     return prop
@@ -217,14 +211,10 @@ def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
 
     # propensities
     prop = np.zeros(6)
-    prop[0] = a1 * s1**m1 / (S1**m1 + s1**m1) + b1 * K1**n1 / (
-        K1**n1 + s2**n1
-    )  # 0 -> u1
+    prop[0] = a1 * s1**m1 / (S1**m1 + s1**m1) + b1 * K1**n1 / (K1**n1 + s2**n1)  # 0 -> u1
     prop[1] = be1 * u1  # u1 -> s1
     prop[2] = ga1 * s1  # s1 -> 0
-    prop[3] = a2 * s2**m2 / (S2**m2 + s2**m2) + b2 * K2**n2 / (
-        K2**n2 + s1**n2
-    )  # 0 -> u2
+    prop[3] = a2 * s2**m2 / (S2**m2 + s2**m2) + b2 * K2**n2 / (K2**n2 + s1**n2)  # 0 -> u2
     prop[4] = be2 * u2  # u2 -> s2
     prop[5] = ga2 * s2  # s2 -> 0
 
@@ -252,9 +242,7 @@ def stoich_2bifurgenes_splicing():
     return stoich
 
 
-def simulate_2bifurgenes(
-    C0, t_span, n_traj, param_dict, report=False, **gillespie_kwargs
-):
+def simulate_2bifurgenes(C0, t_span, n_traj, param_dict, report=False, **gillespie_kwargs):
     param_dict = param_dict.copy()
     beta = param_dict.pop("beta", None)
     if beta is None:
@@ -270,14 +258,10 @@ def simulate_2bifurgenes(
     if beta is None:
         prop_func = lambda C: prop_2bifurgenes(C, **param_dict)
     else:
-        prop_func = lambda C: prop_2bifurgenes_splicing(
-            C, beta=beta, **param_dict
-        )
+        prop_func = lambda C: prop_2bifurgenes_splicing(C, beta=beta, **param_dict)
 
     for i in range(n_traj):
-        T, C = directMethod(
-            prop_func, update_func, t_span, C0, **gillespie_kwargs
-        )
+        T, C = directMethod(prop_func, update_func, t_span, C0, **gillespie_kwargs)
         trajs_T[i] = T
         trajs_C[i] = C
         if report:
@@ -334,9 +318,7 @@ def convert_nosplice(trajs_T, trajs_C):
     return trajs_C_nosplice
 
 
-def simulate_multigene(
-    a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval, report=False
-):
+def simulate_multigene(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval, report=False):
     n_genes = len(a)
     ret = []
     for i in range(n_genes):
@@ -378,9 +360,7 @@ class CellularSpecies:
 
     def register_species(self, species_name: str, is_gene_species=True):
         if self.get_n_genes() == 0 and is_gene_species:
-            raise Exception(
-                "There is no gene and therefore cannot register gene species."
-            )
+            raise Exception("There is no gene and therefore cannot register gene species.")
         if species_name in self.species_dict:
             raise Exception(f"You have already registered {species_name}.")
         else:
@@ -391,9 +371,7 @@ class CellularSpecies:
                 self.num_species += 1
             else:
                 self._is_gene_species.append(True)
-                self.species_dict[species_name] = [
-                    i + self.num_species for i in range(self.get_n_genes())
-                ]
+                self.species_dict[species_name] = [i + self.num_species for i in range(self.get_n_genes())]
                 self.num_species += self.get_n_genes()
 
     def get_index(self, species, gene=None):
@@ -402,15 +380,11 @@ class CellularSpecies:
         idx = self.species_dict[species]
         if gene is not None:
             if type(gene) == str and gene in self.gene_names:
-                idx = next(
-                    k for i, k in enumerate(idx) if self.gene_names[i] == gene
-                )
+                idx = next(k for i, k in enumerate(idx) if self.gene_names[i] == gene)
             elif type(gene) == int and gene < self.get_n_genes():
                 idx = idx[gene]
             else:
-                raise Exception(
-                    f"The gene name {gene} is not found in the registered genes."
-                )
+                raise Exception(f"The gene name {gene} is not found in the registered genes.")
         return idx
 
     def get_species(self, index, return_gene_name=True):
@@ -437,9 +411,7 @@ class CellularSpecies:
             species = self.__getitem__(species)[0]
 
         if species not in self.species_dict.keys():
-            raise Exception(
-                f"The species {species} is not found in the registered species."
-            )
+            raise Exception(f"The species {species} is not found in the registered species.")
         else:
             for i, k in enumerate(self.species_dict.keys()):
                 if k == species:
@@ -546,9 +518,7 @@ class GillespieReactions:
             sp = self.species[i]
             sp = sp[0] if len(sp) == 1 else f"{sp[0]}_{sp[1]}"
             species_names.append(sp)
-        df = pd.DataFrame(
-            self._stoich, columns=species_names, index=self.get_desc()
-        )
+        df = pd.DataFrame(self._stoich, columns=species_names, index=self.get_desc())
         print(df)
 
     def simulate(self, t_span, C0, **gillespie_kwargs):
@@ -556,7 +526,5 @@ class GillespieReactions:
             self.generate_stoich_matrix()
         update_func = lambda C, mu: C + self._stoich[mu, :]
 
-        T, C = directMethod(
-            self.propensity, update_func, t_span, C0, **gillespie_kwargs
-        )
+        T, C = directMethod(self.propensity, update_func, t_span, C0, **gillespie_kwargs)
         return T, C

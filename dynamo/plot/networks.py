@@ -94,8 +94,7 @@ def nxvizPlot(
         )
         if len(network.node) == 0:
             raise ValueError(
-                f"weight_threshold is too high, no edge has weight than {weight_threshold} "
-                f"for cluster {cluster}."
+                f"weight_threshold is too high, no edge has weight than {weight_threshold} " f"for cluster {cluster}."
             )
 
     # Iterate over all the nodes in G, including the metadata
@@ -107,15 +106,10 @@ def nxvizPlot(
         # data has to be float
         if cluster is not None:
             network.nodes[n]["size"] = (
-                adata[adata.obs[cluster].isin(cluster_names), n]
-                .layers[layer]
-                .A.mean()
-                .astype(float)
+                adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].A.mean().astype(float)
             )
         else:
-            network.nodes[n]["size"] = (
-                adata[:, n].layers[layer].A.mean().astype(float)
-            )
+            network.nodes[n]["size"] = adata[:, n].layers[layer].A.mean().astype(float)
 
         network.nodes[n]["label"] = n
     for e in network.edges():
@@ -144,9 +138,7 @@ def nxvizPlot(
                     "label": "label",
                 },
             ),
-            edgeprops=kwargs.pop(
-                "edgeprops", {"facecolor": "None", "alpha": 0.2}
-            ),
+            edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
             node_label_color=kwargs.pop("node_label_color", False),
             group_label_position=kwargs.pop("group_label_position", None),
             group_label_color=kwargs.pop("group_label_color", False),
@@ -170,9 +162,7 @@ def nxvizPlot(
             data_types=kwargs.pop("data_types", None),
             nodeprops=kwargs.pop("nodeprops", None),
             node_label_layout="rotation",
-            edgeprops=kwargs.pop(
-                "edgeprops", {"facecolor": "None", "alpha": 0.2}
-            ),
+            edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
             node_label_color=kwargs.pop("node_label_color", False),
             group_label_position=kwargs.pop("group_label_position", None),
             group_label_color=kwargs.pop("group_label_color", False),
@@ -288,10 +278,7 @@ def arcPlot(
     try:
         import networkx as nx
     except ImportError:
-        raise ImportError(
-            "You need to install the package `networkx`."
-            "install networkx via `pip install networkx`."
-        )
+        raise ImportError("You need to install the package `networkx`." "install networkx via `pip install networkx`.")
 
     if edges_list is not None:
         network = nx.from_pandas_edgelist(
@@ -320,9 +307,7 @@ def arcPlot(
     ap.draw(node_order=node_degree)
 
     if cbar and color is not None:
-        norm = matplotlib.colors.Normalize(
-            vmin=np.min(color), vmax=np.max(color)
-        )
+        norm = matplotlib.colors.Normalize(vmin=np.min(color), vmax=np.max(color))
 
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(color)
@@ -413,9 +398,7 @@ def circosPlot(
         },
     )
 
-    nv.annotate.circos_labels(
-        network, group_by=node_label_key, layout=circos_label_layout
-    )
+    nv.annotate.circos_labels(network, group_by=node_label_key, layout=circos_label_layout)
     if node_color_key and show_colorbar:
         nv.annotate.node_colormapping(
             network,
@@ -557,15 +540,13 @@ def hivePlot(
     reg_groups = list(adata.obs[cluster].unique())
     if not set(edges_list.keys()).issubset(reg_groups):
         raise ValueError(
-            f"the edges_list's keys are not equal or subset of the clusters from the "
-            f"adata.obs[{cluster}]"
+            f"the edges_list's keys are not equal or subset of the clusters from the " f"adata.obs[{cluster}]"
         )
     if cluster_names is not None:
         reg_groups = list(set(reg_groups).intersection(cluster_names))
         if len(reg_groups) == 0:
             raise ValueError(
-                f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the "
-                f"adata."
+                f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the " f"adata."
             )
 
     combined_edges, G, edges_dict = None, {}, {}
@@ -579,15 +560,10 @@ def hivePlot(
         )
         if len(G[grp].node) == 0:
             raise ValueError(
-                f"weight_threshold is too high, no edge has weight than {weight_threshold} "
-                f"for cluster {grp}."
+                f"weight_threshold is too high, no edge has weight than {weight_threshold} " f"for cluster {grp}."
             )
         edges_dict[grp] = np.array(G[grp].edges)
-        combined_edges = (
-            edges_list[grp]
-            if combined_edges is None
-            else pd.concat((combined_edges, edges_list[grp]))
-        )
+        combined_edges = edges_list[grp] if combined_edges is None else pd.concat((combined_edges, edges_list[grp]))
 
     # pull out degree information from nodes for later use
     combined_G = nx.from_pandas_edgelist(
@@ -607,9 +583,7 @@ def hivePlot(
         # also store the degree of each node as another way to
         #  align nodes on axes
         combined_G.nodes.data()[node_id]["degree"] = degree
-        temp_node = Node(
-            unique_id=node_id, data=combined_G.nodes.data()[node_id]
-        )
+        temp_node = Node(unique_id=node_id, data=combined_G.nodes.data()[node_id])
         nodes.append(temp_node)
 
     hp = HivePlot()
@@ -631,14 +605,10 @@ def hivePlot(
 
     # assign nodes and sorting procedure to position nodes on axis
     for i, grp in enumerate(reg_groups):
-        hp.place_nodes_on_axis(
-            axis_id=grp, unique_ids=nodes, sorting_feature_to_use="degree"
-        )
+        hp.place_nodes_on_axis(axis_id=grp, unique_ids=nodes, sorting_feature_to_use="degree")
     for i, grp in enumerate(reg_groups):
         # edges ###
-        nex_grp = (
-            reg_groups[i + 1] if i < len(reg_groups) - 1 else reg_groups[0]
-        )
+        nex_grp = reg_groups[i + 1] if i < len(reg_groups) - 1 else reg_groups[0]
         hp.connect_axes(
             edges=edges_dict[grp],
             axis_id_1=grp,

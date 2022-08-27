@@ -190,25 +190,13 @@ def cell_velocities(
     """
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_key_prefix)
     mapper_r = get_mapper_inverse()
-    layer = (
-        mapper_r[ekey]
-        if (ekey is not None and ekey in mapper_r.keys())
-        else ekey
-    )
-    ekey, vkey, layer = (
-        get_ekey_vkey_from_adata(adata)
-        if (ekey is None or vkey is None)
-        else (ekey, vkey, layer)
-    )
+    layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
+    ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, layer)
 
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if (
-        neighbor_key is not None
-        and neighbor_key in adata.uns.keys()
-        and "indices" in adata.uns[neighbor_key]
-    ):
+    if neighbor_key is not None and neighbor_key in adata.uns.keys() and "indices" in adata.uns[neighbor_key]:
         check_and_recompute_neighbors(adata, result_prefix=neighbor_key_prefix)
         # use neighbor indices in neighbor_key (if available) first for the sake of performance.
         indices = adata.uns[neighbor_key]["indices"]
@@ -225,16 +213,12 @@ def cell_velocities(
                 idx[i, : len(nbr)] = nbr
             indices = idx
             if np.any(np.isnan(indices)):
-                main_warning(
-                    "Resulting knn index matrix contains NaN. Check if n_neighbors is too large."
-                )
+                main_warning("Resulting knn index matrix contains NaN. Check if n_neighbors is too large.")
 
     elif adj_key is not None and adj_key in adata.obsp.keys():
         if use_mnn:
             neighbors = adata.uns["mnn"]
-            indices, _ = adj_to_knn(
-                neighbors, adata.uns["neighbors"]["indices"].shape[1]
-            )
+            indices, _ = adj_to_knn(neighbors, adata.uns["neighbors"]["indices"].shape[1])
             indices = indices[:, 1:]
         else:
             knn_indices, _ = adj_to_knn(adata.obsp[adj_key], n_neighbors)
@@ -259,9 +243,7 @@ def cell_velocities(
     if X is None and V is None:
         if transition_genes is None:
             if "use_for_transition" not in adata.var.keys() or enforce:
-                use_for_dynamics = (
-                    True if "use_for_dynamics" in adata.var.keys() else False
-                )
+                use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
                 adata = set_transition_genes(
                     adata,
                     vkey=vkey,
@@ -271,9 +253,7 @@ def cell_velocities(
                     min_gamma=min_gamma,
                     min_delta=min_delta,
                 )
-            transition_genes = adata.var_names[
-                adata.var.use_for_transition.values
-            ]
+            transition_genes = adata.var_names[adata.var.use_for_transition.values]
         else:
             if not enforce:
                 main_warning(
@@ -287,22 +267,12 @@ def cell_velocities(
             )
             if type(transition_genes) is str:
                 transition_genes = adata.var[transition_genes].to_list()
-                transition_genes = np.logical_and(
-                    transition_genes, dynamics_genes.to_list()
-                )
+                transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
             elif areinstance(transition_genes, str):
-                transition_genes = (
-                    adata.var_names[dynamics_genes]
-                    .intersection(transition_genes)
-                    .to_list()
-                )
-            elif areinstance(transition_genes, bool) or areinstance(
-                transition_genes, np.bool_
-            ):
+                transition_genes = adata.var_names[dynamics_genes].intersection(transition_genes).to_list()
+            elif areinstance(transition_genes, bool) or areinstance(transition_genes, np.bool_):
                 transition_genes = np.array(transition_genes)
-                transition_genes = np.logical_and(
-                    transition_genes, dynamics_genes.to_list()
-                )
+                transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
             else:
                 raise TypeError(
                     "transition genes should either be a key of adata.var, an array of gene names, or of booleans."
@@ -319,11 +289,7 @@ def cell_velocities(
                 adata.var.loc[transition_genes, "use_for_transition"] = True
 
     # X = adata[:, transition_genes].layers[ekey] if X is None else X
-    X = (
-        index_gene(adata, adata.layers[ekey], transition_genes)
-        if X is None
-        else X
-    )
+    X = index_gene(adata, adata.layers[ekey], transition_genes) if X is None else X
 
     V = (
         (
@@ -355,12 +321,7 @@ def cell_velocities(
                 ""
             )
 
-        if "_" in basis and any(
-            [
-                i in basis
-                for i in ["X_", "spliced_", "unspliced_", "new_", "total"]
-            ]
-        ):
+        if "_" in basis and any([i in basis for i in ["X_", "spliced_", "unspliced_", "new_", "total"]]):
             basis_layer, basis = basis.rsplit("_", 1)
             reduceDimension(adata, layer=basis_layer, reduction_method=basis)
             X_embedding = adata.obsm[basis]
@@ -372,9 +333,7 @@ def cell_velocities(
                 X_embedding = adata.obsm[layer + "_" + basis]
 
     if X.shape[0] != X_embedding.shape[0]:
-        raise Exception(
-            "X and X_embedding do not have the same number of samples."
-        )
+        raise Exception("X and X_embedding do not have the same number of samples.")
     if X.shape[1] < X_embedding.shape[1]:
         raise Exception(
             "The number of dimensions of X is smaller than that of the embedding. Try lower the min_r2, "
@@ -387,15 +346,9 @@ def cell_velocities(
     X, V = X[:, finite_inds], V[:, finite_inds]
 
     if sum(finite_inds) != X.shape[0]:
-        main_info(
-            f"{X.shape[1] - sum(finite_inds)} genes are removed because of nan velocity values."
-        )
-        if (
-            transition_genes is not None
-        ):  # if X, V is provided by the user, transition_genes will be None
-            adata.var.loc[
-                np.array(transition_genes)[~finite_inds], "use_for_transition"
-            ] = False
+        main_info(f"{X.shape[1] - sum(finite_inds)} genes are removed because of nan velocity values.")
+        if transition_genes is not None:  # if X, V is provided by the user, transition_genes will be None
+            adata.var.loc[np.array(transition_genes)[~finite_inds], "use_for_transition"] = False
 
     if finite_inds.sum() < 5 and len(finite_inds) > 100:
         raise Exception(
@@ -411,10 +364,7 @@ def cell_velocities(
     if n_pca_components is not None:
         X = log1p_(adata, X)
         X_plus_V = log1p_(adata, X + V)
-        if (
-            "velocity_pca_fit" not in adata.uns_keys()
-            or type(adata.uns["velocity_pca_fit"]) == str
-        ):
+        if "velocity_pca_fit" not in adata.uns_keys() or type(adata.uns["velocity_pca_fit"]) == str:
             pca_monocle = PCA(
                 n_components=min(n_pca_components, X.shape[1] - 1),
                 svd_solver="arpack",
@@ -442,11 +392,7 @@ def cell_velocities(
     # add both source and sink distribution
     if method == "kmc":
         if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
-            T = (
-                adata.obsp[method + "_transition_matrix"]
-                if transition_matrix is None
-                else transition_matrix
-            )
+            T = adata.obsp[method + "_transition_matrix"] if transition_matrix is None else transition_matrix
             kmc = KernelMarkovChain(P=T)
         else:
             kmc = KernelMarkovChain()
@@ -459,10 +405,7 @@ def cell_velocities(
         }
         kmc_args = update_dict(kmc_args, kernel_kwargs)
 
-        if (
-            method + "_transition_matrix" not in adata.obsp.keys()
-            or not enforce
-        ):
+        if method + "_transition_matrix" not in adata.obsp.keys() or not enforce:
             kmc.fit(
                 X,
                 V,
@@ -477,9 +420,7 @@ def cell_velocities(
                 X_embedding, kmc.Idx, normalize_vector=True, scale=scale
             )  # indices, k = 500
         else:
-            delta_X = kmc.compute_drift(
-                X_embedding, num_prop=1, scale=scale
-            )  # indices, k = 500
+            delta_X = kmc.compute_drift(X_embedding, num_prop=1, scale=scale)  # indices, k = 500
 
         # P = kmc.compute_stationary_distribution()
         # adata.obs['stationary_distribution'] = P
@@ -509,18 +450,9 @@ def cell_velocities(
         vs_kwargs = update_dict(vs_kwargs, kernel_kwargs)
 
         if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
-            print(
-                "Using existing %s found in .obsp."
-                % (method + "_transition_matrix")
-            )
-            T = (
-                adata.obsp[method + "_transition_matrix"]
-                if transition_matrix is None
-                else transition_matrix
-            )
-            delta_X = projection_with_transition_matrix(
-                T, X_embedding, correct_density
-            )
+            print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
+            T = adata.obsp[method + "_transition_matrix"] if transition_matrix is None else transition_matrix
+            delta_X = projection_with_transition_matrix(T, X_embedding, correct_density)
             X_grid, V_grid, D = velocity_on_grid(
                 X_embedding[:, :2],
                 (X_embedding + delta_X)[:, :2],
@@ -541,13 +473,7 @@ def cell_velocities(
 
         if calc_rnd_vel:
             permute_rows_nsign(V)
-            (
-                T_rnd,
-                delta_X_rnd,
-                X_grid_rnd,
-                V_grid_rnd,
-                D_rnd,
-            ) = kernels_from_velocyto_scvelo(
+            (T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd,) = kernels_from_velocyto_scvelo(
                 X,
                 X_embedding,
                 V,
@@ -586,56 +512,31 @@ def cell_velocities(
         ctmc_kwargs = update_dict(ctmc_kwargs, kernel_kwargs)
 
         if (
-            method + "_transition_matrix" in adata.obsp.keys()
-            or method + "_transition_rate" in adata.obsp.keys()
+            method + "_transition_matrix" in adata.obsp.keys() or method + "_transition_rate" in adata.obsp.keys()
         ) and not enforce:
             if method + "_transition_matrix" in adata.obsp.keys():
-                print(
-                    "Using existing %s found in .obsp."
-                    % (method + "_transition_matrix")
-                )
-                T = (
-                    adata.obsp[method + "_transition_matrix"]
-                    if transition_matrix is None
-                    else transition_matrix
-                )
+                print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
+                T = adata.obsp[method + "_transition_matrix"] if transition_matrix is None else transition_matrix
             elif method + "_transition_rate" in adata.obsp.keys():
-                print(
-                    "Using existing %s found in .obsp."
-                    % (method + "_transition_rate")
-                )
+                print("Using existing %s found in .obsp." % (method + "_transition_rate"))
                 R = adata.obsp[method + "_transition_rate"]
-                T = (
-                    ContinuousTimeMarkovChain(P=R.T)
-                    .compute_embedded_transition_matrix()
-                    .T
-                )
-            delta_X = projection_with_transition_matrix(
-                T, X_embedding, correct_density
-            )
+                T = ContinuousTimeMarkovChain(P=R.T).compute_embedded_transition_matrix().T
+            delta_X = projection_with_transition_matrix(T, X_embedding, correct_density)
         else:
-            E, nbrs_idx, dists = graphize_velocity(
-                V, X, nbrs_idx=indices, **graph_kwargs
-            )
+            E, nbrs_idx, dists = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
             if wgt_mode == "naive":
                 W = None
             elif wgt_mode == "gaussian":
-                main_info(
-                    "Calculating Gaussian weights with the following parameters:"
-                )
+                main_info("Calculating Gaussian weights with the following parameters:")
                 main_info(f"{wgt_kwargs}")
                 W = calc_gaussian_weight(nbrs_idx, dists, **wgt_kwargs)
             else:
-                raise NotImplementedError(
-                    f"The weight mode `{wgt_mode}` is not supported."
-                )
+                raise NotImplementedError(f"The weight mode `{wgt_mode}` is not supported.")
 
             L = fp_operator(E, W=W, **fp_kwargs)
             ctmc = ContinuousTimeMarkovChain(P=L, **ctmc_kwargs)
             T = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
-            delta_X = projection_with_transition_matrix(
-                T, X_embedding, correct_density
-            )
+            delta_X = projection_with_transition_matrix(T, X_embedding, correct_density)
 
             adata.obsp["fp_transition_rate"] = ctmc.P.T
             adata.obsp["discrete_vector_field"] = E
@@ -646,24 +547,15 @@ def cell_velocities(
             adata.uns["umap_fit"]["n_pca_components"],
         )
 
-        if (
-            "pca_fit" not in adata.uns_keys()
-            or type(adata.uns["pca_fit"]) == str
-        ):
+        if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
             CM = adata.X[:, adata.var.use_for_dynamics.values]
             from ..preprocessing.utils import pca_monocle
 
-            adata, pca_fit, X_pca = pca_monocle(
-                adata, CM, n_pca_components, "X", return_all=True
-            )
+            adata, pca_fit, X_pca = pca_monocle(adata, CM, n_pca_components, "X", return_all=True)
             adata.uns["pca_fit"] = pca_fit
 
         X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
-        V = (
-            adata[:, adata.var.use_for_dynamics.values].layers[vkey]
-            if vkey in adata.layers.keys()
-            else None
-        )
+        V = adata[:, adata.var.use_for_dynamics.values].layers[vkey] if vkey in adata.layers.keys() else None
         CM, V = CM.A if sp.issparse(CM) else CM, V.A if sp.issparse(V) else V
         V[np.isnan(V)] = 0
         Y_pca = pca_fit.transform(CM + V)
@@ -673,9 +565,7 @@ def cell_velocities(
         delta_X = Y - X_embedding
 
     if method not in ["pearson", "cosine"]:
-        X_grid, V_grid, D = velocity_on_grid(
-            X_embedding[:, :2], delta_X[:, :2], xy_grid_nums=xy_grid_nums
-        )
+        X_grid, V_grid, D = velocity_on_grid(X_embedding[:, :2], delta_X[:, :2], xy_grid_nums=xy_grid_nums)
         if calc_rnd_vel:
             X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(
                 X_embedding[:, :2],
@@ -684,13 +574,9 @@ def cell_velocities(
             )
 
     if preserve_len:
-        basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(
-            V, axis=1
-        )
+        basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(V, axis=1)
         scaler = np.nanmedian(basis_len) / np.nanmedian(high_len)
-        for i in LoggerManager.progress_logger(
-            range(adata.n_obs), progress_name="rescaling velocity norm"
-        ):
+        for i in LoggerManager.progress_logger(range(adata.n_obs), progress_name="rescaling velocity norm"):
             idx = T[i].indices
             high_len_ = high_len[idx]
             T_i = T[i].data
@@ -830,12 +716,9 @@ def confident_cell_velocities(
     )
 
     adata.var.loc[:, "avg_confidence"] = (
-        adata.var.loc[:, "avg_prog_confidence"]
-        + adata.var.loc[:, "avg_mature_confidence"]
+        adata.var.loc[:, "avg_prog_confidence"] + adata.var.loc[:, "avg_mature_confidence"]
     ) / 2
-    confident_genes = genes[
-        adata[:, genes].var["avg_confidence"] > confidence_threshold
-    ]
+    confident_genes = genes[adata[:, genes].var["avg_confidence"] > confidence_threshold]
     adata.var["confident_genes"] = False
     adata.var.loc[confident_genes, "confident_genes"] = True
 
@@ -856,9 +739,7 @@ def confident_cell_velocities(
     return adata
 
 
-def stationary_distribution(
-    adata, method="kmc", direction="both", calc_rnd=True
-):
+def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True):
     """Compute stationary distribution of cells using the transition matrix.
 
     Parameters
@@ -886,80 +767,52 @@ def stationary_distribution(
         kmc = KernelMarkovChain()
         kmc.P = T
         if direction == "both":
-            adata.obs[
-                "sink_steady_state_distribution"
-            ] = kmc.compute_stationary_distribution()
+            adata.obs["sink_steady_state_distribution"] = kmc.compute_stationary_distribution()
             kmc.P = T.T / T.T.sum(0)
-            adata.obs[
-                "source_steady_state_distribution"
-            ] = kmc.compute_stationary_distribution()
+            adata.obs["source_steady_state_distribution"] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
                 T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd
-                adata.obs[
-                    "sink_steady_state_distribution_rnd"
-                ] = kmc.compute_stationary_distribution()
+                adata.obs["sink_steady_state_distribution_rnd"] = kmc.compute_stationary_distribution()
                 kmc.P = T_rnd.T / T_rnd.T.sum(0)
-                adata.obs[
-                    "source_steady_state_distribution_rnd"
-                ] = kmc.compute_stationary_distribution()
+                adata.obs["source_steady_state_distribution_rnd"] = kmc.compute_stationary_distribution()
 
         elif direction == "forward":
-            adata.obs[
-                "sink_steady_state_distribution"
-            ] = kmc.compute_stationary_distribution()
+            adata.obs["sink_steady_state_distribution"] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
                 T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd
-                adata.obs[
-                    "sink_steady_state_distribution_rnd"
-                ] = kmc.compute_stationary_distribution()
+                adata.obs["sink_steady_state_distribution_rnd"] = kmc.compute_stationary_distribution()
         elif direction == "backward":
             kmc.P = T.T / T.T.sum(0)
-            adata.obs[
-                "source_steady_state_distribution"
-            ] = kmc.compute_stationary_distribution()
+            adata.obs["source_steady_state_distribution"] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
                 T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd.T / T_rnd.T.sum(0)
-                adata.obs[
-                    "sink_steady_state_distribution_rnd"
-                ] = kmc.compute_stationary_distribution()
+                adata.obs["sink_steady_state_distribution_rnd"] = kmc.compute_stationary_distribution()
 
     else:
         T = T.T
         if direction == "both":
-            adata.obs["source_steady_state_distribution"] = diffusion(
-                T, backward=True
-            )
+            adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             adata.obs["sink_steady_state_distribution"] = diffusion(T)
             if calc_rnd:
                 T_rnd = adata.obsp["transition_matrix_rnd"]
-                adata.obs["source_steady_state_distribution_rnd"] = diffusion(
-                    T_rnd, backward=True
-                )
-                adata.obs["sink_steady_state_distribution_rnd"] = diffusion(
-                    T_rnd
-                )
+                adata.obs["source_steady_state_distribution_rnd"] = diffusion(T_rnd, backward=True)
+                adata.obs["sink_steady_state_distribution_rnd"] = diffusion(T_rnd)
         elif direction == "forward":
             adata.obs["sink_steady_state_distribution"] = diffusion(T)
             if calc_rnd:
                 T_rnd = adata.uns["transition_matrix_rnd"]
-                adata.obs["sink_steady_state_distribution_rnd"] = diffusion(
-                    T_rnd
-                )
+                adata.obs["sink_steady_state_distribution_rnd"] = diffusion(T_rnd)
         elif direction == "backward":
-            adata.obs["source_steady_state_distribution"] = diffusion(
-                T, backward=True
-            )
+            adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             if calc_rnd:
                 T_rnd = adata.obsp["transition_matrix_rnd"]
-                adata.obs["source_steady_state_distribution_rnd"] = diffusion(
-                    T_rnd, backward=True
-                )
+                adata.obs["source_steady_state_distribution_rnd"] = diffusion(T_rnd, backward=True)
 
 
 def generalized_diffusion_map(adata, **kwargs):
@@ -1020,9 +873,7 @@ def diffusion(M, P0=None, steps=None, backward=False):
 
         eigenvector = np.real(eigen) if not sp.issparse(M) else np.real(eigen.T)
         eigenvalue_1_ind = np.isclose(eigenvalue, 1)
-        mu = eigenvector[:, eigenvalue_1_ind] / np.sum(
-            eigenvector[:, eigenvalue_1_ind]
-        )
+        mu = eigenvector[:, eigenvalue_1_ind] / np.sum(eigenvector[:, eigenvalue_1_ind])
 
         # Zero out floating poing errors that are negative.
         indices = np.logical_and(np.isclose(mu, 0), mu < 0)
@@ -1102,9 +953,7 @@ def kernels_from_velocyto_scvelo(
                 hi_dim, hi_dim_t = X[cur_i, :], X[cur_i, :] + velocity
                 log2hidim = np.log1p(np.abs(hi_dim))
                 diff_velocity = np.log1p(np.abs(hi_dim_t)) - log2hidim
-                diff_rho = np.log1p(
-                    np.abs(X[neighbor_index_vals, :])
-                ) - np.log1p(np.abs(hi_dim))
+                diff_rho = np.log1p(np.abs(X[neighbor_index_vals, :])) - np.log1p(np.abs(hi_dim))
             elif transform == "linear":
                 diff_velocity = velocity
                 diff_rho = diff
@@ -1113,29 +962,21 @@ def kernels_from_velocyto_scvelo(
                 diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
 
             if kernel == "pearson":
-                vals_ = einsum_correlation(
-                    diff_rho, diff_velocity, type="pearson"
-                )
+                vals_ = einsum_correlation(diff_rho, diff_velocity, type="pearson")
             elif kernel == "cosine":
-                vals_ = einsum_correlation(
-                    diff_rho, diff_velocity, type="cosine"
-                )
+                vals_ = einsum_correlation(diff_rho, diff_velocity, type="cosine")
             rows.extend([cur_i] * len(neighbor_index_vals))
             cols.extend(neighbor_index_vals)
             vals.extend(vals_)
     vals = np.hstack(vals)
     vals[np.isnan(vals)] = 0
-    G = sp.csr_matrix(
-        (vals, (rows, cols)), shape=(X_embedding.shape[0], X_embedding.shape[0])
-    )
+    G = sp.csr_matrix((vals, (rows, cols)), shape=(X_embedding.shape[0], X_embedding.shape[0]))
     G = split_velocity_graph(G, neg_cells_trick)
 
     if neg_cells_trick:
         G, G_ = G
 
-    confidence, ub_confidence = G.max(1).A.flatten(), np.percentile(
-        G.max(1).A.flatten(), 98
-    )
+    confidence, ub_confidence = G.max(1).A.flatten(), np.percentile(G.max(1).A.flatten(), 98)
     dig_p = np.clip(ub_confidence - confidence, 0, 1)
     G.setdiag(dig_p)
 

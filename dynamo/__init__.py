@@ -23,7 +23,6 @@ from . import sample_data
 from . import configuration
 from . import ext
 
-from .data_io import *
 from .dynamo_logger import (
     Logger,
     LoggerManager,

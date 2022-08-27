@@ -14,9 +14,7 @@ class TRNET:
         self.n_dims = X.shape[1]
         self.X = X
         self.seed = seed
-        self.W = self.draw_sample(
-            self.n_nodes
-        )  # initialize the positions of nodes
+        self.W = self.draw_sample(self.n_nodes)  # initialize the positions of nodes
 
     def draw_sample(self, n_samples):
         np.random.seed(self.seed)
@@ -50,9 +48,7 @@ class TRNET:
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
-        for t in LoggerManager.progress_logger(
-            range(1, tmax + 1), progress_name="Running TRN"
-        ):
+        for t in LoggerManager.progress_logger(range(1, tmax + 1), progress_name="Running TRN"):
             # calc the parameters
             tt = t / tmax
             l = li * np.power(lf / li, tt)
@@ -60,9 +56,7 @@ class TRNET:
             # run once
             self.runOnce(P[t - 1], l, ep, c)
 
-    def run_n_pause(
-        self, k0, k, tmax=200, li=0.2, lf=0.01, ei=0.3, ef=0.05, c=0
-    ):
+    def run_n_pause(self, k0, k, tmax=200, li=0.2, lf=0.01, ei=0.3, ef=0.05, c=0):
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
@@ -98,9 +92,7 @@ def trn(X, n, return_index=True, seed=19491001, **kwargs):
             idx, _ = nbrs.query(trnet.W, k=1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(
-                n_neighbors=1, algorithm=alg, n_jobs=-1
-            ).fit(X)
+            nbrs = NearestNeighbors(n_neighbors=1, algorithm=alg, n_jobs=-1).fit(X)
             _, idx = nbrs.kneighbors(trnet.W)
 
         return idx[:, 0]
@@ -218,7 +210,5 @@ def sample(
     elif method == "kmeans":
         sub_arr = arr[sample_by_kmeans(X, n, return_index=True)]
     else:
-        raise NotImplementedError(
-            f"The sampling method {method} is not implemented or relevant data are not provided."
-        )
+        raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
     return sub_arr

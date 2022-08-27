@@ -6,12 +6,7 @@ from .DDRTree_py import DDRTree_py
 
 
 def cal_ncenter(ncells, ncells_limit=100):
-    return np.round(
-        2
-        * ncells_limit
-        * np.log(ncells)
-        / (np.log(ncells) + np.log(ncells_limit))
-    )
+    return np.round(2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit)))
 
 
 def directed_pg(
@@ -50,21 +45,11 @@ def directed_pg(
     """
     X = adata.obsm["X_" + basis].T if basis in adata.obsm.keys() else None
     if X is None:
-        raise Exception(
-            "{} is not a key of obsm ({} dimension reduction is not performed yet.).".format(
-                basis, basis
-            )
-        )
+        raise Exception("{} is not a key of obsm ({} dimension reduction is not performed yet.).".format(basis, basis))
 
-    transition_matrix = (
-        adata.uns["transition_matrix"]
-        if "transition_matrix" in adata.uns.keys()
-        else None
-    )
+    transition_matrix = adata.uns["transition_matrix"] if "transition_matrix" in adata.uns.keys() else None
     if transition_matrix is None:
-        raise Exception(
-            "transition_matrix is not a key of uns. Please first run cell_velocity."
-        )
+        raise Exception("transition_matrix is not a key of uns. Please first run cell_velocity.")
 
     Lambda = 5 * X.shape[1] if Lambda is None else Lambda
     ncenter = 250 if cal_ncenter(X.shape[1]) is None else ncenter
@@ -87,19 +72,10 @@ def directed_pg(
     principal_g = Tcsr.toarray().astype(int)
 
     # here we can also identify siginificant links using methods related to PAGA
-    principal_g_transition = (
-        cell_membership.T.dot(transition_matrix).dot(cell_membership)
-        * principal_g
-    )
+    principal_g_transition = cell_membership.T.dot(transition_matrix).dot(cell_membership) * principal_g
 
     adata.uns["principal_g_transition"] = principal_g_transition
-    adata.obsm["X_DDRTree"] = (
-        X.T if raw_embedding else DDRTree_res.loc[maxIter - 1, "Z"]
-    )
-    adata.uns["X_DDRTree_pg"] = (
-        cell_membership.dot(X.T)
-        if raw_embedding
-        else DDRTree_res.loc[maxIter - 1, "Y"]
-    )
+    adata.obsm["X_DDRTree"] = X.T if raw_embedding else DDRTree_res.loc[maxIter - 1, "Z"]
+    adata.uns["X_DDRTree_pg"] = cell_membership.dot(X.T) if raw_embedding else DDRTree_res.loc[maxIter - 1, "Y"]
 
     return adata

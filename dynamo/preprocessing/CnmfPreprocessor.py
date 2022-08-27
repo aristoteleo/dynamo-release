@@ -35,9 +35,7 @@ class CnmfPreprocessor(Preprocessor):
 
         make_dir(self.output_dir)
         counts_fn = self.adata_h5ad_path
-        self.standardize_adata(
-            adata, tkey=self.tkey, experiment_type=self.experiment_type
-        )
+        self.standardize_adata(adata, tkey=self.tkey, experiment_type=self.experiment_type)
 
         adata.write_h5ad(counts_fn)
         cnmf_obj = cNMF(output_dir=self.output_dir, name=self.run_name)

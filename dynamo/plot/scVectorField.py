@@ -33,9 +33,7 @@ from .utils import (
     set_stream_line_alpha,
 )
 
-docstrings.delete_params(
-    "scatters.parameters", "show_legend", "kwargs", "save_kwargs"
-)
+docstrings.delete_params("scatters.parameters", "show_legend", "kwargs", "save_kwargs")
 
 # import scipy as sc
 
@@ -151,10 +149,7 @@ def cell_wise_vectors_3d(
 
     # ensure axis_labels is not None
     if axis_labels is None:
-        axis_labels = [
-            axis_label_prefix + "_" + str(index)
-            for index in projection_dim_indexer
-        ]
+        axis_labels = [axis_label_prefix + "_" + str(index) for index in projection_dim_indexer]
 
     if type(color) is str:
         color = [color]
@@ -176,14 +171,7 @@ def cell_wise_vectors_3d(
         V = V[:, [x, y, z]]
 
     elif type(x) == str and type(y) == str and type(z) == str:
-        if (
-            len(
-                adata.var_names[adata.var.use_for_dynamics].intersection(
-                    [x, y, z]
-                )
-            )
-            != 3
-        ):
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y, z])) != 3:
             raise ValueError(
                 "If you want to plot the vector flow of three genes, please make sure those three genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
@@ -192,9 +180,7 @@ def cell_wise_vectors_3d(
         V = adata[:, projection_dim_indexer].layers[vkey].A
         layer = ekey
     else:
-        if ("X_" + basis in adata.obsm.keys()) and (
-            vector + "_" + basis in adata.obsm.keys()
-        ):
+        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, projection_dim_indexer]
             V = adata.obsm[vector + "_" + basis][:, projection_dim_indexer]
         else:
@@ -208,9 +194,7 @@ def cell_wise_vectors_3d(
             else:
                 kmc = adata.uns["kmc"]
                 X = adata.obsm["X_" + basis][:, projection_dim_indexer]
-                V = kmc.compute_density_corrected_drift(
-                    X, kmc.Idx, normalize_vector=True
-                )
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
@@ -238,13 +222,9 @@ def cell_wise_vectors_3d(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=1000, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=cell_inds, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
@@ -256,9 +236,7 @@ def cell_wise_vectors_3d(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     # single axis output
     x0, x1, x2 = df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2]
@@ -268,9 +246,7 @@ def cell_wise_vectors_3d(
         nrows += 1
     ncols = min(ncols, len(color))
 
-    figure, axes = plt.subplots(
-        nrows, ncols, figsize=figsize, subplot_kw=dict(projection="3d")
-    )
+    figure, axes = plt.subplots(nrows, ncols, figsize=figsize, subplot_kw=dict(projection="3d"))
     axes = np.array(axes)
     axes_flatten = axes.flatten()
 
@@ -290,9 +266,7 @@ def cell_wise_vectors_3d(
 
         # TODO due to matplotlib quiver3 impl, we need to add colors for arrow head segments
         # TODO if matplotlib changes its detailed impl, we may not need the following line
-        color_vec = list(color_vec) + [
-            element for element in list(color_vec) for _ in range(2)
-        ]
+        color_vec = list(color_vec) + [element for element in list(color_vec) for _ in range(2)]
         # color_vec = matplotlib.colors.to_rgba(color_vec, alpha=alpha)
         main_debug("color vec len: " + str(len(color_vec)))
         ax.view_init(elev=elev, azim=azim)
@@ -459,25 +433,13 @@ def line_integral_conv(
 
     import matplotlib.pyplot as plt
 
-    X = (
-        adata.obsm["X_" + basis][:, :2]
-        if "X_" + basis in adata.obsm.keys()
-        else None
-    )
-    V = (
-        adata.obsm[vector + "_" + basis][:, :2]
-        if vector + "_" + basis in adata.obsm.keys()
-        else None
-    )
+    X = adata.obsm["X_" + basis][:, :2] if "X_" + basis in adata.obsm.keys() else None
+    V = adata.obsm[vector + "_" + basis][:, :2] if vector + "_" + basis in adata.obsm.keys() else None
 
     if X is None:
-        raise Exception(
-            f"The {basis} dimension reduction is not performed over your data yet."
-        )
+        raise Exception(f"The {basis} dimension reduction is not performed over your data yet.")
     if V is None:
-        raise Exception(
-            f"The {basis}_velocity velocity (or velocity) result does not existed in your data."
-        )
+        raise Exception(f"The {basis}_velocity velocity (or velocity) result does not existed in your data.")
 
     if U_grid is None or V_grid is None:
         if "VecFld_" + basis in adata.uns.keys():
@@ -512,9 +474,7 @@ def line_integral_conv(
             }
             grid_kwargs_dict.update(g_kwargs_dict)
 
-            X_grid_, V_grid_, _ = velocity_on_grid(
-                X[:, [0, 1]], V[:, [0, 1]], xy_grid_nums, **grid_kwargs_dict
-            )
+            X_grid_, V_grid_, _ = velocity_on_grid(X[:, [0, 1]], V[:, [0, 1]], xy_grid_nums, **grid_kwargs_dict)
             U_grid = V_grid_[0, :, :].T
             V_grid = V_grid_[1, :, :].T
 
@@ -537,15 +497,9 @@ def line_integral_conv(
             V_grid,
             np.zeros(U_grid.shape),
         )
-        velocity_x = np.repeat(
-            velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2
-        )
-        velocity_y = np.repeat(
-            velocity_y_ori[:, :, np.newaxis], V_grid.shape[1], axis=2
-        )
-        velocity_z = np.repeat(
-            velocity_z_ori[np.newaxis, :, :], V_grid.shape[1], axis=0
-        )
+        velocity_x = np.repeat(velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
+        velocity_y = np.repeat(velocity_y_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
+        velocity_z = np.repeat(velocity_z_ori[np.newaxis, :, :], V_grid.shape[1], axis=0)
 
         data = {}
 
@@ -557,9 +511,7 @@ def line_integral_conv(
             "km/s",
         )
 
-        ds = yt.load_uniform_grid(
-            data, data["velocity_x"][0].shape, length_unit=(1.0, "Mpc")
-        )
+        ds = yt.load_uniform_grid(data, data["velocity_x"][0].shape, length_unit=(1.0, "Mpc"))
         slc = yt.SlicePlot(ds, "z", ["velocity_sum"])
         slc.set_cmap("velocity_sum", cmap)
         slc.set_log("velocity_sum", False)
@@ -705,12 +657,7 @@ def cell_wise_vectors(
     elif projection == "3d":
         projection_dim_indexer = [x, y, z]
     if type(x) == str and type(y) == str:
-        if (
-            len(
-                adata.var_names[adata.var.use_for_dynamics].intersection([x, y])
-            )
-            != 2
-        ):
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
@@ -719,9 +666,7 @@ def cell_wise_vectors(
         V = adata[:, projection_dim_indexer].layers[vkey].A
         layer = ekey
     else:
-        if ("X_" + basis in adata.obsm.keys()) and (
-            vector + "_" + basis in adata.obsm.keys()
-        ):
+        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, projection_dim_indexer]
             V = adata.obsm[vector + "_" + basis][:, projection_dim_indexer]
         else:
@@ -735,9 +680,7 @@ def cell_wise_vectors(
             else:
                 kmc = adata.uns["kmc"]
                 X = adata.obsm["X_" + basis][:, projection_dim_indexer]
-                V = kmc.compute_density_corrected_drift(
-                    X, kmc.Idx, normalize_vector=True
-                )
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
@@ -748,9 +691,7 @@ def cell_wise_vectors(
     df = None
     main_info("X shape: " + str(X.shape) + " V shape: " + str(V.shape))
     if projection == "2d":
-        df = pd.DataFrame(
-            {"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]}
-        )
+        df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
     elif projection == "3d":
         df = pd.DataFrame(
             {
@@ -768,13 +709,9 @@ def cell_wise_vectors(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=1000, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=cell_inds, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
@@ -784,9 +721,7 @@ def cell_wise_vectors(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     if quiver_size is None:
         quiver_size = 1
@@ -795,9 +730,7 @@ def cell_wise_vectors(
     else:
         edgecolors = "black"
 
-    head_w, head_l, ax_l, scale = default_quiver_args(
-        quiver_size, quiver_length
-    )  #
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
     quiver_kwargs = {
         "angles": "xy",
         "scale": scale,
@@ -1004,12 +937,7 @@ def cell_wise_vectors(
         projection_dim_indexer = [x, y]
 
     if type(x) == str and type(y) == str:
-        if (
-            len(
-                adata.var_names[adata.var.use_for_dynamics].intersection([x, y])
-            )
-            != 2
-        ):
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
@@ -1018,9 +946,7 @@ def cell_wise_vectors(
         V = adata[:, projection_dim_indexer].layers[vkey].A
         layer = ekey
     else:
-        if ("X_" + basis in adata.obsm.keys()) and (
-            vector + "_" + basis in adata.obsm.keys()
-        ):
+        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, projection_dim_indexer]
             V = adata.obsm[vector + "_" + basis][:, projection_dim_indexer]
         else:
@@ -1034,9 +960,7 @@ def cell_wise_vectors(
             else:
                 kmc = adata.uns["kmc"]
                 X = adata.obsm["X_" + basis][:, projection_dim_indexer]
-                V = kmc.compute_density_corrected_drift(
-                    X, kmc.Idx, normalize_vector=True
-                )
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
@@ -1047,9 +971,7 @@ def cell_wise_vectors(
     df = None
     main_info("X shape: " + str(X.shape) + " V shape: " + str(V.shape))
     if projection == "2d":
-        df = pd.DataFrame(
-            {"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]}
-        )
+        df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
     elif projection == "3d":
         df = pd.DataFrame(
             {
@@ -1067,13 +989,9 @@ def cell_wise_vectors(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=1000, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=cell_inds, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
@@ -1083,9 +1001,7 @@ def cell_wise_vectors(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     if quiver_size is None:
         quiver_size = 1
@@ -1094,9 +1010,7 @@ def cell_wise_vectors(
     else:
         edgecolors = "black"
 
-    head_w, head_l, ax_l, scale = default_quiver_args(
-        quiver_size, quiver_length
-    )  #
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
     quiver_kwargs = {
         "angles": "xy",
         "scale": scale,
@@ -1309,12 +1223,7 @@ def grid_vectors(
     from matplotlib.colors import to_hex
 
     if type(x) == str and type(y) == str:
-        if (
-            len(
-                adata.var_names[adata.var.use_for_dynamics].intersection([x, y])
-            )
-            != 2
-        ):
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
@@ -1323,9 +1232,7 @@ def grid_vectors(
         V = adata[:, [x, y]].layers[vkey].A
         layer = ekey
     else:
-        if ("X_" + basis in adata.obsm.keys()) and (
-            vector + "_" + basis in adata.obsm.keys()
-        ):
+        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm[vector + "_" + basis][:, [x, y]]
         else:
@@ -1339,9 +1246,7 @@ def grid_vectors(
             else:
                 kmc = adata.uns["kmc"]
                 X = adata.obsm["X_" + basis][:, [x, y]]
-                V = kmc.compute_density_corrected_drift(
-                    X, kmc.Idx, normalize_vector=True
-                )
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
@@ -1349,13 +1254,9 @@ def grid_vectors(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=1000, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=cell_inds, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
@@ -1397,9 +1298,7 @@ def grid_vectors(
             VecFld, func = vecfld_from_adata(adata, basis)
 
             V_emb = func(X)
-            V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(
-                1, p_mass
-            )[:, None]
+            V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
                 V_emb=V,
                 neighs=neighs,
@@ -1411,9 +1310,7 @@ def grid_vectors(
         else:
             X_grid, V_grid = (
                 np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
-                np.array(
-                    [V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]
-                ),
+                np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
             )
     elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
@@ -1441,9 +1338,7 @@ def grid_vectors(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        background = to_hex(_background) if type(_background) is tuple else _background
     if quiver_size is None:
         quiver_size = 1
     if background == "black":
@@ -1451,9 +1346,7 @@ def grid_vectors(
     else:
         edgecolors = "black"
 
-    head_w, head_l, ax_l, scale = default_quiver_args(
-        quiver_size, quiver_length
-    )
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)
 
     quiver_kwargs = {
         "angles": "xy",
@@ -1509,14 +1402,10 @@ def grid_vectors(
 
     if type(axes_list) == list:
         for i in range(len(axes_list)):
-            axes_list[i].quiver(
-                X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
-            )
+            axes_list[i].quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
             axes_list[i].set_facecolor(background)
     else:
-        axes_list.quiver(
-            X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
-        )
+        axes_list.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
         axes_list.set_facecolor(background)
 
     if save_show_or_return == "save":
@@ -1636,12 +1525,7 @@ def streamline_plot(
     from matplotlib.colors import to_hex
 
     if type(x) == str and type(y) == str:
-        if (
-            len(
-                adata.var_names[adata.var.use_for_dynamics].intersection([x, y])
-            )
-            != 2
-        ):
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
@@ -1650,19 +1534,12 @@ def streamline_plot(
         V = adata[:, [x, y]].layers[vkey].A
         layer = ekey
     else:
-        if ("X_" + basis in adata.obsm.keys()) and (
-            vector + "_" + basis in adata.obsm.keys()
-        ):
+        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm[vector + "_" + basis][:, [x, y]]
         else:
-            if (
-                basis not in adata.obsm.keys()
-                or "X_" + basis not in adata.obsm.keys()
-            ):
-                layer, basis = (
-                    basis.split("_") if "_" in basis else ("X", basis)
-                )
+            if basis not in adata.obsm.keys() or "X_" + basis not in adata.obsm.keys():
+                layer, basis = basis.split("_") if "_" in basis else ("X", basis)
                 reduceDimension(adata, layer=layer, reduction_method=basis)
             if "kmc" not in adata.uns_keys():
                 cell_velocities(adata, vkey="velocity_S", basis=basis)
@@ -1671,9 +1548,7 @@ def streamline_plot(
             else:
                 kmc = adata.uns["kmc"]
                 X = adata.obsm["X_" + basis][:, [x, y]]
-                V = kmc.compute_density_corrected_drift(
-                    X, kmc.Idx, normalize_vector=True
-                )
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
@@ -1681,13 +1556,9 @@ def streamline_plot(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=1000, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=cell_inds, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
@@ -1729,9 +1600,7 @@ def streamline_plot(
             VecFld, func = vecfld_from_adata(adata, basis)
 
             V_emb = func(X)
-            V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(
-                1, p_mass
-            )[:, None]
+            V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
                 V_emb=V,
                 neighs=neighs,
@@ -1743,9 +1612,7 @@ def streamline_plot(
         else:
             X_grid, V_grid = (
                 np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
-                np.array(
-                    [V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]
-                ),
+                np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
             )
     elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
@@ -1785,17 +1652,13 @@ def streamline_plot(
     }
     mass = np.sqrt((V_grid**2).sum(0))
     linewidth *= 2 * mass / mass[~np.isnan(mass)].max()
-    streamplot_kwargs.update(
-        {"linewidth": linewidth * streamline_kwargs.pop("linewidth", 1)}
-    )
+    streamplot_kwargs.update({"linewidth": linewidth * streamline_kwargs.pop("linewidth", 1)})
 
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     if background in ["black", "#ffffff"]:
         streamline_color = "red"
@@ -1931,9 +1794,7 @@ def plot_energy(
         vecfld_dict = adata.uns[vf_key]
 
     E = vecfld_dict["E_traj"] if "E_traj" in vecfld_dict.keys() else None
-    tecr = (
-        vecfld_dict["tecr_traj"] if "tecr_traj" in vecfld_dict.keys() else None
-    )
+    tecr = vecfld_dict["tecr_traj"] if "tecr_traj" in vecfld_dict.keys() else None
 
     if E is not None and tecr is not None:
         fig = fig or plt.figure(figsize=figsize)

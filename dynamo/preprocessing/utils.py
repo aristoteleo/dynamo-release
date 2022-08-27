@@ -59,9 +59,7 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
         )
 
     mg = mygene.MyGeneInfo()
-    main_info(
-        "Storing myGene name info into local cache db: mygene_cache.sqlite."
-    )
+    main_info("Storing myGene name info into local cache db: mygene_cache.sqlite.")
     mg.set_caching()
 
     ensemble_names = [i.split(".")[0] for i in input_names]
@@ -78,16 +76,12 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
     return var_pd
 
 
-def convert2symbol(
-    adata: AnnData, scopes: Union[str, Iterable, None] = None, subset=True
-):
+def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, subset=True):
     """This helper function converts unofficial gene names to official gene names."""
 
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
         logger = LoggerManager.gen_logger("dynamo-utils")
-        logger.info(
-            "convert ensemble name to official gene name", indent_level=1
-        )
+        logger.info("convert ensemble name to official gene name", indent_level=1)
 
         prefix = adata.var_names[0]
         if scopes is None:
@@ -116,9 +110,9 @@ def convert2symbol(
             "Dynamo is converting those names to official gene names."
         )
         official_gene_df = convert2gene_symbol(adata.var_names, scopes)
-        merge_df = adata.var.merge(
-            official_gene_df, left_on="query", right_on="query", how="left"
-        ).set_index(adata.var.index)
+        merge_df = adata.var.merge(official_gene_df, left_on="query", right_on="query", how="left").set_index(
+            adata.var.index
+        )
         adata.var = merge_df
         valid_ind = np.where(merge_df["notfound"] != True)[0]  # noqa: E712
 
@@ -127,9 +121,7 @@ def convert2symbol(
             adata.var.index = adata.var["symbol"].values.copy()
         else:
             indices = np.array(adata.var.index)
-            indices[valid_ind] = adata.var.loc[
-                valid_ind, "symbol"
-            ].values.copy()
+            indices[valid_ind] = adata.var.loc[valid_ind, "symbol"].values.copy()
             adata.var.index = indices
 
         if np.sum(adata.var_names.isnull()) > 0:
@@ -141,9 +133,7 @@ def convert2symbol(
     return adata
 
 
-def compute_gene_exp_fraction(
-    X: scipy.sparse.spmatrix, threshold: float = 0.001
-) -> tuple:
+def compute_gene_exp_fraction(X: scipy.sparse.spmatrix, threshold: float = 0.001) -> tuple:
     """Calculate fraction of each gene's count to total counts across cells and identify high fraction genes."""
 
     frac = X.sum(0) / X.sum()
@@ -237,9 +227,7 @@ def cook_dist(model, X, good):
 
     # Hat matrix
     H = _hat_matrix(X, W)
-    hii = np.diag(
-        H
-    )  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
+    hii = np.diag(H)  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
 
     # Pearson residuals
     r = model.resid_pearson
@@ -251,9 +239,7 @@ def cook_dist(model, X, good):
     rss = np.sum(resid**2)
     MSE = rss / (good.shape[0] - 2)
     # use the formula from: https://www.mathworks.com/help/stats/cooks-distance.html
-    cooks_d = (
-        r**2 / (2 * MSE) * hii / (1 - hii) ** 2
-    )  # (r / (1 - hii)) ** 2 *  / (1 * 2)
+    cooks_d = r**2 / (2 * MSE) * hii / (1 - hii) ** 2  # (r / (1 - hii)) ** 2 *  / (1 * 2)
 
     return cooks_d
 
@@ -268,9 +254,7 @@ def filter_genes_by_pattern(
     """Utility function to filter mitochondria, ribsome protein and ERCC spike-in genes, etc."""
     logger = LoggerManager.gen_logger("dynamo-utils")
 
-    matched_genes = (
-        pd.Series(adata.var_names).str.startswith(patterns).to_list()
-    )
+    matched_genes = pd.Series(adata.var_names).str.startswith(patterns).to_list()
     logger.info(
         "total matched genes is " + str(sum(matched_genes)),
         indent_level=1,
@@ -297,22 +281,15 @@ def filter_genes_by_pattern(
 
 
 def basic_stats(adata):
-    adata.obs["nGenes"], adata.obs["nCounts"] = np.array(
-        (adata.X > 0).sum(1)
-    ), np.array((adata.X).sum(1))
-    adata.var["nCells"], adata.var["nCounts"] = np.array(
-        (adata.X > 0).sum(0).T
-    ), np.array((adata.X).sum(0).T)
+    adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
+    adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
     if adata.var_names.inferred_type == "bytes":
         adata.var_names = adata.var_names.astype("str")
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
 
     if sum(mito_genes) > 0:
         try:
-            adata.obs["pMito"] = np.array(
-                adata.X[:, mito_genes].sum(1)
-                / adata.obs["nCounts"].values.reshape((-1, 1))
-            )
+            adata.obs["pMito"] = np.array(adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1)))
         except:  # noqa E722
             main_exception(
                 "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
@@ -334,11 +311,7 @@ def unique_var_obs_adata(adata):
 def convert_layers2csr(adata):
     """Function to make the obs and var attribute's index unique"""
     for key in adata.layers.keys():
-        adata.layers[key] = (
-            csr_matrix(adata.layers[key])
-            if not issparse(adata.layers[key])
-            else adata.layers[key]
-        )
+        adata.layers[key] = csr_matrix(adata.layers[key]) if not issparse(adata.layers[key]) else adata.layers[key]
 
     return adata
 
@@ -346,9 +319,7 @@ def convert_layers2csr(adata):
 def merge_adata_attrs(adata_ori: AnnData, adata: AnnData, attr):
     def _merge_by_diff(origin_df: pd.DataFrame, diff_df: pd.DataFrame):
         _columns = set(diff_df.columns).difference(origin_df.columns)
-        new_df = origin_df.merge(
-            diff_df[_columns], how="left", left_index=True, right_index=True
-        )
+        new_df = origin_df.merge(diff_df[_columns], how="left", left_index=True, right_index=True)
         return new_df.loc[origin_df.index, :]
 
     if attr == "var":
@@ -363,12 +334,8 @@ def merge_adata_attrs(adata_ori: AnnData, adata: AnnData, attr):
     return adata_ori
 
 
-def get_inrange_shared_counts_mask(
-    adata, layers, min_shared_count, count_by="gene"
-):
-    layers = list(
-        set(layers).difference(["X", "matrix", "ambiguous", "spanning"])
-    )
+def get_inrange_shared_counts_mask(adata, layers, min_shared_count, count_by="gene"):
+    layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
     # choose shared counts sum by row or columns based on type: `gene` or `cells`
     sum_dim_index = None
     ret_dim_index = None
@@ -382,14 +349,10 @@ def get_inrange_shared_counts_mask(
         raise ValueError("Not supported shared account type")
 
     if len(np.array(layers)) == 0:
-        main_warning(
-            "No layers exist in adata, skipp filtering by shared counts"
-        )
+        main_warning("No layers exist in adata, skipp filtering by shared counts")
         return np.repeat(True, adata.shape[ret_dim_index])
 
-    layers = np.array(layers)[
-        ~pd.DataFrame(layers)[0].str.startswith("X_").values
-    ]
+    layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith("X_").values]
 
     _nonzeros, _sum = None, None
 
@@ -400,24 +363,12 @@ def get_inrange_shared_counts_mask(
         main_debug(adata.layers[layer].shape)
         main_debug("layer: %s" % layer)
         if issparse(adata.layers[layers[0]]):
-            main_debug(
-                "when sparse, layer type:" + str(type(adata.layers[layer]))
-            )
-            _nonzeros = (
-                adata.layers[layer] > 0
-                if _nonzeros is None
-                else _nonzeros.multiply(adata.layers[layer] > 0)
-            )
+            main_debug("when sparse, layer type:" + str(type(adata.layers[layer])))
+            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros.multiply(adata.layers[layer] > 0)
         else:
-            main_debug(
-                "when not sparse, layer type:" + str(type(adata.layers[layer]))
-            )
+            main_debug("when not sparse, layer type:" + str(type(adata.layers[layer])))
 
-            _nonzeros = (
-                adata.layers[layer] > 0
-                if _nonzeros is None
-                else _nonzeros * (adata.layers[layer] > 0)
-            )
+            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros * (adata.layers[layer] > 0)
 
     for layer in layers:
         if issparse(adata.layers[layers[0]]):
@@ -465,20 +416,14 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
     return U_avgs, S_avgs
 
 
-def get_svr_filter(
-    adata, layer="spliced", n_top_genes=3000, return_adata=False
-):
+def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False):
     score_name = "score" if layer in ["X", "all"] else layer + "_score"
     valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
 
     valid_table = adata.var.iloc[valid_idx, :]
-    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][
-        np.min((n_top_genes - 1, valid_table.shape[0] - 1))
-    ]
+    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][np.min((n_top_genes - 1, valid_table.shape[0] - 1))]
 
-    feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][
-        :n_top_genes
-    ]
+    feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][:n_top_genes]
     feature_gene_idx = valid_idx[feature_gene_idx]
 
     if return_adata:
@@ -512,11 +457,7 @@ def sz_util(
             if len(set(total_layers).difference(adata.layers.keys())) == 0:
                 total = None
                 for t_key in total_layers:
-                    total = (
-                        adata.layers[t_key]
-                        if total is None
-                        else total + adata.layers[t_key]
-                    )
+                    total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
                 adata.layers["_total_"] = total
 
     if layer == "raw":
@@ -532,10 +473,7 @@ def sz_util(
         CM = adata.layers[layer] if CM is None else CM
 
     if round_exprs:
-        main_info(
-            "rounding expression data of layer: %s during size factor calculation"
-            % (layer)
-        )
+        main_info("rounding expression data of layer: %s during size factor calculation" % (layer))
         if issparse(CM):
             CM.data = np.round(CM.data, 0)
         else:
@@ -545,19 +483,11 @@ def sz_util(
     cell_total += cell_total == 0  # avoid infinity value after log (0)
 
     if method in ["mean-geometric-mean-total", "geometric"]:
-        sfs = cell_total / (
-            np.exp(locfunc(np.log(cell_total)))
-            if scale_to is None
-            else scale_to
-        )
+        sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)
     elif method == "median":
-        sfs = cell_total / (
-            np.nanmedian(cell_total) if scale_to is None else scale_to
-        )
+        sfs = cell_total / (np.nanmedian(cell_total) if scale_to is None else scale_to)
     elif method == "mean":
-        sfs = cell_total / (
-            np.nanmean(cell_total) if scale_to is None else scale_to
-        )
+        sfs = cell_total / (np.nanmean(cell_total) if scale_to is None else scale_to)
     else:
         raise NotImplementedError(f"This method {method} is not supported!")
 
@@ -584,34 +514,22 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor][:, None]
     elif total_szfactor is not None:
-        main_warning(
-            "`total_szfactor` is not `None` and it is not in adata object."
-        )
+        main_warning("`total_szfactor` is not `None` and it is not in adata object.")
 
     return szfactors, CM
 
 
-def normalize_mat_monocle(
-    mat, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p
-):
+def normalize_mat_monocle(mat, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p):
     if norm_method == np.log1p:
         pseudo_expr = 0
     if relative_expr:
-        mat = (
-            mat.multiply(csr_matrix(1 / szfactors))
-            if issparse(mat)
-            else mat / szfactors
-        )
+        mat = mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
 
     if pseudo_expr is None:
         pseudo_expr = 1
 
     if issparse(mat):
-        mat.data = (
-            norm_method(mat.data + pseudo_expr)
-            if norm_method is not None
-            else mat.data
-        )
+        mat.data = norm_method(mat.data + pseudo_expr) if norm_method is not None else mat.data
         if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
             mat.data -= 1
     else:
@@ -632,9 +550,7 @@ def Freeman_Tukey(X, inverse=False):
 def anndata_bytestring_decode(adata_item):
     for key in adata_item.keys():
         df = adata_item[key]
-        if df.dtype.name == "category" and areinstance(
-            df.cat.categories, bytes
-        ):
+        if df.dtype.name == "category" and areinstance(df.cat.categories, bytes):
             cat = [c.decode() for c in df.cat.categories]
             df.cat.rename_categories(cat, inplace=True)
 
@@ -678,19 +594,13 @@ def pca_monocle(
             if "X" in layer:
                 X_data = adata.X[:, adata.var.use_for_pca.values]
             elif "total" in layer:
-                X_data = adata.layers["X_total"][
-                    :, adata.var.use_for_pca.values
-                ]
+                X_data = adata.layers["X_total"][:, adata.var.use_for_pca.values]
             elif "spliced" in layer:
-                X_data = adata.layers["X_spliced"][
-                    :, adata.var.use_for_pca.values
-                ]
+                X_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
             elif "protein" in layer:
                 X_data = adata.obsm["X_protein"]
             elif type(layer) is str:
-                X_data = adata.layers["X_" + layer][
-                    :, adata.var.use_for_pca.values
-                ]
+                X_data = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
             else:
                 raise ValueError(
                     f"your input layer argument should be either a `str` or a list that includes one of `X`, "
@@ -702,20 +612,14 @@ def pca_monocle(
         valid_ind = np.array(valid_ind).flatten()
 
         bad_genes = np.where(adata.var.use_for_pca)[0][~valid_ind]
-        if (
-            genes_to_append is not None
-            and len(adata.var.index[bad_genes].intersection(genes_to_append))
-            > 0
-        ):
+        if genes_to_append is not None and len(adata.var.index[bad_genes].intersection(genes_to_append)) > 0:
             raise ValueError(
                 f"The gene list passed to argument genes_to_append contains genes with no expression "
                 f"across cells or non finite values. Please check those genes:"
                 f"{set(bad_genes).intersection(genes_to_append)}!"
             )
 
-        adata.var.iloc[
-            bad_genes, adata.var.columns.tolist().index("use_for_pca")
-        ] = False
+        adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
         X_data = X_data[:, valid_ind]
 
     USE_TRUNCATED_SVD_THRESHOLD = 100000
@@ -726,11 +630,7 @@ def pca_monocle(
             random_state=0,
         )
         fit = pca.fit(X_data.toarray()) if issparse(X_data) else pca.fit(X_data)
-        X_pca = (
-            fit.transform(X_data.toarray())
-            if issparse(X_data)
-            else fit.transform(X_data)
-        )
+        X_pca = fit.transform(X_data.toarray()) if issparse(X_data) else fit.transform(X_data)
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
 
@@ -746,9 +646,7 @@ def pca_monocle(
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
 
-        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[
-            1:
-        ]
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
     adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
     adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
@@ -803,9 +701,7 @@ def top_pca_genes(
     elif pc_key in adata.varm.keys():
         Q = adata.varm[pc_key]
     else:
-        raise Exception(
-            f"No PC matrix {pc_key} found in neither .uns nor .varm."
-        )
+        raise Exception(f"No PC matrix {pc_key} found in neither .uns nor .varm.")
     if pc_components is not None:
         if type(pc_components) == int:
             Q = Q[:, :pc_components]
@@ -836,9 +732,7 @@ def add_noise_to_duplicates(adata, basis="pca"):
             adata.obsm["X_" + basis] = X_data
             break
         else:
-            X_data[duplicated_idx, :] += np.random.normal(
-                0, min_val / 1000, (len(duplicated_idx), n_var)
-            )
+            X_data[duplicated_idx, :] += np.random.normal(0, min_val / 1000, (len(duplicated_idx), n_var))
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -855,23 +749,13 @@ def collapse_species_adata(adata):
 
     if np.all([name in adata.layers.keys() for name in splicing_and_labeling]):
         if only_splicing[0] not in adata.layers.keys():
-            adata.layers[only_splicing[0]] = (
-                adata.layers["su"] + adata.layers["sl"]
-            )
+            adata.layers[only_splicing[0]] = adata.layers["su"] + adata.layers["sl"]
         if only_splicing[1] not in adata.layers.keys():
-            adata.layers[only_splicing[1]] = (
-                adata.layers["uu"] + adata.layers["ul"]
-            )
+            adata.layers[only_splicing[1]] = adata.layers["uu"] + adata.layers["ul"]
         if only_labeling[0] not in adata.layers.keys():
-            adata.layers[only_labeling[0]] = (
-                adata.layers["ul"] + adata.layers["sl"]
-            )
+            adata.layers[only_labeling[0]] = adata.layers["ul"] + adata.layers["sl"]
         if only_labeling[1] not in adata.layers.keys():
-            adata.layers[only_labeling[1]] = (
-                adata.layers[only_labeling[0]]
-                + adata.layers["uu"]
-                + adata.layers["su"]
-            )
+            adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers["uu"] + adata.layers["su"]
 
     return adata
 
@@ -892,10 +776,7 @@ def detect_experiment_datatype(adata):
         has_splicing, has_labeling, splicing_labeling = True, True, True
     elif (
         len({"unspliced", "spliced", "new", "total"}.difference(layers)) == 0
-        or len(
-            {"X_unspliced", "X_spliced", "X_new", "X_total"}.difference(layers)
-        )
-        == 0
+        or len({"X_unspliced", "X_spliced", "X_new", "X_total"}.difference(layers)) == 0
     ):
         has_splicing, has_labeling = True, True
     elif (
@@ -903,10 +784,7 @@ def detect_experiment_datatype(adata):
         or len({"X_unspliced", "X_spliced"}.difference(layers)) == 0
     ):
         has_splicing = True
-    elif (
-        len({"new", "total"}.difference(layers)) == 0
-        or len({"X_new", "X_total"}.difference(layers)) == 0
-    ):
+    elif len({"new", "total"}.difference(layers)) == 0 or len({"X_new", "X_total"}.difference(layers)) == 0:
         has_labeling = True
 
     if "protein" in adata.obsm.keys():
@@ -925,21 +803,10 @@ def default_layer(adata):
 
     if has_splicing:
         if has_labeling:
-            if (
-                len(
-                    set(adata.layers.keys()).intersection(
-                        ["new", "total", "spliced", "unspliced"]
-                    )
-                )
-                == 4
-            ):
+            if len(set(adata.layers.keys()).intersection(["new", "total", "spliced", "unspliced"])) == 4:
                 adata = collapse_species_adata(adata)
             default_layer = (
-                "M_t"
-                if "M_t" in adata.layers.keys()
-                else "X_total"
-                if "X_total" in adata.layers.keys()
-                else "total"
+                "M_t" if "M_t" in adata.layers.keys() else "X_total" if "X_total" in adata.layers.keys() else "total"
             )
         else:
             default_layer = (
@@ -951,11 +818,7 @@ def default_layer(adata):
             )
     else:
         default_layer = (
-            "M_t"
-            if "M_t" in adata.layers.keys()
-            else "X_total"
-            if "X_total" in adata.layers.keys()
-            else "total"
+            "M_t" if "M_t" in adata.layers.keys() else "X_total" if "X_total" in adata.layers.keys() else "total"
         )
 
     return default_layer
@@ -987,12 +850,8 @@ def calc_new_to_total_ratio(adata):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            ntr = adata.layers["unspliced"].sum(1) / (
-                adata.layers["unspliced"] + adata.layers["spliced"]
-            ).sum(1)
-            var_ntr = adata.layers["unspliced"].sum(0) / (
-                adata.layers["unspliced"] + adata.layers["spliced"]
-            ).sum(0)
+            ntr = adata.layers["unspliced"].sum(1) / (adata.layers["unspliced"] + adata.layers["spliced"]).sum(1)
+            var_ntr = adata.layers["unspliced"].sum(0) / (adata.layers["unspliced"] + adata.layers["spliced"]).sum(0)
 
         ntr = ntr.A1 if issparse(adata.layers["unspliced"]) else ntr
         var_ntr = var_ntr.A1 if issparse(adata.layers["unspliced"]) else var_ntr
@@ -1078,9 +937,7 @@ def relative2abs(
 
     ERCC_id = adata.var_names.intersection(ERCC_id)
     if len(ERCC_id) < 10 and ERCC_controls is None:
-        raise Exception(
-            "The adata object you provided has less than 10 ERCC genes."
-        )
+        raise Exception("The adata object you provided has less than 10 ERCC genes.")
 
     if to_layers is not None:
         to_layers = [to_layers] if to_layers is str else to_layers
@@ -1092,23 +949,13 @@ def relative2abs(
             )
 
     mixture_name = (
-        "concentration in Mix 1 (attomoles/ul)"
-        if mixture_type == 1
-        else "concentration in Mix 2 (attomoles/ul)"
+        "concentration in Mix 1 (attomoles/ul)" if mixture_type == 1 else "concentration in Mix 2 (attomoles/ul)"
     )
     ERCC_annotation["numMolecules"] = ERCC_annotation.loc[:, mixture_name] * (
-        volume
-        * 10 ** (-3)
-        * 1
-        / dilution
-        * 10 ** (-18)
-        * 6.02214129
-        * 10 ** (23)
+        volume * 10 ** (-3) * 1 / dilution * 10 ** (-18) * 6.02214129 * 10 ** (23)
     )
 
-    ERCC_annotation["rounded_numMolecules"] = ERCC_annotation[
-        "numMolecules"
-    ].astype(int)
+    ERCC_annotation["rounded_numMolecules"] = ERCC_annotation["numMolecules"].astype(int)
 
     if from_layer in [None, "X"]:
         X, X_ercc = (
@@ -1161,18 +1008,12 @@ def relative2abs(
 
                 logged = False if X.max() > 100 else True
                 if not logged:
-                    X_i = (
-                        np.log1p(X[i, :].A)
-                        if issparse(X)
-                        else np.log1p(X[i, :])
-                    )
+                    X_i = np.log1p(X[i, :].A) if issparse(X) else np.log1p(X[i, :])
                 else:
                     X_i = X[i, :].A if issparse(X) else X[i, :]
 
                 res = k * X_i + b if logged else np.expm1(k * X_i + b)
-                adata.layers[cur_layer][i, :] = (
-                    csr_matrix(res) if issparse(X) else res
-                )
+                adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res
 
 
 # ---------------------------------------------------------------------------------------------------

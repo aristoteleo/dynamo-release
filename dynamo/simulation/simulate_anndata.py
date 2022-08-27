@@ -94,9 +94,7 @@ class AnnDataSimulator:
         # create/check species-to-gene mapping
         n_species = self.C0s.shape[1]
         if species is None:
-            main_info(
-                "No species-to-gene mapping is given: each species is considered a gene in `C0`."
-            )
+            main_info("No species-to-gene mapping is given: each species is considered a gene in `C0`.")
             gene_names = ["gene_%d" % i for i in range(n_species)]
             species = CellularSpecies(gene_names)
             species.register_species("r", True)
@@ -109,9 +107,7 @@ class AnnDataSimulator:
         # fix parameters
         self.fix_param_dict(required_param_names)
 
-        main_info(
-            f"The model contains {self.get_n_genes()} genes and {self.get_n_species()} species"
-        )
+        main_info(f"The model contains {self.get_n_genes()} genes and {self.get_n_species()} species")
 
     def get_n_genes(self):
         return self.species.get_n_genes()
@@ -121,9 +117,7 @@ class AnnDataSimulator:
 
     def get_n_cells(self):
         if self.C is None:
-            raise Exception(
-                "Simulation results not found. Run simulation first."
-            )
+            raise Exception("Simulation results not found. Run simulation first.")
         return self.C.shape[0]
 
     def fix_param_dict(self, required_param_names):
@@ -139,25 +133,16 @@ class AnnDataSimulator:
 
         # required parameters
         for param_name in required_param_names:
-            if (
-                param_name in required_param_names
-                and param_name not in param_dict
-            ):
-                raise Exception(
-                    f"Required parameter `{param_name}` not defined."
-                )
+            if param_name in required_param_names and param_name not in param_dict:
+                raise Exception(f"Required parameter `{param_name}` not defined.")
 
         # gene specific parameters
         for param_name in self.gene_param_names:
             if param_name in param_dict.keys():
                 param = np.atleast_1d(param_dict[param_name])
                 if len(param) == 1:
-                    param_dict[param_name] = (
-                        np.ones(self.get_n_genes()) * param[0]
-                    )
-                    main_info(
-                        f"Universal value for parameter {param_name}: {param[0]}"
-                    )
+                    param_dict[param_name] = np.ones(self.get_n_genes()) * param[0]
+                    main_info(f"Universal value for parameter {param_name}: {param[0]}")
                 else:
                     param_dict[param_name] = param
 
@@ -178,9 +163,7 @@ class AnnDataSimulator:
         Ts, Cs, traj_id = [], None, []
         count = 0
         for C0 in self.C0s:
-            T, C = self.reactions.simulate(
-                t_span=t_span, C0=C0, **simulator_kwargs
-            )
+            T, C = self.reactions.simulate(t_span=t_span, C0=C0, **simulator_kwargs)
             Ts = np.hstack((Ts, T))
             Cs = C.T if Cs is None else np.vstack((Cs, C.T))
             traj_id = np.hstack((traj_id, [count] * len(T)))
@@ -189,9 +172,7 @@ class AnnDataSimulator:
         if n_cells is not None:
             n = Cs.shape[0]
             if n_cells > n:
-                main_warning(
-                    f"Cannot sample {n_cells} from {n} simulated data points. Using all data points instead."
-                )
+                main_warning(f"Cannot sample {n_cells} from {n} simulated data points. Using all data points instead.")
             else:
                 main_info(f"Sampling {n_cells} from {n} simulated data points.")
                 cell_idx = sample(np.arange(n), n_cells, method="random")
@@ -256,14 +237,9 @@ class AnnDataSimulator:
                 # remove cells that has no expression
                 adata = adata[np.array(adata.X.sum(1)).flatten() > 0, :]
 
-            main_info(
-                "%s cell with %s genes stored in AnnData."
-                % (self.get_n_cells(), self.get_n_genes())
-            )
+            main_info("%s cell with %s genes stored in AnnData." % (self.get_n_cells(), self.get_n_genes()))
         else:
-            raise Exception(
-                "No trajectory has been generated; Run simulation first."
-            )
+            raise Exception("No trajectory has been generated; Run simulation first.")
 
         return adata
 
@@ -365,22 +341,16 @@ class CellularModelSimulator(AnnDataSimulator):
 
         self.C0s = C0s
         self.augment_C0_gaussian(n_C0s, sigma=5)
-        main_info(
-            f"{n_C0s} initial conditions have been created by augmentation."
-        )
+        main_info(f"{n_C0s} initial conditions have been created by augmentation.")
 
         # set the velocity func
         if velocity_func is not None:
             if self.splicing:
                 param_dict = self.param_dict.copy()
                 del param_dict["beta"]
-                self.vfunc = lambda x, s=self.species[
-                    "spliced"
-                ], param=param_dict: velocity_func(x[s], **param)
+                self.vfunc = lambda x, s=self.species["spliced"], param=param_dict: velocity_func(x[s], **param)
             else:
-                self.vfunc = lambda x, param=self.param_dict: velocity_func(
-                    x, **param
-                )
+                self.vfunc = lambda x, param=self.param_dict: velocity_func(x, **param)
 
     def get_synthesized_species(self):
         """return species which are either `total` or `unspliced` when there is splicing."""
@@ -442,13 +412,8 @@ class CellularModelSimulator(AnnDataSimulator):
         adata = super().generate_anndata(remove_empty_cells)
 
         if self.splicing:
-            beta, gamma = np.array(self.param_dict["beta"]), np.array(
-                self.param_dict["gamma"]
-            )
-            V = (
-                beta * adata.layers["unspliced"]
-                - gamma * adata.layers["spliced"]
-            )
+            beta, gamma = np.array(self.param_dict["beta"]), np.array(self.param_dict["gamma"])
+            V = beta * adata.layers["unspliced"] - gamma * adata.layers["spliced"]
             adata.layers["velocity_S"] = V
         return adata
 
@@ -476,24 +441,16 @@ class KinLabelingSimulator:
             label_species.append(sp)
 
         # register reactions
-        self.reactions, self.syn_rxns = self.register_reactions(
-            self.species, label_species, simulator.param_dict
-        )
+        self.reactions, self.syn_rxns = self.register_reactions(self.species, label_species, simulator.param_dict)
 
         # calculate synthesis rate (alpha) for each cell
-        self.alpha = np.zeros(
-            (simulator.C.shape[0], self.species.get_n_genes())
-        )
+        self.alpha = np.zeros((simulator.C.shape[0], self.species.get_n_genes()))
         for i, c in enumerate(simulator.C):
             for rxn in simulator.reactions:
                 if rxn.desc == syn_rxn_tag:  # The reaction is synthesis
                     product = rxn.products[0]
-                    if (
-                        product in simulator.get_synthesized_species()
-                    ):  # The product is either total or unspliced
-                        gene = simulator.species.get_species(
-                            product, return_gene_name=False
-                        )[1]
+                    if product in simulator.get_synthesized_species():  # The product is either total or unspliced
+                        gene = simulator.species.get_species(product, return_gene_name=False)[1]
                         self.alpha[i, gene] = rxn.rate_func(c)
 
         self.Cl = None
@@ -503,27 +460,20 @@ class KinLabelingSimulator:
     def get_n_cells(self):
         return self.n_cells
 
-    def register_reactions(
-        self, species: CellularSpecies, label_species, param_dict
-    ):
+    def register_reactions(self, species: CellularSpecies, label_species, param_dict):
         reactions = GillespieReactions(species)
         syn_rxns = []
         if self.splicing:
             u = species[label_species[0]]
             s = species[label_species[1]]
             for i_gene in range(species.get_n_genes()):
-                i_rxn = reactions.register_reaction(
-                    Reaction([], [u[i_gene]], None, desc="synthesis")
-                )
+                i_rxn = reactions.register_reaction(Reaction([], [u[i_gene]], None, desc="synthesis"))
                 syn_rxns.append(i_rxn)
                 reactions.register_reaction(
                     Reaction(
                         [u[i_gene]],
                         [s[i_gene]],
-                        lambda C, u=u[i_gene], beta=param_dict["beta"][
-                            i_gene
-                        ]: beta
-                        * C[u],
+                        lambda C, u=u[i_gene], beta=param_dict["beta"][i_gene]: beta * C[u],
                         desc="splicing",
                     )
                 )
@@ -531,28 +481,20 @@ class KinLabelingSimulator:
                     Reaction(
                         [s[i_gene]],
                         [],
-                        lambda C, s=s[i_gene], gamma=param_dict["gamma"][
-                            i_gene
-                        ]: gamma
-                        * C[s],
+                        lambda C, s=s[i_gene], gamma=param_dict["gamma"][i_gene]: gamma * C[s],
                         desc="degradation",
                     )
                 )
         else:
             r = species[label_species[0]]
             for i_gene in range(species.get_n_genes()):
-                i_rxn = reactions.register_reaction(
-                    Reaction([], [r[i_gene]], None, desc="synthesis")
-                )
+                i_rxn = reactions.register_reaction(Reaction([], [r[i_gene]], None, desc="synthesis"))
                 syn_rxns.append(i_rxn)
                 reactions.register_reaction(
                     Reaction(
                         [r[i_gene]],
                         [],
-                        lambda C, r=r[i_gene], gamma=param_dict["gamma"][
-                            i_gene
-                        ]: gamma
-                        * C[r],
+                        lambda C, r=r[i_gene], gamma=param_dict["gamma"][i_gene]: gamma * C[r],
                         desc="degradation",
                     )
                 )
@@ -568,16 +510,10 @@ class KinLabelingSimulator:
             tau = label_time[i]
             # set alpha for each synthesis reaction
             for i_gene, i_rxn in enumerate(self.syn_rxns):
-                self.reactions[i_rxn].rate_func = lambda C, alpha=self.alpha[
-                    i, i_gene
-                ]: alpha
-            T, C = self.reactions.simulate(
-                [0, tau], np.zeros(len(self.species))
-            )
+                self.reactions[i_rxn].rate_func = lambda C, alpha=self.alpha[i, i_gene]: alpha
+            T, C = self.reactions.simulate([0, tau], np.zeros(len(self.species)))
             self.Tl = np.hstack((self.Tl, T[-1]))
-            self.Cl = (
-                C[:, -1] if self.Cl is None else np.vstack((self.Cl, C[:, -1]))
-            )
+            self.Cl = C[:, -1] if self.Cl is None else np.vstack((self.Cl, C[:, -1]))
 
     def write_to_anndata(self, adata: anndata):
         if adata.n_vars != self.species.get_n_genes():
@@ -586,9 +522,7 @@ class KinLabelingSimulator:
             )
 
         if adata.n_obs != self.get_n_cells():
-            raise Exception(
-                f"The input anndata has {adata.n_obs} cells while there are {self.get_n_cells()} labeled."
-            )
+            raise Exception(f"The input anndata has {adata.n_obs} cells while there are {self.get_n_cells()} labeled.")
 
         if self.Tl is not None and self.Cl is not None:
             adata.obs["actual_label_time"] = self.Tl
@@ -597,13 +531,9 @@ class KinLabelingSimulator:
             for species, indices in self.species.iter_gene_species():
                 S = self.Cl[:, indices]
                 adata.layers[species] = S
-                main_info(
-                    "A layer is created for the labeled species %s." % species
-                )
+                main_info("A layer is created for the labeled species %s." % species)
         else:
-            raise Exception(
-                "No simulated data has been generated; Run simulation first."
-            )
+            raise Exception("No simulated data has been generated; Run simulation first.")
 
         return adata
 
@@ -959,11 +889,7 @@ class Neurogenesis(CellularModelSimulator):
             a = self.param_dict["a"][gene]
             K = self.param_dict["K"][gene]
             n = self.param_dict["n"][gene]
-            rate = (
-                a
-                * (x**n + y**n + z**n)
-                / (K**n + x**n + y**n + z**n)
-            )
+            rate = a * (x**n + y**n + z**n) / (K**n + x**n + y**n + z**n)
             return rate
 
         def rate_stat3(x, y, gene):
@@ -975,9 +901,7 @@ class Neurogenesis(CellularModelSimulator):
 
         if self.splicing:
             # TODO: develop the splicing model
-            raise NotImplementedError(
-                "The splicing model has not been developed."
-            )
+            raise NotImplementedError("The splicing model has not been developed.")
         else:
             pax6 = self.species["total", "Pax6"]
             mash1 = self.species["total", "Mash1"]
@@ -997,9 +921,7 @@ class Neurogenesis(CellularModelSimulator):
                 Reaction(
                     [],
                     [pax6],
-                    lambda C, x=tuj1, y=a1dh1l, z=sox8, g=pax6: rate_pax6(
-                        C[x], C[y], C[z], g
-                    ),
+                    lambda C, x=tuj1, y=a1dh1l, z=sox8, g=pax6: rate_pax6(C[x], C[y], C[z], g),
                     desc="synthesis",
                 )
             )
@@ -1008,9 +930,7 @@ class Neurogenesis(CellularModelSimulator):
                 Reaction(
                     [],
                     [mash1],
-                    lambda C, x=pax6, y=hes5, g=mash1: rate_toggle(
-                        C[x], C[y], g
-                    ),
+                    lambda C, x=pax6, y=hes5, g=mash1: rate_toggle(C[x], C[y], g),
                     desc="synthesis",
                 )
             )
@@ -1028,9 +948,7 @@ class Neurogenesis(CellularModelSimulator):
                 Reaction(
                     [],
                     [brn2],
-                    lambda C, x=mash1, y=olig2, g=brn2: rate_toggle(
-                        C[x], C[y], g
-                    ),
+                    lambda C, x=mash1, y=olig2, g=brn2: rate_toggle(C[x], C[y], g),
                     desc="synthesis",
                 )
             )
@@ -1039,9 +957,7 @@ class Neurogenesis(CellularModelSimulator):
                 Reaction(
                     [],
                     [tuj1],
-                    lambda C, x=zic1, y=brn2, z=myt1l, g=tuj1: rate_tuj1(
-                        C[x], C[y], C[z], g
-                    ),
+                    lambda C, x=zic1, y=brn2, z=myt1l, g=tuj1: rate_tuj1(C[x], C[y], C[z], g),
                     desc="synthesis",
                 )
             )
@@ -1050,9 +966,7 @@ class Neurogenesis(CellularModelSimulator):
                 Reaction(
                     [],
                     [hes5],
-                    lambda C, x=pax6, y=mash1, g=hes5: rate_toggle(
-                        C[x], C[y], g
-                    ),
+                    lambda C, x=pax6, y=mash1, g=hes5: rate_toggle(C[x], C[y], g),
                     desc="synthesis",
                 )
             )
@@ -1061,9 +975,7 @@ class Neurogenesis(CellularModelSimulator):
                 Reaction(
                     [],
                     [scl],
-                    lambda C, x=hes5, y=olig2, g=scl: rate_toggle(
-                        C[x], C[y], g
-                    ),
+                    lambda C, x=hes5, y=olig2, g=scl: rate_toggle(C[x], C[y], g),
                     desc="synthesis",
                 )
             )
@@ -1072,9 +984,7 @@ class Neurogenesis(CellularModelSimulator):
                 Reaction(
                     [],
                     [olig2],
-                    lambda C, x=hes5, y=scl, g=olig2: rate_toggle(
-                        C[x], C[y], g
-                    ),
+                    lambda C, x=hes5, y=scl, g=olig2: rate_toggle(C[x], C[y], g),
                     desc="synthesis",
                 )
             )

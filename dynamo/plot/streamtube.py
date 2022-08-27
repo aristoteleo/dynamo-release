@@ -67,9 +67,7 @@ def plot_3d_streamtube(
         # 3D streamtube:
         import plotly.graph_objects as go
     except ImportError:
-        raise ImportError(
-            "You need to install the package `plotly`. Install hiveplotlib via `pip install plotly`"
-        )
+        raise ImportError("You need to install the package `plotly`. Install hiveplotlib via `pip install plotly`")
 
     import matplotlib
     import matplotlib.cm as cm
@@ -79,32 +77,19 @@ def plot_3d_streamtube(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
     if is_gene_name(adata, color):
-        color_val = (
-            adata.obs_vector(k=color, layer=None)
-            if layer == "X"
-            else adata.obs_vector(k=color, layer=layer)
-        )
+        color_val = adata.obs_vector(k=color, layer=None) if layer == "X" else adata.obs_vector(k=color, layer=layer)
     elif is_cell_anno_column(adata, color):
         color_val = adata.obs_vector
 
-    is_not_continous = (
-        not isinstance(color_val[0], Number)
-        or color_val.dtype.name == "category"
-    )
+    is_not_continous = not isinstance(color_val[0], Number) or color_val.dtype.name == "category"
 
     if is_not_continous:
-        labels = (
-            color_val.to_dense()
-            if is_categorical_dtype(color_val)
-            else color_val
-        )
+        labels = color_val.to_dense() if is_categorical_dtype(color_val) else color_val
         if theme is None:
             if _background in ["#ffffff", "black"]:
                 _theme_ = "glasbey_dark"
@@ -116,26 +101,14 @@ def plot_3d_streamtube(
         values = color_val
         if theme is None:
             if _background in ["#ffffff", "black"]:
-                _theme_ = (
-                    "inferno"
-                    if not layer.startswith("velocity")
-                    else "div_blue_black_red"
-                )
+                _theme_ = "inferno" if not layer.startswith("velocity") else "div_blue_black_red"
             else:
-                _theme_ = (
-                    "viridis"
-                    if not layer.startswith("velocity")
-                    else "div_blue_red"
-                )
+                _theme_ = "viridis" if not layer.startswith("velocity") else "div_blue_red"
         else:
             _theme_ = theme
 
     _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
-    _color_key_cmap = (
-        _themes[_theme_]["color_key_cmap"]
-        if color_key_cmap is None
-        else color_key_cmap
-    )
+    _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
 
     if is_not_continous:
         labels = adata.obs[color]
@@ -143,20 +116,12 @@ def plot_3d_streamtube(
         if isinstance(color_key, dict):
             colors = pd.Series(labels).map(color_key).values
         else:
-            color_key = _to_hex(
-                plt.get_cmap(color_key_cmap)(
-                    np.linspace(0, 1, len(unique_labels))
-                )
-            )
+            color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, len(unique_labels))))
 
-            new_color_key = {
-                k: color_key[i] for i, k in enumerate(unique_labels)
-            }
+            new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
             colors = pd.Series(labels).map(new_color_key)
     else:
-        norm = matplotlib.colors.Normalize(
-            vmin=np.min(values), vmax=np.max(values), clip=True
-        )
+        norm = matplotlib.colors.Normalize(vmin=np.min(values), vmax=np.max(values), clip=True)
         mapper = cm.ScalarMappable(norm=norm, cmap=_cmap)
         colors = _to_hex(mapper.to_rgba(values))
 
@@ -224,11 +189,7 @@ def plot_3d_streamtube(
     )
 
     if save_show_or_return == "save" or html_fname is not None:
-        html_fname = (
-            "streamtube_" + color + "_" + group + "_" + init_group
-            if html_fname is None
-            else html_fname
-        )
+        html_fname = "streamtube_" + color + "_" + group + "_" + init_group if html_fname is None else html_fname
         save_kwargs_ = {"file": html_fname, "auto_open": True}
         save_kwargs_.update(save_kwargs)
         fig.write_html(**save_kwargs_)

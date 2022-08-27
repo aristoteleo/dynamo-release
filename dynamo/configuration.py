@@ -26,9 +26,7 @@ class DynamoAdataKeyManager:
     UNS_PP_HAS_LABELING = "has_labeling"
     UNS_PP_HAS_PROTEIN = "has_protein"
     UNS_PP_SPLICING_LABELING = "splicing_labeling"
-    UNS_PP_PEARSON_RESIDUAL_NORMALIZATION = (
-        "pearson_residuals_normalization_params"
-    )
+    UNS_PP_PEARSON_RESIDUAL_NORMALIZATION = "pearson_residuals_normalization_params"
 
     # obsp adjacency matrix string constants
     OBSP_ADJ_MAT_DIST = "distances"
@@ -63,9 +61,7 @@ class DynamoAdataKeyManager:
             layer, DynamoAdataKeyManager.UNS_PP_PEARSON_RESIDUAL_NORMALIZATION
         )
 
-    def select_layer_data(
-        adata: AnnData, layer: str, copy=False
-    ) -> pd.DataFrame:
+    def select_layer_data(adata: AnnData, layer: str, copy=False) -> pd.DataFrame:
         """select layer data based on layer key. The default layer is X layer in adata.
         For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo convention,
         this utility provides an unified interface for selecting layer data with shape n_obs x n_var."""
@@ -82,9 +78,7 @@ class DynamoAdataKeyManager:
             return res_data.copy()
         return res_data
 
-    def set_layer_data(
-        adata: AnnData, layer: str, vals: np.array, var_indices: np.array = None
-    ):
+    def set_layer_data(adata: AnnData, layer: str, vals: np.array, var_indices: np.array = None):
         if var_indices is None:
             var_indices = slice(None)
         if layer == DynamoAdataKeyManager.X_LAYER:
@@ -105,9 +99,7 @@ class DynamoAdataKeyManager:
 
         return layer in adata.layers
 
-    def get_available_layer_keys(
-        adata, layers="all", remove_pp_layers=True, include_protein=True
-    ):
+    def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True):
         """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
         layer_keys = list(adata.layers.keys())
         if remove_pp_layers:
@@ -117,14 +109,8 @@ class DynamoAdataKeyManager:
             layer_keys.extend(["X", "protein"])
         else:
             layer_keys.extend(["X"])
-        res_layers = (
-            layer_keys
-            if layers == "all"
-            else list(set(layer_keys).intersection(list(layers)))
-        )
-        res_layers = list(
-            set(res_layers).difference(["matrix", "ambiguous", "spanning"])
-        )
+        res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
+        res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
         return res_layers
 
     def allowed_layer_raw_names():
@@ -231,10 +217,7 @@ class DynamoAdataConfig:
             assert KeyError("Config %s not exist in DynamoAdataConfig." % (key))
         if val == replace_val:
             config_val = DynamoAdataConfig.config_key_to_values[key]
-            main_info(
-                "%s is None. Using default value from DynamoAdataConfig: %s=%s"
-                % (key, key, config_val)
-            )
+            main_info("%s is None. Using default value from DynamoAdataConfig: %s=%s" % (key, key, config_val))
             return config_val
         return val
 
@@ -291,25 +274,15 @@ zebrafish_colors = [
     "#ff4241",
     "#b77df9",
 ]
-zebrafish_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "zebrafish", zebrafish_colors
-)
+zebrafish_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("zebrafish", zebrafish_colors)
 
-fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "fire", colorcet.fire
-)
-darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkblue", colorcet.kbc
-)
-darkgreen_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkgreen", colorcet.kgy
-)
+fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("fire", colorcet.fire)
+darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkblue", colorcet.kbc)
+darkgreen_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkgreen", colorcet.kgy)
 darkred_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "darkred", colors=colorcet.linear_kry_5_95_c72[:192], N=256
 )
-darkpurple_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkpurple", colorcet.linear_bmw_5_95_c89
-)
+darkpurple_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkpurple", colorcet.linear_bmw_5_95_c89)
 # add gkr theme for velocity
 div_blue_black_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "div_blue_black_red", colorcet.diverging_gkr_60_10_c40
@@ -319,9 +292,7 @@ div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "div_blue_red", colorcet.diverging_bwr_55_98_c37
 )
 # add glasbey_bw for cell annotation in white background
-glasbey_white_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "glasbey_white", colorcet.glasbey_bw_minc_20
-)
+glasbey_white_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("glasbey_white", colorcet.glasbey_bw_minc_20)
 # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
 glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "glasbey_dark", colorcet.glasbey_bw_minc_20_maxl_70
@@ -543,9 +514,7 @@ def config_dynamo_rcParams(
     # rcParams['axes.titlesize'] =  "x-large"
     # rcParams['axes.labelsize'] = "large"
     rcParams["axes.labelcolor"] = "555555"
-    rcParams[
-        "axes.axisbelow"
-    ] = True  # grid/ticks are below elements (e.g., lines, text)
+    rcParams["axes.axisbelow"] = True  # grid/ticks are below elements (e.g., lines, text)
 
     # rcParams['axes.prop_cycle'] = cycler('color', ['E24A33', '348ABD', '988ED5', '777777', 'FBC15E', '8EBA42', 'FFB5B8'])
     # # E24A33 : red
@@ -611,9 +580,7 @@ def config_dynamo_rcParams(
     rcParams["legend.handletextpad"] = 0.4
 
     # color cycle
-    rcParams["axes.prop_cycle"] = cycler(
-        color=prop_cycle
-    )  # use tab20c by default
+    rcParams["axes.prop_cycle"] = cycler(color=prop_cycle)  # use tab20c by default
 
     # lines
     rcParams["axes.linewidth"] = 0.8
@@ -705,9 +672,7 @@ def set_figure_params(
     file_format_figs = format
 
     if dynamo:
-        config_dynamo_rcParams(
-            background=background, fontsize=fontsize, color_map=color_map
-        )
+        config_dynamo_rcParams(background=background, fontsize=fontsize, color_map=color_map)
     if figsize is not None:
         rcParams["figure.figsize"] = figsize
 
@@ -813,7 +778,5 @@ def set_pub_style_mpltex():
 
 # initialize DynamoSaveConfig and DynamoVisConfig mode defaults
 DynamoAdataConfig.update_data_store_mode("full")
-main_info(
-    "setting visualization default mode in dynamo. Your customized matplotlib settings might be overritten."
-)
+main_info("setting visualization default mode in dynamo. Your customized matplotlib settings might be overritten.")
 DynamoVisConfig.set_default_mode()

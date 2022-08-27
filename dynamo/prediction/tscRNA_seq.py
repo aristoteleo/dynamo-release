@@ -58,9 +58,7 @@ def get_pulse_r0(
         main_exception("{} is not existed in adata.var.".format(gamma_k_key))
 
     if add_init_r0_key in adata.layers.keys():
-        main_warning(
-            "{} is already existed in adata.layers.".format(add_init_r0_key)
-        )
+        main_warning("{} is already existed in adata.layers.".format(add_init_r0_key))
 
     init_r0_res = csr_matrix(adata.shape)
 

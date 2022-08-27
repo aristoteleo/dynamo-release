@@ -12,9 +12,7 @@ def isarray(arr):
     Check if a variable is an array. Essentially the variable has the attribute 'len'
     and it is not a string.
     """
-    return hasattr(arr, "__len__") and (
-        not isinstance(arr, str) and (not isinstance(arr, type))
-    )
+    return hasattr(arr, "__len__") and (not isinstance(arr, str) and (not isinstance(arr, type)))
 
 
 def ismatrix(arr):

@@ -76,9 +76,7 @@ def KO(
     logger = LoggerManager.gen_logger("dynamo-KO")
 
     if basis != "pca":
-        logger.error(
-            "Currently we can only perturb (KO) PCA space based vector field function."
-        )
+        logger.error("Currently we can only perturb (KO) PCA space based vector field function.")
         raise ValueError()
 
     if vecfld is None:
@@ -98,9 +96,7 @@ def KO(
         )
     else:
         if not add_ko_basis_key.startswith("velocity_"):
-            raise ValueError(
-                f"add_ko_basis_key {add_ko_basis_key} must starts with `velocity_`"
-            )
+            raise ValueError(f"add_ko_basis_key {add_ko_basis_key} must starts with `velocity_`")
         x_basis_key, v_basis_key = (
             "X_" + add_ko_basis_key.split("velocity_")[1],
             add_ko_basis_key,
@@ -113,9 +109,7 @@ def KO(
         )
     else:
         if not add_embedding_key.startswith("velocity_"):
-            raise ValueError(
-                f"add_embedding_key {add_embedding_key} must starts with `velocity_`"
-            )
+            raise ValueError(f"add_embedding_key {add_embedding_key} must starts with `velocity_`")
         x_emb_key, v_emb_key = (
             "X_" + add_embedding_key.split("velocity_")[1],
             add_embedding_key,
@@ -128,9 +122,7 @@ def KO(
 
     logger.info_insert_adata(x_emb_key, "obsm")
     adata.obsm[x_emb_key] = adata.obsm["X_" + emb_basis].copy()
-    logger.info(
-        f"Project the high dimensional vector field after KO to {emb_basis}."
-    )
+    logger.info(f"Project the high dimensional vector field after KO to {emb_basis}.")
     cell_velocities(
         adata,
         X=adata.obsm["X_" + basis],
@@ -274,9 +266,7 @@ def perturbation(
     valid_genes = pca_genes.intersection(genes)
 
     if len(valid_genes) == 0:
-        raise ValueError(
-            "genes to perturb must be pca genes (genes used to perform the pca dimension reduction)."
-        )
+        raise ValueError("genes to perturb must be pca genes (genes used to perform the pca dimension reduction).")
     if len(expression) > 1:
         if len(expression) != len(valid_genes):
             raise ValueError(
@@ -295,9 +285,7 @@ def perturbation(
         X_pca = adata.obsm[pca_key]
 
     if delta_Y is None:
-        logger.info(
-            "Calculate perturbation effect matrix via \\delta Y = J \\dot \\delta X...."
-        )
+        logger.info("Calculate perturbation effect matrix via \\delta Y = J \\dot \\delta X....")
 
         if type(PCs_key) == np.ndarray:
             PCs = PCs_key
@@ -313,10 +301,7 @@ def perturbation(
         X = pca_to_expr(X_pca, PCs, means)
 
         # get gene position
-        gene_loc = [
-            adata.var_names[adata.var.use_for_pca].get_loc(i)
-            for i in valid_genes
-        ]
+        gene_loc = [adata.var_names[adata.var.use_for_pca].get_loc(i) for i in valid_genes]
 
         # in-silico perturbation
         X_perturb = X.copy()
@@ -332,9 +317,7 @@ def perturbation(
             elif perturb_mode == "raw":
                 X_perturb[cells, gene] = expression[i]
             else:
-                raise NotImplementedError(
-                    f"The perturbation mode {perturb_mode} is not supported."
-                )
+                raise NotImplementedError(f"The perturbation mode {perturb_mode} is not supported.")
 
         # project gene expression back to pca space
         X_perturb_pca = expr_to_pca(X_perturb, PCs, means)
@@ -413,9 +396,7 @@ def perturbation(
         add_velocity_key=velocity_key,
     )
 
-    logger.info_insert_adata(
-        "X_" + emb_basis + "_perturbation", "obsm", indent_level=1
-    )
+    logger.info_insert_adata("X_" + emb_basis + "_perturbation", "obsm", indent_level=1)
 
     logger.info(
         f"you can use dyn.pl.streamline_plot(adata, basis='{emb_basis}_perturbation') to visualize the "
@@ -424,9 +405,7 @@ def perturbation(
     adata.obsm[embedding_key] = adata.obsm["X_" + emb_basis].copy()
 
 
-def rank_perturbation_genes(
-    adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs
-):
+def rank_perturbation_genes(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
     """Rank genes based on their raw and absolute perturbation effects for each cell group.
 
     Parameters
@@ -451,9 +430,7 @@ def rank_perturbation_genes(
     return adata
 
 
-def rank_perturbation_cells(
-    adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs
-):
+def rank_perturbation_cells(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
     """Rank cells based on their raw and absolute perturbation for each cell group.
 
     Parameters
@@ -478,9 +455,7 @@ def rank_perturbation_cells(
     return adata
 
 
-def rank_perturbation_cell_clusters(
-    adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs
-):
+def rank_perturbation_cell_clusters(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
     """Rank cells based on their raw and absolute perturbation for each cell group.
 
     Parameters

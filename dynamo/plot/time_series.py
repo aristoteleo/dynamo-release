@@ -101,11 +101,7 @@ def kinetic_curves(
     import pandas as pd
     import seaborn as sns
 
-    if (
-        mode == "pseudotime"
-        and tkey == "potential"
-        and "potential" not in adata.obs_keys()
-    ):
+    if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
     exprs, valid_genes, time = fetch_exprs(
@@ -122,11 +118,7 @@ def kinetic_curves(
     Color = np.empty((0, 1))
     if color is not None and mode not in ["lap", "vector_field"]:
         color = list(set(color).intersection(adata.obs.keys()))
-        Color = (
-            adata.obs[color].values.T.flatten()
-            if len(color) > 0
-            else np.empty((0, 1))
-        )
+        Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     exprs = exprs.A if issparse(exprs) else exprs
     if len(set(genes).intersection(valid_genes)) > 0:
@@ -134,20 +126,13 @@ def kinetic_curves(
         exprs = np.expm1(exprs) if not log else exprs
 
     if standard_scale is not None:
-        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(
-            exprs, axis=standard_scale
-        )
+        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
 
     time = np.sort(time)
     exprs = exprs[np.argsort(time), :]
 
     if dist_threshold is not None and mode in ["lap", "vector_field"]:
-        valid_ind = list(
-            np.where(
-                np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold
-            )[0]
-            + 1
-        )
+        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
         time = time[valid_ind]
@@ -329,11 +314,7 @@ def kinetic_heatmap(
 
     if enforce or "kinetic_heatmap" not in adata.uns_keys():
 
-        if (
-            mode == "pseudotime"
-            and tkey == "potential"
-            and "potential" not in adata.obs_keys()
-        ):
+        if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
             ddhodge(adata)
 
         exprs, valid_genes, time = fetch_exprs(
@@ -360,12 +341,7 @@ def kinetic_heatmap(
             exprs = np.expm1(exprs) if not log else exprs
 
         if dist_threshold is not None and mode == "vector_field":
-            valid_ind = list(
-                np.where(
-                    np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold
-                )[0]
-                + 1
-            )
+            valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
             valid_ind.insert(0, 0)
             exprs = exprs[valid_ind, :]
             time = time[valid_ind]
@@ -385,15 +361,13 @@ def kinetic_heatmap(
 
             df = pd.DataFrame(all, index=genes)
         elif gene_order_method in ["maximum", "raw"]:
-            exprs = lowess_smoother(
-                time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve
-            )
+            exprs = lowess_smoother(time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve)
             exprs = exprs[np.isfinite(exprs.sum(1)), :]
 
             if standard_scale is not None:
-                exprs = (
-                    exprs - np.min(exprs, axis=standard_scale)[:, None]
-                ) / np.ptp(exprs, axis=standard_scale)[:, None]
+                exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(exprs, axis=standard_scale)[
+                    :, None
+                ]
             if gene_order_method == "maximum":
                 max_sort = np.argsort(np.argmax(exprs, axis=1))
             else:
@@ -405,13 +379,9 @@ def kinetic_heatmap(
                     columns=adata.obs_names,
                 )
             else:
-                df = pd.DataFrame(
-                    exprs[max_sort, :], index=np.array(valid_genes)[max_sort]
-                )
+                df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
         else:
-            raise Exception(
-                "gene order_method can only be either half_max_ordering or maximum"
-            )
+            raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
         adata.uns["kinetics_heatmap"] = df
     else:
@@ -423,9 +393,7 @@ def kinetic_heatmap(
         uniq_gene_grps = adata.var[gene_group].unique().tolist()
         num_labels = len(uniq_gene_grps)
 
-        color_key = _to_hex(
-            plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-        )
+        color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
         gene_lut = dict(zip(map(str, uniq_gene_grps), color_key))
         row_colors = adata.var[gene_group].map(gene_lut)
     else:
@@ -436,9 +404,7 @@ def kinetic_heatmap(
         uniq_cell_grps = adata.obs[cell_group].unique().tolist()
         num_labels = len(uniq_cell_grps)
 
-        color_key = _to_hex(
-            plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-        )
+        color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
         cell_lut = dict(zip(map(str, uniq_cell_grps), color_key))
         col_colors = adata.obs[cell_group].map(cell_lut)
     else:
@@ -485,9 +451,7 @@ def kinetic_heatmap(
         lut = cell_lut.copy()
         lut.update(gene_lut)
         for label in uniq_grps:
-            sns_heatmap.ax_col_dendrogram.bar(
-                0, 0, color=lut[label], label=label, linewidth=0
-            )
+            sns_heatmap.ax_col_dendrogram.bar(0, 0, color=lut[label], label=label, linewidth=0)
         cell_group_num, gene_group_num = len(cell_lut), len(gene_lut)
 
         if cell_group_num > 0 and gene_group_num > 0:
@@ -502,21 +466,15 @@ def kinetic_heatmap(
         else:
             title = gene_group + cell_group
 
-        sns_heatmap.ax_col_dendrogram.legend(
-            title=title, loc="center", ncol=ncol
-        )
+        sns_heatmap.ax_col_dendrogram.legend(title=title, loc="center", ncol=ncol)
         sns_heatmap.cax.set_position([0.15, 0.2, 0.03, 0.45])
 
     if hline_rows is not None:
         hl_kwargs = update_dict({"linestyles": "dashdot"}, hlines_kwargs)
-        sns_heatmap.ax_heatmap.hlines(
-            hline_rows, *sns_heatmap.ax_heatmap.get_xlim(), **hl_kwargs
-        )
+        sns_heatmap.ax_heatmap.hlines(hline_rows, *sns_heatmap.ax_heatmap.get_xlim(), **hl_kwargs)
     if vline_cols is not None:
         vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
-        sns_heatmap.ax_heatmap.vlines(
-            vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs
-        )
+        sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
     if save_show_or_return == "save":
         s_kwargs = {
@@ -667,9 +625,7 @@ def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
         x = exprs[i]
 
         if spaced_num is None:
-            x_convolved = np.convolve(
-                x[np.argsort(time)], np.ones(30) / 30, mode="same"
-            )
+            x_convolved = np.convolve(x[np.argsort(time)], np.ones(30) / 30, mode="same")
             res[i, :] = x_convolved
         else:
             # lowess = sm.nonparametric.lowess
@@ -685,13 +641,9 @@ def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
 
             # check: is any difference between interpld and np.convolve?
             if len(time) == len(x_convolved):
-                f = interp1d(
-                    time[np.argsort(time)], x_convolved, bounds_error=False
-                )
+                f = interp1d(time[np.argsort(time)], x_convolved, bounds_error=False)
 
-                time_linspace = np.linspace(
-                    np.min(time), np.max(time), spaced_num
-                )
+                time_linspace = np.linspace(np.min(time), np.max(time), spaced_num)
                 res[i, :] = f(time_linspace)
             else:
                 res[i, :] = np.convolve(
@@ -808,9 +760,7 @@ def jacobian_kinetics(
 
     adata_ = adata[cell_indx, :]
     time = adata_.obs[tkey]
-    jacobian_mat = (
-        Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
-    )
+    jacobian_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
     n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
     targets_, sources_ = (
         (
@@ -823,9 +773,7 @@ def jacobian_kinetics(
             np.repeat(effectors_, Der.shape[0]),
         )
     )
-    source_targets_ = [
-        sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)
-    ]
+    source_targets_ = [sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)]
 
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
@@ -846,9 +794,7 @@ def jacobian_kinetics(
         np.repeat(effectors, len(regulators)),
         np.tile(regulators, len(effectors)),
     )
-    source_targets = [
-        sources[i] + "->" + targets[i] for i in range(n_source_targets)
-    ]
+    source_targets = [sources[i] + "->" + targets[i] for i in range(n_source_targets)]
 
     jacobian_mat = jacobian_mat[:, np.argsort(time)]
 
@@ -863,16 +809,13 @@ def jacobian_kinetics(
 
         df = pd.DataFrame(all, index=source_targets_)
     elif gene_order_method == "maximum":
-        jacobian_mat = lowess_smoother(
-            time, jacobian_mat, spaced_num=None, n_convolve=n_convolve
-        )
+        jacobian_mat = lowess_smoother(time, jacobian_mat, spaced_num=None, n_convolve=n_convolve)
         jacobian_mat = jacobian_mat[np.isfinite(jacobian_mat.sum(1)), :]
 
         if standard_scale is not None:
-            exprs = (
-                jacobian_mat
-                - np.min(jacobian_mat, axis=standard_scale)[:, None]
-            ) / np.ptp(jacobian_mat, axis=standard_scale)[:, None]
+            exprs = (jacobian_mat - np.min(jacobian_mat, axis=standard_scale)[:, None]) / np.ptp(
+                jacobian_mat, axis=standard_scale
+            )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         df = pd.DataFrame(
             exprs[max_sort, :],
@@ -887,9 +830,7 @@ def jacobian_kinetics(
             columns=adata.obs_names,
         )
     else:
-        raise Exception(
-            "gene order_method can only be either half_max_ordering or maximum"
-        )
+        raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
     heatmap_kwargs = dict(
         xticklabels=False,
@@ -1045,9 +986,7 @@ def sensitivity_kinetics(
 
     adata_ = adata[cell_indx, :]
     time = adata_.obs[tkey]
-    sensitivity_mat = (
-        Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
-    )
+    sensitivity_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
     n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
     targets_, sources_ = (
         (
@@ -1060,9 +999,7 @@ def sensitivity_kinetics(
             np.repeat(effectors_, Der.shape[0]),
         )
     )
-    source_targets_ = [
-        sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)
-    ]
+    source_targets_ = [sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)]
 
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
@@ -1083,9 +1020,7 @@ def sensitivity_kinetics(
         np.repeat(effectors, len(regulators)),
         np.tile(regulators, len(effectors)),
     )
-    source_targets = [
-        sources[i] + "->" + targets[i] for i in range(n_source_targets)
-    ]
+    source_targets = [sources[i] + "->" + targets[i] for i in range(n_source_targets)]
 
     sensitivity_mat = sensitivity_mat[:, np.argsort(time)]
 
@@ -1100,18 +1035,13 @@ def sensitivity_kinetics(
 
         df = pd.DataFrame(all, index=source_targets_)
     elif gene_order_method == "maximum":
-        sensitivity_mat = lowess_smoother(
-            time, sensitivity_mat, spaced_num=None, n_convolve=n_convolve
-        )
-        sensitivity_mat = sensitivity_mat[
-            np.isfinite(sensitivity_mat.sum(1)), :
-        ]
+        sensitivity_mat = lowess_smoother(time, sensitivity_mat, spaced_num=None, n_convolve=n_convolve)
+        sensitivity_mat = sensitivity_mat[np.isfinite(sensitivity_mat.sum(1)), :]
 
         if standard_scale is not None:
-            exprs = (
-                sensitivity_mat
-                - np.min(sensitivity_mat, axis=standard_scale)[:, None]
-            ) / np.ptp(sensitivity_mat, axis=standard_scale)[:, None]
+            exprs = (sensitivity_mat - np.min(sensitivity_mat, axis=standard_scale)[:, None]) / np.ptp(
+                sensitivity_mat, axis=standard_scale
+            )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         df = pd.DataFrame(
             exprs[max_sort, :],
@@ -1126,9 +1056,7 @@ def sensitivity_kinetics(
             columns=adata.obs_names,
         )
     else:
-        raise Exception(
-            "gene order_method can only be either half_max_ordering or maximum"
-        )
+        raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
     heatmap_kwargs = dict(
         xticklabels=False,

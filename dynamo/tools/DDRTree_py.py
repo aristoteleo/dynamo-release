@@ -9,12 +9,7 @@ from scipy.sparse.linalg import inv
 
 
 def cal_ncenter(ncells, ncells_limit=100):
-    res = np.round(
-        2
-        * ncells_limit
-        * np.log(ncells)
-        / (np.log(ncells) + np.log(ncells_limit))
-    )
+    res = np.round(2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit)))
 
     return res
 
@@ -179,22 +174,13 @@ def DDRTree(
         min_dist = repmat(tem_min_dist, 1, K)
         tmp_distZY = distZY - min_dist
         tmp_R = np.exp(-tmp_distZY / sigma)
-        R = tmp_R / repmat(
-            np.sum(tmp_R, 1).reshape(-1, 1), 1, K
-        )  ##########################3
+        R = tmp_R / repmat(np.sum(tmp_R, 1).reshape(-1, 1), 1, K)  ##########################3
         Gamma = np.diag(sum(R))
 
         # termination condition
-        obj1 = -sigma * sum(
-            np.log(np.sum(np.exp(-tmp_distZY / sigma), 1))
-            - tem_min_dist.T[0] / sigma
-        )
+        obj1 = -sigma * sum(np.log(np.sum(np.exp(-tmp_distZY / sigma), 1)) - tem_min_dist.T[0] / sigma)
         xwz = np.linalg.norm(X - np.dot(W, Z), 2)
-        objs.append(
-            (np.dot(xwz, xwz))
-            + Lambda * np.trace(np.dot(Y, np.dot(L, Y.T)))
-            + gamma * obj1
-        )
+        objs.append((np.dot(xwz, xwz)) + Lambda * np.trace(np.dot(Y, np.dot(L, Y.T))) + gamma * obj1)
         print("iter = ", iter, "obj = ", objs[iter])
 
         if keep_history:
@@ -211,12 +197,7 @@ def DDRTree(
         # compute low dimension projection matrix
         tmp = np.dot(
             R,
-            inv(
-                csr_matrix(
-                    ((gamma + 1) / gamma) * ((Lambda / gamma) * L + Gamma)
-                    - np.dot(R.T, R)
-                )
-            ).toarray(),
+            inv(csr_matrix(((gamma + 1) / gamma) * ((Lambda / gamma) * L + Gamma) - np.dot(R.T, R))).toarray(),
         )
         Q = (1 / (gamma + 1)) * (eye(N, N) + np.dot(tmp, R.T))
         C = np.dot(X, Q)

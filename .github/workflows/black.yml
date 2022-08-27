@@ -17,4 +17,4 @@ jobs:
           pip install black
       - name: "Run Black"
         run: |
-          python -m black --check --verbose dynamo tests
+          python -m black --check --verbose --line-length 120 dynamo tests

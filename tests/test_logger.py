@@ -33,9 +33,7 @@ def test_logger_simple_progress_naive(test_logger):
         # test_logger.report_progress(i / total * 100)
         test_logger.report_progress(count=i, total=total)
         time.sleep(0.1)
-    test_logger.finish_progress(
-        progress_name="pytest simple progress logger test"
-    )
+    test_logger.finish_progress(progress_name="pytest simple progress logger test")
 
 
 def test_logger_simple_progress_logger(test_logger):
@@ -50,15 +48,11 @@ def test_logger_simple_progress_logger(test_logger):
 
 
 def test_tqdm_style_loops():
-    for i in enumerate(
-        main_tqdm(range(1, 11), desc="using TQDM style logging")
-    ):
+    for i in enumerate(main_tqdm(range(1, 11), desc="using TQDM style logging")):
         time.sleep(0.1)
     for i in main_tqdm(range(1, 11), desc="using TQDM style logging"):
         time.sleep(0.1)
-    for i in LoggerManager.progress_logger(
-        range(1, 11), progress_name="using LoggerManager's progress_logger"
-    ):
+    for i in LoggerManager.progress_logger(range(1, 11), progress_name="using LoggerManager's progress_logger"):
         time.sleep(0.1)
 
 
@@ -66,9 +60,7 @@ def test_tqdm_style_loops():
 def test_vectorField_logger():
     adata = dyn.sample_data.zebrafish()
     adata = adata[:500]
-    dyn.pp.recipe_monocle(
-        adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005
-    )
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
@@ -87,25 +79,19 @@ def test_vectorField_logger():
 def test_sparseVFC_logger():
     adata = dyn.sample_data.zebrafish()
     adata = adata[:500]
-    dyn.pp.recipe_monocle(
-        adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005
-    )
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
     dyn.vf.VectorField(adata, basis="pca", M=100, method="SparseVFC", verbose=1)
 
 
-@pytest.mark.skip(
-    reason="need refactor: follow latest differential geometry notebook"
-)
+@pytest.mark.skip(reason="need refactor: follow latest differential geometry notebook")
 # TODO: refactor
 def test_zebrafish_topography_tutorial_logger():
     adata = dyn.sample_data.zebrafish()
     adata = adata[:500]
-    dyn.pp.recipe_monocle(
-        adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005
-    )
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")

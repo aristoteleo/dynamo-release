@@ -144,11 +144,7 @@ def lap_min_time(
             n_row = 1
             n_col = 1
 
-        figsize = (
-            (figsize[0] * n_col, figsize[1] * n_row)
-            if figsize is not None
-            else (4 * n_col, 4 * n_row)
-        )
+        figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
         fig, axes = plt.subplots(
             n_row,
             n_col,
@@ -164,9 +160,7 @@ def lap_min_time(
             if c == 0:
                 axes[i, j].plot(T, A)
                 if show_elbow:
-                    axes[i, j].plot(
-                        [T[i_elbow], T[i_elbow]], [np.max(A), np.min(A)], "--"
-                    )
+                    axes[i, j].plot([T[i_elbow], T[i_elbow]], [np.max(A), np.min(A)], "--")
                 axes[i, j].set_xlabel("LAP time")
                 axes[i, j].set_ylabel("action")
                 # axes[i, j].set_title(f'pair {i}')
