@@ -7,9 +7,10 @@ from typing import Union
 import anndata
 import numpy as np
 import pandas as pd
-from dynamo.tools.utils import einsum_correlation, log1p_
-from dynamo.utils import LoggerManager, copy_adata
 from scipy.sparse import issparse
+
+from ..tools.utils import einsum_correlation, log1p_
+from ..utils import LoggerManager, copy_adata
 
 
 def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list) -> tuple[np.ndarray, np.ndarray]:

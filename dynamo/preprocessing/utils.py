@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Iterable, Literal, Union
+from typing import Iterable, Union, Literal, Callable
 
 import anndata
 import numpy as np
@@ -9,13 +9,19 @@ import scipy
 import scipy.sparse
 import statsmodels.api as sm
 from anndata import AnnData
-from dynamo.configuration import DKM, DynamoAdataKeyManager
-from dynamo.dynamo_logger import (LoggerManager, main_debug, main_exception,
-                                  main_info, main_info_insert_adata_var,
-                                  main_warning)
-from dynamo.utils import areinstance
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA, TruncatedSVD
+
+from ..configuration import DKM, DynamoAdataKeyManager
+from ..dynamo_logger import (
+    LoggerManager,
+    main_debug,
+    main_exception,
+    main_info,
+    main_info_insert_adata_var,
+    main_warning,
+)
+from ..utils import areinstance
 
 
 # ---------------------------------------------------------------------------------------------------

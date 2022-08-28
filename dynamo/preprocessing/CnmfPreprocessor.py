@@ -3,9 +3,10 @@ from shutil import rmtree
 
 import numpy as np
 from anndata import AnnData
-from dynamo.configuration import DKM
-from dynamo.data_io import make_dir, read_h5ad
-from dynamo.preprocessing.Preprocessor import Preprocessor
+
+from ..configuration import DKM
+from ..data_io import make_dir, read_h5ad
+from .Preprocessor import Preprocessor
 
 
 class CnmfPreprocessor(Preprocessor):

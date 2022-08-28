@@ -1,34 +1,57 @@
 import warnings
 from collections.abc import Iterable
-from typing import Callable, Literal, Optional, Union
+from typing import Callable, Optional, Union, Literal
 
 import anndata
 import numpy as np
 import pandas as pd
 from anndata import AnnData
-from dynamo.configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
-from dynamo.dynamo_logger import (LoggerManager, main_critical, main_info,
-                                  main_info_insert_adata_obsm,
-                                  main_info_insert_adata_uns, main_warning)
-from dynamo.preprocessing.cell_cycle import cell_cycle_scores
-from dynamo.preprocessing.preprocess_monocle_utils import top_table
-from dynamo.preprocessing.preprocessor_utils import (
-    SVRs, _infer_labeling_experiment_type, filter_genes_by_outliers)
-from dynamo.preprocessing.utils import (Freeman_Tukey, add_noise_to_duplicates,
-                                        basic_stats, calc_new_to_total_ratio,
-                                        clusters_stats, collapse_species_adata,
-                                        compute_gene_exp_fraction,
-                                        convert2symbol, convert_layers2csr,
-                                        detect_experiment_datatype,
-                                        get_inrange_shared_counts_mask,
-                                        get_svr_filter, get_sz_exprs,
-                                        merge_adata_attrs,
-                                        normalize_mat_monocle, pca_monocle,
-                                        sz_util, unique_var_obs_adata)
-from dynamo.tools.utils import update_dict
-from dynamo.utils import copy_adata
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
+from sklearn.utils import sparsefuncs
+
+from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
+from ..dynamo_logger import (
+    LoggerManager,
+    main_critical,
+    main_info,
+    main_info_insert_adata_obsm,
+    main_info_insert_adata_uns,
+    main_warning,
+)
+from ..tools.utils import update_dict
+from ..utils import copy_adata
+from .cell_cycle import cell_cycle_scores
+from .preprocess_monocle_utils import top_table
+from .preprocessor_utils import (
+    SVRs,
+    _infer_labeling_experiment_type,
+    filter_cells_by_outliers,
+    filter_genes_by_outliers,
+    normalize_cell_expr_by_size_factors,
+    select_genes_monocle,
+)
+from .utils import (
+    Freeman_Tukey,
+    add_noise_to_duplicates,
+    basic_stats,
+    calc_new_to_total_ratio,
+    clusters_stats,
+    collapse_species_adata,
+    compute_gene_exp_fraction,
+    convert2symbol,
+    convert_layers2csr,
+    cook_dist,
+    detect_experiment_datatype,
+    get_inrange_shared_counts_mask,
+    get_svr_filter,
+    get_sz_exprs,
+    merge_adata_attrs,
+    normalize_mat_monocle,
+    pca_monocle,
+    sz_util,
+    unique_var_obs_adata,
+)
 
 
 def calc_sz_factor_legacy(

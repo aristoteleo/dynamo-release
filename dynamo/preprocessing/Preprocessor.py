@@ -1,26 +1,43 @@
-from typing import Callable, List, Literal, Optional
+from typing import Callable, List, Optional, Literal
 
 import numpy as np
+import pandas as pd
 from anndata import AnnData
-from dynamo.configuration import DKM
-from dynamo.dynamo_logger import (LoggerManager, main_info,
-                                  main_info_insert_adata, main_warning)
-from dynamo.external import (normalize_layers_pearson_residuals, sctransform,
-                             select_genes_by_pearson_residuals)
-from dynamo.preprocessing.preprocess import pca_monocle
-from dynamo.preprocessing.preprocessor_utils import \
-    _infer_labeling_experiment_type
-from dynamo.preprocessing.preprocessor_utils import \
-    filter_cells_by_outliers as monocle_filter_cells_by_outliers
-from dynamo.preprocessing.preprocessor_utils import \
-    filter_genes_by_outliers as monocle_filter_genes_by_outliers
-from dynamo.preprocessing.preprocessor_utils import (
-    is_log1p_transformed_adata, log1p_adata,
-    normalize_cell_expr_by_size_factors, select_genes_by_dispersion_general)
-from dynamo.preprocessing.utils import (collapse_species_adata, convert2symbol,
-                                        convert_layers2csr,
-                                        detect_experiment_datatype,
-                                        unique_var_obs_adata)
+
+from ..configuration import DKM
+from ..dynamo_logger import (
+    LoggerManager,
+    main_info,
+    main_info_insert_adata,
+    main_warning,
+)
+from ..external import (
+    normalize_layers_pearson_residuals,
+    sctransform,
+    select_genes_by_pearson_residuals,
+)
+from ..tools.connectivity import neighbors as default_neighbors
+from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
+from .preprocessor_utils import _infer_labeling_experiment_type
+from .preprocessor_utils import (
+    filter_cells_by_outliers as monocle_filter_cells_by_outliers,
+)
+from .preprocessor_utils import (
+    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
+)
+from .preprocessor_utils import (
+    is_log1p_transformed_adata,
+    log1p_adata,
+    normalize_cell_expr_by_size_factors,
+    select_genes_by_dispersion_general,
+)
+from .utils import (
+    collapse_species_adata,
+    convert2symbol,
+    convert_layers2csr,
+    detect_experiment_datatype,
+    unique_var_obs_adata,
+)
 
 
 class Preprocessor:

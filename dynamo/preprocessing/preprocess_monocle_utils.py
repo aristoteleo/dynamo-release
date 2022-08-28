@@ -1,13 +1,19 @@
 import re
-
 import anndata
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-from dynamo.configuration import DynamoAdataKeyManager
-from dynamo.dynamo_logger import LoggerManager, main_info, main_warning
-from dynamo.preprocessing.utils import cook_dist
 from scipy.sparse import csr_matrix, issparse
+import statsmodels.api as sm
+
+from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
+from ..dynamo_logger import (
+    LoggerManager,
+    main_critical,
+    main_info,
+    main_info_insert_adata_obsm,
+    main_warning,
+)
+from .utils import cook_dist
 
 
 def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])) -> tuple[sm.formula.glm, np.ndarray, pd.DataFrame]:

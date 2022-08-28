@@ -3,10 +3,11 @@ from typing import Union
 import anndata
 import numpy as np
 import pandas as pd
-from dynamo.dynamo_logger import LoggerManager, main_tqdm
-from dynamo.utils import copy_adata
 from scipy.sparse import issparse
 from sklearn.utils import sparsefuncs
+
+from ..dynamo_logger import LoggerManager, main_tqdm
+from ..utils import copy_adata
 
 
 def lambda_correction(

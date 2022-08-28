@@ -1,31 +1,53 @@
 import warnings
-from typing import Callable, Literal, Union
+from typing import Callable, Union, Literal
 
 import anndata
 import numpy as np
 import pandas as pd
 import scipy.sparse
 from anndata import AnnData
-from dynamo.configuration import DKM
-from dynamo.dynamo_logger import (main_debug, main_finish_progress, main_info,
-                                  main_info_insert_adata_obs,
-                                  main_info_insert_adata_obsm,
-                                  main_info_insert_adata_uns,
-                                  main_info_insert_adata_var, main_log_time,
-                                  main_warning)
-from dynamo.preprocessing.preprocess_monocle_utils import top_table
-from dynamo.preprocessing.utils import (Freeman_Tukey,
-                                        compute_gene_exp_fraction,
-                                        get_inrange_shared_counts_mask,
-                                        get_svr_filter, get_sz_exprs,
-                                        merge_adata_attrs,
-                                        normalize_mat_monocle, pca_monocle,
-                                        sz_util)
-from dynamo.tools.utils import update_dict
-from dynamo.utils import copy_adata
 from scipy.sparse.base import issparse
-from sklearn.svm import SVR
+from scipy.sparse.csr import csr_matrix
 from sklearn.utils import sparsefuncs
+from sklearn.svm import SVR
+
+from ..configuration import DKM, DynamoAdataKeyManager
+from ..dynamo_logger import (
+    main_debug,
+    main_finish_progress,
+    main_info,
+    main_info_insert_adata,
+    main_info_insert_adata_obs,
+    main_info_insert_adata_obsm,
+    main_info_insert_adata_uns,
+    main_info_insert_adata_var,
+    main_log_time,
+    main_warning,
+)
+from ..tools.utils import update_dict
+from ..utils import copy_adata
+from .preprocess_monocle_utils import top_table
+from .utils import (
+    Freeman_Tukey,
+    add_noise_to_duplicates,
+    basic_stats,
+    calc_new_to_total_ratio,
+    clusters_stats,
+    collapse_species_adata,
+    compute_gene_exp_fraction,
+    convert2symbol,
+    convert_layers2csr,
+    cook_dist,
+    detect_experiment_datatype,
+    get_inrange_shared_counts_mask,
+    get_svr_filter,
+    get_sz_exprs,
+    merge_adata_attrs,
+    normalize_mat_monocle,
+    pca_monocle,
+    sz_util,
+    unique_var_obs_adata,
+)
 
 
 def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
