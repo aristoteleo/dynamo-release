@@ -1,5 +1,9 @@
 import warnings
-from typing import Iterable, Union, Literal, Callable
+from typing import Iterable, Union, Callable
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import anndata
 import numpy as np

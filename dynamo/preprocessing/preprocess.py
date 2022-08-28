@@ -1,6 +1,10 @@
 import warnings
 from collections.abc import Iterable
-from typing import Callable, Optional, Union, Literal
+from typing import Callable, Optional, Union
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import anndata
 import numpy as np
