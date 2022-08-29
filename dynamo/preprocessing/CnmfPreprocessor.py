@@ -11,8 +11,7 @@ from .Preprocessor import Preprocessor
 
 class CnmfPreprocessor(Preprocessor):
     def __init__(self, **kwargs) -> None:
-        """A specialized preprocessor based on cNMF. Args used are the same as normal Preprocessor. 
-        """
+        """A specialized preprocessor based on cNMF. Args used are the same as normal Preprocessor."""
 
         super().__init__(**kwargs)
         self.selected_K = 7
@@ -30,13 +29,13 @@ class CnmfPreprocessor(Preprocessor):
         self.num_worker = 1
 
     def preprocess_adata(self, adata: AnnData) -> AnnData:
-        """Preprocess the AnnData object with cNMF. 
+        """Preprocess the AnnData object with cNMF.
 
         Args:
-            adata (AnnData): an AnnData object. 
+            adata (AnnData): an AnnData object.
 
         Returns:
-            AnnData: the preprocessed AnnData object. 
+            AnnData: the preprocessed AnnData object.
         """
 
         try:
@@ -80,11 +79,9 @@ class CnmfPreprocessor(Preprocessor):
         return adata
 
     def k_selection_plot(self) -> None:
-        """Plot the K selection curve of cNMF and save to the output folder. 
-        """
+        """Plot the K selection curve of cNMF and save to the output folder."""
         self.cnmf_obj.k_selection_plot(close_fig=False)
 
     def cleanup_cnmf(self) -> None:
-        """Remove the tmp folder to store data used for cNMF. 
-        """
+        """Remove the tmp folder to store data used for cNMF."""
         rmtree(self.output_dir, ignore_errors=True)

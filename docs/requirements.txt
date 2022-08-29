@@ -34,3 +34,4 @@ KDEpy
 
 sphinxcontrib-bibtex>=2.3
 sphinx-gallery
+typing-extensions

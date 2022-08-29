@@ -27,8 +27,8 @@ def lambda_correction(
 
     Raises:
         ValueError: the `lambda_key` cannot be found in `adata.obs`
-        ValueError: `data_type` is set to 'splicing_labeling' but the kinds of layers does not meet requirements. 
-        ValueError: `data_type` is set to 'labeling' but the kinds of layers does not meet requirements. 
+        ValueError: `data_type` is set to 'splicing_labeling' but the kinds of layers does not meet requirements.
+        ValueError: `data_type` is set to 'labeling' but the kinds of layers does not meet requirements.
 
     Returns:
         Union[anndata.AnnData, None]: if `copy` is true, An new or updated anndata object, based on copy parameter, that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.

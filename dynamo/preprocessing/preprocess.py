@@ -1,6 +1,7 @@
 import warnings
 from collections.abc import Iterable
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Tuple, Union
+
 try:
     from typing import Literal
 except ImportError:
@@ -74,7 +75,7 @@ def calc_sz_factor_legacy(
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object. This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata_ori (anndata.AnnData): an AnnData object. 
+        adata_ori (anndata.AnnData): an AnnData object.
         layers (Union[str, list], optional): the layer(s) to be normalized, including RNA (X, raw) or spliced, unspliced, protein, etc. Defaults to "all".
         total_layers (Union[list, None], optional): the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         splicing_total_layers (bool, optional): whether to also normalize spliced / unspliced layers by size factor from total RNA. Defaults to False.
@@ -182,7 +183,7 @@ def normalize_cell_expr_by_size_factors_legacy(
     total_szfactor: str = "total_Size_Factor",
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
-    norm_method: Union[Callable, Literal['clr'], None] = None,
+    norm_method: Union[Callable, Literal["clr"], None] = None,
     pseudo_expr: int = 1,
     relative_expr: bool = True,
     keep_filtered: bool = True,
@@ -286,17 +287,17 @@ def normalize_cell_expr_by_size_factors_legacy(
     return adata
 
 
-def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], list[str]]="all") -> anndata.AnnData: 
+def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all") -> anndata.AnnData:
     """Calculate the Gini coefficient of a numpy array. https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
 
     Args:
         adata (anndata.AnnData): an AnnData object
-        layers (Union[Literal["all"], list[str]], optional): the layer(s) to be normalized. Defaults to "all".
+        layers (Union[Literal["all"], List[str]], optional): the layer(s) to be normalized. Defaults to "all".
 
     Returns:
         anndata.AnnData: an updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
     """
-    
+
     # From: https://github.com/oliviaguest/gini
     # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
@@ -339,7 +340,9 @@ def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], list[str]]="all")
     return adata
 
 
-def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1) -> tuple[list[str], list[pd.DataFrame]]:
+def disp_calc_helper_NB(
+    adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
+) -> Tuple[List[str], List[pd.DataFrame]]:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
@@ -348,8 +351,8 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         min_cells_detected (int, optional): the minimal required number of cells with expression for selecting gene for dispersion fitting. Defaults to 1.
 
     Returns:
-        layers (list[str]): a list of layers available. 
-        res_list (list[pd.DataFrame]): a list of pd.DataFrame's with mu, dispersion for each gene that passes filters.
+        layers (List[str]): a list of layers available.
+        res_list (List[pd.DataFrame]): a list of pd.DataFrame's with mu, dispersion for each gene that passes filters.
     """
 
     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
@@ -393,7 +396,7 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         # For NB: Var(Y) = mu * (1 + mu / k)
         # x.A.var(axis=0, ddof=1)
         f_expression_var = (
-            (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2) * x.shape[0] / (x.shape[0] - 1)
+            (x.multiply(x).mean(0).A1 - f_expression_mean.A1**2) * x.shape[0] / (x.shape[0] - 1)
             if issparse(x)
             else x.var(axis=0, ddof=0) ** 2
         )  # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
@@ -429,7 +432,7 @@ def vstExprs(
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an AnnData object. 
+        adata (anndata.AnnData): an AnnData object.
         expr_matrix (Union[np.ndarray, None], optional): an matrix of values to transform. Must be normalized (e.g. by size factors) already. Defaults to None.
         round_vals (bool, optional): whether to round expression values to the nearest integer before applying the transformation. Defaults to True.
 
@@ -555,7 +558,7 @@ def filter_genes_by_clusters_(
         size_limit (int, optional): the max number of members to be considered in a cluster during calculation. Defaults to 40.
 
     Returns:
-        np.ndarray: a boolean array corresponding to genes selected. 
+        np.ndarray: a boolean array corresponding to genes selected.
     """
     U, S, cluster_uid = (
         adata.layers["unspliced"],
@@ -678,17 +681,17 @@ def recipe_monocle(
     adata: anndata.AnnData,
     reset_X: bool = False,
     tkey: Union[str, None] = None,
-    t_label_keys: Union[str, list[str], None] = None,
+    t_label_keys: Union[str, List[str], None] = None,
     experiment_type: Optional[str] = None,
     normalized: Union[bool, None] = None,
     layer: Union[str, None] = None,
-    total_layers: Union[bool, list[str], None] = None,
+    total_layers: Union[bool, List[str], None] = None,
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
-    genes_use_for_norm: Union[list[str], None] = None,
-    genes_to_use: Union[list[str], None] = None,
-    genes_to_append: Union[list[str], None] = None,
-    genes_to_exclude: Union[list[str], None] = None,
+    genes_use_for_norm: Union[List[str], None] = None,
+    genes_to_use: Union[List[str], None] = None,
+    genes_to_append: Union[List[str], None] = None,
+    genes_to_exclude: Union[List[str], None] = None,
     exprs_frac_for_gene_exclusion: float = 1,
     method: str = "pca",
     num_dim: int = 30,
@@ -708,18 +711,18 @@ def recipe_monocle(
     fg_kwargs: Union[dict, None] = None,
     sg_kwargs: Union[dict, None] = None,
     copy: bool = False,
-    feature_selection_layer: Union[list[str], np.ndarray, np.array, str] = DKM.X_LAYER,
+    feature_selection_layer: Union[List[str], np.ndarray, np.array, str] = DKM.X_LAYER,
 ) -> Union[anndata.AnnData, None]:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an AnnData object. 
-        reset_X (bool, optional): whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data into which the high dimensional RNA velocity vectors will be projected.  
+        adata (anndata.AnnData): an AnnData object.
+        reset_X (bool, optional): whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data into which the high dimensional RNA velocity vectors will be projected.
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to False.
         tkey (Union[str, None], optional): the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
-        t_label_keys (Union[str, list[str], None], optional): the column key(s) for the labeling time label of cells in .obs. Used for either "conventional" or "labeling based" scRNA-seq data. Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time of the experiment). Defaults to None.
+        t_label_keys (Union[str, List[str], None], optional): the column key(s) for the labeling time label of cells in .obs. Used for either "conventional" or "labeling based" scRNA-seq data. Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time of the experiment). Defaults to None.
         experiment_type (Optional[str], optional): experiment type for labeling single cell RNA-seq. Available options are:
             (1) 'conventional': conventional single-cell RNA-seq experiment, if `experiment_type` is `None` and there is only splicing data, this will be set to `conventional`;
             (2) 'deg': chase/degradation experiment. Cells are first labeled with an extended period, followed by chase;
@@ -730,13 +733,13 @@ def recipe_monocle(
             (6) 'mix_std_stm';. Defaults to None.
         normalized (Union[bool, None], optional): if you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid renormalizing your data. By default it is set to be `None` and the first 20 values of adata.X (if adata.X is sparse) or its first column will be checked to determine whether you already normalized your data. This only works for UMI based or read-counts data. Defaults to None.
         layer (Union[str, None], optional): the layer(s) to be normalized. if not supplied, all layers would be used, including RNA (X, raw) or spliced, unspliced, protein, etc. Defaults to None.
-        total_layers (Union[bool, list[str], None], optional): the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["total"], etc. If total_layers is `True`, total_layers will be set to be `total` or ["uu", "ul", "su", "sl"] depends on whether you have labeling but no splicing or labeling and splicing data. Defaults to None.
+        total_layers (Union[bool, List[str], None], optional): the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["total"], etc. If total_layers is `True`, total_layers will be set to be `total` or ["uu", "ul", "su", "sl"] depends on whether you have labeling but no splicing or labeling and splicing data. Defaults to None.
         splicing_total_layers (bool, optional): whether to also normalize spliced / unspliced layers by size factor from total RNA. Defaults to False.
         X_total_layers (bool, optional): whether to also normalize adata.X by size factor from total RNA. Defaults to False.
-        genes_use_for_norm (Union[list[str], None], optional): a list of gene names that will be used to calculate total RNA for each cell and then the size factor for normalization. This is often very useful when you want to use only the host genes to normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
-        genes_to_use (Union[list[str], None], optional): a list of gene names that will be used to set as the feature genes for downstream analysis. Defaults to None.
-        genes_to_append (Union[list[str], None], optional): a list of gene names that will be appended to the feature genes list for downstream analysis. Defaults to None.
-        genes_to_exclude (Union[list[str], None], optional): a list of gene names that will be excluded to the feature genes list for downstream analysis. Defaults to None.
+        genes_use_for_norm (Union[List[str], None], optional): a list of gene names that will be used to calculate total RNA for each cell and then the size factor for normalization. This is often very useful when you want to use only the host genes to normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
+        genes_to_use (Union[List[str], None], optional): a list of gene names that will be used to set as the feature genes for downstream analysis. Defaults to None.
+        genes_to_append (Union[List[str], None], optional): a list of gene names that will be appended to the feature genes list for downstream analysis. Defaults to None.
+        genes_to_exclude (Union[List[str], None], optional): a list of gene names that will be excluded to the feature genes list for downstream analysis. Defaults to None.
         exprs_frac_for_gene_exclusion (float, optional): the minimal fraction of gene counts to the total counts across cells that will used to filter genes. By default it is 1 which means we don't filter any genes, but we need to change it to 0.005 or something in order to remove some highly expressed housekeeping genes. Defaults to 1.
         method (str, optional): the linear dimension reduction methods to be used. Defaults to "pca".
         num_dim (int, optional): the number of linear dimensions reduced to. Defaults to 30.
@@ -756,16 +759,16 @@ def recipe_monocle(
         fg_kwargs (Union[dict, None], optional): other Parameters passed into the filter_genes function. Defaults to None.
         sg_kwargs (Union[dict, None], optional): other Parameters passed into the select_genes function. Defaults to None.
         copy (bool, optional): whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments. Defaults to False.
-        feature_selection_layer (Union[list[str], np.ndarray, np.array, str], optional): name of layers to apply feature selection. Defaults to DKM.X_LAYER.
+        feature_selection_layer (Union[List[str], np.ndarray, np.array, str], optional): name of layers to apply feature selection. Defaults to DKM.X_LAYER.
 
     Raises:
-        ValueError: time key does not existed in adata.obs. 
-        ValueError: provided experiment type is invalid. 
-        Exception: no genes pass basic filter. 
-        Exception: no cells pass basic filter. 
-        Exception: genes_to_use contains genes that are not found in adata. 
-        ValueError: provided layer(s) is invalid. 
-        ValueError: genes_to_append contains invalid genes. 
+        ValueError: time key does not existed in adata.obs.
+        ValueError: provided experiment type is invalid.
+        Exception: no genes pass basic filter.
+        Exception: no cells pass basic filter.
+        Exception: genes_to_use contains genes that are not found in adata.
+        ValueError: provided layer(s) is invalid.
+        ValueError: genes_to_append contains invalid genes.
 
     Returns:
         Union[anndata.AnnData, None]: a new updated anndata object if `copy` arg is `True`. In the object, Size_Factor, normalized expression values, X and reduced dimensions, etc., are updated.
@@ -1186,7 +1189,7 @@ def recipe_monocle(
     adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
     pca_input = pca_input[:, valid_ind]
     logger.info("applying %s ..." % (method.upper()))
-    
+
     if method == "pca":
         adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower())
         # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead
@@ -1248,22 +1251,22 @@ def recipe_monocle(
 
 def recipe_velocyto(
     adata: anndata.AnnData,
-    total_layers: Union[list[str], None]=None,
-    method: str="pca",
-    num_dim: int=30,
-    norm_method: Union[Callable, str, None]=None,
-    pseudo_expr: int=1,
-    feature_selection: str="SVR",
-    n_top_genes: int=2000,
-    cluster: str="Clusters",
-    relative_expr: bool=True,
-    keep_filtered_genes: Union[bool, None]=None,
+    total_layers: Union[List[str], None] = None,
+    method: str = "pca",
+    num_dim: int = 30,
+    norm_method: Union[Callable, str, None] = None,
+    pseudo_expr: int = 1,
+    feature_selection: str = "SVR",
+    n_top_genes: int = 2000,
+    cluster: str = "Clusters",
+    relative_expr: bool = True,
+    keep_filtered_genes: Union[bool, None] = None,
 ) -> anndata.AnnData:
     """This function is adapted from the velocyto's DentateGyrus notebook.
 
     Args:
         adata (anndata.AnnData): an AnnData object
-        total_layers (Union[list[str], None], optional): the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
+        total_layers (Union[List[str], None], optional): the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         method (str, optional): the linear dimension reduction methods to be used. Defaults to "pca".
         num_dim (int, optional): the number of linear dimensions reduced to. Defaults to 30.
         norm_method (Union[Callable, str, None], optional): the method to normalize the data. Defaults to None.

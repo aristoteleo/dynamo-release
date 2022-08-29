@@ -227,7 +227,7 @@ def zstreamline(
         "zorder": 3,
     }
 
-    mass = np.sqrt((V_grid ** 2).sum(0))
+    mass = np.sqrt((V_grid**2).sum(0))
     # velocity filtering
     if min_vel_mag is not None:
         min_vel_mag = np.clip(min_vel_mag, None, np.quantile(mass, 0.4))

@@ -2,7 +2,7 @@
 # https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/cell_cycle.py
 
 from collections import OrderedDict
-from typing import Union
+from typing import Tuple, Union
 
 import anndata
 import numpy as np
@@ -13,7 +13,7 @@ from ..tools.utils import einsum_correlation, log1p_
 from ..utils import LoggerManager, copy_adata
 
 
-def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list) -> tuple[np.ndarray, np.ndarray]:
+def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list) -> Tuple[np.ndarray, np.ndarray]:
     """Measures the correlation of all genes within a list to the average expression of all genes within that
     list (used for cell cycle position calling)
 
@@ -26,7 +26,7 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
         Exception: if gene_list is empty, raise this exception
 
     Returns:
-        valid_gene_list (np.ndarray): valid gene names. 
+        valid_gene_list (np.ndarray): valid gene names.
         corr (np.ndarray): the correlation coefficient of each gene with the mean expression of all.
     """
 

@@ -5,7 +5,7 @@ import numpy as np
 
 
 def curve_coord(line=None):
-    """ return curvilinear coordinate """
+    """return curvilinear coordinate"""
     x = line[:, 0]
     y = line[:, 1]
     s = np.zeros(x.shape)
@@ -15,7 +15,7 @@ def curve_coord(line=None):
 
 
 def curve_extract(line, spacing, offset=None):
-    """ Extract points at equidistant space along a curve"""
+    """Extract points at equidistant space along a curve"""
     x = line[:, 0]
     y = line[:, 1]
     if offset is None:
@@ -32,7 +32,7 @@ def curve_extract(line, spacing, offset=None):
 
 
 def seg_to_lines(seg):
-    """ Convert a list of segments to a list of lines """
+    """Convert a list of segments to a list of lines"""
 
     def extract_continuous(i):
         x = []
@@ -96,7 +96,7 @@ def lines_to_arrows(lines, n=5, spacing=None, normalize=True):
     arrow_dy = [le[i, 1] - ls[i, 1] for ls, le in zip(lines_s, lines_e) for i in range(len(ls))]
 
     if normalize:
-        dn = [np.sqrt(ddx ** 2 + ddy ** 2) for ddx, ddy in zip(arrow_dx, arrow_dy)]
+        dn = [np.sqrt(ddx**2 + ddy**2) for ddx, ddy in zip(arrow_dx, arrow_dy)]
         arrow_dx = [ddx / ddn for ddx, ddn in zip(arrow_dx, dn)]
         arrow_dy = [ddy / ddn for ddy, ddn in zip(arrow_dy, dn)]
     return arrow_x, arrow_y, arrow_dx, arrow_dy

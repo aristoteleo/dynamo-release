@@ -663,7 +663,7 @@ def solve_alpha_degradation(t, u, beta, intercept=False):
     ym = np.mean(y)
 
     # calculate slope
-    var_x = np.mean(x ** 2) - xm ** 2
+    var_x = np.mean(x**2) - xm**2
     cov = np.sum(y.dot(x)) / n - ym * xm
     k = cov / var_x
 
@@ -776,7 +776,7 @@ def concat_time_series_matrices(mats, t=None):
 # ---------------------------------------------------------------------------------------------------
 # negbin method related
 def compute_dispersion(mX, varX):
-    phi = fit_linreg(mX ** 2, varX - mX, intercept=False)[0]
+    phi = fit_linreg(mX**2, varX - mX, intercept=False)[0]
     return phi
 
 

@@ -1,5 +1,6 @@
 import warnings
-from typing import Callable, Union
+from typing import Callable, List, Tuple, Union
+
 try:
     from typing import Literal
 except ImportError:
@@ -12,8 +13,8 @@ import scipy.sparse
 from anndata import AnnData
 from scipy.sparse.base import issparse
 from scipy.sparse.csr import csr_matrix
-from sklearn.utils import sparsefuncs
 from sklearn.svm import SVR
+from sklearn.utils import sparsefuncs
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import (
@@ -76,9 +77,9 @@ def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
 def _infer_labeling_experiment_type(adata: anndata.AnnData, tkey: str) -> Literal["one-shot", "kin", "deg"]:
     """Returns the experiment type of `adata` according to `tkey`s
 
-    Args: 
-        adata (anndata.AnnData): an AnnData Object. 
-        tkey (str): the key for time in `adata.obs`. 
+    Args:
+        adata (anndata.AnnData): an AnnData Object.
+        tkey (str): the key for time in `adata.obs`.
 
     Returns:
         Literal["one-shot", "kin", "deg"]: experiment type, must be one of "one-shot", "kin" and "deg"
@@ -129,15 +130,17 @@ def clip_by_perc(layer_mat):
     return
 
 
-def calc_mean_var_dispersion_general_mat(data_mat: Union[np.ndarray, scipy.sparse.csr_matrix], axis: int=0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """calculate mean, variance, and dispersion of a matrix. 
+def calc_mean_var_dispersion_general_mat(
+    data_mat: Union[np.ndarray, scipy.sparse.csr_matrix], axis: int = 0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """calculate mean, variance, and dispersion of a matrix.
 
     Args:
-        data_mat (Union[np.ndarray, scipy.sparse.csr_matrix]): the matrix to be evaluated, either a ndarray or a scipy sparse matrix. 
+        data_mat (Union[np.ndarray, scipy.sparse.csr_matrix]): the matrix to be evaluated, either a ndarray or a scipy sparse matrix.
         axis (int, optional): the axis along which calculation is performed. Defaults to 0.
 
     Returns:
-        mean (np.ndarray): mean of the array along the given axis. 
+        mean (np.ndarray): mean of the array along the given axis.
         var (np.ndarray): variance of the array along the given axis.
         dispersion (np.ndarray): dispersion of the array along the given axis.
     """
@@ -148,15 +151,15 @@ def calc_mean_var_dispersion_general_mat(data_mat: Union[np.ndarray, scipy.spars
         return calc_mean_var_dispersion_sparse(data_mat, axis)
 
 
-def calc_mean_var_dispersion_ndarray(data_mat: np.ndarray, axis=0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """calculate mean, variance, and dispersion of a non-sparse matrix. 
+def calc_mean_var_dispersion_ndarray(data_mat: np.ndarray, axis=0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """calculate mean, variance, and dispersion of a non-sparse matrix.
 
     Args:
-        data_mat (np.ndarray): the matrix to be evaluated. 
+        data_mat (np.ndarray): the matrix to be evaluated.
         axis (int, optional): the axis along which calculation is performed. Defaults to 0.
 
     Returns:
-        mean (np.ndarray): mean of the array along the given axis. 
+        mean (np.ndarray): mean of the array along the given axis.
         var (np.ndarray): variance of the array along the given axis.
         dispersion (np.ndarray): dispersion of the array along the given axis.
     """
@@ -174,15 +177,15 @@ def calc_mean_var_dispersion_ndarray(data_mat: np.ndarray, axis=0) -> tuple[np.n
 
 def calc_mean_var_dispersion_sparse(
     sparse_mat: scipy.sparse.csr_matrix, axis=0
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """calculate mean, variance, and dispersion of a matrix. 
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """calculate mean, variance, and dispersion of a matrix.
 
     Args:
         sparse_mat (scipy.sparse.csr_matrix): the sparse matrix to be evaluated.
         axis (int, optional): the axis along which calculation is performed. Defaults to 0.
 
     Returns:
-        mean (np.ndarray): mean of the array along the given axis. 
+        mean (np.ndarray): mean of the array along the given axis.
         var (np.ndarray): variance of the array along the given axis.
         dispersion (np.ndarray): dispersion of the array along the given axis.
     """
@@ -203,17 +206,21 @@ def calc_mean_var_dispersion_sparse(
     return np.array(mean).flatten(), np.array(var).flatten(), np.array(dispersion).flatten()
 
 
-def seurat_get_mean_var(X: Union[scipy.sparse.csr_matrix, np.ndarray], ignore_zeros: bool=False, perc: Union[float, list[float], None]=None) -> tuple[np.ndarray, np.ndarray]:
+def seurat_get_mean_var(
+    X: Union[scipy.sparse.csr_matrix, np.ndarray],
+    ignore_zeros: bool = False,
+    perc: Union[float, List[float], None] = None,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Only used in seurat impl to match seurat and scvelo implementation result.
 
     Args:
-        X (Union[scipy.sparse.csr_matrix, np.ndarray]): a matrix as np.ndarray or a sparse matrix as scipy sparse matrix. 
+        X (Union[scipy.sparse.csr_matrix, np.ndarray]): a matrix as np.ndarray or a sparse matrix as scipy sparse matrix.
         ignore_zeros (bool, optional): whether ignore columns with 0 only. Defaults to False.
-        perc (Union[float, list[float], None], optional): perc as the min/max boundary of the elements. Defaults to None.
+        perc (Union[float, List[float], None], optional): perc as the min/max boundary of the elements. Defaults to None.
 
     Returns:
-        mean (np.ndarray): mean of the columns after processing of the matrix. 
-        var (np.ndarray): variance of the columns after processing of the matrix. 
+        mean (np.ndarray): mean of the columns after processing of the matrix.
+        var (np.ndarray): variance of the columns after processing of the matrix.
     """
 
     data = X.data if issparse(X) else X
@@ -244,7 +251,7 @@ def seurat_get_mean_var(X: Union[scipy.sparse.csr_matrix, np.ndarray], ignore_ze
         mean = X.sum(0) / n_counts
         mean_sq = np.multiply(X, X).sum(0) / n_counts
     n_cells = np.clip(X.shape[0], 2, None)  # to avoid division by zero
-    var = (mean_sq - mean ** 2) * (n_cells / (n_cells - 1))
+    var = (mean_sq - mean**2) * (n_cells / (n_cells - 1))
 
     mean = np.nan_to_num(mean)
     var = np.nan_to_num(var)
@@ -257,14 +264,14 @@ def select_genes_by_dispersion_general(
     nan_replace_val: Union[float, None] = None,
     n_top_genes: int = 2000,
     recipe: Literal["monocle", "svr", "seurat"] = "monocle",
-    seurat_min_disp: Union[float, None]=None,
-    seurat_max_disp: Union[float, None]=None,
-    seurat_min_mean: Union[float, None]=None,
-    seurat_max_mean: Union[float, None]=None,
+    seurat_min_disp: Union[float, None] = None,
+    seurat_max_disp: Union[float, None] = None,
+    seurat_min_mean: Union[float, None] = None,
+    seurat_max_mean: Union[float, None] = None,
     monocle_kwargs: dict = {},
-    gene_names: Union[list[str], None] = None,
+    gene_names: Union[List[str], None] = None,
     var_filter_key: str = "pass_basic_filter",
-    inplace: bool=False,
+    inplace: bool = False,
 ) -> None:
     """A general function for filter genes family. Preprocess adata and dispatch to different filtering methods, and eventually set keys in anndata to denote which genes are wanted in downstream analysis.
 
@@ -279,12 +286,12 @@ def select_genes_by_dispersion_general(
         seurat_min_mean (Union[float, None], optional): seurat mean min cutoff. Defaults to None.
         seurat_max_mean (Union[float, None], optional): seurat mean max cutoff. Defaults to None.
         monocle_kwargs (dict, optional): kwargs for `select_genes_monocle`. Defaults to {}.
-        gene_names (Union[list[str], None], optional): name of genes to be selected. Defaults to None.
+        gene_names (Union[List[str], None], optional): name of genes to be selected. Defaults to None.
         var_filter_key (str, optional): filter name defined in `adata.var` to filter genes to be selected. Defaults to "pass_basic_filter".
         inplace (bool, optional): whether set the selected gene in place. Defaults to False.
 
     Raises:
-        NotImplementedError: the recipe is invalid/unsupported. 
+        NotImplementedError: the recipe is invalid/unsupported.
     """
 
     main_info("filtering genes by dispersion...")
@@ -367,18 +374,18 @@ def select_genes_by_seurat_recipe(
     adata: AnnData,
     sparse_layer_mat: scipy.sparse.csr_matrix,
     n_bins: int = 20,
-    log_mean_and_dispersion: bool=True,
-    min_disp: float=None,
-    max_disp: float=None,
-    min_mean: float=None,
-    max_mean: float=None,
+    log_mean_and_dispersion: bool = True,
+    min_disp: float = None,
+    max_disp: float = None,
+    min_mean: float = None,
+    max_mean: float = None,
     n_top_genes: Union[int, None] = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, None]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, None]:
     """Apply seurat's gene selection therapy by cutoffs. https://satijalab.org/seurat/reference/findvariablefeatures
 
     Args:
         adata (AnnData): an AnnData object
-        sparse_layer_mat (scipy.sparse.csr_matrix): the sparse matrix used for gene selection. 
+        sparse_layer_mat (scipy.sparse.csr_matrix): the sparse matrix used for gene selection.
         n_bins (int, optional): the number of bins for normalization. Defaults to 20.
         log_mean_and_dispersion (bool, optional): whether log the values before calculation. Defaults to True.
         min_disp (float, optional): seurat dispersion min cutoff. Defaults to None.
@@ -388,10 +395,10 @@ def select_genes_by_seurat_recipe(
         n_top_genes (Union[int, None], optional): number of top genes to be evaluated. If set to None, genes are filtered by mean and dispersion norm threshold. Defaults to None.
 
     Returns:
-        mean (np.ndarray): mean of the provided sparse matrix. 
-        variance (np.ndarray): variance of the provided sparse matrix. 
-        highly_variable_mask (np.ndarray): a bool array indicating whether an element (a gene) is highly variable in the matrix. 
-        highly_variable_scores (None): not applicable for seurat recipe. 
+        mean (np.ndarray): mean of the provided sparse matrix.
+        variance (np.ndarray): variance of the provided sparse matrix.
+        highly_variable_mask (np.ndarray): a bool array indicating whether an element (a gene) is highly variable in the matrix.
+        highly_variable_scores (None): not applicable for seurat recipe.
     """
 
     # default values from Seurat
@@ -431,7 +438,7 @@ def select_genes_by_seurat_recipe(
     # normalized dispersion
     mean = disp_mean_bin[temp_df["mean_bin"].values].values
     std = disp_std_bin[temp_df["mean_bin"].values].values
-    variance = std ** 2
+    variance = std**2
     temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) / std).fillna(0)
     dispersion_norm = temp_df["dispersion_norm"].values
 
@@ -455,19 +462,19 @@ def select_genes_by_seurat_recipe(
 
 def select_genes_by_dispersion_svr(
     adata: AnnData, layer_mat: Union[np.array, scipy.sparse.csr_matrix], n_top_genes: int
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Filters adata's genes according to layer_mat, and set adata's preprocess keys for downstream analysis
 
     Args:
         adata (AnnData): an AnnData object
         layer_mat (Union[np.array, scipy.sparse.csr_matrix]): the matrix used for select genes with shape of #cells X #genes.
-        n_top_genes (int): the number of genes to use. 
+        n_top_genes (int): the number of genes to use.
 
     Returns:
-        mean (np.ndarray): mean of the provided sparse matrix. 
-        variance (np.ndarray): variance of the provided sparse matrix. 
-        highly_variable_mask (np.ndarray): a bool array indicating whether an element (a gene) is highly variable in the matrix. 
-        highly_variable_scores (None): an array recording variable score for each gene. 
+        mean (np.ndarray): mean of the provided sparse matrix.
+        variance (np.ndarray): variance of the provided sparse matrix.
+        highly_variable_mask (np.ndarray): a bool array indicating whether an element (a gene) is highly variable in the matrix.
+        highly_variable_scores (None): an array recording variable score for each gene.
     """
 
     main_debug("type of layer_mat:" + str(type(layer_mat)))
@@ -497,7 +504,7 @@ def SVRs(
     max_expr_avg: int = 0,
     svr_gamma: Union[float, None] = None,
     winsorize: bool = False,
-    winsor_perc: tuple[float, float] = (1, 99.5),
+    winsor_perc: Tuple[float, float] = (1, 99.5),
     sort_inverse: bool = False,
     use_all_genes_cells: bool = False,
 ) -> anndata.AnnData:
@@ -514,7 +521,7 @@ def SVRs(
         max_expr_avg (int, optional): The maximum average of genes across cells accepted before treating house-keeping/outliers for removal. Defaults to 0.
         svr_gamma (Union[float, None], optional): the gamma hyper-parameter of the SVR. Defaults to None.
         winsorize (bool, optional): Wether to winsorize the data for the cv vs mean model. Defaults to False.
-        winsor_perc (tuple[float, float], optional): the up and lower bound of the winsorization. Defaults to (1, 99.5).
+        winsor_perc (Tuple[float, float], optional): the up and lower bound of the winsorization. Defaults to (1, 99.5).
         sort_inverse (bool, optional): whether to sort genes from less noisy to more noisy (to use for size estimation not for feature selection). Defaults to False.
         use_all_genes_cells (bool, optional): A logic flag to determine whether all cells and genes should be used for the size factor calculation. Defaults to False.
 
@@ -663,12 +670,12 @@ def select_genes_monocle(
     SVRs_kwargs: dict = {},
     only_bools: bool = False,
     exprs_frac_for_gene_exclusion: float = 1,
-    genes_to_exclude: Union[list[str], None] = None,
+    genes_to_exclude: Union[List[str], None] = None,
 ) -> Union[anndata.AnnData, np.ndarray]:
     """Select genes based on monocle recipe. This version is here for modularization of preprocessing, so that users may try combinations of different preprocessing procesudres in Preprocessor.
 
     Args:
-        adata (anndata.AnnData): an AnnData object. 
+        adata (anndata.AnnData): an AnnData object.
         layer (str, optional): The data from a particular layer (include X) used for feature selection. Defaults to "X".
         total_szfactor (str, optional): The column name in the .obs attribute that corresponds to the size factor for the total mRNA. Defaults to "total_Size_Factor".
         keep_filtered (bool, optional): Whether to keep genes that don't pass the filtering in the adata object. Defaults to True.
@@ -677,13 +684,13 @@ def select_genes_monocle(
         SVRs_kwargs (dict, optional): kwargs for `SVRs`. Defaults to {}.
         only_bools (bool, optional): Only return a vector of bool values. Defaults to False.
         exprs_frac_for_gene_exclusion (float, optional): threshold of fractions for high fraction genes. Defaults to 1.
-        genes_to_exclude (Union[list[str], None], optional): genes that are excluded from evaluation. Defaults to None.
+        genes_to_exclude (Union[List[str], None], optional): genes that are excluded from evaluation. Defaults to None.
 
     Returns:
-        adata (anndata.AnnData): the adata object with genes updated. Returned if `only_bools` is false. 
-        filterbool (np.ndarray): the bool array representing selected genes. Returned if `only_bools` is true. 
+        adata (anndata.AnnData): the adata object with genes updated. Returned if `only_bools` is false.
+        filterbool (np.ndarray): the bool array representing selected genes. Returned if `only_bools` is true.
     """
-    
+
     # The following size factor calculation is now a prerequisite for monocle recipe preprocess in preprocessor.
     adata = calc_sz_factor(
         adata,
@@ -762,20 +769,24 @@ def select_genes_monocle(
 
 
 def get_highly_variable_mask_by_dispersion_svr(
-    mean: np.ndarray, var: np.ndarray, n_top_genes: int, svr_gamma: Union[float, None] = None, return_scores: bool=True
-) -> Union[tuple[np.ndarray, np.ndarray], np.ndarray]:
+    mean: np.ndarray,
+    var: np.ndarray,
+    n_top_genes: int,
+    svr_gamma: Union[float, None] = None,
+    return_scores: bool = True,
+) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     """Returns the mask with shape same as mean and var, indicating whether each index is highly variable or not. Each index should represent a gene.
 
     Args:
-        mean (np.ndarray): mean of the genes. 
+        mean (np.ndarray): mean of the genes.
         var (np.ndarray): variance of the genes.
-        n_top_genes (int): the number of top genes to be inspected. 
+        n_top_genes (int): the number of top genes to be inspected.
         svr_gamma (Union[float, None], optional): coefficient for support vector regression. Defaults to None.
         return_scores (bool, optional): whether returen the highly-variable scores. Defaults to True.
 
     Returns:
-        highly_variable_mask (np.ndarray): a bool array indicating whether an element (a gene) is highly variable in the matrix. 
-        scores (np.ndarray): an array recording variable score for each gene. 
+        highly_variable_mask (np.ndarray): a bool array indicating whether an element (a gene) is highly variable in the matrix.
+        scores (np.ndarray): an array recording variable score for each gene.
     """
 
     # normally, select svr_gamma based on #features
@@ -810,15 +821,15 @@ def get_highly_variable_mask_by_dispersion_svr(
 
 
 def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
-    """Calculate log1p  of adata's specific layer data. 
+    """Calculate log1p  of adata's specific layer data.
 
     Args:
-        adata (AnnData): an AnnData object. 
+        adata (AnnData): an AnnData object.
         layer (str, optional): the layer to operate on. Defaults to DKM.X_LAYER.
         copy (bool, optional): whether operate on the original object or on a copied one and return it. Defaults to False.
 
     Returns:
-        AnnData: the updated AnnData object. 
+        AnnData: the updated AnnData object.
     """
 
     _adata = adata
@@ -832,12 +843,12 @@ def log1p_adata(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False
     """Perform log1p transform on selected adata layers
 
     Args:
-        adata (AnnData): an AnnData object. 
+        adata (AnnData): an AnnData object.
         layers (list, optional): the layers to operate on. Defaults to [DKM.X_LAYER].
         copy (bool, optional): whether operate on the original object or on a copied one and return it. Defaults to False.
 
     Returns:
-        AnnData: the updated AnnData object. 
+        AnnData: the updated AnnData object.
     """
 
     _adata = adata
@@ -850,24 +861,24 @@ def log1p_adata(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False
     return _adata
 
 
-def _log1p_inplace(data: np.ndarray) -> np.ndarray: 
-    """Calculate log1p (log(1+x)) of an array and update the array inplace. 
+def _log1p_inplace(data: np.ndarray) -> np.ndarray:
+    """Calculate log1p (log(1+x)) of an array and update the array inplace.
 
     Args:
-        data (np.ndarray): the array for calculation. 
+        data (np.ndarray): the array for calculation.
 
     Returns:
-        np.ndarray: the updated array. 
+        np.ndarray: the updated array.
     """
 
     return np.log1p(data, out=data)
 
 
 def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
-    """Calculate log1p (log(1+x)) for a layer of an AnnData object inplace. 
+    """Calculate log1p (log(1+x)) for a layer of an AnnData object inplace.
 
     Args:
-        adata (AnnData): an AnnData object. 
+        adata (AnnData): an AnnData object.
         layer (str, optional): the layer to operate on. Defaults to DKM.X_LAYER.
     """
 
@@ -902,7 +913,7 @@ def filter_genes_by_outliers(
     """Basic filter of genes based a collection of expression filters.
 
     Args:
-        adata (anndata.AnnData): an AnnData object. 
+        adata (anndata.AnnData): an AnnData object.
         filter_bool (Union[np.ndarray, None], optional): A boolean array from the user to select genes for downstream analysis. Defaults to None.
         layer (str, optional): the data from a particular layer (include X) used for feature selection. Defaults to "all".
         min_cell_s (int, optional): minimal number of cells with expression for the data in the spliced layer (also used for X). Defaults to 1.
@@ -919,8 +930,8 @@ def filter_genes_by_outliers(
         inplace (bool, optional): whether to update the layer inplace. Defaults to False.
 
     Returns:
-        adata (anndata.AnnData): an updated AnnData object with genes filtered. Returned if `inplace` is true. 
-        pass_basic_filter_array (np.ndarray): an array containing filtered genes. Returned if `inplace` is false. 
+        adata (anndata.AnnData): an updated AnnData object with genes filtered. Returned if `inplace` is true.
+        pass_basic_filter_array (np.ndarray): an array containing filtered genes. Returned if `inplace` is false.
     """
 
     detected_bool = np.ones(adata.shape[1], dtype=bool)
@@ -994,18 +1005,20 @@ def filter_genes_by_outliers(
     return adata.var["pass_basic_filter"]
 
 
-def get_sum_in_range_mask(data_mat: np.ndarray, min_val: float, max_val: float, axis: int=0, data_min_val_threshold: float=0) -> np.ndarray:
+def get_sum_in_range_mask(
+    data_mat: np.ndarray, min_val: float, max_val: float, axis: int = 0, data_min_val_threshold: float = 0
+) -> np.ndarray:
     """Check if data_mat's sum is inrange or not along an axis. data_mat's values < data_min_val_threshold is ignored.
 
     Args:
-        data_mat (np.ndarray): the array to be inspected. 
-        min_val (float): the lower bound of the range. 
-        max_val (float): the upper bound of the range. 
+        data_mat (np.ndarray): the array to be inspected.
+        min_val (float): the lower bound of the range.
+        max_val (float): the upper bound of the range.
         axis (int, optional): the axis to sum. Defaults to 0.
         data_min_val_threshold (float, optional): the lower threshold for valid data. Defaults to 0.
 
     Returns:
-        np.ndarray: a bool array indicating whether the sum is inrage or not. 
+        np.ndarray: a bool array indicating whether the sum is inrage or not.
     """
 
     return (
@@ -1034,7 +1047,7 @@ def filter_cells_by_outliers(
     """Select valid cells based on a collection of filters including spliced, unspliced and protein min/max vals.
 
     Args:
-        adata (anndata.AnnData): an AnnData object. 
+        adata (anndata.AnnData): an AnnData object.
         filter_bool (Union[np.ndarray, None], optional): a boolean array from the user to select cells for downstream analysis. Defaults to None.
         layer (str, optional): the layer (include X) used for feature selection. Defaults to "all".
         keep_filtered (bool, optional): whether to keep cells that don't pass the filtering in the adata object. Defaults to False.
@@ -1051,7 +1064,7 @@ def filter_cells_by_outliers(
         obs_store_key (str, optional): name of the layer to store the filtered data. Defaults to "pass_basic_filter".
 
     Raises:
-        ValueError: the layer provided is invalid. 
+        ValueError: the layer provided is invalid.
 
     Returns:
         anndata.AnnData: An updated AnnData object indicating the selection of cells for downstream analysis. adata will be subsetted with only the cells pass filtering if keep_filtered is set to be False.
@@ -1107,13 +1120,13 @@ def get_filter_mask_cells_by_outliers(
     """Select valid cells based on a collection of filters including spliced, unspliced and protein min/max vals.
 
     Args:
-        adata (anndata.AnnData): an AnnData object. 
+        adata (anndata.AnnData): an AnnData object.
         layers (list, optional): a list of layers to be operated on. Defaults to None.
         layer2range (dict, optional): a dict of ranges, layer str to range tuple. Defaults to None.
         shared_count (Union[int, None], optional): the minimal shared number of counts for each cell across genes between layers. Defaults to None.
 
     Returns:
-        np.ndarray: a bool array indicating valid cells. 
+        np.ndarray: a bool array indicating valid cells.
     """
 
     detected_mask = np.full(adata.n_obs, True)
@@ -1150,8 +1163,8 @@ def get_filter_mask_cells_by_outliers(
 # TODO It is easy prone to refactor the function below. will refactor together with DKM replacements.
 def calc_sz_factor(
     adata_ori: anndata.AnnData,
-    layers: Union[str, list[str]] = "all",
-    total_layers: Union[list[str], None] = None,
+    layers: Union[str, List[str]] = "all",
+    total_layers: Union[List[str], None] = None,
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
     locfunc: Callable = np.nanmean,
@@ -1159,15 +1172,15 @@ def calc_sz_factor(
     method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
     use_all_genes_cells: bool = True,
-    genes_use_for_norm: Union[list[str], None] = None,
+    genes_use_for_norm: Union[List[str], None] = None,
 ) -> anndata.AnnData:
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata_ori (anndata.AnnData): an AnnData object. 
-        layers (Union[str, list[str]], optional): the layer(s) to be normalized. Defaults to "all", including RNA (X, raw) or spliced, unspliced, protein, etc.
-        total_layers (Union[list[str], None], optional): the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
+        adata_ori (anndata.AnnData): an AnnData object.
+        layers (Union[str, List[str]], optional): the layer(s) to be normalized. Defaults to "all", including RNA (X, raw) or spliced, unspliced, protein, etc.
+        total_layers (Union[List[str], None], optional): the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         splicing_total_layers (bool, optional): whether to also normalize spliced / unspliced layers by size factor from total RNA. Defaults to False.
         X_total_layers (bool, optional): whether to also normalize adata.X by size factor from total RNA. Defaults to False.
         locfunc (Callable, optional): the function to normalize the data. Defaults to np.nanmean.
@@ -1175,7 +1188,7 @@ def calc_sz_factor(
         method (Literal["mean-geometric-mean-total", "geometric", "median"], optional): the method used to calculate the expected total reads / UMI used in size factor calculation. Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with `np.nanmedian`. Defaults to "median".
         scale_to (Union[float, None], optional): the final total expression for each cell that will be scaled to. Defaults to None.
         use_all_genes_cells (bool, optional): whether all cells and genes should be used for the size factor calculation. Defaults to True.
-        genes_use_for_norm (Union[list[str], None], optional): A list of gene names that will be used to calculate total RNA for each cell and then the size factor for normalization. This is often very useful when you want to use only the host genes to normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
+        genes_use_for_norm (Union[List[str], None], optional): A list of gene names that will be used to calculate total RNA for each cell and then the size factor for normalization. This is often very useful when you want to use only the host genes to normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
 
     Returns:
         anndata.AnnData: An updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
@@ -1285,7 +1298,7 @@ def normalize_cell_expr_by_size_factors(
     """Normalize the gene expression value for the AnnData object. This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an AnnData object. 
+        adata (anndata.AnnData): an AnnData object.
         layers (str, optional): the layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_szfactor (str, optional): the column name in the .obs attribute that corresponds to the size factor for the total mRNA. Defaults to "total_Size_Factor".
         splicing_total_layers (bool, optional): whether to also normalize spliced / unspliced layers by size factor from total RNA. Defaults to False.
@@ -1397,10 +1410,10 @@ def normalize_cell_expr_by_size_factors(
 
 
 def is_nonnegative(mat: Union[np.ndarray, scipy.sparse.spmatrix, list]) -> bool:
-    """Test whether all elements of an array or sparse array are non-negative. 
+    """Test whether all elements of an array or sparse array are non-negative.
 
     Args:
-        mat (Union[np.ndarray, scipy.sparse.spmatrix, list]): an array in ndarray or sparse array in scipy spmatrix. 
+        mat (Union[np.ndarray, scipy.sparse.spmatrix, list]): an array in ndarray or sparse array in scipy spmatrix.
 
     Returns:
         bool: whether all elements are non-negative.
@@ -1418,7 +1431,7 @@ def is_integer_arr(arr: Union[np.ndarray, scipy.sparse.spmatrix, list]) -> bool:
         arr (Union[np.ndarray, scipy.sparse.spmatrix, list]): an array like object.
 
     Returns:
-        bool: whether the array's dtype is integer. 
+        bool: whether the array's dtype is integer.
     """
 
     return np.issubdtype(arr.dtype, np.integer) or np.issubdtype(arr.dtype, int)
@@ -1431,7 +1444,7 @@ def is_float_integer_arr(arr: Union[np.ndarray, scipy.sparse.spmatrix, list]) ->
         arr (Union[np.ndarray, scipy.sparse.spmatrix, list]): an input array.
 
     Returns:
-        bool: whether all elements of the array are integers. 
+        bool: whether all elements of the array are integers.
     """
 
     if issparse(arr):
@@ -1443,10 +1456,10 @@ def is_nonnegative_integer_arr(mat: Union[np.ndarray, scipy.sparse.spmatrix, lis
     """Test if an array's elements are non-negative integers
 
     Args:
-        mat (Union[np.ndarray, scipy.sparse.spmatrix, list]): an input array. 
+        mat (Union[np.ndarray, scipy.sparse.spmatrix, list]): an input array.
 
     Returns:
-        bool: whether all elements of the array are non-negative integers. 
+        bool: whether all elements of the array are non-negative integers.
     """
 
     if (not is_integer_arr(mat)) and (not is_float_integer_arr(mat)):
@@ -1454,14 +1467,16 @@ def is_nonnegative_integer_arr(mat: Union[np.ndarray, scipy.sparse.spmatrix, lis
     return is_nonnegative(mat)
 
 
-def pca_selected_genes_wrapper(adata: AnnData, pca_input: Union[np.ndarray, None]=None, n_pca_components: int = 30, key: str = "X_pca"):
-    """A wrapper for pca_monocle function to reduce dimensions of the Adata with PCA. 
+def pca_selected_genes_wrapper(
+    adata: AnnData, pca_input: Union[np.ndarray, None] = None, n_pca_components: int = 30, key: str = "X_pca"
+):
+    """A wrapper for pca_monocle function to reduce dimensions of the Adata with PCA.
 
     Args:
-        adata (AnnData): an AnnData object. 
+        adata (AnnData): an AnnData object.
         pca_input (Union[np.ndarray, None], optional): an array for nearest neighbor search directly. Defaults to None.
         n_pca_components (int, optional): number of PCA components. Defaults to 30.
         key (str, optional): the key to store the calculation result. Defaults to "X_pca".
     """
-    
+
     adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)

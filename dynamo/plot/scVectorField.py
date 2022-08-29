@@ -470,7 +470,7 @@ def line_integral_conv(
             V_grid = V_grid_[1, :, :].T
 
     if V_threshold is not None:
-        mass = np.sqrt((V_grid ** 2).sum(0))
+        mass = np.sqrt((V_grid**2).sum(0))
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
 
@@ -498,7 +498,7 @@ def line_integral_conv(
         data["velocity_y"] = (velocity_y, "km/s")
         data["velocity_z"] = (velocity_z, "km/s")
         data["velocity_sum"] = (
-            np.sqrt(velocity_x ** 2 + velocity_y ** 2),
+            np.sqrt(velocity_x**2 + velocity_y**2),
             "km/s",
         )
 
@@ -1623,7 +1623,7 @@ def streamline_plot(
         "integration_direction": "both",
         "zorder": 3,
     }
-    mass = np.sqrt((V_grid ** 2).sum(0))
+    mass = np.sqrt((V_grid**2).sum(0))
     linewidth *= 2 * mass / mass[~np.isnan(mass)].max()
     streamplot_kwargs.update({"linewidth": linewidth * streamline_kwargs.pop("linewidth", 1)})
 

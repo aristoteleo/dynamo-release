@@ -1,9 +1,11 @@
 import re
+from typing import List, Tuple
+
 import anndata
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix, issparse
 import statsmodels.api as sm
+from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
@@ -16,17 +18,19 @@ from ..dynamo_logger import (
 from .utils import cook_dist
 
 
-def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])) -> tuple[sm.formula.glm, np.ndarray, pd.DataFrame]:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3). 
+def parametric_dispersion_fit(
+    disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])
+) -> Tuple[sm.formula.glm, np.ndarray, pd.DataFrame]:
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
         disp_table (pd.DataFrame): A pandas dataframe with mu, dispersion for each gene that passes filters.
         initial_coefs (np.ndarray, optional): Initial parameters for the gamma fit of the dispersion parameters.. Defaults to np.array([1e-6, 1]).
 
     Returns:
-        fit (sm.formula.glm): a statsmodels fitting object. 
-        coefs (np.ndarray): the two resulting gamma fitting coefficient. 
-        good (pd.DataFrame): the subsetted dispersion table that is subjected to Gamma fitting. 
+        fit (sm.formula.glm): a statsmodels fitting object.
+        coefs (np.ndarray): the two resulting gamma fitting coefficient.
+        good (pd.DataFrame): the subsetted dispersion table that is subjected to Gamma fitting.
     """
 
     coefs = initial_coefs
@@ -63,7 +67,9 @@ def parametric_dispersion_fit(disp_table: pd.DataFrame, initial_coefs: np.ndarra
     return fit, coefs, good
 
 
-def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1) -> tuple[list[str], list[pd.DataFrame]]:
+def disp_calc_helper_NB(
+    adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
+) -> Tuple[List[str], List[pd.DataFrame]]:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
@@ -72,8 +78,8 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         min_cells_detected (int, optional): the minimal required number of cells with expression for selecting gene for dispersion fitting. Defaults to 1.
 
     Returns:
-        layers (list[str]): a list of layers available. 
-        res_list (list[pd.DataFrame]): a list of pd.DataFrame's with mu, dispersion for each gene that passes filters.
+        layers (List[str]): a list of layers available.
+        res_list (List[pd.DataFrame]): a list of pd.DataFrame's with mu, dispersion for each gene that passes filters.
     """
     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
 
@@ -116,7 +122,7 @@ def disp_calc_helper_NB(adata: anndata.AnnData, layers: str = "X", min_cells_det
         # For NB: Var(Y) = mu * (1 + mu / k)
         # x.A.var(axis=0, ddof=1)
         f_expression_var = (
-            (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2) * x.shape[0] / (x.shape[0] - 1)
+            (x.multiply(x).mean(0).A1 - f_expression_mean.A1**2) * x.shape[0] / (x.shape[0] - 1)
             if issparse(x)
             else x.var(axis=0, ddof=0) ** 2
         )  # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
@@ -155,13 +161,13 @@ def estimate_dispersion(
 
     Args:
         adata (anndata.AnnData): an AnnData object.
-        layers (str, optional): the layer(s) to be used for calculating dispersion. Default is "X" if there is no spliced layers. 
+        layers (str, optional): the layer(s) to be used for calculating dispersion. Default is "X" if there is no spliced layers.
         modelFormulaStr (str, optional): the model formula used to calculate dispersion parameters. Not used. Defaults to "~ 1".
         min_cells_detected (int, optional): the minimum number of cells detected for calculating the dispersion. Defaults to 1.
         removeOutliers (bool, optional): whether to remove outliers when performing dispersion fitting. Defaults to False.
 
     Raises:
-        Exception: there is no valid DataFrame's with mu for genes. 
+        Exception: there is no valid DataFrame's with mu for genes.
 
     Returns:
         anndata.AnnData: An updated annData object with dispFitInfo added to uns attribute as a new key.
@@ -231,15 +237,15 @@ def estimate_dispersion(
 
 
 def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).Get information of the top layer. 
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).Get information of the top layer.
 
     Args:
-        adata (anndata.AnnData): an AnnData object. 
+        adata (anndata.AnnData): an AnnData object.
         layer (str, optional): the layer(s) that would be searched for. Defaults to "X".
         mode (str, optional): either "dispersion" or "gini", deciding whether dispersion data or gini data would be acquired. Defaults to "dispersion".
 
     Raises:
-        KeyError: if mode is set to dispersion but there is no available dispersion model. 
+        KeyError: if mode is set to dispersion but there is no available dispersion model.
 
     Returns:
         pd.DataFrame: The data frame of the top layer with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
