@@ -174,7 +174,7 @@ class ArcPlot:
             import networkx as nx
         except ImportError:
             raise ImportError(
-                f"You need to install the packages `networkx`." f"install networkx via `pip install networkx`."
+                "You need to install the packages `networkx`. install networkx via `pip install networkx`."
             )
         self.E = nx.to_numpy_matrix(network)
         self.node_names = list(network.nodes)

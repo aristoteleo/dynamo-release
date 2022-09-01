@@ -155,9 +155,9 @@ def psl(
             location = 0
 
             for i in range(N):
-                rows[location : location + K] = i
-                cols[location : location + K] = indices[i]
-                dists[location : location + K] = distances[i]
+                rows[location : (location + K)] = i
+                cols[location : (location + K)] = indices[i]
+                dists[location : (location + K)] = distances[i]
                 location = location + K
             sG = csr_matrix((np.array(dists) ** 2, (rows, cols)), shape=(N, N))
             sG = scipy.sparse.csc_matrix.maximum(sG, sG.T)  # symmetrize the matrix

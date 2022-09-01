@@ -521,7 +521,7 @@ def jacobian(
             Der if jacobian_gene is None else jacobian_gene,
         )
 
-    ## integrate this with the code in scatter ##
+    # integrate this with the code in scatter
 
     if type(x) is int and type(y) is int:
         prefix = "X_"
@@ -963,7 +963,7 @@ def sensitivity(
             Der if sensitivity_gene is None else sensitivity_gene,
         )
 
-    ## integrate this with the code in scatter ##
+    # integrate this with the code in scatter ##
 
     if type(x) is int and type(y) is int:
         prefix = "X_"

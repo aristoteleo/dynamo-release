@@ -4,3 +4,4 @@ count = True
 statistics = True
 max-complexity = 10
 exclude = __init__.py
+ignore = E203, W605, W503

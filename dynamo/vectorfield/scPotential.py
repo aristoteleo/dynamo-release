@@ -128,7 +128,7 @@ def gen_fixed_points(
     import numdifftools as nda
 
     if reverse is True:
-        func_ = lambda x: -func(x) # noqa: E731
+        func_ = lambda x: -func(x)  # noqa: E731
     else:
         func_ = func
     ZeroConst = 1e-8
@@ -384,6 +384,7 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
 
     dim = point_end.shape[0]  # genes x cells
     dt = tmax / n_points
+
     def lambda_f(x):
         IntGrad(
             np.hstack((point_start, x.reshape((dim, -1)), point_end)),

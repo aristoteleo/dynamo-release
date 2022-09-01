@@ -91,8 +91,8 @@ def moran_i(
     else:
         if genes is None or len(genes) != X_data.shape[1]:
             raise ValueError(
-                f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
-                f"must be provided"
+                "When providing X_data, a list of genes name that corresponds to the columns of X_data "
+                "must be provided"
             )
 
     cell_num, gene_num = X_data.shape
@@ -236,7 +236,7 @@ def find_group_markers(
 
     genes, X_data = fetch_X_data(adata, genes, layer)
     if len(genes) == 0:
-        raise ValueError(f"No genes from your genes list appear in your adata object.")
+        raise ValueError("No genes from your genes list appear in your adata object.")
 
     if group not in adata.obs.keys():
         raise ValueError(f"group {group} is not a valid key for .obs in your adata object.")
@@ -374,8 +374,8 @@ def two_groups_degs(
     else:
         if genes is None or len(genes) != X_data.shape[1]:
             raise ValueError(
-                f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
-                f"must be provided"
+                "When providing X_data, a list of genes name that corresponds to the columns of X_data "
+                "must be provided"
             )
 
     n_cells, n_genes = X_data.shape
@@ -554,8 +554,7 @@ def top_n_markers(
 
     if "cluster_markers" not in adata.uns.keys():
         main_warning(
-            f"No info of cluster markers stored in your adata. "
-            f"Running `find_group_markers` with default parameters."
+            "No info of cluster markers stored in your adata. " "Running `find_group_markers` with default parameters."
         )
         adata = find_group_markers(adata, group="clusters")
 
@@ -590,8 +589,8 @@ def top_n_markers(
         moran_i_columns = ["moran_i", "moran_p_val", "moran_q_val", "moran_z"]
         if len(adata.var.columns.intersection(moran_i_columns)) != 4:
             main_warning(
-                f"No info of cluster markers stored in your adata. "
-                f"Running `find_group_markers` with default parameters."
+                "No info of cluster markers stored in your adata. "
+                "Running `find_group_markers` with default parameters."
             )
             adata = moran_i(adata)
 
@@ -682,8 +681,8 @@ def glm_degs(
     else:
         if genes is None or len(genes) != X_data.shape[1]:
             raise ValueError(
-                f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
-                f"must be provided"
+                "When providing X_data, a list of genes name that corresponds to the columns of X_data "
+                "must be provided"
             )
     if layer is None:
         if issparse(X_data):

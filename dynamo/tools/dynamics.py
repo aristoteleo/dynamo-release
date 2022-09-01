@@ -298,7 +298,7 @@ def dynamics(
         del_2nd_moments, DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY
     )
     if "pp" not in adata.uns_keys():
-        raise ValueError(f"\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
+        raise ValueError("\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
     if tkey is None:
         tkey = adata.uns["pp"]["tkey"]
     (experiment_type, has_splicing, has_labeling, splicing_labeling, has_protein,) = (
@@ -328,7 +328,7 @@ def dynamics(
     valid_bools = get_valid_bools(adata, filter_gene_mode)
     gene_num = sum(valid_bools)
     if gene_num == 0:
-        raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
+        raise Exception("no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
 
     if model.lower() == "auto":
         model = "stochastic"
@@ -446,8 +446,8 @@ def dynamics(
 
             if len(valid_bools_) < 5:
                 raise Exception(
-                    f"After sanity check, you have less than 5 valid genes. Something is wrong about your "
-                    f"metabolic labeling experiment!"
+                    "After sanity check, you have less than 5 valid genes. Something is wrong about your "
+                    "metabolic labeling experiment!"
                 )
 
             U, Ul, S, Sl = (
@@ -1506,7 +1506,7 @@ def kinetic_model(
             Est = Estimation_KineticChase
         else:
             raise NotImplementedError(
-                f"only `deterministic` model implemented for mix_pulse_chase/mix_kin_deg experiment!"
+                "only `deterministic` model implemented for mix_pulse_chase/mix_kin_deg experiment!"
             )
 
     elif experiment_type.lower() == "pulse_time_series":

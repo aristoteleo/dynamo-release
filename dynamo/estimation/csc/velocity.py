@@ -9,7 +9,6 @@ from ...tools.moments import calc_2nd_moment, calc_12_mom_labeling
 from ...tools.utils import (
     calc_norm_loglikelihood,
     calc_R2,
-    one_shot_alpha,
     one_shot_alpha_matrix,
     one_shot_gamma_alpha,
     one_shot_gamma_alpha_matrix,

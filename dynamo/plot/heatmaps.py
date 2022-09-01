@@ -975,7 +975,7 @@ def causality(
         if delay != 0:
             x = x[:-delay]
             y = y_ori[delay:]
-            z = z_ori[delay - 1 : -1]
+            z = z_ori[(delay - 1) : -1]
         else:
             y = y_ori
             z = z_ori
@@ -1016,8 +1016,8 @@ def causality(
             if not np.isfinite(max_val):
                 max_val = 1e10
 
-            flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), 2] = (
-                flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_z"] / max_val
+            flat_res.iloc[f_ini_ind : (f_ini_ind + len(dist_mat)), 2] = (
+                flat_res.iloc[f_ini_ind : (f_ini_ind + len(dist_mat)), :]["expected_z"] / max_val
             )
 
         id = id + 1

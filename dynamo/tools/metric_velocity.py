@@ -331,16 +331,16 @@ def gene_wise_confidence(
     else:
         if genes is None or len(genes) != X_data.shape[1]:
             raise ValueError(
-                f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
-                f"must be provided"
+                "When providing X_data, a list of genes name that corresponds to the columns of X_data "
+                "must be provided"
             )
     if V_data is None:
         genes, V_data = fetch_X_data(adata, genes, vkey)
     else:
         if genes is None or len(genes) != X_data.shape[1]:
             raise ValueError(
-                f"When providing V_data, a list of genes name that corresponds to the columns of X_data "
-                f"must be provided"
+                "When providing V_data, a list of genes name that corresponds to the columns of X_data "
+                "must be provided"
             )
 
     sparse, sparse_v = issparse(X_data), issparse(V_data)

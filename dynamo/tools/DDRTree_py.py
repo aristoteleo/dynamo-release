@@ -174,7 +174,7 @@ def DDRTree(
         min_dist = repmat(tem_min_dist, 1, K)
         tmp_distZY = distZY - min_dist
         tmp_R = np.exp(-tmp_distZY / sigma)
-        R = tmp_R / repmat(np.sum(tmp_R, 1).reshape(-1, 1), 1, K)  ##########################3
+        R = tmp_R / repmat(np.sum(tmp_R, 1).reshape(-1, 1), 1, K)
         Gamma = np.diag(sum(R))
 
         # termination condition

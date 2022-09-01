@@ -76,7 +76,7 @@ def diffusionMatrix(
         if VecFld is None:
             VecFld, func = vecfld_from_adata(adata, basis)
         else:
-            func = lambda x: vector_field_function(x, VecFld) # noqa: E731
+            func = lambda x: vector_field_function(x, VecFld)  # noqa: E731
 
         prefix = "X_" if layer is None else layer + "_"
 
@@ -89,8 +89,7 @@ def diffusionMatrix(
                 "diffmap",
             ]:
                 raise ValueError(
-                    "basis (or the suffix of basis) can only be one of "
-                    "['pca', 'umap', 'trimap', 'tsne', 'diffmap']."
+                    "basis (or the suffix of basis) can only be one of " "['pca', 'umap', 'trimap', 'tsne', 'diffmap']."
                 )
             if basis.startswith(prefix):
                 basis = basis

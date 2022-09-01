@@ -241,9 +241,9 @@ def vecfld_from_adata(adata, basis="", vf_key="VecFld"):
 
     method = vf_dict["method"]
     if method.lower() == "sparsevfc":
-        func = lambda x: vector_field_function(x, vf_dict) # noqa: E731
+        func = lambda x: vector_field_function(x, vf_dict)  # noqa: E731
     elif method.lower() == "dynode":
-        func = lambda x: dynode_vector_field_function(x, vf_dict) # noqa: E731
+        func = lambda x: dynode_vector_field_function(x, vf_dict)  # noqa: E731
     else:
         raise ValueError("current only support two methods, SparseVFC and dynode")
 
@@ -345,7 +345,7 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     n_j_per_core = int(np.ceil(n / cores))
     xx = []
     for i in range(0, n, n_j_per_core):
-        xx.append(x[i : i + n_j_per_core])
+        xx.append(x[i : (i + n_j_per_core)])
     # with mp.Pool(cores) as p:
     #    ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
     with ThreadPool(cores) as p:
@@ -355,7 +355,7 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     return ret
 
 
-def Jacobian_numerical(f :Callable, input_vector_convention: str = "row"):
+def Jacobian_numerical(f: Callable, input_vector_convention: str = "row"):
     """
     Get the numerical Jacobian of the vector field function.
     If the input_vector_convention is 'row', it means that fjac takes row vectors
@@ -507,7 +507,7 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
         n_j_per_core = int(np.ceil(n / cores))
         JJ = []
         for i in range(0, n, n_j_per_core):
-            JJ.append(Js[:, :, i:(i + n_j_per_core)])
+            JJ.append(Js[:, :, i : (i + n_j_per_core)])
         with ThreadPool(cores) as p:
             ret = p.starmap(
                 transform_jacobian,
@@ -687,8 +687,8 @@ def compute_divergence(f_jac, X, Js=None, vectorize_size=1000):
 
     div = np.zeros(n)
     for i in tqdm(range(0, n, vectorize_size), desc="Calculating divergence"):
-        J = f_jac(X[i:(i + vectorize_size)]) if Js is None else Js[:, :, i:(i + vectorize_size)]
-        div[i:(i + vectorize_size)] = np.trace(J)
+        J = f_jac(X[i : (i + vectorize_size)]) if Js is None else Js[:, :, i : (i + vectorize_size)]
+        div[i : (i + vectorize_size)] = np.trace(J)
     return div
 
 

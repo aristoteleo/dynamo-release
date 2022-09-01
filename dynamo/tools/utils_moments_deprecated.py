@@ -6,7 +6,7 @@ Created on Tue Mar 12 08:27:36 2019
 @author: yaz
 """
 
-from numpy import *
+import numpy as np
 from scipy.integrate import odeint
 from scipy.optimize import curve_fit, least_squares
 
@@ -46,7 +46,7 @@ class moments:
         # solution
         self.t = None
         self.x = None
-        self.x0 = zeros(self.n_species)
+        self.x0 = np.zeros(self.n_species)
         self.K = None
         self.p = None
 
@@ -64,7 +64,7 @@ class moments:
             self.set_params(a, b, la, alpha_a, alpha_i, sigma, beta, gamma)
 
     def ode_moments(self, x, t):
-        dx = zeros(len(x))
+        dx = np.zeros(len(x))
         # parameters
         a = self.a
         b = self.b
@@ -143,7 +143,7 @@ class moments:
         self.p = None
 
     def get_all_central_moments(self):
-        ret = zeros((8, len(self.t)))
+        ret = np.zeros((8, len(self.t)))
         ret[0] = self.get_nu()
         ret[1] = self.get_nw()
         ret[2] = self.get_nx()
@@ -155,7 +155,7 @@ class moments:
         return ret
 
     def get_nosplice_central_moments(self):
-        ret = zeros((4, len(self.t)))
+        ret = np.zeros((4, len(self.t)))
         ret[0] = self.get_n_labeled()
         ret[1] = self.get_n_unlabeled()
         ret[2] = self.get_var_labeled()
@@ -166,7 +166,7 @@ class moments:
         if keys is None:
             ret = self.get_all_centeral_moments()
         else:
-            ret = zeros((len(keys) * 2, len(self.t)))
+            ret = np.zeros((len(keys) * 2, len(self.t)))
             i = 0
             if "ul" in keys:
                 ret[i] = self.get_nu()
@@ -247,7 +247,7 @@ class moments:
         be = self.be
         ga = self.ga
 
-        K = zeros((self.n_species, self.n_species))
+        K = np.zeros((self.n_species, self.n_species))
         # E1
         K[self.ua, self.ua] = -be - a
         K[self.ua, self.ui] = a
@@ -320,7 +320,7 @@ class moments:
         K[self.uy, self.uu] = si * be
         K[self.wy, self.ww] = be
 
-        p = zeros(self.n_species)
+        p = np.zeros(self.n_species)
         p[self.ua] = la * aa
         p[self.ui] = la * ai
         p[self.wa] = (1 - la) * aa
@@ -342,18 +342,18 @@ class moments:
         else:
             K = self.K
             p = self.p
-        x_ss = linalg.solve(K, p)
+        x_ss = np.linalg.solve(K, p)
         # x_ss = linalg.inv(K).dot(p)
         y0 = x0 + x_ss
 
         D, U = linalg.eig(K)
-        V = linalg.inv(U)
-        D, U, V = map(real, (D, U, V))
-        expD = exp(D)
-        x = zeros((len(t), self.n_species))
+        V = np.linalg.inv(U)
+        D, U, V = map(np.real, (D, U, V))
+        expD = np.exp(D)
+        x = np.zeros((len(t), self.n_species))
         x[0] = x0
         for i in range(1, len(t)):
-            x[i] = U.dot(diag(expD ** (t[i] - t0))).dot(V).dot(y0) - x_ss
+            x[i] = U.dot(np.diag(expD ** (t[i] - t0))).dot(V).dot(y0) - x_ss
         self.x = x
         self.t = t
         return x
@@ -382,7 +382,7 @@ class moments_simple:
         # solution
         self.t = None
         self.x = None
-        self.x0 = zeros(self.n_species)
+        self.x0 = np.zeros(self.n_species)
         self.K = None
         self.p = None
 
@@ -400,7 +400,7 @@ class moments_simple:
             self.set_params(a, b, la, alpha_a, alpha_i, sigma, beta, gamma)
 
     def set_initial_condition(self, nu0, nw0, nx0, ny0):
-        x = zeros(self.n_species)
+        x = np.zeros(self.n_species)
         x[self._u] = nu0
         x[self._w] = nw0
         x[self._x] = nx0
@@ -446,7 +446,7 @@ class moments_simple:
         be = self.be
         ga = self.ga
 
-        K = zeros((self.n_species, self.n_species))
+        K = np.zeros((self.n_species, self.n_species))
 
         # Diagonal
         K[self._u, self._u] = -be
@@ -459,7 +459,7 @@ class moments_simple:
         K[self._y, self._u] = si * be
         K[self._y, self._w] = be
 
-        p = zeros(self.n_species)
+        p = np.zeros(self.n_species)
         p[self._u] = la * self.fbar(aa, ai)
         p[self._w] = (1 - la) * self.fbar(aa, ai)
 
@@ -479,17 +479,17 @@ class moments_simple:
         else:
             K = self.K
             p = self.p
-        x_ss = linalg.solve(K, p)
+        x_ss = np.linalg.solve(K, p)
         y0 = x0 + x_ss
 
-        D, U = linalg.eig(K)
-        V = linalg.inv(U)
-        D, U, V = map(real, (D, U, V))
-        expD = exp(D)
-        x = zeros((len(t), self.n_species))
+        D, U = np.linalg.eig(K)
+        V = np.linalg.inv(U)
+        D, U, V = map(np.real, (D, U, V))
+        expD = np.exp(D)
+        x = np.zeros((len(t), self.n_species))
         x[0] = x0
         for i in range(1, len(t)):
-            x[i] = U.dot(diag(expD ** (t[i] - t0))).dot(V).dot(y0) - x_ss
+            x[i] = U.dot(np.diag(expD ** (t[i] - t0))).dot(V).dot(y0) - x_ss
         self.x = x
         self.t = t
         return x
@@ -504,7 +504,7 @@ class estimation:
             self.simulator.x0 = x0
 
     def sample_p0(self, samples=1, method="lhs"):
-        ret = zeros((samples, self.n_params))
+        ret = np.zeros((samples, self.n_params))
         if method == "lhs":
             ret = self._lhsclassic(samples)
             for i in range(self.n_params):
@@ -512,33 +512,33 @@ class estimation:
         else:
             for n in range(samples):
                 for i in range(self.n_params):
-                    r = random.rand()
+                    r = np.random.rand()
                     ret[n, i] = r * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         return ret
 
     def _lhsclassic(self, samples):
         # From PyDOE
         # Generate the intervals
-        cut = linspace(0, 1, samples + 1)
+        cut = np.linspace(0, 1, samples + 1)
 
         # Fill points uniformly in each interval
-        u = random.rand(samples, self.n_params)
+        u = np.random.rand(samples, self.n_params)
         a = cut[:samples]
-        b = cut[1 : samples + 1]
-        rdpoints = zeros_like(u)
+        b = cut[1 : (samples + 1)]
+        rdpoints = np.zeros_like(u)
         for j in range(self.n_params):
             rdpoints[:, j] = u[:, j] * (b - a) + a
 
         # Make the random pairings
-        H = zeros_like(rdpoints)
+        H = np.zeros_like(rdpoints)
         for j in range(self.n_params):
-            order = random.permutation(range(samples))
+            order = np.random.permutation(range(samples))
             H[:, j] = rdpoints[order, j]
 
         return H
 
     def get_bound(self, index):
-        ret = zeros(self.n_params)
+        ret = np.zeros(self.n_params)
         for i in range(self.n_params):
             ret[i] = self.ranges[i][index]
         return ret
@@ -549,7 +549,7 @@ class estimation:
         #     x = X[i]
         #     #ret[i] = x / max(x)
         #     ret[i] = log10(x + 1)
-        return log10(X + 1)
+        return np.log10(X + 1)
 
     def f_curve_fit(self, t, *params):
         self.simulator.set_params(*params)
@@ -571,7 +571,7 @@ class estimation:
         elif experiment_type == "label":
             ret = self.simulator.get_central_moments(["ul", "sl"])
         ret = self.normalize_data(ret).flatten()
-        ret[isnan(ret)] = 0
+        ret[np.isnan(ret)] = 0
         return ret - x_data_norm
 
     def fit(self, t, x_data, p0=None, bounds=None):
@@ -604,7 +604,7 @@ class estimation:
         if bounds is None:
             bounds = (self.get_bound(0), self.get_bound(1))
 
-        costs = zeros(n_p0)
+        costs = np.zeros(n_p0)
         X = []
         for i in range(n_p0):
             ret = least_squares(
@@ -614,5 +614,5 @@ class estimation:
             )
             costs[i] = ret.cost
             X.append(ret.x)
-        i_min = argmin(costs)
+        i_min = np.argmin(costs)
         return X[i_min], costs[i_min]

@@ -803,7 +803,7 @@ def velocity_N(
 
     # check velocity_N, velocity_T, X_new, X_total
     if not np.all([i in layer_keys for i in ["X_new", "X_total"]]):
-        raise Exception(f"The `X_new`, `X_total` has to exist in your data before running velocity_N function.")
+        raise Exception("The `X_new`, `X_total` has to exist in your data before running velocity_N function.")
 
     # delete the moments and velocities that generated via total RNA
     for i in ["M_t", "M_tt", "M_n", "M_tn", "M_nn", "velocity_N", "velocity_T"]:
@@ -901,8 +901,7 @@ def velocity_N(
         )
     else:
         raise Exception(
-            f"velocity_N function only supports either the one-shot or kinetics (kin) metabolic labeling "
-            f"experiment."
+            "velocity_N function only supports either the one-shot or kinetics (kin) metabolic labeling " "experiment."
         )
 
     # umap based on new RNA

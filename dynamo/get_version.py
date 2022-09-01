@@ -48,7 +48,7 @@ def get_version_from_dirname(name, parent):
     if not re_dirname.match(parent.name):
         return None
 
-    return Version.parse(parent.name[len(name) + 1 :])
+    return Version.parse(parent.name[(len(name) + 1) :])
 
 
 def get_version_from_git(parent):

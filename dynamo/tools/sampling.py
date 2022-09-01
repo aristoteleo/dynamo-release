@@ -145,7 +145,7 @@ def lhsclassic(n_samples: int, n_dim: int, bounds=None, seed=19491001):
     # Fill points uniformly in each interval
     u = np.random.rand(n_samples, n_dim)
     a = cut[:n_samples]
-    b = cut[1 : n_samples + 1]
+    b = cut[1 : (n_samples + 1)]
     rdpoints = np.zeros(u.shape)
     for j in range(n_dim):
         rdpoints[:, j] = u[:, j] * (b - a) + a

@@ -1,5 +1,6 @@
 import warnings
 
+import numpy as np
 from scipy.optimize import least_squares
 from scipy.stats import chi2
 
