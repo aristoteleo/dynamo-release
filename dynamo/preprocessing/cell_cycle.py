@@ -2,7 +2,7 @@
 # https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/cell_cycle.py
 
 from collections import OrderedDict
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 import anndata
 import numpy as np
@@ -15,19 +15,20 @@ from ..utils import LoggerManager, copy_adata
 
 def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list) -> Tuple[np.ndarray, np.ndarray]:
     """Measures the correlation of all genes within a list to the average expression of all genes within that
-    list (used for cell cycle position calling)
+    list (used for staging cell cycle phase of each cell).
 
     Args:
-        adata (anndata.AnnData): an anndata object.
-        layer (Union[str, None]): The layer of data to use for calculating correlation. If None, use adata.X.
-        gene_list (list): list of gene names
+        adata: an anndata object.
+        layer: The layer of data to use for calculating correlation. If None, use adata.X.
+        gene_list: list of gene names
 
     Raises:
         Exception: if gene_list is empty, raise this exception
 
     Returns:
-        valid_gene_list (np.ndarray): valid gene names.
-        corr (np.ndarray): the correlation coefficient of each gene with the mean expression of all.
+        A tuple (valid_gene_list, corr). valid_gene_list contains valid gene names, e.g. gene names that intersect
+        between input gene_list and the adata.var_names. corr contains the correlation coefficient of each gene with
+        the mean expression of all genes in the list.
     """
 
     # returns list of correlations of each gene within a list of genes with the total expression of the group
@@ -64,22 +65,23 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
 def refine_gene_list(
     adata: anndata.AnnData,
     layer: Union[str, None],
-    gene_list: list,
+    gene_list: List[str],
     threshold: Union[float, None],
     return_corrs: bool = False,
 ) -> list:
     """Refines a list of genes by removing those that don't correlate well with the average expression of
-    those genes
+    those genes.
 
     Args:
-        adata (anndata.AnnData): an anndata object.
-        layer (Union[str, None]): The layer of data to use for calculating correlation. If None, use adata.X.
-        gene_list (list): list of gene names
-        threshold (Union[float, None]): threshold on correlation coefficient used to discard genes (expression of each gene is compared to the bulk expression of the group and any gene with a correlation coefficient less than this is discarded)
-        return_corrs (bool, optional): whether to return the correlations along with the gene names. Defaults to False.
+        adata: an anndata object.
+        layer: The layer of data to use for calculating correlation. If None, use adata.X.
+        gene_list: list of gene names.
+        threshold: threshold on correlation coefficient used to discard genes (expression of each gene is compared to
+            the bulk expression of the group and any gene with a correlation coefficient less than this is discarded).
+        return_corrs: whether to return the correlations along with the gene names. Defaults to False.
 
     Returns:
-        list: Refined list of genes that are well correlated with the average expression trend
+        A refined list of genes that are well correlated with the average expression trend.
     """
 
     gene_list, corrs = group_corr(adata, layer, gene_list)
@@ -89,20 +91,20 @@ def refine_gene_list(
         return gene_list[corrs >= threshold]
 
 
-def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list) -> pd.Series:
+def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: List[str]) -> pd.Series:
     """Scores cells within population for expression of a set of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
 
     Args:
-        adata (anndata.AnnData): an anndata object.
-        layer (Union[str, None]): The layer of data to use for calculating correlation. If None, use adata.X.
-        gene_list (list): list of gene names
+        adata: an anndata object.
+        layer: The layer of data to use for calculating correlation. If None, use adata.X.
+        gene_list: list of gene names.
 
     Raises:
         Exception: if gene_list is empty, raise this exception
 
     Returns:
-        pd.Series: Z-scored expression data
+        The Z-scored expression data.
     """
 
     tmp = adata.var_names.intersection(gene_list)
@@ -134,16 +136,17 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list
     return scores
 
 
-def batch_group_score(adata: anndata.AnnData, layer: Union[str, None], gene_lists: list) -> OrderedDict:
-    """Scores cells within population for expression of sets of genes. Raw expression data are first log transformed, then the values are summed, and then scores are Z-normalized across all cells. Returns an OrderedDict of each score.
+def batch_group_score(adata: anndata.AnnData, layer: Union[str, None], gene_lists: List[str]) -> OrderedDict:
+    """Scores cells within population for expression of sets of genes. Raw expression data are first log transformed,
+    then the values are summed, and then scores are Z-normalized across all cells. Returns an OrderedDict of each score.
 
     Args:
-        adata (anndata.AnnData): an anndata object.
-        layer (Union[str, None]): The layer of data to use for calculating correlation. If None, use adata.X.
-        gene_lists (list): list of lists of gene names
+        adata: an anndata object.
+        layer: The layer of data to use for calculating correlation. If None, use adata.X.
+        gene_lists: list of lists of gene names.
 
     Returns:
-        OrderedDict: an OrderedDict of each score.
+        An OrderedDict of each score.
     """
 
     batch_scores = OrderedDict()
@@ -157,17 +160,20 @@ def get_cell_phase_genes(
     layer: Union[str, None],
     refine: bool = True,
     threshold: Union[float, None] = 0.3,
-) -> list:
+) -> OrderedDict:
     """Returns a list of cell-cycle-regulated marker genes, filtered for coherence
 
     Args:
         adata (anndata.AnnData): an anndata object.
         layer (Union[str, None]): The layer of data to use for calculating correlation. If None, use adata.X.
-        refine (bool, optional): whether to refine the gene lists based on how consistent the expression is among the groups. Defaults to True.
-        threshold (Union[float, None], optional): threshold on correlation coefficient used to discard genes (expression of each gene is compared to the bulk expression of the group and any gene with a correlation coefficient less than this is discarded). Defaults to 0.3.
+        refine (bool, optional): whether to refine the gene lists based on how consistent the expression is among the
+            groups. Defaults to True.
+        threshold (Union[float, None], optional): threshold on correlation coefficient used to discard genes (expression
+            of each gene is compared to the bulk expression of the group and any gene with a correlation coefficient
+            less than this is discarded). Defaults to 0.3.
 
     Returns:
-        list: a list of cell-cycle-regulated marker genes that show strong co-expression
+        A list of cell-cycle-regulated marker genes that show strong co-expression.
     """
 
     cell_phase_genes = OrderedDict()
@@ -392,14 +398,18 @@ def get_cell_phase(
     """Compute cell cycle phase scores for cells in the population
 
     Args:
-        adata (anndata.AnnData): an anndata object.
-        layer (str, optional): the layer of data to use for calculating correlation. If None, use adata.X. Defaults to None.
-        gene_list (Union[OrderedDict, None], optional): OrderedDict of marker genes to use for cell cycle phases. If None, the default list will be used. Defaults to None.
-        refine (bool, optional): whether to refine the gene lists based on how consistent the expression is among the groups. Defaults to True.
-        threshold (Union[float, None], optional): threshold on correlation coefficient used to discard genes (expression of each gene is compared to the bulk expression of the group and any gene with a correlation coefficient less than this is discarded). Defaults to 0.3.
+        adata: an anndata object.
+        layer: the layer of adata to use for calculating correlation. If None, use adata.X. Defaults to None.
+        gene_list: OrderedDict of marker genes to use for cell cycle phases. If None, the default list will be used.
+            Defaults to None.
+        refine: whether to refine the gene lists based on how consistent the expression is among the groups. Defaults to
+            True.
+        threshold: threshold on correlation coefficient used to discard genes (expression of each gene is compared to
+            the bulk expression of the group and any gene with a correlation coefficient less than this is discarded).
+            Defaults to 0.3.
 
     Returns:
-        pd.DataFrame: Cell cycle scores indicating the likelihood a given cell is in a given cell cycle phase
+        Cell cycle scores indicating the likelihood a given cell is in a given cell cycle phase.
     """
 
     # get list of genes if one is not provided
@@ -463,21 +473,29 @@ def cell_cycle_scores(
     threshold: float = 0.3,
     copy: bool = False,
 ) -> Union[anndata.AnnData, None]:
-    """Call cell cycle positions for cells within the population. If more direct control is desired,
-    use get_cell_phase.
+    """Estimate cell cycle stage of each cell based on its gene expression pattern.
+
+    If more direct control is desired, use get_cell_phase.
 
 
     Args:
-        adata (anndata.AnnData): an anndata object.
-        layer (Union[str, None], optional): The layer of data to use for calculating correlation. If None, use adata.X. Defaults to None.
-        gene_list (Union[OrderedDict, None], optional): OrderedDict of marker genes to use for cell cycle phases. If None, the default list will be used. Defaults to None.
-        refine (bool, optional): whether to refine the gene lists based on how consistent the expression is among the groups. Defaults to True.
-        threshold (float, optional): threshold on correlation coefficient used to discard genes (expression of each gene is compared to the bulk expression of the group and any gene with a correlation coefficient less than this is discarded). Defaults to 0.3.
-        copy (bool, optional): whether copy the original AnnData object and return it. Defaults to False.
+        adata: an anndata object.
+        layer: The layer of data to use for calculating correlation. If None, use adata.X. Defaults to None.
+        gene_list: OrderedDict of marker genes to use for cell cycle phases. If None, the default list will be used.
+            Defaults to None.
+        refine: whether to refine the gene lists based on how consistent the expression is among the groups. Defaults to
+            True.
+        threshold: threshold on correlation coefficient used to discard genes (expression of each gene is compared to
+            the bulk expression of the group and any gene with a correlation coefficient less than this is discarded).
+            Defaults to 0.3.
+        copy: whether copy the original AnnData object and return it. Defaults to False.
 
     Returns:
-        Union[anndata.AnnData, None]: if `copy` is true, returns an updated adata object with cell_cycle_phase as new column in .obs and a new data frame with `cell_cycle_scores` key to .obsm where the cell cycle scores indicating the likelihood a given cell is in a given cell cycle phase. Otherwise, return None.
+        Returns an updated adata object with cell_cycle_phase as new column in .obs and a new data frame with
+        `cell_cycle_scores` key to .obsm where the cell cycle scores indicating the likelihood a given cell is in a
+        given cell cycle phase if `copy` is true. Otherwise, return None.
     """
+
     logger = LoggerManager.gen_logger("dynamo-cell-cycle-score")
     adata = copy_adata(adata, logger=logger) if copy else adata
 

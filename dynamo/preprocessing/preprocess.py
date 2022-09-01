@@ -67,29 +67,41 @@ def calc_sz_factor_legacy(
     X_total_layers: bool = False,
     locfunc: Callable = np.nanmean,
     round_exprs: bool = False,
-    method: str = "median",
+    method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
     use_all_genes_cells: bool = True,
     genes_use_for_norm: Union[list, None] = None,
 ) -> anndata.AnnData:
-    """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object. This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata_ori (anndata.AnnData): an AnnData object.
-        layers (Union[str, list], optional): the layer(s) to be normalized, including RNA (X, raw) or spliced, unspliced, protein, etc. Defaults to "all".
-        total_layers (Union[list, None], optional): the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
-        splicing_total_layers (bool, optional): whether to also normalize spliced / unspliced layers by size factor from total RNA. Defaults to False.
-        X_total_layers (bool, optional): whether to also normalize adata.X by size factor from total RNA. Defaults to False.
-        locfunc (Callable, optional): the function to normalize the data. Defaults to np.nanmean.
-        round_exprs (bool, optional): whether the gene expression should be rounded into integers. Defaults to False.
-        method (str, optional): the method used to calculate the expected total reads / UMI used in size factor calculation. Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with `np.nanmedian`. Defaults to "median".
-        scale_to (Union[float, None], optional): the final total expression for each cell that will be scaled to. Defaults to None.
-        use_all_genes_cells (bool, optional): whether all cells and genes should be used for the size factor calculation. Defaults to True.
-        genes_use_for_norm (Union[list, None], optional): a list of gene names that will be used to calculate total RNA for each cell and then the size factor for normalization. This is often very useful when you want to use only the host genes to normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
+        adata_ori: an AnnData object.
+        layers: the layer(s) to be normalized, including RNA (X, raw) or spliced, unspliced, protein, etc. Defaults to
+            "all".
+        total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
+            ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
+        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+            Defaults to False.
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
+        locfunc: the function to normalize the data. Defaults to np.nanmean.
+        round_exprs: whether the gene expression should be rounded into integers. Defaults to False.
+        method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
+            be replaced with `np.nanmedian`. Defaults to "median".
+        scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
+        use_all_genes_cells: whether all cells and genes should be used for the size factor calculation. Defaults to
+            True.
+        genes_use_for_norm: a list of gene names that will be used to calculate total RNA for each cell and then the
+            size factor for normalization. This is often very useful when you want to use only the host genes to
+            normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
 
     Returns:
-        anndata.AnnData: an updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
+        An updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the
+        obs attribute.
     """
+
     if use_all_genes_cells:
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
@@ -192,24 +204,35 @@ def normalize_cell_expr_by_size_factors_legacy(
     scale_to: Union[float, None] = None,
 ) -> anndata.AnnData:
     """Normalize the gene expression value for the AnnData object
+
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an AnnData object
-        layers (str, optional): the layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc. Defaults to "all".
-        total_szfactor (str, optional): the column name in the .obs attribute that corresponds to the size factor for the total mRNA. Defaults to "total_Size_Factor".
-        splicing_total_layers (bool, optional): whether to also normalize spliced / unspliced layers by size factor from total RNA. Defaults to False.
-        X_total_layers (bool, optional): whether to also normalize adata.X by size factor from total RNA. Defaults to False.
-        norm_method (Union[Callable, Literal["clr"], None], optional): the method used to normalize data. Can be either function `np.log1p`, `np.log2` or any other functions or string `clr`. By default, only .X will be size normalized and log1p transformed while data in other layers will only be size normalized. Defaults to None.
-        pseudo_expr (int, optional): a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
-        relative_expr (bool, optional):  a logic flag to determine whether we need to divide gene expression values first by size factor before normalization. Defaults to True.
-        keep_filtered (bool, optional): a logic flag to determine whether we will only store feature genes in the adata object. If it is False, size factor will be recalculated only for the selected feature genes. Defaults to True.
-        recalc_sz (bool, optional): a logic flag to determine whether we need to recalculate size factor based on selected genes before normalization. Defaults to False.
-        sz_method (str, optional): the method used to calculate the expected total reads / UMI used in size factor calculation. Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with `np.nanmedian`. Defaults to "median".
-        scale_to (Union[float, None], optional): the final total expression for each cell that will be scaled to. Defaults to None.
+        adata: an AnnData object
+        layers: the layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein,
+            etc. Defaults to "all".
+        total_szfactor: the column name in the .obs attribute that corresponds to the size factor for the total mRNA.
+            Defaults to "total_Size_Factor".
+        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+            Defaults to False.
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
+        norm_method: the method used to normalize data. Can be either function `np.log1p`, `np.log2` or any other
+            functions or string `clr`. By default, only .X will be size normalized and log1p transformed while data in
+            other layers will only be size normalized. Defaults to None.
+        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
+        relative_expr:  a logic flag to determine whether we need to divide gene expression values first by size factor
+            before normalization. Defaults to True.
+        keep_filtered: a logic flag to determine whether we will only store feature genes in the adata object. If it is
+            False, size factor will be recalculated only for the selected feature genes. Defaults to True.
+        recalc_sz: a logic flag to determine whether we need to recalculate size factor based on selected genes before
+            normalization. Defaults to False.
+        sz_method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
+            be replaced with `np.nanmedian`. Defaults to "median".
+        scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
 
     Returns:
-        anndata.AnnData: an updated anndata object that are updated with normalized expression values for different layers.
+        An updated anndata object that are updated with normalized expression values for different layers.
     """
 
     if recalc_sz:
@@ -291,11 +314,11 @@ def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all
     """Calculate the Gini coefficient of a numpy array. https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
 
     Args:
-        adata (anndata.AnnData): an AnnData object
-        layers (Union[Literal["all"], List[str]], optional): the layer(s) to be normalized. Defaults to "all".
+        adata: an AnnData object
+        layers: the layer(s) to be normalized. Defaults to "all".
 
     Returns:
-        anndata.AnnData: an updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
+        An updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
     """
 
     # From: https://github.com/oliviaguest/gini
@@ -343,16 +366,19 @@ def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all
 def disp_calc_helper_NB(
     adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
 ) -> Tuple[List[str], List[pd.DataFrame]]:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """Calculate the dispersion parameter of the negative binomial distribution.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an adata object
-        layers (str, optional): the layer of data used for dispersion fitting. Defaults to "X".
-        min_cells_detected (int, optional): the minimal required number of cells with expression for selecting gene for dispersion fitting. Defaults to 1.
+        adata: an adata object
+        layers: the layer of data used for dispersion fitting. Defaults to "X".
+        min_cells_detected: the minimal required number of cells with expression for selecting gene for dispersion
+            fitting. Defaults to 1.
 
     Returns:
-        layers (List[str]): a list of layers available.
-        res_list (List[pd.DataFrame]): a list of pd.DataFrame's with mu, dispersion for each gene that passes filters.
+        A tuple (layers, res_list), where layers is a list of layers available and res_list is a list of pd.DataFrame's
+        with mu, dispersion for each gene that passes filters.
     """
 
     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
@@ -429,16 +455,21 @@ def vstExprs(
     expr_matrix: Union[np.ndarray, None] = None,
     round_vals: bool = True,
 ) -> np.ndarray:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """Variance stabilization transformation of the gene expression.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        expr_matrix (Union[np.ndarray, None], optional): an matrix of values to transform. Must be normalized (e.g. by size factors) already. Defaults to None.
-        round_vals (bool, optional): whether to round expression values to the nearest integer before applying the transformation. Defaults to True.
+        adata: an AnnData object.
+        expr_matrix: an matrix of values to transform. Must be normalized (e.g. by size factors) already. Defaults to
+            None.
+        round_vals: whether to round expression values to the nearest integer before applying the transformation.
+            Defaults to True.
 
     Returns:
-        np.ndarray: a numpy array of the gene expression after VST.
+        A numpy array of the gene expression after VST.
     """
+
     fitInfo = adata.uns["dispFitInfo"]
 
     coefs = fitInfo["coefs"]
@@ -479,21 +510,30 @@ def filter_cells_legacy(
     """Select valid cells based on a collection of filters.
 
     Args:
-        adata (anndata.AnnData): an AnnData object
-        filter_bool (Union[np.ndarray, None], optional): a boolean array from the user to select cells for downstream analysis. Defaults to None.
-        layer (str, optional): the data from a particular layer (include X) used for feature selection. Defaults to "all".
-        keep_filtered (bool, optional): whether to keep cells that don't pass the filtering in the adata object. Defaults to False.
-        min_expr_genes_s (int, optional): minimal number of genes with expression for a cell in the data from the spliced layer (also used for X). Defaults to 50.
-        min_expr_genes_u (int, optional): minimal number of genes with expression for a cell in the data from the unspliced layer. Defaults to 25.
-        min_expr_genes_p (int, optional): minimal number of genes with expression for a cell in the data from in the protein layer. Defaults to 1.
-        max_expr_genes_s (float, optional):  maximal number of genes with expression for a cell in the data from the spliced layer (also used for X). Defaults to np.inf.
-        max_expr_genes_u (float, optional): maximal number of genes with expression for a cell in the data from the unspliced layer. Defaults to np.inf.
-        max_expr_genes_p (float, optional): maximal number of protein with expression for a cell in the data from the protein layer. Defaults to np.inf.
-        shared_count (Union[int, None], optional): the minimal shared number of counts for each cell across genes between layers. Defaults to None.
+        adata: an AnnData object
+        filter_bool: a boolean array from the user to select cells for downstream analysis. Defaults to None.
+        layer: the data from a particular layer (include X) used for feature selection. Defaults to "all".
+        keep_filtered: whether to keep cells that don't pass the filtering in the adata object. Defaults to False.
+        min_expr_genes_s: minimal number of genes with expression for a cell in the data from the spliced layer (also
+            used for X). Defaults to 50.
+        min_expr_genes_u: minimal number of genes with expression for a cell in the data from the unspliced layer.
+            Defaults to 25.
+        min_expr_genes_p: minimal number of genes with expression for a cell in the data from the protein layer.
+            Defaults to 1.
+        max_expr_genes_s:  maximal number of genes with expression for a cell in the data from the spliced layer (also
+            used for X). Defaults to np.inf.
+        max_expr_genes_u: maximal number of genes with expression for a cell in the data from the unspliced layer.
+            Defaults to np.inf.
+        max_expr_genes_p: maximal number of protein with expression for a cell in the data from the protein layer.
+            Defaults to np.inf.
+        shared_count: the minimal shared number of counts for each cell across genes between layers. Defaults to None.
 
     Returns:
-        anndata.AnnData: An updated AnnData object with use_for_pca as a new column in obs to indicate the selection of cells for downstream analysis. adata will be subsetted with only the cells pass filtering if keep_filtered is set to be False.
+        An updated AnnData object with `pass_basic_filter` as a new column in .var attribute to indicate the selection
+        of cells for downstream analysis. adata will be subsetted with only the cells pass filtering if keep_filtered is
+        set to be False.
     """
+
     detected_bool = np.ones(adata.X.shape[0], dtype=bool)
     detected_bool = (detected_bool) & (
         ((adata.X > 0).sum(1) >= min_expr_genes_s) & ((adata.X > 0).sum(1) <= max_expr_genes_s)
@@ -547,18 +587,21 @@ def filter_genes_by_clusters_(
     min_avg_S: float = 0.08,
     size_limit: int = 40,
 ) -> np.ndarray:
-    """Prepare filtering genes on the basis of cluster-wise expression threshold
+    """Prepare filtering genes on the basis of cluster-wise expression threshold.
+
     This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
 
     Args:
-        adata (anndata.AnnData): an Anndata object
-        cluster (str): a column name in the adata.obs attribute which will be used for cluster specific expression filtering.
-        min_avg_U (float, optional): include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters. Defaults to 0.02.
-        min_avg_S (float, optional): include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters. Defaults to 0.08.
-        size_limit (int, optional): the max number of members to be considered in a cluster during calculation. Defaults to 40.
+        adata: an Anndata object.
+        cluster: a column name in the adata.obs attribute which will be used for cluster specific expression filtering.
+        min_avg_U: include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters.
+            Defaults to 0.02.
+        min_avg_S: include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters.
+            Defaults to 0.08.
+        size_limit: the max number of members to be considered in a cluster during calculation. Defaults to 40.
 
     Returns:
-        np.ndarray: a boolean array corresponding to genes selected.
+        A boolean array corresponding to genes selected.
     """
     U, S, cluster_uid = (
         adata.layers["unspliced"],
@@ -583,7 +626,7 @@ def filter_genes_by_outliers_legacy(
     min_avg_exp_s: float = 1e-10,
     min_avg_exp_u: float = 0,
     min_avg_exp_p: float = 0,
-    max_avg_exp: float = np.infty,
+    max_avg_exp: float = np.inf,
     min_count_s: int = 0,
     min_count_u: int = 0,
     min_count_p: int = 0,
@@ -592,23 +635,29 @@ def filter_genes_by_outliers_legacy(
     """Basic filter of genes based a collection of expression filters.
 
     Args:
-        adata (anndata.AnnData): an Anndata object
-        filter_bool (Union[np.ndarray, None], optional): a boolean array from the user to select genes for downstream analysis. Defaults to None.
-        layer (str, optional): the data from a particular layer (include X) used for feature selection. Defaults to "all".
-        min_cell_s (int, optional): minimal number of cells with expression for the data in the spliced layer (also used for X). Defaults to 1.
-        min_cell_u (int, optional): minimal number of cells with expression for the data in the unspliced layer. Defaults to 1.
-        min_cell_p (int, optional): minimal number of cells with expression for the data in the protein layer. Defaults to 1.
-        min_avg_exp_s (float, optional): minimal average expression across cells for the data in the spliced layer (also used for X). Defaults to 1e-10.
-        min_avg_exp_u (float, optional): minimal average expression across cells for the data in the unspliced layer. Defaults to 0.
-        min_avg_exp_p (float, optional): minimal average expression across cells for the data in the protein layer. Defaults to 0.
-        max_avg_exp (float, optional): maximal average expression across cells for the data in all layers (also used for X). Defaults to np.infty.
-        min_count_s (int, optional): minimal number of counts (UMI/expression) for the data in the spliced layer (also used for X). Defaults to 0.
-        min_count_u (int, optional): minimal number of counts (UMI/expression) for the data in the unspliced layer. Defaults to 0.
-        min_count_p (int, optional): minimal number of counts (UMI/expression) for the data in the protein layer. Defaults to 0.
-        shared_count (int, optional): the minimal shared number of counts for each genes across cell between layers. Defaults to 30.
+        adata: an Anndata object
+        filter_bool: a boolean array from the user to select genes for downstream analysis. Defaults to None.
+        layer: the data from a particular layer (include X) used for feature selection. Defaults to "all".
+        min_cell_s: minimal number of cells with expression for the data in the spliced layer (also used for X).
+            Defaults to 1.
+        min_cell_u: minimal number of cells with expression for the data in the unspliced layer. Defaults to 1.
+        min_cell_p: minimal number of cells with expression for the data in the protein layer. Defaults to 1.
+        min_avg_exp_s: minimal average expression across cells for the data in the spliced layer (also used for X).
+            Defaults to 1e-10.
+        min_avg_exp_u: minimal average expression across cells for the data in the unspliced layer. Defaults to 0.
+        min_avg_exp_p: minimal average expression across cells for the data in the protein layer. Defaults to 0.
+        max_avg_exp: maximal average expression across cells for the data in all layers (also used for X). Defaults to
+            np.inf.
+        min_count_s: minimal number of counts (UMI/expression) for the data in the spliced layer (also used for X).
+            Defaults to 0.
+        min_count_u: minimal number of counts (UMI/expression) for the data in the unspliced layer. Defaults to 0.
+        min_count_p: minimal number of counts (UMI/expression) for the data in the protein layer. Defaults to 0.
+        shared_count: the minimal shared number of counts for each genes across cell between layers. Defaults to 30.
 
     Returns:
-        anndata.AnnData: an updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
+        An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of genes
+        for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be
+        False.
     """
 
     detected_bool = np.ones(adata.shape[1], dtype=bool)
@@ -713,53 +762,97 @@ def recipe_monocle(
     copy: bool = False,
     feature_selection_layer: Union[List[str], np.ndarray, np.array, str] = DKM.X_LAYER,
 ) -> Union[anndata.AnnData, None]:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """The monocle style preprocessing recipe.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        reset_X (bool, optional): whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data into which the high dimensional RNA velocity vectors will be projected.
-            (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
-            (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
+        adata: an AnnData object.
+        reset_X: whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+            critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
+            into which the high dimensional RNA velocity vectors will be projected.
+                (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
+                (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to False.
-        tkey (Union[str, None], optional): the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
-        t_label_keys (Union[str, List[str], None], optional): the column key(s) for the labeling time label of cells in .obs. Used for either "conventional" or "labeling based" scRNA-seq data. Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time of the experiment). Defaults to None.
-        experiment_type (Optional[str], optional): experiment type for labeling single cell RNA-seq. Available options are:
-            (1) 'conventional': conventional single-cell RNA-seq experiment, if `experiment_type` is `None` and there is only splicing data, this will be set to `conventional`;
+        tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+            support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
+            in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
+            or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
+        t_label_keys: the column key(s) for the labeling time label of cells in .obs. Used for either "conventional" or
+            "labeling based" scRNA-seq data. Not used for now and `tkey` is implicitly assumed as `t_label_key`
+            (however, `tkey` should just be the time of the experiment). Defaults to None.
+        experiment_type: experiment type for labeling single cell RNA-seq. Available options are:
+            (1) 'conventional': conventional single-cell RNA-seq experiment, if `experiment_type` is `None` and there is
+                only splicing data, this will be set to `conventional`;
             (2) 'deg': chase/degradation experiment. Cells are first labeled with an extended period, followed by chase;
             (3) 'kin': pulse/synthesis/kinetics experiment. Cells are labeled for different duration in a time-series;
             (4) 'one-shot': one-shot kinetic experiment. Cells are only labeled for a short pulse duration;
             Other possible experiments include:
-            (5) 'mix_pulse_chase' or 'mix_kin_deg': This is a mixture chase experiment in which the entire experiment lasts for a certain period of time which an initial pulse followed by washing out at different time point but chasing cells at the same time point. This type of labeling strategy was adopted in scEU-seq paper. For kind of experiment, we need to assume a non-steady state dynamics.
+            (5) 'mix_pulse_chase' or 'mix_kin_deg': This is a mixture chase experiment in which the entire experiment
+            lasts for a certain period of time with an initial pulse followed by washing out at different time point but
+            chasing cells at the same time point. This type of labeling strategy was adopted in scEU-seq paper. For this
+            kind of experiment, we need to assume a non-steady state dynamics.
             (6) 'mix_std_stm';. Defaults to None.
-        normalized (Union[bool, None], optional): if you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid renormalizing your data. By default it is set to be `None` and the first 20 values of adata.X (if adata.X is sparse) or its first column will be checked to determine whether you already normalized your data. This only works for UMI based or read-counts data. Defaults to None.
-        layer (Union[str, None], optional): the layer(s) to be normalized. if not supplied, all layers would be used, including RNA (X, raw) or spliced, unspliced, protein, etc. Defaults to None.
-        total_layers (Union[bool, List[str], None], optional): the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["total"], etc. If total_layers is `True`, total_layers will be set to be `total` or ["uu", "ul", "su", "sl"] depends on whether you have labeling but no splicing or labeling and splicing data. Defaults to None.
-        splicing_total_layers (bool, optional): whether to also normalize spliced / unspliced layers by size factor from total RNA. Defaults to False.
-        X_total_layers (bool, optional): whether to also normalize adata.X by size factor from total RNA. Defaults to False.
-        genes_use_for_norm (Union[List[str], None], optional): a list of gene names that will be used to calculate total RNA for each cell and then the size factor for normalization. This is often very useful when you want to use only the host genes to normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
-        genes_to_use (Union[List[str], None], optional): a list of gene names that will be used to set as the feature genes for downstream analysis. Defaults to None.
-        genes_to_append (Union[List[str], None], optional): a list of gene names that will be appended to the feature genes list for downstream analysis. Defaults to None.
-        genes_to_exclude (Union[List[str], None], optional): a list of gene names that will be excluded to the feature genes list for downstream analysis. Defaults to None.
-        exprs_frac_for_gene_exclusion (float, optional): the minimal fraction of gene counts to the total counts across cells that will used to filter genes. By default it is 1 which means we don't filter any genes, but we need to change it to 0.005 or something in order to remove some highly expressed housekeeping genes. Defaults to 1.
-        method (str, optional): the linear dimension reduction methods to be used. Defaults to "pca".
-        num_dim (int, optional): the number of linear dimensions reduced to. Defaults to 30.
-        sz_method (str, optional): the method used to calculate the expected total reads / UMI used in size factor calculation. Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with `np.nanmedian`. Defaults to "median".
-        scale_to (Union[float, None], optional): the final total expression for each cell that will be scaled to. Defaults to None.
-        norm_method (Union[str, None], optional): the method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only .X will be size normalized and log1p transformed while data in other layers will only be size factor normalized. Defaults to None.
-        pseudo_expr (int, optional): a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
-        feature_selection (str, optional): Which sorting method, either dispersion, SVR or Gini index, to be used to select genes. Defaults to "SVR".
-        n_top_genes (int, optional):  how many top genes based on scoring method (specified by sort_by) will be selected as feature genes. Defaults to 2000.
-        maintain_n_top_genes (bool, optional): whether to ensure 2000 feature genes selected no matter what genes_to_use, genes_to_append, etc. are specified. The only exception is that if `genes_to_use` is supplied with `n_top_genes`. Defaults to True.
-        relative_expr (bool, optional): whether we need to divide gene expression values first by size factor before normalization. Defaults to True.
-        keep_filtered_cells (Union[bool, None], optional): whether to keep genes that don't pass the filtering in the returned adata object. Defaults to None.
-        keep_filtered_genes (Union[bool, None], optional): whether to keep genes that don't pass the filtering in the returned adata object. Defaults to None.
-        keep_raw_layers (Union[bool, None], optional): whether to keep layers with raw measurements in the returned adata object. Defaults to None.
-        scopes (Union[str, Iterable, None], optional): scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for full list of fields. Defaults to None.
-        fc_kwargs (Union[dict, None], optional): other Parameters passed into the filter_cells function. Defaults to None.
-        fg_kwargs (Union[dict, None], optional): other Parameters passed into the filter_genes function. Defaults to None.
-        sg_kwargs (Union[dict, None], optional): other Parameters passed into the select_genes function. Defaults to None.
-        copy (bool, optional): whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments. Defaults to False.
-        feature_selection_layer (Union[List[str], np.ndarray, np.array, str], optional): name of layers to apply feature selection. Defaults to DKM.X_LAYER.
+        normalized: if you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid
+            renormalizing your data. By default it is set to be `None` and the first 20 values of adata.X (if adata.X is
+            sparse) or its first column will be checked to determine whether you already normalized your data. This only
+            works for UMI based or read-counts data. Defaults to None.
+        layer: the layer(s) to be normalized. if not supplied, all layers would be used, including RNA (X, raw) or
+            spliced, unspliced, protein, etc. Defaults to None.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"],
+            ["uu", "ul", "su", "sl"] or ["total"], etc. If total_layers is `True`, total_layers will be set to be
+            `total` or ["uu", "ul", "su", "sl"] depends on whether you have labeling but no splicing or labeling and
+            splicing data. Defaults to None.
+        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor fromtotal RNA.
+            Defaults to False.
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
+        genes_use_for_norm: a list of gene names that will be used to calculate total RNA for each cell and then the
+            size factor for normalization. This is often very useful when you want to use only the host genes to
+            normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
+        genes_to_use: a list of gene names that will be used to set as the feature genes for downstream analysis.
+            Defaults to None.
+        genes_to_append: a list of gene names that will be appended to the feature genes list for downstream analysis.
+            Defaults to None.
+        genes_to_exclude: a list of gene names that will be excluded to the feature genes list for downstream analysis.
+            Defaults to None.
+        exprs_frac_for_gene_exclusion: the minimal fraction of gene counts to the total counts across cells that will
+            used to filter genes. By default it is 1 which means we don't filter any genes, but we need to change it to
+            0.005 or something in order to remove some highly expressed housekeeping genes. Defaults to 1.
+        method: the linear dimension reduction methods to be used. Defaults to "pca".
+        num_dim: the number of linear dimensions reduced to. Defaults to 30.
+        sz_method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
+            be replaced with `np.nanmedian`. Defaults to "median".
+        scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
+        norm_method: the method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only
+            .X will be size normalized and log1p transformed while data in other layers will only be size factor
+            normalized. Defaults to None.
+        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
+        feature_selection: Which sorting method, either dispersion, SVR or Gini index, to be used to select genes.
+            Defaults to "SVR".
+        n_top_genes:  how many top genes based on scoring method (specified by sort_by) will be selected as feature
+            genes. Defaults to 2000.
+        maintain_n_top_genes: whether to ensure 2000 feature genes selected no matter what genes_to_use,
+            genes_to_append, etc. are specified. The only exception is that if `genes_to_use` is supplied with
+            `n_top_genes`. Defaults to True.
+        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
+            Defaults to True.
+        keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object.
+            Defaults to None.
+        keep_filtered_genes: whether to keep genes that don't pass the filtering in the returned adata object.
+            Defaults to None.
+        keep_raw_layers: whether to keep layers with raw measurements in the returned adata object. Defaults to None.
+        scopes: scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
+            argument corresponds to types of identifiers, either a list or a comma-separated fields to specify type of
+            input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official
+            MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for the full
+            list of fields. Defaults to None.
+        fc_kwargs: other Parameters passed into the filter_cells function. Defaults to None.
+        fg_kwargs: other Parameters passed into the filter_genes function. Defaults to None.
+        sg_kwargs: other Parameters passed into the select_genes function. Defaults to None.
+        copy: whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
+            Defaults to False.
+        feature_selection_layer: name of layers to apply feature selection. Defaults to DKM.X_LAYER.
 
     Raises:
         ValueError: time key does not existed in adata.obs.
@@ -771,7 +864,8 @@ def recipe_monocle(
         ValueError: genes_to_append contains invalid genes.
 
     Returns:
-        Union[anndata.AnnData, None]: a new updated anndata object if `copy` arg is `True`. In the object, Size_Factor, normalized expression values, X and reduced dimensions, etc., are updated.
+        A new updated anndata object if `copy` arg is `True`. In the object, Size_Factor, normalized expression values,
+        X and reduced dimensions, etc., are updated. Otherwise, return None.
     """
 
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
@@ -1262,23 +1356,31 @@ def recipe_velocyto(
     relative_expr: bool = True,
     keep_filtered_genes: Union[bool, None] = None,
 ) -> anndata.AnnData:
-    """This function is adapted from the velocyto's DentateGyrus notebook.
+    """Velocyto's preprocess recipe.
+
+    This function is adapted from the velocyto's DentateGyrus notebook.
 
     Args:
-        adata (anndata.AnnData): an AnnData object
-        total_layers (Union[List[str], None], optional): the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
-        method (str, optional): the linear dimension reduction methods to be used. Defaults to "pca".
-        num_dim (int, optional): the number of linear dimensions reduced to. Defaults to 30.
-        norm_method (Union[Callable, str, None], optional): the method to normalize the data. Defaults to None.
-        pseudo_expr (int, optional): a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
-        feature_selection (str, optional): which sorting method, either dispersion, SVR or Gini index, to be used to select genes. Defaults to "SVR".
-        n_top_genes (int, optional): how many top genes based on scoring method (specified by sort_by) will be selected as feature genes. Defaults to 2000.
-        cluster (str, optional): a column in the adata.obs attribute which will be used for cluster specific expression filtering. Defaults to "Clusters".
-        relative_expr (bool, optional): a logic flag to determine whether we need to divide gene expression values first by size factor before normalization. Defaults to True.
-        keep_filtered_genes (Union[bool, None], optional): whether to keep genes that don't pass the filtering in the adata object. Defaults to None.
+        adata: an AnnData object
+        total_layers: the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"],
+            ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
+        method: the linear dimension reduction methods to be used. Defaults to "pca".
+        num_dim: the number of linear dimensions reduced to. Defaults to 30.
+        norm_method: the method to normalize the data. Defaults to None.
+        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
+        feature_selection: which sorting method, either dispersion, SVR or Gini index, to be used to select genes.
+            Defaults to "SVR".
+        n_top_genes: how many top genes based on scoring method (specified by sort_by) will be selected as feature
+            genes. Defaults to 2000.
+        cluster: a column in the adata.obs attribute which will be used for cluster specific expression filtering.
+            Defaults to "Clusters".
+        relative_expr: a logic flag to determine whether we need to divide gene expression values first by size factor
+            before normalization. Defaults to True.
+        keep_filtered_genes: whether to keep genes that don't pass the filtering in the adata object. Defaults to None.
 
     Returns:
-        anndata.AnnData: An updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+        An updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced
+        dimensions, etc., according to the velocyto preprocessing recipe.
     """
 
     keep_filtered_genes = DynamoAdataConfig.use_default_var_if_none(
@@ -1374,22 +1476,24 @@ def highest_frac_genes(
     adata: AnnData,
     store_key: str = "highest_frac_genes",
     n_top: int = 30,
-    gene_prefix_list: list = None,
+    gene_prefix_list: List[str] = None,
     gene_prefix_only: bool = False,
     layer: Union[str, None] = None,
 ) -> anndata.AnnData:
     """Compute top genes df and store results in `adata.uns`
 
     Args:
-        adata (AnnData): an AnnData object
-        store_key (str, optional): key for storing expression percent results. Defaults to "highest_frac_genes".
-        n_top (int, optional): number of top genes to show. Defaults to 30.
-        gene_prefix_list (list, optional): a list of gene prefixes used for gathering/calculating genes percents which are with these prefixes. Defaults to None.
-        gene_prefix_only (bool, optional): whether to show prefix of genes only. It only takes effect if gene prefix list is provided. Defaults to False.
-        layer (Union[str, None], optional): layer on which the gene percents will be computed. Defaults to None.
+        adata: an AnnData object
+        store_key: key for storing expression percent results. Defaults to "highest_frac_genes".
+        n_top: number of top genes to show. Defaults to 30.
+        gene_prefix_list: a list of gene name prefixes used for gathering/calculating expression percents from genes
+            with these prefixes. Defaults to None.
+        gene_prefix_only: whether to calculate percentages for gene groups with the specified prefixes only. It only
+            takes effect if gene prefix list is provided. Defaults to False.
+        layer: layer on which the gene percents will be computed. Defaults to None.
 
     Returns:
-        anndata.AnnData: updated adata with top genes df stored in `adata.uns`
+        An updated adata with top genes df stored in `adata.uns`
     """
 
     gene_mat = adata.X
@@ -1481,19 +1585,24 @@ def select_genes_monocle_legacy(
     """Select feature genes based on a collection of filters.
 
     Args:
-        adata (anndata.AnnData): an AnnData object
-        layer (str, optional): the layer (include X) used for feature selection. Defaults to "X".
-        total_szfactor (str, optional): the column name in the .obs attribute that corresponds to the size factor for the total mRNA. Defaults to "total_Size_Factor".
-        keep_filtered (bool, optional): whether to keep genes that don't pass the filtering in the adata object. Defaults to True.
-        sort_by (str, optional): which soring method, either SVR, dispersion or Gini index, to be used to select genes. Defaults to "SVR".
-        n_top_genes (int, optional): the number of top genes based on scoring method (specified by sort_by) will be selected as feature genes. Defaults to 2000.
-        SVRs_kwargs (dict, optional): extra kwargs for `SVR` function. Defaults to {}.
-        only_bools (bool, optional): whether only return a vector of bool values. Defaults to False.
-        exprs_frac_for_gene_exclusion (float, optional): threshold of fractions for high fraction genes. Defaults to 1.
-        genes_to_exclude (Union[list, None], optional): list of gene names that are excluded from calculation. Defaults to None.
+        adata: an AnnData object
+        layer: the layer (include X) used for feature selection. Defaults to "X".
+        total_szfactor: the column name in the .obs attribute that corresponds to the size factor for the total mRNA.
+            Defaults to "total_Size_Factor".
+        keep_filtered: whether to keep genes that don't pass the filtering in the adata object. Defaults to True.
+        sort_by: which soring method, either SVR, dispersion or Gini index, to be used to select genes. Defaults to
+            "SVR".
+        n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
+            genes. Defaults to 2000.
+        SVRs_kwargs: extra kwargs for `SVR` function. Defaults to {}.
+        only_bools: whether only return a vector of bool values. Defaults to False.
+        exprs_frac_for_gene_exclusion: threshold of fractions for high fraction genes. Defaults to 1.
+        genes_to_exclude: list of gene names that are excluded from calculation. Defaults to None.
 
     Returns:
-        anndata.AnnData: An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of genes for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
+        An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of genes
+        for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be
+        False.
     """
 
     filter_bool = (

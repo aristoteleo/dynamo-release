@@ -35,15 +35,19 @@ def convert2gene_symbol(input_names: List[str], scopes: Union[List[str], None] =
     """Convert ensemble gene id to official gene names using mygene package.
 
     Args:
-        input_names (List[str]): the ensemble gene id names that you want to convert to official gene names. All names should come from the same species.
-        scopes (Union[List[str], None], optional): scopes are needed when you use non-official gene name as your gene indices (or adata.var_name).
-            This arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for full list of fields. Defaults to "ensembl.gene".
+        input_names: the ensemble gene id names that you want to convert to official gene names. All names should come
+            from the same species.
+        scopes: scopes are needed when you use non-official gene name as your gene indices (or adata.var_name).
+            This arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to
+            specify type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to
+            official MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for
+            full list of fields. Defaults to "ensembl.gene".
 
     Raises:
         ImportError: fail to import `mygene`.
 
     Returns:
-        pd.DataFrame: pd.DataFrame: a pandas dataframe that includes the following columns:
+        A pandas dataframe that includes the following columns:
             query: the input ensmble ids
             _id: identified id from mygene
             _score: confidence of the retrieved official gene name.
@@ -80,16 +84,19 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
     """This helper function converts unofficial gene names to official gene names.
 
     Args:
-        adata (AnnData): an AnnData object.
-        scopes (Union[str, Iterable, None], optional): scopes are needed when you use non-official gene name as your gene indices (or adata.var_name).
-            This arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for full list of fields. Defaults to None.
-        subset (bool, optional): whether to inplace subset the results. Defaults to True.
+        adata: an AnnData object.
+        scopes: scopes are needed when you use non-official gene name as your gene indices (or adata.var_name).
+            This arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to
+            specify type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to
+            official MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for
+            full list of fields. Defaults to None.
+        subset: whether to inplace subset the results. Defaults to True.
 
     Raises:
         Exception: gene names in adata.var_names are invalid.
 
     Returns:
-        AnnData: the updated AnnData object.
+        The updated AnnData object.
     """
 
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
@@ -150,12 +157,12 @@ def compute_gene_exp_fraction(X: scipy.sparse.spmatrix, threshold: float = 0.001
     """Calculate fraction of each gene's count to total counts across cells and identify high fraction genes.
 
     Args:
-        X (scipy.sparse.spmatrix): a sparse matrix containing gene expression data.
-        threshold (float, optional): lower bound for valid data. Defaults to 0.001.
+        X: a sparse matrix containing gene expression data.
+        threshold: lower bound for valid data. Defaults to 0.001.
 
     Returns:
-        frac (np.ndarray): fraction of each gene's count to total count.
-        valid_ids (np.ndarray): the indices of valid genes.
+        A tuple (frac, valid_ids) where frac is the fraction of each gene's count to total count and valid_ids is the
+        indices of valid genes.
     """
 
     frac = X.sum(0) / X.sum()
@@ -180,10 +187,10 @@ def _weight_matrix(fitted_model: sm.Poisson) -> np.ndarray:
     """Calculates weight matrix in Poisson regression.
 
     Args:
-        fitted_model (sm.Poisson): a fitted Poisson model
+        fitted_model: a fitted Poisson model
 
     Returns:
-        np.ndarray: diagonal weight matrix in Poisson regression.
+        A diagonal weight matrix in Poisson regression.
     """
 
     return np.diag(fitted_model.fittedvalues)
@@ -193,11 +200,11 @@ def _hessian(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     """Hessian matrix calculated as -X'*W*X.
 
     Args:
-        X (np.ndarray): the matrix of covariates.
-        W (np.ndarray): the weight matrix.
+        X: the matrix of covariates.
+        W: the weight matrix.
 
     Returns:
-        np.ndarray: the result Hessian matrix.
+        The result Hessian matrix.
     """
 
     return -np.dot(X.T, np.dot(W, X))
@@ -207,11 +214,11 @@ def _hat_matrix(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     """Calculate hat matrix = W^(1/2) * X * (X'*W*X)^(-1) * X'*W^(1/2)
 
     Args:
-        X (np.ndarray): the matrix of covariates.
-        W (np.ndarray): the diagonal weight matrix
+        X: the matrix of covariates.
+        W: the diagonal weight matrix
 
     Returns:
-        np.ndarray: the result hat matrix
+        The result hat matrix
     """
 
     # W^(1/2)
@@ -234,12 +241,12 @@ def cook_dist(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarr
     """calculate Cook's distance
 
     Args:
-        model (sm.Poisson): a fitted Poisson model.
-        X (np.ndarray): the matrix of covariates.
-        good (npt.ArrayLike): the dispersion table for MSE calculation.
+        model: a fitted Poisson model.
+        X: the matrix of covariates.
+        good: the dispersion table for MSE calculation.
 
     Returns:
-        np.ndarray: the result Cook's distance.
+        The result Cook's distance.
     """
 
     # Weight matrix
@@ -274,12 +281,12 @@ def filter_genes_by_pattern(
     """Utility function to filter mitochondria, ribsome protein and ERCC spike-in genes, etc.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        patterns (Tuple[str], optional): the patterns used to filter genes. Defaults to ("MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-").
-        drop_genes (bool, optional): whether inplace drop the genes from the AnnData object. Defaults to False.
+        adata: an AnnData object.
+        patterns: the patterns used to filter genes. Defaults to ("MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-").
+        drop_genes: whether inplace drop the genes from the AnnData object. Defaults to False.
 
     Returns:
-        matched_genes (List[bool]): indices of matched genes. Returned if `drop_genes` is False.
+        A list of indices of matched genes if `drop_genes` is False. Otherwise, returns none.
     """
 
     logger = LoggerManager.gen_logger("dynamo-utils")
@@ -314,7 +321,7 @@ def basic_stats(adata: anndata.AnnData) -> None:
     """Generate basic stats of the adata, including number of genes, number of cells, and number of mitochondria genes.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
+        adata: an AnnData object.
     """
 
     adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
@@ -340,10 +347,10 @@ def unique_var_obs_adata(adata: anndata.AnnData) -> anndata.AnnData:
     """Function to make the obs and var attribute's index unique
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
+        adata: an AnnData object.
 
     Returns:
-        anndata.AnnData: the updated annData object.
+        The updated annData object.
     """
 
     adata.obs_names_make_unique()
@@ -356,10 +363,10 @@ def convert_layers2csr(adata: anndata.AnnData) -> anndata.AnnData:
     """Function to convert a layer of sparse matrix to compressed csr_matrix.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
+        adata: an AnnData object.
 
     Returns:
-        anndata.AnnData: the updated annData object.
+        The updated annData object.
     """
 
     for key in adata.layers.keys():
@@ -372,23 +379,23 @@ def merge_adata_attrs(adata_ori: AnnData, adata: AnnData, attr: Literal["var", "
     """Merge two adata objects.
 
     Args:
-        adata_ori (AnnData): an AnnData object to be merged into.
-        adata (AnnData): the AnnData object to be merged.
-        attr (Literal["var, "obs"]): the attribution of adata to be merged, either "var" or "obs".
+        adata_ori: an AnnData object to be merged into.
+        adata: the AnnData object to be merged.
+        attr: the attribution of adata to be merged, either "var" or "obs".
 
     Returns:
-        AnnData: the merged AnnData object.
+        The merged AnnData object.
     """
 
     def _merge_by_diff(origin_df: pd.DataFrame, diff_df: pd.DataFrame) -> pd.DataFrame:
         """Merge two DatafFames.
 
         Args:
-            origin_df (pd.DataFrame): the DataFrame to be merged into.
-            diff_df (pd.DataFrame): the DataFrame to be merged.
+            origin_df: the DataFrame to be merged into.
+            diff_df: the DataFrame to be merged.
 
         Returns:
-            pd.DataFrame: the merged DataFrame.
+            The merged DataFrame.
         """
 
         _columns = set(diff_df.columns).difference(origin_df.columns)
@@ -413,16 +420,16 @@ def get_inrange_shared_counts_mask(
     """Generate the mask showing the genes having counts more than the provided minimal count.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        layers (List[str]): the layers to be operated on.
-        min_shared_count (int): the minimal shared number of counts for each genes across cell between layers.
-        count_by (Literal["gene", "cells"], optional): the count type of the data, either "gene: or "cells". Defaults to "gene".
+        adata: an AnnData object.
+        layers: the layers to be operated on.
+        min_shared_count: the minimal shared number of counts for each genes across cell between layers.
+        count_by: the count type of the data, either "gene: or "cells". Defaults to "gene".
 
     Raises:
         ValueError: invalid count type.
 
     Returns:
-        np.ndarray: the result mask showing the genes having counts more than the provided minimal count.
+        The result mask showing the genes having counts more than the provided minimal count.
     """
 
     layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
@@ -487,15 +494,15 @@ def clusters_stats(
     """Calculate the averages per cluster for unspliced and spliced data.
 
     Args:
-        U (pd.DataFrame): the unspliced DataFrame.
-        S (pd.DataFrame): the spliced DataFrame.
-        clusters_uid (np.ndarray): the uid of the clusters.
-        cluster_ix (np.ndarray): the indices of the clusters in adata.obs.
-        size_limit (int, optional): the max number of members to be considered in a cluster during calculation. Defaults to 40.
+        U: the unspliced DataFrame.
+        S: the spliced DataFrame.
+        clusters_uid: the uid of the clusters.
+        cluster_ix: the indices of the clusters in adata.obs.
+        size_limit: the max number of members to be considered in a cluster during calculation. Defaults to 40.
 
     Returns:
-        U_avgs (np.ndarray): the average of clusters for unspliced data.
-        S_avgs (np.ndarray): the average of clusters for spliced data.
+        U_avgs: the average of clusters for unspliced data.
+        S_avgs: the average of clusters for spliced data.
     """
 
     U_avgs = np.zeros((S.shape[1], len(clusters_uid)))
@@ -523,14 +530,14 @@ def get_svr_filter(
     """Generate the mask showing the genes with valid svr scores.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        layer (str, optional): the layer to operate on. Defaults to "spliced".
-        n_top_genes (int, optional): number of top genes to be filtered. Defaults to 3000.
-        return_adata (bool, optional): whether return an updated AnnData or the mask as an array. Defaults to False.
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to "spliced".
+        n_top_genes: number of top genes to be filtered. Defaults to 3000.
+        return_adata: whether return an updated AnnData or the mask as an array. Defaults to False.
 
     Returns:
-        adata (anndata.AnnData): updated adata object with the mask.
-        filter_bool (np.ndarray): the filter mask as a bool array.
+        adata: updated adata object with the mask.
+        filter_bool: the filter mask as a bool array.
     """
 
     score_name = "score" if layer in ["X", "all"] else layer + "_score"
@@ -567,21 +574,23 @@ def sz_util(
     """Calculate the size factor for a given layer.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        layer (str): the layer to operate on.
-        round_exprs (bool): whether the gene expression should be rounded into integers.
-        method (Literal["mean-geometric-mean-total", "geometric", "median"]): the method used to calculate the expected total reads / UMI used in size factor calculation. Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with `np.nanmedian`.
-        locfunc (Callable): the function to normalize the data.
-        total_layers (List[str], optional): the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
-        CM (pd.DataFrame, optional): the data to operate on, overriding the layer. Defaults to None.
-        scale_to (Union[float, None], optional): the final total expression for each cell that will be scaled to. Defaults to None.
+        adata: an AnnData object.
+        layer: the layer to operate on.
+        round_exprs: whether the gene expression should be rounded into integers.
+        method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
+            be replaced with `np.nanmedian`.
+        locfunc: the function to normalize the data.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
+            ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
+        CM: the data to operate on, overriding the layer. Defaults to None.
+        scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
 
     Raises:
         NotImplementedError: method is invalid.
 
     Returns:
-        sfs (pd.Series): the size factors.
-        cell_total (pd.Series): the initial cell size.
+        A tuple (sfs, cell_total) where sfs is the size factors and cell_total is the initial cell size.
     """
 
     adata = adata.copy()
@@ -636,13 +645,14 @@ def get_sz_exprs(
     """Get the size factor from an AnnData object.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        layer (str): the layer for which to get the size factor.
-        total_szfactor (Union[str, None], optional): the key-name for total size factor entry in `adata.obs`. If not None, would override the layer selected. Defaults to None.
+        adata: an AnnData object.
+        layer: the layer for which to get the size factor.
+        total_szfactor: the key-name for total size factor entry in `adata.obs`. If not None, would override the layer
+            selected. Defaults to None.
 
     Returns:
-        szfactors (np.ndarray): the queried size factor.
-        CM (npt.ArrayLike): the data of the layer corresponding to the size factor.
+        A tuple (szfactors, CM), where szfactors is the queried size factor and CM is the data of the layer
+        corresponding to the size factor.
     """
 
     if layer == "raw":
@@ -675,14 +685,14 @@ def normalize_mat_monocle(
     """Normalize the given array for monocle recipe.
 
     Args:
-        mat (np.ndarray): the array to operate on.
-        szfactors (np.ndarray): the size factors corresponding to the array.
-        relative_expr (bool): whether we need to divide gene expression values first by size factor before normalization.
-        pseudo_expr (int): a pseudocount added to the gene expression value before log/log2 normalization.
-        norm_method (Callable, optional): the method used to normalize data. Defaults to np.log1p.
+        mat: the array to operate on.
+        szfactors: the size factors corresponding to the array.
+        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
+        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization.
+        norm_method: the method used to normalize data. Defaults to np.log1p.
 
     Returns:
-        np.ndarray: the normalized array.
+        The normalized array.
     """
 
     if norm_method == np.log1p:
@@ -707,11 +717,11 @@ def Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
     """perform Freeman-Tukey transform or inverse transform on the given array.
 
     Args:
-        X (np.ndarray): a matrix.
-        inverse (bool, optional): whether to perform inverse Freeman-Tukey transform. Defaults to False.
+        X: a matrix.
+        inverse: whether to perform inverse Freeman-Tukey transform. Defaults to False.
 
     Returns:
-        np.ndarray: transformed array.
+        The transformed array.
     """
 
     if inverse:
@@ -726,7 +736,7 @@ def anndata_bytestring_decode(adata_item: pd.DataFrame) -> None:
     """Decode contents of an annotation of an AnnData object inplace.
 
     Args:
-        adata_item (pd.DataFrame): an annotation of an AnnData obkject.
+        adata_item: an annotation of an AnnData object.
     """
 
     for key in adata_item.keys():
@@ -740,7 +750,7 @@ def decode_index(adata_item: pd.DataFrame) -> None:
     """Decode indices of an annotation of an AnnData object inplace.
 
     Args:
-        adata_item (pd.DataFrame): an annotation of an AnnData obkject.
+        adata_item: an annotation of an AnnData object.
     """
 
     if areinstance(adata_item.index, bytes):
@@ -752,7 +762,7 @@ def decode(adata: anndata.AnnData) -> None:
     """Decode an AnnData object.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
+        adata: an AnnData object.
     """
 
     decode_index(adata.obs)
@@ -778,23 +788,24 @@ def pca_monocle(
     """Perform PCA reduction for monocle recipe.
 
     Args:
-        adata (AnnData): an AnnData object.
-        X_data (np.ndarray, optional): the data to perform dimension reduction on. Defaults to None.
-        n_pca_components (int, optional): number of PCA components reduced to. Defaults to 30.
-        pca_key (str, optional): the key to store the reduced data. Defaults to "X".
-        pcs_key (str, optional): the key to store the principle axes in feature space. Defaults to "PCs".
-        genes_to_append (Union[List[str], None], optional): a list of genes should be inspected. Defaults to None.
-        layer (Union[List[str], str, None], optional): the layer(s) to perform dimension reduction on. Would be overrided by X_data. Defaults to None.
-        return_all (bool, optional): whether to return the PCA fit model and the reduced array together with the updated AnnData object. Defaults to False.
+        adata: an AnnData object.
+        X_data: the data to perform dimension reduction on. Defaults to None.
+        n_pca_components: number of PCA components reduced to. Defaults to 30.
+        pca_key: the key to store the reduced data. Defaults to "X".
+        pcs_key: the key to store the principle axes in feature space. Defaults to "PCs".
+        genes_to_append: a list of genes should be inspected. Defaults to None.
+        layer: the layer(s) to perform dimension reduction on. Would be overrided by X_data. Defaults to None.
+        return_all: whether to return the PCA fit model and the reduced array together with the updated AnnData object.
+            Defaults to False.
 
     Raises:
         ValueError: layer provided is not invalid.
         ValueError: list of genes to append is invalid.
 
     Returns:
-        adata (AnnData): the updated AnnData object with reduced data.
-        fit (Union[PCA, TruncatedSVD]): the fit model for dimension reduction. Returned if `return_all` is True.
-        X_pca (np.ndarray): the reduced array. Returned if `return_all` is True.
+        The the updated AnnData object with reduced data if `return_all` is False. Otherwise, a tuple (adata, fit,
+        X_pca), where adata is the updated AnnData object, fit is the fit model for dimension reduction, and X_pca is
+        the reduced array, will be returned.
     """
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
@@ -875,11 +886,11 @@ def pca_genes(PCs: list, n_top_genes: int = 100) -> np.ndarray:
     """For each gene, if the gene is n_top in some principle component then it is valid. Return all such valid genes.
 
     Args:
-        PCs (list): principle components(PC) of PCA
-        n_top_genes (int, optional): number of gene candidates in EACH PC. Defaults to 100.
+        PCs: principle components(PC) of PCA
+        n_top_genes: number of gene candidates in EACH PC. Defaults to 100.
 
     Returns:
-        np.ndarray: a bool array indicating whether the gene is valid.
+        A bool array indicating whether the gene is valid.
     """
 
     valid_genes = np.zeros(PCs.shape[0], dtype=bool)
@@ -900,17 +911,17 @@ def top_pca_genes(
     """Define top genes as any gene that is ``n_top_genes`` in some principle component.
 
     Args:
-        adata (AnnData): an AnnData object.
-        pc_key (str, optional): component key stored in adata.uns. Defaults to "PCs".
-        n_top_genes (int, optional): number of top genes as valid top genes in each component. Defaults to 100.
-        pc_components (Union[int, None], optional): number of top principle components to use. Defaults to None.
-        adata_store_key (str, optional): the key for storing pca genes. Defaults to "top_pca_genes".
+        adata: an AnnData object.
+        pc_key: component key stored in adata.uns. Defaults to "PCs".
+        n_top_genes: number of top genes as valid top genes in each component. Defaults to 100.
+        pc_components: number of top principle components to use. Defaults to None.
+        adata_store_key: the key for storing pca genes. Defaults to "top_pca_genes".
 
     Raises:
-        Exception: _description_
+        Exception: invalid pc_key.
 
     Returns:
-        AnnData: _description_
+        The AnnData object with top genes stored as values of adata.var[adata_store_key].
     """
 
     if pc_key in adata.uns.keys():
@@ -940,8 +951,8 @@ def add_noise_to_duplicates(adata: anndata.AnnData, basis: str = "pca") -> None:
     """Add noise to duplicated elements of the reduced array inplace.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        basis (str, optional): the type of dimension redduction. Defaults to "pca".
+        adata: an AnnData object.
+        basis: the type of dimension redduction. Defaults to "pca".
     """
 
     X_data = adata.obsm["X_" + basis]
@@ -967,7 +978,7 @@ def collapse_species_adata(adata: anndata.AnnData) -> None:
     """Function to collapse the four species data, will be generalized to handle dual-datasets.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
+        adata: an AnnData object.
     """
 
     (
@@ -993,13 +1004,14 @@ def detect_experiment_datatype(adata: anndata.AnnData) -> Tuple[bool, bool, bool
     """Tells what kinds of experiment data are stored in an AnnData object.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
+        adata: an AnnData object.
 
     Returns:
-        has_splicing (bool): whether the object containing unspliced and spliced data.
-        has_labeling (bool): whether the object containing new expression and total expression (i.e. labelling) data.
-        splicing_labeling (bool): whether the object containing both splicing and labelling data.
-        has_protein (bool): whether the object containing protein data.
+        A tuple (has_splicing, has_labeling, splicing_labeling, has_protein), where has_splicing represents whether the
+        object containing unspliced and spliced data, has_labeling represents whether the object containing new
+        expression and total expression (i.e. labelling) data, splicing_labeling represents whether the object
+        containing both splicing and labelling data, and has_protein represents whether the object containing protein
+        data.
     """
 
     has_splicing, has_labeling, splicing_labeling, has_protein = (
@@ -1038,10 +1050,10 @@ def default_layer(adata: anndata.AnnData) -> str:
     """Returns the defualt layer preferred in a given AnnData object.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
+        adata: an AnnData object.
 
     Returns:
-        str: the key of the default layer.
+        The key of the default layer.
     """
 
     has_splicing, has_labeling, splicing_labeling, _ = detect_experiment_datatype(adata)
@@ -1073,11 +1085,12 @@ def calc_new_to_total_ratio(adata: anndata.AnnData) -> Union[Tuple[np.ndarray, n
     """Calculate the new to total ratio across cells. Note that NTR for the first time point in degradation approximates gamma/beta.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
+        adata: an AnnData object.
 
     Returns:
-        ntr (np.ndarray, optional): the new to total ratio of all genes for each cell. Returned if the object has labelling or splicing layers.
-        var_ntr (np.ndarray, optional): the new to total ratio of all cells for each gene. Returned if the object has labelling or splicing layers.
+        ntr: the new to total ratio of all genes for each cell. Returned if the object has labelling or splicing layers.
+        var_ntr: the new to total ratio of all cells for each gene. Returned if the object has labelling or splicing
+            layers.
     """
 
     if len({"new", "total"}.intersection(adata.layers.keys())) == 2:
@@ -1122,13 +1135,14 @@ def scale(
     """Scale layers to a particular total expression value, similar to `normalize_expr_data` function.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        layers (Union[List[str], str, None], optional): the layers to scale. Defaults to None.
-        scale_to_layer (Union[str, None], optional): use which layer to calculate a global scale factor. If None, calculate each layer's own scale factor and scale all layers to same total value. Defaults to None.
-        scale_to (float, optional): the total expression value that layers are scaled to. Defaults to 1e6.
+        adata: an AnnData object.
+        layers: the layers to scale. Defaults to None.
+        scale_to_layer: use which layer to calculate a global scale factor. If None, calculate each layer's own scale
+            factor and scale all layers to same total value. Defaults to None.
+        scale_to: the total expression value that layers are scaled to. Defaults to 1e6.
 
     Returns:
-        anndata.AnnData: the scaled AnnData object.
+        The scaled AnnData object.
     """
 
     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
@@ -1164,23 +1178,31 @@ def relative2abs(
     ERCC_annotation: Union[pd.DataFrame, None] = None,
 ) -> anndata.AnnData:
     """Converts FPKM/TPM data to transcript counts using ERCC spike-in.
-        This is based on the relative2abs function from monocle 2 (Qiu, et. al, Nature Methods, 2017).
+
+    This is based on the relative2abs function from monocle 2 (Qiu, et. al, Nature Methods, 2017).
+
     Args:
-        adata (anndata.AnnData): an Annodata object.
-        dilution (float): the dilution of the spikein transcript in the lysis reaction mix. Default is 40, 000. The number of spike-in transcripts per single-cell lysis reaction was calculated from.
-        volume (float): the approximate volume of the lysis chamber (nanoliters).
-        from_layer (Union[str, None], optional): the layer in which the ERCC TPM values will be used as the covariate for the ERCC based linear regression. Defaults to None.
-        to_layers (Union[str, List[str], None], optional): the layers that our ERCC based transformation will be applied to. Defaults to None.
-        mixture_type (Literal[1, 2], optional): the type of spikein transcripts from the spikein mixture added in the experiments. Note that m/c we inferred are also based on mixture 1. Defaults to 1.
-        ERCC_controls (Union[np.ndarray, None], optional): the FPKM/TPM matrix for each ERCC spike-in transcript in the cells if user wants to perform the transformation based on their spike-in data. Note that the row and column names should match up with the ERCC_annotation and relative_exprs_matrix respectively. Defaults to None.
-        ERCC_annotation (Union[pd.DataFrame, None], optional): the ERCC_annotation matrix from illumina USE GUIDE which will be ued for calculating the ERCC transcript copy number for performing the transformation. Defaults to None.
+        adata: an Annodata object.
+        dilution: the dilution of the spikein transcript in the lysis reaction mix. Default is 40, 000. The number of
+            spike-in transcripts per single-cell lysis reaction was calculated from.
+        volume: the approximate volume of the lysis chamber (nanoliters).
+        from_layer: the layer in which the ERCC TPM values will be used as the covariate for the ERCC based linear
+            regression. Defaults to None.
+        to_layers: the layers that our ERCC based transformation will be applied to. Defaults to None.
+        mixture_type: the type of spikein transcripts from the spikein mixture added in the experiments. Note that m/c
+            we inferred are also based on mixture 1. Defaults to 1.
+        ERCC_controls: the FPKM/TPM matrix for each ERCC spike-in transcript in the cells if user wants to perform the
+            transformation based on their spike-in data. Note that the row and column names should match up with the
+            ERCC_annotation and relative_exprs_matrix respectively. Defaults to None.
+        ERCC_annotation: the ERCC_annotation matrix from illumina USE GUIDE which will be ued for calculating the ERCC
+            transcript copy number for performing the transformation. Defaults to None.
 
     Raises:
         Exception: the number of ERCC gene in `ERCC_annotation["ERCC ID"]` is not enough.
         Exception: the layers specified in to_layers are invalid.
 
     Returns:
-        anndata.AnnData: an adata object with the data specified in the to_layers transformed into absolute counts.
+        An adata object with the data specified in the to_layers transformed into absolute counts.
     """
 
     if ERCC_annotation is None:
@@ -1280,12 +1302,12 @@ def affine_transform(X: npt.ArrayLike, A: npt.ArrayLike, b: npt.ArrayLike) -> np
     """Perform affine trasform on an array.
 
     Args:
-        X (npt.ArrayLike): the array to tranform.
-        A (npt.ArrayLike): the scaling/rotation/shear matrix.
-        b (npt.ArrayLike): the transformation matrix.
+        X: the array to tranform.
+        A: the scaling/rotation/shear matrix.
+        b: the transformation matrix.
 
     Returns:
-        np.ndarray: the result array.
+        The result array.
     """
 
     X = np.array(X)
@@ -1298,10 +1320,10 @@ def gen_rotation_2d(degree: float) -> np.ndarray:
     """Calculate the 2D rotation transform matrix for given rotation in degrees.
 
     Args:
-        degree (float): the degrees to rotate.
+        degree: the degrees to rotate.
 
     Returns:
-        np.ndarray: the rotation matrix.
+        The rotation matrix.
     """
 
     from math import cos, radians, sin

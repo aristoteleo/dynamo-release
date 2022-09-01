@@ -1,6 +1,11 @@
 import re
 from typing import List, Tuple
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import anndata
 import numpy as np
 import pandas as pd
@@ -21,16 +26,18 @@ from .utils import cook_dist
 def parametric_dispersion_fit(
     disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])
 ) -> Tuple[sm.formula.glm, np.ndarray, pd.DataFrame]:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """Perform the dispersion parameter fitting with initial guesses of coefficients.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        disp_table (pd.DataFrame): A pandas dataframe with mu, dispersion for each gene that passes filters.
-        initial_coefs (np.ndarray, optional): Initial parameters for the gamma fit of the dispersion parameters.. Defaults to np.array([1e-6, 1]).
+        disp_table: A pandas dataframe with mu, dispersion for each gene that passes filters.
+        initial_coefs: Initial parameters for the gamma fit of the dispersion parameters. Defaults to
+            np.array([1e-6, 1]).
 
     Returns:
-        fit (sm.formula.glm): a statsmodels fitting object.
-        coefs (np.ndarray): the two resulting gamma fitting coefficient.
-        good (pd.DataFrame): the subsetted dispersion table that is subjected to Gamma fitting.
+        A tuple (fit, coefs, good), where fit is a statsmodels fitting object, coefs contains the two resulting gamma
+        fitting coefficient, and good is the the subsetted dispersion table that is subjected to Gamma fitting.
     """
 
     coefs = initial_coefs
@@ -70,16 +77,19 @@ def parametric_dispersion_fit(
 def disp_calc_helper_NB(
     adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
 ) -> Tuple[List[str], List[pd.DataFrame]]:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """Helper function to calculate the dispersion parameter.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an Anndata object
-        layers (str, optional): the layer of data used for dispersion fitting. Defaults to "X".
-        min_cells_detected (int, optional): the minimal required number of cells with expression for selecting gene for dispersion fitting. Defaults to 1.
+        adata: an Anndata object.
+        layers: the layer of data used for dispersion fitting. Defaults to "X".
+        min_cells_detected: the minimal required number of cells with expression for selecting gene for dispersion
+            fitting. Defaults to 1.
 
     Returns:
-        layers (List[str]): a list of layers available.
-        res_list (List[pd.DataFrame]): a list of pd.DataFrame's with mu, dispersion for each gene that passes filters.
+        layers: a list of layers available.
+        res_list: a list of pd.DataFrames with mu, dispersion for each gene that passes filters.
     """
     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
 
@@ -160,17 +170,17 @@ def estimate_dispersion(
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        layers (str, optional): the layer(s) to be used for calculating dispersion. Default is "X" if there is no spliced layers.
-        modelFormulaStr (str, optional): the model formula used to calculate dispersion parameters. Not used. Defaults to "~ 1".
-        min_cells_detected (int, optional): the minimum number of cells detected for calculating the dispersion. Defaults to 1.
-        removeOutliers (bool, optional): whether to remove outliers when performing dispersion fitting. Defaults to False.
+        adata: an AnnData object.
+        layers: the layer(s) to be used for calculating dispersion. Default is "X" if there is no spliced layers.
+        modelFormulaStr: the model formula used to calculate dispersion parameters. Not used. Defaults to "~ 1".
+        min_cells_detected: the minimum number of cells detected for calculating the dispersion. Defaults to 1.
+        removeOutliers: whether to remove outliers when performing dispersion fitting. Defaults to False.
 
     Raises:
-        Exception: there is no valid DataFrame's with mu for genes.
+        Exception: there is no valid DataFrames with mu for genes.
 
     Returns:
-        anndata.AnnData: An updated annData object with dispFitInfo added to uns attribute as a new key.
+        An updated annData object with dispFitInfo added to uns attribute as a new key.
     """
 
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
@@ -236,20 +246,29 @@ def estimate_dispersion(
     return adata
 
 
-def top_table(adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).Get information of the top layer.
+def top_table(
+    adata: anndata.AnnData, layer: str = "X", mode: Literal["dispersion", "gini"] = "dispersion"
+) -> pd.DataFrame:
+    """Retrieve a table that contains gene names and other info whose dispersions/gini index are highest.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Get information of the top layer.
 
     Args:
-        adata (anndata.AnnData): an AnnData object.
-        layer (str, optional): the layer(s) that would be searched for. Defaults to "X".
-        mode (str, optional): either "dispersion" or "gini", deciding whether dispersion data or gini data would be acquired. Defaults to "dispersion".
+        adata: an AnnData object.
+        layer: the layer(s) that would be searched for. Defaults to "X".
+        mode: either "dispersion" or "gini", deciding whether dispersion data or gini data would be acquired. Defaults
+            to "dispersion".
 
     Raises:
         KeyError: if mode is set to dispersion but there is no available dispersion model.
 
     Returns:
-        pd.DataFrame: The data frame of the top layer with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
+        The data frame of the top layer with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as
+        the columns.
     """
+
     layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
 
     if layer in ["X"]:

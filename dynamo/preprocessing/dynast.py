@@ -3,7 +3,7 @@ from typing import Union
 import anndata
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
+from scipy.sparse import csr_matrix, issparse
 from sklearn.utils import sparsefuncs
 
 from ..dynamo_logger import LoggerManager, main_tqdm
@@ -19,19 +19,20 @@ def lambda_correction(
     """Use lambda (cell-wise detection rate) to estimate the labelled RNA.
 
     Args:
-        adata (anndata.AnnData): adata object generated from dynast.
-        lambda_key (str, optional): the key to the cell-wise detection rate. Defaults to "lambda".
-        inplace (bool, optional): whether to inplace update the layers. If False, new layers that append '_corrected" to the existing will be
-            used to store the updated data. Defaults to True.
-        copy (bool, optional): whether to copy the adata object or update adata object inplace. Defaults to False.
+        adata: an adata object generated from dynast.
+        lambda_key: the key to the cell-wise detection rate. Defaults to "lambda".
+        inplace: whether to inplace update the layers. If False, new layers that append '_corrected" to the existing
+            will be used to store the updated data. Defaults to True.
+        copy: whether to copy the adata object or update adata object inplace. Defaults to False.
 
     Raises:
         ValueError: the `lambda_key` cannot be found in `adata.obs`
-        ValueError: `data_type` is set to 'splicing_labeling' but the kinds of layers does not meet requirements.
-        ValueError: `data_type` is set to 'labeling' but the kinds of layers does not meet requirements.
-
+        ValueError: `data_type` is set to 'splicing_labeling' but the existing layers in the adata object don't meet the
+            requirements.
+        ValueError: `data_type` is set to 'labeling' but the existing layers in the adata object don't meet the
+            requirements.
     Returns:
-        Union[anndata.AnnData, None]: if `copy` is true, An new or updated anndata object, based on copy parameter, that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+        A new AnnData object that are updated with lambda corrected layers if `copy` is true. Otherwise, return None.
     """
 
     logger = LoggerManager.gen_logger("dynamo-lambda_correction")
@@ -143,16 +144,16 @@ def lambda_correction(
     return None
 
 
-def sparse_mimmax(A: pd.DataFrame, B: pd.DataFrame, type="min") -> pd.DataFrame:
+def sparse_mimmax(A: csr_matrix, B: csr_matrix, type="min") -> csr_matrix:
     """Return the element-wise minimum/maximum of sparse matrices `A` and `B`.
 
     Args:
-        A (pd.DataFrame): The first sparse matrix
-        B (pd.DataFrame): The second sparse matrix
-        type (str, optional): The type of calculation, either "min" or "max". Defaults to "min".
+        A: The first sparse matrix
+        B: The second sparse matrix
+        type: The type of calculation, either "min" or "max". Defaults to "min".
 
     Returns:
-        pd.DataFrame: A sparse matrix that contain the element-wise maximal or minimal of two sparse matrices.
+        A sparse matrix that contain the element-wise maximal or minimal of two sparse matrices.
     """
 
     AgtB = (A < B).astype(int) if type == "min" else (A > B).astype(int)

@@ -32,10 +32,10 @@ class CnmfPreprocessor(Preprocessor):
         """Preprocess the AnnData object with cNMF.
 
         Args:
-            adata (AnnData): an AnnData object.
+            adata: an AnnData object.
 
         Returns:
-            AnnData: the preprocessed AnnData object.
+            The preprocessed AnnData object.
         """
 
         try:
@@ -80,8 +80,10 @@ class CnmfPreprocessor(Preprocessor):
 
     def k_selection_plot(self) -> None:
         """Plot the K selection curve of cNMF and save to the output folder."""
+
         self.cnmf_obj.k_selection_plot(close_fig=False)
 
     def cleanup_cnmf(self) -> None:
         """Remove the tmp folder to store data used for cNMF."""
+
         rmtree(self.output_dir, ignore_errors=True)
