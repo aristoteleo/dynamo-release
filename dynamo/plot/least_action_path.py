@@ -182,5 +182,5 @@ def lap_min_time(
             plt.tight_layout()
             plt.show()
 
-        if save_show_or_return in ["return", "all"]:
-            return axes
+        # if save_show_or_return in ["return", "all"]:
+        #    return axes
