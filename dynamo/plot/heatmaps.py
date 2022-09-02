@@ -613,8 +613,8 @@ def response(
         if fit_dict is not None:
             adata.uns["response"]["fit_curve"] = fit_dict
 
-    if save_show_or_return in ["return", "all"]:
-        list_for_return += [axes]
+    # if save_show_or_return in ["return", "all"]:
+    #    list_for_return += [axes]
 
     if list_for_return:
         return tuple(list_for_return)
@@ -724,8 +724,8 @@ def plot_hill_function(
 
         plt.show()
 
-    if save_show_or_return in ["return", "all"]:
-        return axes
+    # if save_show_or_return in ["return", "all"]:
+    #    return axes
 
 
 def causality(
@@ -1160,8 +1160,8 @@ def causality(
     else:
         adata.uns[kwargs.pop("save_key", "causality")] = flat_res
 
-    if save_show_or_return in ["return", "all"]:
-        list_for_return += [axes]
+    # if save_show_or_return in ["return", "all"]:
+    #    list_for_return += [axes]
 
     if list_for_return:
         return tuple(list_for_return)
