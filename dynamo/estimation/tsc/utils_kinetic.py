@@ -252,11 +252,11 @@ class Moments(LinearODE):
 
     def get_var_nu(self):
         c = self.get_nu()
-        return self.x[:, self.uu] + c - c ** 2
+        return self.x[:, self.uu] + c - c**2
 
     def get_var_nx(self):
         c = self.get_nx()
-        return self.x[:, self.xx] + c - c ** 2
+        return self.x[:, self.xx] + c - c**2
 
     def get_cov_ux(self):
         cu = self.get_nu()
@@ -380,7 +380,7 @@ class Moments_Nosplicing(LinearODE):
 
     def get_var_nu(self):
         c = self.get_nu()
-        return self.x[:, self.uu] + c - c ** 2
+        return self.x[:, self.uu] + c - c**2
 
     def computeKnp(self):
         # parameters
@@ -480,11 +480,11 @@ class Moments_NoSwitching(LinearODE):
 
     def get_var_u(self):
         c = self.get_mean_u()
-        return self.x[:, self.uu] - c ** 2
+        return self.x[:, self.uu] - c**2
 
     def get_var_s(self):
         c = self.get_mean_s()
-        return self.x[:, self.ss] - c ** 2
+        return self.x[:, self.ss] - c**2
 
     def get_cov_us(self):
         cu = self.get_mean_u()
@@ -576,7 +576,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
 
     def get_var_u(self):
         c = self.get_mean_u()
-        return self.x[:, self.uu] - c ** 2
+        return self.x[:, self.uu] - c**2
 
     def computeKnp(self):
         # parameters

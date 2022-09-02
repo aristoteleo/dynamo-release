@@ -91,7 +91,7 @@ def delta_delta_l(X_input):
     """
 
     delta = np.diff(X_input, 1, 1)
-    delta_l = np.sqrt(np.sum(delta ** 2, 0))
+    delta_l = np.sqrt(np.sum(delta**2, 0))
 
     return delta, delta_l
 

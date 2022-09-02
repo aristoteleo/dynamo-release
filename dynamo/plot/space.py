@@ -127,7 +127,7 @@ def space(
         # meaning of s in scatters:
         # https://stackoverflow.com/questions/14827650/pyplot-scatter-plot-marker-size/47403507#47403507
         # Note that np.sqrt(adata.shape[0]) / 16000.0 is used in pl.scatters
-        pointsize = pointsize ** 2 * np.sqrt(adata.shape[0]) / 16000.0
+        pointsize = pointsize**2 * np.sqrt(adata.shape[0]) / 16000.0
 
         main_info("estimated point size for plotting each cell in space: %f" % (pointsize))
 

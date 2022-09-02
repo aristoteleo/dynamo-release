@@ -65,7 +65,7 @@ def rep2(x, length_out):
 
 
 def dnorm(x, u=0, sig=1):
-    return np.exp(-((x - u) ** 2) / (2 * sig ** 2)) / (math.sqrt(2 * math.pi) * sig)
+    return np.exp(-((x - u) ** 2) / (2 * sig**2)) / (math.sqrt(2 * math.pi) * sig)
 
 
 def kde2d(x, y, h=None, n=25, lims=None):
@@ -237,6 +237,8 @@ def response(
         ridge_curve_subset: 'pd.core.frame.DataFrame'
             a pandas data frame used to create the read ridge line for the last gene pair (if multiple gene-pairs are inputted) with
             four columns (`x`: x-coordinate; `y`: y-coordinate; `type`: the corresponding gene pair).
+        axes: 'list[list[Axes]]'
+            the Axes of the figure.
     """
     import matplotlib
     import matplotlib.pyplot as plt
@@ -286,7 +288,7 @@ def response(
 
     id = 0
     for gene_pairs_ind, gene_pairs in enumerate(pairs_mat):
-        f_ini_ind = (grid_num ** 2) * id
+        f_ini_ind = (grid_num**2) * id
         r_ini_ind = grid_num * id
 
         gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
@@ -583,19 +585,25 @@ def response(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both", "all"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
 
         plt.show()
 
+    list_for_return = []
+
     if return_data:
         if fit_dict is None:
-            return (flat_res, flat_res_subset, ridge_curve_subset)
+            list_for_return += [flat_res, flat_res_subset, ridge_curve_subset]
         else:
-            return (flat_res, flat_res_subset, ridge_curve_subset, fit_dict)
+            list_for_return += [flat_res, flat_res_subset, ridge_curve_subset, fit_dict]
     else:
         adata.uns["response"] = {
             "flat_res": flat_res,
@@ -604,6 +612,12 @@ def response(
         }
         if fit_dict is not None:
             adata.uns["response"]["fit_curve"] = fit_dict
+
+    if save_show_or_return in ["return", "all"]:
+        list_for_return += [axes]
+
+    if list_for_return:
+        return tuple(list_for_return)
 
 
 def plot_hill_function(
@@ -698,13 +712,20 @@ def plot_hill_function(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both", "all"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
 
         plt.show()
+
+    if save_show_or_return in ["return", "all"]:
+        return axes
 
 
 def causality(
@@ -842,7 +863,7 @@ def causality(
     id = 0
     for gene_pairs_ind in range(0, len(pairs_mat)):
         gene_pairs = pairs_mat[gene_pairs_ind, :]
-        f_ini_ind = (grid_num ** 2) * id
+        f_ini_ind = (grid_num**2) * id
 
         gene_pair_name = reduce(lambda a, b: a + "->" + b, gene_pairs)
 
@@ -1120,18 +1141,30 @@ def causality(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both", "all"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
 
         plt.show()
 
+    list_for_return = []
+
     if return_data:
-        return flat_res
+        list_for_return += [flat_res]
     else:
         adata.uns[kwargs.pop("save_key", "causality")] = flat_res
+
+    if save_show_or_return in ["return", "all"]:
+        list_for_return += [axes]
+
+    if list_for_return:
+        return tuple(list_for_return)
 
 
 def comb_logic(

@@ -129,7 +129,7 @@ def plot_flow_field(
             u_vel[i, j], v_vel[i, j] = vecfld(np.array([uu[i, j], vv[i, j]]))
 
     # Compute speed
-    speed = np.sqrt(u_vel ** 2 + v_vel ** 2)
+    speed = np.sqrt(u_vel**2 + v_vel**2)
 
     # Make linewidths proportional to speed,
     # with minimal line width of 0.5 and max of 3

@@ -162,9 +162,9 @@ def prop_2bifurgenes(C, a, b, S, K, m, n, gamma):
 
     # propensities
     prop = np.zeros(4)
-    prop[0] = a1 * x ** m1 / (S1 ** m1 + x ** m1) + b1 * K1 ** n1 / (K1 ** n1 + y ** n1)  # 0 -> x
+    prop[0] = a1 * x**m1 / (S1**m1 + x**m1) + b1 * K1**n1 / (K1**n1 + y**n1)  # 0 -> x
     prop[1] = ga1 * x  # x -> 0
-    prop[2] = a2 * y ** m2 / (S2 ** m2 + y ** m2) + b2 * K2 ** n2 / (K2 ** n2 + x ** n2)  # 0 -> y
+    prop[2] = a2 * y**m2 / (S2**m2 + y**m2) + b2 * K2**n2 / (K2**n2 + x**n2)  # 0 -> y
     prop[3] = ga2 * y  # y -> 0
 
     return prop
@@ -204,10 +204,10 @@ def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
 
     # propensities
     prop = np.zeros(6)
-    prop[0] = a1 * s1 ** m1 / (S1 ** m1 + s1 ** m1) + b1 * K1 ** n1 / (K1 ** n1 + s2 ** n1)  # 0 -> u1
+    prop[0] = a1 * s1**m1 / (S1**m1 + s1**m1) + b1 * K1**n1 / (K1**n1 + s2**n1)  # 0 -> u1
     prop[1] = be1 * u1  # u1 -> s1
     prop[2] = ga1 * s1  # s1 -> 0
-    prop[3] = a2 * s2 ** m2 / (S2 ** m2 + s2 ** m2) + b2 * K2 ** n2 / (K2 ** n2 + s1 ** n2)  # 0 -> u2
+    prop[3] = a2 * s2**m2 / (S2**m2 + s2**m2) + b2 * K2**n2 / (K2**n2 + s1**n2)  # 0 -> u2
     prop[4] = be2 * u2  # u2 -> s2
     prop[5] = ga2 * s2  # s2 -> 0
 

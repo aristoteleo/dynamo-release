@@ -758,7 +758,7 @@ def scatters(
                     values = (
                         calc_1nd_moment(values, knn)[0]
                         if smooth in [1, True]
-                        else calc_1nd_moment(values, knn ** smooth)[0]
+                        else calc_1nd_moment(values, knn**smooth)[0]
                     )
 
                 if affine_transform_A is None or affine_transform_b is None:
@@ -916,24 +916,28 @@ def scatters(
             "close": True,
             "verbose": True,
         }
+
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
         if background is not None:
             reset_rcParams()
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both", "all"]:
         if show_legend:
             plt.subplots_adjust(right=0.85)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # TODO: tight_layout causing "AttributeError: 'AnchoredSizeLocator' object has no attribute 'get_subplotspec'"
-            # plt.tight_layout()
+            plt.tight_layout()
 
         plt.show()
         if background is not None:
             reset_rcParams()
-    elif save_show_or_return in ["return", "all"]:
+    if save_show_or_return in ["return", "all"]:
         if background is not None:
             reset_rcParams()
 
