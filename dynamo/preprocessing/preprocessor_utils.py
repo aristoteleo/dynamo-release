@@ -114,7 +114,7 @@ def get_nan_or_inf_data_bool_mask(arr: np.ndarray) -> np.ndarray:
     """Returns the mask of arr with the same shape, indicating whether each index is nan/inf or not.
 
     Args:
-        an array
+        arr: an array
 
     Returns:
         A bool array indicating each element is nan/inf or not
@@ -334,7 +334,8 @@ def select_genes_by_dispersion_general(
     elif recipe == "monocle":
         # TODO refactor dynamo monocle selection genes part code and make it modular (same as the two functions above)
         # the logics here for dynamo recipe is different from the above recipes
-        # Note we do not need to pass subset_adata here because monocle takes care of everything regarding dynamo convention
+        # Note we do not need to pass subset_adata here because monocle takes care of everything regarding dynamo
+        # convention
         select_genes_monocle(adata, **monocle_kwargs)
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[DKM.VAR_USE_FOR_PCA]
         return
@@ -822,7 +823,10 @@ def get_highly_variable_mask_by_dispersion_svr(
     is_nan_indices = np.logical_or(np.isnan(mean_log), np.isnan(cv_log))
     if np.sum(is_nan_indices) > 0:
         main_warning(
-            "mean and cv_log contain NAN values. We exclude them in SVR training. Please use related gene filtering methods to filter genes with zero means."
+            (
+                "mean and cv_log contain NAN values. We exclude them in SVR training. Please use related gene filtering "
+                "methods to filter genes with zero means."
+            )
         )
 
     classifier.fit(mean_log[~is_nan_indices, np.newaxis], cv_log.reshape([-1, 1])[~is_nan_indices])
