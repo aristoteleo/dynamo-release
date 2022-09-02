@@ -12,11 +12,7 @@ from scipy.spatial.distance import cdist, pdist
 from tqdm import tqdm
 
 from ..dynamo_logger import LoggerManager, main_info
-from ..tools.utils import (
-    form_triu_matrix,
-    index_condensed_matrix,
-    timeit,
-)
+from ..tools.utils import form_triu_matrix, index_condensed_matrix, timeit
 
 
 def is_outside_domain(x, domain):

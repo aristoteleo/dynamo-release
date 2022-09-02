@@ -1,4 +1,4 @@
-from typing import Callable, Union
+from typing import Union
 
 import numpy as np
 from scipy.cluster.vq import kmeans2

@@ -13,12 +13,7 @@ from scipy.optimize import fsolve
 from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import LoggerManager, main_info, main_warning
-from ..tools.utils import (
-    gaussian_1d,
-    inverse_norm,
-    nearest_neighbors,
-    update_dict,
-)
+from ..tools.utils import gaussian_1d, inverse_norm, nearest_neighbors, update_dict
 from ..utils import copy_adata
 from .FixedPoints import FixedPoints
 from .scVectorField import BaseVectorField, SvcVectorField

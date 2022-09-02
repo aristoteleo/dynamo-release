@@ -346,7 +346,7 @@ class moments:
         # x_ss = linalg.inv(K).dot(p)
         y0 = x0 + x_ss
 
-        D, U = linalg.eig(K)
+        D, U = np.linalg.eig(K)
         V = np.linalg.inv(U)
         D, U, V = map(np.real, (D, U, V))
         expD = np.exp(D)
@@ -500,7 +500,7 @@ class estimation:
         self.ranges = ranges
         self.n_params = len(ranges)
         self.simulator = moments()
-        if not x0 is None:
+        if x0 is not None:
             self.simulator.x0 = x0
 
     def sample_p0(self, samples=1, method="lhs"):

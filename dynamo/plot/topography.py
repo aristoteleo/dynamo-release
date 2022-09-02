@@ -17,9 +17,7 @@ from ..vectorfield.topography import (  # , compute_separatrices
     VectorField,
     VectorField2D,
 )
-from ..vectorfield.topography import (
-    topography as _topology,
-)  # , compute_separatrices
+from ..vectorfield.topography import topography as _topology  # , compute_separatrices
 from ..vectorfield.utils import vecfld_from_adata
 from ..vectorfield.vector_calculus import curl, divergence
 from .scatters import docstrings, scatters

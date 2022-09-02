@@ -2,12 +2,7 @@ import numpy as np
 from scipy.sparse import issparse
 from tqdm import tqdm
 
-from ...tools.utils import (
-    calc_norm_loglikelihood,
-    calc_R2,
-    elem_prod,
-    find_extreme,
-)
+from ...tools.utils import calc_norm_loglikelihood, calc_R2, elem_prod, find_extreme
 from ..csc.utils_velocity import fit_linreg, fit_stochastic_linreg
 
 

@@ -197,7 +197,7 @@ def psl(
             scipy.sparse.diags(functools.reduce(operator.concat, S.sum(axis=1)[:, 0].tolist()))
             - S
             + 0.25 * (param_gamma + 1) * scipy.sparse.eye(N, N)
-        )  ##################
+        )
         R = scipy.linalg.cholesky(Q.toarray())  # Cholesky Decomposition of a Sparse Matrix
         invR = scipy.sparse.linalg.inv(csr_matrix(R))  # R:solve(R)
         # invR = np.matrix(invR)

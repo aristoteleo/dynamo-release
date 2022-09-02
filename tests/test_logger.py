@@ -5,12 +5,7 @@ import pytest
 import dynamo as dyn
 import dynamo.tools
 from dynamo import LoggerManager
-from dynamo.dynamo_logger import (
-    main_critical,
-    main_info,
-    main_tqdm,
-    main_warning,
-)
+from dynamo.dynamo_logger import main_critical, main_info, main_tqdm, main_warning
 
 
 @pytest.fixture

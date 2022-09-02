@@ -11,18 +11,10 @@ from sklearn.utils import sparsefuncs
 
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..utils import areinstance
-from .connectivity import (
-    _gen_neighbor_keys,
-    adj_to_knn,
-    check_and_recompute_neighbors,
-)
+from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
 from .dimension_reduction import reduceDimension
 from .graph_calculus import calc_gaussian_weight, fp_operator, graphize_velocity
-from .Markov import (
-    ContinuousTimeMarkovChain,
-    KernelMarkovChain,
-    velocity_on_grid,
-)
+from .Markov import ContinuousTimeMarkovChain, KernelMarkovChain, velocity_on_grid
 from .metric_velocity import gene_wise_confidence
 
 # dynamo logger related

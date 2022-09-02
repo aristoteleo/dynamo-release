@@ -9,7 +9,7 @@ from anndata._core.anndata import AnnData
 from cycler import cycler
 from matplotlib import cm, colors, rcParams
 
-from .dynamo_logger import main_info, main_warning
+from .dynamo_logger import main_info
 
 
 class DynamoAdataKeyManager:
@@ -37,7 +37,9 @@ class DynamoAdataKeyManager:
     PROTEIN_LAYER = "protein"
 
     def gen_new_layer_key(layer_name, key, sep="_") -> str:
-        """utility function for returning a new key name for a specific layer. By convention layer_name should not have the separator as the last character."""
+        """utility function for returning a new key name for a specific layer. By convention layer_name should not have
+        the separator as the last character.
+        """
         if layer_name == "":
             return key
         if layer_name[-1] == sep:
@@ -62,9 +64,11 @@ class DynamoAdataKeyManager:
         )
 
     def select_layer_data(adata: AnnData, layer: str, copy=False) -> pd.DataFrame:
-        """select layer data based on layer key. The default layer is X layer in adata.
-        For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo convention,
-        this utility provides an unified interface for selecting layer data with shape n_obs x n_var."""
+        """Select layer data based on layer key. The default layer is X layer in adata.
+
+        For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo
+        convention, this utility provides an unified interface for selecting layer data with shape n_obs x n_var.
+        """
         if layer is None:
             layer = DynamoAdataKeyManager.X_LAYER
         res_data = None
@@ -100,7 +104,11 @@ class DynamoAdataKeyManager:
         return layer in adata.layers
 
     def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True):
-        """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
+        """Get the list of available layers' keys.
+
+        If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the
+        intersetion of available layers and `layers` will be returned.
+        """
         layer_keys = list(adata.layers.keys())
         if remove_pp_layers:
             layer_keys = [i for i in layer_keys if not i.startswith("X_")]
@@ -197,7 +205,9 @@ class DynamoAdataConfig:
     config_key_to_values = None
 
     def use_default_var_if_none(val, key, replace_val=None):
-        """if `val` is equal to `replace_val`, then a config value will be returned according to `key` stored in dynamo configuration. Otherwise return the original `val` value.
+        """
+        If `val` is equal to `replace_val`, then a config value will be returned according to `key` stored in dynamo
+        configuration. Otherwise return the original `val` value.
 
         Parameters
         ----------
@@ -213,7 +223,7 @@ class DynamoAdataConfig:
             `val` or config value set in DynamoAdataConfig according to the method description above.
 
         """
-        if not key in DynamoAdataConfig.config_key_to_values:
+        if key not in DynamoAdataConfig.config_key_to_values:
             assert KeyError("Config %s not exist in DynamoAdataConfig." % (key))
         if val == replace_val:
             config_val = DynamoAdataConfig.config_key_to_values[key]
@@ -247,8 +257,8 @@ class DynamoAdataConfig:
             DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY: DynamoAdataConfig.recipe_keep_filtered_cells,
             DynamoAdataConfig.RECIPE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_keep_filtered_genes,
             DynamoAdataConfig.RECIPE_KEEP_RAW_LAYERS_KEY: DynamoAdataConfig.recipe_keep_raw_layers,
-            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_cells,
-            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_genes,
+            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_CELLS_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_cells,  # noqa: E501
+            DynamoAdataConfig.RECIPE_MONOCLE_KEEP_FILTERED_GENES_KEY: DynamoAdataConfig.recipe_monocle_keep_filtered_genes,  # noqa: E501
             DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY: DynamoAdataConfig.recipe_monocle_keep_raw_layers,
             DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.dynamics_del_2nd_moments,
             DynamoAdataConfig.RECIPE_DEL_2ND_MOMENTS_KEY: DynamoAdataConfig.recipe_del_2nd_moments,
@@ -516,7 +526,10 @@ def config_dynamo_rcParams(
     rcParams["axes.labelcolor"] = "555555"
     rcParams["axes.axisbelow"] = True  # grid/ticks are below elements (e.g., lines, text)
 
-    # rcParams['axes.prop_cycle'] = cycler('color', ['E24A33', '348ABD', '988ED5', '777777', 'FBC15E', '8EBA42', 'FFB5B8'])
+    # rcParams['axes.prop_cycle'] = cycler(
+    #     'color',
+    #     ['E24A33', '348ABD', '988ED5', '777777', 'FBC15E', '8EBA42', 'FFB5B8']
+    # )
     # # E24A33 : red
     # # 348ABD : blue
     # # 988ED5 : purple
@@ -623,7 +636,8 @@ def set_figure_params(
     ipython_format="png2x",
 ):
     """Set resolution/size, styling and format of figures.
-       This function is adapted from: https://github.com/theislab/scanpy/blob/f539870d7484675876281eb1c475595bf4a69bdb/scanpy/_settings.py
+       This function is adapted from:
+       https://github.com/theislab/scanpy/blob/f539870d7484675876281eb1c475595bf4a69bdb/scanpy/_settings.py
     Arguments
     ---------
         dynamo: `bool` (default: `True`)
@@ -718,7 +732,7 @@ def set_pub_style_mpltex():
     set_figure_params("dynamo", background="white")
     matplotlib.use("cairo")
     # the following code is adapted from https://github.com/liuyxpp/mpltex
-    # latex_preamble = r"\usepackage{siunitx}\sisetup{detect-all}\usepackage{helvet}\usepackage[eulergreek,EULERGREEK]{sansmath}\sansmath"
+    # latex_preamble = r"\usepackage{siunitx}\sisetup{detect-all}\usepackage{helvet}\usepackage[eulergreek,EULERGREEK]{sansmath}\sansmath" # noqa: E501
     params = {
         "font.family": "sans-serif",
         "font.serif": ["Times", "Computer Modern Roman"],

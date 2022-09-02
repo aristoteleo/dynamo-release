@@ -2,20 +2,16 @@ import sys
 import warnings
 from typing import Optional, Union
 
+import numpy as np
 import pandas as pd
 from anndata import AnnData
+from scipy.sparse import issparse
 
 from ..configuration import _themes
 from ..dynamo_logger import main_warning
 from ..estimation.csc.velocity import sol_s, sol_u, solve_first_order_deg
 from ..estimation.tsc.utils_moments import moments
-from ..tools.utils import (
-    get_mapper,
-    get_valid_bools,
-    index_gene,
-    log1p_,
-    update_dict,
-)
+from ..tools.utils import get_mapper, get_valid_bools, index_gene, log1p_, update_dict
 from .scatters import scatters
 from .utils import (
     _datashade_points,
@@ -29,7 +25,17 @@ from .utils import (
     quiver_autoscaler,
     save_fig,
 )
-from .utils_dynamics import *
+from .utils_dynamics import (
+    plot_deg_det,
+    plot_deg_sto,
+    plot_kin_deg_twostep,
+    plot_kin_det,
+    plot_kin_mix,
+    plot_kin_mix_det_sto,
+    plot_kin_mix_sto_sto,
+    plot_kin_sto,
+    plot_kin_twostep,
+)
 
 
 def phase_portraits(
@@ -562,7 +568,8 @@ def phase_portraits(
 
     font_color = _select_font_color(discrete_background)
 
-    # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+    # the following code is inspired by
+    # https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
     gs = plt.GridSpec(nrow, ncol, wspace=0.5, hspace=0.36)
     for i, gn in enumerate(genes):
         if num_per_gene == 3:
@@ -580,10 +587,10 @@ def phase_portraits(
                 plt.subplot(gs[i * 3 + 4]),
                 plt.subplot(gs[i * 3 + 5]),
             )
-        try:
-            ix = np.where(adata.var.index == gn)[0][0]
-        except:
-            continue
+        # try:
+        #     ix = np.where(adata.var.index == gn)[0][0]
+        # except:
+        #     continue
         cur_pd = df.loc[df.gene == gn, :]
         if cur_pd.color.isna().all():
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
@@ -1142,9 +1149,11 @@ def dynamics(
         barwidth: `float`
             The width of the bar of the barplot.
         true_param_prefix: `str`
-            The prefix for the column names of true parameters in the .var attributes. Useful for the simulation data.
+            The prefix for the column names of true parameters in the .var attributes. Useful for the simulation
+            data.
         show_moms_fit: `bool` (default: `True`)
-            Whether to show fitting curves associated with the stochastic models, only works for non-deterministic models.
+            Whether to show fitting curves associated with the stochastic models, only works for non-deterministic
+            models.
         show_variance: `bool` (default: `True`)
             Whether to add a boxplot to show the variance at each time point.
         show_kin_parameters: `bool` (default: `True`)
@@ -1156,10 +1165,10 @@ def dynamics(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'dynamics', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            `save_fig` function will use `{"path": None, "prefix": 'dynamics', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True}` as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
 
     Returns
     -------
@@ -1693,10 +1702,10 @@ def dynamics(
                             "(unspliced labeled)",
                             "(spliced labeled)",
                         ]
-                        Obs_m = [
-                            valid_adata.uns["M_ul"],
-                            valid_adata.uns["M_sl"],
-                        ]
+                        # Obs_m = [
+                        #     valid_adata.uns["M_ul"],
+                        #     valid_adata.uns["M_sl"],
+                        # ]
                         Obs_v = [
                             valid_adata.uns["V_ul"],
                             valid_adata.uns["V_sl"],
@@ -1801,7 +1810,8 @@ def dynamics(
                                 showfliers=False,
                                 showmeans=True,
                             )  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
-                            # ax.scatter(T_uniq, Obs_m[j][i], c='r')  # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+                            #  ax.scatter(T_uniq, Obs_m[j][i], c='r')
+                            # # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
                             if y_log_scale:
                                 ax.set_yscale("log")
                             if log_unnormalized:
@@ -2374,8 +2384,8 @@ def dynamics(
                         #
                         beta = sys.float_info.epsilon if beta == 0 else beta
                         gamma = sys.float_info.epsilon if gamma == 0 else gamma
-                        U_sol = sol_u(t, U0, 0, beta)
-                        S_sol = sol_u(t, S0, 0, gamma)
+                        # U_sol = sol_u(t, U0, 0, beta)
+                        # S_sol = sol_u(t, S0, 0, gamma)
                         l = sol_u(t, 0, alpha, beta) + sol_s(t, 0, 0, alpha, beta, gamma)
                         L = sl + ul
                         if true_param_prefix is not None:
@@ -2420,7 +2430,7 @@ def dynamics(
                         ]
 
                         # require no beta functions
-                        old = sol_u(t, total0, 0, gamma)
+                        # old = sol_u(t, total0, 0, gamma)
                         s = None  # sol_s(t, su0, uu0, 0, 1, gamma)
                         w = None
                         l = sol_u(t, 0, alpha, gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
@@ -2787,11 +2797,11 @@ def dynamics_(
 
     genes = list(set(gene_names).intersection(adata.var.index))
     for i, gn in enumerate(genes):
-        ax = plt.subplot(gs[i * 3])
-        try:
-            ix = np.where(adata.var["Gene"] == gn)[0][0]
-        except:
-            continue
+        # ax = plt.subplot(gs[i * 3])
+        # try:
+        #     ix = np.where(adata.var["Gene"] == gn)[0][0]
+        # except:
+        #     continue
 
         scatters(
             adata,

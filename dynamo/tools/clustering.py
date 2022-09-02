@@ -9,13 +9,9 @@ from sklearn.neighbors import NearestNeighbors
 
 from ..configuration import DKM
 from ..dynamo_logger import main_info
-from ..preprocessing.preprocessor_utils import (
-    filter_genes_by_outliers as filter_genes,
-)
+from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
 from ..preprocessing.preprocessor_utils import log1p_adata as log1p
-from ..preprocessing.preprocessor_utils import (
-    normalize_cell_expr_by_size_factors,
-)
+from ..preprocessing.preprocessor_utils import normalize_cell_expr_by_size_factors
 from ..preprocessing.utils import pca_monocle
 from ..utils import LoggerManager, copy_adata
 from .connectivity import _gen_neighbor_keys, neighbors

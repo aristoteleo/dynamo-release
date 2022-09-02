@@ -16,13 +16,7 @@ from .ezplots import (
     zstreamline,
 )
 from .fate import fate, fate_bias
-from .heatmaps import (
-    causality,
-    comb_logic,
-    hessian,
-    plot_hill_function,
-    response,
-)
+from .heatmaps import causality, comb_logic, hessian, plot_hill_function, response
 from .least_action_path import lap_min_time, least_action
 from .markers import bubble
 from .networks import arcPlot, circosPlot, circosPlotDeprecated, hivePlot

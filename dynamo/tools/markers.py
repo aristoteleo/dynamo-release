@@ -21,10 +21,7 @@ from ..dynamo_logger import (
     main_warning,
 )
 from ..preprocessing.utils import Freeman_Tukey
-from ..tools.connectivity import (
-    _gen_neighbor_keys,
-    check_and_recompute_neighbors,
-)
+from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 from .utils import fetch_X_data
 from .utils_markers import fdr, specificity
 
