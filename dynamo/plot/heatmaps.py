@@ -237,8 +237,6 @@ def response(
         ridge_curve_subset: 'pd.core.frame.DataFrame'
             a pandas data frame used to create the read ridge line for the last gene pair (if multiple gene-pairs are inputted) with
             four columns (`x`: x-coordinate; `y`: y-coordinate; `type`: the corresponding gene pair).
-        axes: 'list[list[Axes]]'
-            the Axes of the figure.
     """
     import matplotlib
     import matplotlib.pyplot as plt

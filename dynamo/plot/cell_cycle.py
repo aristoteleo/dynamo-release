@@ -19,7 +19,7 @@ def cell_cycle_scores(
     ----------
         adata: :class:`~anndata.AnnData`
         cells: a list of cell ids used to subset the adata object.
-        save_show_or_return:
+        save_show_or_return {save, show, return, both, all}:
             Whether to save, show or return the figure.
         save_kwargs:
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -62,7 +62,7 @@ def cell_cycle_scores(
     # Heatmap returns an axes obj but you need to get a mappable obj (get_children)
     colorbar(ax.get_children()[0], cax=cax, ticks=[-0.9, 0, 0.9])
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_direct_graph",
@@ -72,11 +72,15 @@ def cell_cycle_scores(
             "close": True,
             "verbose": True,
         }
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax

@@ -215,7 +215,7 @@ def connectivity_base(
         sort: `str` (optional, default `raw`)
             The method to reorder data so that high values points will be on top of background points. Can be one of
             {'raw', 'abs'}, i.e. sorted by raw data or sort by absolute values.
-        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+        save_show_or_return: {'show', 'save', 'return', 'both', 'all'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -311,7 +311,7 @@ def connectivity_base(
 
     ax.set(xticks=[], yticks=[])
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "connectivity_base",
@@ -323,11 +323,15 @@ def connectivity_base(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -377,7 +381,7 @@ def nneighbors(
             The layers of data to represent the gene expression level.
         highlights: `list`, `list of list` or None (default: `None`)
             The list that cells will be restricted to.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'show', 'save', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -519,7 +523,7 @@ def nneighbors(
                 ax.set_ylabel(cur_b + "_2")
                 ax.set_title(cur_c)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "nneighbors",
@@ -531,11 +535,14 @@ def nneighbors(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
