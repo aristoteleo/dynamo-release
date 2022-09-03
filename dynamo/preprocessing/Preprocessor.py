@@ -214,7 +214,7 @@ class Preprocessor:
 
         The index of the observations would be ensured to be unique.
         The layers with sparse matrix would be converted to compressed csr_matrix.
-        The layers would be collapsed to splicing, labeling, and splicing-labeling layers.
+        DKM.allowed_layer_raw_names() will be used to define only_splicing, only_labeling and splicing_labeling keys.
         The genes would be renamed to their official name.
 
         Args:
