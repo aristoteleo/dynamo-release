@@ -277,7 +277,7 @@ def select_genes_by_dispersion_general(
         adata: an AnnData object.
         layer: the key of a sparse matrix in adata. Defaults to DKM.X_LAYER.
         nan_replace_val: your choice of value to replace values in layer. Defaults to None.
-        n_top_genes: number of genes to preserve as highly variables genes. Defaults to 2000.
+        n_top_genes: number of genes to select as highly variable genes. Defaults to 2000.
         recipe: a recipe for selecting genes; must be one of "monocle", "svr", or "seurat". Defaults to "monocle".
         seurat_min_disp: seurat dispersion min cutoff. Defaults to None.
         seurat_max_disp: seurat dispersion max cutoff. Defaults to None.
