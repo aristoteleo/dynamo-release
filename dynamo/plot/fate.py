@@ -42,7 +42,7 @@ def fate_bias(
             The DataFrame that stores the fate bias information, calculated via fate_bias_df = dyn.tl.fate_bias(adata).
         figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'show', 'save', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -68,7 +68,7 @@ def fate_bias(
         fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False, **cluster_maps_kwargs
     )
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "fate_bias",
@@ -80,11 +80,14 @@ def fate_bias(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -115,7 +118,7 @@ def fate(
             Any column names or gene expression, etc. that will be used for coloring cells.
         ax: `matplotlib.Axis` (optional, default `None`)
             The matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
         save_kwargs: `dict` (default: `{}`)
