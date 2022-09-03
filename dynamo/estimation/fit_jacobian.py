@@ -67,11 +67,19 @@ def fit_hill_grad(
 
     for logn0 in logN0:
         if fix_g is None:
-            fit_func = lambda x, A, K, logn, g: func(x, A, K, np.exp(logn), g)
+
+            def fit_func(x, A, K, logn, g):
+                return func(x, A, K, np.exp(logn), g)
+
+            # fit_func = temp
             p0 = [A0, K0, logn0, g0]
             bounds = [(0, 0, -np.inf, 0), (np.inf, np.inf, np.inf, np.inf)]
         else:
-            fit_func = lambda x, A, K, logn: func(x, A, K, np.exp(logn), fix_g)
+
+            def fit_func(x, A, K, logn):
+                return func(x, A, K, np.exp(logn), fix_g)
+
+            # fit_func = lambda x, A, K, logn: func(x, A, K, np.exp(logn), fix_g)
             p0 = [A0, K0, logn0]
             bounds = [(0, 0, -np.inf), (np.inf, np.inf, np.inf)]
 
@@ -95,7 +103,7 @@ def fit_hill_grad(
                 msd_min = msd
                 p_opt_min = [A, K, n, g]
 
-        except:
+        except Exception:
             pass
 
     if p_opt_min is None:
@@ -140,7 +148,7 @@ def fit_hill_inh_grad(x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=
                 msd_min = msd
                 p_opt_min = p_opt
 
-        except:
+        except Exception:
             pass
 
     return {
@@ -185,7 +193,7 @@ def fit_hill_act_grad(x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=
                 msd_min = msd
                 p_opt_min = p_opt
 
-        except:
+        except Exception:
             pass
 
     return {

@@ -114,12 +114,12 @@ def get_version_from_metadata(name: str, parent: Optional[Path] = None):
     # For an installed package, the parent is the install location
     path_pkg = Path(pkg.location).resolve()
     if parent is not None and path_pkg != parent.resolve():
-        msg = f"""\
-            metadata: Failed; distribution and package paths do not match:
-            {path_pkg}
-            !=
-            {parent.resolve()}\
-            """
+        # msg = f"""\
+        #     metadata: Failed; distribution and package paths do not match:
+        #     {path_pkg}
+        #     !=
+        #     {parent.resolve()}\
+        #     """
         return None
 
     return Version.parse(pkg.version)
@@ -144,7 +144,7 @@ def get_version(package: Union[Path, str]) -> str:
             return str(v)
 
     if path.suffix != ".py":
-        msg = f"“package” is neither the name of an installed module nor the path to a .py file."
+        msg = '"package" is neither the name of an installed module nor the path to a .py file.'
         if path.suffix:
             msg += f" Unknown file suffix {path.suffix}"
         raise ValueError(msg)

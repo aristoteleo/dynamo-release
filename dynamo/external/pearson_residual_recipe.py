@@ -28,7 +28,6 @@ from ..preprocessing.preprocessor_utils import (
     is_nonnegative_integer_arr,
     seurat_get_mean_var,
 )
-from ..preprocessing.utils import pca_monocle
 
 main_logger = LoggerManager.main_logger
 
@@ -469,8 +468,8 @@ def _normalize_single_layer_pearson_residuals(
         main_logger.info("replacing layer <%s> with pearson residual normalized data." % (layer))
         DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
         adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
-    else:
-        results_dict = dict(X=residuals, **pearson_residual_params_dict)
+    # else:
+    # results_dict = dict(X=residuals, **pearson_residual_params_dict)
 
     main_logger.finish_progress(progress_name="pearson residual normalization")
 
@@ -488,7 +487,7 @@ def normalize_layers_pearson_residuals(
 ):
     if len(layers) == 0:
         main_warning("layers arg has zero length. return and do nothing in normalize_layers_pearson_residuals.")
-    if not select_genes_layer in layers:
+    if select_genes_layer not in layers:
         main_warning(
             "select_genes_layer: %s not in layers, using layer: %s instead to select genes instead."
             % (select_genes_layer, layers[0])

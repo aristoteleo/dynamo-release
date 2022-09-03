@@ -6,7 +6,7 @@ from urllib.request import urlretrieve
 import pandas as pd
 from anndata import read_h5ad, read_loom
 
-from .dynamo_logger import LoggerManager, main_info, main_log_time
+from .dynamo_logger import LoggerManager, main_info
 
 
 def download_data(url, file_path=None, dir="./data"):
@@ -130,10 +130,11 @@ def DentateGyrus(
     url="http://pklab.med.harvard.edu/velocyto/DentateGyrus/DentateGyrus.loom",
     filename=None,
 ):
-    """The Dentate Gyrus dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb.
-    This data consists of 27,998 genes across 18,213 cells.
+    """The Dentate Gyrus dataset used in
+    https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb.
 
-    Note this one http://pklab.med.harvard.edu/velocyto/DG1/10X43_1.loom: a subset of the above data.
+    This data consists of 27,998 genes across 18,213 cells. Note this one:
+    http://pklab.med.harvard.edu/velocyto/DG1/10X43_1.loom: a subset of the above data.
 
     Returns
     -------
@@ -148,7 +149,9 @@ def Haber(
     url="http://pklab.med.harvard.edu/velocyto/Haber_et_al/Haber_et_al.loom",
     filename=None,
 ):
-    """The Haber dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/Haber_et_al.ipynb
+    """The Haber dataset used in
+    https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/Haber_et_al.ipynb
+
     This data consists of 27,998 genes across 7,216 cells.
 
     Returns
@@ -170,7 +173,9 @@ def hgForebrainGlutamatergic(
     url="http://pklab.med.harvard.edu/velocyto/hgForebrainGlut/hgForebrainGlut.loom",
     filename=None,
 ):
-    """The hgForebrainGlutamatergic dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/hgForebrainGlutamatergic.ipynb
+    """The hgForebrainGlutamatergic dataset used in
+    https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/hgForebrainGlutamatergic.ipynb
+
     This data consists of 32,738 genes across 1,720 cells.
 
     Returns
@@ -246,10 +251,11 @@ def DentateGyrus_scvelo(
     url="https://www.dropbox.com/s/3w1wzb0b68fhdsw/dentategyrus_scv.h5ad?dl=1",
     filename="dentategyrus_scv.h5ad",
 ):
-    """The Dentate Gyrus dataset used in https://github.com/theislab/scvelo_notebooks/tree/master/data/DentateGyrus.
-    This data consists of 13,913 genes across 2,930 cells.
+    """The Dentate Gyrus dataset used in
+    https://github.com/theislab/scvelo_notebooks/tree/master/data/DentateGyrus.
 
-    Note this dataset is the same processed dataset from the excellent scVelo package, which is a subset of the DentateGyrus dataset.
+    This data consists of 13,913 genes across 2,930 cells. Note this dataset is the same processed dataset from the
+    excellent scVelo package, which is a subset of the DentateGyrus dataset.
 
     Returns
     -------

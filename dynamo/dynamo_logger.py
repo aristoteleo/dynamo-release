@@ -181,7 +181,7 @@ class Logger:
         indent_level=1,
     ):
         if percent is None:
-            assert (not count is None) and (not total is None)
+            assert (count is not None) and (total is not None)
             percent = count / total * 100
         saved_terminator = self.logger_stream_handler.terminator
         self.logger_stream_handler.terminator = ""

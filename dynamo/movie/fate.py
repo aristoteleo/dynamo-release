@@ -1,4 +1,3 @@
-import warnings
 from typing import Optional, Union
 
 import matplotlib
@@ -6,7 +5,7 @@ import numpy as np
 from anndata import AnnData
 from scipy.integrate import odeint
 
-from ..dynamo_logger import main_info, main_tqdm, main_warning
+from ..dynamo_logger import main_warning
 from ..plot.topography import topography
 from ..vectorfield.scVectorField import SvcVectorField
 from .utils import remove_particles
@@ -37,40 +36,41 @@ class StreamFuncAnim:
         vector field. Thus it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
         fate commitment in action.
 
-        This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies on
-        animation module from matplotlib. Note that you may need to install `imagemagick` in order to properly show or save
-        the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/ for more
-        details.
+        This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies
+        on animation module from matplotlib. Note that you may need to install `imagemagick` in order to properly show
+        or save the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/
+        for more details.
 
         Parameters
         ----------
             adata: :class:`~anndata.AnnData`
                 AnnData object that already went through the fate prediction.
             basis: `str` or None (default: `umap`)
-                The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
-                trajectory will be projected back to high dimensional space via the `inverse_transform` function.
-                space.
+                The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
+                reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
+                function space.
             fps_basis: `str` or None (default: `None`)
                 The basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis` is
-                different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and used to
-                visualize the position of the fixed point on `basis` embedding.
+                different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and
+                used to visualize the position of the fixed point on `basis` embedding.
             dims: `list` or `None` (default: `None')
                 The dimensions of low embedding space where cells will be drawn and it should corresponds to the space
                 fate prediction take place.
             n_steps: `int` (default: `100`)
                 The number of times steps (frames) fate prediction will take.
             cell_states: `int`, `list` or `None` (default: `None`)
-                The number of cells state that will be randomly selected (if `int`), the indices of the cells states (if
-                `list`) or all cell states which fate prediction executed (if `None`)
+                The number of cells state that will be randomly selected (if `int`), the indices of the cells states
+                (if `list`) or all cell states which fate prediction executed (if `None`)
             fig: `matplotlib.figure.Figure` or None (default: `None`)
                 The figure that will contain both the background and animated components.
             ax: `matplotlib.Axis` (optional, default `None`)
                 The matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
-                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
-                to create an axes.
+                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be
+                used to create an axes.
             logspace: `bool` (default: `False`)
-                Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
-                from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
+                Whether or to sample time points linearly on log space. If not, the sorted unique set of all time
+                points from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time
+                points.
 
         Returns
         -------
@@ -133,8 +133,8 @@ class StreamFuncAnim:
         fate_key = "fate_" + basis
         if fate_key not in adata.uns_keys():
             raise Exception(
-                f"You need to first perform fate prediction before animate the prediction, please run"
-                f"dyn.pd.fate(adata, basis='{basis}' before running this function"
+                f"You need to first perform fate prediction before animate the prediction, please run\
+                dyn.pd.fate(adata, basis='{basis}' before running this function"
             )
 
         self.init_states = adata.uns[fate_key]["init_states"]
@@ -309,9 +309,9 @@ def animate_fates(
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `save`)
             Whether to save, show or return the figure. By default a gif will be used.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the anim.save. By default it is an empty dictionary and the save_fig function
-            will use the {"filename": 'fate_ani.gif', "writer": "imagemagick"} as its parameters. Otherwise you can
-            provide a dictionary that properly modify those keys according to your needs. see
+            A dictionary that will passed to the anim.save. By default it is an empty dictionary and the save_fig
+            function will use the {"filename": 'fate_ani.gif', "writer": "imagemagick"} as its parameters. Otherwise
+            you can provide a dictionary that properly modify those keys according to your needs. see
             https://matplotlib.org/api/_as_gen/matplotlib.animation.Animation.save.html for more details.
         kwargs:
             Additional arguments passed to animation.FuncAnimation.

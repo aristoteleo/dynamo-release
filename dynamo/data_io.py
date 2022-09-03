@@ -3,19 +3,7 @@
 import os
 from functools import reduce
 
-from anndata import (
-    AnnData,
-    read,
-    read_csv,
-    read_excel,
-    read_h5ad,
-    read_hdf,
-    read_loom,
-    read_mtx,
-    read_text,
-    read_umi_tools,
-    read_zarr,
-)
+from anndata import AnnData
 from tqdm import tqdm
 
 from .dynamo_logger import main_info
@@ -143,7 +131,7 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
         tot_RNA = None
         cells_raw, cells = None, None
 
-        for f in tqdm(files, desc=f"reading rmse output files:"):
+        for f in tqdm(files, desc="reading rmse output files:"):
             tmp = pd.read_csv(f, index_col=0, sep="\t")
 
             if tot_RNA is None:
@@ -233,7 +221,7 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
     adata.uns["raw_data"] = True
 
 
-def aggregate_adata(file_list: list) -> AnnData:
+def aggregate_adata(file_list: list) -> "AnnData":
     """Aggregate gene expression from adata.X or layer for a list of adata based on the same cell and gene names.
 
     Parameters
@@ -248,7 +236,6 @@ def aggregate_adata(file_list: list) -> AnnData:
     """
 
     import anndata
-    from anndata import AnnData
 
     if type(file_list[0]) == anndata._core.anndata.AnnData:
         adata_list = file_list
@@ -260,7 +247,7 @@ def aggregate_adata(file_list: list) -> AnnData:
 
     if len(valid_cells) == 0 or len(valid_genes) == 0:
         raise Exception(
-            f"we don't find any gene or cell names shared across different adata objects." f"Please check your data. "
+            "we don't find any gene or cell names shared across different adata objects. Please check your data."
         )
 
     layer_dict = {}

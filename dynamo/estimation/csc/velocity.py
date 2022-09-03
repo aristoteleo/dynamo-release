@@ -19,12 +19,16 @@ from ...tools.utils import (
 from .utils_velocity import (
     compute_bursting_properties,
     compute_dispersion,
+    concat_time_series_matrices,
+    fit_alpha_degradation,
+    fit_alpha_synthesis,
     fit_first_order_deg_lsq,
     fit_gamma_lsq,
     fit_k_negative_binomial,
     fit_linreg,
     fit_linreg_robust,
     fit_stochastic_linreg,
+    solve_alpha_2p,
     solve_gamma,
 )
 
@@ -50,7 +54,8 @@ class Velocity:
         t: :class:`~numpy.ndarray` or None (default: None)
             A vector of the measured time points for cells
         estimation: :class:`~ss_estimation`
-            An instance of the estimation class. If this not None, the parameters will be taken from this class instead of the input arguments.
+            An instance of the estimation class. If this not None, the parameters will be taken from this class instead
+            of the input arguments.
     """
 
     def __init__(
@@ -323,7 +328,8 @@ class Velocity:
         Returns
         -------
             n_genes: int
-                The first dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or delta, if they are given.
+                The first dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or
+                delta, if they are given.
         """
         if self.parameters["alpha"] is not None:
             n_genes = self.parameters["alpha"].shape[0]
@@ -475,7 +481,7 @@ class ss_estimation:
             "U0": None,
             "S0": None,
             "total0": None,
-        }  # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
+        }  # NOTE: alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
     def fit(
@@ -495,9 +501,11 @@ class ss_estimation:
                 True -- the linear regression is performed with an unfixed intercept;
                 False -- the linear regression is performed with a fixed zero intercept.
             perc_left: `float` (default: 5)
-                The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
+                The percentage of samples included in the linear regression in the left tail. If set to None, then all
+                the samples are included.
             perc_right: `float` (default: 5)
-                The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+                The percentage of samples included in the linear regression in the right tail. If set to None, then all
+                the samples are included.
             clusters: `list`
                 A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
@@ -932,7 +940,7 @@ class ss_estimation:
                     for i in tqdm(range(n_genes), desc="estimating gamma"):
                         try:
                             gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
-                        except:
+                        except Exception:
                             gamma[i], u0[i] = 0, 0
                     self.parameters["gamma"], self.aux_param["uu0"] = gamma, u0
                     alpha = np.zeros(n_genes)
@@ -1029,7 +1037,12 @@ class ss_estimation:
                                 pool.join()
                                 alpha = np.array(alpha)
                             self.parameters["alpha"] = alpha
-                            # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                            # self.parameters['alpha'] = self.fit_alpha_oneshot(
+                            #     self.t,
+                            #     self.data['ul'],
+                            #     self.parameters['beta'],
+                            #     clusters
+                            # )
                     else:
                         if self._exist_data("ul") and self._exist_parameter("gamma"):
                             self.parameters["alpha"] = self.fit_alpha_oneshot(
@@ -1081,7 +1094,12 @@ class ss_estimation:
                                     pool.join()
                                     alpha = np.array(alpha)
                                 self.parameters["alpha"] = alpha
-                                # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                                # self.parameters['alpha'] = self.fit_alpha_oneshot(
+                                #     self.t,
+                                #     self.data['ul'],
+                                #     self.parameters['gamma'],
+                                #     clusters
+                                # )
                             elif one_shot_method == "combined":
                                 self.parameters["alpha"] = (
                                     csr_matrix(self.data["ul"].shape)
@@ -1433,7 +1451,7 @@ class ss_estimation:
                             bf,
                         )
             elif self.extyp.lower() == "mix_std_stm":
-                t_min, t_max = np.min(self.t), np.max(self.t)
+                t_min, t_max = np.min(self.t), np.max(self.t)  # noqa: F841
                 if np.all(self._exist_data("ul", "uu", "su")):
                     gamma, beta, total, U = (
                         np.zeros(n_genes),

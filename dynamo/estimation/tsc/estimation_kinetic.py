@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.stats import chi2
@@ -7,7 +5,18 @@ from scipy.stats import chi2
 from ...dynamo_logger import main_warning
 from ...tools.moments import strat_mom
 from ...tools.sampling import lhsclassic
-from .utils_kinetic import *
+from .utils_kinetic import (
+    nosplicing_models,
+    Deterministic,
+    Deterministic_NoSplicing,
+    KineticChase,
+    LambdaModels_NoSwitching,
+    MixtureModels,
+    Moments,
+    Moments_NoSplicing,
+    Moments_NoSwitching,
+    Moments_NoSwitchingNoSplicing,
+)
 
 
 def guestimate_alpha(x_data, time):
@@ -52,9 +61,9 @@ class kinetic_estimation:
             Lower and upper bounds for initial conditions for the integrators.
             To fix a parameter, set its lower and upper bounds to the same value.
         simulator: :class:`utils_kinetic.Linear_ODE`
-            An instance of python class which solves ODEs. It should have properties 't' (k time points, 1d numpy array),
-            'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m array),
-            as well as two functions: integrate (numerical integration), solve (analytical method).
+            An instance of python class which solves ODEs. It should have properties 't' (k time points,
+            1d numpy array), 'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution,
+            k-by-m array), as well as two functions: integrate (numerical integration), solve (analytical method).
     """
 
     def __init__(self, param_ranges, x0_ranges, simulator):
@@ -234,11 +243,13 @@ class kinetic_estimation:
         return self.cost
 
     def test_chi2(self, t, x_data, species=None, method="matrix", normalize=True):
-        """perform a Pearson's chi-square test. The statistics is computed as: sum_i (O_i - E_i)^2 / E_i, where O_i is the data and E_i is the model predication.
+        """perform a Pearson's chi-square test. The statistics is computed as: sum_i (O_i - E_i)^2 / E_i, where O_i is
+        the data and E_i is the model predication.
 
-        The data can be either 1. stratified moments: 't' is an array of k distinct time points, 'x_data' is a m-by-k matrix of data, where m is the number of species.
-        or 2. raw data: 't' is an array of k time points for k cells, 'x_data' is a m-by-k matrix of data, where m is the number of species.
-        Note that if the method is 'numerical', t has to monotonically increasing.
+        The data can be either 1. stratified moments: 't' is an array of k distinct time points, 'x_data' is a m-by-k
+        matrix of data, where m is the number of species. or 2. raw data: 't' is an array of k time points for k cells,
+        'x_data' is a m-by-k matrix of data, where m is the number of species. Note that if the method is 'numerical',
+        t has to monotonically increasing.
 
         If not all species are included in the data, use 'species' to specify the species of interest.
 

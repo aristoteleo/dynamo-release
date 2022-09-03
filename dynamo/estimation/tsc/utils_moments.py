@@ -8,7 +8,7 @@ Created on Wed Sep 4 18:29:24 2019
 
 # from numba import jitclass  # import the decorator
 from numba import float32  # import the types
-from numpy import *
+import numpy as np
 from scipy.integrate import odeint
 from scipy.optimize import least_squares
 
@@ -41,7 +41,7 @@ class moments:
         # solution
         self.t = None
         self.x = None
-        self.x0 = zeros(self.n_species)
+        self.x0 = np.zeros(self.n_species)
         self.K = None
         self.p = None
 
@@ -50,7 +50,7 @@ class moments:
             self.set_params(a, b, alpha_a, alpha_i, beta, gamma)
 
     def ode_moments(self, x, t):
-        dx = zeros(len(x))
+        dx = np.zeros(len(x))
         # parameters
         a = self.a
         b = self.b
@@ -100,7 +100,7 @@ class moments:
         self.p = None
 
     def get_all_central_moments(self):
-        ret = zeros((4, len(self.t)))
+        ret = np.zeros((4, len(self.t)))
         ret[0] = self.get_nu()
         ret[1] = self.get_nx()
         ret[2] = self.get_var_nu()
@@ -108,7 +108,7 @@ class moments:
         return ret
 
     def get_nosplice_central_moments(self):
-        ret = zeros((2, len(self.t)))
+        ret = np.zeros((2, len(self.t)))
         ret[0] = self.get_n_labeled()
         ret[1] = self.get_var_labeled()
         return ret
@@ -147,7 +147,7 @@ class moments:
         be = self.be
         ga = self.ga
 
-        K = zeros((self.n_species, self.n_species))
+        K = np.zeros((self.n_species, self.n_species))
         # E1
         K[self.ua, self.ua] = -be - a
         K[self.ua, self.ui] = a
@@ -185,7 +185,7 @@ class moments:
         # F43
         K[self.ux, self.uu] = be
 
-        p = zeros(self.n_species)
+        p = np.zeros(self.n_species)
         p[self.ua] = aa
         p[self.ui] = ai
 
@@ -205,18 +205,18 @@ class moments:
         else:
             K = self.K
             p = self.p
-        x_ss = linalg.solve(K, p)
+        x_ss = np.linalg.solve(K, p)
         # x_ss = linalg.inv(K).dot(p)
         y0 = x0 + x_ss
 
-        D, U = linalg.eig(K)
-        V = linalg.inv(U)
-        D, U, V = map(real, (D, U, V))
-        expD = exp(D)
-        x = zeros((len(t), self.n_species))
+        D, U = np.linalg.eig(K)
+        V = np.linalg.inv(U)
+        D, U, V = map(np.real, (D, U, V))
+        expD = np.exp(D)
+        x = np.zeros((len(t), self.n_species))
         x[0] = x0
         for i in range(1, len(t)):
-            x[i] = U.dot(diag(expD ** (t[i] - t0))).dot(V).dot(y0) - x_ss
+            x[i] = U.dot(np.diag(expD ** (t[i] - t0))).dot(V).dot(y0) - x_ss
         self.x = x
         self.t = t
         return x
@@ -227,11 +227,11 @@ class estimation:
         self.ranges = ranges
         self.n_params = len(ranges)
         self.simulator = moments()
-        if not x0 is None:
+        if x0 is not None:
             self.simulator.x0 = x0
 
     def sample_p0(self, samples=1, method="lhs"):
-        ret = zeros((samples, self.n_params))
+        ret = np.zeros((samples, self.n_params))
         if method == "lhs":
             ret = self._lhsclassic(samples)
             for i in range(self.n_params):
@@ -239,7 +239,7 @@ class estimation:
         else:
             for n in range(samples):
                 for i in range(self.n_params):
-                    r = random.rand()
+                    r = np.random.rand()
                     ret[n, i] = r * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         return ret
 
@@ -251,7 +251,7 @@ class estimation:
         return H
 
     def get_bound(self, index):
-        ret = zeros(self.n_params)
+        ret = np.zeros(self.n_params)
         for i in range(self.n_params):
             ret[i] = self.ranges[i][index]
         return ret
@@ -262,7 +262,7 @@ class estimation:
         #     x = X[i]
         #     #ret[i] = x / max(x)
         #     ret[i] = log10(x + 1)
-        res = log(X + 1)
+        res = np.log(X + 1)
         return res
 
     def f_lsq(
@@ -284,7 +284,7 @@ class estimation:
         elif experiment_type == "nosplice":
             ret = self.simulator.get_nosplice_central_moments()
         ret = self.normalize_data(ret).flatten() if normalize else ret.flatten()
-        ret[isnan(ret)] = 0
+        ret[np.isnan(ret)] = 0
         return ret - x_data_norm
 
     def fit_lsq(
@@ -311,7 +311,7 @@ class estimation:
         if bounds is None:
             bounds = (self.get_bound(0), self.get_bound(1))
 
-        costs = zeros(n_p0)
+        costs = np.zeros(n_p0)
         X = []
         for i in range(n_p0):
             ret = least_squares(
@@ -328,5 +328,5 @@ class estimation:
             )
             costs[i] = ret.cost
             X.append(ret.x)
-        i_min = argmin(costs)
+        i_min = np.argmin(costs)
         return X[i_min], costs[i_min]

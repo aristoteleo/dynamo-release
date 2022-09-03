@@ -139,7 +139,7 @@ def sctransform_core(
     genes_ix = genes.copy()
 
     X = X[:, genes]
-    Xraw = X.copy()
+    # Xraw = X.copy()
     gene_names = gene_names[genes]
     genes = np.arange(X.shape[1])
     genes_cell_count = X.sum(0).A.flatten()
@@ -295,9 +295,9 @@ def sctransform_core(
     full_model_pars["theta"] = theta
     del full_model_pars["dispersion"]
 
-    model_pars_outliers = outliers
+    # model_pars_outliers = outliers
 
-    regressor_data = np.vstack((np.ones(cell_attrs.shape[0]), cell_attrs["log_umi"].values)).T
+    # regressor_data = np.vstack((np.ones(cell_attrs.shape[0]), cell_attrs["log_umi"].values)).T
 
     d = X.data
     x, y = X.nonzero()
