@@ -95,7 +95,7 @@ class Trajectory:
         return self.interpolate(self.interp_t(num=num), **interp_kwargs)
 
     def integrate(self, func):
-        """ Calculate the integral of func along the curve. The first and last points are omitted. """
+        """Calculate the integral of func along the curve. The first and last points are omitted."""
         F = np.zeros(func(self.X[0]).shape)
         tvec = self.calc_tangent(normalize=False)
         for i in range(1, self.X.shape[0] - 1):

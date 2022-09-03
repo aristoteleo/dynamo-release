@@ -10,7 +10,9 @@ from .Preprocessor import Preprocessor
 
 
 class CnmfPreprocessor(Preprocessor):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
+        """A specialized preprocessor based on cNMF. Args used are the same as normal Preprocessor."""
+
         super().__init__(**kwargs)
         self.selected_K = 7
         self.n_iter = 200
@@ -26,7 +28,16 @@ class CnmfPreprocessor(Preprocessor):
         # TODO: enable parallel computing in the future. Currently cNMF only provides cmd interfaces for factorization.
         self.num_worker = 1
 
-    def preprocess_adata(self, adata: AnnData):
+    def preprocess_adata(self, adata: AnnData) -> AnnData:
+        """Preprocess the AnnData object with cNMF.
+
+        Args:
+            adata: an AnnData object.
+
+        Returns:
+            The preprocessed AnnData object.
+        """
+
         try:
             from cnmf import cNMF
         except Exception as e:
@@ -67,8 +78,12 @@ class CnmfPreprocessor(Preprocessor):
         self.cnmf_obj = cnmf_obj
         return adata
 
-    def k_selection_plot(self):
+    def k_selection_plot(self) -> None:
+        """Plot the K selection curve of cNMF and save to the output folder."""
+
         self.cnmf_obj.k_selection_plot(close_fig=False)
 
-    def cleanup_cnmf(self):
+    def cleanup_cnmf(self) -> None:
+        """Remove the tmp folder to store data used for cNMF."""
+
         rmtree(self.output_dir, ignore_errors=True)

@@ -264,7 +264,7 @@ def grid_velocity_filter(
         ns = int(np.sqrt(V_grid.shape[0]))
         V_grid = V_grid.T.reshape(2, ns, ns)
 
-        mass = np.sqrt((V_grid ** 2).sum(0))
+        mass = np.sqrt((V_grid**2).sum(0))
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
         else:
@@ -282,7 +282,7 @@ def grid_velocity_filter(
         from ..plot.utils import quiver_autoscaler
 
         if p_mass is None:
-            p_mass = np.sqrt((V_grid ** 2).sum(1))
+            p_mass = np.sqrt((V_grid**2).sum(1))
             if min_mass is None:
                 min_mass = np.clip(np.percentile(p_mass, 5), 1e-5, None)
         else:
@@ -839,7 +839,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
         else:
             if self.D is None:
                 self.eigsys()
-            p = np.real(self.W @ np.diag(self.D ** n) @ np.linalg.inv(self.W)).dot(p0)
+            p = np.real(self.W @ np.diag(self.D**n) @ np.linalg.inv(self.W)).dot(p0)
         return p
 
     def compute_stationary_distribution(self, method="eig"):
