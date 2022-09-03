@@ -50,7 +50,7 @@ def plot_3d_streamtube(
             html file name that will be use to save the streamtube interactive plot.
         dims: `list` (default: `[0, 1, 2]`)
             The number of dimensions that will be used to construct the vector field for streamtube plot.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -188,12 +188,12 @@ def plot_3d_streamtube(
         marker=dict(size=2, color=colors.values),
     )
 
-    if save_show_or_return == "save" or html_fname is not None:
+    if (save_show_or_return in ["save", "both", "all"]) or html_fname is not None:
         html_fname = "streamtube_" + color + "_" + group + "_" + init_group if html_fname is None else html_fname
         save_kwargs_ = {"file": html_fname, "auto_open": True}
         save_kwargs_.update(save_kwargs)
         fig.write_html(**save_kwargs_)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         fig.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return fig

@@ -172,15 +172,12 @@ def lap_min_time(
             }
 
             # prevent the plot from being closed if the plot need to be shown or returned.
-            if save_show_or_return in ["both", "all"]:
+            if save_show_or_return == "both":
                 s_kwargs["close"] = False
 
             s_kwargs = update_dict(s_kwargs, save_kwargs)
 
             save_fig(**s_kwargs)
-        if save_show_or_return in ["show", "both", "all"]:
+        if save_show_or_return in ["show", "both"]:
             plt.tight_layout()
             plt.show()
-
-        # if save_show_or_return in ["return", "all"]:
-        #    return axes

@@ -133,7 +133,7 @@ def bubble(
             The angel to rotate the x-label.
         rotate_ylabel: `float` (default: `horizontal`)
             The angel to rotate the y-label.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -337,7 +337,7 @@ def bubble(
                 )
         axes[igene].set_xlabel("") if transpose else axes[igene].set_ylabel("")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "violin",
@@ -349,10 +349,13 @@ def bubble(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
         if background is not None:
             reset_rcParams()
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
@@ -360,7 +363,7 @@ def bubble(
         plt.show()
         if background is not None:
             reset_rcParams()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         if background is not None:
             reset_rcParams()
 

@@ -202,7 +202,7 @@ def scatters(
         sort: `str` (optional, default `raw`)
             The method to reorder data so that high values points will be on top of background points. Can be one of
             {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
         save_kwargs: `dict` (default: `{}`)

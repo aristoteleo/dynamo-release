@@ -448,7 +448,7 @@ def jacobian(
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
             style is used.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
@@ -637,7 +637,7 @@ def jacobian(
                 despline_all(ax)
                 deaxis_all(ax)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": jkey,
@@ -649,11 +649,14 @@ def jacobian(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
@@ -699,7 +702,7 @@ def jacobian_heatmap(
             The number of columns for drawing the heatmaps.
         cmap: `str` (default: `bwr`)
             The mapping from data values to color space. If not provided, the default will depend on whether center is set.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -785,7 +788,7 @@ def jacobian_heatmap(
         )
         plt.title(name)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": jkey + "_heatmap",
@@ -797,11 +800,14 @@ def jacobian_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
@@ -893,7 +899,7 @@ def sensitivity(
         stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
             style is used.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
@@ -1079,7 +1085,7 @@ def sensitivity(
                 despline_all(ax)
                 deaxis_all(ax)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": skey,
@@ -1091,11 +1097,14 @@ def sensitivity(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
@@ -1141,7 +1150,7 @@ def sensitivity_heatmap(
             The number of columns for drawing the heatmaps.
         cmap: `str` (default: `bwr`)
             The mapping from data values to color space. If not provided, the default will depend on whether center is set.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -1229,7 +1238,7 @@ def sensitivity_heatmap(
         )
         plt.title(name)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": skey + "_heatmap",
@@ -1241,9 +1250,12 @@ def sensitivity_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs

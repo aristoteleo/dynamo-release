@@ -33,7 +33,7 @@ def basic_stats(
         Which group to facets the data into subplots. Default is None, or no faceting will be used.
     figsize:
         Figure size of each facet.
-    save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+    save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
         A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
@@ -103,7 +103,7 @@ def basic_stats(
     g.set_ylabels("")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "basic_stats",
@@ -114,13 +114,15 @@ def basic_stats(
             "verbose": True,
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         import matplotlib.pyplot as plt
 
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -144,7 +146,7 @@ def show_fraction(
         Which group to facets the data into subplots. Default is None, or no faceting will be used.
     figsize: `string` (default: (4, 3))
         Figure size of each facet.
-    save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+    save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
         A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
@@ -343,7 +345,7 @@ def show_fraction(
     g.set_ylabels("Fraction")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "show_fraction",
@@ -355,11 +357,14 @@ def show_fraction(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -384,7 +389,7 @@ def variance_explained(
             Number of principal components.
         figsize: `string` (default: (4, 3))
             Figure size of each facet.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -410,7 +415,7 @@ def variance_explained(
     ax.set_xticks(list(ax.get_xticks()) + [n_comps])
     ax.set_xlim(0, len(var_))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "variance_explained",
@@ -422,11 +427,14 @@ def variance_explained(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -470,7 +478,7 @@ def biplot(
             Whether to scale the pca embedding.
         draw_pca_embedding:
             Whether to draw the pca embedding.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -527,7 +535,7 @@ def biplot(
             ax.plot(xs[i] * scalex, ys[i] * scaley, "b", alpha=0.1)
             ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "biplot",
@@ -539,11 +547,14 @@ def biplot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    else:
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -575,7 +586,7 @@ def loading(
             Number of panels on the resultant figure.
         figsize:
             Figure size.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -622,7 +633,7 @@ def loading(
 
         axes[cur_row, cur_col].set_title("PC " + str(i))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "loading",
@@ -634,11 +645,14 @@ def loading(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    else:
+    if save_show_or_return in ["return", "all"]:
         return axes
 
 
@@ -662,7 +676,7 @@ def feature_genes(
             The method to select the feature genes (can be either `dispersion`, `gini` or `SVR`).
         figsize: `string` (default: (4, 3))
             Figure size of each facet.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -768,7 +782,7 @@ def feature_genes(
     plt.xlabel("Mean (log)")
     plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "feature_genes",
@@ -780,11 +794,14 @@ def feature_genes(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -830,7 +847,7 @@ def exp_by_groups(
             Whether to reorder categories before drawing groups on the x-axis.
         figsize: `string` (default: (4, 3))
             Figure size of each facet.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -958,7 +975,7 @@ def exp_by_groups(
     g.set_xlabels("")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "exp_by_groups",
@@ -970,11 +987,14 @@ def exp_by_groups(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 

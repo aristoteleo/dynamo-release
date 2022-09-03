@@ -25,7 +25,7 @@ def show_landscape(
                 z-coordinates or potential at each of the x/y coordinate.
         basis: `str` (default: umap)
             The method of dimension reduction. By default it is trimap. Currently it is not checked with Xgrid and Ygrid.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -84,7 +84,7 @@ def show_landscape(
     ax.set_ylabel(basis + "_2")
     ax.set_zlabel("U")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "show_landscape",
@@ -96,11 +96,14 @@ def show_landscape(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 

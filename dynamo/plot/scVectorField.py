@@ -276,7 +276,7 @@ def cell_wise_vectors_3d(
         ax.set_facecolor(background)
         add_axis_label(ax, axis_labels)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "cell_wise_vectors_3d",
@@ -287,10 +287,14 @@ def cell_wise_vectors_3d(
             "verbose": True,
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes
 
 
@@ -409,7 +413,7 @@ def line_integral_conv(
         vector: `str` (default: `velocity`)
             Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
             acceleration field will be plotted.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -534,7 +538,7 @@ def line_integral_conv(
         # plot_LIC_gray(velocyto_tex)
         pass
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "line_integral_conv",
@@ -546,11 +550,14 @@ def line_integral_conv(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return slc
 
 
@@ -800,7 +807,7 @@ def cell_wise_vectors(
             )
         ax.set_facecolor(background)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "cell_wise_vector",
@@ -812,12 +819,15 @@ def cell_wise_vectors(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if projection != "3d":
             plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list
 
 
@@ -1071,7 +1081,7 @@ def cell_wise_vectors(
             )
         ax.set_facecolor(background)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "cell_wise_vector",
@@ -1083,12 +1093,15 @@ def cell_wise_vectors(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if projection != "3d":
             plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list
 
 
@@ -1381,7 +1394,7 @@ def grid_vectors(
         axes_list.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
         axes_list.set_facecolor(background)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "grid_velocity",
@@ -1393,11 +1406,14 @@ def grid_vectors(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list
 
 
@@ -1691,7 +1707,7 @@ def streamline_plot(
             ax = axes_list[i]
             streamplot_2d(ax)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "streamline_plot",
@@ -1703,12 +1719,14 @@ def streamline_plot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
-        # TODO: fix bug: the following line causing plotting issue
-        # plt.tight_layout()
+    if save_show_or_return in ["show", "both", "all"]:
+        plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list
 
 
@@ -1741,7 +1759,7 @@ def plot_energy(
             The width and height of the resulting figure when fig is set to be None.
         fig: `matplotlib.figure.Figure` or None
             The figure object where panels of the energy or energy change rate over iteration plots will be appended to.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -1788,7 +1806,7 @@ def plot_energy(
         plt.xlabel("Iteration")
         plt.ylabel("Energy change rate")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "energy",
@@ -1800,9 +1818,12 @@ def plot_energy(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return fig

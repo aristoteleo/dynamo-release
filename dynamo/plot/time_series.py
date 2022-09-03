@@ -84,7 +84,7 @@ def kinetic_curves(
             LAP, the data is generally in the original gene expression space and needs to be log1p transformed. Note:
             when predicted data is not inverse transformed back to original expression space, no transformation will be
             applied.
-        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -176,7 +176,7 @@ def kinetic_curves(
             facet_kws={"sharex": True, "sharey": False},
         )
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "kinetic_curves",
@@ -188,11 +188,14 @@ def kinetic_curves(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -290,7 +293,7 @@ def kinetic_heatmap(
             The indices of column that we can place a line on the heatmap.
         vlines_kwargs:
             The dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.vlines.
-        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -469,7 +472,7 @@ def kinetic_heatmap(
         vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
         sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "kinetic_heatmap",
@@ -481,13 +484,16 @@ def kinetic_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap
 
 
@@ -710,8 +716,8 @@ def jacobian_kinetics(
             row or column, subtract the minimum and divide each by its maximum.
         n_convolve: `int` (default: 30)
             Number of cells for convolution.
-        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
-            Whether to save_fig, show or return the figure.
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
+            Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
             save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
@@ -852,7 +858,7 @@ def jacobian_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return == "save_fig":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "jacobian_kinetics",
@@ -864,13 +870,16 @@ def jacobian_kinetics(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap
 
 
@@ -936,7 +945,7 @@ def sensitivity_kinetics(
             row or column, subtract the minimum and divide each by its maximum.
         n_convolve: `int` (default: 30)
             Number of cells for convolution.
-        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -1078,7 +1087,7 @@ def sensitivity_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return == "save_fig":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "sensitivity_kinetics",
@@ -1090,11 +1099,14 @@ def sensitivity_kinetics(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap

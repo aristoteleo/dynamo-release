@@ -80,7 +80,7 @@ def plot_flow_field(
         The alpha value applied to the vector field stream lines.
     color_start_points: `float` or None (default: `None`)
         The color of the starting point that will be used to predict cell fates.
-    save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+    save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
         A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -184,7 +184,7 @@ def plot_flow_field(
         set_arrow_alpha(ax, streamline_alpha)
         set_stream_line_alpha(s, streamline_alpha)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_flow_field",
@@ -196,11 +196,14 @@ def plot_flow_field(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -223,7 +226,7 @@ def plot_nullclines(
             The linewidth of the nullcline.
         background: `str` or None (default: None)
             The background color of the plot.
-        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -283,7 +286,7 @@ def plot_nullclines(
         for ncy in NCy:
             ax.plot(*ncy.T, c=colors[1], lw=lw)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_nullclines",
@@ -295,11 +298,14 @@ def plot_nullclines(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -332,7 +338,7 @@ def plot_fixed_points_2d(
             respectively.
         background: `str` or None (default: None)
             The background color of the plot.
-        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -396,7 +402,7 @@ def plot_fixed_points_2d(
             ]
         )
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_fixed_points",
@@ -408,11 +414,14 @@ def plot_fixed_points_2d(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -450,7 +459,7 @@ def plot_fixed_points(
             respectively.
         background: `str` or None (default: None)
             The background color of the plot.
-        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -557,7 +566,7 @@ def plot_fixed_points(
             ]
         )
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_fixed_points",
@@ -569,11 +578,14 @@ def plot_fixed_points(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -609,7 +621,7 @@ def plot_traj(
         The background color of the plot.
     integration_direction: `str` (default: `forward`)
         Integrate the trajectory in forward, backward or both directions. default is 'both'.
-    save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+    save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
         A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -645,7 +657,7 @@ def plot_traj(
             cur_y0 = y0[i, None]  # don't drop dimension
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_traj",
@@ -657,11 +669,14 @@ def plot_traj(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -695,7 +710,7 @@ def plot_separatrix(
             The line width of the trajectory.
         background: `str` or None (default: None)
             The background color of the plot.
-        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -781,7 +796,7 @@ def plot_separatrix(
                     all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
                     all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_separatrix",
@@ -793,11 +808,14 @@ def plot_separatrix(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -950,7 +968,7 @@ def topography(
         marker_cmap: string (optional, default 'Blues')
             The name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If None, the
             default color map will set to be viridis (inferno) when the background is white (black).
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        save_show_or_return: {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
@@ -1316,7 +1334,7 @@ def topography(
                 **quiver_kwargs,
             )  # color='red',  facecolors='gray'
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "topography",
@@ -1328,13 +1346,16 @@ def topography(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
             plt.tight_layout()
 
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list if len(axes_list) > 1 else axes_list[0]

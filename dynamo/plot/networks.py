@@ -49,7 +49,7 @@ def nxvizPlot(
             The threshold of weight that will be used to trim the edges for network reconstruction.
         figsize: `None` or `[float, float]` (default: (6, 6)
             The width and height of each panel in the figure.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -175,7 +175,7 @@ def nxvizPlot(
     for e in network.edges():
         network.edges[e]["weight"] /= weight_scale
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
@@ -190,15 +190,18 @@ def nxvizPlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
         # Display the plot
         plt.show()
         # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return nv_ax
 
 
@@ -244,7 +247,7 @@ def arcPlot(
             The title of the color bar when displayed.
         figsize: `None` or `[float, float]` (default: (6, 6)
             The width and height of each panel in the figure.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -333,7 +336,7 @@ def arcPlot(
         cb.locator = MaxNLocator(nbins=3, integer=True)
         cb.update_ticks()
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         # Draw a to the screen
         plt.autoscale()
         s_kwargs = {
@@ -347,14 +350,17 @@ def arcPlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         # Draw a to the screen
         plt.autoscale()
         # Display the plot
         plt.show()
         # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ap
 
 
@@ -505,7 +511,7 @@ def hivePlot(
             The threshold of weight that will be used to trim the edges for network reconstruction.
         figsize: `None` or `[float, float]` (default: (6, 6)
             The width and height of each panel in the figure.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+        save_show_or_return: `str` {'save', 'show', 'return', 'both', 'all'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -628,7 +634,7 @@ def hivePlot(
     # ax.legend(custom_lines, reg_groups, loc='upper left', bbox_to_anchor=(0.37, 0.35),
     #           title="Regulatory network based on Jacobian analysis")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "hiveplot",
@@ -640,9 +646,12 @@ def hivePlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
