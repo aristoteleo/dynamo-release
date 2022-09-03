@@ -36,7 +36,7 @@ def pca(adata: AnnData, *args, **kwargs):
     ... )
     """
 
-    scatters(adata, "pca", *args, **kwargs)
+    return scatters(adata, "pca", *args, **kwargs)
 
 
 @docstrings.with_indent(4)
