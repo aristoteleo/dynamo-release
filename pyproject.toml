@@ -49,6 +49,7 @@ requires = [
   'openpyxl', # export dynamics ranking info
   "get_version>=3.5.4",
   "setuptools_scm",
+  'typing-extensions',
 ]
 requires-python = '>=3.7'
 
