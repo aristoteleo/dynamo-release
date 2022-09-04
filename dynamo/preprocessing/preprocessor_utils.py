@@ -169,7 +169,7 @@ def seurat_get_mean_var(X, ignore_zeros=False, perc=None):
         mean = X.sum(0) / n_counts
         mean_sq = np.multiply(X, X).sum(0) / n_counts
     n_cells = np.clip(X.shape[0], 2, None)  # to avoid division by zero
-    var = (mean_sq - mean ** 2) * (n_cells / (n_cells - 1))
+    var = (mean_sq - mean**2) * (n_cells / (n_cells - 1))
 
     mean = np.nan_to_num(mean)
     var = np.nan_to_num(var)
@@ -342,7 +342,7 @@ def select_genes_by_seurat_recipe(
     # normalized dispersion
     mean = disp_mean_bin[temp_df["mean_bin"].values].values
     std = disp_std_bin[temp_df["mean_bin"].values].values
-    variance = std ** 2
+    variance = std**2
     temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) / std).fillna(0)
     dispersion_norm = temp_df["dispersion_norm"].values
 

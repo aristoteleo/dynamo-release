@@ -84,8 +84,8 @@ def norm(X, V, T, fix_velocity=True):
     )
 
     xscale, yscale = (
-        np.sqrt(np.sum(np.sum(x ** 2, 1)) / n),
-        np.sqrt(np.sum(np.sum(y ** 2, 1)) / m),
+        np.sqrt(np.sum(np.sum(x**2, 1)) / n),
+        np.sqrt(np.sum(np.sum(y**2, 1)) / m),
     )
 
     X, Y, T = x / xscale, y / yscale, t / (1 / 2 * (xscale + yscale)) if T is not None else None
@@ -448,7 +448,7 @@ def SparseVFC(
 
     if beta is None:
         h = bandwidth_selector(ctrl_pts)
-        beta = 1 / h ** 2
+        beta = 1 / h**2
 
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=need_utility_time_measure)

@@ -157,7 +157,7 @@ def con_K(x, y, beta, method="cdist", return_d=False):
         # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
         # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
         D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-        K = np.squeeze(np.sum(D ** 2, 1))
+        K = np.squeeze(np.sum(D**2, 1))
     K = -beta * K
     K = np.exp(K)
 
@@ -191,9 +191,9 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     """
     m, d = x.shape
     n, d = y.shape
-    sigma2 = sigma ** 2
+    sigma2 = sigma**2
     G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0])
-    G_tmp = np.squeeze(np.sum(G_tmp ** 2, 1))
+    G_tmp = np.squeeze(np.sum(G_tmp**2, 1))
     G_tmp3 = -G_tmp / sigma2
     G_tmp = -G_tmp / (2 * sigma2)
     G_tmp = np.exp(G_tmp) / sigma2
@@ -1045,7 +1045,7 @@ def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, 
 # answer from crizCraig
 # @njit(cache=True, nogil=True) # causing numba error_write issue
 def angle(vector1, vector2):
-    """ Returns the angle in radians between given vectors"""
+    """Returns the angle in radians between given vectors"""
     v1_norm, v1_u = unit_vector(vector1)
     v2_norm, v2_u = unit_vector(vector2)
 
@@ -1064,7 +1064,7 @@ def angle(vector1, vector2):
 
 # @njit(cache=True, nogil=True) # causing numba error_write issue
 def unit_vector(vector):
-    """ Returns the unit vector of the vector.  """
+    """Returns the unit vector of the vector."""
     vec_norm = np.linalg.norm(vector)
     if vec_norm == 0:
         return vec_norm, vector
@@ -1073,7 +1073,7 @@ def unit_vector(vector):
 
 
 def normalize_vectors(vectors, axis=1, **kwargs):
-    """ Returns the unit vectors of the vectors.  """
+    """Returns the unit vectors of the vectors."""
     vec = np.array(vectors, copy=True)
     vec = np.atleast_2d(vec)
     vec_norm = np.linalg.norm(vec, axis=axis, **kwargs)

@@ -65,7 +65,7 @@ def rep2(x, length_out):
 
 
 def dnorm(x, u=0, sig=1):
-    return np.exp(-((x - u) ** 2) / (2 * sig ** 2)) / (math.sqrt(2 * math.pi) * sig)
+    return np.exp(-((x - u) ** 2) / (2 * sig**2)) / (math.sqrt(2 * math.pi) * sig)
 
 
 def kde2d(x, y, h=None, n=25, lims=None):
@@ -286,7 +286,7 @@ def response(
 
     id = 0
     for gene_pairs_ind, gene_pairs in enumerate(pairs_mat):
-        f_ini_ind = (grid_num ** 2) * id
+        f_ini_ind = (grid_num**2) * id
         r_ini_ind = grid_num * id
 
         gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
@@ -842,7 +842,7 @@ def causality(
     id = 0
     for gene_pairs_ind in range(0, len(pairs_mat)):
         gene_pairs = pairs_mat[gene_pairs_ind, :]
-        f_ini_ind = (grid_num ** 2) * id
+        f_ini_ind = (grid_num**2) * id
 
         gene_pair_name = reduce(lambda a, b: a + "->" + b, gene_pairs)
 

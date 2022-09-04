@@ -236,10 +236,10 @@ def cook_dist(model, X, good):
     # Note: dispersion is 1 since we aren't modeling overdispersion
 
     resid = good.disp - model.predict(good)
-    rss = np.sum(resid ** 2)
+    rss = np.sum(resid**2)
     MSE = rss / (good.shape[0] - 2)
     # use the formula from: https://www.mathworks.com/help/stats/cooks-distance.html
-    cooks_d = r ** 2 / (2 * MSE) * hii / (1 - hii) ** 2  # (r / (1 - hii)) ** 2 *  / (1 * 2)
+    cooks_d = r**2 / (2 * MSE) * hii / (1 - hii) ** 2  # (r / (1 - hii)) ** 2 *  / (1 * 2)
 
     return cooks_d
 
@@ -542,7 +542,7 @@ def Freeman_Tukey(X, inverse=False):
     if inverse:
         res = np.sqrt(X) + np.sqrt((X + 1))
     else:
-        res = (X ** 2 - 1) ** 2 / (4 * X ** 2)
+        res = (X**2 - 1) ** 2 / (4 * X**2)
 
     return res
 

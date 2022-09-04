@@ -722,7 +722,7 @@ def inverse_norm(adata, layer_x):
         layer_x.data = (
             np.expm1(layer_x.data)
             if adata.uns["pp"]["norm_method"] == "log1p"
-            else 2 ** layer_x.data - 1
+            else 2**layer_x.data - 1
             if adata.uns["pp"]["norm_method"] == "log2"
             else np.exp(layer_x.data) - 1
             if adata.uns["pp"]["norm_method"] == "log"
@@ -734,7 +734,7 @@ def inverse_norm(adata, layer_x):
         layer_x = (
             np.expm1(layer_x)
             if adata.uns["pp"]["norm_method"] == "log1p"
-            else 2 ** layer_x - 1
+            else 2**layer_x - 1
             if adata.uns["pp"]["norm_method"] == "log2"
             else np.exp(layer_x) - 1
             if adata.uns["pp"]["norm_method"] == "log"

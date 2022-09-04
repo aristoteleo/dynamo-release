@@ -761,35 +761,35 @@ class Neurogenesis(CellularModelSimulator):
             a = self.param_dict["a"][gene]
             K = self.param_dict["K"][gene]
             n = self.param_dict["n"][gene]
-            rate = a * K ** n / (K ** n + x ** n + y ** n + z ** n)
+            rate = a * K**n / (K**n + x**n + y**n + z**n)
             return rate
 
         def rate_act(x, gene):
             a = self.param_dict["a"][gene]
             K = self.param_dict["K"][gene]
             n = self.param_dict["n"][gene]
-            rate = a * x ** n / (K ** n + x ** n)
+            rate = a * x**n / (K**n + x**n)
             return rate
 
         def rate_toggle(x, y, gene):
             a = self.param_dict["a"][gene]
             K = self.param_dict["K"][gene]
             n = self.param_dict["n"][gene]
-            rate = a * x ** n / (K ** n + x ** n + y ** n)
+            rate = a * x**n / (K**n + x**n + y**n)
             return rate
 
         def rate_tuj1(x, y, z, gene):
             a = self.param_dict["a"][gene]
             K = self.param_dict["K"][gene]
             n = self.param_dict["n"][gene]
-            rate = a * (x ** n + y ** n + z ** n) / (K ** n + x ** n + y ** n + z ** n)
+            rate = a * (x**n + y**n + z**n) / (K**n + x**n + y**n + z**n)
             return rate
 
         def rate_stat3(x, y, gene):
             a = self.param_dict["a"][gene]
             K = self.param_dict["K"][gene]
             n = self.param_dict["n"][gene]
-            rate = a * (x ** n * y ** n) / (K ** n + x ** n * y ** n)
+            rate = a * (x**n * y**n) / (K**n + x**n * y**n)
             return rate
 
         if self.splicing:

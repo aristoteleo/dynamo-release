@@ -239,7 +239,7 @@ def graphize_velocity_coopt(
             if v_norm == 0 or b == 0:
                 jac_sim = 0
             else:
-                jac_sim = b / v_norm ** 2 * (v_norm * D @ u_ - v_.dot(u_) * v_ @ D.T / v_norm)
+                jac_sim = b / v_norm**2 * (v_norm * D @ u_ - v_.dot(u_) * v_ @ D.T / v_norm)
 
             # regularization
             if r == 0:
@@ -274,7 +274,7 @@ def symmetrize_discrete_vector_field(F, mode="asym"):
 
 def dist_mat_to_gaussian_weight(dist, sigma):
     dist = symmetrize_symmetric_matrix(dist)
-    W = elem_prod(dist, dist) / sigma ** 2
+    W = elem_prod(dist, dist) / sigma**2
     W[W.nonzero()] = np.exp(-0.5 * W.data)
 
     return W
@@ -297,7 +297,7 @@ def calc_gaussian_weight(nbrs_idx, dists, sig=None, auto_sig_func=None, auto_sig
             auto_sig_func = np.median
         sig = auto_sig_func(dists) * auto_sig_multiplier
 
-    sig2 = sig ** 2
+    sig2 = sig**2
     for i in range(n):
         w = np.exp(-0.5 * dists[i] * dists[i] / sig2)
 
