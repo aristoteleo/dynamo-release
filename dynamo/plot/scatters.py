@@ -758,7 +758,7 @@ def scatters(
                     values = (
                         calc_1nd_moment(values, knn)[0]
                         if smooth in [1, True]
-                        else calc_1nd_moment(values, knn ** smooth)[0]
+                        else calc_1nd_moment(values, knn**smooth)[0]
                     )
 
                 if affine_transform_A is None or affine_transform_b is None:

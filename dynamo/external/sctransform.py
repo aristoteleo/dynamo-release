@@ -216,7 +216,7 @@ def sctransform_core(
     x = model_pars["theta"].values.copy()
     x[x < min_theta] = min_theta
     model_pars["theta"] = x
-    dispersion_par = np.log10(1 + 10 ** genes_log_gmean_step1 / model_pars["theta"].values.flatten())
+    dispersion_par = np.log10(1 + 10**genes_log_gmean_step1 / model_pars["theta"].values.flatten())
 
     model_pars_theta = model_pars["theta"]
     model_pars = model_pars.iloc[:, model_pars.columns != "theta"].copy()
@@ -250,7 +250,7 @@ def sctransform_core(
         )
         full_model_pars[i] = kr.fit(data_predict=x_points)[0]
 
-    theta = 10 ** genes_log_gmean / (10 ** full_model_pars["dispersion"].values - 1)
+    theta = 10**genes_log_gmean / (10 ** full_model_pars["dispersion"].values - 1)
     full_model_pars["theta"] = theta
     del full_model_pars["dispersion"]
 
@@ -261,9 +261,9 @@ def sctransform_core(
     d = X.data
     x, y = X.nonzero()
     mud = np.exp(full_model_pars.values[:, 0][y] + full_model_pars.values[:, 1][y] * cell_attrs["log_umi"].values[x])
-    vard = mud + mud ** 2 / full_model_pars["theta"].values.flatten()[y]
+    vard = mud + mud**2 / full_model_pars["theta"].values.flatten()[y]
 
-    X.data[:] = (d - mud) / vard ** 0.5
+    X.data[:] = (d - mud) / vard**0.5
     X.data[X.data < 0] = 0
     X.eliminate_zeros()
 

@@ -189,7 +189,7 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 
                 # check if the current path *ended* in a different point compared to previous path (x-y grid spacing used
                 # as a "tolerance" for distance)
-                if endPt_dist_sqr > (2 * (xyGridSpacing ** 2)):
+                if endPt_dist_sqr > (2 * (xyGridSpacing**2)):
 
                     # --- check if this "different" attractor has been identified before
                     new_attr_found = 1
@@ -221,7 +221,7 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                         )  # append attractor potentials to array (vertically)
 
                         # check if start points of current and previous paths are "adjacent" - if so, assign separatrix
-                        if startPt_dist_sqr < (2 * (xyGridSpacing ** 2)):
+                        if startPt_dist_sqr < (2 * (xyGridSpacing**2)):
                             curr_sepx = [
                                 path_tag[path_counter - 1],
                                 path_tag[path_counter],
@@ -253,7 +253,7 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 
                         if prev_attr_new == 1:
                             # check if start points of current and previous paths are "adjacent"  - if so, assign separatrix
-                            if startPt_dist_sqr < (2 * (xyGridSpacing ** 2)):
+                            if startPt_dist_sqr < (2 * (xyGridSpacing**2)):
                                 curr_sepx = [
                                     path_tag[path_counter - 1],
                                     path_tag[path_counter],

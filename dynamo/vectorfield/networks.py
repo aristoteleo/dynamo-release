@@ -241,6 +241,6 @@ def clr_directed(adj_mat):
 
         s_i_vec = np.maximum(0, (row_i - row_mean) / row_sd)
         s_j_vec = np.maximum(0, (row_i - col_means) / col_sd)
-        updated_adj_mat.loc[i, :] = np.sqrt(s_i_vec ** 2 + s_j_vec ** 2)
+        updated_adj_mat.loc[i, :] = np.sqrt(s_i_vec**2 + s_j_vec**2)
 
     return updated_adj_mat

@@ -206,19 +206,19 @@ class moments:
 
     def get_var_nu(self):
         c = self.get_nu()
-        return self.x[:, self.uu] + c - c ** 2
+        return self.x[:, self.uu] + c - c**2
 
     def get_var_nw(self):
         c = self.get_nw()
-        return self.x[:, self.ww] + c - c ** 2
+        return self.x[:, self.ww] + c - c**2
 
     def get_var_nx(self):
         c = self.get_nx()
-        return self.x[:, self.xx] + c - c ** 2
+        return self.x[:, self.xx] + c - c**2
 
     def get_var_ny(self):
         c = self.get_ny()
-        return self.x[:, self.yy] + c - c ** 2
+        return self.x[:, self.yy] + c - c**2
 
     def get_cov_ux(self):
         cu = self.get_nu()

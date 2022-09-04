@@ -5,23 +5,23 @@ from ..dynamo_logger import main_warning
 
 
 def hill_inh_func(x, A, K, n, g):
-    Kd = K ** n
-    return A * Kd / (Kd + x ** n) - g * x
+    Kd = K**n
+    return A * Kd / (Kd + x**n) - g * x
 
 
 def hill_inh_grad(x, A, K, n, g):
-    Kd = K ** n
-    return -A * n * Kd * x ** (n - 1) / (Kd + x ** n) ** 2 - g
+    Kd = K**n
+    return -A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
 def hill_act_func(x, A, K, n, g):
-    Kd = K ** n
-    return A * x ** n / (Kd + x ** n) - g * x
+    Kd = K**n
+    return A * x**n / (Kd + x**n) - g * x
 
 
 def hill_act_grad(x, A, K, n, g):
-    Kd = K ** n
-    return A * n * Kd * x ** (n - 1) / (Kd + x ** n) ** 2 - g
+    Kd = K**n
+    return A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
 def calc_mean_squared_deviation(func, x_data, y_mean, y_sigm, weighted=True):

@@ -593,7 +593,7 @@ def _matplotlib_points(
                 if i == "other":
                     continue
                 color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype("float"), 0)
-                txt = plt.text(
+                txt = ax.text(
                     color_cnt[0],
                     color_cnt[1],
                     str(i),
