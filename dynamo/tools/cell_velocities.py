@@ -701,25 +701,18 @@ def stationary_distribution(
     method: str = "kmc",
     direction: Literal["both", "forward", "backward"] = "both",
     calc_rnd: bool = True,
-) -> anndata.AnnData:
+) -> None:
     """Compute stationary distribution of cells using the transition matrix.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        method: str (default: `kmc`)
-            The method to calculate the stationary distribution.
-        direction: str (default: `both`)
-            The direction of diffusion for calculating the stationary distribution, can be one of `both`, `forward`,
-            `backward`.
-        calc_rnd: bool (default: True)
-            Whether to also calculate the stationary distribution from the control randomized transition matrix.
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with source, sink stationary distributions and the randomized results,
-            depending on the direction and calc_rnd arguments.
+    Update the AnnData object with source, sink stationary distributions and the randomized results, depending on the
+    `direction` and `calc_rnd` arguments.
+
+    Args:
+        adata: an AnnData object.
+        method: the method to calculate the stationary distribution. Defaults to "kmc".
+        direction: the direction of diffusion for calculating the stationary distribution, can be one of `both`,
+            `forward`, `backward`. Defaults to "both".
+        calc_rnd: whether to also calculate the stationary distribution from the control randomized transition matrix. Defaults to True.
     """
 
     # row is the source and columns are targets
@@ -777,20 +770,14 @@ def stationary_distribution(
                 adata.obs["source_steady_state_distribution_rnd"] = diffusion(T_rnd, backward=True)
 
 
-def generalized_diffusion_map(adata, **kwargs):
+def generalized_diffusion_map(adata: anndata.AnnData, **kwargs) -> None:
     """Apply the diffusion map algorithm on the transition matrix build from Itô kernel.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the constructed transition matrix.
-        kwargs:
-            Additional parameters that will be passed to the diffusion_map_embedding function.
+    Update the AnnData object with X_diffusion_map embedded in obsm attribute.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that updated with X_diffusion_map embedding in obsm attribute.
+    Args:
+        adata: an AnnData object with the constructed transition matrix.
+        kwargs: additional kwargs that will be passed to `diffusion_map_embedding function`.
     """
 
     kmc = KernelMarkovChain()
@@ -802,24 +789,19 @@ def generalized_diffusion_map(adata, **kwargs):
     adata.obsm["X_diffusion_map"] = dm
 
 
-def diffusion(M, P0=None, steps=None, backward=False):
+def diffusion(
+    M: np.ndarray, P0: Optional[np.ndarray] = None, steps: Optional[int] = None, backward: bool = False
+) -> np.ndarray:
     """Find the state distribution of a Markov process.
 
-    Parameters
-    ----------
-        M: :class:`~numpy.ndarray` (dimension n x n, where n is the cell number)
-            The transition matrix.
-        P0: :class:`~numpy.ndarray` (default None; dimension is n, )
-            The initial cell state.
-        steps: int (default None)
-            The random walk steps on the Markov transitioin matrix.
-        backward: bool (default False)
-            Whether the backward transition will be considered.
+    Args:
+        M: the transition matrix with dimension of n x n, where n is the cell number.
+        P0: The initial cell state with dimension of n. Defaults to None.
+        steps: the random walk steps on the Markov transitioin matrix.. Defaults to None.
+        backward: whether the backward transition will be considered.. Defaults to False.
 
-    Returns
-    -------
-        Mu: :class:`~numpy.ndarray`
-            The state distribution of the Markov process.
+    Returns:
+        The state distribution of the Markov process.
     """
 
     if backward is True:
