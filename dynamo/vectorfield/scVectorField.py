@@ -2,7 +2,7 @@ import functools
 import itertools
 import warnings
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Union
+from typing import Callable, Union, Optional, Tuple, TypedDict
 
 import numpy as np
 import numpy.matlib
@@ -12,10 +12,10 @@ from scipy.linalg import lstsq
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
 
-from ..dynamo_logger import LoggerManager, main_info, main_warning
-from ..simulation.ODE import jacobian_bifur2genes, ode_bifur2genes
-from ..tools.sampling import lhsclassic, sample, sample_by_velocity
-from ..tools.utils import (
+from dynamo.dynamo_logger import LoggerManager, main_info, main_warning
+from dynamo.simulation.ODE import jacobian_bifur2genes, ode_bifur2genes
+from dynamo.tools.sampling import lhsclassic, sample, sample_by_velocity
+from dynamo.tools.utils import (
     index_condensed_matrix,
     linear_least_squares,
     nearest_neighbors,
@@ -24,7 +24,7 @@ from ..tools.utils import (
     update_dict,
     update_n_merge_dict,
 )
-from .utils import (
+from dynamo.utils import (
     FixedPoints,
     Hessian_rkhs_gaussian,
     Jacobian_kovf,
@@ -47,26 +47,26 @@ from .utils import (
     vector_transformation,
 )
 
+class NormDict(TypedDict):
+    xm: np.ndarray
+    ym: np.ndarray
+    xscale: float
+    yscale: float
+    fix_velocity: bool
 
-def norm(X, V, T, fix_velocity=True):
+def norm(X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: Optional[bool]=True) -> Tuple[np.ndarray, np.ndarray, np.ndarray, NormDict]:
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
         We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
 
-    Arguments
-    ---------
-        X: :class:`~numpy.ndarray`
-            Current state. This corresponds to, for example, the spliced transcriptomic state.
-        V: :class:`~numpy.ndarray`
-            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
-            velocity estimated calculated by dynamo or velocyto, scvelo.
-        T: :class:`~numpy.ndarray`
-            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
+    Args:
+        X: Current state. This corresponds to, for example, the spliced transcriptomic state.
+        V: Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity estimated calculated by dynamo or
+            velocyto, scvelo.
+        T: Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state.
-        fix_velocity: bool (default: `True`)
-            Whether to fix velocity and don't transform it.
+        fix_velocity: Whether to fix velocity and don't transform it.
 
-    Returns
-    -------
+    Returns:
         A tuple of updated X, V, T and norm_dict which includes the mean and scale values for original X, V data used
         in normalization.
     """
@@ -96,12 +96,14 @@ def norm(X, V, T, fix_velocity=True):
     return X, V, T, norm_dict
 
 
-def bandwidth_rule_of_thumb(X, return_sigma=False):
+def bandwidth_rule_of_thumb(X: np.ndarray, return_sigma: Optional[bool]=False) -> Tuple[float, Optional[float]]:
     """
     This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
     https://en.wikipedia.org/wiki/Kernel_density_estimation#A_rule-of-thumb_bandwidth_estimator
+
+    The bandwidth is a free parameter that controls the level of smoothing in the estimated distribution.
     """
-    sig = sig = np.sqrt(np.mean(np.diag(np.cov(X.T))))
+    sig = np.sqrt(np.mean(np.diag(np.cov(X.T))))
     h = 1.06 * sig / (len(X) ** (-1 / 5))
     if return_sigma:
         return h, sig
