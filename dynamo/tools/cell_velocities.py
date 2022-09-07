@@ -44,8 +44,8 @@ def cell_velocities(
     vkey: Union[str, None] = None,
     X: Union[np.array, scipy.sparse.csr_matrix, None] = None,
     V: Union[np.array, scipy.sparse.csr_matrix, None] = None,
-    X_embedding: Union[str, None] = None,
-    transition_matrix: Union[np.array, scipy.sparse.csr_matrix, None] = None,
+    X_embedding: Union[np.ndarray, None] = None,
+    transition_matrix: Union[np.ndarray, scipy.sparse.csr_matrix, None] = None,
     use_mnn: bool = False,
     n_pca_components: Union[int, None] = None,
     transition_genes: Union[str, List[str], List[bool], None] = None,
@@ -127,7 +127,7 @@ def cell_velocities(
             the "transform" method uses umap's transform method to transform new data points to the UMAP space.
             "transform" method is NOT recommended. Kernels that are based on the reconstructed vector field in high
             dimension is also possible. Defaults to "pearson".
-        neg_cells_trick: whether we should handle cells having negative correlations in gene expression difference with
+        neg_cells_trick: whether to handle cells having negative correlations in gene expression difference with
             high dimensional velocity vector separately. This option was borrowed from scVelo package
             (https://github.com/theislab/scvelo) and use in conjunction with "pearson" and "cosine" kernel. Not required
             if method is set to be "kmc". Defaults to True.
@@ -145,9 +145,9 @@ def cell_velocities(
             1) redefining use_for_transition column in obs attribute; However this is NOT executed if the argument
                 'transition_genes' is not None.
             2) recalculation of the transition matrix. Defaults to False.
-        preserve_len: whether to preserve the length of high dimension vector length. When set to be True, the length  of
-            low dimension projected vector will be proportionally scaled to that of the high dimensional vector. Defaults
-            to False.
+        preserve_len: whether to preserve the length of high dimension vector length. When set to be True, the length of
+            low dimension projected vector will be proportionally scaled to that of the high dimensional vector.
+            Defaults to False.
         kernel_kwargs: kwargs that would be passed to the kernel for constructing the transition matrix.
 
     Raises:
@@ -712,7 +712,8 @@ def stationary_distribution(
         method: the method to calculate the stationary distribution. Defaults to "kmc".
         direction: the direction of diffusion for calculating the stationary distribution, can be one of `both`,
             `forward`, `backward`. Defaults to "both".
-        calc_rnd: whether to also calculate the stationary distribution from the control randomized transition matrix. Defaults to True.
+        calc_rnd: whether to also calculate the stationary distribution from the control randomized transition matrix.
+            Defaults to True.
     """
 
     # row is the source and columns are targets
@@ -797,8 +798,8 @@ def diffusion(
     Args:
         M: the transition matrix with dimension of n x n, where n is the cell number.
         P0: The initial cell state with dimension of n. Defaults to None.
-        steps: the random walk steps on the Markov transitioin matrix.. Defaults to None.
-        backward: whether the backward transition will be considered.. Defaults to False.
+        steps: the random walk steps on the Markov transitioin matrix. Defaults to None.
+        backward: whether the backward transition will be considered. Defaults to False.
 
     Returns:
         The state distribution of the Markov process.
@@ -833,22 +834,17 @@ def diffusion(
     return mu
 
 
-def expected_return_time(M, backward=False):
+def expected_return_time(M: np.ndarray, backward=False) -> np.ndarray:
     """Find the expected returning time.
 
-    Parameters
-    ----------
-        M: :class:`~numpy.ndarray` (dimension n x n, where n is the cell number)
-            The transition matrix.
-        backward: bool (default False)
-            Whether the backward transition will be considered.
+    Args:
+        M: the transition matrix.
+        backward: whether the backward transition will be considered. Defaults to False.
 
-    Returns
-    -------
-        T: :class:`~numpy.ndarray`
-            The expected return time (1 / steady_state_probability).
-
+    Returns:
+        The expected return time (1 / steady_state_probability).
     """
+
     steady_state = diffusion(M, P0=None, steps=None, backward=backward)
 
     T = 1 / steady_state
@@ -856,21 +852,52 @@ def expected_return_time(M, backward=False):
 
 
 def kernels_from_velocyto_scvelo(
-    X,
-    X_embedding,
-    V,
-    adj_mat,
-    neg_cells_trick,
-    xy_grid_nums,
-    kernel="pearson",
-    n_recurse_neighbors=2,
-    max_neighs=None,
-    transform="sqrt",
-    use_neg_vals=True,
-    correct_density=True,
-):
-    """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
-    pearson correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019)."""
+    X: np.ndarray,
+    X_embedding: np.ndarray,
+    V: np.ndarray,
+    adj_mat: np.ndarray,
+    neg_cells_trick: bool,
+    xy_grid_nums: Tuple[int],
+    kernel: Literal["pearson", "cosine"] = "pearson",
+    n_recurse_neighbors: int = 2,
+    max_neighs: Optional[int] = None,
+    transform: Literal["log", "logratio", "linear", "sqrt"] = "sqrt",
+    use_neg_vals: bool = True,
+    correct_density: bool = True,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Utility function for calculating the transition matrix and low dimensional velocity.
+
+    Two kernels, the original
+    pearson correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019) are
+    available for calculation.
+
+    Args:
+        X: the expression state of single cells.
+        X_embedding: the low expression reduced space (pca, umap, tsne, etc.) of single cells that RNA velocity will be
+            projected onto. Note X_embedding, X and V has to have the same cell/sample dimension and X_embedding should
+            have less feature dimension comparing that of X or V.
+        V: the RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+            cells). Note that X, V need to have the exact dimensionalities.
+        adj_mat: the neighbor indices.
+        neg_cells_trick: whether to handle cells having negative correlations in gene expression difference with high
+            dimensional velocity vector separately.
+        xy_grid_nums: a tuple of number of grids on each dimension.
+        kernel: the method to calculate correlation between X and velocity vector Y_i for gene i.  Defaults to
+            "pearson".
+        n_recurse_neighbors: the order of neighbors to be used to calculate velocity graph. Defaults to 2.
+        max_neighs: the max number of neighbors to be used to calculate velocity graph. If the number of neighbors
+            within the order of n_recurse_neighbors is larger than this value, a random subset will be chosen. Defaults
+            to None.
+        transform: the method to transform the original velocity matrix. Defaults to "sqrt".
+        use_neg_vals: whether to use negative values during handle cells having negative correlations. Defaults to True.
+        correct_density: whether to correct density when calculating the markov transition matrix. Defaults to True.
+
+    Returns:
+        A tuple (T, delta_X, X_grid, V_grid, D) where T is the transition matrix, delta_X is the low dimensional
+        velocity, X_grid is a grid for plotting velocities and V_grid is the velocities on the grid. D is the diffusion
+        matrix.
+    """
+
     n = X.shape[0]
     if adj_mat is not None:
         rows = []
@@ -954,27 +981,24 @@ def kernels_from_velocyto_scvelo(
 
 # utility functions for calculating the random cell velocities
 @jit(nopython=True)
-def numba_random_seed(seed):
+def numba_random_seed(seed: int):
     """Same as np.random.seed but for numba. Function adapated from velocyto.
 
-    Parameters
-    ----------
-        seed: int
-            Random seed value
-
+    Args:
+        seed: the random seed value
     """
+
     np.random.seed(seed)
 
 
 @jit(nopython=True)
-def permute_rows_nsign(A):
-    """Permute in place the entries and randomly switch the sign for each row of a matrix independently. Function
-    adapted from velocyto
+def permute_rows_nsign(A: np.ndarray):
+    """Permute in place the entries and randomly switch the sign for each row of a matrix independently.
 
-    Parameters
-    ----------
-        A: :class:`~numpy.ndarray`
-            A numpy array that will be permuted.
+    The function is adapted from velocyto.
+
+    Args:
+        A: a numpy array that will be permuted.
     """
 
     plmi = np.array([+1, -1])
