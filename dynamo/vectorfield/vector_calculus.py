@@ -1078,7 +1078,9 @@ def curl(adata, basis="umap", vector_field_class=None, method="analytical", **kw
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `'curl'` key in the `.obs`.
+            AnnData object that is updated with the `'curl'` information in the `.obs`. When vector field has three
+            dimension, adata.obs['curl'] (magnitude of curl) and adata.obsm['curl'] (curl vector) will be added; when
+            vector field has two dimension, only adata.obs['curl'] (magnitude of curl) will be provided.
     """
 
     if vector_field_class is None:
@@ -1098,7 +1100,12 @@ def curl(adata, basis="umap", vector_field_class=None, method="analytical", **kw
     curl = vector_field_class.compute_curl(X=X, method=method, **kwargs)
     curl_key = "curl" if basis is None else "curl_" + basis
 
-    adata.obs[curl_key] = curl
+    if X.shape[1] == 3:
+        curl_mag = np.array([np.linalg.norm(i) for i in curl])
+        adata.obs[curl_key] = curl_mag
+        adata.obsm[curl_key] = curl
+    else:
+        adata.obs[curl_key] = curl
 
 
 def divergence(
