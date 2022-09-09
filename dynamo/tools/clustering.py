@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import anndata
 import numpy as np
@@ -20,66 +20,57 @@ from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
 
 def hdbscan(
-    adata,
-    X_data=None,
-    genes=None,
-    layer=None,
-    basis="pca",
-    dims=None,
-    n_pca_components=30,
-    n_components=2,
-    result_key=None,
-    copy=False,
+    adata: anndata.AnnData,
+    X_data: Optional[np.ndarray] = None,
+    genes: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    basis: str = "pca",
+    dims: Optional[List[int]] = None,
+    n_pca_components: int = 30,
+    n_components: int = 2,
+    result_key: Optional[str] = None,
+    copy: bool = False,
     **hdbscan_kwargs
-):
+) -> Optional[anndata.AnnData]:
     """Apply hdbscan to cluster cells in the space defined by basis.
 
     HDBSCAN is a clustering algorithm developed by Campello, Moulavi, and Sander
-    (https://doi.org/10.1007/978-3-642-37456-2_14) which extends DBSCAN by converting
-    it into a hierarchical clustering algorithm, followed by using a technique to extract
-    a flat clustering based in the stability of clusters. Here you can use hdbscan to
-    cluster your data in any space specified by `basis`. The data that used to produced
-    from this space can be specified by `layer`. Thus, you are able to use either the
-    unspliced or new RNA data for dimension reduction and clustering. HDBSCAN is a density
-    based method, it thus requires you to perform clustering on relatively low dimension,
-    for example top 30 PCs or top 5 umap dimension with at least several thousands of cells.
-    In practice, HDBSCAN will assign -1 for cells that have low local density and thus not
-    able to confidentially assign to any clusters.
+    (https://doi.org/10.1007/978-3-642-37456-2_14) which extends DBSCAN by converting it into a hierarchical clustering
+    algorithm, followed by using a technique to extract a flat clustering based in the stability of clusters. Here you
+    can use hdbscan to cluster your data in any space specified by `basis`. The data that used to produced from this
+    space can be specified by `layer`. Thus, you are able to use either the unspliced or new RNA data for dimension
+    reduction and clustering. HDBSCAN is a density based method, it thus requires you to perform clustering on
+    relatively low dimension, for example top 30 PCs or top 5 umap dimension with at least several thousands of cells.
+    In practice, HDBSCAN will assign -1 for cells that have low local density and thus not able to confidentially assign
+    to any clusters.
 
     The hdbscan package from Leland McInnes, John Healy, Steve Astels Revision is used.
 
-    Parameters
-    ----------
-    adata: :class:`~anndata.AnnData`
-        AnnData object.
-    X_data: `np.ndarray` (default: `None`)
-        The user supplied data that will be used for clustering directly.
-    genes: `list` or None (default: `None`)
-        The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
-        genes will be used.
-    layer: `str` or None (default: `None`)
-        The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
-    basis: `str` or None (default: `None`)
-        The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`, `velocity_pca`
-        (that is, you can use velocity for clustering), etc.
-    dims: `list` or None (default: `None`)
-        The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
-    n_pca_components: `int` (default: `30`)
-        The number of pca components that will be used.
-    n_components: `int` (default: `2`)
-        The number of dimension that non-linear dimension reduction will be projected to.
-    copy:
-        Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
-    hdbscan_kwargs: `dict`
-        Additional parameters that will be passed to hdbscan function.
+    Args:
+        adata: an AnnData object.
+        X_data: the user supplied data that will be used for clustering directly. Defaults to None.
+        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+            all genes will be used. Defaults to None.
+        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+            used. Defaults to None.
+        basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
+            `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
+        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+            Defaults to None.
+        n_pca_components: the number of pca components that will be used. Defaults to 30.
+        n_components: the number of dimension that non-linear dimension reduction will be projected to. Defaults to 2.
+        result_key: the key for storing clustering results in .obs and .uns. Defaults to None.
+        copy: whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
+            Defaults to False.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated AnnData object with the clustering updated. `hdbscan` and `hdbscan_prob` are two newly added
-            columns from .obs, corresponding to either the Cluster results or the probability of each cell belong to a
-            cluster. `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from
-            hdbscan run.
+    Raises:
+        ImportError: hdbscan not installed.
+
+    Returns:
+        An updated AnnData object with the clustering updated. `hdbscan` and `hdbscan_prob` are two newly added columns
+        from .obs, corresponding to either the Cluster results or the probability of each cell belong to a cluster.
+        `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from hdbscan run.
+        Returned if `copy` is true.
     """
 
     try:
@@ -155,10 +146,10 @@ def hdbscan(
     cluster.fit(X_data)
 
     if result_key is None:
-        key = "hdbscan"
-    adata.obs[key] = cluster.labels_.astype("str")
-    adata.obs[key + "_prob"] = cluster.probabilities_
-    adata.uns[key] = {
+        result_key = "hdbscan"
+    adata.obs[result_key] = cluster.labels_.astype("str")
+    adata.obs[result_key + "_prob"] = cluster.probabilities_
+    adata.uns[result_key] = {
         "hdbscan": cluster.labels_.astype("str"),
         "probabilities_": cluster.probabilities_,
         "cluster_persistence_": cluster.cluster_persistence_,
@@ -174,32 +165,49 @@ def hdbscan(
 
 
 def leiden(
-    adata,
-    use_weight=True,
-    weight=None,
-    initial_membership=None,
-    adj_matrix=None,
-    adj_matrix_key=None,
-    result_key=None,
-    layer=None,
-    obsm_key=None,
-    selected_cluster_subset: list = None,
-    selected_cell_subset=None,
-    directed=False,
-    copy=False,
+    adata: anndata.AnnData,
+    use_weight: bool = True,
+    weight: List[float] = None,
+    initial_membership: Optional[List[int]] = None,
+    adj_matrix: Union[List[int], np.array, csr_matrix, None] = None,
+    adj_matrix_key: Optional[str] = None,
+    result_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    obsm_key: Optional[str] = None,
+    selected_cluster_subset: Optional[Tuple[str, str]] = None,
+    selected_cell_subset: Union[List[int], List[str], None] = None,
+    directed: bool = False,
+    copy: bool = False,
     **kwargs
-) -> anndata.AnnData:
+) -> Optional[anndata.AnnData]:
     """Apply leiden clustering to adata.
-    For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
-    "The Leiden algorithm is an improvement of the Louvain algorithm. The Leiden algorithm consists of three phases: (1) local moving of nodes, (2) refinement of the partition (3) aggregation of the network based on the refined partition, using the non-refined partition to create an initial partition for the aggregate network." - cdlib
 
-    Parameters
-    ----------
-    weight :
-         weights of edges. Can be either an iterable or an edge attribute. Default None
-    initial_membership : optional
-        list of int Initial membership for the partition. If None then defaults to a singleton partition. Default None, by default None
+    For other community detection general parameters, please refer to `~dynamo.tl.cluster_community` function.
+    "The Leiden algorithm is an improvement of the Louvain algorithm. The Leiden algorithm consists of three phases:
+    (1) local moving of nodes, (2) refinement of the partition (3) aggregation of the network based on the refined
+    partition, using the non-refined partition to create an initial partition for the aggregate network." - cdlib
 
+    Args:
+        adata: an AnnData object.
+        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
+            Defaults to True.
+        weight: weight used to perform leiden algorithm. Defaults to None.
+        initial_membership: initial membership for the partition. If None, a singleton partition will be used. Defaults
+            to None.
+        adj_matrix: adj_matrix used for clustering. Defaults to None.
+        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
+        result_key: the key where the results will be stored in obs. Defaults to None.
+        layer: the adata layer on which cluster algorithms will work. Defaults to None.
+        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
+        selected_cluster_subset: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
+            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
+        selected_cell_subset: a subset of cells in adata that would be clustered. Defaults to None.
+        directed: whether the edges in the graph should be directed. Defaults to False.
+        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
+        kwargs: all other kwargs that would be passed to cluster_community
+
+    Returns:
+        An updated AnnData object if `copy` is set to be true.
     """
 
     kwargs.update(

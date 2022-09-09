@@ -981,7 +981,7 @@ def kernels_from_velocyto_scvelo(
 
 # utility functions for calculating the random cell velocities
 @jit(nopython=True)
-def numba_random_seed(seed: int):
+def numba_random_seed(seed: int) -> None:
     """Same as np.random.seed but for numba. Function adapated from velocyto.
 
     Args:
@@ -992,7 +992,7 @@ def numba_random_seed(seed: int):
 
 
 @jit(nopython=True)
-def permute_rows_nsign(A: np.ndarray):
+def permute_rows_nsign(A: np.ndarray) -> None:
     """Permute in place the entries and randomly switch the sign for each row of a matrix independently.
 
     The function is adapted from velocyto.
