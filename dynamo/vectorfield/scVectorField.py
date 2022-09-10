@@ -1,8 +1,9 @@
 import functools
 import itertools
+from os import XATTR_CREATE
 import warnings
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Union, Optional, Tuple, TypedDict
+from typing import Callable, Union, Optional, Tuple, TypedDict, Dict
 
 import numpy as np
 import numpy.matlib
@@ -54,6 +55,25 @@ class NormDict(TypedDict):
     yscale: float
     fix_velocity: bool
 
+class VecFldDict(TypedDict):
+    X: np.ndarray
+    valid_ind: float
+    X_ctrl: np.ndarray
+    ctrl_idx: float
+    Y: np.ndarray
+    beta: float
+    V: np.ndarray
+    C: np.ndarray
+    P: np.ndarray
+    VFCIndex: np.ndarray
+    sigma2: float
+    grid: np.ndarray
+    grid_V: np.ndarray
+    iteration: int
+    tecr_traj: np.ndarray
+    E_traj: np.ndarray
+    norm_dict: NormDict
+
 def norm(X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: Optional[bool]=True) -> Tuple[np.ndarray, np.ndarray, np.ndarray, NormDict]:
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
         We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
@@ -96,12 +116,19 @@ def norm(X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: Optional[boo
     return X, V, T, norm_dict
 
 
-def bandwidth_rule_of_thumb(X: np.ndarray, return_sigma: Optional[bool]=False) -> Tuple[float, Optional[float]]:
+def bandwidth_rule_of_thumb(X: np.ndarray, return_sigma: Optional[bool]=False) -> Union[Tuple[float, float], float]:
     """
     This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
     https://en.wikipedia.org/wiki/Kernel_density_estimation#A_rule-of-thumb_bandwidth_estimator
 
     The bandwidth is a free parameter that controls the level of smoothing in the estimated distribution.
+
+    Args:
+        X: Current state. This corresponds to, for example, the spliced transcriptomic state.
+        return_sigma: Determines whether the standard deviation will be returned in addition to the bandwidth parameter
+
+    Returns:
+        Either a tuple with the bandwith and standard deviation or just the bandwidth
     """
     sig = np.sqrt(np.mean(np.diag(np.cov(X.T))))
     h = 1.06 * sig / (len(X) ** (-1 / 5))
@@ -111,7 +138,7 @@ def bandwidth_rule_of_thumb(X: np.ndarray, return_sigma: Optional[bool]=False) -
         return h
 
 
-def bandwidth_selector(X):
+def bandwidth_selector(X: np.ndarray) -> float:
     """
     This function computes an empirical bandwidth for a Gaussian kernel.
     """
@@ -136,22 +163,16 @@ def bandwidth_selector(X):
     return np.sqrt(2) * d
 
 
-def denorm(VecFld, X_old, V_old, norm_dict):
+def denorm(VecFld: VecFldDict, X_old: np.ndarray, V_old: np.ndarray, norm_dict: NormDict) -> VecFldDict:
     """Denormalize data back to the original scale.
 
-    Parameters
-    ----------
-        VecFld:  `dict`
-            The dictionary that stores the information for the reconstructed vector field function.
-        X_old: `np.ndarray`
-            The original data for current state.
-        V_old: `np.ndarray`
-            The original velocity data.
-        norm_dict: `dict`
-            norm_dict to the class which includes the mean and scale values for X, Y used in normalizing the data.
+    Args:
+        VecFld: The dictionary that stores the information for the reconstructed vector field function.
+        X_old: The original data for current state.
+        V_old: The original velocity data.
+        norm_dict: norm_dict to the class which includes the mean and scale values for X, Y used in normalizing the data.
 
-    Returns
-    -------
+    Returns:
         An updated VecFld function that includes denormalized X, Y, X_ctrl, grid, grid_V, V and the norm_dict key.
     """
 
@@ -194,32 +215,21 @@ def lstsq_solver(lhs, rhs, method="drouin"):
     return C
 
 
-def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
+def get_P(Y: np.ndarray, V: np.ndarray, sigma2: float, gamma: float, a: float, div_cur_free_kernels: Optional[bool]=False) -> Tuple[np.ndarray, np.ndarray]:
     """GET_P estimates the posterior probability and part of the energy.
 
-    Arguments
-    ---------
-        Y: 'np.ndarray'
-            Velocities from the data.
-        V: 'np.ndarray'
-            The estimated velocity: V=f(X), f being the vector field function.
-        sigma2: 'float'
-            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
-        gamma: 'float'
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
-        a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+    Args:
+        Y: Velocities from the data.
+        V: The estimated velocity: V=f(X), f being the vector field function.
+        sigma2: sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
+        gamma: Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
+        a: Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
             outlier's variation space is a.
-        div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
+        div_cur_free_kernels: A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
             vector field.
 
-    Returns
-    -------
-    P: 'np.ndarray'
-        Posterior probability, related to equation 27.
-    E: `np.ndarray'
-        Energy, related to equation 26.
+    Returns:
+        Tuple of (posterior probability, energy) related to equations 27 and 26.
 
     """
 
@@ -345,54 +355,38 @@ def SparseVFC(
     velocity_based_sampling: bool = True,
     sigma: float = 0.8,
     eta: float = 0.5,
-    seed=0,
+    seed: Union[int, np.ndarray] = 0,
     lstsq_method: str = "drouin",
     verbose: int = 1,
-) -> dict:
+) -> VecFldDict:
     """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field from random
     samples with outlier on the entire space robustly and efficiently. (Ma, Jiayi, etc. al, Pattern Recognition, 2013)
 
-    Arguments
-    ---------
-        X: 'np.ndarray'
-            Current state. This corresponds to, for example, the spliced transcriptomic state.
-        Y: 'np.ndarray'
-            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
+    Args:
+        X: Current state. This corresponds to, for example, the spliced transcriptomic state.
+        Y: Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
             velocity or total RNA velocity based on metabolic labeling data estimated calculated by dynamo.
-        Grid: 'np.ndarray'
-            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
+        Grid: Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state or total RNA state.
-        M: 'int' (default: 100)
-            The number of basis functions to approximate the vector field.
-        a: 'float' (default: 10)
-            Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+        M: The number of basis functions to approximate the vector field.
+        a: Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
             outlier's variation space is `a`.
-        beta: 'float' (default: 0.1)
-            Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
+        beta: Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
             If None, a rule-of-thumb bandwidth will be computed automatically.
-        ecr: 'float' (default: 1e-5)
-            The minimum limitation of energy change rate in the iteration process.
-        gamma: 'float' (default: 0.9)
-            Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
-        lambda_: 'float' (default: 3)
-            Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more
+        ecr: The minimum limitation of energy change rate in the iteration process.
+        gamma: Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
+        lambda_: Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more
             weights on regularization.
-        minP: 'float' (default: 1e-5)
-            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
+        minP: The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
             minP.
-        MaxIter: 'int' (default: 500)
-            Maximum iteration times.
-        theta: 'float' (default: 0.75)
-            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
+        MaxIter: Maximum iteration times.
+        theta: Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
             then it is regarded as an inlier.
-        div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
+        div_cur_free_kernels: A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
             vector field.
-        sigma: 'int' (default: `0.8`)
-            Bandwidth parameter.
-        eta: 'int' (default: `0.5`)
-            Combination coefficient for the divergence-free or the curl-free kernels.
-        seed : int or 1-d array_like, optional (default: `0`)
+        sigma: Bandwidth parameter.
+        eta: Combination coefficient for the divergence-free or the curl-free kernels.
+        seed: int or 1-d array_like, optional (default: `0`)
             Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
             Default is to be 0 for ensure consistency between different runs.
         lstsq_method: 'str' (default: `drouin`)
@@ -400,9 +394,7 @@ def SparseVFC(
         verbose: `int` (default: `1`)
             The level of printing running information.
 
-    Returns
-    -------
-    VecFld: 'dict'
+    Returns:
         A dictionary which contains:
             X: Current state.
             valid_ind: The indices of cells that have finite velocity values.
@@ -418,7 +410,7 @@ def SparseVFC(
             grid: Grid of current state.
             grid_V: Prediction of velocity of the grid.
             iteration: Number of the last iteration.
-            tecr_vec: Vector of relative energy changes rate comparing to previous step.
+            tecr_traj: Vector of relative energy changes rate comparing to previous step.
             E_traj: Vector of energy at each iteration,
         where V = f(X), P is the posterior probability and VFCIndex is the indexes of inliers found by sparseVFC.
         Note that V = `con_K(Grid, X_ctrl, beta).dot(C)` gives the prediction of velocity on Grid (but can also be any
