@@ -1,6 +1,5 @@
 import functools
 import itertools
-from os import XATTR_CREATE
 import warnings
 from multiprocessing.dummy import Pool as ThreadPool
 from typing import Callable, Union, Optional, Tuple, TypedDict, Dict
@@ -389,10 +388,8 @@ def SparseVFC(
         seed: int or 1-d array_like, optional (default: `0`)
             Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
             Default is to be 0 for ensure consistency between different runs.
-        lstsq_method: 'str' (default: `drouin`)
-           The name of the linear least square solver, can be either 'scipy` or `douin`.
-        verbose: `int` (default: `1`)
-            The level of printing running information.
+        lstsq_method: The name of the linear least square solver, can be either 'scipy` or `douin`.
+        verbose: The level of printing running information.
 
     Returns:
         A dictionary which contains:
