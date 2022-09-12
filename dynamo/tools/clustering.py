@@ -1,4 +1,9 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import anndata
 import numpy as np
@@ -20,7 +25,7 @@ from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
 
 def hdbscan(
-    adata: anndata.AnnData,
+    adata: AnnData,
     X_data: Optional[np.ndarray] = None,
     genes: Optional[List[str]] = None,
     layer: Optional[str] = None,
@@ -165,11 +170,11 @@ def hdbscan(
 
 
 def leiden(
-    adata: anndata.AnnData,
+    adata: AnnData,
     use_weight: bool = True,
     weight: List[float] = None,
     initial_membership: Optional[List[int]] = None,
-    adj_matrix: Union[List[int], np.array, csr_matrix, None] = None,
+    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
     adj_matrix_key: Optional[str] = None,
     result_key: Optional[str] = None,
     layer: Optional[str] = None,
@@ -201,7 +206,8 @@ def leiden(
         obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
         selected_cluster_subset: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
             cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
-        selected_cell_subset: a subset of cells in adata that would be clustered. Defaults to None.
+        selected_cell_subset: a subset of cells in adata that would be clustered. Could be a list of indices or a list
+            of cell names. Defaults to None.
         directed: whether the edges in the graph should be directed. Defaults to False.
         copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
         kwargs: all other kwargs that would be passed to cluster_community
@@ -235,32 +241,57 @@ def leiden(
 
 
 def louvain(
-    adata,
-    resolution=1.0,
-    use_weight=True,
-    adj_matrix=None,
-    adj_matrix_key=None,
-    randomize=False,
-    result_key=None,
-    layer=None,
-    obsm_key=None,
-    selected_cluster_subset: list = None,
-    selected_cell_subset=None,
-    directed=False,
-    copy=False,
+    adata: AnnData,
+    resolution: float = 1.0,
+    use_weight: bool = True,
+    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
+    adj_matrix_key: Optional[str] = None,
+    randomize: Union[int, np.random.RandomState, None] = None,
+    result_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    obsm_key: Optional[str] = None,
+    selected_cluster_subset: Optional[Tuple[str, str]] = None,
+    selected_cell_subset: Union[List[int], List[str], None] = None,
+    directed: bool = False,
+    copy: bool = False,
     **kwargs
-) -> anndata.AnnData:
+) -> AnnData:
     """Louvain implementation from cdlib.
-    For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
-    "Louvain maximizes a modularity score for each community. The algorithm optimises the modularity in two elementary phases: (1) local moving of nodes; (2) aggregation of the network. In the local moving phase, individual nodes are moved to the community that yields the largest increase in the quality function. In the aggregation phase, an aggregate network is created based on the partition obtained in the local moving phase. Each community in this partition becomes a node in the aggregate network. The two phases are repeated until the quality function cannot be increased further." - cdlib
 
-    Parameters
-    ----------
-    resolution : float, optional
-        change the size of the communities, default to 1.
-    randomize : bool, optional
-        "randomState instance or None, optional (default=None). If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is the random number generator; If None, the random number generator is the RandomState instance used by np.random." - cdlib
+    For other community detection general parameters, please refer to `dynamo`'s `tl.cluster_community` function.
+    "Louvain maximizes a modularity score for each community. The algorithm optimises the modularity in two elementary
+    phases: (1) local moving of nodes; (2) aggregation of the network. In the local moving phase, individual nodes are
+    moved to the community that yields the largest increase in the quality function. In the aggregation phase, an
+    aggregate network is created based on the partition obtained in the local moving phase. Each community in this
+    partition becomes a node in the aggregate network. The two phases are repeated until the quality function cannot be
+    increased further." - cdlib
+
+    Args:
+        adata: an AnnData object.
+        resolution: the size of the communities. Defaults to 1.0.
+        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
+            Defaults to True.
+        adj_matrix: adj_matrix used for clustering. Defaults to None.
+        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
+        randomize: _description_. Defaults to None.
+        result_key: the key where the results will be stored in obs. Defaults to None.
+        layer: the adata layer on which cluster algorithms will work. Defaults to None.
+        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
+        selected_cluster_subset: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
+            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
+        selected_cell_subset: a subset of cells in adata that would be clustered. Could be a list of indices or a list
+            of cell names. Defaults to None.
+        directed: whether the edges in the graph should be directed. Defaults to False.
+        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
+        kwargs: all other kwargs that would be passed to cluster_community
+
+    Raises:
+        ValueError: directed is set to be true but louvain does not support directed graph now.
+
+    Returns:
+        An updated AnnData object if `copy` is set to be true.
     """
+
     if directed:
         raise ValueError("CDlib does not support directed graph for Louvain community detection for now.")
     kwargs.update(
@@ -288,23 +319,46 @@ def louvain(
 
 
 def infomap(
-    adata,
-    use_weight=True,
-    adj_matrix=None,
-    adj_matrix_key=None,
-    result_key=None,
-    layer=None,
-    obsm_key=None,
-    selected_cluster_subset: list = None,
-    selected_cell_subset=None,
-    directed=False,
-    copy=False,
+    adata: AnnData,
+    use_weight: bool = True,
+    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
+    adj_matrix_key: Optional[str] = None,
+    result_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    obsm_key: Optional[str] = None,
+    selected_cluster_subset: Optional[Tuple[str, str]] = None,
+    selected_cell_subset: Union[List[int], List[str], None] = None,
+    directed: bool = False,
+    copy: bool = False,
     **kwargs
-) -> anndata.AnnData:
+) -> AnnData:
     """Apply infomap community detection algorithm to cluster adata.
-    For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
-    "Infomap is based on ideas of information theory. The algorithm uses the probability flow of random walks on a network as a proxy for information flows in the real system and it decomposes the network into modules by compressing a description of the probability flow." - cdlib
+
+    For other community detection general parameters, please refer to `dynamo`'s `tl.cluster_community` function.
+    "Infomap is based on ideas of information theory. The algorithm uses the probability flow of random walks on a
+    network as a proxy for information flows in the real system and it decomposes the network into modules by
+    compressing a description of the probability flow." - cdlib
+
+    Args:
+        adata: an AnnData object.
+        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
+            Defaults to True.
+        adj_matrix: adj_matrix used for clustering. Defaults to None.
+        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
+        result_key: the key where the results will be stored in obs. Defaults to None.
+        layer: the adata layer on which cluster algorithms will work. Defaults to None.
+        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
+        selected_cluster_subset: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
+            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
+        selected_cell_subset: a subset of cells in adata that would be clustered. Could be a list of indices or a list
+            of cell names. Defaults to None.
+        directed: whether the edges in the graph should be directed. Defaults to False.
+        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
+
+    Returns:
+        An updated AnnData object if `copy` is set to be true.
     """
+
     kwargs.update({})
 
     return cluster_community(
@@ -326,47 +380,49 @@ def infomap(
 
 def cluster_community(
     adata: AnnData,
-    method: str = "leiden",
+    method: Literal["leiden", "louvain", "infomap"] = "leiden",
     result_key: Union[str, None] = None,
-    adj_matrix: Union[list, np.array, csr_matrix, None] = None,
+    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
     adj_matrix_key: Union[str, None] = None,
     use_weight: bool = True,
     no_community_label: int = -1,
     layer: Union[str, None] = None,
     obsm_key: Union[str, None] = None,
-    cell_subsets: list = None,
-    cluster_and_subsets: list = None,
+    cell_subsets: Union[List[int], List[str], None] = None,
+    cluster_and_subsets: Tuple[str, str] = None,
     directed: bool = True,
     copy: bool = False,
     **kwargs
 ) -> Union[AnnData, None]:
-    """A base function for detecting communities and inserting results into adata with algorithms specified parameters passed in.
+    """A base function for detecting communities and inserting results into adata with algorithms specified.
+
     Adjacent matrix retrieval priority: adj_matrix > adj_matrix_key > others
 
-    Parameters
-    ----------
-    adata
-        adata object
-    method
-        community detection method, by default "leiden"
-    result_key
-        the key where the results are stored in obs, by default None
-    adj_matrix
-        adj_matrix used for clustering, by default None
-    adj_matrix_key
-        adj_matrix_key in adata.obsp used for clustering
-    use_weight
-        if using graph weight or not, by default False meaning using connectivities only (0/1 integer values)
-    no_community_label
-        the label value used for nodes not contained in any community, by default -1
-    layer
-        some adata layer which cluster algorithms will work on, by default None
-    cell_subsets
-        cluster only a subset of cells in adata, by default None
-    cluster_and_subsets
-        A tuple of 2 elements (cluster_key, allowed_clusters).filtering cells in adata based on cluster_key in adata.obs and only reserve cells in the allowed clusters, by default None
-    directed
-        if the edges in the graph should be directed, by default False
+    Args:
+        adata: an AnnData object.
+        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain", or "infomap". Defaults
+            to "leiden".
+        result_key: the key where the results will be stored in obs. Defaults to None.
+        adj_matrix: adj_matrix used for clustering. Defaults to None.
+        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
+        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
+            Defaults to True.
+        no_community_label: the label value used for nodes not contained in any community. Defaults to -1.
+        layer: the adata layer on which cluster algorithms will work. Defaults to None.
+        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
+        cell_subsets: a subset of cells in adata that would be clustered. Could be a list of indices or a list
+            of cell names. Defaults to None.
+        cluster_and_subsets: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
+            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
+        directed: whether the edges in the graph should be directed. Defaults to False.
+        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
+
+    Raises:
+        ValueError: `adj_matrix_key` and `layer` conflicted.
+        ValueError: `adj_matrix_key` not found in .obsp.
+
+    Returns:
+        An updated AnnData object if `copy` is set to be true.
     """
 
     adata = copy_adata(adata) if copy else adata
@@ -467,9 +523,35 @@ def cluster_community(
         return adata
 
 
-def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", directed=False, **kwargs):
+def cluster_community_from_graph(
+    graph=None,
+    graph_sparse_matrix: Union[np.ndarray, csr_matrix, None] = None,
+    method: Literal["leiden", "louvain", "infomap"] = "louvain",
+    directed: bool = False,
+    **kwargs
+):
     # -> NodeClustering:
-    """Detect communities based on graph inputs and selected methods with arguments passed in kwargs."""
+    """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
+
+    Args:
+        graph (nx.Graph): the input graph that would be directly used for clustering. Defaults to None.
+        graph_sparse_matrix: a sparse matrix that would be converted to a graph if `graph` is not supplied. Defaults to
+            None.
+        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain", or "infomap". Defaults
+            to "louvain".
+        directed: whether the edges in the graph should be directed. Defaults to False. Defaults to False.
+
+    Raises:
+        ImportError: cdlib or networkx not installed.
+        ValueError: neither graph nor graph_sparse_matrix is valid.
+        KeyError: resolution is not found in kwargs for louvain algorithm.
+        KeyError: randomize is not found in kwargs for louvain algorithm.
+        NotImplementedError: `method` is invalid.
+
+    Returns:
+        cdlib.NodeClustering: clusters of the nodes in the graph.
+    """
+
     logger = LoggerManager.get_main_logger()
     logger.info("Detecting communities on graph...")
     try:
@@ -536,29 +618,28 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
 
 
 def scc(
-    adata: anndata.AnnData,
+    adata: AnnData,
     min_cells: int = 100,
     spatial_key: str = "spatial",
     e_neigh: int = 30,
     s_neigh: int = 6,
     resolution: Optional[float] = None,
     copy: bool = False,
-) -> Optional[anndata.AnnData]:
+) -> Optional[AnnData]:
     """Spatially constrained clustering (scc) to identify continuous tissue domains.
 
     Args:
-        adata: an Anndata object, after normalization.
-        min_cells: minimal number of cells the gene expressed.
-        spatial_key: the key in `.obsm` that corresponds to the spatial coordinate of each bucket.
-        e_neigh: the number of nearest neighbor in gene expression space.
-        s_neigh: the number of nearest neighbor in physical space.
-        resolution: the resolution parameter of the leiden clustering algorithm.
-        copy: Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
+        adata: an normalized AnnData object.
+        min_cells: minimal number of cells the gene expressed. Defaults to 100.
+        spatial_key: the key in `.obsm` corresponding to the spatial coordinate of each bucket. Defaults to "spatial".
+        e_neigh: the number of nearest neighbor in gene expression space. Defaults to 30.
+        s_neigh: the number of nearest neighbor in physical space. Defaults to 6.
+        resolution: the resolution parameter of the leiden clustering algorithm. Defaults to None.
+        copy: whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
             Defaults to False.
 
     Returns:
-        Depends on the argument `copy` return either an `~anndata.AnnData` object with cluster info in "scc_e_{a}_s{b}"
-        or None.
+        An updated AnnData object with cluster info stored in `.obs[scc_e_{a}_s{b}]` if `copy` is set to be true.
     """
 
     filter_genes(adata, min_cell_s=min_cells)
@@ -584,25 +665,26 @@ def scc(
 
 
 def purity(
-    adata,
+    adata: AnnData,
     neighbor: int = 30,
     resolution: Optional[float] = None,
     spatial_key: str = "spatial",
     neighbors_key: str = "spatial_connectivities",
     cluster_key: str = "leiden",
 ) -> float:
-    """Calculate the puriority of the scc's clustering results.
+    """Calculate the purity of the scc's clustering results.
 
     Args:
-        adata: an adata object
-        neighbor: the number of nearest neighbor in physical space.
-        resolution: the resolution parameter of the leiden clustering algorithm.
-        spatial_key: the key in `.obsm` that corresponds to the spatial coordinate of each bucket.
-        neighbors_key: the key in `.obsp` that corresponds to the spatial nearest neighbor graph.
-        cluster_key: the key in `.obsm` that corresponds to the clustering identity.
+        adata: an AnnData object.
+        neighbor: the number of nearest neighbor in physical space. Defaults to 30.
+        resolution: the resolution parameter of the leiden clustering algorithm. Defaults to None.
+        spatial_key: the key in `.obsm` corresponding to the spatial coordinate of each bucket. Defaults to "spatial".
+        neighbors_key: the key in `.obsp` that corresponds to the spatial nearest neighbor graph. Defaults to
+            "spatial_connectivities".
+        cluster_key: the key in `.obsm` that corresponds to the clustering identity. Defaults to "leiden".
 
     Returns:
-        purity_score: the average purity score across cells.
+        The average purity score across cells.
     """
 
     if neighbors_key not in adata.obsp.keys():
