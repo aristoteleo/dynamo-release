@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, TypeVar, Union
 
 try:
     from typing import Literal
@@ -363,17 +363,19 @@ def umap_conn_indices_dist_embedding(
         return graph, knn_indices, knn_dists, embedding_
 
 
-def mnn_from_list(knn_graph_list: Union[List[csr_matrix], List[np.ndarray]]) -> Union[np.ndarray, csr_matrix]:
+CsrOrNdarray = TypeVar("CsrOrNdarray", csr_matrix, np.ndarray)
+
+
+def mnn_from_list(knn_graph_list: List[CsrOrNdarray]) -> CsrOrNdarray:
     """Apply reduce function to calculate the mutual kNN.
 
     Args:
-        knn_graph_list: _description_
+        knn_graph_list: a list of ndarray or csr_matrix representing a series of knn graphs.
 
     Returns:
-        _description_
+        The calculated mutual knn, in same type as the input (ndarray of csr_matrix).
     """
 
-    """Apply reduce function to calculate the mutual kNN."""
     import functools
 
     mnn = (
@@ -385,7 +387,16 @@ def mnn_from_list(knn_graph_list: Union[List[csr_matrix], List[np.ndarray]]) -> 
     return mnn
 
 
-def normalize_knn_graph(knn):
+def normalize_knn_graph(knn: csr_matrix) -> csr_matrix:
+    """Normalize the knn graph so that each row will be sum up to 1.
+
+    Args:
+        knn: the sparse matrix containing the indices of nearest neighbors of each cell.
+
+    Returns:
+        The normalized matrix.
+    """
+
     """normalize the knn graph so that each row will be sum up to 1."""
     knn.setdiag(1)
     knn = knn.astype("float32")
@@ -395,35 +406,33 @@ def normalize_knn_graph(knn):
 
 
 def mnn(
-    adata,
-    n_pca_components=30,
-    n_neighbors=250,
-    layers="all",
-    use_pca_fit=True,
-    save_all_to_adata=False,
-):
-    """Function to calculate mutual nearest neighbor graph across specific data layers.
+    adata: AnnData,
+    n_pca_components: int = 30,
+    n_neighbors: int = 250,
+    layers: Union[str, List[str]] = "all",
+    use_pca_fit: bool = True,
+    save_all_to_adata: bool = False,
+) -> AnnData:
+    """Calculate mutual nearest neighbor graph across specific data layers.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        n_pca_components: 'int' (optional, default `30`)
-            Number of PCA components.
-        layers: str or list (default: `all`)
-            The layer(s) to be normalized. Default is `all`, including RNA (X, raw) or spliced, unspliced, protein, etc.
-        use_pca_fit: `bool` (default: `True`)
-            Whether to use the precomputed pca model to transform different data layers or calculate pca for each data
-            layer separately.
-        save_all_to_adata: `bool` (default: `False`)
-            Whether to save_fig all calculated data to adata object.
+    Args:
+        adata: an AnnData object.
+        n_pca_components: the number of PCA components. Defaults to 30.
+        n_neighbors: the number of nearest neighbors to compute for each sample. Defaults to 250.
+        layers: the layer(s) to be normalized. When set to `'all'`, it will include RNA (X, raw) or spliced, unspliced,
+            protein, etc. Defaults to "all".
+        use_pca_fit: whether to use the precomputed pca model to transform different data layers or calculate pca for
+            each data layer separately. Defaults to True.
+        save_all_to_adata: whether to save_fig all calculated data to adata object. Defaults to False.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during
-            mnn calculation.
+    Raises:
+        Exception: no PCA fit result in .uns.
+
+    Returns:
+        An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
+        calculation.
     """
+
     if use_pca_fit:
         if "pca_fit" in adata.uns.keys():
             fiter = adata.uns["pca_fit"]
@@ -481,20 +490,17 @@ def mnn(
     return adata
 
 
-def _gen_neighbor_keys(result_prefix="") -> tuple:
+def _gen_neighbor_keys(result_prefix: str = "") -> Tuple[str, str, str]:
     """Generate neighbor keys for other functions to store/access info in adata.
 
-    Parameters
-    ----------
-        result_prefix : str, optional
-            generate keys based on this prefix, by default ""
+    Args:
+        result_prefix: the prefix for keys. Defaults to "".
 
-    Returns
-    -------
-        tuple:
-            A tuple consisting of (conn_key, dist_key, neighbor_key)
-
+    Returns:
+        A tuple (conn_key, dist_key, neighbor_key) for key of connectivity matrix, distance matrix, neighbor matrix,
+        respectively.
     """
+
     if result_prefix:
         result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
     if result_prefix is None:
@@ -509,68 +515,56 @@ def _gen_neighbor_keys(result_prefix="") -> tuple:
 
 
 def neighbors(
-    adata,
-    X_data=None,
-    genes=None,
-    basis="pca",
-    layer=None,
-    n_pca_components=30,
-    n_neighbors=30,
-    method=None,
-    metric="euclidean",
-    metric_kwads=None,
-    cores=1,
-    seed=19491001,
-    result_prefix="",
+    adata: AnnData,
+    X_data: np.ndarray = None,
+    genes: Optional[List[str]] = None,
+    basis: str = "pca",
+    layer: Optional[str] = None,
+    n_pca_components: int = 30,
+    n_neighbors: int = 30,
+    method: Optional[str] = None,
+    metric: Union[str, Callable] = "euclidean",
+    metric_kwads: dict[str, Any] = None,
+    cores: int = 1,
+    seed: int = 19491001,
+    result_prefix: str = "",
     **kwargs,
-):
-    """Function to search nearest neighbors of the adata object.
+) -> AnnData:
+    """Search nearest neighbors of the adata object.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        X_data: `np.ndarray` (default: `None`)
-            The user supplied data that will be used for nearest neighbor search directly.
-        genes: `list` or None (default: `None`)
-            The list of genes that will be used to subset the data for nearest neighbor search. If `None`, all genes
-            will be used.
-        basis: `str` (default: `pca`)
-            The space that will be used for nearest neighbor search. Valid names includes, for example, `pca`, `umap`,
-            `velocity_pca` or `X` (that is, you can use velocity for clustering), etc.
-        layers: str or None (default: `None`)
-            The layer to be used for nearest neighbor search.
-        n_pca_components: 'int' (optional, default `30`)
-            Number of PCA components. Applicable only if you will use pca `basis` for nearest neighbor search.
-        n_neighbors: `int` (optional, default `30`)
-            Number of nearest neighbors.
-        method: `str` or `None` (default: `None`)
-            The methoed used for nearest neighbor search. If `umap` or `pynn`, it relies on `pynndescent` package's
-            NNDescent for fast nearest neighbor search.
-        metric: `str` or callable, default='euclidean'
-            The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
-            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If
+    Args:
+        adata: an AnnData object.
+        X_data: the user supplied data that will be used for nearest neighbor search directly. Defaults to None.
+        genes: the list of genes that will be used to subset the data for nearest neighbor search. If `None`, all genes
+            will be used. Defaults to None.
+        basis: The space that will be used for nearest neighbor search. Valid names includes, for example, `pca`,
+            `umap`, `velocity_pca` or `X` (that is, you can use velocity for clustering), etc. Defaults to "pca".
+        layer: the layer to be used for nearest neighbor search. Defaults to None.
+        n_pca_components: number of PCA components. Applicable only if you will use pca `basis` for nearest neighbor
+            search. Defaults to 30.
+        n_neighbors: number of nearest neighbors. Defaults to 30.
+        method: the methoed used for nearest neighbor search. If `umap` or `pynn`, it relies on `pynndescent` package's
+            NNDescent for fast nearest neighbor search. Defaults to None.
+        metric: the distance metric to use for the tree. The default metric is euclidean, and with p=2 is equivalent to
+            the standard Euclidean metric. See the documentation of `DistanceMetric` for a list of available metrics. If
             metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
-            :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
-        metric_params : dict, default=None
-            Additional keyword arguments for the metric function.
-        cores: `int` (default: 1)
-            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a
-            :obj:`joblib.parallel_backend` context. ``-1`` means using all processors.
-        seed: `int` (default `19491001`)
-            Random seed to ensure the reproducibility of each run.
-        result_prefix: `str` (default: `''`)
-            The key that will be used as the prefix of the connectivity, distance and neighbor keys in the returning
-            adata.
-        kwargs:
-            Additional arguments that will be passed to each nearest neighbor search algorithm.
+            `sparse graph`, in which case only "nonzero" elements may be considered neighbors. Defaults to "euclidean".
+        metric_kwads: additional keyword arguments for the metric function. Defaults to None.
+        cores: the number of parallel jobs to run for neighbors search. `None` means 1 unless in a
+            `joblib.parallel_backend` context. `-1` means using all processors. Defaults to 1.
+        seed: random seed to ensure the reproducibility of each run. Defaults to 19491001.
+        result_prefix: the key that will be used as the prefix of the connectivity, distance and neighbor keys in the
+            returning adata. Defaults to "".
+        kwargs: additional arguments that will be passed to each nearest neighbor search algorithm.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as
-            well as a new `neighbors` key in .uns.
+    Raises:
+        ImportError: `method` is invalid.
+
+    Returns:
+        An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as well
+        as a new `neighbors` key in .uns.
     """
+
     logger = LoggerManager.gen_logger("neighbors")
     logger.info("Start computing neighbor graph...")
     logger.log_time()
@@ -655,33 +649,28 @@ def neighbors(
 
 def check_neighbors_completeness(
     adata: AnnData,
-    conn_key="connectivities",
-    dist_key="distances",
-    result_prefix="",
-    check_nonzero_row=True,
-    check_nonzero_col=False,
+    conn_key: str = "connectivities",
+    dist_key: str = "distances",
+    result_prefix: str = "",
+    check_nonzero_row: bool = True,
+    check_nonzero_col: bool = False,
 ) -> bool:
-    """Check if neighbor graph in adata is valid.
+    """Check if neighbor graph in the AnnData object is valid.
 
-    Parameters
-    ----------
-        adata : AnnData
-        conn_key : str, optional
-            connectivity key, by default "connectivities"
-        dist_key : str, optional
-            distance key, by default "distances"
-        result_prefix : str, optional
-            The result prefix in adata.uns for neighbor graph related data, by default ""
-        check_nonzero_row:
-            Whether to check if row sums of neighbor graph distance or connectivity matrix are nonzero. Row sums correspond to out-degrees by convention.
-        check_nonzero_col:
-            Whether to check if column sums of neighbor graph distance or connectivity matrix are nonzero. Column sums correspond to in-degrees by convention.
+    Args:
+        adata: an AnnData object.
+        conn_key: the key for connectivity matrix. Defaults to "connectivities".
+        dist_key: the key for distance matrix. Defaults to "distances".
+        result_prefix: the result prefix in adata.uns for neighbor graph related data. Defaults to "".
+        check_nonzero_row: whether to check if row sums of neighbor graph distance or connectivity matrix are nonzero.
+            Row sums correspond to out-degrees by convention. Defaults to True.
+        check_nonzero_col: whether to check if column sums of neighbor graph distance or connectivity matrix are
+            nonzero. Column sums correspond to in-degrees by convention. Defaults to False.
 
-    Returns
-    -------
-        bool
-            whether the neighbor graph is valid or not. (If valid, return True)
+    Returns:
+        Whether the neighbor graph is valid or not.
     """
+
     is_valid = True
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
     keys = [conn_key, dist_key, neighbor_key]
@@ -739,15 +728,14 @@ def check_neighbors_completeness(
     return is_valid
 
 
-def check_and_recompute_neighbors(adata: AnnData, result_prefix: str = ""):
+def check_and_recompute_neighbors(adata: AnnData, result_prefix: str = "") -> None:
     """Check if adata's neighbor graph is valid and recompute neighbor graph if necessary.
 
-    Parameters
-    ----------
-        adata:
-        result_prefix : str, optional
-            The result prefix in adata.uns for neighbor graph related data, by default ""
+    Args:
+        adata: an AnnData object.
+        result_prefix: the result prefix in adata.uns for neighbor graph related data. Defaults to "".
     """
+
     if result_prefix is None:
         result_prefix = ""
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
