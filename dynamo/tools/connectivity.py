@@ -1,3 +1,10 @@
+from typing import Callable, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import warnings
 from copy import deepcopy
 from inspect import signature
@@ -6,9 +13,10 @@ import numpy as np
 import scipy
 from anndata import AnnData
 from pynndescent.distances import true_angular
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse import coo_matrix, csr_matrix, issparse
 from sklearn.decomposition import TruncatedSVD
 from sklearn.utils import sparsefuncs
+from umap import UMAP
 
 from ..configuration import DynamoAdataKeyManager
 from ..docrep import DocstringProcessor
@@ -18,25 +26,17 @@ from .utils import fetch_X_data, log1p_
 docstrings = DocstringProcessor()
 
 
-def adj_to_knn(adj, n_neighbors):
-    """convert the adjacency matrix of a nearest neighbor graph to the indices
-        and weights for a knn graph.
+def adj_to_knn(adj: np.ndarray, n_neighbors: int = 15) -> Tuple[np.ndarray, np.ndarray]:
+    """Convert the adjacency matrix of a nearest neighbor graph to the indices and weights for a knn graph.
 
-    Arguments
-    ---------
-        adj: matrix (`.X`, dtype `float32`)
-            Adjacency matrix (n x n) of the nearest neighbor graph.
-        n_neighbors: 'int' (optional, default 15)
-            The number of nearest neighbors of the kNN graph.
+    Args:
+        adj: adjacency matrix (n x n) of the nearest neighbor graph.
+        n_neighbors: the number of nearest neighbors of the kNN graph. Defaults to 15.
 
-    Returns
-    -------
-        idx: :class:`~numpy.ndarray`
-            The matrix (n x n_neighbors) that stores the indices for each node's
-            n_neighbors nearest neighbors.
-        wgt: :class:`~numpy.ndarray`
-            The matrix (n x n_neighbors) that stores the weights on the edges
-            for each node's n_neighbors nearest neighbors.
+    Returns:
+        A tuple (idx, wgt) where idx is the matrix (n x n_neighbors) storing the indices for each node's n_neighbors
+        nearest neighbors and wgt is the matrix (n x n_neighbors) storing the wights on the edges for each node's
+        n_neighbors nearest neighbors.
     """
 
     n_cells = adj.shape[0]
@@ -66,7 +66,19 @@ def adj_to_knn(adj, n_neighbors):
     return idx, wgt
 
 
-def knn_to_adj(knn_indices, knn_weights):
+def knn_to_adj(knn_indices: np.ndarray, knn_weights: np.ndarray) -> csr_matrix:
+    """Convert a knn graph's indices and weights to an adjacency matrix of the corresponding nearest neighbor graph.
+
+    Args:
+        knn_indices: the matrix (n x n_neighbors) storing the indices for each node's n_neighbors nearest neighbors in
+            the knn graph.
+        knn_weights: the matrix (n x n_neighbors) storing the wights on the edges for each node's n_neighbors nearest
+            neighbors in the knn graph.
+
+    Returns:
+        The converted adjacency matrix (n x n) of the corresponding nearest neighbor graph.
+    """
+
     adj = csr_matrix(
         (
             knn_weights.flatten(),
@@ -81,20 +93,18 @@ def knn_to_adj(knn_indices, knn_weights):
     return adj
 
 
-def get_conn_dist_graph(knn, distances):
-    """Compute connection and distance sparse matrices
+def get_conn_dist_graph(knn: np.ndarray, distances: np.ndarray) -> Tuple[csr_matrix, csr_matrix]:
+    """Compute connection and distance sparse matrix.
 
-    Parameters
-    ----------
-        knn:
-            n_obs x n_neighbors, k nearest neighbor graph
-        distances:
-            KNN dists
+    Args:
+        knn: a matrix (n x n_neighbors) storing the indices for each node's n_neighbors nearest neighbors in knn graph.
+        distances: the distances to the n_neighbors closest points in knn graph.
 
-    Returns
-    -------
-        distance and connectivity matrices
+    Returns:
+        A tuple (distances, connectivities), where distance is the distance sparse matrix and connectivities is the
+        connectivity sparse matrix.
     """
+
     n_obs, n_neighbors = knn.shape
     distances = csr_matrix(
         (
@@ -114,100 +124,96 @@ def get_conn_dist_graph(knn, distances):
 
 @docstrings.get_sectionsf("umap_ann")
 def umap_conn_indices_dist_embedding(
-    X,
-    n_neighbors=30,
-    n_components=2,
-    metric="euclidean",
-    min_dist=0.1,
-    spread=1.0,
-    max_iter=None,
-    alpha=1.0,
-    gamma=1.0,
-    negative_sample_rate=5,
-    init_pos="spectral",
-    random_state=0,
-    densmap=False,
-    dens_lambda=2.0,
-    dens_frac=0.3,
-    dens_var_shift=0.1,
-    output_dens=False,
-    return_mapper=True,
-    verbose=False,
+    X: np.ndarray,
+    n_neighbors: int = 30,
+    n_components: int = 2,
+    metric: Union[str, Callable] = "euclidean",
+    min_dist: float = 0.1,
+    spread: float = 1.0,
+    max_iter: Optional[int] = None,
+    alpha: float = 1.0,
+    gamma: float = 1.0,
+    negative_sample_rate: float = 5,
+    init_pos: Union[Literal["spectral", "random"], np.ndarray] = "spectral",
+    random_state: Union[int, np.random.RandomState, None] = 0,
+    densmap: bool = False,
+    dens_lambda: float = 2.0,
+    dens_frac: float = 0.3,
+    dens_var_shift: float = 0.1,
+    output_dens: bool = False,
+    return_mapper: bool = True,
+    verbose: bool = False,
     **umap_kwargs,
-):
+) -> Union[
+    Tuple[UMAP, coo_matrix, np.ndarray, np.ndarray, np.ndarray],
+    Tuple[coo_matrix, np.ndarray, np.ndarray, np.ndarray],
+]:
     """Compute connectivity graph, matrices for kNN neighbor indices, distance matrix and low dimension embedding with
-    UMAP. This code is adapted from umap-learn:
+    UMAP.
+
+    This code is adapted from umap-learn:
     (https://github.com/lmcinnes/umap/blob/97d33f57459de796774ab2d7fcf73c639835676d/umap/umap_.py)
 
-    Arguments
-    ---------
-        X: sparse matrix (`.X`, dtype `float32`)
-            expression matrix (n_cell x n_genes)
-        n_neighbors: 'int' (optional, default 15)
-            The number of nearest neighbors to compute for each sample in ``X``.
-        n_components: 'int' (optional, default 2)
-            The dimension of the space to embed into.
-        metric: 'str' or `callable` (optional, default `cosine`)
-            The metric to use for the computation.
-        min_dist: 'float' (optional, default `0.1`)
-            The effective minimum distance between embedded points. Smaller values will result in a more
-            clustered/clumped embedding where nearby points on the manifold are drawn closer together, while larger
-            values will result on a more even dispersal of points. The value should be set relative to the ``spread``
-            value, which determines the scale at which embedded points will be spread out.
-        spread: `float` (optional, default 1.0)
-            The effective scale of embedded points. In combination with min_dist this determines how clustered/clumped
-            the embedded points are.
-        max_iter: 'int' or None (optional, default None)
-            The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result
-            in more accurate embeddings. If None is specified a value will be selected based on the size of the input
-            dataset (200 for large datasets, 500 for small). This argument was refactored from n_epochs from UMAP-learn
-            to account for recent API changes in UMAP-learn 0.5.2.
-        alpha: `float` (optional, default 1.0)
-            Initial learning rate for the SGD.
-        gamma: `float` (optional, default 1.0)
-            Weight to apply to negative samples. Values higher than one will result in greater weight being given to
-            negative samples.
-        negative_sample_rate: `float` (optional, default 5)
-            The number of negative samples to select per positive sample in the optimization process. Increasing this
-            value will result in greater repulsive force being applied, greater optimization cost, but slightly more
-            accuracy. The number of negative edge/1-simplex samples to use per positive edge/1-simplex sample in
-             optimizing the low dimensional embedding.
-        init_pos: 'spectral':
-            How to initialize the low dimensional embedding. Use a spectral embedding of the fuzzy 1-skeleton
-        random_state: `int`, `RandomState` instance or `None`, optional (default: None)
-            If int, random_state is the seed used by the random number generator; If RandomState instance, random_state
-            is the random number generator; If None, the random number generator is the RandomState instance used by
-            `numpy.random`.
-        dens_lambda: float (optional, default 2.0)
-            Controls the regularization weight of the density correlation term
-            in densMAP. Higher values prioritize density preservation over the
-            UMAP objective, and vice versa for values closer to zero. Setting this
-            parameter to zero is equivalent to running the original UMAP algorithm.
-        dens_frac: float (optional, default 0.3)
-            Controls the fraction of epochs (between 0 and 1) where the
-            density-augmented objective is used in densMAP. The first
-            (1 - dens_frac) fraction of epochs optimize the original UMAP objective
-            before introducing the density correlation term.
-        dens_var_shift: float (optional, default 0.1)
-            A small constant added to the variance of local radii in the
-            embedding when calculating the density correlation objective to
-            prevent numerical instability from dividing by a small number
-        output_dens: float (optional, default False)
-            Determines whether the local radii of the final embedding (an inverse
-            measure of local density) are computed and returned in addition to
-            the embedding. If set to True, local radii of the original data
-            are also included in the output for comparison; the output is a tuple
-            (embedding, original local radii, embedding local radii). This option
-            can also be used when densmap=False to calculate the densities for
-            UMAP embeddings.
-        verbose: `bool` (optional, default False)
-                Controls verbosity of logging.
 
-    Returns
-    -------
-        graph, knn_indices, knn_dists, embedding_
-            A tuple of kNN graph (`graph`), indices of nearest neighbors of each cell (knn_indicies), distances of
-            nearest neighbors (knn_dists) and finally the low dimensional embedding (embedding_).
+    Args:
+        X: the expression matrix (n_cell x n_genes).
+        n_neighbors: the number of nearest neighbors to compute for each sample in `X`. Defaults to 30.
+        n_components: the dimension of the space to embed into. Defaults to 2.
+        metric: the metric to use for the computation. Defaults to "euclidean".
+        min_dist: the effective minimum distance between embedded points. Smaller values will result in a more
+            clustered/clumped embedding where nearby points on the manifold are drawn closer together, while larger
+            values will result on a more even dispersal of points. The value should be set relative to the `spread`
+            value, which determines the scale at which embedded points will be spread out. Defaults to 0.1.
+        spread: the effective scale of embedded points. In combination with min_dist this determines how
+            clustered/clumped the embedded points are. Defaults to 1.0.
+        max_iter: the number of training epochs to be used in optimizing the low dimensional embedding. Larger values
+            result in more accurate embeddings. If None is specified a value will be selected based on the size of the
+            input dataset (200 for large datasets, 500 for small). This argument was refactored from n_epochs from
+            UMAP-learn to account for recent API changes in UMAP-learn 0.5.2. Defaults to None.
+        alpha: initial learning rate for the SGD. Defaults to 1.0.
+        gamma: weight to apply to negative samples. Values higher than one will result in greater weight being given to
+            negative samples. Defaults to 1.0.
+        negative_sample_rate: the number of negative samples to select per positive sample in the optimization process.
+            Increasing this value will result in greater repulsive force being applied, greater optimization cost, but
+            slightly more accuracy. The number of negative edge/1-simplex samples to use per positive edge/1-simplex
+            sample in optimizing the low dimensional embedding. Defaults to 5.
+        init_pos: the method to initialize the low dimensional embedding. Where:
+            "spectral": use a spectral embedding of the fuzzy 1-skeleton.
+            "random": assign initial embedding positions at random.
+            np.ndarray: the array to define the initial position.
+            Defaults to "spectral".
+        random_state: the method to generate random numbers. If int, random_state is the seed used by the random number
+            generator; If RandomState instance, random_state is the random number generator; If None, the random number
+            generator is the RandomState instance used by `numpy.random`. Defaults to 0.
+        densmap: whether to use the density-augmented objective function to optimize the embedding according to the
+            densMAP algorithm. Defaults to False.
+        dens_lambda: controls the regularization weight of the density correlation term in densMAP. Higher values
+            prioritize density preservation over the UMAP objective, and vice versa for values closer to zero. Setting
+            this parameter to zero is equivalent to running the original UMAP algorithm. Defaults to 2.0.
+        dens_frac: controls the fraction of epochs (between 0 and 1) where the density-augmented objective is used in
+            densMAP. The first (1 - dens_frac) fraction of epochs optimize the original UMAP objective before
+            introducing the density correlation term. Defaults to 0.3.
+        dens_var_shift: a small constant added to the variance of local radii in the embedding when calculating the
+            density correlation objective to prevent numerical instability from dividing by a small number Defaults to
+            0.1.
+        output_dens: whether the local radii of the final embedding (an inverse measure of local density) are computed
+            and returned in addition to the embedding. If set to True, local radii of the original data are also
+            included in the output for comparison; the output is a tuple (embedding, original local radii, embedding
+            local radii). This option can also be used when densmap=False to calculate the densities for UMAP
+            embeddings. Defaults to False.
+        return_mapper: whether to return the data mapped onto the UMAP space. Defaults to True.
+        verbose: whether to log verbosely. Defaults to False.
+
+    Raises:
+        ValueError: `dense_lambda` is negative and thus invalid.
+        ValueError: `dense_frac` out of range (0.0 ~ 1.0)
+        ValueError: `dense_var_shift` is negative and thus invalid.
+
+    Returns:
+        A tuple ([mapper,] graph, knn_indices, knn_dists, embedding_). `mapper` is the data mapped onto umap space and
+        will be returned only if `return_mapper` is true. `graph` is the matrix storing indices of nearest neighbors of
+        each cell, `knn_dists` is the distances to the n_neighbors closest points in knn graph, and `embedding_` is the
+        low dimensional embedding.
     """
 
     from sklearn.metrics import pairwise_distances
@@ -357,7 +363,16 @@ def umap_conn_indices_dist_embedding(
         return graph, knn_indices, knn_dists, embedding_
 
 
-def mnn_from_list(knn_graph_list):
+def mnn_from_list(knn_graph_list: Union[List[csr_matrix], List[np.ndarray]]) -> Union[np.ndarray, csr_matrix]:
+    """Apply reduce function to calculate the mutual kNN.
+
+    Args:
+        knn_graph_list: _description_
+
+    Returns:
+        _description_
+    """
+
     """Apply reduce function to calculate the mutual kNN."""
     import functools
 
