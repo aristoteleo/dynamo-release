@@ -1,6 +1,6 @@
 import inspect
 import warnings
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -60,7 +60,7 @@ def dynamics(
     assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
     assumption_protein: Literal["ss"] = "ss",
     model: Literal["auto", "deterministic", "stochastic"] = "auto",
-    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto"] = "auto",
+    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
     NTR_vel: bool = False,
     group: Optional[str] = None,
     protein_names: Optional[List[str]] = None,
@@ -138,11 +138,10 @@ def dynamics(
             Available options when the `assumption_mRNA` is 'kinetic' include:
                 (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`,
                     `experiment_type` and `model` parameter.
-            Available options when the `model` is 'ss' include:
-                (1) `twostep`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
+                (2) `twostep`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
                     use regression via t-np.log(1-K) to get degradation rate gamma. When splicing and labeling data both
                     exist, replacing new/total with ul/u can be used to estimate beta. Suitable for velocity estimation.
-                (2) `direct` (default): method that directly uses the kinetic model to estimate rate parameters,
+                (3) `direct` (default): method that directly uses the kinetic model to estimate rate parameters,
                     generally not good for velocity estimation.
             Under `kinetic` model, choosing estimation is `experiment_type` dependent. For `kinetics` experiments,
             dynamo supposes methods including RNA bursting or without RNA bursting. Dynamo also adaptively estimates
@@ -979,19 +978,80 @@ def dynamics(
 
 
 def kinetic_model(
-    subset_adata,
-    tkey,
-    model,
-    est_method,
-    experiment_type,
-    has_splicing,
-    splicing_labeling,
-    has_switch,
-    param_rngs,
-    data_type="sfs",
-    return_ntr=False,
+    subset_adata: AnnData,
+    tkey: str,
+    model: Literal["auto", "deterministic", "stochastic"],
+    est_method: Literal["twostep", "direct"],
+    experiment_type: str,
+    has_splicing: bool,
+    splicing_labeling: bool,
+    has_switch: bool,
+    param_rngs: Dict[str, List[int]],
+    data_type: Literal["smoothed", "sfs"] = "sfs",
+    return_ntr: bool = False,
     **est_kwargs,
-):
+) -> Tuple[
+    Union[Dict[str, Any], pd.DataFrame],
+    np.ndarray,
+    Optional[np.ndarray],
+    Optional[np.ndarray],
+    Optional[Dict[str, List[int]]],
+    List[np.ndarray],
+    List[np.ndarray],
+]:
+    """Calculate the parameters required for velocity estimation when the mRNA assumption is 'kinetic'.
+
+    Args:
+        subset_adata: an AnnData object with invalid genes trimmed.
+        tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data. If `tkey`
+            is None, then `adata.uns["pp"]["tkey"]` will be checked and used if exists.
+        model: String indicates which estimation model will be used.
+            Available options are:
+                (1) 'deterministic': The method based on `deterministic` ordinary differential equations;
+                (2) 'stochastic' or `moment`: The new method from us that is based on `stochastic` master equations;
+            Note that `kinetic` model doesn't need to assumes the `experiment_type` is not `conventional`. As other
+            labeling experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional`
+            scRNA-seq datasets. A "model_selection" model will be supported soon in which alpha, beta and gamma will be
+            modeled as a function of time.
+        est_method: Available options when the `assumption_mRNA` is 'kinetic' include:
+                (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`,
+                    `experiment_type` and `model` parameter.
+                (2) `twostep`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
+                    use regression via t-np.log(1-K) to get degradation rate gamma. When splicing and labeling data both
+                    exist, replacing new/total with ul/u can be used to estimate beta. Suitable for velocity estimation.
+                (3) `direct` (default): method that directly uses the kinetic model to estimate rate parameters,
+                    generally not good for velocity estimation.
+            Under `kinetic` model, choosing estimation is `experiment_type` dependent. For `kinetics` experiments,
+            dynamo supposes methods including RNA bursting or without RNA bursting. Dynamo also adaptively estimates
+            parameters, based on whether the data has splicing or without splicing.
+            Under `kinetic` assumption, the above method uses non-linear least square fitting. In order to return
+            estimated parameters (including RNA half-life), it additionally returns the log-likelihood of the
+            fitting, which will be used for transition matrix and velocity embedding.
+            All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial
+            sampling.
+        experiment_type: the experiment type of the data.
+        has_splicing: whether the object containing unspliced and spliced data
+        splicing_labeling: hether the object containing both splicing and labelling data
+        has_switch: whether there should be switch for stochastic model.
+        param_rngs: the range set for each parameter.
+        data_type: the data type, could be "smoothed" or "sfs". Defaults to "sfs".
+        return_ntr: whether to deal with new/total ratio. Defaults to False.
+
+    Raises:
+        NotImplementedError: `model` is invalid.
+        NotImplementedError: `model` is invalid.
+        NotImplementedError: `model` is invalid.
+        NotImplementedError: `model` is invalid.
+        NotImplementedError: `experiment_type` is invalid.
+        NotImplementedError: mix_pulse_chase/mix_kin_deg experiment can only use `deterministic` model.
+        Exception: pulse_time_series experiment type not implemented.
+        Exception: dual_labeling experiment type not implemented.
+        Exception: experiment type invalid.
+
+    Returns:
+        A tuple (Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data), where Estm_df contains the parameters required for mRNA velocity calculation, half_life is for half-life of spliced mRNA, cost is for the cost of kinetic parameters estimation, logLL is for loglikelihood of kinetic parameters estimation, _param_ranges is for the intended range of parameter estimation, X_data is for the data used for parameter estimation, and X_fit_data is for the data that get fitted during parameter estimation.
+    """
+
     """est_method can be either `twostep` (two-step model) or `direct`. data_type can either 'sfs' or 'smoothed'."""
     logger = LoggerManager.gen_logger("dynamo-kinetic-model")
     logger.info("experiment type: %s, method: %s, model: %s" % (experiment_type.lower(), str(est_method), str(model)))
@@ -1371,7 +1431,7 @@ def kinetic_model(
                         Moments_NoSwitchingNoSplicing(),
                     )
                 else:
-                    raise Exception(
+                    raise NotImplementedError(
                         f"model {model} with kinetic assumption is not implemented. "
                         f"current supported models for kinetics experiments include: stochastic, deterministic, "
                         f"mixture, mixture_deterministic_stochastic or mixture_stochastic_stochastic"
@@ -1473,7 +1533,7 @@ def kinetic_model(
                     f"stochastic, deterministic."
                 )
     elif experiment_type.lower() == "mix_std_stm":
-        raise Exception(f"experiment {experiment_type} with kinetic assumption is not implemented")
+        raise NotImplementedError(f"experiment {experiment_type} with kinetic assumption is not implemented")
     elif experiment_type.lower() in ["mix_pulse_chase", "mix_kin_deg"]:
         total_layer = "M_t" if ("M_t" in subset_adata.layers.keys() and data_type == "smoothed") else "X_total"
 
@@ -1689,14 +1749,31 @@ def kinetic_model(
     return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
 
 
-def fbar(a, b, alpha_a, alpha_i):
+def fbar(a: np.ndarray, b: np.ndarray, alpha_a: np.ndarray, alpha_i: np.ndarray) -> Optional[np.ndarray]:
+    """Calculate transcription rate based on switching rate and transcription rate.
+
+    Args:
+        a: switching rate from active promoter state to inactive promoter state.
+        b: switching rate from inactive promoter state to active promoter state.
+        alpha_a: transcription rate for active promoter.
+        alpha_i: transcription rate for inactive promoter.
+
+    Returns:
+        The transcription rate (effective - when RNA promoter switching considered).
+    """
     if any([i is None for i in [a, b, alpha_a, alpha_i]]):
         return None
     else:
         return b / (a + b) * alpha_a + a / (a + b) * alpha_i
 
 
-def _get_dispatcher():
+def _get_dispatcher() -> dict:
+    """Build a dict containing simulators for several kinds of dynamics.
+
+    Returns:
+        A dict containing simulators for several kinds of dynamics.
+    """
+
     dispatcher = {
         "Deterministic": Deterministic,
         "Deterministic_NoSplicing": Deterministic_NoSplicing,
