@@ -1,5 +1,5 @@
 import warnings
-from typing import Union
+from typing import List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -18,61 +18,55 @@ from .utils import elem_prod, get_mapper, inverse_norm
 # use for calculating moments for stochastic model:
 def moments(
     adata: anndata.AnnData,
-    X_data: np.ndarray = None,
-    genes: Union[list, None] = None,
-    group: Union[str, None] = None,
-    conn: Union[csr_matrix, None] = None,
+    X_data: Optional[np.ndarray] = None,
+    genes: Optional[list] = None,
+    group: Optional[str] = None,
+    conn: Optional[csr_matrix] = None,
     use_gaussian_kernel: bool = False,
     normalize: bool = True,
     use_mnn: bool = False,
-    layers: str = "all",
+    layers: Union[List[str], str] = "all",
     n_pca_components: int = 30,
     n_neighbors: int = 30,
     copy: bool = False,
-) -> Union[anndata.AnnData, None]:
-    """Calculate kNN based first and second moments (including uncentered covariance) for
-     different layers of data.
+) -> Optional[anndata.AnnData]:
+    """Calculate kNN based first and second moments (including uncentered covariance) for different layers of data.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object.
-        X_data: `np.ndarray` (default: `None`)
-            The user supplied data that will be used for constructing the nearest neighbor graph directly.
-        genes: `np.array` (default: `None`)
-            The one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is
+    Args:
+        adata: an AnnData object.
+        X_data: the user supplied data that will be used for constructing the nearest neighbor graph directly. Defaults
+            to None.
+        genes: the one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is
              not available). `X` keyname (instead of `X_pca`) was used to enable you use a different set of genes for
              flexible connectivity graph construction. If `None`, by default it will select genes based `use_for_pca`
-             key in .var attributes if it exists otherwise it will also all genes stored in adata.X
-        group: `str` or None (default: `None`)
-            The column key/name that identifies the grouping information (for example, clusters that correspond to
+             key in .var attributes if it exists otherwise it will also all genes stored in adata.X. Defaults to None.
+        group: the column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used to compute kNN graph for each
             group (i.e cell-type/time-point). This is important, for example, we don't want cells from different
-            labeling time points to be mixed when performing the kNN graph for calculating the moments.
-        conn: csr_matrix or None (default: `None`)
-            The connectivity graph that will be used for moment calculations.
-        use_gaussian_kernel: `bool` (default: `True`)
-            Whether to normalize the kNN graph via a Guasian kernel.
-        normalize: `bool` (default: `True`)
-            Whether to normalize the connectivity matrix so that each row sums up to 1. When `use_gaussian_kernel` is
-            False, this will be reset to be False because we will already normalize the connectivity matrix matrix by
-            dividing each row the total number of connections.
-        use_mnn: `bool` (default: `False`)
-            Whether to use mutual kNN across different layers as for the moment calculation.
-        layers: `str` or a list of str (default: `str`)
-            The layers that will be used for calculating the moments.
-        n_pca_components: `int` (default: `30`)
-            The number of pca components to use for constructing nearest neighbor graph and calculating 1/2-st moments.
-        n_neighbors: `int` (default: `30`)
-            The number of neighbors for constructing nearest neighbor graph used to calculate 1/2-st moments.
+            labeling time points to be mixed when performing the kNN graph for calculating the moments. Defaults to
+            None.
+        conn: the connectivity graph that will be used for moment calculations. Defaults to None.
+        use_gaussian_kernel: whether to normalize the kNN graph via a Guasian kernel. Defaults to False.
+        normalize: whether to normalize the connectivity matrix so that each row sums up to 1. When
+            `use_gaussian_kernel` is False, this will be reset to be False because we will already normalize the
+            connectivity matrix matrix by dividing each row the total number of connections. Defaults to True.
+        use_mnn: whether to use mutual kNN across different layers as for the moment calculation. Defaults to False.
+        layers: the layers that will be used for calculating the moments. Defaults to "all".
+        n_pca_components: the number of pca components to use for constructing nearest neighbor graph and calculating
+            1/2-st moments. Defaults to 30.
+        n_neighbors: the number of pca components to use for constructing nearest neighbor graph and calculating 1/2-st
+            moments. Defaults to 30.
+        copy: whether to return a new updated AnnData object or update inplace. Defaults to False.
 
-    Returns
-    -------
-         adata: :class:`Union[AnnData, None]`
-            If `copy` is set to False, `annData` object is updated with with calculated first/second moments (including
-                uncentered covariance)
-            If `copy` is set to True, a deep copy of the original `adata` object is returned.
+    Raises:
+        Exception: `group` is invalid.
+        ValueError: `conn` is invalid. It should be a square array with dimension equal to the cell number.
+
+    Returns:
+        The updated AnnData object if `copy` is true. Otherwise, the AnnData object passed in would be updated inplace
+        and None would be returned.
     """
+
     logger = LoggerManager.gen_logger("dynamo-moments")
     logger.info("calculating first/second moments...", indent_level=1)
     logger.log_time()
@@ -1043,7 +1037,19 @@ def calc_12_mom_labeling(data, t, calculate_2_mom=True):
     return (m, v, t_uniq) if calculate_2_mom else (m, t_uniq)
 
 
-def calc_1nd_moment(X, W, normalize_W=True):
+def calc_1nd_moment(
+    X: np.ndarray, W: np.ndarray, normalize_W: bool = True
+) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    """Calculate first moment for the layers.
+
+    Args:
+        X: the layer to calculate the moment.
+        W: the connectivity graph that will be used for moment calculations.
+        normalize_W: whether to normalize W before calculation. Defaults to True.
+
+    Returns:
+        The first moment of the layer.
+    """
     if normalize_W:
         if type(W) == np.ndarray:
             d = np.sum(W, 1).flatten()
@@ -1055,7 +1061,29 @@ def calc_1nd_moment(X, W, normalize_W=True):
         return W @ X
 
 
-def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
+def calc_2nd_moment(
+    X: np.ndarray,
+    Y: np.ndarray,
+    W: np.ndarray,
+    normalize_W: bool = True,
+    center: bool = False,
+    mX: np.ndarray = None,
+    mY: np.ndarray = None,
+) -> np.ndarray:
+    """Calculate the 2nd moment for the layers.
+
+    Args:
+        X: the first layer to be used.
+        Y: the second layer to be used.
+        W: the connectivity graph that will be used for moment calculations.
+        normalize_W: whether to normalize W before calculation. Defaults to True.
+        center: whether to correct the center. Defaults to False.
+        mX: the moment matrix to correct the center. Defaults to None.
+        mY: the moment matrix to correct the center. Defaults to None.
+
+    Returns:
+        The second moment of the layers.
+    """
     if normalize_W:
         if type(W) == np.ndarray:
             d = np.sum(W, 1).flatten()

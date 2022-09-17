@@ -1,3 +1,5 @@
+from typing import List, Optional, Tuple, Union
+
 import numpy as np
 import numpy.matlib as matlib
 import pandas as pd
@@ -8,7 +10,17 @@ from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.sparse.linalg import inv
 
 
-def cal_ncenter(ncells, ncells_limit=100):
+def cal_ncenter(ncells: int, ncells_limit: int=100) -> int:
+    """Find out the number of cells to be most significant in the reduced space. 
+
+    Args:
+        ncells: total number of cells. 
+        ncells_limit: the max number of cells to be considered. Defaults to 100.
+
+    Returns:
+        The number of cells to be most significant in the reduced space.
+    """
+
     res = np.round(
         2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit))
     )
@@ -16,7 +28,7 @@ def cal_ncenter(ncells, ncells_limit=100):
     return res
 
 
-def pca_projection(C, L):
+def pca_projection(C: np.ndarray, L: int):
     """solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I	
     Arguments	
     ---------	
@@ -98,36 +110,52 @@ def eye(m, n):
 
 
 def DDRTree(
-        X, maxIter, sigma, gamma, eps=0, dim=2, Lambda=1.0, ncenter=None, keep_history=False
-):
-    """	This function is a pure Python implementation of the DDRTree algorithm.
+        X: np.ndarray, 
+        maxIter: int, 
+        sigma: float, 
+        gamma: float, 
+        eps: int=0, 
+        dim: int=2, 
+        Lambda: float=1.0, 
+        ncenter: Optional[int]=None, 
+        keep_history: bool=False
+) -> Union[
+        pd.DataFrame, 
+        Tuple[
+            np.ndarray, 
+            np.ndarray, 
+            np.ndarray, 
+            np.ndarray, 
+            np.ndarray, 
+            np.ndarray, 
+            np.ndarray, 
+            List[np.ndarray],
+        ],
+    ]:
+    """Provides an implementation of the framework of reversed graph embedding (RGE). 
 
-    Arguments	
-    ---------	
-        X : DxN:'np.ndarray'	
-            data matrix list	
-        maxIter : maximum iterations	
-        eps: 'int'	
-                relative objective difference	
-        dim: 'int'	
-                reduced dimension	
-        Lambda: 'float'	
-                regularization parameter for inverse graph embedding	
-        sigma: 'float'	
-                bandwidth parameter	
-        gamma:'float'	
-                regularization parameter for k-means	
-        ncenter :(int)
+    This function is a python version of the DDRTree algorithm originally written in R. 
+    (https://cran.r-project.org/web/packages/DDRTree/DDRTree.pdf)
 
-    Returns	
-    -------	
-        1). if `keep_history` is True return history: 'DataFrame'
-                the results dataframe of return
-        2). else return a tuple of Z, Y, stree, R, W, Q, C, objs
-            W is the orthogonal set of d (dimensions) linear basis vector
-            Z is the reduced dimension space
-            stree is the smooth tree graph embedded in the low dimension space
-            Y represents latent points as the center of
+    Args:
+        X: the matrix on which DDRTree would be implemented. 
+        maxIter: the max number of iterations. 
+        sigma: the bandwidth parameter. 
+        gamma: regularization parameter for k-means. 
+        eps: the threshold of convergency to stop the iteration. Defaults to 0.
+        dim: the number of dimensions reduced to. Defaults to 2.
+        Lambda: regularization parameter for inverse praph embedding. Defaults to 1.0.
+        ncenter: the number of center genes to be considered. If None, all genes would be considered. Defaults to None.
+        keep_history: wether to keep relative parameters during each iteration and return. Defaults to False.
+
+    Returns:
+        A dataframe containing `W`, `Z`, `Y`, `stree`, `R`, `objs` for each iterations if `keep_history` is True. 
+        Otherwise, a tuple (Z, Y, stree, R, W, Q, C, objs). The items in the tuple is from the last iteration. `Z` is 
+        the reduced dimension; `Y` is the latent points as the center of Z; `stree` is the smooth tree graph embedded in
+        the low dimension space; `R` is used to transform the hard assignments used in K-means into soft assignments; 
+        `W` is the orthogonal set of d (dimensions) linear basis; `Q` is (I + lambda L)^(-1), where L = diag(B1) - B, a 
+        Laplacian matrix. `C` equals to XQ^(-1)X^T; `objs` is a list containing convergency conditions during the 
+        iterations. 
     """
 
     X = np.array(X)

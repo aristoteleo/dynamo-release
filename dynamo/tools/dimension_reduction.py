@@ -6,6 +6,7 @@ import numpy as np
 from ..dynamo_logger import LoggerManager
 from ..utils import copy_adata
 from .connectivity import _gen_neighbor_keys, neighbors
+from .utils import update_dict
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
 
@@ -58,7 +59,8 @@ def reduceDimension(
             Defaults to False.
         cores: the number of cores used for calculation. Used only when the tSNE reduction_method is used. Defaults to 1.
         copy: whether to return a copy of the AnnData object or update the object in place. Defaults to False.
-        kwargs: other kwargs that will be passed to umap.UMAP.
+        kwargs: other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
+            significantly influence the reduction result.
 
     Returns:
         An updated AnnData object updated with reduced dimension data for data from different layers, returned if `copy`
@@ -120,6 +122,80 @@ def reduceDimension(
     if copy:
         return adata
     return None
+
+
+def run_umap(
+    adata: anndata.AnnData,
+    X_data: np.ndarray = None,
+    genes: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    basis: Optional[str] = "pca",
+    dims: Optional[List[int]] = None,
+    n_pca_components: int = 30,
+    n_components: int = 2,
+    n_neighbors: int = 30,
+    embedding_key: Optional[str] = None,
+    neighbor_key: Optional[str] = None,
+    enforce: bool = False,
+    cores: int = 1,
+    copy: bool = False,
+    min_dist: float = 0.5,
+    **kwargs,
+) -> Optional[anndata.AnnData]:
+    """Compute a low dimension reduction projection of an annodata object first with PCA, followed by UMAP.
+
+    Args:
+        adata: an AnnData object.
+        X_data: the user supplied data that will be used for dimension reduction directly. Defaults to None.
+        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+            all genes will be used. Defaults to None.
+        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+            used. Defaults to None.
+        basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
+            `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
+        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used. Defaults to None.
+        n_pca_components: Number of input PCs (principle components) that will be used for further non-linear dimension
+            reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
+            corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
+        n_components: the dimension of the space to embed into. Defaults to 2.
+        n_neighbors: the number of nearest neighbors when constructing adjacency matrix.. Defaults to 30.
+        embedding_key: The str in .obsm that will be used as the key to save the reduced embedding space. By default it
+            is None and embedding key is set as layer + reduction_method. If layer is None, it will be "X_neighbors".
+            Defaults to None.
+        neighbor_key: The str in .uns that will be used as the key to save the nearest neighbor graph. By default it is
+            None and neighbor_key key is set as layer + "_neighbors". If layer is None, it will be "X_neighbors".
+            Defaults to None.
+        enforce: whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
+            Defaults to False.
+        cores: the number of cores used for calculation. Used only when the tSNE reduction_method is used. Defaults to 1.
+        copy: whether to return a copy of the AnnData object or update the object in place. Defaults to False.
+        min_dist: the min_dist arg passed to umap.UMAP.
+        kwargs: other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
+            significantly influence the reduction result.
+
+    Returns:
+        An updated AnnData object updated with reduced dimension data for data from different layers, returned if `copy`
+        is true.
+    """
+    kwargs = update_dict(kwargs, {"min_dist": min_dist})
+    return reduceDimension(
+        adata=adata,
+        X_data=X_data,
+        genes=genes,
+        layer=layer,
+        basis=basis,
+        dims=dims,
+        n_pca_components=n_pca_components,
+        n_components=n_components,
+        n_neighbors=n_neighbors,
+        reduction_method="umap",
+        embedding_key=embedding_key,
+        neighbor_key=neighbor_key,
+        enforce=enforce,
+        cores=cores,
+        copy=copy,
+        **kwargs,
+    )
 
 
 # @docstrings.with_indent(4)

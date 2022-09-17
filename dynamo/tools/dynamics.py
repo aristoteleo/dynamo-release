@@ -158,8 +158,8 @@ def dynamics(
             Defaults to None.
         protein_names: a list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the
             `obsm` attribute. The names have to be included in the adata.var.index. Defaults to None.
-        concat_data: whether to concatenate data before estimation. If your data is a list of matrices for each time point, this
-            need to be set as True. Defaults to False.
+        concat_data: whether to concatenate data before estimation. If your data is a list of matrices for each time
+            point, this need to be set as True. Defaults to False.
         log_unnormalized: whether to log transform the unnormalized data. Defaults to True.
         one_shot_method: The method that will be used for estimating kinetic parameters for one-shot experiment data.
             (1) the "sci-fate" method directly solves gamma with the first-order decay model;
@@ -1049,7 +1049,11 @@ def kinetic_model(
         Exception: experiment type invalid.
 
     Returns:
-        A tuple (Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data), where Estm_df contains the parameters required for mRNA velocity calculation, half_life is for half-life of spliced mRNA, cost is for the cost of kinetic parameters estimation, logLL is for loglikelihood of kinetic parameters estimation, _param_ranges is for the intended range of parameter estimation, X_data is for the data used for parameter estimation, and X_fit_data is for the data that get fitted during parameter estimation.
+        A tuple (Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data), where Estm_df contains the
+        parameters required for mRNA velocity calculation, half_life is for half-life of spliced mRNA, cost is for the
+        cost of kinetic parameters estimation, logLL is for loglikelihood of kinetic parameters estimation,
+        _param_ranges is for the intended range of parameter estimation, X_data is for the data used for parameter
+        estimation, and X_fit_data is for the data that get fitted during parameter estimation.
     """
 
     """est_method can be either `twostep` (two-step model) or `direct`. data_type can either 'sfs' or 'smoothed'."""

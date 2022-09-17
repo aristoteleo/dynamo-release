@@ -1,6 +1,7 @@
 # use for convert list of list to a list (https://stackoverflow.com/questions/952914/how-to-make-a-flat-list-out-of-list-of-lists)
 import functools
 import operator
+from typing import Optional, Tuple
 
 import numpy as np
 import numpy.matlib as matlib
@@ -97,41 +98,39 @@ def diag_mat(values):
 
 
 def psl(
-        Y, sG=None, dist=None, K=10, C=1e3, param_gamma=1e-3, d=2, maxIter=10, verbose=False
-):
+    Y:np.ndarray, 
+    sG: Optional[csr_matrix]=None, 
+    dist: Optional[np.ndarray]=None, 
+    K: int=10, 
+    C: int=1e3, 
+    param_gamma: float=1e-3, 
+    d: int=2, 
+    maxIter: int=10, 
+    verbose: bool=False
+) -> Tuple[csr_matrix, np.ndarray]:
     """This function is a pure Python implementation of the PSL algorithm.
 
-    Reference: Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019	
+    Reference: 
+    Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019
 
-    Arguments
-    ---------	
-        Y: 'numpy.ndarray'	
-            data list	
-        sG: 'scipy.sparse.csr_matrix'	
-            a prior kNN graph passed to the algorithm	
-        dist: 'numpy.ndarray'	
-            a dense distance matrix between all vertices. If no distance matrix passed, we will use the kNN based algorithm,	
-            otherwise we will use the original algorithm reported in the manuscript.	
-        K: 'int'	
-            number of nearest neighbors used to build the neighborhood graph. Large k can obtain less sparse structures.	
-            Ignored if sG is used.	
-        C: 'int'	
-            The penalty parameter for loss term. It controls the preservation of distances. The larger it is, the distance	
-            is more strictly preserve. If the structure is very clear, a larger C  is preferred.	
-        param_gamma: 'int'	
-            param_gamma is trying to make a matrix A nonsingular, it is like a round-off parameter. 1e-4 or 1e-5 is good.	
-            It corresponds to the variance of prior embedding.	
-        d: 'int'	
-            embedding dimension	
-        maxIter: 'int'	
-            Number of maximum iterations	
-        verbose: 'bool'	
-            Whether to print running information	
+    Args:
+        Y: the data list. 
+        sG: a prior kNN graph passed to the algorithm. Defaults to None.
+        dist: a dense distance matrix between all vertices. If no distance matrix passed, we will use the kNN based 
+            algorithm, otherwise we will use the original algorithm reported in the manuscript. Defaults to None.
+        K: number of nearest neighbors used to build the neighborhood graph. Large k can obtain less sparse structures. 
+            Ignored if sG is used. Defaults to 10.
+        C: the penalty parameter for loss term. It controls the preservation of distances. The larger it is, the 
+            distance is more strictly preserve. If the structure is very clear, a larger C is preferred. Defaults to 
+            1e3.
+        param_gamma: param_gamma is trying to make a matrix A nonsingular, it is like a round-off parameter. 1e-4 or 
+            1e-5 is good. It corresponds to the variance of prior embedding. Defaults to 1e-3.
+        d: the embedding dimension. Defaults to 2.
+        maxIter: number of maximum iterations. Defaults to 10.
+        verbose: whether to print running information. Defaults to False.
 
-    Returns
-    -------	
-        (S,Z): 'tuple'	
-            a tuple of the adjacency matrix and the reduced low dimension embedding.	
+    Returns:
+        A tuple (S, Z), where S is the adjancency matrix and Z is the reduced low dimension embedding. 
     """
 
     if sG is None:

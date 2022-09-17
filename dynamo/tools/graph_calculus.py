@@ -1,4 +1,10 @@
-from typing import Callable, Union
+from dbm import ndbm
+from typing import Callable, Optional, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 import scipy.sparse as sp
@@ -259,7 +265,7 @@ def graphize_velocity_coopt(
     return E
 
 
-def symmetrize_discrete_vector_field(F, mode="asym"):
+def symmetrize_discrete_vector_field(F: np.ndarray, mode: Literal["asym", "sym"] = "asym") -> np.ndarray:
     E_ = F.copy()
     for i in range(F.shape[0]):
         for j in range(i + 1, F.shape[1]):
@@ -311,7 +317,12 @@ def calc_gaussian_weight(nbrs_idx, dists, sig=None, auto_sig_func=None, auto_sig
     return W
 
 
-def calc_laplacian(W, E=None, weight_mode="asymmetric", convention="graph"):
+def calc_laplacian(
+    W: np.ndarray,
+    E: Optional[np.ndarray] = None,
+    weight_mode: Literal["naive", "asymmetric", "symmetric"] = "asymmetric",
+    convention: Literal["graph", "diffusion"] = "graph",
+) -> np.ndarray:
     """
     W: the weights stored for each edge e_ij.
     E: length of edges. If None, all edges are assumed to have lengths of one.
@@ -342,8 +353,15 @@ def calc_laplacian(W, E=None, weight_mode="asymmetric", convention="graph"):
 
 
 def fp_operator(
-    F, D, E=None, W=None, symmetrize_E=True, drift_weight=False, weight_mode="asymmetric", renormalize=False
-):
+    F: np.ndarray,
+    D: np.ndarray,
+    E: Optional[np.ndarray] = None,
+    W: Optional[np.ndarray] = None,
+    symmetrize_E: bool = True,
+    drift_weight: bool = False,
+    weight_mode: Literal["naive", "asymmetric", "symmetric"] = "asymmetric",
+    renormalize: bool = False,
+) -> np.ndarray:
     """
     The output of this function is a transition rate matrix Q, encoding the transition rate
     from node i to j in Q_ji
@@ -380,7 +398,9 @@ def fp_operator(
     return Q
 
 
-def divergence(E, W=None, method="operator"):
+def divergence(
+    E: np.ndarray, W: Optional[np.ndarray] = None, method: Literal["direct", "operator"] = "operator"
+) -> np.ndarray:
     # TODO: support weight in the future
     if method == "direct":
         n = E.shape[0]
@@ -397,7 +417,7 @@ def divergence(E, W=None, method="operator"):
     return div
 
 
-def gradop(adj):
+def gradop(adj: np.ndarray) -> sp.csr_matrix:
     e = np.array(adj.nonzero())
     ne = e.shape[1]
     nv = adj.shape[0]
@@ -413,11 +433,17 @@ def gradient(E, p):
     return F_pot
 
 
-def divop(W):
+def divop(W: np.ndarray) -> np.ndarray:
     return -0.5 * gradop(W).T
 
 
-def potential(F, E=None, W=None, div=None, method="lsq"):
+def potential(
+    F: np.ndarray,
+    E: Optional[np.ndarray] = None,
+    W: Optional[np.ndarray] = None,
+    div: np.ndarray = None,
+    method: Literal["inv", "pinv", "qr_pinv", "lsq"] = "lsq",
+) -> np.ndarray:
     """potential is related to the intrinsic time. Note that the returned value from this function is the negative of
     potential. Thus small potential is related to smaller intrinsic time and vice versa."""
 
@@ -442,7 +468,32 @@ def potential(F, E=None, W=None, div=None, method="lsq"):
 
 
 class GraphVectorField:
-    def __init__(self, F, E=None, W=None, E_tol=1e-5) -> None:
+    """An object representing a graph vector field, storing its edges, edge lengths, and edge weights.
+
+    Attributes:
+        F: graph vector field. F_ij encodes the flow on edge e_ij (from vertex i to j).
+        E: length of edges. If None, all edges are assumed to have lengths of one. Defaults to None.
+        W: edge weight. W_ij is the weight on edge e_ij. Defaults to None.
+        E_tol: the tolerance of minimum edge length. Edges with length smaller than this value would be set to have
+            this length. Defaults to 1e-5.
+    """
+
+    def __init__(
+        self, F: np.ndarray, E: Optional[np.ndarray] = None, W: Optional[np.ndarray] = None, E_tol: float = 1e-5
+    ) -> None:
+        """Initialize GraphVectorField.
+
+        Args:
+            F: graph vector field. F_ij encodes the flow on edge e_ij (from vertex i to j).
+            E: length of edges. If None, all edges are assumed to have lengths of one. Defaults to None.
+            W: edge weight. W_ij is the weight on edge e_ij. Defaults to None.
+            E_tol: the tolerance of minimum edge length. Edges with length smaller than this value would be set to have
+                this length. Defaults to 1e-5.
+
+        Raises:
+            Exception: edge length and graph vector field dimensions do not match.
+            Exception: edge weight and graph vector field dimensions do not match.
+        """
         # TODO: sparse matrix support
         self.F = F
         self._sym = None
@@ -473,42 +524,101 @@ class GraphVectorField:
             else:
                 self.E = self.adj
 
-    def sym(self):
+    def sym(self) -> np.ndarray:
         """
         Return the symmetric components of the graph vector field.
+
+        Returns:
+            The symmetric components of the graph vector field.
         """
         if self._sym is None:
             self._sym = symmetrize_discrete_vector_field(self.F, mode="sym")
         return self._sym
 
-    def asym(self):
+    def asym(self) -> np.ndarray:
         """
         Return the asymmetric components of the graph vector field.
+
+        Returns:
+            The asymmetric components of the graph vector field.
         """
         if self._asym is None:
             self._asym = symmetrize_discrete_vector_field(self.F, mode="asym")
         return self._asym
 
-    def divergence(self, **kwargs):
+    def divergence(self, **kwargs) -> np.ndarray:
+        """Calculate the divergence of the graph.
+
+        Args:
+            kwargs: currently the only acceptable kwargs is `method: Literal["direct", "operator"]` to determine the
+                method to calculate divergence. By default "operator" method would be used.
+
+        Returns:
+            The divergence of the graph.
+        """
+
         if self._div is None:
             self._div = divergence(self.asym(), W=self.W, **kwargs)
         return self._div
 
-    def potential(self, mode="asym", **kwargs):
+    def potential(self, mode: Literal["asym", "raw"] = "asym", **kwargs) -> np.ndarray:
+        """Calculate the potential of the graph.
+
+        Potential is related to the intrinsic time. Note that the returned value from this function is the negative of
+        potential. Thus small potential is related to smaller intrinsic time and vice versa.
+
+        Args:
+            mode: whether to use the asym components of the graph matrix or the normal symmetric matrix for calculation.
+                Defaults to "asym".
+            kwargs: other kwargs passed to `potential` func, currently only `method` is acceptable.
+
+        Returns:
+            Potential of this graph.
+        """
+
         if mode == "raw":
             F_ = self.F
         elif mode == "asym":
             F_ = self.asym()
         return potential(F_, E=self.E, W=self.W, div=self.divergence(), **kwargs)
 
-    def fp_operator(self, D, **kwargs):
+    def fp_operator(self, D: np.ndarray, **kwargs) -> np.ndarray:
+        """Calculate the transition rate matrix Q, encoding the transition rate from node i to j in Q_ji.
+
+        Args:
+            D: the diffusion coefficient.
+            kwargs: other kwargs passed to `fp_operator`, include `drift_weight`, `weight_mode`, and `renormalize`.
+
+        Returns:
+            The transition rate matrix Q.
+        """
+
         return fp_operator(self.asym(), D, E=self.E, W=self.W, symmetrize_E=False, **kwargs)
 
-    def project_velocity(self, X_emb, mode="raw", correct_density=False, norm_dist=False, **kwargs):
+    def project_velocity(
+        self, X_emb: np.ndarray, mode: Literal["raw", "asym"] = "raw", correct_density=False, norm_dist=False, **kwargs
+    ):
+        """project the graph's vector field to a low-dimension space provided.
+
+        Args:
+            X_emb: the low-dimension space to be projected on.
+            mode: whether use the graph's vector field directly ("raw") or use its asym components ("asym"). Defaults to
+            "raw".
+            correct_density: whether to correct density of the projected result based on X_emb. Defaults to False.
+            norm_dist: whether to normalize the projection based on X_emb. Defaults to False.
+
+        Raises:
+            NotImplementedError: `mode` invalid.
+
+        Returns:
+            The projected vectors.
+        """
         if mode == "raw":
             F_ = self.F
         elif mode == "asym":
             F_ = self.asym()
+        else:
+            raise NotImplementedError("Mode should be either 'raw' or 'asym'. ")
 
         return projection_with_transition_matrix(
             F_, X_emb, correct_density=correct_density, norm_dist=norm_dist, **kwargs

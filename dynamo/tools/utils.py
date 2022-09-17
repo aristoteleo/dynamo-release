@@ -2,7 +2,14 @@ import itertools
 import time
 import warnings
 from inspect import signature
-from typing import Union
+from typing import List, Optional, Union
+
+import typing_extensions
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 import pandas as pd
@@ -218,25 +225,25 @@ def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
         return new
 
 
-def index_gene(adata, arr, genes):
-    """A lightweight method for indexing adata arrays by genes.
-    it is memory efficient especially when `.uns` contains large data.
+def index_gene(adata: AnnData, arr: np.ndarray, genes: List[str]) -> np.ndarray:
+    """A light weight method for indexing adata arrays by genes.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        arr: :class:`~numpy.ndarray`
-            The array to be indexed.
+    The function is designed to have good memory efficiency especially when `.uns` contains large data.
+
+    Args:
+        adata: an AnnData object.
+        arr: the array to be indexed.
             If 1d, the length of the array has to be equal to `adata.n_vars`.
             If 2d, the second dimension of the array has to be equal to `adata.n_vars`.
-        genes: list
-            A list of gene names or boolean flags for indexing.
+        genes: a list of gene names or boolean flags for indexing.
 
-    Returns
-    -------
-        :class:`~numpy.ndarray`
-            The indexed array.
+    Raises:
+        ValueError: gene in `genes` not found in adata.
+        Exception: the lengths of arr does not match the number of genes.
+        Exception: the dimension of arr does not match the number of genes.
+
+    Returns:
+        The indexed array.
     """
 
     if areinstance(genes, [bool, np.bool_]):
@@ -296,35 +303,41 @@ def reserve_minimal_genes_by_gamma_r2(
     return adata.var[var_store_key]
 
 
-def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format="index"):
-    """
-    Select cells based on `grp_keys` in .obs
+def select_cell(
+    adata: AnnData,
+    grp_keys: Union[str, List[str]],
+    grps: Union[str, List[str]],
+    presel: Optional[np.ndarray] = None,
+    mode: Literal["union", "intersection"] = "union",
+    output_format: Literal["mask", "index"] = "index",
+) -> np.ndarray:
+    """Select cells based on `grep_keys` in .obs.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        grp_keys: str or list
-            The key(s) in `.obs` to be used for selecting cells.
-            If list, each element is a key in .obs that corresponds to an element in `grps`.
-        grps: str or list
-            The value(s) in `.obs[grp_keys]` to be used for selecting cells.
-            If list, each element is a value that corresponds to an element in `grp_keys`.
-        presel: None, list, or :class:`~numpy.ndarray`
-            An array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
-            `grp_keys` and `grps` according to `mode`.
-        mode: str
+    Args:
+        adata: an AnnData object.
+        grp_keys: the key(s) in `.obs` to be used for selecting cells. If a list, each element is a key in .obs that
+            corresponds to an element in `grps`.
+        grps: the value(s) in `.obs[grp_keys]` to be used for selecting cells. If a list, each element is a value that
+            corresponds to an element in `grp_keys`.
+        presel: an array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
+            `grp_keys` and `grps` according to `mode`.. Defaults to None.
+        mode: the mode to select cells.
             "union" - the selected cells are the union of the groups specified in `grp_keys` and `grps`;
             "intersection" - the selected cells are the intersection of the groups specified in `grp_keys` and `grps`.
-        output_format: str
+            Defaults to "union".
+        output_format: whether to output a mask of selection or selected items' indices.
             "index" - returns a list of indices of selected cells;
-            "mask" - returns an array of booleans.
+            "mask" - returns an array of booleans. Defaults to "index".
 
-    Returns
-    -------
-        list or :class:`~numpy.ndarray`
-            The cell index or mask array.
+    Raises:
+        NotImplementedError: `mode` is invalid.
+        Exception: `grp_keys` has key that is not in .obs.
+        NotImplementedError: `output_format` is invalid.
+
+    Returns:
+        A mask of selection or selected items' indices.
     """
+
     if type(grp_keys) is str:
         grp_keys = [grp_keys]
     if not isarray(grps):
@@ -399,7 +412,7 @@ def elem_prod(X, Y):
         return np.multiply(X, Y)
 
 
-def norm(x, **kwargs):
+def norm(x: Union[sp.csr_matrix, np.ndarray], **kwargs) -> np.ndarray:
     """calculate the norm of an array or matrix"""
     if sp.issparse(x):
         return sp.linalg.norm(x, **kwargs)
@@ -407,26 +420,21 @@ def norm(x, **kwargs):
         return np.linalg.norm(x, **kwargs)
 
 
-def cell_norm(adata, key, prefix_store=None, **norm_kwargs):
-    """Calculate the norm of vector for each cell.
+def cell_norm(adata: AnnData, key: str, prefix_store: Optional[str] = None, **norm_kwargs) -> np.ndarray:
+    """Calculate the norm of vectors of each cell.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        key: str
-            The key of the vectors stored in either .obsm or .layers.
-        prefix_store: str or None (default: None)
-            The prefix used in the key for storing the returned in adata.obs.
-            If None, the returned is not stored.
-        norm_kwargs:
-            Keyword arguments passed to norm functions.
+    Args:
+        adata: an AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        key: the key of the vectors stored in either .obsm or .layers.
+        prefix_store: the prefix used in the key for storing the returned in adata.obs. Defaults to None.
 
-    Returns
-    -------
-        norm: :class:`~numpy.ndarray`
-            Norms of vectors.
+    Raises:
+        ValueError: `key` not found in .obsm or .layers.
+
+    Returns:
+        The norms of the vectors.
     """
+
     if key in adata.obsm.keys():
         X = adata.obsm[key]
     elif key in adata.layers.keys():
@@ -670,28 +678,23 @@ def table_top_genes(arrs, item_names, gene_names, return_df=True, output_values=
         return table
 
 
-def table_rank_dict(rank_dict, n_top_genes=30, order=1, output_values=False):
-    """
-    Generate a pandas.Dataframe from a rank dictionary. A rank dictionary is a
-    dictionary of gene names and values, based on which the genes are sorted,
-    for each group of cells.
+def table_rank_dict(
+    rank_dict: dict, n_top_genes: int = 30, order: int = 1, output_values: bool = False
+) -> pd.DataFrame:
+    """Generate a pandas.Dataframe from a rank dictionary. A rank dictionary is a dictionary of gene names and values,
+    based on which the genes are sorted, for each group of cells.
 
-    Arguments
-    ---------
-        rank_dict: dict
-            The rank dictionary.
-        n_top_genes: int (default 30)
-            The number of top genes put into the Dataframe.
-        order: int (default 1)
-            The order of picking the top genes from the rank dictionary.
-            1: ascending, -1: descending.
-        output_values: bool (default False)
-            Whether or not output the values along with gene names.
-    Returns
-    -------
-        :class:'~pandas.DataFrame'
-            The table of top genes of each group.
+    Args:
+        rank_dict: the rank dictionary.
+        n_top_genes: the number of top genes put into the Dataframe. Defaults to 30.
+        order: the order of picking the top genes from the rank dictionary.
+            1: ascending, -1: descending. Defaults to 1.
+        output_values: whether or not output the values along with gene names. Defaults to False.
+
+    Returns:
+        The table of top genes of each group.
     """
+
     data = {}
     for g, r in rank_dict.items():
         d = [k for k in r.keys()][::order]
@@ -1586,7 +1589,20 @@ class PredicateIntersection(AnnDataPredicates):
         return self.binop(other, PredicateIntersection)
 
 
-def select(array, pred=AlwaysTrue(), output_format="mask"):
+def select(
+    array: np.ndarray, pred: AnnDataPredicate = AlwaysTrue(), output_format: Literal["mask", "index"] = "mask"
+) -> np.ndarray:
+    """Select part of the array based on the condition provided by the used.
+
+    Args:
+        array: the original data to be selected from.
+        pred: the condition provided by the user. Defaults to AlwaysTrue().
+        output_format: whether to output a mask of selection or selected items' indices. Defaults to "mask".
+
+    Returns:
+        A mask of selection or selected items' indices.
+    """
+
     ret = pred.check(array)
     if output_format == "mask":
         pass
@@ -2236,26 +2252,26 @@ def getTseq(init_states, t_end, step_size=None):
 
 # ---------------------------------------------------------------------------------------------------
 # spatial related
-def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None, use_unique_coords=True) -> float:
-    """Compute and return smallest distance. A wrapper for sklearn API
+def compute_smallest_distance(
+    coords: np.ndarray, leaf_size: int = 40, sample_num: Optional[int] = None, use_unique_coords: bool = True
+) -> float:
+    """Compute and return smallest distance.
 
-    Parameters
-    ----------
-        coords:
-            NxM matrix. N is the number of data points and M is the dimension of each point's feature.
-        leaf_size : int, optional
-            Leaf size parameter for building Kd-tree, by default 40.
-        sample_num:
-            The number of cells to be sampled.
-        use_unique_coords:
-            Whether to remove duplicate coordinates
+    This function is a wrapper for sklearn API.
 
-    Returns
-    -------
-        min_dist: float
-            the minimum distance between points
+    Args:
+        coords: NxM matrix. N is the number of data points and M is the dimension of each point's feature.
+        leaf_size: the leaf size parameter for building Kd-tree. Defaults to 40.
+        sample_num: the number of cells to be sampled. Defaults to None.
+        use_unique_coords: whether to remove duplicate coordinates. Defaults to True.
 
+    Raises:
+        ValueError: the dimension of coords is not 2x2
+
+    Returns:
+        The minimum distance between points.
     """
+
     if len(coords.shape) != 2:
         raise ValueError("Coordinates should be a NxM array.")
     if use_unique_coords:
@@ -2374,7 +2390,9 @@ def get_rank_array(
 
 # ---------------------------------------------------------------------------------------------------
 # projection related
-def projection_with_transition_matrix(T, X_embedding, correct_density=True, norm_dist=True):
+def projection_with_transition_matrix(
+    T: Union[np.ndarray, sp.csr_matrix], X_embedding: np.ndarray, correct_density: bool = True, norm_dist: bool = True
+) -> np.ndarray:
     n = T.shape[0]
     delta_X = np.zeros((n, X_embedding.shape[1]))
 
