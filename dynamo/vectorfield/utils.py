@@ -1,9 +1,8 @@
-import functools
-import inspect
+from code import interact
 import itertools
 import multiprocessing as mp
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Union
+from typing import Callable, Union, Tuple, Optional
 
 import numdifftools as nd
 import numpy as np
@@ -23,7 +22,7 @@ from ..tools.utils import (
 from .FixedPoints import FixedPoints
 
 
-def is_outside_domain(x, domain):
+def is_outside_domain(x, domain: Tuple[float, float]):
     x = x[None, :] if x.ndim == 1 else x
     return np.any(np.logical_or(x < domain[0], x > domain[1]), axis=1)
 
@@ -127,24 +126,17 @@ def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
 
 
 @timeit
-def con_K(x, y, beta, method="cdist", return_d=False):
+def con_K(x: np.ndarray, y: np.ndarray, beta: float=0.1, method: str="cdist", return_d: bool=False) -> Union[Tuple[np.ndarra, np.ndarray], np.ndarray]:
     """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
-    Arguments
-    ---------
-        x: :class:`~numpy.ndarray`
-            Original training data points.
-        y: :class:`~numpy.ndarray`
-            Control points used to build kernel basis functions.
-        beta: float (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
-        return_d: bool
-            If True the intermediate 3D matrix x - y will be returned for analytical Jacobian.
+    Args:
+        x: Original training data points.
+        y: Control points used to build kernel basis functions.
+        beta: Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
+        return_d: If True the intermediate 3D matrix x - y will be returned for analytical Jacobian.
 
-    Returns
-    -------
-    K: :class:`~numpy.ndarray`
-    the kernel to represent the vector field function.
+    Returns:
+        Tuple(K: the kernel to represent the vector field function, D:
     """
     if method == "cdist" and not return_d:
         K = cdist(x, y, "sqeuclidean")
@@ -168,23 +160,17 @@ def con_K(x, y, beta, method="cdist", return_d=False):
 
 
 @timeit
-def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
+def con_K_div_cur_free(x: np.ndarray, y: np.ndarray, sigma: int=0.8, eta: float=0.5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Construct a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
     and a combination coefficient gamma.
 
-    Arguments
-    ---------
-        x: :class:`~numpy.ndarray`
-            Original training data points.
-        y: :class:`~numpy.ndarray`
-            Control points used to build kernel basis functions
-        sigma: int (default: `0.8`)
-            Bandwidth parameter.
-        eta: int (default: `0.5`)
-            Combination coefficient for the divergence-free or the curl-free kernels.
+    Args:
+        x: Original training data points.
+        y: Control points used to build kernel basis functions
+        sigma: Bandwidth parameter.
+        eta: Combination coefficient for the divergence-free or the curl-free kernels.
 
-    Returns
-    -------
+    Returns:
         A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
 
     See also: :func:`sparseVFC`.
@@ -1114,10 +1100,23 @@ def remove_redundant_points(X, tol=1e-4, output_discard=False):
 def find_fixed_points(
     x0_list: Union[list, np.ndarray],
     func_vf: Callable,
-    domain=None,
+    domain: Optional[np.ndarray]=None,
     tol_redundant: float = 1e-4,
     return_all: bool = False,
-) -> tuple:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Given sampling points, a function, and a domain, finds points for which func_vf(x) = 0.
+
+    Args:
+        x0_list: Array-like structure with sampling points
+        func_vf: Function for which to find fixed points
+        domain: Finds fixed points within the given domain of shape (n_dim, 2)
+        tol_redundant: Margin outside of which points are considered distinct
+        return_all: If set to true, always return a tuple of three arrays as output
+
+    Returns:
+        A tuple with the solutions, Jacobian matrix, and function values at the solutions.
+
+    """
     def vf_aux(x):
         """auxillary function unifying dimensionality"""
         v = func_vf(x)
