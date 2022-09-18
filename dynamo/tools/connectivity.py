@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
 try:
     from typing import Literal
@@ -524,7 +524,7 @@ def neighbors(
     n_neighbors: int = 30,
     method: Optional[str] = None,
     metric: Union[str, Callable] = "euclidean",
-    metric_kwads: dict[str, Any] = None,
+    metric_kwads: Dict[str, Any] = None,
     cores: int = 1,
     seed: int = 19491001,
     result_prefix: str = "",
