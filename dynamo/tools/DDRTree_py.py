@@ -18,8 +18,8 @@ def cal_ncenter(ncells: int, ncells_limit: int=100) -> int:
         ncells_limit: the max number of cells to be considered. Defaults to 100.
 
     Returns:
-        The number of cells to be most significant in the reduced space.
-    """
+        The number of cells to be most significant in the reduced space. 
+    """    
 
     res = np.round(
         2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit))
@@ -28,15 +28,15 @@ def cal_ncenter(ncells: int, ncells_limit: int=100) -> int:
     return res
 
 
-def pca_projection(C: np.ndarray, L: int):
-    """solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I	
-    Arguments	
-    ---------	
-    C: (ndarrya) The matrix of	
-    L: (int) The number of Eigenvalues	
-    Return	
-    ------	
-    W: The L largest Eigenvalues	
+def pca_projection(C: np.ndarray, L: int) -> np.ndarray:
+    """Solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I	
+
+    Args:
+        C: the matrix to calculate eigenvalues. 
+        L: the number of Eigenvalues. 
+
+    Returns:
+        The L largest Eigenvalues. 
     """
 
     V, U = eig(C)
@@ -46,19 +46,17 @@ def pca_projection(C: np.ndarray, L: int):
     return W
 
 
-def sqdist(a, b):
-    """calculate the square distance between a, b	
-    Arguments	
-    ---------	
-        a: 'np.ndarray'	
-            A matrix with :math:`D \times N` dimension	
-        b: 'np.ndarray'	
-            A matrix with :math:`D \times N` dimension	
-    Returns	
-    -------	
-    dist: 'np.ndarray'	
-        A numeric value for the different between a and b	
+def sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Calculate the square distance between `a` and `b`. 
+
+    Args:
+        a: a matrix with dimension D x N
+        b: a matrix with dimension D x N
+
+    Returns:
+        A numeric value for the difference between a and b. 
     """
+
     aa = np.sum(a ** 2, axis=0)
     bb = np.sum(b ** 2, axis=0)
     ab = a.T.dot(b)
@@ -71,28 +69,26 @@ def sqdist(a, b):
     return dist
 
 
-def repmat(X, m, n):
-    """This function returns an array containing m (n) copies of A in the row (column) dimensions. The size of B is	
-    size(A)*n when A is a matrix.For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix.	
-    Arguments	
-    ---------	
-        X: 'np.ndarray'	
-            An array like matrix.	
-        m: 'int'	
-            Number of copies on row dimension	
-        n: 'int'	
-            Number of copies on column dimension	
-    Returns	
-    -------	
-    xy_rep: 'np.ndarray'	
-        A matrix of repmat	
+def repmat(X: np.ndarray, m: int, n: int) -> np.ndarray:
+    """This function returns an array containing m (n) copies of A in the row (column) dimensions.
+
+    The size of B is size(A)*n when A is a matrix. For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix. 
+
+    Args:
+        X: an array like matrix. 
+        m: number of copies on row dimension. 
+        n: number of copies on column dimension. 
+
+    Returns:
+        The constructed repmat. 
     """
+
     xy_rep = matlib.repmat(X, m, n)
 
     return xy_rep
 
 
-def eye(m, n):
+def eye(m: int, n: int) -> np.ndarray:
     """Equivalent of eye (matlab)	
     Arguments	
     ---------	

@@ -28,7 +28,7 @@ def reduceDimension(
     copy: bool = False,
     **kwargs,
 ) -> Optional[anndata.AnnData]:
-    """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear
+    """Compute a low dimension reduction projection of an AnnData object first with PCA, followed by non-linear
     dimension reduction methods
 
     Args:
@@ -40,7 +40,8 @@ def reduceDimension(
             used. Defaults to None.
         basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
             `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
-        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used. Defaults to None.
+        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+            Defaults to None.
         n_pca_components: Number of input PCs (principle components) that will be used for further non-linear dimension
             reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
             corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
@@ -57,7 +58,7 @@ def reduceDimension(
             Defaults to None.
         enforce: whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
             Defaults to False.
-        cores: the number of cores used for calculation. Used only when the tSNE reduction_method is used. Defaults to 1.
+        cores: the number of cores used for calculation. Used only when tSNE reduction_method is used. Defaults to 1.
         copy: whether to return a copy of the AnnData object or update the object in place. Defaults to False.
         kwargs: other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
             significantly influence the reduction result.
@@ -142,7 +143,9 @@ def run_umap(
     min_dist: float = 0.5,
     **kwargs,
 ) -> Optional[anndata.AnnData]:
-    """Compute a low dimension reduction projection of an annodata object first with PCA, followed by UMAP.
+    """Compute a low dimension reduction projection of an AnnData object first with PCA, followed by UMAP.
+
+    This is a wrap for reduce Dimension, with the important min_dist value specified straightforwardly.
 
     Args:
         adata: an AnnData object.
@@ -153,7 +156,8 @@ def run_umap(
             used. Defaults to None.
         basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
             `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
-        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used. Defaults to None.
+        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+            Defaults to None.
         n_pca_components: Number of input PCs (principle components) that will be used for further non-linear dimension
             reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
             corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
@@ -167,7 +171,7 @@ def run_umap(
             Defaults to None.
         enforce: whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
             Defaults to False.
-        cores: the number of cores used for calculation. Used only when the tSNE reduction_method is used. Defaults to 1.
+        cores: the number of cores used for calculation. Used only when tSNE reduction_method is used. Defaults to 1.
         copy: whether to return a copy of the AnnData object or update the object in place. Defaults to False.
         min_dist: the min_dist arg passed to umap.UMAP.
         kwargs: other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would

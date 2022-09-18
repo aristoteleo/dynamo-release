@@ -1,5 +1,5 @@
 from dbm import ndbm
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -10,6 +10,7 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.linalg import qr
 from scipy.optimize import lsq_linear, minimize
+from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import main_info, main_warning
 from ..tools.utils import projection_with_transition_matrix
@@ -25,49 +26,49 @@ from .utils import (
 
 # test
 def graphize_velocity(
-    V,
-    X,
-    nbrs_idx: Union[np.array, list] = None,
-    dists: np.array = None,
+    V: np.ndarray,
+    X: np.ndarray,
+    nbrs_idx: Union[np.ndarray, List[int]] = None,
+    dists: np.ndarray = None,
     k: int = 30,
     normalize_v: bool = False,
     scale_by_dist: bool = False,
-    E_func: Union[str, Callable] = None,
+    E_func: Union[Literal["sqrt", "exp"], Callable, None] = None,
     use_sparse: bool = False,
     return_nbrs: bool = False,
-) -> tuple:
-    """
-        The function generates a graph based on the velocity data. The flow from i- to j-th
-        node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
+) -> Union[
+    Tuple[Union[np.ndarray, sp.lil_matrix], Union[List[int], np.ndarray], np.ndarray],
+    Tuple[Union[np.ndarray, sp.lil_matrix], Union[List[int], np.ndarray], np.ndarray, NearestNeighbors],
+]:
+    """The function generates a graph based on the velocity data. The flow from i- to j-th node is returned as the edge
+    matrix E[i, j], and E[i, j] = -E[j, i].
 
-    Arguments
-    ---------
-        V: :class:`~numpy.ndarray`
-            The velocities for all cells.
-        X: :class:`~numpy.ndarray`
-            The coordinates for all cells.
-        nbrs_idx: list (optional, default None)
-            A list of neighbor indices for each cell. If None a KNN will be performed instead.
-        k: int (optional, default 30)
-            The number of neighbors for the KNN search.
-        normalize_v: bool (optional, default False)
-            Whether or not normalizing the velocity vectors.
-        E_func: str, function, or None (optional, default None)
-            A variance stabilizing function for reducing the variance of the flows.
+    Args:
+        V: the velocities for all cells.
+        X: the coordinates for all cells.
+        nbrs_idx: a list of neighbor indices for each cell. If None a KNN will be performed instead. Defaults to None.
+        dists: the distance matrix. Defaults to None.
+        k: the number of neighbors for the KNN search. Defaults to 30.
+        normalize_v: whether to normalize the velocity vectors. Defaults to False.
+        scale_by_dist: whether to scale the result by distance. Defaults to False.
+        E_func: A variance stabilizing function for reducing the variance of the flows.
             If a string is passed, there are two options:
                 'sqrt': the numpy.sqrt square root function;
                 'exp': the numpy.exp exponential function.
-        return_nbrs:
-            returns a neighbor object if this arg is True. A neighbor object is from k_nearest_neighbors and may be
-            from NNDescent (pynndescent) or NearestNeighbors.
+            Defaults to None.
+        use_sparse: whether to use sparse matrix for edge matrix. Defaults to False.
+        return_nbrs: whther to return the neighbor object. Defaults to False.
 
-    Returns
-    -------
-        E: :class:`~numpy.ndarray`
-            The edge matrix.
-        nbrs_idx: :class:`~numpy.ndarray`
-            Neighbor indices.
+    Raises:
+        NotImplementedError: `E_func` is invalid.
+
+    Returns:
+        A tuple (E, nbrs_idx, dists, [nbrs]), where E is the edge matrix, could be a sparse matrix or a ndarray
+        depending on `use_sparse`; nbrs_idx is the list of neighbor indices for each cell, the type depending on the
+        input type of `nbrs_idx`; dist is the distance matrix; nbrs is the neighbor object and it would be returned when
+        `return_nbrs` is true.
     """
+
     n = X.shape[0]
 
     if (nbrs_idx is not None) and return_nbrs:
@@ -141,47 +142,38 @@ def graphize_velocity_coopt(
     a: float = 1.0,
     b: float = 1.0,
     r: float = 1.0,
-    loss_func: str = "log",
+    loss_func: Literal["linear", "log"] = "log",
     nonneg: bool = False,
     norm_dist: bool = False,
 ):
-    # TODO: merge with graphize_velocity
-    """
-    The function generates a graph based on the velocity data by minimizing the loss function:
+    """The function generates a graph based on the velocity data by minimizing the loss function:
                     L(w_i) = a |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
     where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j],
     and E[i, j] = -E[j, i].
 
-    Arguments
-    ---------
-        X: :class:`~numpy.ndarray`
-            The coordinates of cells in the expression space.
-        V: :class:`~numpy.ndarray`
-            The velocity vectors in the expression space.
-        U: :class:`~numpy.ndarray`
-            The correlation kernel-projected velocity vectors, must be in the original expression space, can be
+    Args:
+        X: the coordinates of cells in the expression space.
+        V: the velocity vectors in the expression space.
+        U: the correlation kernel-projected velocity vectors, must be in the original expression space, can be
             calculated as `adata.obsm['velocity_pca'] @ adata.uns['PCs'].T` where velocity_pca is the kernel projected
             velocity vector in PCA space.
-        nbrs: list
-            List of neighbor indices for each cell.
-        a: float (default 1.0)
-            The weight for preserving the velocity length.
-        b: float (default 1.0)
-            The weight for the cosine similarity.
-        r: float (default 1.0)
-            The weight for the regularization.
-        nonneg: bool (default False)
-            Whether to ensure the resultant transition matrix to have non-negative values.
-        norm_dist: bool (defauilt False)
-            norm_dist should be False so that the resulting graph vector field penalizes long jumps.
+        nbrs: list of neighbor indices for each cell.
+        a: the weight for preserving the velocity length. Defaults to 1.0.
+        b: the weight for the cosine similarity. Defaults to 1.0.
+        r: the weight for the regularization.. Defaults to 1.0.
+        loss_func: the function used to reconstruct the loss. Defaults to "log".
+        nonneg: whether to ensure the resultant transition matrix to have non-negative values.. Defaults to False.
+        norm_dist: normally this value should only be False so that the resulting graph vector field penalizes long
+            jumps. Defaults to False.
 
+    Raises:
+        NotImplementedError: `loss_func` is invalid.
 
-
-    Returns
-    -------
-        E: :class:`~numpy.ndarray`
-            The edge matrix.
+    Returns:
+        The edge matrix.
     """
+    # TODO: merge with graphize_velocity
+
     E = np.zeros((X.shape[0], X.shape[0]))
 
     for i, x in enumerate(X):
@@ -266,6 +258,16 @@ def graphize_velocity_coopt(
 
 
 def symmetrize_discrete_vector_field(F: np.ndarray, mode: Literal["asym", "sym"] = "asym") -> np.ndarray:
+    """Calculate the symmetric or asymmetric components of an array.
+
+    Args:
+        F: the input array.
+        mode: whether to calculate the symmetric or asymmetric component. Defaults to "asym".
+
+    Returns:
+        The calculated components.
+    """
+
     E_ = F.copy()
     for i in range(F.shape[0]):
         for j in range(i + 1, F.shape[1]):
@@ -286,7 +288,14 @@ def dist_mat_to_gaussian_weight(dist, sigma):
     return W
 
 
-def calc_gaussian_weight(nbrs_idx, dists, sig=None, auto_sig_func=None, auto_sig_multiplier=2, format="squareform"):
+def calc_gaussian_weight(
+    nbrs_idx: list,
+    dists: np.ndarray,
+    sig: float = None,
+    auto_sig_func: Optional[Callable] = None,
+    auto_sig_multiplier: int = 2,
+    format: Literal["sparse", "squareform", "condense"] = "squareform",
+) -> np.ndarray:
     # TODO: deprecate this function
     n = len(nbrs_idx)
     if format == "sparse":
