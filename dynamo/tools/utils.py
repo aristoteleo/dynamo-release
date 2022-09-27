@@ -202,7 +202,7 @@ def k_nearest_neighbors(
     pynn_rand_state: int = 19491001,
     n_jobs: int = -1,
     return_nbrs: bool = False,
-) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, Union["NNDescent", NearestNeighbors]]]:
+) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, NearestNeighbors]]:
     """Compute k nearest neighbors for a given space.
 
     Args:
