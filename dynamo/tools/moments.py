@@ -230,22 +230,22 @@ def time_moment(
     adata: anndata.AnnData,
     tkey: Optional[str],
     has_splicing: bool,
-    has_labeling: bool=True,
-    t_label_keys: Union[List[str], str, None]=None,
+    has_labeling: bool = True,
+    t_label_keys: Union[List[str], str, None] = None,
 ) -> anndata.AnnData:
     """Calculate time based first and second moments (including uncentered covariance) for different layers of data.
 
     Args:
-        adata: an AnnData object. 
+        adata: an AnnData object.
         tkey: The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
-        has_splicing: whether the data has splicing information. 
+        has_splicing: whether the data has splicing information.
         has_labeling: whether the data has labeling information. Defaults to True.
         t_label_keys: (not used for now) The column key(s) for the labeling time label of cells in .obs. Used for either
-            "ss" or "kinetic" model. `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the 
+            "ss" or "kinetic" model. `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the
             time of the experiment). Defaults to None.
 
     Returns:
-        An updated AnnData object with calculated first/second moments (including uncentered covariance) for each time 
+        An updated AnnData object with calculated first/second moments (including uncentered covariance) for each time
         point for each layer included.
     """
 
@@ -269,13 +269,13 @@ def time_moment(
 # ---------------------------------------------------------------------------------------------------
 # use for kinetic assumption
 def get_layer_pair(layer: str) -> Optional[str]:
-    """Get the layer in pair for the input layer. 
+    """Get the layer in pair for the input layer.
 
     Args:
-        layer: the key for the input layer. 
+        layer: the key for the input layer.
 
     Returns:
-        The key for corresponding layer in pair. 
+        The key for corresponding layer in pair.
     """
     pair = {
         "new": "total",
@@ -289,13 +289,13 @@ def get_layer_pair(layer: str) -> Optional[str]:
 
 
 def get_layer_group(layer: str) -> Optional[str]:
-    """Get the layer group in pair for the input layer group. 
+    """Get the layer group in pair for the input layer group.
 
     Args:
-        layer: the key for the input layer group. 
+        layer: the key for the input layer group.
 
     Returns:
-        The key for corresponding layer group in pair. 
+        The key for corresponding layer group in pair.
     """
     group = {
         "uu": "ul",
@@ -319,10 +319,10 @@ def prepare_data_deterministic(
     genes: List[str],
     time: np.ndarray,
     layers: List[str],
-    use_total_layers: bool=True,
-    total_layers: List[str]=["X_ul", "X_sl", "X_uu", "X_su"],
-    log: bool=False,
-    return_ntr: bool=False,
+    use_total_layers: bool = True,
+    total_layers: List[str] = ["X_ul", "X_sl", "X_uu", "X_su"],
+    log: bool = False,
+    return_ntr: bool = False,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[Union[np.ndarray, csr_matrix]]]:
     from ..preprocessing.utils import normalize_mat_monocle, sz_util
 

@@ -8,11 +8,11 @@ import pandas as pd
 # 4. use the PRL paper to estimate the parameters
 
 
-def AddAssay(adata: anndata.AnnData, data: pd.DataFrame, key: str, slot: str="obsm") -> anndata.AnnData:
-    """Add a new data as a key to the specified slot. 
+def AddAssay(adata: anndata.AnnData, data: pd.DataFrame, key: str, slot: str = "obsm") -> anndata.AnnData:
+    """Add a new data as a key to the specified slot.
 
     Args:
-        adata: an AnnData object. 
+        adata: an AnnData object.
         data: the data (in pandas DataFrame format) that will be added to adata.
         key: the key name to be used for the new data.
         slot: the slot of adata to store the new data. Defaults to "obsm".
@@ -29,16 +29,16 @@ def AddAssay(adata: anndata.AnnData, data: pd.DataFrame, key: str, slot: str="ob
     return adata
 
 
-def getAssay(adata: anndata.AnnData, key: str, slot: str="obsm") -> pd.DataFrame:
-    """Retrieve a key named data from the specified slot. 
+def getAssay(adata: anndata.AnnData, key: str, slot: str = "obsm") -> pd.DataFrame:
+    """Retrieve a key named data from the specified slot.
 
     Args:
-        adata: an AnnData object. 
-        key: the key name of the data to be retrieved. . 
+        adata: an AnnData object.
+        key: the key name of the data to be retrieved. .
         slot: the slot of adata to be retrieved from. Defaults to "obsm".
 
     Returns:
-        The data (in pd.DataFrame) that will be retrieved from adata. 
+        The data (in pd.DataFrame) that will be retrieved from adata.
     """
 
     if slot == "uns":
