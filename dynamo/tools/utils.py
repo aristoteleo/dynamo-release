@@ -2,7 +2,7 @@ import itertools
 import time
 import warnings
 from inspect import signature
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import typing_extensions
 
@@ -43,7 +43,16 @@ from ..utils import areinstance, isarray
 
 # ---------------------------------------------------------------------------------------------------
 # others
-def get_mapper(smoothed=True):
+def get_mapper(smoothed: bool = True) -> Dict[str, str]:
+    """Return the mapper for layers depending on whether the data is smoothed.
+
+    Args:
+        smoothed: whether the data is smoothed. Defaults to True.
+
+    Returns:
+        The mapper dictionary for layers.
+    """
+
     mapper = {
         "X_spliced": "M_s" if smoothed else "X_spliced",
         "X_unspliced": "M_u" if smoothed else "X_unspliced",
@@ -60,32 +69,50 @@ def get_mapper(smoothed=True):
     return mapper
 
 
-def get_mapper_inverse(smoothed=True):
+def get_mapper_inverse(smoothed: bool = True) -> Dict[str, str]:
+    """Return the inverse mapper for layers depending on whether the data is smoothed.
+
+    Args:
+        smoothed: whether the data is smoothed. Defaults to True.
+
+    Returns:
+        The inverse mapper dictionary for layers.
+    """
+
     mapper = get_mapper(smoothed)
 
     return dict([(v, k) for k, v in mapper.items()])
 
 
-def get_finite_inds(X, ax=0):
+def get_finite_inds(X: Union[np.ndarray, sp.csr_matrix], ax: int = 0) -> np.ndarray:
+    """Find the indices of finite elements in an array.
+
+    Args:
+        X: the matrix to be inspected.
+        ax: the axis for indexing. Defaults to 0.
+
+    Returns:
+        The indices of finite elements.
+    """
+
     finite_inds = np.isfinite(X.sum(ax).A1) if sp.issparse(X) else np.isfinite(X.sum(ax))
 
     return finite_inds
 
 
 def get_pd_row_column_idx(
-    df: pd.DataFrame, queries: List[str], type: Literal["column", "raw"] = "column"
+    df: pd.DataFrame, queries: List[str], type: Literal["column", "row"] = "column"
 ) -> np.ndarray:
-    """Find the numeric indices of multiple index/column matches with a vectorized solution.
+    """Find the numeric indices of multiple index/column matches with a vectorized solution using np.searchsorted.
 
-    The function utilizes np.searchsorted. It is adapted from:
+    The function is adapted from:
     https://stackoverflow.com/questions/13021654/get-column-index-from-column-name-in-python-pandas
 
     Args:
-        df: the pandas dataframe that will be used for finding indices.
-        queries: a list of strings, corresponding to either column names or index of the `df` that will be used for
-            finding indices.
-        type: the type of the queries / search, either `column` (list of queries are from column names) or "row" (list
-            of queries are from index names). Defaults to "column".
+        df: the dataframe to be inspected.
+        queries: a list of either column names or index of the dataframe that will be used for finding indices.
+        type: the type of the queries/search, either `column` (list of queries are from column names) or "row" (list of
+            queries are from index names). Defaults to "column".
 
     Returns:
         An one dimensional array for the numeric indices that corresponds to the matches of the queries.
@@ -98,13 +125,34 @@ def get_pd_row_column_idx(
     return Indices
 
 
-def update_dict(dict1, dict2):
+def update_dict(dict1: dict, dict2: dict) -> dict:
+    """Update the values of dict 1 with the values of dict 2. The keys of dict 1 would not be modified.
+
+    Args:
+        dict1: the dict to be updated.
+        dict2: the dict to provide new values.
+
+    Returns:
+        The updated dict.
+    """
     dict1.update((k, dict2[k]) for k in dict1.keys() & dict2.keys())
 
     return dict1
 
 
-def update_n_merge_dict(dict1, dict2):
+def update_n_merge_dict(dict1: dict, dict2: dict) -> dict:
+    """Merge two dictionaries.
+
+    For overlapping keys, the values in dict 2 would replace values in dict 1.
+
+    Args:
+        dict1: the dict to be merged into and overwritten.
+        dict2: the dict to be merged.
+
+    Returns:
+        The updated dict.
+    """
+
     dict = {
         **dict1,
         **dict2,
@@ -113,18 +161,39 @@ def update_n_merge_dict(dict1, dict2):
     return dict
 
 
-def subset_dict_with_key_list(dict, list):
+def subset_dict_with_key_list(dict: dict, list: list) -> dict:
+    """Subset the dict with keys provided.
+
+    Args:
+        dict: the dict to be subset.
+        list: the keys that should be left in dict.
+
+    Returns:
+        The subset dict.
+    """
+
     return {key: value for key, value in dict.items() if key in list}
 
 
-def nearest_neighbors(coord, coords, k=5):
+def nearest_neighbors(coord: np.ndarray, coords: Union[np.ndarray, sp.csr_matrix], k: int = 5) -> np.ndarray:
+    """Find the nearest neighbors in a given space for a given point.
+
+    Args:
+        coord: the point for which nearest neighbors are searched.
+        coords: the space to search neighbors.
+        k: the number of neighbors to be searched. Defaults to 5.
+
+    Returns:
+        The indices of the nearest neighbors.
+    """
+
     nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(coords)
     _, neighs = nbrs.kneighbors(np.atleast_2d(coord))
     return neighs
 
 
 def k_nearest_neighbors(
-    X,
+    X: np.ndarray,
     k: int,
     exclude_self: bool = True,
     knn_dim: int = 10,
@@ -133,14 +202,29 @@ def k_nearest_neighbors(
     pynn_rand_state: int = 19491001,
     n_jobs: int = -1,
     return_nbrs: bool = False,
-):
-    """Compute k nearest neighbors on X
+) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, NearestNeighbors]]:
+    """Compute k nearest neighbors for a given space.
 
-    Parameters
-    ----------
-    return_nbrs:
-        returns a neighbor object if this arg is true, by default False. A neighbor object is from k_nearest_neighbors and may be from NNDescent (pynndescent) or NearestNeighbors.
+    Args:
+        X: the space to find nearest neighbors on.
+        k: the number of neighbors to be found, excluding the point itself.
+        exclude_self: whether to exclude the point itself from the result. Defaults to True.
+        knn_dim: the lowest threshold of dimensions of data to use `ball_tree` algorithm. If dimensions of the data is
+            smaller than this value, `kd_tree` algorithm would be used. Defaults to 10.
+        pynn_num: the lowest threshold of features to use NNDescent package. If number of features less than/equal to
+            this value, `sklearn` package would be used. Defaults to int(2e5).
+        pynn_dim: the lowest threshold of dimensions to use NNDescent package. If number of features less than/equal to
+            this value, `sklearn` package would be used. Defaults to 2.
+        pynn_rand_state: the random seed for NNDescent calculation. Defaults to 19491001.
+        n_jobs: number of parallel jobs for NNDescent. -1 means all cores would be used. Defaults to -1.
+        return_nbrs: whether to return the fitted nearest neighbor object. Defaults to False.
+
+    Returns:
+        A tuple (nbrs_idx, dists, [nbrs]), where nbrs_idx contains the indices of nearest neighbors found for each
+        point and dists contains the distances between neighbors and the point. nbrs is the fitted nearest neighbor
+        object and it would be returned only if `return_nbrs` is True.
     """
+
     n, d = np.atleast_2d(X).shape
     if n > int(pynn_num) and d > pynn_dim:
         from pynndescent import NNDescent
