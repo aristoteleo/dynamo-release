@@ -72,26 +72,23 @@ def get_finite_inds(X, ax=0):
     return finite_inds
 
 
-def get_pd_row_column_idx(df, queries, type="column"):
-    """Find the numeric indices of multiple index/column matches with a vectorized solution using np.searchsorted
-    method. adapted from:
+def get_pd_row_column_idx(
+    df: pd.DataFrame, queries: List[str], type: Literal["column", "raw"] = "column"
+) -> np.ndarray:
+    """Find the numeric indices of multiple index/column matches with a vectorized solution.
+
+    The function utilizes np.searchsorted. It is adapted from:
     https://stackoverflow.com/questions/13021654/get-column-index-from-column-name-in-python-pandas
 
-    Parameters
-    ----------
-        df: `pd.DataFrame`
-            Pandas dataframe that will be used for finding indices.
-        queries: `list`
-            List of strings, corresponding to either column names or index of the `df` that will be used for finding
-            indices.
-        type: `{"column", "row:}` (default: "row")
-            The type of the queries / search, either `column` (list of queries are from column names) or "row" (list of
-            queries are from index names).
+    Args:
+        df: the pandas dataframe that will be used for finding indices.
+        queries: a list of strings, corresponding to either column names or index of the `df` that will be used for
+            finding indices.
+        type: the type of the queries / search, either `column` (list of queries are from column names) or "row" (list
+            of queries are from index names). Defaults to "column".
 
-    Returns
-    -------
-        Indices: `np.ndarray`
-            One dimensional array for the numeric indices that corresponds to the matches of the queries.
+    Returns:
+        An one dimensional array for the numeric indices that corresponds to the matches of the queries.
     """
 
     names = df.columns.values if type == "column" else df.index.values if type == "row" else None
@@ -496,25 +493,19 @@ def form_triu_matrix(arr):
     return M
 
 
-def index_condensed_matrix(n, i, j):
-    """
-    Return the index of an element in a condensed n-by-n square matrix
-    by the row index i and column index j of the square form.
+def index_condensed_matrix(n: int, i: int, j: int) -> int:
+    """Return the index of an element in a condensed n-by-n square matrix by the row index i and column index j of the
+    square form.
 
-    Arguments
-    ---------
-        n: int
-            Size of the squareform.
-        i: int
-            Row index of the element in the squareform.
-        j: int
-            Column index of the element in the the squareform.
+    Args:
+        n: size of the squareform.
+        i: row index of the element in the squareform.
+        j: column index of the element in the squareform.
 
-    Returns
-    -------
-        k: int
-            The index of the element in the condensed matrix.
+    Returns:
+        The index of the element in the condensed matrix.
     """
+
     if i == j:
         main_warning("Diagonal elements (i=j) are not stored in condensed matrices.")
         return None
