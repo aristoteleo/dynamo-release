@@ -1,6 +1,7 @@
 import functools
 import itertools
 import warnings
+import matplotlib
 from multiprocessing.dummy import Pool as ThreadPool
 from typing import Callable, Union, Optional, Tuple, TypedDict, Dict, Literal, List
 
@@ -672,7 +673,7 @@ class BaseVectorField:
             cores: Defaults to 1.
 
         Returns:
-            _description_
+            Tuple of fixed points, type assignments, and assignment IDs
         """
         if domain is None and self.data is not None:
             domain = np.vstack((np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))).T
@@ -757,7 +758,7 @@ class BaseVectorField:
             disable: Defaults to False.
 
         Returns:
-            _description_
+            Tuple storing times and predictions
         """
 
         from ..prediction.utils import integrate_vf_ivp
@@ -797,32 +798,32 @@ class DifferentiableVectorField(BaseVectorField):
     def get_Jacobian(self, method=None):
         raise NotImplementedError
 
-    def compute_divergence(self, X=None, method="analytical", **kwargs):
-        """_summary_
+    def compute_divergence(self, X: Optional[np.ndarray]=None, method: str="analytical", **kwargs) -> np.ndarray:
+        """Takes the trace of the jacobian matrix to calculate the divergence.
 
         Args:
-            X: _description_. Defaults to None.
-            method: _description_. Defaults to "analytical".
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
 
         Returns:
-            _description_
+            The divergence of the Jacobian matrix.
         """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_divergence(f_jac, X, **kwargs)
 
-    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
-        """_summary_
+    def compute_curl(self, X: Optional[np.ndarray]=None, method: str="analytical", dim1: int=0, dim2: int=1, dim3: int=2, **kwargs) -> np.ndarray:
+        """Curl computation for many samples for 2/3 D systems.
 
         Args:
-            X: _description_. Defaults to None.
-            method: _description_. Defaults to "analytical".
-            dim1: _description_. Defaults to 0.
-            dim2: _description_. Defaults to 1.
-            dim3: _description_. Defaults to 2.
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
+            dim1: index of first dimension
+            dim2: index of second dimension
+            dim3: index of third dimension
 
         Returns:
-            _description_
+            np.ndarray storing curl
         """
         X = self.data["X"] if X is None else X
         if dim3 is None or X.shape[1] < 3:
@@ -832,58 +833,75 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method, **kwargs)
         return compute_curl(f_jac, X, **kwargs)
 
-    def compute_acceleration(self, X=None, method="analytical", **kwargs):
-        """_summary_
+    def compute_acceleration(self, X: Optional[np.ndarray]=None, method: str="analytical", **kwargs) -> np.ndarray:
+        """Calculate acceleration for many samples via
+
+        .. math::
+        a = || J \cdot v ||.
 
         Args:
-            X: _description_. Defaults to None.
-            method: _description_. Defaults to "analytical".
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
 
         Returns:
-            _description_
+            np.ndarray storing the vector norm of acceleration (across all genes) for each cell
         """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_acceleration(self.func, f_jac, X, **kwargs)
 
-    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
-        """_summary_
+    def compute_curvature(self, X: Optional[np.ndarray]=None, method: str="analytical", formula: int=2, **kwargs) -> np.ndarray:
+        """Calculate curvature for many samples via
+
+        Formula 1:
+        .. math::
+        \kappa = \frac{||\mathbf{v} \times \mathbf{a}||}{||\mathbf{V}||^3}
+
+        Formula 2:
+        .. math::
+        \kappa = \frac{||\mathbf{Jv} (\mathbf{v} \cdot \mathbf{v}) -  ||\mathbf{v} (\mathbf{v} \cdot \mathbf{Jv})}{||\mathbf{V}||^4}
 
         Args:
-            X: _description_. Defaults to None.
-            method: _description_. Defaults to "analytical".
-            formula: _description_. Defaults to 2.
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
+            formula: Choose between formulas 1 and 2 to compute the curvature. Defaults to 2.
 
         Returns:
-            _description_
+            np.ndarray storing the vector norm of curvature (across all genes) for each cell
         """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
 
-    def compute_torsion(self, X=None, method="analytical", **kwargs):
-        """_summary_
+    def compute_torsion(self, X: Optional[np.ndarray]=None, method: str="analytical", **kwargs) -> np.ndarray:
+        """Calculate torsion for many samples via
+
+        .. math::
+        \tau = \frac{(\mathbf{v} \times \mathbf{a}) \cdot (\mathbf{J} \cdot \mathbf{a})}{||\mathbf{V} \times \mathbf{a}||^2}
 
         Args:
-            X: _description_. Defaults to None.
-            method: _description_. Defaults to "analytical".
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
 
         Returns:
-            _description_
+            np.ndarray storing torsion for each sample
         """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_torsion(self.func, f_jac, X, **kwargs)
 
-    def compute_sensitivity(self, X=None, method="analytical", **kwargs):
-        """_summary_
+    def compute_sensitivity(self, X: Optional[np.ndarray]=None, method: str="analytical", **kwargs) -> np.ndarray:
+        """Calculate sensitivity for many samples via
+
+        .. math::
+        S = (I - J)^{-1} D(\frac{1}{{I-J}^{-1}})
 
         Args:
-            X: _description_. Defaults to None.
-            method: _description_. Defaults to "analytical".
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel Defaults to "analytical".
 
         Returns:
-            _description_
+            np.ndarray storing sensitivity matrix
         """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
@@ -965,7 +983,7 @@ class SvcVectorField(DifferentiableVectorField):
 
         self.norm_dict = {}
 
-    def train(self, normalize: bool=False, **kwargs):
+    def train(self, normalize: bool=False, **kwargs) -> VecFldDict:
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al,
         Pattern Recognition
@@ -1016,12 +1034,12 @@ class SvcVectorField(DifferentiableVectorField):
 
         return self.vf_dict
 
-    def plot_energy(self, figsize=None, fig=None):
+    def plot_energy(self, figsize: Optional[Tuple[float, float]]=None, fig: Optional[matplotlib.figure.Figure]=None):
         from ..plot.scVectorField import plot_energy
 
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
-    def get_Jacobian(self, method="analytical", input_vector_convention="row", **kwargs):
+    def get_Jacobian(self, method: str="analytical", input_vector_convention: str="row", **kwargs) -> np.ndarray:
         """
         Get the Jacobian of the vector field function.
         If method is 'analytical':
@@ -1056,7 +1074,7 @@ class SvcVectorField(DifferentiableVectorField):
                 f"supports 'analytical', 'numerical', and 'parallel'."
             )
 
-    def get_Hessian(self, method="analytical", **kwargs):
+    def get_Hessian(self, method: str="analytical", **kwargs) -> np.ndarray:
         """
         Get the Hessian of the vector field function.
         If method is 'analytical':
@@ -1080,7 +1098,7 @@ class SvcVectorField(DifferentiableVectorField):
         else:
             raise NotImplementedError(f"The method {method} is not implemented. Currently only supports 'analytical'.")
 
-    def get_Laplacian(self, method="analytical", **kwargs):
+    def get_Laplacian(self, method: str="analytical", **kwargs) -> np.ndarray:
         """
         Get the Laplacian of the vector field. Laplacian is defined as the sum of the diagonal of the Hessian matrix.
         Because Hessian is originally defined for scalar function and here we extend it to vector functions. We will
@@ -1328,7 +1346,7 @@ def vector_field_function_knockout(
 
 
 class BifurcationTwoGenesVectorField(DifferentiableVectorField):
-    def __init__(self, param_dict, X=None, V=None, Grid=None, *args, **kwargs):
+    def __init__(self, param_dict, X: Optional[np.ndarray]=None, V: Optional[np.ndarray]=None, Grid: Optional[np.ndarray]=None, *args, **kwargs):
         super().__init__(X, V, Grid, *args, **kwargs)
         param_dict_ = param_dict.copy()
         for k in param_dict_.keys():
@@ -1341,7 +1359,7 @@ class BifurcationTwoGenesVectorField(DifferentiableVectorField):
     def get_Jacobian(self, method=None):
         return lambda x: jacobian_bifur2genes(x, **self.vf_dict["params"])
 
-    def find_fixed_points(self, n_x0=10, **kwargs):
+    def find_fixed_points(self, n_x0: int=10, **kwargs):
         a = self.vf_dict["params"]["a"]
         b = self.vf_dict["params"]["b"]
         gamma = self.vf_dict["params"]["gamma"]
