@@ -251,7 +251,17 @@ def k_nearest_neighbors(
     return nbrs_idx, dists
 
 
-def nbrs_to_dists(X, nbrs_idx):
+def nbrs_to_dists(X: np.ndarray, nbrs_idx: np.ndarray) -> List[np.ndarray]:
+    """Calculate the distances between neighbors of a given space.
+
+    Args:
+        X: the space to find nearest neighbors on.
+        nbrs_idx: the indices of nearest neighbors found for each point.
+
+    Returns:
+        The distances between neighbors and the point.
+    """
+
     dists = []
     n = X.shape[0]
     for i in range(n):
@@ -261,11 +271,17 @@ def nbrs_to_dists(X, nbrs_idx):
     return dists
 
 
-def symmetrize_symmetric_matrix(W):
+def symmetrize_symmetric_matrix(W: Union[np.ndarray, sp.csr_matrix]) -> sp.csr_matrix:
     """
-    symmetrize a supposedly symmetric matrix W, so that W_ij == Wji strictly.
-    returns a csr sparse matrix.
+    Symmetrize a supposedly symmetric matrix W, so that W_ij == Wji strictly.
+
+    Args:
+        W: the matrix supposed to be symmetric.
+
+    Returns:
+        The matrix that is now strictly symmetric.
     """
+
     if not sp.issparse(W):
         W = sp.csr_matrix(W)
 
@@ -281,7 +297,27 @@ def symmetrize_symmetric_matrix(W):
     return W
 
 
-def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
+def create_layer(
+    adata: AnnData,
+    data: np.ndarray,
+    layer_key: Optional[str] = None,
+    genes: Optional[np.ndarray] = None,
+    cells: Optional[np.ndarray] = None,
+    **kwargs,
+) -> Optional[np.ndarray]:
+    """Create a new layer with data supplied.
+
+    Args:
+        adata: an AnnData object to insert the layer into.
+        data: the main data of the new layer.
+        layer_key: the key of the layer when gets inserted into the adata object. If None, the layer would be returned.
+            Defaults to None.
+        genes: the genes for the provided data. If None, genes from the adata object would be used. Defaults to None.
+        cells: the cells for the provided data. If None, cells from the adata object would be used. Defaults to None.
+
+    Returns:
+        If the layer key is provided, nothing would be returned. Otherwise, the layer itself would be returned.
+    """
     all_genes = adata.var.index
     if genes is None:
         genes = all_genes
