@@ -11,7 +11,7 @@ from scipy.sparse.csgraph import shortest_path
 from .DDRTree_py import DDRTree_py
 
 
-def remove_velocity_points(G, n):
+def remove_velocity_points(G: np.ndarray, n: int) -> np.ndarray:
     for nodeid in range(n, 2 * n):
         nb_ids = []
         for nb_id in range(len(G[0])):
@@ -41,7 +41,18 @@ def remove_velocity_points(G, n):
     return G
 
 
-def calculate_angle(o, y, x):
+def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
+    """Calculate the angle between two vectors. 
+
+    Args:
+        o: coordination of the origin. 
+        y: end point of the first vector. 
+        x: end point of the second vector. 
+
+    Returns:
+        The angle between the two vectors. 
+    """
+
     yo = y - o
     norm_yo = yo / scipy.linalg.norm(yo)
     xo = x - o
