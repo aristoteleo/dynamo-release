@@ -1,5 +1,5 @@
 from dbm import ndbm
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, TypeVar, Union
 
 try:
     from typing import Literal
@@ -280,7 +280,17 @@ def symmetrize_discrete_vector_field(F: np.ndarray, mode: Literal["asym", "sym"]
     return E_
 
 
-def dist_mat_to_gaussian_weight(dist, sigma):
+def dist_mat_to_gaussian_weight(dist: np.ndarray, sigma: float) -> np.ndarray:
+    """Calculate the corresponding Gaussian weight for each distance element in a distance matrix.
+
+    Args:
+        dist: the distance matrix. Each element represents a distance to the mean.
+        sigma: the standard deviation of the gaussian distribution.
+
+    Returns:
+        A matrix with each element corresponding to the Gaussian weight of the distance matrix.
+    """
+
     dist = symmetrize_symmetric_matrix(dist)
     W = elem_prod(dist, dist) / sigma**2
     W[W.nonzero()] = np.exp(-0.5 * W.data)
@@ -291,11 +301,30 @@ def dist_mat_to_gaussian_weight(dist, sigma):
 def calc_gaussian_weight(
     nbrs_idx: list,
     dists: np.ndarray,
-    sig: float = None,
+    sig: Optional[float] = None,
     auto_sig_func: Optional[Callable] = None,
     auto_sig_multiplier: int = 2,
     format: Literal["sparse", "squareform", "condense"] = "squareform",
 ) -> np.ndarray:
+    """Calculate the gaussian weight corresponding to the distance of each neighbor.
+
+    Args:
+        nbrs_idx: a list containing the indices of neighbors.
+        dists: the distance matrix.
+        sig: the standard deviation of the distances. If None, auto_sig_func would be called to calculate the standard
+            deviation. Defaults to None.
+        auto_sig_func: the function used to calculate standard deviation if `sig` is None. If set to None, `np.median`
+            would be used. Defaults to None.
+        auto_sig_multiplier: the auto calculated standard deviation would be multiplied with this value. Defaults to 2.
+        format: the matrix format of the output. Can be one of {"sparse", "squareform", "condense"}. Defaults to
+            "squareform".
+
+    Raises:
+        NotImplementedError: the `format` specified is invalid.
+
+    Returns:
+        The gaussian weight corresponding to the distance of each neighbor.
+    """
     # TODO: deprecate this function
     n = len(nbrs_idx)
     if format == "sparse":
@@ -332,10 +361,23 @@ def calc_laplacian(
     weight_mode: Literal["naive", "asymmetric", "symmetric"] = "asymmetric",
     convention: Literal["graph", "diffusion"] = "graph",
 ) -> np.ndarray:
+    """Calculate the laplacian matrix for a given graph.
+
+    Args:
+        W: the weight matrix for each edge e_ij of the graph.
+        E: the length of the edges. If None, all edges are assumed to have length of 1. Defaults to None.
+        weight_mode: the method to apply the weight on the graph. Can be one of {"naive", "asymmetric", "symmetric"}.
+            Defaults to "asymmetric".
+        convention: the convention used to represent the result. Can be one of {"graph", "diffusion"}. Defaults to
+            "graph".
+
+    Raises:
+        NotImplementedError: the weight mode is invalid.
+
+    Returns:
+        The laplacian matrix for the given graph
     """
-    W: the weights stored for each edge e_ij.
-    E: length of edges. If None, all edges are assumed to have lengths of one.
-    """
+
     if weight_mode == "naive":
         A = np.abs(np.sign(W))
     elif weight_mode == "asymmetric":
@@ -371,14 +413,24 @@ def fp_operator(
     weight_mode: Literal["naive", "asymmetric", "symmetric"] = "asymmetric",
     renormalize: bool = False,
 ) -> np.ndarray:
-    """
-    The output of this function is a transition rate matrix Q, encoding the transition rate
-    from node i to j in Q_ji
+    """Calculate the transition rate matrix Q for a graph vector field. The transition rate from node i to j is encoded
+    in Q_ij.
 
-    F: graph vector field. F_ij encodes the flow on edge e_ij (from vertex i to j)
-    D: diffusion coefficient
-    W: edge weight. W_ij is the weight on edge e_ij
+    Args:
+        F: the graph vector field. F_ij encodes the flow on edge e_ij (from vector i to j).
+        D: the diffusion coefficient corresponding to F.
+        E: the length of the edges. If None, all edges are assumed to have length of 1. Defaults to None.
+        W: the edge weight. W_ij is the weight of edge e_ij. Defaults to None.
+        symmetrize_E: whether to forcefully symmetrize `F`. Defaults to True.
+        drift_weight: whether to drift with the weight . Defaults to False.
+        weight_mode: he method to apply the weight on the graph. Can be one of {"naive", "asymmetric", "symmetric"}.
+            Defaults to "asymmetric".
+        renormalize: whether to renormalize the resulted transition rate matrix. Defaults to False.
+
+    Returns:
+        The transition rate matrix Q for a graph vector field.
     """
+
     # drift
     if symmetrize_E:
         F = symmetrize_discrete_vector_field(F, mode="asym")
@@ -410,6 +462,23 @@ def fp_operator(
 def divergence(
     E: np.ndarray, W: Optional[np.ndarray] = None, method: Literal["direct", "operator"] = "operator"
 ) -> np.ndarray:
+    """Calculate the divergence of a weighted graph.
+
+    Args:
+        E: the length of the edges.
+        W: the weight of the edges. If None, assume all edges to have weight of 1. Defaults to None.
+        method: the method used to calculate the divergence. Can be one of {"operator", "direct"}. "direct" would make
+            the function to calculate the divergence from the edge length matrix directly while "operator" would make
+            the functions to calculate required operators first and then apply the operators to the matrix. Defaults to
+            "operator".
+
+    Raises:
+        NotImplementedError: `method` is invalid.
+
+    Returns:
+        The divergence of a weighted graph.
+    """
+
     # TODO: support weight in the future
     if method == "direct":
         n = E.shape[0]
@@ -427,6 +496,15 @@ def divergence(
 
 
 def gradop(adj: np.ndarray) -> sp.csr_matrix:
+    """Return the gradient operator of a weighted graph in matrix form.
+
+    Args:
+        adj: the adjacency matrix of the graph
+
+    Returns:
+        The gradient operator used to calculate gradient of a weighted graph.
+    """
+
     e = np.array(adj.nonzero())
     ne = e.shape[1]
     nv = adj.shape[0]
@@ -435,7 +513,17 @@ def gradop(adj: np.ndarray) -> sp.csr_matrix:
     return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
 
 
-def gradient(E, p):
+def gradient(E: np.ndarray, p: np.ndarray) -> np.ndarray:
+    """Calculate gradient of a weighted graph.
+
+    Args:
+        E: the length of the edges of the graph.
+        p: the potential of the graph.
+
+    Returns:
+        The gradient of the weighted graph.
+    """
+
     adj = np.abs(np.sign(E))
     F_pot = np.array(adj, copy=True, dtype=float)
     F_pot[F_pot.nonzero()] = gradop(adj) * p / E[E.nonzero()] ** 2
@@ -443,6 +531,15 @@ def gradient(E, p):
 
 
 def divop(W: np.ndarray) -> np.ndarray:
+    """Return the divergence operator in matrix form.
+
+    Args:
+        W: the edge weight of the graph.
+
+    Returns:
+        The operator used to calculate the divergence of the graph.
+    """
+
     return -0.5 * gradop(W).T
 
 
@@ -450,11 +547,30 @@ def potential(
     F: np.ndarray,
     E: Optional[np.ndarray] = None,
     W: Optional[np.ndarray] = None,
-    div: np.ndarray = None,
+    div: Optional[np.ndarray] = None,
     method: Literal["inv", "pinv", "qr_pinv", "lsq"] = "lsq",
 ) -> np.ndarray:
-    """potential is related to the intrinsic time. Note that the returned value from this function is the negative of
-    potential. Thus small potential is related to smaller intrinsic time and vice versa."""
+    """Calculate potential of a weighted graph.
+
+    Potential is related to the intrinsic time. Note that the returned value from this function is the negative of
+    potential. Thus small potential is related to smaller intrinsic time and vice versa.
+
+    Args:
+        F: the graph vector field. F_ij encodes the flow on edge e_ij (from vector i to j).
+        E: the length of edges of the graph. If None, all edges are assumed to have length of 1. Defaults to None.
+        W: the edge weight of the graph. If None, all edges are assumed to have weight of 1. Defaults to None.
+        div: the divergence of the graph. If None, it would be calculated based on the graph's vector field and weight.
+            Defaults to None.
+        method: the method to be used to calculate the potential. Can be following:
+            1. inv: using inverse of the laplacian matrix.
+            2. pinv: using pseudo inverse of the laplacian matrix.
+            3. qr_pinv: perform QR decomposition of the laplacian matrix first, then perform pinv.
+            4. lsq: solve the least square problem between the laplacian matrix and the divergence.
+            `Defaults to "lsq".
+
+    Returns:
+        Potential of this graph.
+    """
 
     W = np.abs(np.sign(F)) if W is None else W
     div_neg = -divergence(F, W=W) if div is None else -div

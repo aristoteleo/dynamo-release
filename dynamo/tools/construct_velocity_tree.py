@@ -1,6 +1,5 @@
 import re
 
-import matplotlib
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -12,6 +11,15 @@ from .DDRTree_py import DDRTree_py
 
 
 def remove_velocity_points(G: np.ndarray, n: int) -> np.ndarray:
+    """Modify a tree graph to remove the nodes themselves and recalculate the weights.
+
+    Args:
+        G: a smooth tree graph embedded in the low dimension space.
+        n: the number of genes (column num of the original data)
+
+    Returns:
+        The tree graph with a node itself removed and weight recalculated.
+    """
     for nodeid in range(n, 2 * n):
         nb_ids = []
         for nb_id in range(len(G[0])):
@@ -42,15 +50,15 @@ def remove_velocity_points(G: np.ndarray, n: int) -> np.ndarray:
 
 
 def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
-    """Calculate the angle between two vectors. 
+    """Calculate the angle between two vectors.
 
     Args:
-        o: coordination of the origin. 
-        y: end point of the first vector. 
-        x: end point of the second vector. 
+        o: coordination of the origin.
+        y: end point of the first vector.
+        x: end point of the second vector.
 
     Returns:
-        The angle between the two vectors. 
+        The angle between the two vectors.
     """
 
     yo = y - o
@@ -61,7 +69,13 @@ def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
     return angle
 
 
-def construct_velocity_tree_py(X1, X2):
+def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:
+    """Save a velocity tree graph with given data.
+
+    Args:
+        X1: epxression matrix.
+        X2: velocity matrix.
+    """
     n = X1.shape[1]
 
     # merge two data with a given time
