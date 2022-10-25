@@ -1,5 +1,5 @@
 from dbm import ndbm
-from typing import Callable, List, Optional, Tuple, TypeVar, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
