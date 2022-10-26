@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -18,6 +18,7 @@ from patsy import bs, cr, dmatrix
 from scipy import stats
 from scipy.sparse import issparse
 from scipy.stats import mannwhitneyu
+from statsmodels.genmod.generalized_linear_model import GLMResultsWrapper
 from statsmodels.sandbox.stats.multicomp import multipletests
 from tqdm import tqdm
 
@@ -713,10 +714,25 @@ def glm_degs(
 
 
 def diff_test_helper(
-    data,
-    fullModelFormulaStr="~cr(time, df=3)",
-    reducedModelFormulaStr="~1",
-):
+    data: pd.DataFrame,
+    fullModelFormulaStr: str = "~cr(time, df=3)",
+    reducedModelFormulaStr: str = "~1",
+) -> Union[Tuple[Literal["fail"], Literal["NB2"], Literal[1]], Tuple[Literal["ok"], Literal["NB2"], np.ndarray],]:
+    """A helper function to generate required data fields for differential gene expression test.
+
+    Args:
+        data: the original dataframe containing expression data.
+        fullModelFormulaStr: a formula string specifying the full model in differential expression tests (i.e.
+            likelihood ratio tests) for each gene/feature. Defaults to "~cr(integral_time, df=3)".
+        reducedModelFormulaStr: a formula string specifying the reduced model in differential expression tests (i.e.
+            likelihood ratio tests) for each gene/feature. Defaults to "~1".
+    Returns:
+        A tuple [parseResult, family, pval], where `parseResult` should be "ok" or "fail", showing whether the provided
+        dataframe is successfully parsed or not. `family` is the distribution family used for the expression responses
+        in statsmodels, currently only "NB2" is supported. `pval` is the survival probability (1-cumulative probability)
+        to observe the likelihood ratio for the constrained model to be true. If parsing dataframe failed, this value is
+        set to be 1.
+    """
     # Dividing data into train and validation datasets
     transformed_x = dmatrix(fullModelFormulaStr, data, return_type="dataframe")
     transformed_x_null = dmatrix(reducedModelFormulaStr, data, return_type="dataframe")
@@ -744,7 +760,15 @@ def diff_test_helper(
     return ("ok", "NB2", pval)
 
 
-def get_all_variables(formula):
+def get_all_variables(formula: str) -> List[str]:
+    """A helper function to get all variable names for a formula string.
+
+    Args:
+        formula: the formula string specifying the model in differential expression data.
+
+    Returns:
+        A list of variable names.
+    """
     md = patsy.ModelDesc.from_formula(formula)
     termlist = md.rhs_termlist + md.lhs_termlist
 
@@ -756,7 +780,18 @@ def get_all_variables(formula):
     return factors
 
 
-def lrt(full, restr):
+def lrt(full: GLMResultsWrapper, restr: GLMResultsWrapper) -> np.float64:
+    """Perform likelihood-ratio test on the full model and constrained model.
+
+    Args:
+        full: the regression model without constraint.
+        restr: the regression model after constraint.
+
+    Returns:
+        The survival probability (1-cumulative probability) to observe the likelihood ratio for the constrained
+        model to be true.
+    """
+
     llf_full = full.llf
     llf_restr = restr.llf
     df_full = full.df_resid
