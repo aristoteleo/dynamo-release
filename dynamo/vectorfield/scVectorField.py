@@ -913,12 +913,9 @@ class SvcVectorField(DifferentiableVectorField):
         """Initialize the VectorField class.
 
         Args:
-            X: (dimension: n_obs x n_features)
-                    Original data.
-            V: :class:`~numpy.ndarray` (dimension: n_obs x n_features)
-                    Velocities of cells in the same order and dimension of X.
-            Grid: :class:`~numpy.ndarray`
-                    The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+            X: (dimension: n_obs x n_features), Original data.
+            V: (dimension: n_obs x n_features), Velocities of cells in the same order and dimension of X.
+            Grid: The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
             M: `int` (default: None)
                 The number of basis functions to approximate the vector field. By default it is calculated as
                 `min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100))))`. So that any datasets with less
@@ -1153,8 +1150,20 @@ class SvcVectorField(DifferentiableVectorField):
 
 class KOVectorField(DifferentiableVectorField):
     def __init__(
-        self, X=None, V=None, Grid=None, K=None, func_base=None, fjac_base=None, PCs=None, mean=None, *args, **kwargs
+        self, X: Optional[np.ndarray]=None, V: Optional[np.ndarray]=None, Grid=None, K=None, func_base: Optional[Callable]=None, fjac_base: Optional[Callable]=None, PCs: Optional[np.ndarray]=None, mean: float=None, *args, **kwargs
     ):
+        """_summary_
+
+        Args:
+            X: (dimension: n_obs x n_features), Original data. Defaults to None.
+            V: (dimension: n_obs x n_features), Velocities of cells in the same order and dimension of X. Defaults to None.
+            Grid: Grid of the current state. Defaults to None.
+            K: _description_. Defaults to None.
+            func_base: _description_. Defaults to None.
+            fjac_base: Callable passed to `Jacobian_kovf` to generate the Jacobian. Defaults to None.
+            PCs: The PCA loading matrix of dimensions d x k, where d is the number of dimensions of the original space. Defaults to None.
+            mean: _description_. Defaults to None.
+        """
         super().__init__(X, V, Grid=Grid, *args, **kwargs)
 
         if K.ndim == 2:
@@ -1169,6 +1178,9 @@ class KOVectorField(DifferentiableVectorField):
             self.setup_perturbed_func()
 
     def setup_perturbed_func(self):
+        """
+        Reference "In silico perturbation to predict gene-wise perturbation effects and cell fate diversions" in the methods section
+        """
         def vf_func_perturb(x):
             x_gene = np.abs(x @ self.PCs.T + self.mean)
             v_gene = vector_transformation(self.func_base(x), self.PCs)
