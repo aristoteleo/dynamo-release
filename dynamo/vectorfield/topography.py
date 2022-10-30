@@ -2,7 +2,7 @@
 import datetime
 import os
 import warnings
-from typing import Union
+from typing import Union, Callable, Optional, List, Tuple
 
 import anndata
 import numpy as np
@@ -29,7 +29,18 @@ from .utils import (
 from .vector_calculus import curl, divergence
 
 
-def pac_onestep(x0, func, v0, ds=0.01):
+def pac_onestep(x0: np.ndarray, func: Callable, v0: np.ndarray, ds: float=0.01):
+    """One step of the predictor-corrector method
+
+    Args:
+        x0: current value
+        func: function to be integrated
+        v0: tangent predictor
+        ds: step size, Defaults to 0.01.
+
+    Returns:
+        x1: next value
+    """
     x01 = x0 + v0 * ds
 
     def F(x):
@@ -39,7 +50,21 @@ def pac_onestep(x0, func, v0, ds=0.01):
     return x1
 
 
-def continuation(x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_direction=1):
+def continuation(x0: np.ndarray, func: Callable, s_max: float, ds: float=0.01, v0: Optional[np.ndarray]=None, param_axis: int=0, param_direction: int=1) -> np.ndarray:
+    """Continually integrate the ODE `func` from x0
+
+    Args:
+        x0: initial value
+        func: function to be integrated
+        s_max: maximum integration length
+        ds: step size, Defaults to 0.01.
+        v0: initial tangent vector, Defaults to None.
+        param_axis: axis of the parameter, Defaults to 0.
+        param_direction: direction of the parameter, Defaults to 1.
+
+    Returns:
+        np.ndarray of values along the curve
+    """
     ret = [x0]
     if v0 is None:  # initialize tangent predictor
         v = np.zeros_like(x0)
@@ -59,7 +84,17 @@ def continuation(x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_directio
     return np.array(ret)
 
 
-def clip_curves(curves, domain, tol_discont=None):
+def clip_curves(curves: Union[List[List], List[np.ndarray]], domain: np.ndarray, tol_discont=None) -> Union[List[List], List[np.ndarray]]:
+    """Clip curves to the domain
+
+    Args:
+        curves: list of curves
+        domain: domain of the curves of dimension n x 2
+        tol_discont: tolerance for discontinuity, Defaults to None.
+
+    Returns:
+        list of clipped curves joined together
+    """
     ret = []
     for cur in curves:
         clip_away = np.zeros(len(cur), dtype=bool)
@@ -87,7 +122,21 @@ def clip_curves(curves, domain, tol_discont=None):
     return ret
 
 
-def compute_nullclines_2d(X0, fdx, fdy, x_range, y_range, s_max=None, ds=None):
+def compute_nullclines_2d(X0: Union[List, np.ndarray], fdx: Callable, fdy: Callable, x_range: List, y_range: List, s_max: Optional[float]=None, ds: Optional[float]=None) -> Tuple[List]:
+    """Compute nullclines of a 2D vector field. Nullclines are curves along which vector field is zero in either the x or y direction.
+
+    Args:
+        X0: initial value
+        fdx: differential equation for x
+        fdy: differential equation for y
+        x_range: range of x
+        y_range: range of y
+        s_max: maximum integration length, Defaults to None.
+        ds: step size, Defaults to None.
+
+    Returns:
+        Tuple of nullclines in x and y
+    """
     if s_max is None:
         s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
     if ds is None:
@@ -110,7 +159,22 @@ def compute_nullclines_2d(X0, fdx, fdy, x_range, y_range, s_max=None, ds=None):
     return NCx, NCy
 
 
-def compute_separatrices(Xss, Js, func, x_range, y_range, t=50, n_sample=500, eps=1e-6):
+def compute_separatrices(Xss: np.ndarray, Js: np.ndarray, func: Callable, x_range: List, y_range: List, t: int=50, n_sample: int=500, eps: float=1e-6) -> List:
+    """Compute separatrix based on jacobians at points in `Xss`
+
+    Args:
+        Xss: list of steady states
+        Js: list of jacobians at steady states
+        func: function to be integrated
+        x_range: range of x
+        y_range: range of y
+        t: integration time, Defaults to 50.
+        n_sample: number of samples, Defaults to 500.
+        eps: tolerance for discontinuity, Defaults to 1e-6.
+
+    Returns:
+        list of separatrices
+    """
     ret = []
     for i, x in enumerate(Xss):
         print(x)
@@ -138,6 +202,15 @@ def compute_separatrices(Xss, Js, func, x_range, y_range, t=50, n_sample=500, ep
 
 
 def set_test_points_on_curve(curve, interval):
+    """
+
+    Args:
+        curve: _description_
+        interval: _description_
+
+    Returns:
+        _description_
+    """
     P = [curve[0]]
     dist = 0
     for i in range(1, len(curve)):
