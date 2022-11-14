@@ -1,5 +1,5 @@
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import normalize_mat_monocle, pca_monocle, sz_util
 from ..utils import copy_adata
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from .utils import elem_prod, get_mapper, inverse_norm
@@ -324,7 +324,23 @@ def prepare_data_deterministic(
     log: bool = False,
     return_ntr: bool = False,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[Union[np.ndarray, csr_matrix]]]:
-    from ..preprocessing.utils import normalize_mat_monocle, sz_util
+    """Prepare the data for kinetic calculation based on deterministic model.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamp.
+        layers: the layer keys in adata object to be processed.
+        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+            "X_su"].
+        log: whether to perform log1p (i.e. log(1+x)) on result data. Defaults to False.
+        return_ntr: whether to deal with new/total ratio. Defaults to False.
+
+    Returns:
+        A tuple [m, v, raw], where `m` is the first momentum, `v` is the second momentum, and `raw` is the normalized
+        expression data.
+    """
 
     if return_ntr:
         use_total_layers = True
@@ -481,19 +497,35 @@ def prepare_data_deterministic(
 
 
 def prepare_data_has_splicing(
-    adata,
-    genes,
-    time,
-    layer_u,
-    layer_s,
-    use_total_layers=True,
-    total_layers=["X_ul", "X_sl", "X_uu", "X_su"],
-    total_layer="X_total",
-    return_cov=True,
-    return_ntr=False,
-):
-    """Prepare data when assumption is kinetic and data has splicing"""
-    from ..preprocessing.utils import normalize_mat_monocle, sz_util
+    adata: anndata.AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layer_u: str,
+    layer_s: str,
+    use_total_layers: bool = True,
+    total_layers: List[str] = ["X_ul", "X_sl", "X_uu", "X_su"],
+    total_layer: str = "X_total",
+    return_cov: bool = True,
+    return_ntr: bool = False,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Prepare data when assumption is kinetic and data has splicing.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamps.
+        layer_u: the layer key for unspliced data.
+        layer_s: the layer key for spliced data.
+        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+            "X_su"].
+        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
+        return_cov: whether to calculate the covariance between spliced and unspliced data. Defaults to True.
+        return_ntr: whether to return the new to total ratio or original expression data. Defaults to False.
+
+    Returns:
+        A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
+    """
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -620,16 +652,32 @@ def prepare_data_has_splicing(
 
 
 def prepare_data_no_splicing(
-    adata,
-    genes,
-    time,
-    layer,
-    use_total_layers=True,
-    total_layer="X_total",
-    return_old=False,
-    return_ntr=False,
-):
-    """Prepare data when assumption is kinetic and data has no splicing"""
+    adata: anndata.AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layer: str,
+    use_total_layers: bool = True,
+    total_layer: str = "X_total",
+    return_old: bool = False,
+    return_ntr: bool = False,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Prepare the data when assumption is kinetic and data has no splicing.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamps.
+        layer: the layer containing the expression data.
+        use_total_layers: whether to use the total data embedded in the AnnData object. Defaults to True.
+        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
+        return_old: whether to return the old expression data together or the newly expressed gene data only. Defaults
+            to False.
+        return_ntr: whether to return the new to total ratio or the original expression data. Defaults to False.
+
+    Returns:
+        A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
+    """
+
     from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
@@ -715,21 +763,40 @@ def prepare_data_no_splicing(
 
 
 def prepare_data_mix_has_splicing(
-    adata,
-    genes,
-    time,
-    layer_u="X_uu",
-    layer_s="X_su",
-    layer_ul="X_ul",
-    layer_sl="X_sl",
-    use_total_layers=True,
-    total_layers=["X_ul", "X_sl", "X_uu", "X_su"],
-    mix_model_indices=None,
-):
+    adata: anndata.AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layer_u: str = "X_uu",
+    layer_s: str = "X_su",
+    layer_ul: str = "X_ul",
+    layer_sl: str = "X_sl",
+    use_total_layers: bool = True,
+    total_layers: List[str] = ["X_ul", "X_sl", "X_uu", "X_su"],
+    mix_model_indices: Optional[List[int]] = None,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Prepare data for mixture modeling when assumption is kinetic and data has splicing.
-    Note that the mix_model_indices is indexed on 10 total species, which can be used to specify
-    the data required for different mixture models.
+
+    Note that the mix_model_indices is indexed on 10 total species, which can be used to specify the data required for
+    different mixture models.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamps.
+        layer_u: the layer key for unspliced mRNA count data. Defaults to "X_uu".
+        layer_s: the layer key for spliced mRNA count data. Defaults to "X_su".
+        layer_ul: the layer key for unspliced, labeled mRNA count data. Defaults to "X_ul".
+        layer_sl: the layer key for spliced, labeled mRNA count data. Defaults to "X_sl".
+        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+            "X_su"].
+        mix_model_indices: the indices for data required by the mixture model. If None, all data would be returned.
+            Defaults to None.
+
+    Returns:
+        A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
+
     from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
@@ -855,19 +922,34 @@ def prepare_data_mix_has_splicing(
 
 
 def prepare_data_mix_no_splicing(
-    adata,
-    genes,
-    time,
-    layer_n,
-    layer_t,
-    use_total_layers=True,
-    total_layer="X_total",
-    mix_model_indices=None,
-):
+    adata: anndata.AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layer_n: str,
+    layer_t: str,
+    use_total_layers: bool = True,
+    total_layer: bool = "X_total",
+    mix_model_indices: Optional[list[int]] = None,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Prepare data for mixture modeling when assumption is kinetic and data has NO splicing.
+
     Note that the mix_model_indices is indexed on 4 total species, which can be used to specify
     the data required for different mixture models.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamps.
+        layer_n: the layer key for new mRNA count.
+        layer_t: the layer key for total mRNA count.
+        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
+        mix_model_indices: the indices for data required by the mixture model. If None, all data would be returned. Defaults to None.
+
+    Returns:
+        A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
+
     from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
@@ -960,18 +1042,53 @@ def prepare_data_mix_no_splicing(
 # moment related:
 
 
-def stratify(arr, strata):
+def stratify(arr: np.ndarray, strata: np.ndarray) -> List[np.ndarray]:
+    """Stratify the given array with the given reference strata.
+
+    Args:
+        arr: The array to be stratified.
+        strata: The reference strata vector.
+
+    Returns:
+        A list containing the strata from the array, with each element of the list to be the components with line index
+        corresponding to the reference strata vector's unique elements' index.
+    """
+
     s = np.unique(strata)
     return [arr[strata == s[i]] for i in range(len(s))]
 
 
-def strat_mom(arr, strata, fcn_mom):
+def strat_mom(arr: Union[np.ndarray, csr_matrix], strata: np.ndarray, fcn_mom: Callable) -> np.ndarray:
+    """Stratify the mRNA expression data and calculate its momentum.
+
+    Args:
+        arr: the mRNA expression data.
+        strata: the time stamp array used to stratify `arr`.
+        fcn_mom: the function used to calculate the momentum.
+
+    Returns:
+        The momentum for each stratum.
+    """
+
     arr = arr.A if issparse(arr) else arr
     x = stratify(arr, strata)
     return np.array([fcn_mom(y) for y in x])
 
 
-def calc_mom_all_genes(T, adata, fcn_mom):
+def calc_mom_all_genes(
+    T: np.ndarray, adata: anndata.AnnData, fcn_mom: Callable
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate momentum for all genes in an AnnData object.
+
+    Args:
+        T: the time stamp array.
+        adata: an AnnData object.
+        fcn_mom: the function used to calculate momentum.
+
+    Returns:
+        A tuple (Mn, Mo, Mt, Mr), where `Mn` is momentum calculated from labeled (new) mRNA count, `Mo` is from
+        unlabeled (old) mRNA count, `Mt` is from total mRNA count, and `Mr` is from new to total ratio.
+    """
     ng = adata.var.shape[0]
     nT = len(np.unique(T))
     Mn = np.zeros((ng, nT))
@@ -1010,7 +1127,21 @@ def _calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
     return XY
 
 
-def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
+def gaussian_kernel(
+    X: np.ndarray, nbr_idx: np.ndarray, sigma: int, k: Optional[int] = None, dists: Optional[np.ndarray] = None
+) -> csr_matrix:
+    """Normalize connectivity map with Gaussian kernel.
+
+    Args:
+        X: the mRNA expression data.
+        nbr_idx: the indices of nearest neighbors of each cell.
+        sigma: the standard deviation for gaussian model.
+        k: the number of nearest neighbors to be considered. Defaults to None.
+        dists: the distances to the n_neighbors closest points in knn graph. Defaults to None.
+
+    Returns:
+        The normalized connectivity map.
+    """
     n = X.shape[0]
     if dists is None:
         dists = []
@@ -1025,7 +1156,21 @@ def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
     return csr_matrix(W)
 
 
-def calc_12_mom_labeling(data, t, calculate_2_mom=True):
+def calc_12_mom_labeling(
+    data: np.ndarray, t: np.ndarray, calculate_2_mom: bool = True
+) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]:
+    """Calculate 1st and 2nd momentum for given data.
+
+    Args:
+        data: the normalized mRNA expression data.
+        t: the time stamp array.
+        calculate_2_mom: whether to calculate 2nd momentum. Defaults to True.
+
+    Returns:
+        A tuple (m, [v], t_uniq) where `m` is the first momentum, `v` is the second momentum which would be returned only
+        if `calculate_2_mom` is true, and `t_uniq` is the unique time stamps.
+    """
+
     t_uniq = np.unique(t)
 
     m = np.zeros((data.shape[0], len(t_uniq)))

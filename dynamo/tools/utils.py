@@ -520,7 +520,9 @@ def closest_cell(coord, cells):
     return np.argmin(dist_2)
 
 
-def elem_prod(X, Y):
+def elem_prod(
+    X: Union[np.ndarray, sp.csr_matrix], Y: Union[np.ndarray, sp.csr_matrix]
+) -> Union[np.ndarray, sp.csr_matrix]:
     if sp.issparse(X):
         return X.multiply(Y)
     elif sp.issparse(Y):

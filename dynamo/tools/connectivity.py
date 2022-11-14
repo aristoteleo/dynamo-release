@@ -211,9 +211,9 @@ def umap_conn_indices_dist_embedding(
 
     Returns:
         A tuple ([mapper,] graph, knn_indices, knn_dists, embedding_). `mapper` is the data mapped onto umap space and
-        will be returned only if `return_mapper` is true. `graph` is the matrix storing indices of nearest neighbors of
-        each cell, `knn_dists` is the distances to the n_neighbors closest points in knn graph, and `embedding_` is the
-        low dimensional embedding.
+        will be returned only if `return_mapper` is true. graph is the sparse matrix representing the graph,
+        `knn_indices` is the matrix storing indices of nearest neighbors of each cell, `knn_dists` is the distances to
+        the n_neighbors closest points in knn graph, and `embedding_` is the low dimensional embedding.
     """
 
     from sklearn.metrics import pairwise_distances
