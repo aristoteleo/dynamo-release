@@ -211,7 +211,7 @@ def converter(
     return data_out
 
 
-def run_velocyto(adata: anndata.AnnData):
+def run_velocyto(adata: anndata.AnnData) -> anndata.AnnData:
     """Run velocyto over the AnnData object.
 
     1. convert adata to vlm data

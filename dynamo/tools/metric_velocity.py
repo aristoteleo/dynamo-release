@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -201,7 +201,26 @@ def cell_wise_confidence(
     return adata
 
 
-def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
+def jaccard(
+    X: np.ndarray, V: np.ndarray, n_pca_components: int, n_neigh: int, X_neighbors: csr_matrix
+) -> Tuple[np.ndarray, csr_matrix, np.ndarray]:
+    """Calculate cell-wise confidence matrix with Jaccard method.
+
+    This method measures how well each velocity vector meets the geometric constraints defined by the local neighborhood structure. Jaccard index is calculated as the fraction of the number of the intersected set of nearest neighbors
+    from each cell at current expression state (X) and that from the future expression state (X + V) over the number of
+    the union of these two sets.
+
+    Args:
+        X: the expression states of single cells (or expression states in reduced dimension, like pca, of single cells).
+        V: the RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+            cells). Note that X, V_mat need to have the exact dimensionalities.
+        n_pca_components: the number of PCA components of the expression data.
+        n_neigh: the number of neighbors to be found.
+        X_neighbors: the neighbor matrix.
+
+    Returns:
+        The cell wise velocity confidence metric.
+    """
     from sklearn.decomposition import TruncatedSVD
 
     transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
@@ -227,7 +246,16 @@ def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
     return jaccard, intersect_, union_
 
 
-def consensus(x, y):
+def consensus(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Calculate the cosensus with expression matrix and velocity matrix.
+
+    Args:
+        x: expression matrix (genes x cells).
+        y: velocity vectors y_i for gene i.
+
+    Returns:
+        The consensus matrix.
+    """
     x_norm, y_norm = np.linalg.norm(x), np.linalg.norm(y)
     consensus = (
         einsum_correlation(x[None, :], y, type="cosine")[0, 0] * np.min([x_norm, y_norm]) / np.max([x_norm, y_norm])

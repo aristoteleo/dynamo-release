@@ -46,7 +46,7 @@ def reduceDimension(
             reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
             corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
         n_components: the dimension of the space to embed into. Defaults to 2.
-        n_neighbors: the number of nearest neighbors when constructing adjacency matrix.. Defaults to 30.
+        n_neighbors: the number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
         reduction_method: Non-linear dimension reduction method to further reduce dimension based on the top
             n_pca_components PCA components. Currently, PSL (probablistic structure learning, a new dimension reduction
             by us), tSNE (fitsne instead of traditional tSNE used) or umap are supported. Defaults to "umap".

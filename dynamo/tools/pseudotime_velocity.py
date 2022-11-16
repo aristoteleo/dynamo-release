@@ -3,6 +3,8 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+from typing import Union
+
 import anndata
 import numpy as np
 from scipy.sparse import csr_matrix, diags, issparse
@@ -13,7 +15,17 @@ from .graph_operators import build_graph, gradop
 from .utils import projection_with_transition_matrix
 
 
-def gradient(E, f, tol=1e-5):
+def gradient(E: Union[csr_matrix, np.ndarray], f: np.ndarray, tol: float = 1e-5) -> csr_matrix:
+    """Calculate the graph's gradient.
+
+    Args:
+        E: the adjacency matrix of the graph.
+        f: the pseudotime matrix.
+        tol: the tolerance of considering a value to be non-zero. Defaults to 1e-5.
+
+    Returns:
+        The gradient of the graph.
+    """
     if issparse(E):
         row, col = E.nonzero()
         val = E.data
@@ -35,7 +47,20 @@ def gradient(E, f, tol=1e-5):
     return G
 
 
-def laplacian(E, convention="graph"):
+def laplacian(E: Union[csr_matrix, np.ndarray], convention: Literal["graph", "diffusion"] = "graph") -> csr_matrix:
+    """Calculate the laplacian of the given graph (here the adjacency matrix).
+
+    Args:
+        E: the adjacency matrix.
+        convention: the convention of results. Could be either "graph" or "diffusion". If "diffusion" is specified, the
+            negative of graph laplacian would be returned. Defaults to "graph".
+
+    Returns:
+        The laplacian matrix.
+
+    Raises:
+        NotImplementedError: invalid `convention`.
+    """
     if issparse(E):
         A = E.copy()
         A.data = np.ones_like(A.data)
@@ -43,15 +68,30 @@ def laplacian(E, convention="graph"):
     else:
         A = np.sign(E)
         L = np.diag(np.sum(A, 0)) - A
-    if convention == "diffusion":
+    if convention == "graph":
+        pass
+    elif convention == "diffusion":
         L = -L
+    else:
+        raise NotImplementedError("The convention is not implemented. ")
 
     L = csr_matrix(L)
 
     return L
 
 
-def pseudotime_transition(E, pseudotime, laplace_weight=10):
+def pseudotime_transition(E: np.ndarray, pseudotime: np.ndarray, laplace_weight: float = 10) -> csr_matrix:
+    """Calculate the transition graph with pseudotime gradient.
+
+    Args:
+        E: the adjacency matrix.
+        pseudotime: the pseudo time value matrix.
+        laplace_weight: the weight of adding laplacian to gradient during calculation of transition graph. Defaults to
+            10.
+
+    Returns:
+        The pseudo-based transition matrix.
+    """
     grad = gradient(E, pseudotime)
     lap = laplacian(E, convention="diffusion")
     T = grad + laplace_weight * lap

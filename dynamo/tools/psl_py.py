@@ -14,19 +14,17 @@ from scipy.sparse.linalg import eigs
 
 
 
-def sqdist(a, b):
-    """calculate the square distance between a, b	
-    Arguments	
-    ---------	
-        a: 'np.ndarray'	
-            A matrix with :math:`D \times N` dimension	
-        b: 'np.ndarray'	
-            A matrix with :math:`D \times N` dimension	
-    Returns	
-    -------	
-    dist: 'np.ndarray'	
-        A numeric value for the different between a and b	
-    """
+def sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Calculate the square distance between a, b
+
+    Args:
+        a: a matrix with D x N dimension.
+        b: a matrix with D x N dimension.
+
+    Returns:
+        The matrix for the square distance. 
+    """    
+
     aa = np.sum(a ** 2, axis=0)
     bb = np.sum(b ** 2, axis=0)
     ab = a.T.dot(b)
@@ -39,45 +37,42 @@ def sqdist(a, b):
     return dist
 
 
-def repmat(X, m, n):
+def repmat(X: np.ndarray, m: int, n: int) -> np.ndarray:
     """This function returns an array containing m (n) copies of A in the row (column) dimensions. The size of B is	
-    size(A)*n when A is a matrix.For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix.	
-    Arguments	
-    ---------	
-        X: 'np.ndarray'	
-            An array like matrix.	
-        m: 'int'	
-            Number of copies on row dimension	
-        n: 'int'	
-            Number of copies on column dimension	
-    Returns	
-    -------	
-    xy_rep: 'np.ndarray'	
-        A matrix of repmat	
-    """
+    size(A)*n when A is a matrix.For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix.
+
+    Args:
+        X: the matrix to be repeated. 
+        m: the number of copies in row. 
+        n: the number of copies in column. 
+
+    Returns:
+        The matrix containing repeating `X`. 
+    """    
+    
     xy_rep = matlib.repmat(X, m, n)
 
     return xy_rep
 
 
-def eye(m, n):
-    """Equivalent of eye (matlab)	
-    Arguments	
-    ---------	
-        m: 'int'	
-            Number of rows	
-        n: 'int'	
-            Number of columns	
-    Returns	
-    -------	
-    mat: 'np.ndarray'	
-        A matrix of eye	
+def eye(m: int, n: int) -> np.ndarray:
+    """Equivalent of eye (matlab). 
+
+    Return a m x n matrix with 0th diagnal to be 1 and the rest to be 0. 
+
+    Args:
+        m: number of rows. 
+        n: number of columns. 
+
+    Returns:
+        The m x n eye matrix. 
     """
+
     mat = np.eye(m, n)
     return mat
 
 
-def diag_mat(values):
+def diag_mat(values: int):
     """Equivalent of diag (matlab)	
     Arguments	
     ---------	
@@ -269,13 +264,18 @@ def psl(
     return (S, Z)
 
 
-def logdet(A):
-    """ Here, A should be a square matrix of double or single class.	
-    If A is singular, it will returns -inf.	
-    Theoretically, this function should be functionally	
-    equivalent to log(det(A)). However, it avoids the	
-    overflow/underflow problems that are likely to	
-    happen when applying det to large matrices.	
-    """
+def logdet(A: np.ndarray) -> float:
+    """Calculate log(det(A)). 
+
+    Compared with calculating log(det(A)) directly, this function avoid the overflow/underflow problems that are likely 
+    to happen when applying det to large matrices.	
+
+    Args:
+        A: an sqaure matrix. 
+
+    Returns:
+        log(det(A)).
+    """    
+
     v = 2 * sum(np.log(np.diag(np.linalg.cholesky(A))))
     return v
