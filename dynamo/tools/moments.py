@@ -929,7 +929,7 @@ def prepare_data_mix_no_splicing(
     layer_t: str,
     use_total_layers: bool = True,
     total_layer: bool = "X_total",
-    mix_model_indices: Optional[list[int]] = None,
+    mix_model_indices: Optional[List[int]] = None,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Prepare data for mixture modeling when assumption is kinetic and data has NO splicing.
 
