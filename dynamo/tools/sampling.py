@@ -172,7 +172,17 @@ def sample_by_velocity(V: np.ndarray, n: int, seed: int = 19491001) -> np.ndarra
     return idx
 
 
-def sample_by_kmeans(X, n, return_index=False):
+def sample_by_kmeans(X: np.ndarray, n: int, return_index: bool = False) -> Optional[np.ndarray]:
+    """Sample method based on kmeans.
+
+    Args:
+        X: coordinates associated to each element in `arr`.
+        n: the number of samples.
+        return_index: whether to return the sample indices. Defaults to False.
+
+    Returns:
+        The sample index array if `return_index` is True.
+    """
     C, _ = kmeans2(X, n)
     nbrs = nearest_neighbors(C, X, k=1).flatten()
 
