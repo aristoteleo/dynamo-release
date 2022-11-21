@@ -1418,7 +1418,7 @@ def streamline_plot(
     cmap: Optional[str] = None,
     color_key: Union[dict, list] = None,
     color_key_cmap: Optional[str] = None,
-    background: Optional[str] = "white",
+    background: Optional[str] = None,
     ncols: int = 4,
     pointsize: Union[None, float] = None,
     figsize: tuple = (6, 4),
