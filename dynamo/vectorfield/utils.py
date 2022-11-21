@@ -13,6 +13,7 @@ from scipy.sparse import issparse
 from scipy.spatial.distance import cdist, pdist
 from tqdm import tqdm
 
+from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_info
 from ..tools.utils import (
     form_triu_matrix,
@@ -21,6 +22,8 @@ from ..tools.utils import (
     timeit,
 )
 from .FixedPoints import FixedPoints
+
+get_vf_dict = DKM.get_vf_dict
 
 
 def is_outside_domain(x, domain):
@@ -223,21 +226,6 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     G = df_kernel + cf_kernel
 
     return G, df_kernel, cf_kernel
-
-
-def get_vf_dict(adata, basis="", vf_key="VecFld"):
-    if basis is not None:
-        if len(basis) > 0:
-            vf_key = "%s_%s" % (vf_key, basis)
-
-    if vf_key not in adata.uns.keys():
-        raise ValueError(
-            f"Vector field function {vf_key} is not included in the adata object! "
-            f"Try firstly running dyn.vf.VectorField(adata, basis='{basis}')"
-        )
-
-    vf_dict = adata.uns[vf_key]
-    return vf_dict
 
 
 def vecfld_from_adata(adata, basis="", vf_key="VecFld"):

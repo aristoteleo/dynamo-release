@@ -137,6 +137,33 @@ class DynamoAdataKeyManager:
     def init_uns_pp_namespace(adata: AnnData):
         adata.uns[DynamoAdataKeyManager.UNS_PP_KEY] = {}
 
+    def get_vf_dict(adata, basis="", vf_key="VecFld"):
+        if basis is not None:
+            if len(basis) > 0:
+                vf_key = "%s_%s" % (vf_key, basis)
+
+        if vf_key not in adata.uns.keys():
+            raise ValueError(
+                f"Vector field function {vf_key} is not included in the adata object! "
+                f"Try firstly running dyn.vf.VectorField(adata, basis='{basis}')"
+            )
+
+        vf_dict = adata.uns[vf_key]
+        return vf_dict
+
+    def vecfld_from_adata(adata, basis="", vf_key="VecFld"):
+        vf_dict = DynamoAdataKeyManager.get_vf_dict(adata, basis=basis, vf_key=vf_key)
+
+        method = vf_dict["method"]
+        if method.lower() == "sparsevfc":
+            func = lambda x: vector_field_function(x, vf_dict)
+        elif method.lower() == "dynode":
+            func = lambda x: dynode_vector_field_function(x, vf_dict)
+        else:
+            raise ValueError(f"current only support two methods, SparseVFC and dynode")
+
+        return vf_dict, func
+
 
 # TODO discuss alias naming convention
 DKM = DynamoAdataKeyManager
