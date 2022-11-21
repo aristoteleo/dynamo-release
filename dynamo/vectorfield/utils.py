@@ -160,7 +160,7 @@ def con_K(x, y, beta, method="cdist", return_d=False):
         # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
         # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
         D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-        K = np.squeeze(np.sum(D ** 2, 1))
+        K = np.squeeze(np.sum(D**2, 1))
     K = -beta * K
     K = np.exp(K)
 
@@ -194,9 +194,9 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     """
     m, d = x.shape
     n, d = y.shape
-    sigma2 = sigma ** 2
+    sigma2 = sigma**2
     G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0])
-    G_tmp = np.squeeze(np.sum(G_tmp ** 2, 1))
+    G_tmp = np.squeeze(np.sum(G_tmp**2, 1))
     G_tmp3 = -G_tmp / sigma2
     G_tmp = -G_tmp / (2 * sigma2)
     G_tmp = np.exp(G_tmp) / sigma2
@@ -608,7 +608,7 @@ def hessian_transformation(H, qi, Qj, Qk):
             The calculated Hessian matrix for the effector i w.r.t regulators j and co-regulators k.
     """
 
-    h = np.einsum("ijk, i -> jk", H, qi)
+    h = np.einsum("ijk, di -> djk", H, qi)
     Qj, Qk = np.atleast_2d(Qj), np.atleast_2d(Qk)
     h = Qj @ h @ Qk.T
 
@@ -642,6 +642,19 @@ def elementwise_hessian_transformation(H, qi, qj, qk):
     h = qj @ h @ qk
 
     return h
+
+
+# ---------------------------------------------------------------------------------------------------
+def Laplacian(H):
+    if H.ndim == 4:
+        L = np.zeros([H.shape[2], H.shape[3]])
+        for sample_indx, i in enumerate(H):
+            for out_indx in range(L.shape[0]):
+                L[out_indx, sample_indx] = np.diag(i[:, :, out_indx, sample_indx]).sum()
+    else:
+        L = np.zeros([H.shape[2], 1])
+        for out_indx in range(L.shape[0]):
+            L[out_indx, 0] = np.diag(H[:, :, out_indx]).sum()
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -771,7 +784,7 @@ def compute_torsion(vf, f_jac, X):
     n = len(X)
 
     tor = np.zeros((n, X.shape[1], X.shape[1]))
-    v, J, a = compute_acceleration(vf, f_jac, X, return_all=True)
+    v, J, a_, a = compute_acceleration(vf, f_jac, X, return_all=True)
 
     for i in tqdm(range(n), desc="Calculating torsion"):
         tor[i] = torsion_(v[i], J[:, :, i], a[i])
@@ -805,7 +818,7 @@ def compute_sensitivity(f_jac, X):
     return S
 
 
-def _curl(f, x, method="analytical", VecFld=None, jac=None):
+def curl3d(f, x, method="analytical", VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
     if jac is None:
         if method == "analytical" and VecFld is not None:
@@ -841,8 +854,8 @@ def compute_curl(f_jac, X):
         curl = np.zeros(n)
         f = curl2d
     else:
-        curl = np.zeros((n, 2, 2))
-        f = _curl
+        curl = np.zeros((n, 3, 3))
+        f = curl3d
 
     for i in tqdm(range(n), desc=f"Calculating {X.shape[1]}-D curl"):
         J = f_jac(X[i])
@@ -1020,7 +1033,7 @@ def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, 
 # answer from crizCraig
 # @njit(cache=True, nogil=True) # causing numba error_write issue
 def angle(vector1, vector2):
-    """ Returns the angle in radians between given vectors"""
+    """Returns the angle in radians between given vectors"""
     v1_norm, v1_u = unit_vector(vector1)
     v2_norm, v2_u = unit_vector(vector2)
 
@@ -1039,7 +1052,7 @@ def angle(vector1, vector2):
 
 # @njit(cache=True, nogil=True) # causing numba error_write issue
 def unit_vector(vector):
-    """ Returns the unit vector of the vector.  """
+    """Returns the unit vector of the vector."""
     vec_norm = np.linalg.norm(vector)
     if vec_norm == 0:
         return vec_norm, vector
@@ -1048,7 +1061,7 @@ def unit_vector(vector):
 
 
 def normalize_vectors(vectors, axis=1, **kwargs):
-    """ Returns the unit vectors of the vectors.  """
+    """Returns the unit vectors of the vectors."""
     vec = np.array(vectors, copy=True)
     vec = np.atleast_2d(vec)
     vec_norm = np.linalg.norm(vec, axis=axis, **kwargs)

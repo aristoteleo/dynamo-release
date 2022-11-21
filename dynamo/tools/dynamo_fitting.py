@@ -72,7 +72,7 @@ def fit_gamma_labelling(t, l, mode=None, lbound=None):
     ym = np.nanmean(y)
 
     # calculate slope
-    var_t = np.nanmean(tau ** 2) - tm ** 2
+    var_t = np.nanmean(tau**2) - tm**2
     cov = np.nansum(y * tau) / n - ym * tm
     k = cov / var_t
 
@@ -117,7 +117,7 @@ def fit_alpha_labelling(t, u, gamma, mode=None):
     ym = np.mean(y)
 
     # calculate slope
-    var_x = np.mean(x ** 2) - xm ** 2
+    var_x = np.mean(x**2) - xm**2
     cov = np.sum(y.dot(x)) / n - ym * xm
     k = cov / var_x
 

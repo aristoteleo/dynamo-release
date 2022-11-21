@@ -1018,7 +1018,7 @@ def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
             d = X[nbr_idx[i][:k]] - X[i]
             dists.append(np.sum(elem_prod(d, d), 1).flatten())
     W = lil_matrix((n, n))
-    s2_inv = 1 / (2 * sigma ** 2)
+    s2_inv = 1 / (2 * sigma**2)
     for i in range(n):
         W[i, nbr_idx[i][:k]] = np.exp(-s2_inv * dists[i][:k] ** 2)
 

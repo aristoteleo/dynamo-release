@@ -685,7 +685,7 @@ def glm_degs(
     if layer is None:
         if issparse(X_data):
             X_data.data = (
-                2 ** X_data.data - 1
+                2**X_data.data - 1
                 if adata.uns["pp"]["norm_method"] == "log2"
                 else np.exp(X_data.data) - 1
                 if adata.uns["pp"]["norm_method"] == "log"
@@ -695,7 +695,7 @@ def glm_degs(
             )
         else:
             X_data = (
-                2 ** X_data - 1
+                2**X_data - 1
                 if adata.uns["pp"]["norm_method"] == "log2"
                 else np.exp(X_data) - 1
                 if adata.uns["pp"]["norm_method"] == "log"

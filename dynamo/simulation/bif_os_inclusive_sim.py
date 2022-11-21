@@ -91,10 +91,10 @@ class sim_diff:
         # propensities
         prop = np.zeros(18)
         # transcription
-        prop[0] = a1 * p1 ** n / (K ** n + p1 ** n) + b1 * K ** n / (K ** n + p2 ** n) + c1  # 0 -> u1
-        prop[1] = a2 * p2 ** n / (K ** n + p2 ** n) + b2 * K ** n / (K ** n + p1 ** n) + c2  # 0 -> u2
-        prop[2] = a1_l * p1 ** n / (K ** n + p1 ** n) + b1_l * K ** n / (K ** n + p2 ** n) + c1_l  # 0 -> w1
-        prop[3] = a2_l * p2 ** n / (K ** n + p2 ** n) + b2_l * K ** n / (K ** n + p1 ** n) + c2_l  # 0 -> w2
+        prop[0] = a1 * p1**n / (K**n + p1**n) + b1 * K**n / (K**n + p2**n) + c1  # 0 -> u1
+        prop[1] = a2 * p2**n / (K**n + p2**n) + b2 * K**n / (K**n + p1**n) + c2  # 0 -> u2
+        prop[2] = a1_l * p1**n / (K**n + p1**n) + b1_l * K**n / (K**n + p2**n) + c1_l  # 0 -> w1
+        prop[3] = a2_l * p2**n / (K**n + p2**n) + b2_l * K**n / (K**n + p1**n) + c2_l  # 0 -> w2
         # splicing
         prop[4] = self.parameters["be1"] * u1  # u1 -> s1
         prop[5] = self.parameters["be2"] * u2  # u2 -> s2
@@ -232,17 +232,17 @@ class sim_osc:
         # transcription
         uw1 = u1 + w1
         uw2 = u2 + w2
-        prop[0] = self.parameters["a1"] * uw1 ** n / (K ** n + uw1 ** n) + self.parameters["b1"] * K ** n / (
-            K ** n + uw2 ** n
+        prop[0] = self.parameters["a1"] * uw1**n / (K**n + uw1**n) + self.parameters["b1"] * K**n / (
+            K**n + uw2**n
         )  # 0 -> u1
-        prop[1] = self.parameters["a2"] * uw2 ** n / (K ** n + uw2 ** n) + self.parameters["b2"] * uw1 ** n / (
-            K ** n + uw1 ** n
+        prop[1] = self.parameters["a2"] * uw2**n / (K**n + uw2**n) + self.parameters["b2"] * uw1**n / (
+            K**n + uw1**n
         )  # 0 -(u1 u2)-> u2
-        prop[2] = self.parameters["a1_l"] * uw1 ** n / (K ** n + uw1 ** n) + self.parameters["b1_l"] * K ** n / (
-            K ** n + uw2 ** n
+        prop[2] = self.parameters["a1_l"] * uw1**n / (K**n + uw1**n) + self.parameters["b1_l"] * K**n / (
+            K**n + uw2**n
         )  # 0 -> u1
-        prop[3] = self.parameters["a2_l"] * uw2 ** n / (K ** n + uw2 ** n) + self.parameters["b2_l"] * uw1 ** n / (
-            K ** n + uw1 ** n
+        prop[3] = self.parameters["a2_l"] * uw2**n / (K**n + uw2**n) + self.parameters["b2_l"] * uw1**n / (
+            K**n + uw1**n
         )  # 0 -(u1 u2)-> u2
         # splicing
         prop[4] = self.parameters["be1"] * u1  # u1 -> s1

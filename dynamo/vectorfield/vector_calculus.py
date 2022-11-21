@@ -235,7 +235,7 @@ def jacobian(
             The number of cells to be sampled. If `sampling` is None, this parameter is ignored.
         basis: str (default: 'pca')
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function
-            that was reconstructed directly from the original unreduced gene expression space.
+            that was reconstructed directly from the original unredu    ced gene expression space.
         Qkey: str (default: 'PCs')
             The key of the PCA loading matrix in `.uns`.
         vector_field_class: :class:`~scVectorField.vectorfield`
@@ -544,6 +544,102 @@ def hessian(
         return adata
     else:
         return ret_dict
+
+
+def laplacian(
+    adata,
+    hkey="hessian_pca",
+    basis="pca",
+    Qkey="PCs",
+    vector_field_class=None,
+    method="analytical",
+    **kwargs,
+):
+    """Calculate Laplacian for each target gene in each cell with the reconstructed vector field.
+
+    If the vector field was reconstructed from the reduced PCA space, the Lapalacian matrix will then be inverse
+    transformed back to high dimension. Note that this should also be possible for reduced UMAP space and will be
+    supported shortly. Note we compute the Lapalacian for the RKHS kernel vector field analytically, which is much
+    more computationally efficient than the numerical method.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field in `.uns` and the `hkey` (the hessian matrix).
+        basis: str (default: 'pca')
+            The embedding data in which the vector field was reconstructed. If `None`, use the vector field function
+            that was reconstructed directly from the original unreduced gene expression space.
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not `None`, the Hessian will be computed using this class instead of the vector field stored in adata.
+        method: str (default: 'analytical')
+            The method that will be used for calculating Laplacian, either `'analytical'` or `'numerical'`.
+            `'analytical'` method uses the analytical expressions for calculating Laplacian while `'numerical'` method
+            uses numdifftools, a numerical differentiation tool, for computing Laplacian. `'analytical'` method is much
+            more efficient.
+        cores: int (default: 1)
+            Number of cores to calculate Hessian. Currently note used.
+        kwargs:
+            Any additional keys that will be passed to elementwise_hessian_transformation function.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `'Laplacian'` key in the `.obs` and `obsm`. The first one is the
+            norm of the Laplacian for all target genes in a cell while the second one is the vector of Laplacian for all
+            target genes in each cell.
+    """
+
+    if hkey not in adata.uns_keys():
+        raise Exception(
+            f"{hkey} is not in adata.uns_keys(). Please first run dyn.vf.hessian(adata) properly before "
+            f"calculating Laplacian. This can be done by calculating Hessian between any three dynamical "
+            f"genes which will generate the Hessian matrix."
+        )
+    else:
+        H = adata.uns[hkey]["hessian"]
+
+    if vector_field_class is None:
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys():
+            vf_dict["method"] = "sparsevfc"
+        if vf_dict["method"].lower() == "sparsevfc":
+            vector_field_class = SvcVectorField()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict["method"].lower() == "dynode":
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = vf_dict["dynode_object"]  # dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError("current only support two methods, SparseVFC and dynode")
+
+    Laplacian_func = vector_field_class.get_Laplacian(method=method)
+    Ls = Laplacian_func(H)
+
+    L_key = "Laplacian" if basis is None else "Laplacian_" + basis
+    adata.obsm[L_key] = Ls
+    adata.obs[L_key] = np.linalg.norm(Ls, axis=0)
+    if basis == "pca":
+        if Qkey in adata.uns.keys():
+            Q = adata.uns[Qkey]
+        elif Qkey in adata.varm.keys():
+            Q = adata.varm[Qkey]
+        else:
+            raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
+        Ls_hi = vector_transformation(Ls, Q)
+        create_layer(
+            adata,
+            Ls_hi,
+            layer_key="laplacian",
+            genes=adata.var.use_for_pca,
+        )
+    elif basis is None:
+        create_layer(
+            adata,
+            Ls,
+            layer_key="laplacian",
+            genes=adata.var.use_for_pca,
+        )
 
 
 def sensitivity(
@@ -921,6 +1017,21 @@ def torsion(adata, basis="umap", vector_field_class=None, **kwargs):
     -------
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the `torsion` key in the .obs.
+
+    Examples
+    --------
+    >>> adata = dyn.sample_data.hematopoiesis()
+    >>> dyn.tl.reduceDimension(adata, n_components=3, enforce=True, embedding_key='X_umap_3d')
+    >>> adata
+    >>> dyn.tl.cell_velocities(adata,
+    >>>                        X=adata.layers["M_t"],
+    >>>                        V=adata.layers["velocity_alpha_minus_gamma_s"],
+    >>>                        basis='umap_3d',
+    >>>                        )
+    >>> dyn.vf.VectorField(adata, basis='umap_3d')
+    >>> dyn.vf.torsion(adata, basis='umap_3d')
+    >>> dyn.pl.streamline_plot(adata, color='torsion_umap_3d', basis='umap_3d')
+    >>> dyn.pl.streamline_plot(adata, color='torsion_umap_3d')
     """
 
     if vector_field_class is None:
@@ -967,7 +1078,9 @@ def curl(adata, basis="umap", vector_field_class=None, method="analytical", **kw
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `'curl'` key in the `.obs`.
+            AnnData object that is updated with the `'curl'` information in the `.obs`. When vector field has three
+            dimension, adata.obs['curl'] (magnitude of curl) and adata.obsm['curl'] (curl vector) will be added; when
+            vector field has two dimension, only adata.obs['curl'] (magnitude of curl) will be provided.
     """
 
     if vector_field_class is None:
@@ -987,7 +1100,12 @@ def curl(adata, basis="umap", vector_field_class=None, method="analytical", **kw
     curl = vector_field_class.compute_curl(X=X, method=method, **kwargs)
     curl_key = "curl" if basis is None else "curl_" + basis
 
-    adata.obs[curl_key] = curl
+    if X.shape[1] == 3:
+        curl_mag = np.array([np.linalg.norm(i) for i in curl])
+        adata.obs[curl_key] = curl_mag
+        adata.obsm[curl_key] = curl
+    else:
+        adata.obs[curl_key] = curl
 
 
 def divergence(
@@ -1685,7 +1803,7 @@ def rank_jacobian_genes(
             rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, output_values=ov, **kwargs)
     elif mode in ["full eff", "full_eff"]:
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(J, reg, eff, n_top_genes=None, output_values=ov, **kwargs)
+            rank_dict[k] = table_top_genes(J.T, reg, eff, n_top_genes=None, output_values=ov, **kwargs)
     elif mode == "reg":
         for k, J in J_mean.items():
             if exclude_diagonal:

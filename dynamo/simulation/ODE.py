@@ -7,33 +7,33 @@ import pandas as pd
 
 # TODO: import from here in ..estimation.fit_jacobian.py
 def hill_inh_func(x, A, K, n, g=0):
-    Kd = K ** n
-    return A * Kd / (Kd + x ** n) - g * x
+    Kd = K**n
+    return A * Kd / (Kd + x**n) - g * x
 
 
 def hill_inh_grad(x, A, K, n, g=0):
-    Kd = K ** n
-    return -A * n * Kd * x ** (n - 1) / (Kd + x ** n) ** 2 - g
+    Kd = K**n
+    return -A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
 def hill_act_func(x, A, K, n, g=0):
-    Kd = K ** n
-    return A * x ** n / (Kd + x ** n) - g * x
+    Kd = K**n
+    return A * x**n / (Kd + x**n) - g * x
 
 
 def hill_act_grad(x, A, K, n, g=0):
-    Kd = K ** n
-    return A * n * Kd * x ** (n - 1) / (Kd + x ** n) ** 2 - g
+    Kd = K**n
+    return A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
 def toggle(ab, t=None, beta=5, gamma=1, n=2):
     """Right hand side (rhs) for toggle ODEs."""
     if len(ab.shape) == 2:
         a, b = ab[:, 0], ab[:, 1]
-        res = np.array([beta / (1 + b ** n) - a, gamma * (beta / (1 + a ** n) - b)]).T
+        res = np.array([beta / (1 + b**n) - a, gamma * (beta / (1 + a**n) - b)]).T
     else:
         a, b = ab
-        res = np.array([beta / (1 + b ** n) - a, gamma * (beta / (1 + a ** n) - b)])
+        res = np.array([beta / (1 + b**n) - a, gamma * (beta / (1 + a**n) - b)])
 
     return res
 
@@ -78,6 +78,27 @@ def jacobian_Ying_model(x, t=None):
     return J
 
 
+def hessian_Ying_model(x, t=None):
+    """network used in the potential landscape paper from Ying, et. al:
+    https://www.nature.com/articles/s41598-017-15889-2.
+    This is also the mixture of Gaussian model.
+    """
+    if len(x.shape) == 2:
+        H = np.zeros([2, 2, 2, x.shape[0]])
+        H[0, 0, 0, :] = -12 * x[:, 0]
+        H[1, 1, 0, :] = -12 * x[:, 1]
+        H[0, 0, 1, :] = 12 * x[:, 0]
+        H[1, 1, 1, :] = -12 * x[:, 1]
+    else:
+        H = np.zeros([2, 2, 2])
+        H[0, 0, 0] = -12 * x[0]
+        H[1, 1, 0] = -12 * x[1]
+        H[0, 0, 1] = 12 * x[0]
+        H[1, 1, 1] = -12 * x[1]
+
+    return H
+
+
 def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
     """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
@@ -100,10 +121,55 @@ def jacobian_bifur2genes(
     """The Jacobian of the toggle switch ODE model."""
     df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
     df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
-    df2_dx1 = hill_act_grad(x[:, 1], a[1], S[1], m[1], g=gamma[1])
-    df2_dx2 = hill_inh_grad(x[:, 0], b[1], K[1], n[1])
+    df2_dx1 = hill_inh_grad(x[:, 0], b[1], K[1], n[1])
+    df2_dx2 = hill_act_grad(x[:, 1], a[1], S[1], m[1], g=gamma[1])
     J = np.array([[df1_dx1, df1_dx2], [df2_dx1, df2_dx2]])
     return J
+
+
+def two_genes_motif_jacobian(x1, x2):
+    """This should be equivalent to jacobian_bifur2genes when using default parameters"""
+    J = np.array(
+        [
+            [
+                0.25 * x1**3 / (0.0625 + x1**4) ** 2 - 1,
+                -0.25 * x2**3 / (0.0625 + x2**4) ** 2,
+            ],
+            [
+                -0.25 * x1**3 / (0.0625 + x1**4) ** 2,
+                0.25 * x2**3 / (0.0625 + x2**4) ** 2 - 1,
+            ],
+        ]
+    )
+    return J
+
+
+def hill_inh_grad2(x, A, K, n):
+    Kd = K**n
+    return A * n * Kd * x ** (n - 2) * ((n + 1) * x**n - Kd * n + Kd) / (Kd + x**n) ** 3
+
+
+def hill_act_grad2(x, A, K, n):
+    Kd = K**n
+    return -A * n * Kd * x ** (n - 2) * ((n + 1) * x**n - Kd * n + Kd) / (Kd + x**n) ** 3
+
+
+def hessian_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], t=None):
+    """The Hessian of the toggle switch ODE model."""
+    if len(x.shape) == 2:
+        H = np.zeros([2, 2, 2, x.shape[0]])
+        H[0, 0, 0, :] = hill_act_grad2(x[:, 0], a[0], S[0], m[0])
+        H[1, 1, 0, :] = hill_inh_grad2(x[:, 1], b[0], K[0], n[0])
+        H[0, 0, 1, :] = hill_inh_grad2(x[:, 0], b[1], K[1], n[1])
+        H[1, 1, 1, :] = hill_act_grad2(x[:, 1], a[1], S[1], m[1])
+    else:
+        H = np.zeros([2, 2, 2])
+        H[0, 0, 0] = hill_act_grad2(x[0], a[0], S[0], m[0])
+        H[1, 1, 0] = hill_inh_grad2(x[1], b[0], K[0], n[0])
+        H[0, 0, 1] = hill_inh_grad2(x[0], b[1], K[1], n[1])
+        H[1, 1, 1] = hill_act_grad2(x[1], a[1], S[1], m[1])
+
+    return H
 
 
 def ode_osc2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
@@ -191,7 +257,7 @@ def neurogenesis(
     dx = np.nan * np.ones(shape=x.shape)
 
     if len(x.shape) == 2:
-        dx[:, 0] = a_s * 1 / (1 + eta ** n * (x[:, 4] + x[:, 10] + x[:, 7]) ** n * x[:, 12] ** n) - k * x[:, 0]
+        dx[:, 0] = a_s * 1 / (1 + eta**n * (x[:, 4] + x[:, 10] + x[:, 7]) ** n * x[:, 12] ** n) - k * x[:, 0]
         dx[:, 1] = a * (x[:, 0] ** n) / (1 + x[:, 0] ** n + x[:, 5] ** n) - k * x[:, 1]
         dx[:, 2] = a * (x[:, 1] ** n) / (1 + x[:, 1] ** n) - k * x[:, 2]
         dx[:, 3] = a * (x[:, 1] ** n) / (1 + x[:, 1] ** n) - k * x[:, 3]
@@ -200,28 +266,28 @@ def neurogenesis(
             - k * x[:, 4]
         )
         dx[:, 5] = a * (x[:, 0] ** n) / (1 + x[:, 0] ** n + x[:, 1] ** n) - k * x[:, 5]
-        dx[:, 6] = a_e * (eta ** n * x[:, 5] ** n) / (1 + eta ** n * x[:, 5] ** n + x[:, 7] ** n) - k * x[:, 6]
-        dx[:, 7] = a_e * (eta ** n * x[:, 5] ** n) / (1 + x[:, 6] ** n + eta ** n * x[:, 5] ** n) - k * x[:, 7]
+        dx[:, 6] = a_e * (eta**n * x[:, 5] ** n) / (1 + eta**n * x[:, 5] ** n + x[:, 7] ** n) - k * x[:, 6]
+        dx[:, 7] = a_e * (eta**n * x[:, 5] ** n) / (1 + x[:, 6] ** n + eta**n * x[:, 5] ** n) - k * x[:, 7]
         dx[:, 8] = (
-            a * (eta ** n * x[:, 5] ** n * x[:, 6] ** n) / (1 + eta ** n * x[:, 5] ** n * x[:, 6] ** n) - k * x[:, 8]
+            a * (eta**n * x[:, 5] ** n * x[:, 6] ** n) / (1 + eta**n * x[:, 5] ** n * x[:, 6] ** n) - k * x[:, 8]
         )
         dx[:, 9] = a * (x[:, 7] ** n) / (1 + x[:, 7] ** n) - k * x[:, 9]
         dx[:, 10] = a_e * (x[:, 8] ** n) / (1 + x[:, 8] ** n) - k * x[:, 10]
-        dx[:, 11] = a * (eta_m ** n * x[:, 7] ** n) / (1 + eta_m ** n * x[:, 7] ** n) - k * x[:, 11]
+        dx[:, 11] = a * (eta_m**n * x[:, 7] ** n) / (1 + eta_m**n * x[:, 7] ** n) - k * x[:, 11]
         dx[:, 12] = mature_mu * (1 - x[:, 12] / mx)
     else:
-        dx[0] = a_s * 1 / (1 + eta ** n * (x[4] + x[10] + x[7]) ** n * x[12] ** n) - k * x[0]
+        dx[0] = a_s * 1 / (1 + eta**n * (x[4] + x[10] + x[7]) ** n * x[12] ** n) - k * x[0]
         dx[1] = a * (x[0] ** n) / (1 + x[0] ** n + x[5] ** n) - k * x[1]
         dx[2] = a * (x[1] ** n) / (1 + x[1] ** n) - k * x[2]
         dx[3] = a * (x[1] ** n) / (1 + x[1] ** n) - k * x[3]
         dx[4] = a_e * (x[2] ** n + x[3] ** n + x[9] ** n) / (1 + x[2] ** n + x[3] ** n + x[9] ** n) - k * x[4]
         dx[5] = a * (x[0] ** n) / (1 + x[0] ** n + x[1] ** n) - k * x[5]
-        dx[6] = a_e * (eta ** n * x[5] ** n) / (1 + eta ** n * x[5] ** n + x[7] ** n) - k * x[6]
-        dx[7] = a_e * (eta ** n * x[5] ** n) / (1 + x[6] ** n + eta ** n * x[5] ** n) - k * x[7]
-        dx[8] = a * (eta ** n * x[5] ** n * x[6] ** n) / (1 + eta ** n * x[5] ** n * x[6] ** n) - k * x[8]
+        dx[6] = a_e * (eta**n * x[5] ** n) / (1 + eta**n * x[5] ** n + x[7] ** n) - k * x[6]
+        dx[7] = a_e * (eta**n * x[5] ** n) / (1 + x[6] ** n + eta**n * x[5] ** n) - k * x[7]
+        dx[8] = a * (eta**n * x[5] ** n * x[6] ** n) / (1 + eta**n * x[5] ** n * x[6] ** n) - k * x[8]
         dx[9] = a * (x[7] ** n) / (1 + x[7] ** n) - k * x[9]
         dx[10] = a_e * (x[8] ** n) / (1 + x[8] ** n) - k * x[10]
-        dx[11] = a * (eta_m ** n * x[7] ** n) / (1 + eta_m ** n * x[7] ** n) - k * x[11]
+        dx[11] = a * (eta_m**n * x[7] ** n) / (1 + eta_m**n * x[7] ** n) - k * x[11]
         dx[12] = mature_mu * (1 - x[12] / mx)
 
     return dx

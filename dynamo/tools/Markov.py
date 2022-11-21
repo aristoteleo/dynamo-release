@@ -264,7 +264,7 @@ def grid_velocity_filter(
         ns = int(np.sqrt(V_grid.shape[0]))
         V_grid = V_grid.T.reshape(2, ns, ns)
 
-        mass = np.sqrt((V_grid ** 2).sum(0))
+        mass = np.sqrt((V_grid**2).sum(0))
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
         else:
@@ -282,7 +282,7 @@ def grid_velocity_filter(
         from ..plot.utils import quiver_autoscaler
 
         if p_mass is None:
-            p_mass = np.sqrt((V_grid ** 2).sum(1))
+            p_mass = np.sqrt((V_grid**2).sum(1))
             if min_mass is None:
                 min_mass = np.clip(np.percentile(p_mass, 5), 1e-5, None)
         else:
@@ -839,12 +839,12 @@ class DiscreteTimeMarkovChain(MarkovChain):
         else:
             if self.D is None:
                 self.eigsys()
-            p = np.real(self.W @ np.diag(self.D ** n) @ np.linalg.inv(self.W)).dot(p0)
+            p = np.real(self.W @ np.diag(self.D**n) @ np.linalg.inv(self.W)).dot(p0)
         return p
 
     def compute_stationary_distribution(self, method="eig"):
         if method == "solve":
-            p = np.real(null_space(self.P - np.eye(self.P.shape[0])[:, 0]).flatten())
+            p = np.real(null_space(self.P - np.eye(self.P.shape[0])[:, 0])[:, 0].flatten())
         else:
             if self.W is None:
                 self.eigsys()
@@ -888,6 +888,18 @@ class DiscreteTimeMarkovChain(MarkovChain):
         ind = np.arange(1, n_dims + 1)
         Y = np.real(self.D[ind] ** t) * np.real(self.U[:, ind])
         return Y
+
+    def simulate_random_walk(self, init_idx, num_steps):
+        P = self.P.copy()
+
+        seq = np.ones(num_steps + 1, dtype=int) * -1
+        seq[0] = init_idx
+        for i in range(1, num_steps + 1):
+            cur_state = seq[i - 1]
+            r = np.random.rand()
+            seq[i] = np.cumsum(P[:, cur_state]).searchsorted(r)
+
+        return seq
 
 
 class ContinuousTimeMarkovChain(MarkovChain):

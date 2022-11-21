@@ -71,9 +71,9 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
 
     # set X_spliced / X_unspliced
     if hasattr(vlm, "S_norm"):
-        layers["X_spliced"] = csr_matrix(2 ** vlm.S_norm - 1).T
+        layers["X_spliced"] = csr_matrix(2**vlm.S_norm - 1).T
     if hasattr(vlm, "U_norm"):
-        layers["X_unspliced"] = csr_matrix(2 ** vlm.U_norm - 1).T
+        layers["X_unspliced"] = csr_matrix(2**vlm.U_norm - 1).T
     if hasattr(vlm, "S_sz") and not hasattr(vlm, "S_norm"):
         layers["X_spliced"] = csr_matrix(vlm.S_sz).T
     if hasattr(vlm, "U_sz") and hasattr(vlm, "U_norm"):
