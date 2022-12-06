@@ -43,6 +43,7 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
 * 2/15/2022: primers and tutorials on least action paths and in silico perturbation are released.
 * 3/14/2022: Since today dynamo has its own logo! Here the arrow represents the RNA velocity vector field, while the helix the RNA molecule and the colored dots RNA metabolic labels (4sU labeling). See [readthedocs](https://dynamo-release.readthedocs.io/en/latest/index.html)
 * 4/14/2022: dynamo 1.1.0 released
+* 11/11/2022: the continuing development of dynamo and the Aristotle ecosystem will be supported by CZI. See [here](https://chanzuckerberg.com/eoss/proposals/predictive-modeling-of-single-cell-multiomics-over-time-and-space/)
 
 ## Discussion 
 Please use github issue tracker to report coding related [issues](https://github.com/aristoteleo/dynamo-release/issues) of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: [dynamo-discussion](https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-itnzjdxs-PV~C3Hr9uOArHZcmv622Kg) (Only a working email address is required from the slack side). 
