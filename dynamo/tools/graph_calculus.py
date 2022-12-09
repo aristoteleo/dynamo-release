@@ -176,6 +176,7 @@ def graphize_velocity_coopt(
 
     for i, x in enumerate(X):
         v, c, idx = V[i], C[i], nbrs[i]
+        c = C[idx]
 
         # normalized differences
         D = X[idx] - x
@@ -220,8 +221,6 @@ def graphize_velocity_coopt(
 
         def fjac(w):
             v_ = w @ D
-            v_norm = np.linalg.norm(v_)
-            u_ = c / c_norm
 
             # reconstruction error
             jac_con = 2 * a * D @ (v_ - v)
@@ -236,7 +235,7 @@ def graphize_velocity_coopt(
             if w_norm == 0 or b == 0:
                 jac_sim = 0
             else:
-                jac_sim = c / (w_norm * c_norm) - w.dot(c) / (w_norm**3 * c_norm) * w
+                jac_sim = b * (c / (w_norm * c_norm) - w.dot(c) / (w_norm**3 * c_norm) * w)
 
             # regularization
             if r == 0:
