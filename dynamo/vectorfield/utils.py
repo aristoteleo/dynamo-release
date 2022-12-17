@@ -11,28 +11,28 @@ from scipy.optimize import fsolve
 from scipy.sparse import issparse
 from scipy.spatial.distance import cdist, pdist
 from tqdm import tqdm
+from anndata import AnnData
 
 from ..dynamo_logger import LoggerManager, main_info
 from ..tools.utils import (
     form_triu_matrix,
     index_condensed_matrix,
-    subset_dict_with_key_list,
     timeit,
 )
-from .FixedPoints import FixedPoints
+from .scVectorField import VecFldDict
 
 
-def is_outside_domain(x, domain: Tuple[float, float]):
+def is_outside_domain(x: np.ndarray, domain: Tuple[float, float]) -> np.ndarray:
     x = x[None, :] if x.ndim == 1 else x
     return np.any(np.logical_or(x < domain[0], x > domain[1]), axis=1)
 
 
-def grad(f, x):
+def grad(f, x) -> nd.Gradient:
     """Gradient of scalar-valued function f evaluated at x"""
     return nd.Gradient(f)(x)
 
 
-def laplacian(f, x):
+def laplacian(f, x) -> float:
     """Laplacian of scalar field f evaluated at x"""
     hes = nd.Hessdiag(f)(x)
     return sum(hes)
@@ -126,7 +126,7 @@ def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
 
 
 @timeit
-def con_K(x: np.ndarray, y: np.ndarray, beta: float=0.1, method: str="cdist", return_d: bool=False) -> Union[Tuple[np.ndarra, np.ndarray], np.ndarray]:
+def con_K(x: np.ndarray, y: np.ndarray, beta: float=0.1, method: str="cdist", return_d: bool=False) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
     Args:
@@ -211,7 +211,20 @@ def con_K_div_cur_free(x: np.ndarray, y: np.ndarray, sigma: int=0.8, eta: float=
     return G, df_kernel, cf_kernel
 
 
-def get_vf_dict(adata, basis="", vf_key="VecFld"):
+def get_vf_dict(adata: AnnData, basis: str="", vf_key: str="VecFld") -> VecFldDict:
+    """Get vector field dictionary from the `.uns` attribute of the AnnData object.
+
+    Args:
+        adata: `AnnData` object
+        basis: string indicating the embedding data to use for calculating velocities. Defaults to "".
+        vf_key: _description_. Defaults to "VecFld".
+
+    Raises:
+        ValueError: if vf_key or vfkey_basis is not included in the adata object.
+
+    Returns:
+        vector field dictionary
+    """
     if basis is not None:
         if len(basis) > 0:
             vf_key = "%s_%s" % (vf_key, basis)
@@ -264,27 +277,21 @@ def vector_transformation(V, Q):
     return V @ Q.T
 
 
-def vector_field_function_transformation(vf_func, Q, func_inv_x):
+def vector_field_function_transformation(vf_func: Callable, Q: np.ndarray, func_inv_x: Callable) -> Callable:
     """Transform vector field function from PCA space to the original space.
     The formula used for transformation:
                                             :math:`\hat{f} = f Q^T`,
     where `Q, f, \hat{f}` are the PCA loading matrix, low dimensional vector field function and the
     transformed high dimensional vector field function.
 
-    Parameters
-    ----------
-        vf_func: callable
-            The vector field function.
-        Q: :class:`~numpy.ndarray`
-            PCA loading matrix with dimension d x k, where d is the dimension of the original space,
+    Args:
+        vf_func: The vector field function.
+        Q: PCA loading matrix with dimension d x k, where d is the dimension of the original space,
             and k the number of leading PCs.
-        func_inv_x: callable
-            The function that transform x back into the PCA space.
+        func_inv_x: The function that transform x back into the PCA space.
 
-    Returns
-    -------
-        ret: callable
-            The transformed vector field function.
+    Returns:
+        The transformed vector field function.
 
     """
     return lambda x: vf_func(func_inv_x(x)) @ Q.T
@@ -292,23 +299,18 @@ def vector_field_function_transformation(vf_func, Q, func_inv_x):
 
 # ---------------------------------------------------------------------------------------------------
 # jacobian
-def Jacobian_rkhs_gaussian(x, vf_dict, vectorize=False):
+def Jacobian_rkhs_gaussian(x: np.ndarray, vf_dict: VecFldDict, vectorize: bool=False) -> np.ndarray:
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
-    Arguments
-    ---------
-    x: :class:`~numpy.ndarray`
-        Coordinates where the Jacobian is evaluated.
-    vf_dict: dict
-        A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+    Args:
+    x: Coordinates where the Jacobian is evaluated.
+    vf_dict: A dictionary containing RKHS vector field control points, Gaussian bandwidth,
         and RKHS coefficients.
         Essential keys: 'X_ctrl', 'beta', 'C'
 
-    Returns
-    -------
-    J: :class:`~numpy.ndarray`
+    Returns:
         Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
-        d is the number of dimensions and n the number of coordinates in x.
+            d is the number of dimensions and n the number of coordinates in x.
     """
     if x.ndim == 1:
         K, D = con_K(x[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
@@ -328,7 +330,7 @@ def Jacobian_rkhs_gaussian(x, vf_dict, vectorize=False):
     return -2 * vf_dict["beta"] * J
 
 
-def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
+def Jacobian_rkhs_gaussian_parallel(x: np.ndarray, vf_dict: VecFldDict, cores: Optional[int]=None) -> np.ndarray:
     n = len(x)
     if cores is None:
         cores = mp.cpu_count()
@@ -345,7 +347,7 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     return ret
 
 
-def Jacobian_numerical(f: Callable, input_vector_convention: str = "row"):
+def Jacobian_numerical(f: Callable, input_vector_convention: str = "row") -> Union[Callable, nd.Jacobian]:
     """
     Get the numerical Jacobian of the vector field function.
     If the input_vector_convention is 'row', it means that fjac takes row vectors
@@ -376,7 +378,7 @@ def Jacobian_numerical(f: Callable, input_vector_convention: str = "row"):
 
 
 @timeit
-def elementwise_jacobian_transformation(Js, qi, qj):
+def elementwise_jacobian_transformation(Js: np.ndarray, qi: np.ndarray, qj: np.ndarray) -> np.ndarray:
     """Inverse transform low dimensional k x k Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to the
     d-dimensional gene expression space. The formula used to inverse transform Jacobian matrix calculated from
     low dimension (PCs) is:
@@ -384,19 +386,13 @@ def elementwise_jacobian_transformation(Js, qi, qj):
     where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
     dimensional Jacobian matrix. This function takes only one row from Q to form qi or qj.
 
-    Parameters
-    ----------
-        Js: :class:`~numpy.ndarray`
-            k x k x n matrices of n k-by-k Jacobians.
-        qi: :class:`~numpy.ndarray`
-            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector gene i.
-        qj: :class:`~numpy.ndarray`
-            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator gene j.
+    Args:
+        Js: k x k x n matrices of n k-by-k Jacobians.
+        qi: The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector gene i.
+        qj: The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator gene j.
 
-    Returns
-    -------
-        ret: :class:`~numpy.ndarray`
-            The calculated Jacobian elements (:math:`\partial F_i / \partial x_j`) for each cell.
+    Returns:
+        The calculated Jacobian elements (:math:`\partial F_i / \partial x_j`) for each cell.
     """
 
     Js = np.atleast_3d(Js)
@@ -411,14 +407,12 @@ def elementwise_jacobian_transformation(Js, qi, qj):
 def Jacobian_kovf(x, fjac_base, K, Q, exact=False, mu=None):
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
-    Arguments
-    ---------
-    x: :class:`~numpy.ndarray`
-        Coordinates where the Jacobian is evaluated.
-    vf_dict: dict
-        A dictionary containing RKHS vector field control points, Gaussian bandwidth,
-        and RKHS coefficients.
-        Essential keys: 'X_ctrl', 'beta', 'C'
+    Args:
+        x: Coordinates where the Jacobian is evaluated.
+        vf_dict:
+            A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+            and RKHS coefficients.
+            Essential keys: 'X_ctrl', 'beta', 'C'
 
     Returns
     -------
@@ -613,27 +607,22 @@ def hessian_transformation(H, qi, Qj, Qk):
     return h
 
 
-def elementwise_hessian_transformation(H, qi, qj, qk):
+def elementwise_hessian_transformation(H: np.ndarray, qi: np.ndarray, qj: np.ndarray, qk: np.ndarray) -> np.ndarray:
     """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`) back to the
     d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated from
     low dimension (PCs) is:
                                             :math:`Jac = Q J Q^T`,
     where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
     dimensional Jacobian matrix. This function takes only one row from Q to form qi or qj.
-    Parameters
-    ----------
-        H: :class:`~numpy.ndarray`
-            k x k x k matrix of the Hessian.
-        qi: :class:`~numpy.ndarray`
-            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector i.
-        qj: :class:`~numpy.ndarray`
-            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator j.
-        qk: :class:`~numpy.ndarray`
-            The k-th row of the PC loading matrix Q with dimension d x k, corresponding to the co-regulator k.
-    Returns
-    -------
-        h: :class:`~numpy.ndarray`
-            The calculated Hessian elements for each cell.
+
+    Args:
+        H: k x k x k matrix of the Hessian.
+        qi: The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector i.
+        qj: The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator j.
+        qk: The k-th row of the PC loading matrix Q with dimension d x k, corresponding to the co-regulator k.
+
+    Returns:
+        h: The calculated Hessian elements for each cell.
     """
 
     h = np.einsum("ijk, i -> jk", H, qi)
@@ -643,7 +632,13 @@ def elementwise_hessian_transformation(H, qi, qj, qk):
 
 
 # ---------------------------------------------------------------------------------------------------
-def Laplacian(H):
+def Laplacian(H: np.ndarray):
+    """
+    Computes the Laplacian of the Hessian matrix by summing the diagonal elements of the Hessian matrix (summing the unmixed second partial derivatives)
+                                            :math: `\Delta f = \sum_{i=1}^{n} \frac{\partial^2 f}{\partial x_i^2}`
+    Args:
+        H: Hessian matrix
+    """
     if H.ndim == 4:
         L = np.zeros([H.shape[2], H.shape[3]])
         for sample_indx, i in enumerate(H):
