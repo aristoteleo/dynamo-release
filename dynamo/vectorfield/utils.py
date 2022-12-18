@@ -2,7 +2,7 @@ from code import interact
 import itertools
 import multiprocessing as mp
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Union, Tuple, Optional
+from typing import Callable, Union, Tuple, Optional, List, Dict
 
 import numdifftools as nd
 import numpy as np
@@ -27,12 +27,12 @@ def is_outside_domain(x: np.ndarray, domain: Tuple[float, float]) -> np.ndarray:
     return np.any(np.logical_or(x < domain[0], x > domain[1]), axis=1)
 
 
-def grad(f, x) -> nd.Gradient:
+def grad(f: Callable, x: np.ndarray) -> nd.Gradient:
     """Gradient of scalar-valued function f evaluated at x"""
     return nd.Gradient(f)(x)
 
 
-def laplacian(f, x) -> float:
+def laplacian(f: Callable, x: np.ndarray) -> float:
     """Laplacian of scalar field f evaluated at x"""
     hes = nd.Hessdiag(f)(x)
     return sum(hes)
@@ -41,9 +41,22 @@ def laplacian(f, x) -> float:
 # ---------------------------------------------------------------------------------------------------
 # vector field function
 @timeit
-def vector_field_function(x, vf_dict, dim=None, kernel="full", X_ctrl_ind=None, **kernel_kwargs):
+def vector_field_function(x: np.ndarray, vf_dict: VecFldDict, dim: Optional[Union[int, np.ndarray]]=None, kernel: str="full", X_ctrl_ind: Optional[List]=None, **kernel_kwargs)-> np.ndarray:
     """vector field function constructed by sparseVFC.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+
+    Args:
+        x: Set of cell expression state samples
+        vf_dict: VecFldDict with stored parameters necessary for reconstruction
+        dim: Index or indices of dimensions of the K gram matrix to return. Defaults to None.
+        kernel: one of {"full", "df_kernel", "cf_kernel"}. Defaults to "full".
+        X_ctrl_ind: Indices of control points at which kernels will be centered. Defaults to None.
+
+    Raises:
+        ValueError: If the kernel value specified is not one of "full", "df_kernel", or "cf_kernel"
+
+    Returns:
+        np.ndarray storing the `dim` dimensions of m x m gram matrix K storing the kernel evaluated at each pair of control points
     """
     # x=np.array(x).reshape((1, -1))
     if "div_cur_free_kernels" in vf_dict.keys():
@@ -93,7 +106,7 @@ def vector_field_function(x, vf_dict, dim=None, kernel="full", X_ctrl_ind=None, 
     return K
 
 
-def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
+def dynode_vector_field_function(x: np.ndarray, vf_dict: VecFldDict, dim: Optional[Union[int, np.ndarray]]=None, **kwargs) -> np.ndarray:
     # try:
     #     import dynode
     #     from dynode.vectorfield import Dynode
@@ -239,7 +252,7 @@ def get_vf_dict(adata: AnnData, basis: str="", vf_key: str="VecFld") -> VecFldDi
     return vf_dict
 
 
-def vecfld_from_adata(adata, basis="", vf_key="VecFld"):
+def vecfld_from_adata(adata: AnnData, basis: str="", vf_key: str="VecFld") -> tuple[VecFldDict, Callable]:
     vf_dict = get_vf_dict(adata, basis=basis, vf_key=vf_key)
 
     method = vf_dict["method"]
@@ -253,26 +266,20 @@ def vecfld_from_adata(adata, basis="", vf_key="VecFld"):
     return vf_dict, func
 
 
-def vector_transformation(V, Q):
+def vector_transformation(V: np.ndarray, Q: np.ndarray) -> np.ndarray:
     """Transform vectors from PCA space to the original space using the formula:
                     :math:`\hat{v} = v Q^T`,
     where `Q, v, \hat{v}` are the PCA loading matrix, low dimensional vector and the
     transformed high dimensional vector.
 
-    Parameters
-    ----------
-        V: :class:`~numpy.ndarray`
-            The n x k array of vectors to be transformed, where n is the number of vectors,
+    Args:
+        V: The n x k array of vectors to be transformed, where n is the number of vectors,
             k the dimension.
-        Q: :class:`~numpy.ndarray`
-            PCA loading matrix with dimension d x k, where d is the dimension of the original space,
+        Q: PCA loading matrix with dimension d x k, where d is the dimension of the original space,
             and k the number of leading PCs.
 
-    Returns
-    -------
-        ret: :class:`~numpy.ndarray`
-            The array of transformed vectors.
-
+    Returns:
+        ret: The array of transformed vectors.
     """
     return V @ Q.T
 
@@ -404,7 +411,7 @@ def elementwise_jacobian_transformation(Js: np.ndarray, qi: np.ndarray, qj: np.n
     return ret
 
 
-def Jacobian_kovf(x, fjac_base, K, Q, exact=False, mu=None):
+def Jacobian_kovf(x: np.ndarray, fjac_base: Callable, K: np.ndarray, Q: np.ndarray, exact: bool=False, mu: Optional[float]=None) -> np.ndarray:
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
     Args:
@@ -414,11 +421,9 @@ def Jacobian_kovf(x, fjac_base, K, Q, exact=False, mu=None):
             and RKHS coefficients.
             Essential keys: 'X_ctrl', 'beta', 'C'
 
-    Returns
-    -------
-    J: :class:`~numpy.ndarray`
+    Returns:
         Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
-        d is the number of dimensions and n the number of coordinates in x.
+            d is the number of dimensions and n the number of coordinates in x.
     """
     if K.ndim == 1:
         K = np.diag(K)
@@ -445,35 +450,24 @@ def Jacobian_kovf(x, fjac_base, K, Q, exact=False, mu=None):
 
 
 @timeit
-def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
+def subset_jacobian_transformation(Js: np.ndarray, Qi: np.ndarray, Qj: np.ndarray, cores: int=1) -> np.ndarray:
     """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.
     The formula used for transformation:
                                             :math:`\hat{J} = Q J Q^T`,
     where `Q, J, \hat{J}` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
     dimensional Jacobian matrix. This function takes multiple rows from Q to form Qi or Qj.
 
-    Parameters
-    ----------
-        fjac: callable
-            The function for calculating numerical Jacobian matrix.
-        X: :class:`~numpy.ndarray`
-            The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
-        Qi: :class:`~numpy.ndarray`
-            PCA loading matrix with dimension n' x n_PCs of the effector genes, from which local dimension Jacobian matrix (k x k)
+    Args:
+        Js: Original (k x k) dimension Jacobian matrix
+        Qi: PCA loading matrix with dimension n' x n_PCs of the effector genes, from which local dimension Jacobian matrix (k x k)
             will be inverse transformed back to high dimension.
-        Qj: :class:`~numpy.ndarray`
-            PCs loading matrix with dimension n' x n_PCs of the regulator genes, from which local dimension Jacobian matrix (k x k)
+        Qj: PCs loading matrix with dimension n' x n_PCs of the regulator genes, from which local dimension Jacobian matrix (k x k)
             will be inverse transformed back to high dimension.
-        cores: int (default: 1):
-            Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
+        cores: Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
-        return_J: bool (default: False)
-            Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
 
-    Returns
-    -------
-        ret: :class:`~numpy.ndarray`
-            The calculated Jacobian matrix (n_gene x n_gene x n_obs) for each cell.
+    Returns:
+        The calculated Jacobian matrix (n_gene x n_gene x n_obs) for each cell.
     """
 
     Js = np.atleast_3d(Js)
@@ -503,7 +497,7 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
     return ret
 
 
-def transform_jacobian(Js, Qi, Qj, pbar=False):
+def transform_jacobian(Js: np.ndarray, Qi: np.ndarray, Qj: np.ndarray, pbar=False) -> np.ndarray:
     d1, d2, n = Qi.shape[0], Qj.shape[0], Js.shape[2]
     ret = np.zeros((d1, d2, n), dtype=np.float32)
     if pbar:
@@ -516,10 +510,17 @@ def transform_jacobian(Js, Qi, Qj, pbar=False):
     return ret
 
 
-def average_jacobian_by_group(Js, group_labels):
+def average_jacobian_by_group(Js: np.ndarray, group_labels: List[str]) -> Dict[str, np.ndarray]:
     """
     Returns a dictionary of averaged jacobians with group names as the keys.
     No vectorized indexing was used due to its high memory cost.
+
+    Args:
+        Js: List of Jacobian matrices
+        group_labels: list of group labels
+
+    Returns:
+        dictionary with group labels as keys and average Jacobians as values
     """
     groups = np.unique(group_labels)
 
@@ -541,23 +542,18 @@ def average_jacobian_by_group(Js, group_labels):
 # Hessian
 
 
-def Hessian_rkhs_gaussian(x, vf_dict):
+def Hessian_rkhs_gaussian(x: np.ndarray, vf_dict: VecFldDict) -> np.ndarray:
     """analytical Hessian for RKHS vector field functions with Gaussian kernel.
 
-    Arguments
-    ---------
-    x: :class:`~numpy.ndarray`
-        Coordinates where the Hessian is evaluated. Note that x has to be 1D.
-    vf_dict: dict
-        A dictionary containing RKHS vector field control points, Gaussian bandwidth,
-        and RKHS coefficients.
-        Essential keys: 'X_ctrl', 'beta', 'C'
+    Args:
+        x: Coordinates where the Hessian is evaluated. Note that x has to be 1D.
+        vf_dict: A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+            and RKHS coefficients.
+            Essential keys: 'X_ctrl', 'beta', 'C'
 
-    Returns
-    -------
-    H: :class:`~numpy.ndarray`
-        Hessian matrix stored as d-by-d-by-d numpy arrays evaluated at x.
-        d is the number of dimensions.
+    Returns:
+        H: Hessian matrix stored as d-by-d-by-d numpy arrays evaluated at x.
+            d is the number of dimensions.
     """
     x = np.atleast_2d(x)
 
@@ -575,7 +571,7 @@ def Hessian_rkhs_gaussian(x, vf_dict):
     return H
 
 
-def hessian_transformation(H, qi, Qj, Qk):
+def hessian_transformation(H: np.ndarray, qi: np.ndarray, Qj: np.ndarray, Qk: np.ndarray) -> np.ndarray:
     """Inverse transform low dimensional k x k x k Hessian matrix (:math:`\partial^2 F_i / \partial x_j \partial x_k`)
     back to the d-dimensional gene expression space. The formula used to inverse transform Hessian matrix calculated
     from low dimension (PCs) is:
@@ -583,21 +579,14 @@ def hessian_transformation(H, qi, Qj, Qk):
     where `q, H, h` are the PCA loading matrix, low dimensional Hessian matrix and the inverse transformed element from
     the high dimensional Hessian matrix.
 
-    Parameters
-    ----------
-        H: :class:`~numpy.ndarray`
-            k x k x k matrix of the Hessian.
-        qi: :class:`~numpy.ndarray`
-            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector i.
-        Qj: :class:`~numpy.ndarray`
-            The submatrix of the PC loading matrix Q with dimension d x k, corresponding to regulators j.
-        Qk: :class:`~numpy.ndarray`
-            The submatrix of the PC loading matrix Q with dimension d x k, corresponding to co-regulators k.
+    Args:
+        H: k x k x k matrix of the Hessian.
+        qi: The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector i.
+        Qj: The submatrix of the PC loading matrix Q with dimension d x k, corresponding to regulators j.
+        Qk: The submatrix of the PC loading matrix Q with dimension d x k, corresponding to co-regulators k.
 
-    Returns
-    -------
-        h: :class:`~numpy.ndarray`
-            The calculated Hessian matrix for the effector i w.r.t regulators j and co-regulators k.
+    Returns:
+        h: The calculated Hessian matrix for the effector i w.r.t regulators j and co-regulators k.
     """
 
     h = np.einsum("ijk, di -> djk", H, qi)
@@ -632,7 +621,7 @@ def elementwise_hessian_transformation(H: np.ndarray, qi: np.ndarray, qj: np.nda
 
 
 # ---------------------------------------------------------------------------------------------------
-def Laplacian(H: np.ndarray):
+def Laplacian(H: np.ndarray) -> None:
     """
     Computes the Laplacian of the Hessian matrix by summing the diagonal elements of the Hessian matrix (summing the unmixed second partial derivatives)
                                             :math: `\Delta f = \sum_{i=1}^{n} \frac{\partial^2 f}{\partial x_i^2}`
@@ -652,19 +641,28 @@ def Laplacian(H: np.ndarray):
 
 # ---------------------------------------------------------------------------------------------------
 # dynamical properties
-def _divergence(f, x):
+def _divergence(f: Callable, x: np.ndarray) -> float:
     """Divergence of the reconstructed vector field function f evaluated at x"""
     jac = nd.Jacobian(f)(x)
     return np.trace(jac)
 
 
 @timeit
-def compute_divergence(f_jac, X, Js=None, vectorize_size=1000):
+def compute_divergence(f_jac: Callable, X: np.ndarray, Js: Optional[np.ndarray]=None, vectorize_size: int=1000) -> np.ndarray:
     """Calculate divergence for many samples by taking the trace of a Jacobian matrix.
 
     vectorize_size is used to control the number of samples computed in each vectorized batch.
         If vectorize_size = 1, there's no vectorization whatsoever.
         If vectorize_size = None, all samples are vectorized.
+
+    Args:
+        f_jac: function for calculating Jacobian from cell states
+        X: cell states
+        Js: Jacobian matrices for each sample, if X is not provided
+        vectorize_size: number of Jacobian matrices to process at once in the vectorization
+
+    Returns:
+        divergence np.ndarray across Jacobians for many samples
     """
     n = len(X)
     if vectorize_size is None:
@@ -677,13 +675,22 @@ def compute_divergence(f_jac, X, Js=None, vectorize_size=1000):
     return div
 
 
-def acceleration_(v, J):
+def acceleration_(v: np.ndarray, J: np.ndarray) -> np.ndarray:
+    """Calculate acceleration by dotting the Jacobian and the velocity vector.
+
+    Args:
+        v: velocity vector
+        J: Jacobian matrix
+
+    Returns:
+        Acceleration vector, with one element for the acceleration of each component
+    """
     if v.ndim == 1:
         v = v[:, None]
     return J.dot(v)
 
 
-def curvature_method1(a: np.array, v: np.array):
+def curvature_method1(a: np.array, v: np.array) -> float:
     """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
     if v.ndim == 1:
         v = v[:, None]
@@ -692,7 +699,7 @@ def curvature_method1(a: np.array, v: np.array):
     return kappa
 
 
-def curvature_method2(a: np.array, v: np.array):
+def curvature_method2(a: np.array, v: np.array) -> float:
     """https://dl.acm.org/doi/10.5555/319351.319441"""
     # if v.ndim == 1: v = v[:, None]
     kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v) ** 4
@@ -859,7 +866,18 @@ def compute_curl(f_jac, X):
 
 # ---------------------------------------------------------------------------------------------------
 # ranking related utilies
-def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False):
+def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    """Calculate ranking of genes based on mean value of matrix.
+
+    Args:
+        mat: A matrix with shape (n, m) where n is the number of samples and m is the number of genes.
+        genes: A list of m gene names.
+        neg: A boolean flag indicating whether the ranking should be in ascending (True) or descending (False) order. Defaults to False (descending order).
+
+    Returns:
+        metric_in_rank: A list of m gene scores, sorted in ascending or descending order depending on the value of neg.
+        genes_in_rank: A list of m gene names, sorted in the same order as metric_in_rank.
+    """
     metric_in_rank = mat.mean(0).A1 if issparse(mat) else mat.mean(0)
     rank = metric_in_rank.argsort() if neg else metric_in_rank.argsort()[::-1]
     metric_in_rank, genes_in_rank = metric_in_rank[rank], genes[rank]
@@ -869,7 +887,21 @@ def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False):
 
 def get_metric_gene_in_rank_by_group(
     mat: np.mat, genes: list, groups: np.array, selected_group, neg: bool = False
-) -> tuple:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate ranking of genes based on mean value of matrix, grouped by selected group.
+
+    Args:
+        mat: A matrix with shape (n, m) where n is the number of samples and m is the number of genes.
+        genes: A list of m gene names.
+        groups: A numpy array with shape (n,) indicating the group membership for each sample.
+        selected_group: The group for which the ranking should be calculated.
+        neg: A boolean flag indicating whether the ranking should be in ascending (True) or descending (False) order. Defaults to False (descending order).
+
+    Returns:
+        gene_wise_metrics: A list of m gene scores, sorted in ascending or descending order depending on the value of neg.
+        group_wise_metrics: A list of m gene scores, calculated as the mean value of mat for samples belonging to the selected group.
+        genes_in_rank: A list of m gene names, sorted in the same order as gene_wise_metrics.
+    """
     mask = groups == selected_group
     if type(mask) == pd.Series:
         mask = mask.values
@@ -884,7 +916,18 @@ def get_metric_gene_in_rank_by_group(
     return gene_wise_metrics, group_wise_metrics, genes_in_rank
 
 
-def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False) -> tuple:
+def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Sort metric and gene lists based on values in dataframe.
+
+    Args:
+        df: A dataframe with shape (m, n) where m is the number of genes and n is the number of samples.
+        genes: A list of m gene names.
+        neg: A boolean flag indicating whether the ranking should be in ascending (True) or descending (False) order. Defaults to False (descending order).
+
+    Returns:
+        sorted_metric: A dataframe with shape (m, n) containing the sorted metric values.
+        sorted_genes: A dataframe with shape (m, n) containing the sorted gene names.
+    """
     sorted_metric = pd.DataFrame(
         {
             key: (sorted(values, reverse=False) if neg else sorted(values, reverse=True))
@@ -901,6 +944,33 @@ def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False)
 
 
 def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, uniq_group: list) -> tuple:
+    """Calculate ranking of genes based on vector calculus metric.
+
+    Args:
+        mat: A matrix with shape (n, m) where n is the number of samples and m is the number of genes.
+        genes: A list of m gene names.
+        group: The group for which the ranking should be calculated. If group is None, the ranking is calculated for all samples.
+        groups: A list of n group labels, indicating the group membership for each sample.
+        uniq_group: A list of unique group labels.
+
+    Returns:
+        If group is None:
+            metric_in_rank: A list of m gene scores, sorted by the mean of the the absolute values of the elements in each column of mat.
+            genes_in_rank: A list of m gene names, sorted in the same order as metric_in_rank.
+            pos_metric_in_rank: A list of m gene scores, sorted by the mean of the positive elements in each column of mat.
+            pos_genes_in_rank: A list of m gene names, sorted in the same order as pos_metric_in_rank.
+            neg_metric_in_rank: A list of m gene scores, calculated as the mean of the negative elements in each column of mat.
+            neg_genes_in_rank: A list of m gene names, sorted in the same order as neg_metric_in_rank.
+        If group is not None:
+            gene_wise_metrics: A dictionary with keys equal to the unique group labels in uniq_group, and values equal to lists of m gene scores, calculated as the mean value of mat for samples belonging to each group.
+            group_wise_metrics: A dictionary with keys equal to the unique group labels in uniq_group, and values equal to lists of m gene scores, calculated as the mean value of mat for samples belonging to each group.
+            gene_wise_genes: A dictionary with keys equal to the unique group labels in uniq_group, and values equal to lists of m gene names, sorted in the same order as the corresponding values in gene_wise_metrics.
+            gene_wise_pos_metrics: A dictionary with keys equal to the unique group labels in uniq_group, and values equal to lists of m gene scores, calculated as the mean value of the positive elements in mat for samples belonging to each group.
+            group_wise_pos_metrics: A dictionary with keys equal to the unique group labels in uniq_group, and values equal to lists of m gene scores, calculated as the mean value of the positive elements in mat for samples belonging to each group.
+            gene_wise_pos_genes: A dictionary with keys equal to the unique group labels in uniq_group, and values equal to lists of m gene names, sorted in the same order as the corresponding values in gene_wise_pos_metrics.
+            gene_wise_neg_metrics: A dictionary with keys equal to the unique group labels in uniq_group, and values equal to lists of m gene scores, calculated as the mean value of the negative elements in mat for samples belonging to each group.
+            group_wise_neg_metrics: A dictionary with keys equal to the unique labels in uniq_group, and values equal to lists of m gene scores, calculated as the mean value of the negative elements in mat for samples belonging to each group.
+    """
     main_info("split mat to a positive matrix and a negative matrix.")
     if issparse(mat):
         mask = mat.data > 0
@@ -1199,19 +1269,13 @@ def parse_int_df(
 ) -> pd.DataFrame:
     """parse the dataframe produced from vector field ranking for gene interactions or switch gene pairs
 
-    Parameters
-    ----------
-    df:
-        The dataframe that returned from performing the `int` or `switch` mode ranking via dyn.vf.rank_jacobian_genes.
-    self_int:
-        Whether to keep self-interactions pairs.
-    genes:
-        List of genes that are used to filter for gene interactions.
+    Args:
+        df: The dataframe that returned from performing the `int` or `switch` mode ranking via dyn.vf.rank_jacobian_genes.
+        self_int: Whether to keep self-interactions pairs.
+        genes: List of genes that are used to filter for gene interactions.
 
-    Returns
-    -------
-    res:
-        The parsed interaction dataframe.
+    Returns:
+        res: The parsed interaction dataframe.
     """
 
     df_shape, columns = df.shape, df.columns
@@ -1248,12 +1312,24 @@ def parse_int_df(
 # ---------------------------------------------------------------------------------------------------
 # jacobian retrival related utilies
 def get_jacobian(
-    adata,
-    regulators,
-    effectors,
+    adata: AnnData,
+    regulators: np.ndarray,
+    effectors: np.ndarray,
     jkey: str = "jacobian",
     j_basis: str = "pca",
-):
+) -> pd.DataFrame:
+    """Return dataframe with Jacobian values (where regulators are in the denominator and effectors in the numerator)
+
+    Args:
+        adata: AnnData object
+        regulators: string labels capturing regulator genes of interest
+        effectors: string labels capturing effector genes of interest
+        jkey: Defaults to "jacobian".
+        j_basis: Defaults to "pca".
+
+    Returns:
+        dataframe with Jacobian values (where regulators are in the denominator and effectors in the numerator)
+    """
 
     regulators, effectors = (
         list(np.unique(regulators)) if regulators is not None else None,
@@ -1304,8 +1380,17 @@ def get_jacobian(
 
 # ---------------------------------------------------------------------------------------------------
 # jacobian subset related utilies
-def subset_jacobian(adata, cells, basis="pca"):
-    """Subset adata object while also subset the jacobian, cells must be a vector of cell indices."""
+def subset_jacobian(adata: AnnData, cells: np.ndarray, basis: str="pca"):
+    """Subset adata object while also subset the jacobian
+
+    Args:
+        adata: AnnData object
+        cells: vector of cell indices
+        basis: string specifying jacobian layer to subset
+
+    Returns:
+        subset of adata
+    """
 
     adata_subset = adata[cells]
 
