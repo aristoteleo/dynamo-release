@@ -342,7 +342,7 @@ def nneighbors(
     color: str = "ntr",
     basis: str = "umap",
     layer: str = "X",
-    highlights: Union[list] = None,
+    highlights: Optional[list] = None,
     ncols: int = 1,
     edge_bundling: Optional[str] = None,
     edge_cmap: str = "gray_r",
