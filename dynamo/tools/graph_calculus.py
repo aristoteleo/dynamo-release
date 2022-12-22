@@ -176,7 +176,7 @@ def graphize_velocity_coopt(
 
     for i, x in enumerate(X):
         v, c, idx = V[i], C[i], nbrs[i]
-        c = C[idx]
+        c = c[idx]
 
         # normalized differences
         D = X[idx] - x
