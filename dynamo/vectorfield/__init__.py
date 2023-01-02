@@ -40,13 +40,18 @@ from .topography import (
 from .utils import get_jacobian, parse_int_df, vector_field_function
 from .vector_calculus import (
     acceleration,
-    aggregateRegEffs,
     curl,
     curvature,
     divergence,
     hessian,
     jacobian,
     laplacian,
+    sensitivity,
+    speed,
+    torsion,
+    velocities,
+)
+from .rank_vf import (
     rank_acceleration_genes,
     rank_cells,
     rank_curvature_genes,
@@ -57,10 +62,7 @@ from .vector_calculus import (
     rank_s_divergence_genes,
     rank_sensitivity_genes,
     rank_velocity_genes,
-    sensitivity,
-    speed,
-    torsion,
-    velocities,
+    aggregateRegEffs,
 )
 
 # vfGraph operation related:

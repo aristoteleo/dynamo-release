@@ -17,8 +17,9 @@ from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..tools.utils import gaussian_1d, inverse_norm, nearest_neighbors, update_dict
 from ..utils import copy_adata
 from .FixedPoints import FixedPoints
-from .scVectorField import BaseVectorField, SvcVectorField, VecFldDict
+from .scVectorField import BaseVectorField, SvcVectorField
 from .utils import (
+    VecFldDict,
     angle,
     dynode_vector_field_function,
     find_fixed_points,
@@ -27,7 +28,6 @@ from .utils import (
     vecfld_from_adata,
     vector_field_function,
 )
-from .vector_calculus import curl, divergence
 
 
 def pac_onestep(x0: np.ndarray, func: Callable, v0: np.ndarray, ds: float=0.01):
@@ -709,7 +709,6 @@ def topography(
 
     return adata
 
-
 def VectorField(
     adata: anndata.AnnData,
     basis: Optional[str] = None,
@@ -1101,6 +1100,7 @@ def VectorField(
                 **tp_kwargs,
             )
     if pot_curl_div:
+        from .vector_calculus import curl, divergence
         logger.info(f"Running ddhodge to estimate vector field based pseudotime in {basis} basis...")
         from ..external.hodge import ddhodge
 

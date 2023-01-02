@@ -1,4 +1,3 @@
-from code import interact
 import itertools
 import multiprocessing as mp
 from multiprocessing.dummy import Pool as ThreadPool
@@ -7,6 +6,8 @@ from typing import Callable, Union, Tuple, Optional, List, Dict
 import numdifftools as nd
 import numpy as np
 import pandas as pd
+import sys
+
 from scipy.optimize import fsolve
 from scipy.sparse import issparse
 from scipy.spatial.distance import cdist, pdist
@@ -19,7 +20,38 @@ from ..tools.utils import (
     index_condensed_matrix,
     timeit,
 )
-from .scVectorField import VecFldDict
+from .FixedPoints import FixedPoints
+
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
+class NormDict(TypedDict):
+    xm: np.ndarray
+    ym: np.ndarray
+    xscale: float
+    yscale: float
+    fix_velocity: bool
+
+class VecFldDict(TypedDict):
+    X: np.ndarray
+    valid_ind: float
+    X_ctrl: np.ndarray
+    ctrl_idx: float
+    Y: np.ndarray
+    beta: float
+    V: np.ndarray
+    C: np.ndarray
+    P: np.ndarray
+    VFCIndex: np.ndarray
+    sigma2: float
+    grid: np.ndarray
+    grid_V: np.ndarray
+    iteration: int
+    tecr_traj: np.ndarray
+    E_traj: np.ndarray
+    norm_dict: NormDict
 
 
 def is_outside_domain(x: np.ndarray, domain: Tuple[float, float]) -> np.ndarray:

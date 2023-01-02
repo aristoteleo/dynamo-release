@@ -27,7 +27,10 @@ from ..tools.utils import (
     update_dict,
     update_n_merge_dict,
 )
+
 from .utils import (
+    NormDict,
+    VecFldDict,
     FixedPoints,
     Hessian_rkhs_gaussian,
     Jacobian_kovf,
@@ -49,32 +52,6 @@ from .utils import (
     vector_field_function,
     vector_transformation,
 )
-
-class NormDict(TypedDict):
-    xm: np.ndarray
-    ym: np.ndarray
-    xscale: float
-    yscale: float
-    fix_velocity: bool
-
-class VecFldDict(TypedDict):
-    X: np.ndarray
-    valid_ind: float
-    X_ctrl: np.ndarray
-    ctrl_idx: float
-    Y: np.ndarray
-    beta: float
-    V: np.ndarray
-    C: np.ndarray
-    P: np.ndarray
-    VFCIndex: np.ndarray
-    sigma2: float
-    grid: np.ndarray
-    grid_V: np.ndarray
-    iteration: int
-    tecr_traj: np.ndarray
-    E_traj: np.ndarray
-    norm_dict: NormDict
 
 def norm(X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: Optional[bool]=True) -> Tuple[np.ndarray, np.ndarray, np.ndarray, NormDict]:
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -227,8 +204,7 @@ def get_P(Y: np.ndarray, V: np.ndarray, sigma2: float, gamma: float, a: float, d
         gamma: Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         a: Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
             outlier's variation space is a.
-        div_cur_free_kernels: A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
-            vector field.
+        div_cur_free_kernels: A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector field.
 
     Returns:
         Tuple of (posterior probability, energy) related to equations 27 and 26 in the SparseVFC paper.
@@ -571,8 +547,15 @@ def SparseVFC(
     logger.finish_progress(progress_name="SparseVFC")
     return VecFld
 
+class BaseVectorField():
+    '''The BaseVectorField class is a base class for storing and manipulating vector fields. A vector field is a function that associates a vector to each point in a certain space.
 
-class BaseVectorField:
+    The BaseVectorField class has a number of methods that allow you to work with vector fields. The __init__ method initializes the object, taking in a number of optional arguments such as X, V, and Grid, which correspond to the coordinates of the points in the vector field, the vector values at those points, and a grid used for evaluating the vector field, respectively.
+
+    The construct_graph method takes in a set of coordinates X and returns a tuple consisting of a matrix of pairwise distances between the points in X and an object for performing nearest neighbor searches. The from_adata method takes in an AnnData object and a basis string, and extracts the coordinates and vector values of the vector field stored in the AnnData object.
+
+    The get_X, get_V, and get_data methods return the coordinates, vector values, and both the coordinates and vector values of the vector field, respectively. The find_fixed_points method searches for fixed points of the vector field function, which are points where the velocity of the vector field is zero. The get_fixed_points method returns the fixed points and their types (stable or unstable). The plot method generates a plot of the vector field.
+    '''
     def __init__(
         self,
         X: Optional[np.ndarray]=None,

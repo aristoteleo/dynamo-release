@@ -3,7 +3,7 @@ import pandas as pd
 import networkx as nx
 
 from ..dynamo_logger import main_debug, main_info, main_tqdm
-from .vector_calculus import rank_jacobian_genes
+from .rank_vf import rank_jacobian_genes
 from typing import Dict, List, Optional, Union
 from anndata import AnnData
 
