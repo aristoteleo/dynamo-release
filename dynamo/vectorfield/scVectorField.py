@@ -1,9 +1,15 @@
 import functools
 import itertools
+import sys
 import warnings
 from abc import abstractmethod
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Dict, List, Literal, Optional, Tuple, TypedDict, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 import matplotlib
 import numpy as np
