@@ -2,12 +2,12 @@
 import datetime
 import os
 import warnings
-from typing import Union, Callable, Optional, List, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 import anndata
-from anndata import AnnData
 import numpy as np
 import scipy.sparse as sp
+from anndata import AnnData
 from scipy.integrate import odeint
 from scipy.linalg import eig
 from scipy.optimize import fsolve
@@ -30,7 +30,7 @@ from .utils import (
 )
 
 
-def pac_onestep(x0: np.ndarray, func: Callable, v0: np.ndarray, ds: float=0.01):
+def pac_onestep(x0: np.ndarray, func: Callable, v0: np.ndarray, ds: float = 0.01):
     """One step of the predictor-corrector method
 
     Args:
@@ -51,7 +51,15 @@ def pac_onestep(x0: np.ndarray, func: Callable, v0: np.ndarray, ds: float=0.01):
     return x1
 
 
-def continuation(x0: np.ndarray, func: Callable, s_max: float, ds: float=0.01, v0: Optional[np.ndarray]=None, param_axis: int=0, param_direction: int=1) -> np.ndarray:
+def continuation(
+    x0: np.ndarray,
+    func: Callable,
+    s_max: float,
+    ds: float = 0.01,
+    v0: Optional[np.ndarray] = None,
+    param_axis: int = 0,
+    param_direction: int = 1,
+) -> np.ndarray:
     """Continually integrate the ODE `func` from x0
 
     Args:
@@ -85,7 +93,9 @@ def continuation(x0: np.ndarray, func: Callable, s_max: float, ds: float=0.01, v
     return np.array(ret)
 
 
-def clip_curves(curves: Union[List[List], List[np.ndarray]], domain: np.ndarray, tol_discont=None) -> Union[List[List], List[np.ndarray]]:
+def clip_curves(
+    curves: Union[List[List], List[np.ndarray]], domain: np.ndarray, tol_discont=None
+) -> Union[List[List], List[np.ndarray]]:
     """Clip curves to the domain
 
     Args:
@@ -123,7 +133,15 @@ def clip_curves(curves: Union[List[List], List[np.ndarray]], domain: np.ndarray,
     return ret
 
 
-def compute_nullclines_2d(X0: Union[List, np.ndarray], fdx: Callable, fdy: Callable, x_range: List, y_range: List, s_max: Optional[float]=None, ds: Optional[float]=None) -> Tuple[List]:
+def compute_nullclines_2d(
+    X0: Union[List, np.ndarray],
+    fdx: Callable,
+    fdy: Callable,
+    x_range: List,
+    y_range: List,
+    s_max: Optional[float] = None,
+    ds: Optional[float] = None,
+) -> Tuple[List]:
     """Compute nullclines of a 2D vector field. Nullclines are curves along which vector field is zero in either the x or y direction.
 
     Args:
@@ -160,7 +178,16 @@ def compute_nullclines_2d(X0: Union[List, np.ndarray], fdx: Callable, fdy: Calla
     return NCx, NCy
 
 
-def compute_separatrices(Xss: np.ndarray, Js: np.ndarray, func: Callable, x_range: List, y_range: List, t: int=50, n_sample: int=500, eps: float=1e-6) -> List:
+def compute_separatrices(
+    Xss: np.ndarray,
+    Js: np.ndarray,
+    func: Callable,
+    x_range: List,
+    y_range: List,
+    t: int = 50,
+    n_sample: int = 500,
+    eps: float = 1e-6,
+) -> List:
     """Compute separatrix based on jacobians at points in `Xss`
 
     Args:
@@ -222,7 +249,7 @@ def set_test_points_on_curve(curve: List[np.ndarray], interval: float) -> np.nda
     return np.array(P)
 
 
-def find_intersection_2d(curve1: List[np.ndarray], curve2: List[np.ndarray], tol_redundant: float=1e-4) -> np.ndarray:
+def find_intersection_2d(curve1: List[np.ndarray], curve2: List[np.ndarray], tol_redundant: float = 1e-4) -> np.ndarray:
     """Compute intersections between curve 1 and curve2
 
     Args:
@@ -251,7 +278,13 @@ def find_intersection_2d(curve1: List[np.ndarray], curve2: List[np.ndarray], tol
     return np.array(P)
 
 
-def find_fixed_points_nullcline(func: Callable, NCx: List[List[np.ndarray]], NCy: List[List[np.ndarray]], sample_interval: float=0.5, tol_redundant: float=1e-4) -> Tuple[np.ndarray, np.ndarray]:
+def find_fixed_points_nullcline(
+    func: Callable,
+    NCx: List[List[np.ndarray]],
+    NCy: List[List[np.ndarray]],
+    sample_interval: float = 0.5,
+    tol_redundant: float = 1e-4,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Find fixed points by computing the intersections of x and y nullclines using `find_intersection_2d` and passing these intersection points as samppling points to `find_fixed_points`.
 
     Args:
@@ -291,7 +324,7 @@ def calc_fft(x):
     return xFFT[: int(n / 2)], freq
 
 
-def dup_osc_idx(x: np.ndarray, n_dom: int=3, tol: float=0.05):
+def dup_osc_idx(x: np.ndarray, n_dom: int = 3, tol: float = 0.05):
     """
     Find the index of the end of the first division in an array where the oscillatory patterns of two consecutive divisions are similar within a given tolerance.
 
@@ -330,7 +363,7 @@ def dup_osc_idx(x: np.ndarray, n_dom: int=3, tol: float=0.05):
     return idx, diff
 
 
-def dup_osc_idx_iter(x: np.ndarray, max_iter: int=5, **kwargs) -> Tuple[int, np.ndarray]:
+def dup_osc_idx_iter(x: np.ndarray, max_iter: int = 5, **kwargs) -> Tuple[int, np.ndarray]:
     """
     Find the index of the end of the first division in an array where the oscillatory patterns of two consecutive divisions are similar within a given tolerance, using iterative search.
 
@@ -361,16 +394,23 @@ def dup_osc_idx_iter(x: np.ndarray, max_iter: int=5, **kwargs) -> Tuple[int, np.
 
 # TODO: This should be inherited from the BaseVectorField/DifferentiatiableVectorField class,
 #       and BifurcationTwoGenes should be inherited from this class.
-class VectorField2D():
-    '''
+class VectorField2D:
+    """
     The VectorField2D class is a class that represents a 2D vector field, which is a type of mathematical object that assigns a 2D vector to each point in a 2D space. This vector field can be defined using a function that returns the vector at each point, or by separate functions for the x and y components of the vector.
 
     The class also has several methods for finding fixed points (points where the vector is zero) in the vector field, as well as for querying the fixed points that have been found. The `find_fixed_points_by_sampling` method uses sampling to find fixed points within a specified range in the x and y dimensions. It does this by generating a set of random or Latin Hypercube Sampled (LHS) points within the specified range, and then using the `find_fixed_points` function to find the fixed points that are closest to these points. The `find_fixed_points function` uses an iterative method to find fixed points, starting from an initial guess and using the Jacobian matrix at each point to update the guess until the fixed point is found to within a certain tolerance.
 
     The `get_Xss_confidence` method estimates the confidence of the fixed points by computing the mean distance of each fixed point to its nearest
     neighbors in the data used to define the vector field. It returns an array of confidence values for each fixed point, with higher values indicating higher confidence.
-    '''
-    def __init__(self, func: Callable, func_vx: Optional[Callable]=None, func_vy: Optional[Callable]=None, X_data: Optional[np.ndarray]=None):
+    """
+
+    def __init__(
+        self,
+        func: Callable,
+        func_vx: Optional[Callable] = None,
+        func_vy: Optional[Callable] = None,
+        X_data: Optional[np.ndarray] = None,
+    ):
         """
         Args:
             func: a function that takes an (n, 2) array of coordinates and returns an (n, 2) array of vectors
@@ -410,7 +450,7 @@ class VectorField2D():
         """
         return len(self.Xss.get_X())
 
-    def get_fixed_points(self, get_types: Optional[bool]=True) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
+    def get_fixed_points(self, get_types: Optional[bool] = True) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
         """
         Get the fixed points stored in the `Xss` attribute, along with their types (stable, saddle, or unstable) if `get_types` is `True`.
 
@@ -436,7 +476,7 @@ class VectorField2D():
                     ftype[i] = -1
             return X, ftype
 
-    def get_Xss_confidence(self, k: Optional[int]=50) -> np.ndarray:
+    def get_Xss_confidence(self, k: Optional[int] = 50) -> np.ndarray:
         """Get the confidence of each fixed point stored in the `Xss` attribute.
 
         Args:
@@ -474,8 +514,15 @@ class VectorField2D():
         confidence /= np.max(confidence)
         return confidence[:-1]
 
-    def find_fixed_points_by_sampling(self, n: int, x_range: Tuple[float, float], y_range: Tuple[float, float], lhs: Optional[bool]=True, tol_redundant: float=1e-4) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        '''
+    def find_fixed_points_by_sampling(
+        self,
+        n: int,
+        x_range: Tuple[float, float],
+        y_range: Tuple[float, float],
+        lhs: Optional[bool] = True,
+        tol_redundant: float = 1e-4,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
         Find fixed points by sampling the vector field within a specified range of coordinates.
 
         Args:
@@ -484,7 +531,7 @@ class VectorField2D():
             y_range: a tuple of two floats specifying the range of y coordinates to sample
             lhs: whether to use Latin Hypercube Sampling to generate the samples. Defaults to `True`.
             tol_redundant: the tolerance for removing redundant fixed points. Defaults to 1e-4.
-        '''
+        """
         if lhs:
             from ..tools.sampling import lhsclassic
 
@@ -502,20 +549,28 @@ class VectorField2D():
         if len(X) > 0:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def find_nearest_fixed_point(self, x: np.ndarray, x_range: Tuple[float, float], y_range: Tuple[float, float], tol_redundant: float=1e-4):
-        '''Find the fixed point closest to a given initial guess within a given range.
+    def find_nearest_fixed_point(
+        self, x: np.ndarray, x_range: Tuple[float, float], y_range: Tuple[float, float], tol_redundant: float = 1e-4
+    ):
+        """Find the fixed point closest to a given initial guess within a given range.
 
         Args:
             x: an array specifying the initial guess
             x_range: a tuple of two floats specifying the range of x coordinates
             y_range: a tuple of two floats specifying the range of y coordinates
                 tol_redundant: the tolerance for removing redundant fixed points. Defaults to 1e-4.
-        '''
+        """
         X, J, _ = find_fixed_points(x, self.func, domain=[x_range, y_range], tol_redundant=tol_redundant)
         if len(X) > 0:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def compute_nullclines(self, x_range: Tuple[float, float], y_range: Tuple[float, float], find_new_fixed_points: Optional[bool]=False, tol_redundant: Optional[float]=1e-4):
+    def compute_nullclines(
+        self,
+        x_range: Tuple[float, float],
+        y_range: Tuple[float, float],
+        find_new_fixed_points: Optional[bool] = False,
+        tol_redundant: Optional[float] = 1e-4,
+    ):
         """Compute nullclines. Nullclines are curves along which vector field is zero along a particular dimension.
 
         Args:
@@ -554,7 +609,16 @@ class VectorField2D():
         return dict_vf
 
 
-def util_topology(adata: AnnData, basis: str, dims: Tuple[int, int], func: Callable, VecFld: VecFldDict, X: Optional[np.ndarray] = None, n: Optional[int]=25, **kwargs):
+def util_topology(
+    adata: AnnData,
+    basis: str,
+    dims: Tuple[int, int],
+    func: Callable,
+    VecFld: VecFldDict,
+    X: Optional[np.ndarray] = None,
+    n: Optional[int] = 25,
+    **kwargs,
+):
     """A function that computes nullclines and fixed points defined by the function func.
 
     Args:
@@ -618,12 +682,12 @@ def util_topology(adata: AnnData, basis: str, dims: Tuple[int, int], func: Calla
 
 def topography(
     adata: AnnData,
-    basis: Optional[str]="umap",
-    layer: Optional[str]=None,
-    X: Optional[np.ndarray]=None,
-    dims: Optional[list]=None,
-    n: Optional[int]=25,
-    VecFld: Optional[VecFldDict]=None,
+    basis: Optional[str] = "umap",
+    layer: Optional[str] = None,
+    X: Optional[np.ndarray] = None,
+    dims: Optional[list] = None,
+    n: Optional[int] = 25,
+    VecFld: Optional[VecFldDict] = None,
     **kwargs,
 ) -> AnnData:
     """Map the topography of the single cell vector field in (first) two dimensions.
@@ -708,6 +772,7 @@ def topography(
         }
 
     return adata
+
 
 def VectorField(
     adata: anndata.AnnData,
@@ -1101,6 +1166,7 @@ def VectorField(
             )
     if pot_curl_div:
         from .vector_calculus import curl, divergence
+
         logger.info(f"Running ddhodge to estimate vector field based pseudotime in {basis} basis...")
         from ..external.hodge import ddhodge
 

@@ -1,4 +1,5 @@
-from typing import Union, List, Optional
+from typing import List, Optional, Union
+
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -21,14 +22,14 @@ from .utils import vecfld_from_adata
 
 def cluster_field(
     adata: AnnData,
-    basis: str="pca",
-    features: List=["speed", "potential", "divergence", "acceleration", "curvature", "curl"],
-    add_embedding_basis: bool=True,
-    embedding_basis: Optional[str]=None,
-    normalize: bool=False,
-    method: str="leiden",
-    cores: int=1,
-    copy: bool=False,
+    basis: str = "pca",
+    features: List = ["speed", "potential", "divergence", "acceleration", "curvature", "curl"],
+    add_embedding_basis: bool = True,
+    embedding_basis: Optional[str] = None,
+    normalize: bool = False,
+    method: str = "leiden",
+    cores: int = 1,
+    copy: bool = False,
     **kwargs,
 ) -> Optional[AnnData]:
     """Cluster cells based on vector field features.

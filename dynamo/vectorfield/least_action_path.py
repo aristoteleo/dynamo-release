@@ -1,6 +1,7 @@
-import numpy as np
-from scipy.optimize import minimize, OptimizeResult
 from typing import Callable, Tuple
+
+import numpy as np
+from scipy.optimize import OptimizeResult, minimize
 
 
 def action(path: np.ndarray, vf_func: Callable, D=1, dt=1) -> float:
@@ -30,7 +31,7 @@ def action_aux(path_flatten, vf_func, dim, start=None, end=None, **kwargs):
     return action(path, vf_func, **kwargs)
 
 
-def action_grad(path: np.ndarray, vf_func: Callable, jac_func: Callable, D: float=1, dt: float=1) -> np.ndarray:
+def action_grad(path: np.ndarray, vf_func: Callable, jac_func: Callable, D: float = 1, dt: float = 1) -> np.ndarray:
     """Compute the gradient of the action with respect to each component of each point in the path using the analytical Jacobian.
 
     Args:
@@ -69,7 +70,15 @@ def reshape_path(path_flatten, dim, start=None, end=None):
     return path
 
 
-def least_action_path(start: np.ndarray, end: np.ndarray, vf_func: Callable, jac_func: Callable, n_points: int=20, init_path: Optional[np.ndarray]=None, D: int=1) -> Tuple[np.ndarray, OptimizeResult]:
+def least_action_path(
+    start: np.ndarray,
+    end: np.ndarray,
+    vf_func: Callable,
+    jac_func: Callable,
+    n_points: int = 20,
+    init_path: Optional[np.ndarray] = None,
+    D: int = 1,
+) -> Tuple[np.ndarray, OptimizeResult]:
     """Compute the least action path between two points using gradient descent optimization.
 
     Args:

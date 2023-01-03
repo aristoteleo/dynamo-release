@@ -1,8 +1,9 @@
+from typing import List, Optional
+
 import numpy as np
+from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
-from anndata import AnnData
-from typing import Optional, List
 
 from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 from ..tools.utils import log1p_
@@ -11,15 +12,15 @@ from .utils import VecFldDict, vecfld_from_adata, vector_field_function
 
 def diffusionMatrix(
     adata: AnnData,
-    X_data: Optional[np.ndarray]=None,
-    V_data: Optional[np.ndarray]=None,
-    genes: Optional[List]=None,
-    layer: Optional[str]=None,
-    basis: str="umap",
-    dims: Optional[List]=None,
-    n: int=30,
-    VecFld: Optional[VecFldDict]=None,
-    residual: str="vector_field",
+    X_data: Optional[np.ndarray] = None,
+    V_data: Optional[np.ndarray] = None,
+    genes: Optional[List] = None,
+    layer: Optional[str] = None,
+    basis: str = "umap",
+    dims: Optional[List] = None,
+    n: int = 30,
+    VecFld: Optional[VecFldDict] = None,
+    residual: str = "vector_field",
 ) -> AnnData:
     """Calculate the diffusion matrix from the estimated velocity vector and the reconstructed vector field.
 

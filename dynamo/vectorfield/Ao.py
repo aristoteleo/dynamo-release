@@ -1,9 +1,12 @@
+from typing import Callable, List, Optional, Tuple, Union
+
 import numpy as np
 from scipy.optimize import least_squares
-from typing import Optional, Union, Tuple, Callable, List
+
 from ..tools.utils import condensed_idx_to_squareform_idx, squareform, timeit
 
 # from scPotential import show_landscape
+
 
 def f_left(X: np.ndarray, F: np.ndarray) -> np.ndarray:
     """An auxiliary function for fast computation of F.X - (F.X)^T"""
@@ -29,7 +32,14 @@ def f_left_jac(q: np.ndarray, F: np.ndarray) -> np.ndarray:
 
 
 @timeit
-def solveQ(D: np.ndarray, F: np.ndarray, q0: Optional[np.ndarray]=None, debug: bool=False, precompute_jac: bool=True, **kwargs) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray, float], Tuple[np.ndarray, np.ndarray]]:
+def solveQ(
+    D: np.ndarray,
+    F: np.ndarray,
+    q0: Optional[np.ndarray] = None,
+    debug: bool = False,
+    precompute_jac: bool = True,
+    **kwargs
+) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray, float], Tuple[np.ndarray, np.ndarray]]:
     """Function to solve for the anti-symmetric Q matrix in the equation:
         F.Q - (F.Q)^T = F.D - (F.D)^T
     using least squares.
@@ -64,7 +74,9 @@ def solveQ(D: np.ndarray, F: np.ndarray, q0: Optional[np.ndarray]=None, debug: b
         return Q, C
 
 
-def Ao_pot_map(vecFunc: Callable, X: np.ndarray, fjac: Optional[Callable]=None, D: Optional[np.ndarray]=None, **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List, List, List]:
+def Ao_pot_map(
+    vecFunc: Callable, X: np.ndarray, fjac: Optional[Callable] = None, D: Optional[np.ndarray] = None, **kwargs
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List, List, List]:
     """Mapping potential landscape with the algorithm developed by Ao method.
     References: Potential in stochastic differential equations: novel construction. Journal of physics A: mathematical and
         general, Ao Ping, 2004

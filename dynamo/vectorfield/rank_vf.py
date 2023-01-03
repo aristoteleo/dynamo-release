@@ -2,15 +2,14 @@
 
 # from anndata._core.views import ArrayView
 # import scipy.sparse as sp
+from typing import Callable, Dict, List, Optional, Union
+
 import numpy as np
 import pandas as pd
 from anndata._core.anndata import AnnData
-from typing import List, Optional, Union, Dict, Callable
 from numpy.typing import DTypeLike
 
-from ..dynamo_logger import (
-    main_info_insert_adata_uns,
-)
+from ..dynamo_logger import main_info_insert_adata_uns
 from ..tools.utils import (
     create_layer,
     get_rank_array,
@@ -20,10 +19,7 @@ from ..tools.utils import (
     table_top_genes,
 )
 from ..utils import isarray, ismatrix
-from .utils import (
-    average_jacobian_by_group,
-    intersect_sources_targets,
-)
+from .utils import average_jacobian_by_group, intersect_sources_targets
 
 try:
     import dynode
@@ -39,13 +35,13 @@ if use_dynode:
 def rank_genes(
     adata: AnnData,
     arr_key: Union[str, np.ndarray],
-    groups: Optional[str]=None,
-    genes: Optional[List]=None,
-    abs: bool=False,
-    normalize: bool=False,
-    fcn_pool: Callable=lambda x: np.mean(x, axis=0),
-    dtype: Optional[DTypeLike]=None,
-    output_values: bool=False,
+    groups: Optional[str] = None,
+    genes: Optional[List] = None,
+    abs: bool = False,
+    normalize: bool = False,
+    fcn_pool: Callable = lambda x: np.mean(x, axis=0),
+    dtype: Optional[DTypeLike] = None,
+    output_values: bool = False,
 ) -> pd.DataFrame:
     """Rank gene's absolute, positive, negative vector field metrics by different cell groups.
 
@@ -113,12 +109,12 @@ def rank_genes(
 def rank_cells(
     adata: AnnData,
     arr_key: Union[str, np.ndarray],
-    groups: Optional[str]=None,
-    genes: Optional[List]=None,
-    abs: bool=False,
-    fcn_pool: Callable=lambda x: np.mean(x, axis=0),
-    dtype: Optional[DTypeLike]=None,
-    output_values: bool=False,
+    groups: Optional[str] = None,
+    genes: Optional[List] = None,
+    abs: bool = False,
+    fcn_pool: Callable = lambda x: np.mean(x, axis=0),
+    dtype: Optional[DTypeLike] = None,
+    output_values: bool = False,
 ) -> pd.DataFrame:
     """Rank cell's absolute, positive, negative vector field metrics by different gene groups.
 
@@ -178,12 +174,12 @@ def rank_cells(
 def rank_cell_groups(
     adata: AnnData,
     arr_key: Union[str, np.ndarray],
-    groups: Optional[str]=None,
-    genes: Optional[List]=None,
-    abs: bool=False,
-    fcn_pool: Callable=lambda x: np.mean(x, axis=0),
-    dtype: Optional[DTypeLike]=None,
-    output_values: bool=False,
+    groups: Optional[str] = None,
+    genes: Optional[List] = None,
+    abs: bool = False,
+    fcn_pool: Callable = lambda x: np.mean(x, axis=0),
+    dtype: Optional[DTypeLike] = None,
+    output_values: bool = False,
 ) -> pd.DataFrame:
     """Rank cell's absolute, positive, negative vector field metrics by different gene groups.
 
@@ -242,7 +238,7 @@ def rank_cell_groups(
     return pd.DataFrame(data=ret_dict)
 
 
-def rank_expression_genes(adata: AnnData, ekey: str="M_s", prefix_store: str="rank", **kwargs) -> AnnData:
+def rank_expression_genes(adata: AnnData, ekey: str = "M_s", prefix_store: str = "rank", **kwargs) -> AnnData:
     """Rank genes based on their expression values for each cell group.
 
     Args:
@@ -307,9 +303,9 @@ def rank_velocity_genes(adata, vkey="velocity_S", prefix_store="rank", **kwargs)
 
 def rank_divergence_genes(
     adata: AnnData,
-    jkey: str="jacobian_pca",
-    genes: Optional[List]=None,
-    prefix_store: str="rank_div_gene",
+    jkey: str = "jacobian_pca",
+    genes: Optional[List] = None,
+    prefix_store: str = "rank_div_gene",
     **kwargs,
 ) -> pd.DataFrame:
     """Rank genes based on their diagonal Jacobian for each cell group.
@@ -371,9 +367,9 @@ def rank_divergence_genes(
 
 def rank_s_divergence_genes(
     adata: AnnData,
-    skey: str="sensitivity_pca",
-    genes: Optional[List]=None,
-    prefix_store: str="rank_s_div_gene",
+    skey: str = "sensitivity_pca",
+    genes: Optional[List] = None,
+    prefix_store: str = "rank_s_div_gene",
     **kwargs,
 ) -> pd.DataFrame:
     """Rank genes based on their diagonal Sensitivity for each cell group.
@@ -466,7 +462,7 @@ def rank_acceleration_genes(adata, akey="acceleration", prefix_store="rank", **k
     return adata
 
 
-def rank_curvature_genes(adata: AnnData, ckey: str="curvature", prefix_store: str="rank", **kwargs):
+def rank_curvature_genes(adata: AnnData, ckey: str = "curvature", prefix_store: str = "rank", **kwargs):
     """Rank gene's absolute, positive, negative curvature by different cell groups.
 
     Args:
@@ -500,13 +496,13 @@ def rank_curvature_genes(adata: AnnData, ckey: str="curvature", prefix_store: st
 
 def rank_jacobian_genes(
     adata: AnnData,
-    groups: Optional[str]=None,
-    jkey: str="jacobian_pca",
-    abs: bool=False,
-    mode: str="full reg",
-    exclude_diagonal: bool=False,
-    normalize: bool=False,
-    return_df: bool=False,
+    groups: Optional[str] = None,
+    jkey: str = "jacobian_pca",
+    abs: bool = False,
+    mode: str = "full reg",
+    exclude_diagonal: bool = False,
+    normalize: bool = False,
+    return_df: bool = False,
     **kwargs,
 ) -> Optional[pd.DataFrame]:
     """Rank genes or gene-gene interactions based on their Jacobian elements for each cell group.
@@ -632,11 +628,11 @@ def rank_jacobian_genes(
 
 def rank_sensitivity_genes(
     adata: AnnData,
-    groups: Optional[str]=None,
-    skey: str="sensitivity_pca",
-    abs: bool=False,
-    mode: str="full reg",
-    exclude_diagonal: bool=False,
+    groups: Optional[str] = None,
+    skey: str = "sensitivity_pca",
+    abs: bool = False,
+    mode: str = "full reg",
+    exclude_diagonal: bool = False,
     **kwargs,
 ) -> pd.DataFrame:
     """Rank genes or gene-gene interactions based on their sensitivity elements for each cell group.
@@ -739,12 +735,12 @@ def rank_sensitivity_genes(
 # aggregate regulators or targets
 def aggregateRegEffs(
     adata: AnnData,
-    data_dict: Optional[Dict]=None,
-    reg_dict: Optional[Dict]=None,
-    eff_dict: Optional[Dict]=None,
-    key: str="jacobian",
-    basis: str="pca",
-    store_in_adata: bool=True,
+    data_dict: Optional[Dict] = None,
+    reg_dict: Optional[Dict] = None,
+    eff_dict: Optional[Dict] = None,
+    key: str = "jacobian",
+    basis: str = "pca",
+    store_in_adata: bool = True,
 ) -> Union[AnnData, Dict]:
     """Aggregate multiple genes' Jacobian or sensitivity.
 

@@ -2,10 +2,11 @@
 
 # from anndata._core.views import ArrayView
 # import scipy.sparse as sp
+from typing import Dict, List, Optional, Union
+
 import numpy as np
 import pandas as pd
 from anndata._core.anndata import AnnData
-from typing import List, Optional, Union, Dict
 
 from ..dynamo_logger import (
     LoggerManager,
@@ -53,10 +54,7 @@ if use_dynode:
     from .utils import dynode_vector_field_function
 
 
-def get_vf_class(
-    adata: AnnData,
-    basis: str = "pca"
-) -> SvcVectorField:
+def get_vf_class(adata: AnnData, basis: str = "pca") -> SvcVectorField:
     vf_dict = get_vf_dict(adata, basis=basis)
     if "method" not in vf_dict.keys():
         vf_dict["method"] = "sparsevfc"
@@ -72,7 +70,14 @@ def get_vf_class(
 
 
 def velocities(
-    adata: AnnData, init_cells: Optional[List] = None, init_states: Optional[list]=None, basis: Optional[str]=None, vector_field_class: Optional[scVectorField.BaseVectorField]=None, layer: Optional[str]="X", dims: Optional[Union[int, list]]=None, Qkey: str="PCs"
+    adata: AnnData,
+    init_cells: Optional[List] = None,
+    init_states: Optional[list] = None,
+    basis: Optional[str] = None,
+    vector_field_class: Optional[scVectorField.BaseVectorField] = None,
+    layer: Optional[str] = "X",
+    dims: Optional[Union[int, list]] = None,
+    Qkey: str = "PCs",
 ) -> AnnData:
     """Calculate the velocities for any cell state with the reconstructed vector field function.
 
@@ -138,9 +143,9 @@ def velocities(
 
 def speed(
     adata: AnnData,
-    basis: Optional[str]="umap",
-    vector_field_class: Optional[scVectorField.BaseVectorField]=None,
-    method: str="analytical",
+    basis: Optional[str] = "umap",
+    vector_field_class: Optional[scVectorField.BaseVectorField] = None,
+    method: str = "analytical",
 ) -> AnnData:
     """Calculate the speed for each cell with the reconstructed vector field function.
 
@@ -176,16 +181,16 @@ def speed(
 
 def jacobian(
     adata: AnnData,
-    regulators: Optional[List]=None,
-    effectors: Optional[List]=None,
-    cell_idx: Optional[List]=None,
-    sampling: Optional[str]=None,
-    sample_ncells: int=1000,
-    basis: str="pca",
-    Qkey: str="PCs",
-    vector_field_class: Optional[scVectorField.BaseVectorField]=None,
-    method: str="analytical",
-    store_in_adata: bool=True,
+    regulators: Optional[List] = None,
+    effectors: Optional[List] = None,
+    cell_idx: Optional[List] = None,
+    sampling: Optional[str] = None,
+    sample_ncells: int = 1000,
+    basis: str = "pca",
+    Qkey: str = "PCs",
+    vector_field_class: Optional[scVectorField.BaseVectorField] = None,
+    method: str = "analytical",
+    store_in_adata: bool = True,
     **kwargs,
 ):
     """Calculate Jacobian for each cell with the reconstructed vector field.
@@ -320,15 +325,15 @@ def hessian(
     adata: AnnData,
     regulators: List,
     coregulators: List,
-    effector: Optional[List]=None,
-    cell_idx: Optional[List]=None,
-    sampling: Optional[bool]=None,
-    sample_ncells: int=1000,
-    basis: str="pca",
-    Qkey: str="PCs",
-    vector_field_class: Optional[scVectorField.BaseVectorField]=None,
-    method: str="analytical",
-    store_in_adata: bool=True,
+    effector: Optional[List] = None,
+    cell_idx: Optional[List] = None,
+    sampling: Optional[bool] = None,
+    sample_ncells: int = 1000,
+    basis: str = "pca",
+    Qkey: str = "PCs",
+    vector_field_class: Optional[scVectorField.BaseVectorField] = None,
+    method: str = "analytical",
+    store_in_adata: bool = True,
     **kwargs,
 ):
     """Calculate Hessian for each cell with the reconstructed vector field.
@@ -481,11 +486,11 @@ def hessian(
 
 def laplacian(
     adata: AnnData,
-    hkey: str="hessian_pca",
-    basis: str="pca",
-    Qkey: str="PCs",
-    vector_field_class: Optional[scVectorField.BaseVectorField]=None,
-    method: str="analytical",
+    hkey: str = "hessian_pca",
+    basis: str = "pca",
+    Qkey: str = "PCs",
+    vector_field_class: Optional[scVectorField.BaseVectorField] = None,
+    method: str = "analytical",
     **kwargs,
 ):
     """Calculate Laplacian for each target gene in each cell with the reconstructed vector field.
@@ -556,17 +561,17 @@ def laplacian(
 
 def sensitivity(
     adata: AnnData,
-    regulators: Optional[List]=None,
-    effectors: Optional[List]=None,
-    cell_idx: Optional[List]=None,
-    sampling: Optional[str]=None,
-    sample_ncells: int=1000,
-    basis: str="pca",
-    Qkey: str="PCs",
-    vector_field_class: Optional[scVectorField.BaseVectorField]=None,
-    method: str="analytical",
-    projection_method: str="from_jacobian",
-    store_in_adata: bool=True,
+    regulators: Optional[List] = None,
+    effectors: Optional[List] = None,
+    cell_idx: Optional[List] = None,
+    sampling: Optional[str] = None,
+    sample_ncells: int = 1000,
+    basis: str = "pca",
+    Qkey: str = "PCs",
+    vector_field_class: Optional[scVectorField.BaseVectorField] = None,
+    method: str = "analytical",
+    projection_method: str = "from_jacobian",
+    store_in_adata: bool = True,
     **kwargs,
 ) -> Union[AnnData, Dict]:
     """Calculate Sensitivity matrix for each cell with the reconstructed vector field.
@@ -729,10 +734,10 @@ def sensitivity(
 
 def acceleration(
     adata: AnnData,
-    basis: str="umap",
-    vector_field_class: Optional[scVectorField.BaseVectorField]=None,
-    Qkey: str="PCs",
-    method: str="analytical",
+    basis: str = "umap",
+    vector_field_class: Optional[scVectorField.BaseVectorField] = None,
+    Qkey: str = "PCs",
+    method: str = "analytical",
     **kwargs,
 ):
     """Calculate acceleration for each cell with the reconstructed vector field function. AnnData object is updated with the `'acceleration'` key in the `.obs` as well as .obsm. If basis is `pca`, acceleration matrix will be inverse transformed back to original high dimension space.
@@ -840,7 +845,9 @@ def curvature(
         )
 
 
-def torsion(adata: AnnData, basis: str="umap", vector_field_class: Optional[scVectorField.BaseVectorField]=None, **kwargs):
+def torsion(
+    adata: AnnData, basis: str = "umap", vector_field_class: Optional[scVectorField.BaseVectorField] = None, **kwargs
+):
     """Calculate torsion for each cell with the reconstructed vector field function. AnnData object that is updated with the `torsion` key in the .obs.
 
     Args:
@@ -882,7 +889,13 @@ def torsion(adata: AnnData, basis: str="umap", vector_field_class: Optional[scVe
     adata.uns[torsion_key] = torsion_mat
 
 
-def curl(adata: AnnData, basis: str="umap", vector_field_class: Optional[scVectorField.BaseVectorField]=None, method: str="analytical", **kwargs):
+def curl(
+    adata: AnnData,
+    basis: str = "umap",
+    vector_field_class: Optional[scVectorField.BaseVectorField] = None,
+    method: str = "analytical",
+    **kwargs,
+):
     """Calculate Curl for each cell with the reconstructed vector field function. AnnData object is updated with the `'curl'` information in the `.
     obs`. When vector field has three dimension, adata.obs['curl'] (magnitude of curl) and adata.obsm['curl'] (curl vector) will be added; when vector field has two dimension, only adata.obs['curl'] (magnitude of curl) will be provided.
 
@@ -913,13 +926,13 @@ def curl(adata: AnnData, basis: str="umap", vector_field_class: Optional[scVecto
 
 def divergence(
     adata: AnnData,
-    cell_idx: bool=None,
-    sampling: bool=None,
-    sample_ncells: int=1000,
-    basis: str="pca",
+    cell_idx: bool = None,
+    sampling: bool = None,
+    sample_ncells: int = 1000,
+    basis: str = "pca",
     vector_field_class=None,
-    method: str="analytical",
-    store_in_adata: bool=True,
+    method: str = "analytical",
+    store_in_adata: bool = True,
     **kwargs,
 ) -> Optional[np.ndarray]:
     """Calculate divergence for each cell with the reconstructed vector field function. Either AnnData object is updated with the `'divergence'` key in the `.obs` or the divergence is returned as a numpy array.

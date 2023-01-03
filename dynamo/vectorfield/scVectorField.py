@@ -1,19 +1,19 @@
 import functools
 import itertools
 import warnings
-import matplotlib
+from abc import abstractmethod
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Union, Optional, Tuple, TypedDict, Dict, Literal, List
+from typing import Callable, Dict, List, Literal, Optional, Tuple, TypedDict, Union
 
+import matplotlib
 import numpy as np
 import numpy.matlib
 import scipy.sparse as sp
+from anndata import AnnData
 from numpy import format_float_scientific as scinot
 from scipy.linalg import lstsq
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
-from anndata import AnnData
-from abc import abstractmethod
 
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..simulation.ODE import jacobian_bifur2genes, ode_bifur2genes
@@ -27,10 +27,7 @@ from ..tools.utils import (
     update_dict,
     update_n_merge_dict,
 )
-
 from .utils import (
-    NormDict,
-    VecFldDict,
     FixedPoints,
     Hessian_rkhs_gaussian,
     Jacobian_kovf,
@@ -38,6 +35,8 @@ from .utils import (
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
     Laplacian,
+    NormDict,
+    VecFldDict,
     compute_acceleration,
     compute_curl,
     compute_curvature,
@@ -53,7 +52,10 @@ from .utils import (
     vector_transformation,
 )
 
-def norm(X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: Optional[bool]=True) -> Tuple[np.ndarray, np.ndarray, np.ndarray, NormDict]:
+
+def norm(
+    X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: Optional[bool] = True
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, NormDict]:
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
         We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
 
@@ -95,7 +97,7 @@ def norm(X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: Optional[boo
     return X, V, T, norm_dict
 
 
-def bandwidth_rule_of_thumb(X: np.ndarray, return_sigma: Optional[bool]=False) -> Union[Tuple[float, float], float]:
+def bandwidth_rule_of_thumb(X: np.ndarray, return_sigma: Optional[bool] = False) -> Union[Tuple[float, float], float]:
     """
     This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
     https://en.wikipedia.org/wiki/Kernel_density_estimation#A_rule-of-thumb_bandwidth_estimator
@@ -194,7 +196,9 @@ def lstsq_solver(lhs, rhs, method="drouin"):
     return C
 
 
-def get_P(Y: np.ndarray, V: np.ndarray, sigma2: float, gamma: float, a: float, div_cur_free_kernels: Optional[bool]=False) -> Tuple[np.ndarray, np.ndarray]:
+def get_P(
+    Y: np.ndarray, V: np.ndarray, sigma2: float, gamma: float, a: float, div_cur_free_kernels: Optional[bool] = False
+) -> Tuple[np.ndarray, np.ndarray]:
     """GET_P estimates the posterior probability and part of the energy.
 
     Args:
@@ -231,10 +235,10 @@ def graphize_vecfld(
     X: np.ndarray,
     nbrs_idx=None,
     dist=None,
-    k: int=30,
-    distance_free: bool=True,
-    n_int_steps: int=20,
-    cores: int=1,
+    k: int = 30,
+    distance_free: bool = True,
+    n_int_steps: int = 20,
+    cores: int = 1,
 ) -> Tuple[np.ndarray, NearestNeighbors]:
     n, d = X.shape
 
@@ -547,20 +551,22 @@ def SparseVFC(
     logger.finish_progress(progress_name="SparseVFC")
     return VecFld
 
-class BaseVectorField():
-    '''The BaseVectorField class is a base class for storing and manipulating vector fields. A vector field is a function that associates a vector to each point in a certain space.
+
+class BaseVectorField:
+    """The BaseVectorField class is a base class for storing and manipulating vector fields. A vector field is a function that associates a vector to each point in a certain space.
 
     The BaseVectorField class has a number of methods that allow you to work with vector fields. The __init__ method initializes the object, taking in a number of optional arguments such as X, V, and Grid, which correspond to the coordinates of the points in the vector field, the vector values at those points, and a grid used for evaluating the vector field, respectively.
 
     The construct_graph method takes in a set of coordinates X and returns a tuple consisting of a matrix of pairwise distances between the points in X and an object for performing nearest neighbor searches. The from_adata method takes in an AnnData object and a basis string, and extracts the coordinates and vector values of the vector field stored in the AnnData object.
 
     The get_X, get_V, and get_data methods return the coordinates, vector values, and both the coordinates and vector values of the vector field, respectively. The find_fixed_points method searches for fixed points of the vector field function, which are points where the velocity of the vector field is zero. The get_fixed_points method returns the fixed points and their types (stable or unstable). The plot method generates a plot of the vector field.
-    '''
+    """
+
     def __init__(
         self,
-        X: Optional[np.ndarray]=None,
-        V: Optional[np.ndarray]=None,
-        Grid: Optional[np.ndarray]=None,
+        X: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        Grid: Optional[np.ndarray] = None,
         *args,
         **kwargs,
     ):
@@ -570,24 +576,24 @@ class BaseVectorField():
         self.fixed_points = kwargs.pop("fixed_points", None)
         super().__init__(**kwargs)
 
-    def construct_graph(self, X: Optional[np.ndarray]=None, **kwargs) -> Tuple[np.ndarray, NearestNeighbors]:
+    def construct_graph(self, X: Optional[np.ndarray] = None, **kwargs) -> Tuple[np.ndarray, NearestNeighbors]:
         X = self.data["X"] if X is None else X
         return graphize_vecfld(self.func, X, **kwargs)
 
-    def from_adata(self, adata: AnnData, basis: str="", vf_key: str="VecFld"):
+    def from_adata(self, adata: AnnData, basis: str = "", vf_key: str = "VecFld"):
         vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
         self.data["X"] = vf_dict["X"]
         self.data["V"] = vf_dict["Y"]  # use the raw velocity
         self.vf_dict = vf_dict
         self.func = func
 
-    def get_X(self, idx: Optional[int]=None) -> np.ndarray:
+    def get_X(self, idx: Optional[int] = None) -> np.ndarray:
         if idx is None:
             return self.data["X"]
         else:
             return self.data["X"][idx]
 
-    def get_V(self, idx: Optional[int]=None) -> np.ndarray:
+    def get_V(self, idx: Optional[int] = None) -> np.ndarray:
         if idx is None:
             return self.data["V"]
         else:
@@ -596,7 +602,14 @@ class BaseVectorField():
     def get_data(self) -> Tuple[np.ndarray, np.ndarray]:
         return self.data["X"], self.data["V"]
 
-    def find_fixed_points(self, n_x0: int=100, X0: Optional[np.ndarray]=None, domain=None, sampling_method=Literal["random", "velocity", "trn", "kmeans"], **kwargs):
+    def find_fixed_points(
+        self,
+        n_x0: int = 100,
+        X0: Optional[np.ndarray] = None,
+        domain=None,
+        sampling_method=Literal["random", "velocity", "trn", "kmeans"],
+        **kwargs,
+    ):
         """
         Search for fixed points of the vector field function.
 
@@ -648,7 +661,9 @@ class BaseVectorField():
         ftype = self.fixed_points.get_fixed_point_types()
         return Xss, ftype
 
-    def assign_fixed_points(self, domain: Optional[np.ndarray]=None, cores: int=1, **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def assign_fixed_points(
+        self, domain: Optional[np.ndarray] = None, cores: int = 1, **kwargs
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """assign each cell to the associated fixed points
 
         Args:
@@ -712,7 +727,7 @@ class BaseVectorField():
     def integrate(
         self,
         init_states: np.ndarray,
-        dims: Optional[Union[int, list, np.ndarray]]=None,
+        dims: Optional[Union[int, list, np.ndarray]] = None,
         scale=1,
         t_end=None,
         step_size=None,
@@ -776,12 +791,11 @@ class BaseVectorField():
 
 
 class DifferentiableVectorField(BaseVectorField):
-
     @abstractmethod
     def get_Jacobian(self, method=None):
         raise NotImplementedError
 
-    def compute_divergence(self, X: Optional[np.ndarray]=None, method: str="analytical", **kwargs) -> np.ndarray:
+    def compute_divergence(self, X: Optional[np.ndarray] = None, method: str = "analytical", **kwargs) -> np.ndarray:
         """Takes the trace of the jacobian matrix to calculate the divergence.
 
         Args:
@@ -795,7 +809,15 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method)
         return compute_divergence(f_jac, X, **kwargs)
 
-    def compute_curl(self, X: Optional[np.ndarray]=None, method: str="analytical", dim1: int=0, dim2: int=1, dim3: int=2, **kwargs) -> np.ndarray:
+    def compute_curl(
+        self,
+        X: Optional[np.ndarray] = None,
+        method: str = "analytical",
+        dim1: int = 0,
+        dim2: int = 1,
+        dim3: int = 2,
+        **kwargs,
+    ) -> np.ndarray:
         """Curl computation for many samples for 2/3 D systems.
 
         Args:
@@ -816,7 +838,7 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method, **kwargs)
         return compute_curl(f_jac, X, **kwargs)
 
-    def compute_acceleration(self, X: Optional[np.ndarray]=None, method: str="analytical", **kwargs) -> np.ndarray:
+    def compute_acceleration(self, X: Optional[np.ndarray] = None, method: str = "analytical", **kwargs) -> np.ndarray:
         """Calculate acceleration for many samples via
 
         .. math::
@@ -833,7 +855,9 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method)
         return compute_acceleration(self.func, f_jac, X, **kwargs)
 
-    def compute_curvature(self, X: Optional[np.ndarray]=None, method: str="analytical", formula: int=2, **kwargs) -> np.ndarray:
+    def compute_curvature(
+        self, X: Optional[np.ndarray] = None, method: str = "analytical", formula: int = 2, **kwargs
+    ) -> np.ndarray:
         """Calculate curvature for many samples via
 
         Formula 1:
@@ -856,7 +880,7 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method)
         return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
 
-    def compute_torsion(self, X: Optional[np.ndarray]=None, method: str="analytical", **kwargs) -> np.ndarray:
+    def compute_torsion(self, X: Optional[np.ndarray] = None, method: str = "analytical", **kwargs) -> np.ndarray:
         """Calculate torsion for many samples via
 
         .. math::
@@ -873,7 +897,7 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method)
         return compute_torsion(self.func, f_jac, X, **kwargs)
 
-    def compute_sensitivity(self, X: Optional[np.ndarray]=None, method: str="analytical", **kwargs) -> np.ndarray:
+    def compute_sensitivity(self, X: Optional[np.ndarray] = None, method: str = "analytical", **kwargs) -> np.ndarray:
         """Calculate sensitivity for many samples via
 
         .. math::
@@ -892,7 +916,14 @@ class DifferentiableVectorField(BaseVectorField):
 
 
 class SvcVectorField(DifferentiableVectorField):
-    def __init__(self, X: Optional[np.ndarray]=None, V: Optional[np.ndarray]=None, Grid: Optional[np.ndarray]=None, *args, **kwargs):
+    def __init__(
+        self,
+        X: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        Grid: Optional[np.ndarray] = None,
+        *args,
+        **kwargs,
+    ):
         """Initialize the VectorField class.
 
         Args:
@@ -963,7 +994,7 @@ class SvcVectorField(DifferentiableVectorField):
 
         self.norm_dict = {}
 
-    def train(self, normalize: bool=False, **kwargs) -> VecFldDict:
+    def train(self, normalize: bool = False, **kwargs) -> VecFldDict:
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al,
         Pattern Recognition
@@ -1014,12 +1045,14 @@ class SvcVectorField(DifferentiableVectorField):
 
         return self.vf_dict
 
-    def plot_energy(self, figsize: Optional[Tuple[float, float]]=None, fig: Optional[matplotlib.figure.Figure]=None):
+    def plot_energy(
+        self, figsize: Optional[Tuple[float, float]] = None, fig: Optional[matplotlib.figure.Figure] = None
+    ):
         from ..plot.scVectorField import plot_energy
 
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
-    def get_Jacobian(self, method: str="analytical", input_vector_convention: str="row", **kwargs) -> np.ndarray:
+    def get_Jacobian(self, method: str = "analytical", input_vector_convention: str = "row", **kwargs) -> np.ndarray:
         """
         Get the Jacobian of the vector field function.
         If method is 'analytical':
@@ -1054,7 +1087,7 @@ class SvcVectorField(DifferentiableVectorField):
                 f"supports 'analytical', 'numerical', and 'parallel'."
             )
 
-    def get_Hessian(self, method: str="analytical", **kwargs) -> np.ndarray:
+    def get_Hessian(self, method: str = "analytical", **kwargs) -> np.ndarray:
         """
         Get the Hessian of the vector field function.
         If method is 'analytical':
@@ -1078,7 +1111,7 @@ class SvcVectorField(DifferentiableVectorField):
         else:
             raise NotImplementedError(f"The method {method} is not implemented. Currently only supports 'analytical'.")
 
-    def get_Laplacian(self, method: str="analytical", **kwargs) -> np.ndarray:
+    def get_Laplacian(self, method: str = "analytical", **kwargs) -> np.ndarray:
         """
         Get the Laplacian of the vector field. Laplacian is defined as the sum of the diagonal of the Hessian matrix.
         Because Hessian is originally defined for scalar function and here we extend it to vector functions. We will
@@ -1133,7 +1166,17 @@ class SvcVectorField(DifferentiableVectorField):
 
 class KOVectorField(DifferentiableVectorField):
     def __init__(
-        self, X: Optional[np.ndarray]=None, V: Optional[np.ndarray]=None, Grid=None, K=None, func_base: Optional[Callable]=None, fjac_base: Optional[Callable]=None, PCs: Optional[np.ndarray]=None, mean: float=None, *args, **kwargs
+        self,
+        X: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        Grid=None,
+        K=None,
+        func_base: Optional[Callable] = None,
+        fjac_base: Optional[Callable] = None,
+        PCs: Optional[np.ndarray] = None,
+        mean: float = None,
+        *args,
+        **kwargs,
     ):
         """_summary_
 
@@ -1164,6 +1207,7 @@ class KOVectorField(DifferentiableVectorField):
         """
         Reference "In silico perturbation to predict gene-wise perturbation effects and cell fate diversions" in the methods section
         """
+
         def vf_func_perturb(x):
             x_gene = np.abs(x @ self.PCs.T + self.mean)
             v_gene = vector_transformation(self.func_base(x), self.PCs)
@@ -1341,7 +1385,15 @@ def vector_field_function_knockout(
 
 
 class BifurcationTwoGenesVectorField(DifferentiableVectorField):
-    def __init__(self, param_dict, X: Optional[np.ndarray]=None, V: Optional[np.ndarray]=None, Grid: Optional[np.ndarray]=None, *args, **kwargs):
+    def __init__(
+        self,
+        param_dict,
+        X: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        Grid: Optional[np.ndarray] = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(X, V, Grid, *args, **kwargs)
         param_dict_ = param_dict.copy()
         for k in param_dict_.keys():
@@ -1354,7 +1406,7 @@ class BifurcationTwoGenesVectorField(DifferentiableVectorField):
     def get_Jacobian(self, method=None):
         return lambda x: jacobian_bifur2genes(x, **self.vf_dict["params"])
 
-    def find_fixed_points(self, n_x0: int=10, **kwargs):
+    def find_fixed_points(self, n_x0: int = 10, **kwargs):
         a = self.vf_dict["params"]["a"]
         b = self.vf_dict["params"]["b"]
         gamma = self.vf_dict["params"]["gamma"]

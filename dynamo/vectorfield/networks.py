@@ -1,20 +1,21 @@
+from typing import Dict, List, Optional, Union
+
+import networkx as nx
 import numpy as np
 import pandas as pd
-import networkx as nx
+from anndata import AnnData
 
 from ..dynamo_logger import main_debug, main_info, main_tqdm
 from .rank_vf import rank_jacobian_genes
-from typing import Dict, List, Optional, Union
-from anndata import AnnData
 
 
 def get_interaction_in_cluster(
     rank_df_dict: Dict[str, pd.DataFrame],
     group: str,
     genes: List,
-    n_top_genes: int=100,
-    rank_regulators: bool=False,
-    negative_values: bool=False,
+    n_top_genes: int = 100,
+    rank_regulators: bool = False,
+    negative_values: bool = False,
 ) -> pd.DataFrame:
     """Retrieve interactions among input genes given the ranking dataframe.
 
@@ -76,12 +77,12 @@ def get_interaction_in_cluster(
 def build_network_per_cluster(
     adata: AnnData,
     cluster: str,
-    cluster_names: Optional[str]=None,
-    full_reg_rank: Optional[Dict]=None,
-    full_eff_rank: Optional[Dict]=None,
-    genes: Optional[List]=None,
-    n_top_genes: int=100,
-    abs: bool=False,
+    cluster_names: Optional[str] = None,
+    full_reg_rank: Optional[Dict] = None,
+    full_eff_rank: Optional[Dict] = None,
+    genes: Optional[List] = None,
+    n_top_genes: int = 100,
+    abs: bool = False,
 ) -> Dict[str, pd.DataFrame]:
     """Build a cluster specific network between input genes based on ranking information of Jacobian analysis.
 
@@ -169,7 +170,9 @@ def build_network_per_cluster(
     return edges_list
 
 
-def adj_list_to_matrix(adj_list: pd.DataFrame, only_one_edge: bool=False, clr: bool=False, graph: bool=False) -> Union[pd.DataFrame, nx.Graph]:
+def adj_list_to_matrix(
+    adj_list: pd.DataFrame, only_one_edge: bool = False, clr: bool = False, graph: bool = False
+) -> Union[pd.DataFrame, nx.Graph]:
     """Convert a pandas adjacency list (with regulator, target, weight columns) to a processed adjacency matrix (or
     network).
 

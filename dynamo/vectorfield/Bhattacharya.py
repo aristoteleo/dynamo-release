@@ -1,11 +1,16 @@
+from typing import Tuple
+
 import numpy as np
 
 # from scipy.integrate import odeint
 from scipy.interpolate import griddata
-from typing import Tuple
 
 
-def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTimeSteps=1400) -> Tuple[int, np.ndarray, np.ndarray, np.ndarray, int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def path_integral(
+    VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTimeSteps=1400
+) -> Tuple[
+    int, np.ndarray, np.ndarray, np.ndarray, int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+]:
     """A deterministic map of Waddington’s epigenetic landscape for cell fate specification
     Sudin Bhattacharya, Qiang Zhang and Melvin E. Andersen
 
@@ -286,8 +291,8 @@ def alignment(
     attractors_pot: np.ndarray,
     x_path: np.ndarray,
     y_path: np.ndarray,
-    grid: int=100,
-    interpolation_method: str="linear",
+    grid: int = 100,
+    interpolation_method: str = "linear",
 ):
     """Align potential values so all path-potentials end up at same global min and then generate potential surface with
     interpolation on a grid.
@@ -378,5 +383,6 @@ def alignment(
     # print('Ran surface grid-interpolation okay!\n')
 
     return Xgrid, Ygrid, Zgrid
+
 
 # %%

@@ -8,6 +8,19 @@ from .cell_vectors import cell_accelerations, cell_curvatures
 # vector field clustering related:
 from .clustering import cluster_field, streamline_clusters
 from .networks import adj_list_to_matrix, build_network_per_cluster
+from .rank_vf import (
+    aggregateRegEffs,
+    rank_acceleration_genes,
+    rank_cells,
+    rank_curvature_genes,
+    rank_divergence_genes,
+    rank_expression_genes,
+    rank_genes,
+    rank_jacobian_genes,
+    rank_s_divergence_genes,
+    rank_sensitivity_genes,
+    rank_velocity_genes,
+)
 
 # potential related
 from .scPotential import (  # , vector_field_function
@@ -50,19 +63,6 @@ from .vector_calculus import (
     speed,
     torsion,
     velocities,
-)
-from .rank_vf import (
-    rank_acceleration_genes,
-    rank_cells,
-    rank_curvature_genes,
-    rank_divergence_genes,
-    rank_expression_genes,
-    rank_genes,
-    rank_jacobian_genes,
-    rank_s_divergence_genes,
-    rank_sensitivity_genes,
-    rank_velocity_genes,
-    aggregateRegEffs,
 )
 
 # vfGraph operation related:

@@ -1,5 +1,6 @@
-from anndata import AnnData
 from typing import Dict
+
+from anndata import AnnData
 
 from ..tools.cell_velocities import cell_velocities
 from .topography import VectorField
@@ -7,7 +8,13 @@ from .vector_calculus import acceleration, curvature
 
 
 def cell_accelerations(
-    adata: AnnData, vf_basis: str="pca", basis: str="umap", enforce: bool=True, preserve_len: bool=True, other_kernels_dict: Dict={}, **kwargs
+    adata: AnnData,
+    vf_basis: str = "pca",
+    basis: str = "umap",
+    enforce: bool = True,
+    preserve_len: bool = True,
+    other_kernels_dict: Dict = {},
+    **kwargs
 ) -> None:
     """Compute RNA acceleration field via reconstructed vector field and project it to low dimensional embeddings.
 
@@ -93,7 +100,13 @@ def cell_accelerations(
 
 
 def cell_curvatures(
-    adata: AnnData, vf_basis: str="pca", basis: str="umap", enforce: bool=True, preserve_len: bool=True, other_kernels_dict: Dict={}, **kwargs
+    adata: AnnData,
+    vf_basis: str = "pca",
+    basis: str = "umap",
+    enforce: bool = True,
+    preserve_len: bool = True,
+    other_kernels_dict: Dict = {},
+    **kwargs
 ) -> None:
     """Compute RNA curvature field via reconstructed vector field and project it to low dimensional embeddings.
 

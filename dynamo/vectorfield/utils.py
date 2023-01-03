@@ -1,25 +1,20 @@
 import itertools
 import multiprocessing as mp
+import sys
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Union, Tuple, Optional, List, Dict
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numdifftools as nd
 import numpy as np
 import pandas as pd
-import sys
-
+from anndata import AnnData
 from scipy.optimize import fsolve
 from scipy.sparse import issparse
 from scipy.spatial.distance import cdist, pdist
 from tqdm import tqdm
-from anndata import AnnData
 
 from ..dynamo_logger import LoggerManager, main_info
-from ..tools.utils import (
-    form_triu_matrix,
-    index_condensed_matrix,
-    timeit,
-)
+from ..tools.utils import form_triu_matrix, index_condensed_matrix, timeit
 from .FixedPoints import FixedPoints
 
 if sys.version_info >= (3, 8):
@@ -27,12 +22,14 @@ if sys.version_info >= (3, 8):
 else:
     from typing_extensions import TypedDict
 
+
 class NormDict(TypedDict):
     xm: np.ndarray
     ym: np.ndarray
     xscale: float
     yscale: float
     fix_velocity: bool
+
 
 class VecFldDict(TypedDict):
     X: np.ndarray
@@ -73,7 +70,14 @@ def laplacian(f: Callable, x: np.ndarray) -> float:
 # ---------------------------------------------------------------------------------------------------
 # vector field function
 @timeit
-def vector_field_function(x: np.ndarray, vf_dict: VecFldDict, dim: Optional[Union[int, np.ndarray]]=None, kernel: str="full", X_ctrl_ind: Optional[List]=None, **kernel_kwargs)-> np.ndarray:
+def vector_field_function(
+    x: np.ndarray,
+    vf_dict: VecFldDict,
+    dim: Optional[Union[int, np.ndarray]] = None,
+    kernel: str = "full",
+    X_ctrl_ind: Optional[List] = None,
+    **kernel_kwargs,
+) -> np.ndarray:
     """vector field function constructed by sparseVFC.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
@@ -138,7 +142,9 @@ def vector_field_function(x: np.ndarray, vf_dict: VecFldDict, dim: Optional[Unio
     return K
 
 
-def dynode_vector_field_function(x: np.ndarray, vf_dict: VecFldDict, dim: Optional[Union[int, np.ndarray]]=None, **kwargs) -> np.ndarray:
+def dynode_vector_field_function(
+    x: np.ndarray, vf_dict: VecFldDict, dim: Optional[Union[int, np.ndarray]] = None, **kwargs
+) -> np.ndarray:
     # try:
     #     import dynode
     #     from dynode.vectorfield import Dynode
@@ -171,7 +177,9 @@ def dynode_vector_field_function(x: np.ndarray, vf_dict: VecFldDict, dim: Option
 
 
 @timeit
-def con_K(x: np.ndarray, y: np.ndarray, beta: float=0.1, method: str="cdist", return_d: bool=False) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
+def con_K(
+    x: np.ndarray, y: np.ndarray, beta: float = 0.1, method: str = "cdist", return_d: bool = False
+) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
     Args:
@@ -205,7 +213,9 @@ def con_K(x: np.ndarray, y: np.ndarray, beta: float=0.1, method: str="cdist", re
 
 
 @timeit
-def con_K_div_cur_free(x: np.ndarray, y: np.ndarray, sigma: int=0.8, eta: float=0.5) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def con_K_div_cur_free(
+    x: np.ndarray, y: np.ndarray, sigma: int = 0.8, eta: float = 0.5
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Construct a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
     and a combination coefficient gamma.
 
@@ -256,7 +266,7 @@ def con_K_div_cur_free(x: np.ndarray, y: np.ndarray, sigma: int=0.8, eta: float=
     return G, df_kernel, cf_kernel
 
 
-def get_vf_dict(adata: AnnData, basis: str="", vf_key: str="VecFld") -> VecFldDict:
+def get_vf_dict(adata: AnnData, basis: str = "", vf_key: str = "VecFld") -> VecFldDict:
     """Get vector field dictionary from the `.uns` attribute of the AnnData object.
 
     Args:
@@ -284,7 +294,7 @@ def get_vf_dict(adata: AnnData, basis: str="", vf_key: str="VecFld") -> VecFldDi
     return vf_dict
 
 
-def vecfld_from_adata(adata: AnnData, basis: str="", vf_key: str="VecFld") -> tuple[VecFldDict, Callable]:
+def vecfld_from_adata(adata: AnnData, basis: str = "", vf_key: str = "VecFld") -> tuple[VecFldDict, Callable]:
     vf_dict = get_vf_dict(adata, basis=basis, vf_key=vf_key)
 
     method = vf_dict["method"]
@@ -338,7 +348,7 @@ def vector_field_function_transformation(vf_func: Callable, Q: np.ndarray, func_
 
 # ---------------------------------------------------------------------------------------------------
 # jacobian
-def Jacobian_rkhs_gaussian(x: np.ndarray, vf_dict: VecFldDict, vectorize: bool=False) -> np.ndarray:
+def Jacobian_rkhs_gaussian(x: np.ndarray, vf_dict: VecFldDict, vectorize: bool = False) -> np.ndarray:
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
     Args:
@@ -369,7 +379,7 @@ def Jacobian_rkhs_gaussian(x: np.ndarray, vf_dict: VecFldDict, vectorize: bool=F
     return -2 * vf_dict["beta"] * J
 
 
-def Jacobian_rkhs_gaussian_parallel(x: np.ndarray, vf_dict: VecFldDict, cores: Optional[int]=None) -> np.ndarray:
+def Jacobian_rkhs_gaussian_parallel(x: np.ndarray, vf_dict: VecFldDict, cores: Optional[int] = None) -> np.ndarray:
     n = len(x)
     if cores is None:
         cores = mp.cpu_count()
@@ -443,7 +453,9 @@ def elementwise_jacobian_transformation(Js: np.ndarray, qi: np.ndarray, qj: np.n
     return ret
 
 
-def Jacobian_kovf(x: np.ndarray, fjac_base: Callable, K: np.ndarray, Q: np.ndarray, exact: bool=False, mu: Optional[float]=None) -> np.ndarray:
+def Jacobian_kovf(
+    x: np.ndarray, fjac_base: Callable, K: np.ndarray, Q: np.ndarray, exact: bool = False, mu: Optional[float] = None
+) -> np.ndarray:
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
     Args:
@@ -482,7 +494,7 @@ def Jacobian_kovf(x: np.ndarray, fjac_base: Callable, K: np.ndarray, Q: np.ndarr
 
 
 @timeit
-def subset_jacobian_transformation(Js: np.ndarray, Qi: np.ndarray, Qj: np.ndarray, cores: int=1) -> np.ndarray:
+def subset_jacobian_transformation(Js: np.ndarray, Qi: np.ndarray, Qj: np.ndarray, cores: int = 1) -> np.ndarray:
     """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.
     The formula used for transformation:
                                             :math:`\hat{J} = Q J Q^T`,
@@ -680,7 +692,9 @@ def _divergence(f: Callable, x: np.ndarray) -> float:
 
 
 @timeit
-def compute_divergence(f_jac: Callable, X: np.ndarray, Js: Optional[np.ndarray]=None, vectorize_size: int=1000) -> np.ndarray:
+def compute_divergence(
+    f_jac: Callable, X: np.ndarray, Js: Optional[np.ndarray] = None, vectorize_size: int = 1000
+) -> np.ndarray:
     """Calculate divergence for many samples by taking the trace of a Jacobian matrix.
 
     vectorize_size is used to control the number of samples computed in each vectorized batch.
@@ -1197,7 +1211,7 @@ def remove_redundant_points(X, tol=1e-4, output_discard=False):
 def find_fixed_points(
     x0_list: Union[list, np.ndarray],
     func_vf: Callable,
-    domain: Optional[np.ndarray]=None,
+    domain: Optional[np.ndarray] = None,
     tol_redundant: float = 1e-4,
     return_all: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1214,6 +1228,7 @@ def find_fixed_points(
         A tuple with the solutions, Jacobian matrix, and function values at the solutions.
 
     """
+
     def vf_aux(x):
         """auxillary function unifying dimensionality"""
         v = func_vf(x)
@@ -1412,7 +1427,7 @@ def get_jacobian(
 
 # ---------------------------------------------------------------------------------------------------
 # jacobian subset related utilies
-def subset_jacobian(adata: AnnData, cells: np.ndarray, basis: str="pca"):
+def subset_jacobian(adata: AnnData, cells: np.ndarray, basis: str = "pca"):
     """Subset adata object while also subset the jacobian
 
     Args:
