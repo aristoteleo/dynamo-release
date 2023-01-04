@@ -294,7 +294,7 @@ def get_vf_dict(adata: AnnData, basis: str = "", vf_key: str = "VecFld") -> VecF
     return vf_dict
 
 
-def vecfld_from_adata(adata: AnnData, basis: str = "", vf_key: str = "VecFld") -> tuple[VecFldDict, Callable]:
+def vecfld_from_adata(adata: AnnData, basis: str = "", vf_key: str = "VecFld") -> Tuple[VecFldDict, Callable]:
     vf_dict = get_vf_dict(adata, basis=basis, vf_key=vf_key)
 
     method = vf_dict["method"]
@@ -912,7 +912,7 @@ def compute_curl(f_jac, X):
 
 # ---------------------------------------------------------------------------------------------------
 # ranking related utilies
-def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False) -> tuple[np.ndarray, np.ndarray]:
+def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """Calculate ranking of genes based on mean value of matrix.
 
     Args:
@@ -933,7 +933,7 @@ def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False) -> tupl
 
 def get_metric_gene_in_rank_by_group(
     mat: np.mat, genes: list, groups: np.array, selected_group, neg: bool = False
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate ranking of genes based on mean value of matrix, grouped by selected group.
 
     Args:
@@ -962,7 +962,7 @@ def get_metric_gene_in_rank_by_group(
     return gene_wise_metrics, group_wise_metrics, genes_in_rank
 
 
-def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
+def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Sort metric and gene lists based on values in dataframe.
 
     Args:
@@ -989,7 +989,7 @@ def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False)
     return sorted_metric, sorted_genes
 
 
-def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, uniq_group: list) -> tuple:
+def rank_vector_calculus_metrics(mat: np.mat, genes: list, group, groups: list, uniq_group: list) -> Tuple:
     """Calculate ranking of genes based on vector calculus metric.
 
     Args:
