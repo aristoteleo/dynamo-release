@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 from scipy.optimize import OptimizeResult, minimize
