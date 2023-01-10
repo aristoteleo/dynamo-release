@@ -3,6 +3,7 @@
 from typing import Optional, Union
 
 from anndata import AnnData
+from matplotlib.axes import Axes
 
 from .scatters import docstrings, scatters
 
@@ -10,7 +11,7 @@ docstrings.delete_params("scatters.parameters", "adata", "basis")
 
 
 @docstrings.with_indent(4)
-def pca(adata: AnnData, *args, **kwargs):
+def pca(adata: AnnData, *args, **kwargs) -> Optional[Axes]:
     """\
     Scatter plot with pca basis.
 
