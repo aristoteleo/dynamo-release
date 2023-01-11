@@ -1,6 +1,7 @@
 import math
 import warnings
 from functools import reduce
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -68,7 +69,9 @@ def dnorm(x, u=0, sig=1):
     return np.exp(-((x - u) ** 2) / (2 * sig**2)) / (math.sqrt(2 * math.pi) * sig)
 
 
-def kde2d(x, y, h=None, n=25, lims=None):
+def kde2d(
+    x: List[float], y: List[float], h: Optional[List[float]] = None, n: int = 25, lims: Optional[List[float]] = None
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Reproduce kde2d function behavior from MASS package in R.
     Two-dimensional kernel density estimation with an axis-aligned
     bivariate normal kernel, evaluated on a square grid.
@@ -100,11 +103,11 @@ def kde2d(x, y, h=None, n=25, lims=None):
     if not lims:
         lims = [min(x), max(x), min(y), max(y)]
     if len(y) != nx:
-        raise Exception("data vectors must be the same length")
+        raise ValueError("data vectors must be the same length")
     elif (False in np.isfinite(x)) or (False in np.isfinite(y)):
-        raise Exception("missing or infinite values in the data are not allowed")
+        raise ValueError("missing or infinite values in the data are not allowed")
     elif False in np.isfinite(lims):
-        raise Exception("only finite values are allowed in 'lims'")
+        raise ValueError("only finite values are allowed in 'lims'")
     else:
         n = rep(n, length=2) if isinstance(n, list) else rep([n], length=2)
         gx = np.linspace(lims[0], lims[1], n[0])
