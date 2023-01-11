@@ -1,3 +1,10 @@
+from typing import List, Optional, Tuple
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
@@ -22,16 +29,31 @@ SchemeDivergeBWR = {
 
 
 def plot_X(
-    X,
-    dim1=0,
-    dim2=1,
-    dim3=None,
-    dims=None,
-    create_figure=False,
-    figsize=(6, 6),
-    sort_by_c="raw",
+    X: np.ndarray,
+    dim1: int = 0,
+    dim2: int = 1,
+    dim3: Optional[int] = None,
+    dims: Optional[List[int]] = None,
+    create_figure: bool = False,
+    figsize: Tuple[float, float] = (6, 6),
+    sort_by_c: Literal["neg", "abs", "raw"] = "raw",
     **kwargs,
-):
+) -> None:
+    """Plot scatter graph of the specified dimensions in an array.
+
+    Args:
+        X: the array with data to be plotted.
+        dim1: the index corresponding to the 1st dimension to be plotted in X. Defaults to 0.
+        dim2: the index corresponding to the 2nd dimension to be plotted in X. Defaults to 1.
+        dim3: the index corresponding to the 3rd dimension to be plotted in X. Defaults to None.
+        dims: a list of indices of the dimensions. Would override dim1/2/3 specified above. Defaults to None.
+        create_figure: whether to create a new figure for the plot. Defaults to False.
+        figsize: the size of the figure. Defaults to (6, 6).
+        sort_by_c: how the colors and corresponding points would be sorted. Can be one of "raw", "neg", and "abs" and
+            the data and color would be sorted based on the color scalar's original value, negative value, and absolute
+            value, respectively. Defaults to "raw".
+    """
+
     if create_figure:
         plt.figure(figsize=figsize)
 
