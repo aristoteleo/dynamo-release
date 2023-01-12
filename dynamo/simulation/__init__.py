@@ -4,7 +4,7 @@ from .ODE import (
     Simulator,
     Ying_model,
     jacobian_bifur2genes,
-    neurogenesis,
+    neurongenesis,
     ode_bifur2genes,
     state_space_sampler,
     toggle,
