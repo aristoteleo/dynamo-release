@@ -18,7 +18,7 @@ from .simulate_anndata import (
     OscillationTwoGenes,
     bifur2genes_params,
     bifur2genes_splicing_params,
-    neurogenesis_params,
+    neurongenesis_params,
     osc2genes_params,
     osc2genes_splicing_params,
 )
