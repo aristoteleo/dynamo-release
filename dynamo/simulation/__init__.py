@@ -14,7 +14,7 @@ from .simulate_anndata import (
     BifurcationTwoGenes,
     CellularModelSimulator,
     KinLabelingSimulator,
-    Neurogenesis,
+    Neurongenesis,
     OscillationTwoGenes,
     bifur2genes_params,
     bifur2genes_splicing_params,
