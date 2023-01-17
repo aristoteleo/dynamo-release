@@ -1,12 +1,14 @@
 import math
 import warnings
 from functools import reduce
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import scipy.spatial as ss
 import seaborn
+from anndata import AnnData
+from matplotlib.colors import Colormap
 
 from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
 from ..estimation.fit_jacobian import (
@@ -73,32 +75,28 @@ def kde2d(
     x: List[float], y: List[float], h: Optional[List[float]] = None, n: int = 25, lims: Optional[List[float]] = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Reproduce kde2d function behavior from MASS package in R.
-    Two-dimensional kernel density estimation with an axis-aligned
-    bivariate normal kernel, evaluated on a square grid.
 
-    Arguments
-    ---------
-        x:  `List`
-            x coordinate of data
-        y:  `List`
-            y coordinate of data
-        h:  `List` (Default: None)
-            vector of bandwidths for :math:`x` and :math:`y` directions.  Defaults to normal reference bandwidth
-            (see `bandwidth.nrd`). A scalar value will be taken to apply to both directions.
-        n: `int` (Default: 25)
-            Number of grid points in each direction.  Can be scalar or a length-2 integer list.
-        lims: `List` (Default: None)
-            The limits of the rectangle covered by the grid as :math:`x_l, x_u, y_l, y_u`.
+    Two-dimensional kernel density estimation with an axis-aligned bivariate normal kernel, evaluated on a square grid.
 
-    Returns
-    -------
-        A list of three components
-        gx, gy: `List`
-            The x and y coordinates of the grid points, lists of length `n`.
-        z:  `List`
-            An :math:`n[1]` by :math:`n[2]` matrix of the estimated density: rows correspond to the value of :math:`x`,
-            columns to the value of :math:`y`.
+    Args:
+        x: x coordinate of the data.
+        y: y coordinate of the data.
+        h: vector of bandwidths for :math:`x` and :math:`y` directions. if None, it would use normal reference bandwidth
+            (see `bandwidth.nrd`). A scalar value will be taken to apply to both directions. Defaults to None.
+        n: number of grid points in each direction. Can be scalar or a length-2 integer list. Defaults to 25.
+        lims: the limits of the rectangle covered by the grid as `x_l, x_u, y_l, y_u`. Defaults to None.
+
+    Raises:
+        ValueError: `x` and `y` have different sizes.
+        ValueError: `x` or `y` has non-valid values.
+        ValueError: `lims` has non-valid values.
+        ValueError: `h` has non-positive values.
+
+    Returns:
+        A tuple (gx, gy, z) where `gx` and `gy` are x and y coordinates of grid points, respectively; `z` is a `n[1]`
+        by `n[2]` matrix of estimated density: its rows correspond to the value of `x` and columns to the value of `y`.
     """
+
     nx = len(x)
     if not lims:
         lims = [min(x), max(x), min(y), max(y)]
@@ -118,7 +116,7 @@ def kde2d(
             h = np.array(rep(h, length=2))
 
         if h[0] <= 0 or h[1] <= 0:
-            raise Exception("bandwidths must be strictly positive")
+            raise ValueError("bandwidths must be strictly positive")
         else:
             h /= 4
             ax = pd.DataFrame()
@@ -131,7 +129,21 @@ def kde2d(
     return gx, gy, z
 
 
-def kde2d_to_mean_and_sigma(gx, gy, dens):
+def kde2d_to_mean_and_sigma(
+    gx: np.ndarray, gy: np.ndarray, dens: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate the mean and sigma of y grids corresponding to x grids from kde2d.
+
+    Args:
+        gx: x coordinates of grid points.
+        gy: y coordinates of grid points.
+        dens: estimated kernel density.
+
+    Returns:
+        A tuple (x_grid, y_mean, y_sigm) where x_grid is unique values of `gx`, `y_mean` and `y_sigm` are corresponding
+        mean and sigma of y grids.
+    """
+
     x_grid = np.unique(gx)
     y_mean = np.zeros(len(x_grid))
     y_sigm = np.zeros(len(x_grid))
@@ -147,35 +159,35 @@ def kde2d_to_mean_and_sigma(gx, gy, dens):
 
 
 def response(
-    adata,
-    pairs_mat,
-    xkey=None,
-    ykey=None,
-    log=True,
-    drop_zero_cells=True,
-    delay=0,
-    grid_num=25,
-    n_row=1,
-    n_col=None,
-    cmap=None,
-    show_ridge=False,
-    show_rug=True,
-    zero_indicator=False,
-    zero_line_style="w--",
-    zero_line_width=2.5,
-    mean_style="c*",
-    fit_curve=False,
-    fit_mode="hill",
-    curve_style="c-",
-    curve_lw=2.5,
-    no_degradation=True,
-    show_extent=False,
-    ext_format=None,
-    stacked_fraction=False,
-    figsize=(6, 4),
+    adata: AnnData,
+    pairs_mat: np.ndarray,
+    xkey: Optional[str] = None,
+    ykey: Optional[str] = None,
+    log: bool = True,
+    drop_zero_cells: bool = True,
+    delay: int = 0,
+    grid_num: int = 25,
+    n_row: int = 1,
+    n_col: Optional[int] = None,
+    cmap: Union[str, Colormap, None] = None,
+    show_ridge: bool = False,
+    show_rug: bool = True,
+    zero_indicator: bool = False,
+    zero_line_style: str = "w--",
+    zero_line_width: float = 2.5,
+    mean_style: str = "c*",
+    fit_curve: bool = False,
+    fit_mode: bool = "hill",
+    curve_style: str = "c-",
+    curve_lw: float = 2.5,
+    no_degradation: bool = True,
+    show_extent: bool = False,
+    ext_format: Optional[List[str]] = None,
+    stacked_fraction: bool = False,
+    figsize: Tuple[float, float] = (6, 4),
     save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    return_data=False,
+    save_kwargs: Dict[str, Any] = {},
+    return_data: bool = False,
 ):
     """Plot the lagged DREVI plot pairs of genes across pseudotime.
     This plotting function builds on the original idea of DREVI plot but is extended in the context for causal network.
