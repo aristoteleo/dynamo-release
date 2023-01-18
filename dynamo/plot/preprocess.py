@@ -1,8 +1,15 @@
-from typing import Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from anndata import AnnData
 from matplotlib.axes import Axes
 from scipy.sparse import csr_matrix, issparse
@@ -19,10 +26,10 @@ from .utils import save_fig
 def basic_stats(
     adata: AnnData,
     group: Optional[str] = None,
-    figsize: tuple = (4, 3),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    figsize: Tuple[float, float] = (4, 3),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[sns.FacetGrid]:
     """Plot the basic statics (nGenes, nCounts and pMito) of each category of adata.
 
     Parameters
@@ -45,9 +52,6 @@ def basic_stats(
     -------
         A violin plot that shows the fraction of each category, produced by seaborn.
     """
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     if len(adata.obs.columns.intersection(["nGenes", "nCounts", "pMito"])) != 3:
         from ..preprocessing.utils import basic_stats
