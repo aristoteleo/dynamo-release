@@ -1,8 +1,16 @@
+from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import networkx as nx
 import numpy as np
 import nxviz as nv
 import nxviz.annotate
 import pandas as pd
+from anndata import AnnData
 from matplotlib.axes import Axes
 
 from ..tools.utils import flatten, index_gene, update_dict
@@ -11,17 +19,17 @@ from .utils_graph import ArcPlot
 
 
 def nxvizPlot(
-    adata,
-    cluster,
-    cluster_name,
-    edges_list,
-    plot="arcplot",
-    network=None,
-    weight_scale=5e3,
-    weight_threshold=1e-4,
-    figsize=(6, 6),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    cluster: str,
+    cluster_name: str,
+    edges_list: Dict[str, pd.DataFrame],
+    plot: str = "arcplot",
+    network: Optional[nx.classes.digraph.DiGraph] = None,
+    weight_scale: float = 5e3,
+    weight_threshold: float = 1e-4,
+    figsize: Tuple[float, float] = (6, 6),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
 ):
     """Arc or circos plot of gene regulatory network for a particular cell cluster.
