@@ -1,4 +1,4 @@
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 try:
     from typing import Literal
@@ -32,25 +32,21 @@ def basic_stats(
 ) -> Optional[sns.FacetGrid]:
     """Plot the basic statics (nGenes, nCounts and pMito) of each category of adata.
 
-    Parameters
-    ----------
-    adata: :class:`~anndata.AnnData`
-        an Annodata object
-    group: `string` (default: None)
-        Which group to facets the data into subplots. Default is None, or no faceting will be used.
-    figsize:
-        Figure size of each facet.
-    save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-        Whether to save, show or return the figure.
-    save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-        function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf', "transparent": True,
-        "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify
-        those keys according to your needs.
+    Args:
+        adata: an AnnData object.
+        group: the column key of `adata.obs` to facet the data into subplots. If None, no faceting will be used.
+            Defaults to None.
+        figsize: the size of each panel in the figure. Defaults to (4, 3).
+        save_show_or_return: whether to save, show, or return the plots. Could be one of 'save', 'show', or 'return'.
+            Defaults to "show".
+        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
+            the save_fig function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        A violin plot that shows the fraction of each category, produced by seaborn.
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to 'return', the generated figure
+        (seaborn.FacetGrid) would be returned.
     """
 
     if len(adata.obs.columns.intersection(["nGenes", "nCounts", "pMito"])) != 3:
@@ -130,35 +126,34 @@ def basic_stats(
 
 def show_fraction(
     adata: AnnData,
-    genes: Optional[list] = None,
+    genes: Optional[List[str]] = None,
     group: Optional[str] = None,
-    figsize: tuple = (4, 3),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    figsize: Tuple[float, float] = (4, 3),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[sns.FacetGrid]:
     """Plot the fraction of each category of data used in the velocity estimation.
 
-    Parameters
-    ----------
-    adata: :class:`~anndata.AnnData`
-        an Annodata object
-    genes: `list` like:
-        The list of gene names from which the fraction will be calculated.
-    group: `string` (default: None)
-        Which group to facets the data into subplots. Default is None, or no faceting will be used.
-    figsize: `string` (default: (4, 3))
-        Figure size of each facet.
-    save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-        Whether to save, show or return the figure.
-    save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-        function will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True,
-        "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify
-        those keys according to your needs.
+    Args:
+        adata: an AnnData object.
+        genes: the list of gene names from which the fraction will be calculated. Defaults to None.
+        group: the column key of `adata.obs` to facet the data into subplots. If None, no faceting will be used.
+            Defaults to None.
+        figsize: the size of each panel in the figure. Defaults to (4, 3).
+        save_show_or_return: whether to save, show, or return the plots. Could be one of 'save', 'show', or 'return'.
+            Defaults to "show".
+        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
+            the save_fig function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        A violin plot that shows the fraction of each category, produced by seaborn.
+    Raises:
+        ValueError: `genes` does not contain any genes from the adata object.
+        ValueError: `adata` does not have proper splicing or labeling data.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to 'return', the generated figure
+        (seaborn.FacetGrid) would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -168,7 +163,7 @@ def show_fraction(
         genes = list(adata.var_names.intersection(genes))
 
         if len(genes) == 0:
-            raise Exception("The gene list you provided doesn't much any genes from the adata object.")
+            raise ValueError("The gene list you provided doesn't much any genes from the adata object.")
 
     mode = None
     if pd.Series(["spliced", "unspliced"]).isin(adata.layers.keys()).all():
@@ -179,7 +174,7 @@ def show_fraction(
         mode = "full"
 
     if not (mode in ["labelling", "splicing", "full"]):
-        raise Exception("your data doesn't seem to have either splicing or labeling or both information")
+        raise ValueError("your data doesn't seem to have either splicing or labeling or both information")
 
     if mode == "labelling":
         new_mat, total_mat = (
