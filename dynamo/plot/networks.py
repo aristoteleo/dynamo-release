@@ -205,7 +205,7 @@ def arcPlot(
     adata: AnnData,
     cluster: str,
     cluster_name: str,
-    edges_list: Optional[Dict[pd.DataFrame]] = None,
+    edges_list: Optional[Dict[str, pd.DataFrame]] = None,
     network: Optional[nx.classes.DiGraph] = None,
     color: Optional[str] = None,
     cmap: "str" = "viridis",
@@ -393,7 +393,7 @@ def circosPlotDeprecated(
     adata: AnnData,
     cluster: str,
     cluster_name: str,
-    edges_list: Dict[pd.DataFrame],
+    edges_list: Dict[str, pd.DataFrame],
     network: nx.classes.digraph.DiGraph = None,
     weight_scale: float = 5e3,
     weight_threshold: float = 1e-4,
@@ -430,7 +430,7 @@ def circosPlotDeprecated(
 
 def hivePlot(
     adata: AnnData,
-    edges_list: Dict[pd.DataFrame],
+    edges_list: Dict[str, pd.DataFrame],
     cluster: str,
     cluster_names: Optional[str] = None,
     weight_threshold: float = 1e-4,
