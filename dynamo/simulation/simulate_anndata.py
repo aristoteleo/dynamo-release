@@ -18,9 +18,9 @@ from ..tools.utils import flatten, isarray
 from .ODE import (
     hill_act_func,
     hill_inh_func,
-    neurogenesis,
+    neurongenesis,
     ode_bifur2genes,
-    ode_neurogenesis,
+    ode_neurongenesis,
     ode_osc2genes,
 )
 from .utils import CellularSpecies, GillespieReactions, Reaction
@@ -63,7 +63,7 @@ osc2genes_splicing_params = {
     "m": [5, 5],
     "n": [10, 10],
 }
-neurogenesis_params = {
+neurongenesis_params = {
     "gamma": np.ones(12),
     "a": [2.2, 4, 3, 3, 3, 4, 5, 5, 3, 3, 3, 3],
     "K": [10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -700,10 +700,10 @@ class OscillationTwoGenes(CellularModelSimulator):
         super().register_reactions(reactions)
 
 
-class Neurogenesis(CellularModelSimulator):
+class Neurongenesis(CellularModelSimulator):
     def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, report_stoich=False) -> None:
         """
-        Neurogenesis model from Xiaojie Qiu, et. al, 2012. anndata simulator.
+        Neurongenesis model from Xiaojie Qiu, et. al, 2012. anndata simulator.
 
         Parameters
         ----------
@@ -745,7 +745,7 @@ class Neurogenesis(CellularModelSimulator):
             r_aug=r_aug,
             tau=tau,
             n_C0s=n_C0s,
-            velocity_func=ode_neurogenesis,
+            velocity_func=ode_neurongenesis,
             report_stoich=report_stoich,
         )
 
