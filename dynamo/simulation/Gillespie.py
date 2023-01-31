@@ -6,9 +6,12 @@ Created on Wed Jan 30 11:21:25 2019
 @author: xqiu
 """
 
+from typing import Optional
+
 import anndata
 import pandas as pd
 import scipy.sparse
+from anndata import AnnData
 
 from .bif_os_inclusive_sim import osc_diff_dup, sim_diff, sim_osc, simulate
 from .utils import *
@@ -16,62 +19,44 @@ from .utils import *
 
 # deterministic as well as noise
 def Gillespie(
-    a=None,
-    b=None,
-    la=None,
-    aa=None,
-    ai=None,
-    si=None,
-    be=None,
-    ga=None,
-    C0=np.zeros((5, 1)),
-    t_span=[0, 50],
-    n_traj=1,
-    t_eval=None,
-    dt=1,
-    method="basic",
-    verbose=False,
-):
+    a: Optional[float] = None,
+    b: Optional[float] = None,
+    la: Optional[float] = None,
+    aa: Optional[float] = None,
+    ai: Optional[float] = None,
+    si: Optional[float] = None,
+    be: Optional[float] = None,
+    ga: Optional[float] = None,
+    C0: np.ndarray = np.zeros((5, 1)),
+    t_span: List = [0, 50],
+    n_traj: int = 1,
+    t_eval: Optional[float] = None,
+    dt: float = 1,
+    method: str = "basic",
+    verbose: bool = False,
+) -> AnnData:
     """A simulator of RNA dynamics that includes RNA bursting, transcription, metabolic labeling, splicing, transcription, RNA/protein degradation
 
-    Parameters
-    ----------
-        a: `float` or None
-            rate of active promoter switches to inactive one
-        b: `float` or None
-            rate of inactive promoter switches to active one
-        la: `float` or None
-            lambda_: 4sU labelling rate
-        aa: `float` or None
-            transcription rate with active promoter
-        ai: `float` or None
-            transcription rate with inactive promoter
-        si: `float` or None
-            sigma, degradation rate
-        be: `float` or None
-            beta, splicing rate
-        ga: `float` or None
-            gamma: the fraction of labeled u turns to unlabeled s
-        C0: `numpy.ndarray` (default: np.zeros((5, 1)))
-            A numpy array with dimension of 5 x n_gene. Here 5 corresponds to the five species (s - promoter state, ul,
+    Args:
+        a: rate of active promoter switches to inactive one
+        b: rate of inactive promoter switches to active one
+        la: lambda_: 4sU labelling rate
+        aa: transcription rate with active promoter
+        ai: transcription rate with inactive promoter
+        si: sigma, degradation rate
+        be: beta, splicing rate
+        ga: gamma: the fraction of labeled u turns to unlabeled s
+        C0: A numpy array with dimension of 5 x n_gene. Here 5 corresponds to the five species (s - promoter state, ul,
             uu, sl, su) for each gene.
-        t_span:
-            list of between and end time of simulation
-        n_traj:
-            number of simulation trajectory to use
-        t_eval: `float` or None
-            the time points at which data is simulated
-        dt: `float` (default: `1`)
-            delta t used in simulation
-        method: `str` (default: basic)
-            method to simulate the expression dynamics
-        verbose: `bool` (default: False)
-            whether to report running information
+        t_span: list of between and end time of simulation
+        n_traj: number of simulation trajectory to use
+        t_eval: the time points at which data is simulated
+        dt: delta t used in simulation
+        method: method to simulate the expression dynamics
+        verbose: whether to report running information
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object containing the simulated data.
+    Returns:
+        adata: an Annodata object containing the simulated data.
     """
 
     gene_num, species_num = C0.shape[0:2]
