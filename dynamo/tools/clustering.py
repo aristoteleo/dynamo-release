@@ -174,8 +174,9 @@ def hdbscan(
 
 
 def leiden(
-    adata,
-    use_weight=True,
+    adata : AnnData,
+    resolution: float = 1.0,
+    use_weight: bool = True,
     weight=None,
     initial_membership=None,
     adj_matrix=None,
@@ -195,15 +196,27 @@ def leiden(
 
     Parameters
     ----------
+    adata
+        The annotated data matrix.
+    resolution : float, optional
+        A parameter value controlling the coarseness of the clustering.
+        Higher values lead to more clusters.
+        Set to `None` if overriding `partition_type`
+        to one that doesn’t accept a `resolution_parameter`.
     weight :
          weights of edges. Can be either an iterable or an edge attribute. Default None
     initial_membership : optional
         list of int Initial membership for the partition. If None then defaults to a singleton partition. Default None, by default None
+        :param initial_membership:
+        :param adj_matrix:
 
     """
+    logger = LoggerManager.get_main_logger()
+    logger.info("[DEBUG] resolution test UK...")
 
     kwargs.update(
         {
+            "resolution": resolution,
             "weight": weight,
             "initial_membership": initial_membership,
         }
