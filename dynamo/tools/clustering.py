@@ -174,21 +174,21 @@ def hdbscan(
 
 
 def leiden(
-    adata : AnnData,
+    adata: AnnData,
     resolution: float = 1.0,
     use_weight: bool = True,
-    weight=None,
-    initial_membership=None,
-    adj_matrix=None,
-    adj_matrix_key=None,
-    result_key=None,
-    layer=None,
-    obsm_key=None,
-    selected_cluster_subset: list = None,
-    selected_cell_subset=None,
-    directed=False,
-    copy=False,
-    **kwargs
+    weight: list = None,
+    initial_membership: list = None,
+    adj_matrix: Union[list, np.array, csr_matrix, None] = None,
+    adj_matrix_key: Union[str, None] = None,
+    result_key: Union[str, None] = None,
+    layer: Union[str, None] = None,
+    obsm_key: Union[str, None] = None,
+    selected_cluster_subset: Optional[list] = None,
+    selected_cell_subset: list = None,
+    directed: bool = False,
+    copy: bool = False,
+    **kwargs: Any
 ) -> anndata.AnnData:
     """Apply leiden clustering to adata.
     For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
@@ -199,20 +199,13 @@ def leiden(
     adata
         The annotated data matrix.
     resolution : float, optional
-        A parameter value controlling the coarseness of the clustering.
-        Higher values lead to more clusters.
-        Set to `None` if overriding `partition_type`
-        to one that doesn’t accept a `resolution_parameter`.
+        A parameter value determines the level of detail in the clustering process.
+        An increase in this value will result in the generation of a greater number of clusters.
     weight :
          weights of edges. Can be either an iterable or an edge attribute. Default None
     initial_membership : optional
         list of int Initial membership for the partition. If None then defaults to a singleton partition. Default None, by default None
-        :param initial_membership:
-        :param adj_matrix:
-
     """
-    logger = LoggerManager.get_main_logger()
-    logger.info("[DEBUG] resolution test UK...")
 
     kwargs.update(
         {
