@@ -188,7 +188,7 @@ def leiden(
     selected_cell_subset: list = None,
     directed: bool = False,
     copy: bool = False,
-    **kwargs: Any
+    **kwargs
 ) -> anndata.AnnData:
     """Apply leiden clustering to adata.
     For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
