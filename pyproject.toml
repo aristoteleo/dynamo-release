@@ -26,7 +26,7 @@ requires = [
   'scipy>=1.0',
   'scikit-learn>=0.19.1',
   'cvxopt>=1.2.3',
-  'anndata==0.7.5',
+  'anndata>=0.8.0',
   'loompy>=3.0.5',
   'matplotlib>=3.5.3',
   # 'trimap>=1.0.11',
