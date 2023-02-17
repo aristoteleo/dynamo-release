@@ -209,7 +209,7 @@ def leiden(
 
     kwargs.update(
         {
-            "resolution": resolution,
+            "resolution_parameter": resolution,
             "weight": weight,
             "initial_membership": initial_membership,
         }
@@ -446,8 +446,12 @@ def cluster_community(
     # No subset required case, use all indices
     if valid_indices is None:
         valid_indices = np.arange(0, len(adata))
-    for i, community in enumerate(community_result.communities):
-        labels[valid_indices[community]] = i
+
+    if hasattr(community_result, 'membership'):
+        labels[valid_indices] = community_result.membership
+    else:
+        for i, community in enumerate(community_result.communities):
+            labels[valid_indices[community]] = i
     # clusters need to be categorical strings
     adata.obs[result_key] = pd.Categorical(labels.astype(str))
 
@@ -470,6 +474,7 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
     """Detect communities based on graph inputs and selected methods with arguments passed in kwargs."""
     logger = LoggerManager.get_main_logger()
     logger.info("Detecting communities on graph...")
+
     try:
         import networkx as nx
         from cdlib import algorithms
@@ -500,8 +505,12 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         if "initial_membership" in kwargs:
             logger.info("Detecting community with initial_membership input from caller")
             initial_membership = kwargs["initial_membership"]
-        if "weights" in kwargs:
-            weights = kwargs["weights"]
+            kwargs.pop("initial_membership")
+        if "weight" in kwargs:
+            weights = kwargs["weight"]
+            kwargs.pop("weight")
+        if "resolution_parameter" in kwargs:
+            resolution = kwargs["resolution_parameter"]
 
         if initial_membership is not None:
             main_info(
@@ -510,7 +519,20 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
             )
             initial_membership = None
 
-        coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
+        if resolution != 1:
+            try:
+                import leidenalg
+                import igraph
+            except ImportError:
+                raise ImportError(
+                    "Please install the excellent package `leidenalg` and 'igraph', if you want to set resolution in leiden algorithm."
+                )
+
+            # ModularityVertexPartition does not accept a resolution_parameter, you should use RBConfigurationVertexPartition instead.
+            coms = leidenalg.find_partition(igraph.Graph.from_networkx(graph), leidenalg.RBConfigurationVertexPartition, **kwargs)
+        else:
+            coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
+
     elif method == "louvain":
         if "resolution" not in kwargs:
             raise KeyError("resolution not in louvain input parameters")
@@ -522,6 +544,7 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         resolution = kwargs["resolution"]
         weight = "weight"
         randomize = kwargs["randomize"]
+
         coms = algorithms.louvain(graph, weight=weight, resolution=resolution, randomize=randomize)
     elif method == "infomap":
         coms = algorithms.infomap(graph)
