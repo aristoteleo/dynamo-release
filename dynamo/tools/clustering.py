@@ -544,7 +544,6 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         resolution = kwargs["resolution"]
         weight = "weight"
         randomize = kwargs["randomize"]
-
         coms = algorithms.louvain(graph, weight=weight, resolution=resolution, randomize=randomize)
     elif method == "infomap":
         coms = algorithms.infomap(graph)
