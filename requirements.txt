@@ -24,4 +24,4 @@ get_version>=3.5.4
 # trimap>=1.0.11
 openpyxl
 typing-extensions
-session_info
+session-info>=1.0.0
