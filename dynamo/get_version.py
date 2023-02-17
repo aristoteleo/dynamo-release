@@ -2,13 +2,15 @@
 A minimalistic version helper in the spirit of versioneer, that is able to run without build step using pkg_resources.
 Developed by P Angerer, see https://github.com/flying-sheep/get_version.
 """
-# __version__ is defined at the very end of this file.
-
+import logging
 import os
 import re
 from pathlib import Path
 from subprocess import PIPE, CalledProcessError, run
 from typing import List, NamedTuple, Optional, Union
+
+# __version__ is defined at the very end of this file.
+
 
 RE_VERSION = r"([\d.]+?)(?:\.dev(\d+))?(?:[_+-]([0-9a-zA-Z.]+))?"
 # RE_GIT_DESCRIBE = r"v?(?:([\d.]+)-(\d+)-g)?([0-9a-f]{7})(-dirty)?"
@@ -205,6 +207,15 @@ def get_all_dependencies_version(display=True):
         display(df)
     else:
         return df
+
+
+def session_info():
+    try:
+        import session_info
+    except:
+        logging.error("session_info not installed! Please install it with `pip install session_info`")
+
+    session_info.show(html=False, dependencies=True)
 
 
 __version__ = get_version(__file__)
