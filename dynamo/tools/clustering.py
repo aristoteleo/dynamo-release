@@ -177,15 +177,15 @@ def leiden(
     adata: AnnData,
     resolution: float = 1.0,
     use_weight: bool = True,
-    weight: list = None,
-    initial_membership: list = None,
-    adj_matrix: Union[list, np.array, csr_matrix, None] = None,
-    adj_matrix_key: Union[str, None] = None,
-    result_key: Union[str, None] = None,
-    layer: Union[str, None] = None,
-    obsm_key: Union[str, None] = None,
+    weight: Optional[list] = None,
+    initial_membership: Optional[list] = None,
+    adj_matrix: Optional[str] = None,
+    adj_matrix_key: Optional[list] = None,
+    result_key: Optional[list] = None,
+    layer: Optional[list] = None,
+    obsm_key: Optional[list] = None,
     selected_cluster_subset: Optional[list] = None,
-    selected_cell_subset: list = None,
+    selected_cell_subset: Optional[list] = None,
     directed: bool = False,
     copy: bool = False,
     **kwargs
@@ -194,17 +194,15 @@ def leiden(
     For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
     "The Leiden algorithm is an improvement of the Louvain algorithm. The Leiden algorithm consists of three phases: (1) local moving of nodes, (2) refinement of the partition (3) aggregation of the network based on the refined partition, using the non-refined partition to create an initial partition for the aggregate network." - cdlib
 
-    Parameters
-    ----------
-    adata
-        The annotated data matrix.
-    resolution : float, optional
-        A parameter value determines the level of detail in the clustering process.
-        An increase in this value will result in the generation of a greater number of clusters.
-    weight :
-         weights of edges. Can be either an iterable or an edge attribute. Default None
-    initial_membership : optional
-        list of int Initial membership for the partition. If None then defaults to a singleton partition. Default None, by default None
+    Args:
+        adata: The annotated data matrix.
+        resolution: The resolution of the clustering that determines the level of detail in the clustering process. An increase in this value will result in the generation of a greater number of clusters.
+        weight: weights of edges. Can be either an iterable or an edge attribute. Default None
+        initial_membership: list of int Initial membership for the partition. If None then defaults to a singleton partition.
+
+    Returns:
+        adata: An updated AnnData object with the clustering updated. Each result_key corresponds to two newly added columns, one from the .obs attribute and one from the .uns attribute.
+            These columns contain either the clustering results or the probability of each cell belonging to a cluster.
     """
 
     kwargs.update(
@@ -447,11 +445,12 @@ def cluster_community(
     if valid_indices is None:
         valid_indices = np.arange(0, len(adata))
 
-    if hasattr(community_result, 'membership'):
+    if hasattr(community_result, "membership"):
         labels[valid_indices] = community_result.membership
     else:
         for i, community in enumerate(community_result.communities):
             labels[valid_indices[community]] = i
+
     # clusters need to be categorical strings
     adata.obs[result_key] = pd.Categorical(labels.astype(str))
 
@@ -521,15 +520,17 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
 
         if resolution != 1:
             try:
-                import leidenalg
                 import igraph
+                import leidenalg
             except ImportError:
                 raise ImportError(
                     "Please install the excellent package `leidenalg` and 'igraph', if you want to set resolution in leiden algorithm."
                 )
 
             # ModularityVertexPartition does not accept a resolution_parameter, you should use RBConfigurationVertexPartition instead.
-            coms = leidenalg.find_partition(igraph.Graph.from_networkx(graph), leidenalg.RBConfigurationVertexPartition, **kwargs)
+            coms = leidenalg.find_partition(
+                igraph.Graph.from_networkx(graph), leidenalg.RBConfigurationVertexPartition, **kwargs
+            )
         else:
             coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
 
