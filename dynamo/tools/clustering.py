@@ -251,7 +251,7 @@ def louvain(
     "Louvain maximizes a modularity score for each community. The algorithm optimises the modularity in two elementary phases: (1) local moving of nodes; (2) aggregation of the network. In the local moving phase, individual nodes are moved to the community that yields the largest increase in the quality function. In the aggregation phase, an aggregate network is created based on the partition obtained in the local moving phase. Each community in this partition becomes a node in the aggregate network. The two phases are repeated until the quality function cannot be increased further." - cdlib
 
     Args:
-        resolution : The resolution of the clustering that determines the level of detail in the clustering process. An increase in this value will result in the generation of a greater number of clusters.
+        resolution : The resolution of the clustering that determines the level of detail in the clustering process. The resolution parameters has the same effect as leiden function. For instance, an increase in this value will result in the generation of a greater number of clusters.
         randomize : "randomState instance or None, optional (default=None). If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is the random number generator; If None, the random number generator is the RandomState instance used by np.random." - cdlib
     Returns:
         adata: An updated AnnData object with the clustering updated. Each result_key corresponds to two newly added columns, one from the .obs attribute and one from the .uns attribute.
