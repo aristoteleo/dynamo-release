@@ -545,7 +545,9 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         resolution = kwargs["resolution"]
         weight = "weight"
         randomize = kwargs["randomize"]
-        coms = algorithms.louvain(graph, weight=weight, resolution=resolution, randomize=randomize)
+
+        # convert louvain's resolution so that the effect between leiden and louvain is the same.
+        coms = algorithms.louvain(graph, weight=weight, resolution=1 / resolution, randomize=randomize)
     elif method == "infomap":
         coms = algorithms.infomap(graph)
     else:
