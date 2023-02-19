@@ -231,31 +231,31 @@ def leiden(
 
 
 def louvain(
-    adata,
-    resolution=1.0,
-    use_weight=True,
-    adj_matrix=None,
-    adj_matrix_key=None,
-    randomize=False,
-    result_key=None,
-    layer=None,
-    obsm_key=None,
-    selected_cluster_subset: list = None,
-    selected_cell_subset=None,
-    directed=False,
-    copy=False,
+    adata: AnnData,
+    resolution: float = 1.0,
+    use_weight: bool = True,
+    adj_matrix: Optional[str] = None,
+    adj_matrix_key: Optional[list] = None,
+    randomize: int = None,
+    result_key: Optional[list] = None,
+    layer: Optional[list] = None,
+    obsm_key: Optional[list] = None,
+    selected_cluster_subset: Optional[list] = None,
+    selected_cell_subset: Optional[list] = None,
+    directed: bool = False,
+    copy: bool = False,
     **kwargs
 ) -> anndata.AnnData:
     """Louvain implementation from cdlib.
     For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
     "Louvain maximizes a modularity score for each community. The algorithm optimises the modularity in two elementary phases: (1) local moving of nodes; (2) aggregation of the network. In the local moving phase, individual nodes are moved to the community that yields the largest increase in the quality function. In the aggregation phase, an aggregate network is created based on the partition obtained in the local moving phase. Each community in this partition becomes a node in the aggregate network. The two phases are repeated until the quality function cannot be increased further." - cdlib
 
-    Parameters
-    ----------
-    resolution : float, optional
-        change the size of the communities, default to 1.
-    randomize : bool, optional
-        "randomState instance or None, optional (default=None). If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is the random number generator; If None, the random number generator is the RandomState instance used by np.random." - cdlib
+    Args:
+        resolution : The resolution of the clustering that determines the level of detail in the clustering process. An increase in this value will result in the generation of a greater number of clusters.
+        randomize : "randomState instance or None, optional (default=None). If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is the random number generator; If None, the random number generator is the RandomState instance used by np.random." - cdlib
+    Returns:
+        adata: An updated AnnData object with the clustering updated. Each result_key corresponds to two newly added columns, one from the .obs attribute and one from the .uns attribute.
+            These columns contain either the clustering results or the probability of each cell belonging to a cluster.
     """
     if directed:
         raise ValueError("CDlib does not support directed graph for Louvain community detection for now.")
