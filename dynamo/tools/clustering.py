@@ -176,7 +176,7 @@ def leiden(
     adata: AnnData,
     resolution: float = 1.0,
     use_weight: bool = True,
-    weight: Union[Iterable, list] = None,
+    weight: Optional[list] = None,
     initial_membership: Optional[list] = None,
     adj_matrix: Optional[csr_matrix] = None,
     adj_matrix_key: Optional[str] = None,
@@ -190,33 +190,34 @@ def leiden(
     **kwargs
 ) -> anndata.AnnData:
     """Apply leiden clustering to adata.
-    For other community detection general parameters,
+    For other general community detection related parameters,
     please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
-    "The Leiden algorithm is an improvement of the Louvain algorithm.
-    The Leiden algorithm consists of three phases:
+    The Leiden algorithm is an improvement of the Louvain algorithm.
+    Based on the cdlib package, the Leiden algorithm consists of three phases:
     (1) local moving of nodes,
     (2) refinement of the partition,
     (3) aggregation of the network based on the refined partition,
-    using the non-refined partition to create an initial partition for the aggregate network." - cdlib
+    using the non-refined partition to create an initial partition for the aggregate network.
 
     Args:
         adata: an adata object
         resolution: the resolution of the clustering that determines the level of detail in the clustering process.
             An increase in this value will result in the generation of a greater number of clusters.
         use_weight: whether to use the weight of the edges in the clustering process. Default True
-        weight: weights of edges. Can be either an iterable(list of double) or an edge attribute. Default None
-        initial_membership: list of int Initial membership for the partition.
+        weight: weights of edges. Can be either an iterable(list of double) or an edge attribute.
+        initial_membership: list of int. Initial membership for the partition.
             If None then defaults to a singleton partition.
-        adj_matrix: the adjacency matrix to use for the cluster_community function. Default None
-        adj_matrix_key: adj_matrix_key in adata.obsp used for the cluster_community function. Default None
-        result_key: the key to use for the clustering results. Default None
-        layer: the adata layer where cluster algorithms will work on, by default None
-        obsm_key: the key of the obsm to use for a function of neighbors. Default None
-        selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters).
-            filtering cells in adata based on cluster_key in adata.obs and only reserve cells in the allowed clusters.
-        selected_cell_subset: a list of cell indices to cluster, by default None
-        directed: whether the graph is directed. Default False
-        copy: return a copy instead of writing to adata. Default False
+        adj_matrix: the adjacency matrix to use for the cluster_community function.
+        adj_matrix_key: the key of the adjacency matrix in adata.obsp used for the cluster_community function.
+        result_key: the key to use for saving clustering results which will be included in both adata.obs and adata.uns.
+        layer: the adata layer where cluster algorithms will work on.
+        obsm_key: the key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
+            calculate nearest neighbor graph.
+        selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters) filtering cells in adata based on
+            cluster_key in adata.obs and only reserve cells in the allowed clusters.
+        selected_cell_subset: a list of cell indices to cluster.
+        directed: whether the graph is directed.
+        copy: return a copy instead of writing to adata.
         **kwargs: additional arguments to pass to the cluster_community function.
 
     Returns:
@@ -265,25 +266,22 @@ def louvain(
     **kwargs
 ) -> anndata.AnnData:
     """Apply louvain clustering to adata.
-    For other community detection general parameters,
+    For other general community detection related parameters,
     please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
-    "Louvain maximizes a modularity score for each community.
-    The algorithm optimises the modularity in two elementary phases:
+    Based on the cdlib package, the Louvain algorithm optimises the modularity in two elementary phases:
     (1) local moving of nodes;
     (2) aggregation of the network.
-    In the local moving phase,
-    individual nodes are moved to the community that yields the largest increase in the quality function.
-    In the aggregation phase,
-    an aggregate network is created based on the partition obtained in the local moving phase.
-    Each community in this partition becomes a node in the aggregate network.
-    The two phases are repeated until the quality function cannot be increased further." - cdlib
+    In the local moving phase, individual nodes are moved to the community that yields the largest increase in the
+    quality function. In the aggregation phase, an aggregate network is created based on the partition obtained in the
+    local moving phase. Each community in this partition becomes a node in the aggregate network. The two phases are
+    repeated until the quality function cannot be increased further.
 
     Args:
         adata: an adata object
-        resolution: determines clustering level of detail.
+        resolution: The resolution parameter that determines clustering level of detail.
             Please note that in louvain-igraph, increasing the parameter creates fewer clusters.
-            In our code, the resolution parameter in louvain is inverted to match the effect of leiden,
-            for instance, increasing resolution creates more clusters and decreasing it generates fewer.
+            In our code, the resolution parameter in louvain is inverted (1/resolution) to match the effect of leiden,
+            As a result, increasing resolution creates more clusters and decreasing it generates fewer.
         use_weight: whether to use the weight of the edges in the clustering process. Default True
         adj_matrix: the adjacency matrix to use for the cluster_community function. Default None
         adj_matrix_key: adj_matrix_key in adata.obsp used for the cluster_community function. Default None
