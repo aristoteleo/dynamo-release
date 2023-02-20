@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from scipy.sparse import csr_matrix
-from sklearn.neighbors import NearestNeighbors
 
 from ..configuration import DKM
 from ..dynamo_logger import main_info
@@ -179,11 +178,11 @@ def leiden(
     use_weight: bool = True,
     weight: Optional[list] = None,
     initial_membership: Optional[list] = None,
-    adj_matrix: Optional[str] = None,
-    adj_matrix_key: Optional[list] = None,
-    result_key: Optional[list] = None,
-    layer: Optional[list] = None,
-    obsm_key: Optional[list] = None,
+    adj_matrix: Optional[csr_matrix] = None,
+    adj_matrix_key: Optional[str] = None,
+    result_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    obsm_key: Optional[str] = None,
     selected_cluster_subset: Optional[list] = None,
     selected_cell_subset: Optional[list] = None,
     directed: bool = False,
@@ -191,17 +190,38 @@ def leiden(
     **kwargs
 ) -> anndata.AnnData:
     """Apply leiden clustering to adata.
-    For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
-    "The Leiden algorithm is an improvement of the Louvain algorithm. The Leiden algorithm consists of three phases: (1) local moving of nodes, (2) refinement of the partition (3) aggregation of the network based on the refined partition, using the non-refined partition to create an initial partition for the aggregate network." - cdlib
+    For other community detection general parameters,
+    please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
+    "The Leiden algorithm is an improvement of the Louvain algorithm.
+    The Leiden algorithm consists of three phases:
+    (1) local moving of nodes,
+    (2) refinement of the partition,
+    (3) aggregation of the network based on the refined partition,
+    using the non-refined partition to create an initial partition for the aggregate network." - cdlib
 
     Args:
-        adata: The annotated data matrix.
-        resolution: The resolution of the clustering that determines the level of detail in the clustering process. An increase in this value will result in the generation of a greater number of clusters.
-        weight: weights of edges. Can be either an iterable or an edge attribute. Default None
-        initial_membership: list of int Initial membership for the partition. If None then defaults to a singleton partition.
+        adata: an adata object
+        resolution: the resolution of the clustering that determines the level of detail in the clustering process.
+            An increase in this value will result in the generation of a greater number of clusters.
+        use_weight: whether to use the weight of the edges in the clustering process. Default True
+        weight: weights of edges. Can be either an iterable(list of double) or an edge attribute. Default None
+        initial_membership: list of int Initial membership for the partition.
+            If None then defaults to a singleton partition.
+        adj_matrix: the adjacency matrix to use for clustering. Default None
+        adj_matrix_key: adj_matrix_key in adata.obsp used for clustering. Default None
+        result_key: the key to use for the clustering results. Default None
+        layer: the adata layer where cluster algorithms will work on, by default None
+        obsm_key: the key of the obsm to use for a function of neighbors. Default None
+        selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters).
+            filtering cells in adata based on cluster_key in adata.obs and only reserve cells in the allowed clusters.
+        selected_cell_subset: cluster only a subset of cells in adata, by default None. Default None
+        directed: whether the graph is directed. Default False
+        copy: return a copy instead of writing to adata. Default False
+        **kwargs: additional arguments to pass to the clustering function.
 
     Returns:
-        adata: An updated AnnData object with the clustering updated. Each result_key corresponds to two newly added columns, one from the .obs attribute and one from the .uns attribute.
+        adata: an updated AnnData object with the clustering updated.
+            Each result_key corresponds to two newly added columns, both .obs and .uns attribute.
             These columns contain either the clustering results or the probability of each cell belonging to a cluster.
     """
 
@@ -234,27 +254,58 @@ def louvain(
     adata: AnnData,
     resolution: float = 1.0,
     use_weight: bool = True,
-    adj_matrix: Optional[str] = None,
-    adj_matrix_key: Optional[list] = None,
-    randomize: int = None,
-    result_key: Optional[list] = None,
-    layer: Optional[list] = None,
-    obsm_key: Optional[list] = None,
+    adj_matrix: Optional[csr_matrix] = None,
+    adj_matrix_key: Optional[str] = None,
+    randomize: Optional[int] = None,
+    result_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    obsm_key: Optional[str] = None,
     selected_cluster_subset: Optional[list] = None,
     selected_cell_subset: Optional[list] = None,
     directed: bool = False,
     copy: bool = False,
     **kwargs
 ) -> anndata.AnnData:
-    """Louvain implementation from cdlib.
-    For other community detection general parameters, please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
-    "Louvain maximizes a modularity score for each community. The algorithm optimises the modularity in two elementary phases: (1) local moving of nodes; (2) aggregation of the network. In the local moving phase, individual nodes are moved to the community that yields the largest increase in the quality function. In the aggregation phase, an aggregate network is created based on the partition obtained in the local moving phase. Each community in this partition becomes a node in the aggregate network. The two phases are repeated until the quality function cannot be increased further." - cdlib
+    """Apply louvain clustering to adata.
+    For other community detection general parameters,
+    please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
+    "Louvain maximizes a modularity score for each community.
+    The algorithm optimises the modularity in two elementary phases:
+    (1) local moving of nodes;
+    (2) aggregation of the network.
+    In the local moving phase,
+    individual nodes are moved to the community that yields the largest increase in the quality function.
+    In the aggregation phase,
+    an aggregate network is created based on the partition obtained in the local moving phase.
+    Each community in this partition becomes a node in the aggregate network.
+    The two phases are repeated until the quality function cannot be increased further." - cdlib
 
     Args:
-        resolution : The resolution of the clustering that determines the level of detail in the clustering process. The resolution parameters has the same effect as leiden function. For instance, an increase in this value will result in the generation of a greater number of clusters.
-        randomize : "randomState instance or None, optional (default=None). If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is the random number generator; If None, the random number generator is the RandomState instance used by np.random." - cdlib
+        adata: an adata object
+        resolution: determines clustering level of detail.
+            Please note that in louvain-igraph, increasing the parameter creates fewer clusters.
+            In our code, the resolution parameter in louvain is inverted to match the effect of leiden,
+            for instance, increasing resolution creates more clusters and decreasing it generates fewer.
+        use_weight: whether to use the weight of the edges in the clustering process. Default True
+        adj_matrix: the adjacency matrix to use for clustering. Default None
+        adj_matrix_key: adj_matrix_key in adata.obsp used for clustering. Default None
+        randomize: randomState instance or None, optional (default=None).
+            If int, random_state is the seed used by the random number generator;
+            If RandomState instance, random_state is the random number generator;
+            If None, the random number generator is the RandomState instance used by np.random." - louvain-igraph
+        result_key: the key to use for the clustering results. Default None
+        layer: the adata layer where cluster algorithms will work on, by default None
+        obsm_key: the key of the obsm to use for a function of neighbors. Default None
+        selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters).
+            filtering cells in adata based on cluster_key in adata.obs and only reserve cells in the allowed clusters.
+        selected_cell_subset: cluster only a subset of cells in adata, by default None. Default None
+        directed: whether the graph is directed. Default False
+        copy: return a copy instead of writing to adata. Default False
+        **kwargs: additional arguments to pass to the clustering function.
+
     Returns:
-        adata: An updated AnnData object with the clustering updated. Each result_key corresponds to two newly added columns, one from the .obs attribute and one from the .uns attribute.
+        adata: An updated AnnData object with the clustering updated.
+            Each result_key corresponds to two newly added columns, both .obs and .uns attribute.
             These columns contain either the clustering results or the probability of each cell belonging to a cluster.
     """
     if directed:
@@ -500,7 +551,7 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         graph = graph.to_undirected()
 
     if method == "leiden":
-        initial_membership, weights = None, None
+        initial_membership, weights, resolution = None, None, None
         if "initial_membership" in kwargs:
             logger.info("Detecting community with initial_membership input from caller")
             initial_membership = kwargs["initial_membership"]
@@ -518,7 +569,7 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
             )
             initial_membership = None
 
-        if resolution != 1:
+        if resolution is not 1:
             try:
                 import igraph
                 import leidenalg
