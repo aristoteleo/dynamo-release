@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Iterable, Optional, Union
 
 import anndata
 import numpy as np
@@ -176,14 +176,14 @@ def leiden(
     adata: AnnData,
     resolution: float = 1.0,
     use_weight: bool = True,
-    weight: Optional[list] = None,
+    weight: Optional[Iterable, list] = None,
     initial_membership: Optional[list] = None,
     adj_matrix: Optional[csr_matrix] = None,
     adj_matrix_key: Optional[str] = None,
     result_key: Optional[str] = None,
     layer: Optional[str] = None,
     obsm_key: Optional[str] = None,
-    selected_cluster_subset: Optional[list] = None,
+    selected_cluster_subset: Optional[tuple, list] = None,
     selected_cell_subset: Optional[list] = None,
     directed: bool = False,
     copy: bool = False,
@@ -207,22 +207,20 @@ def leiden(
         weight: weights of edges. Can be either an iterable(list of double) or an edge attribute. Default None
         initial_membership: list of int Initial membership for the partition.
             If None then defaults to a singleton partition.
-        adj_matrix: the adjacency matrix to use for clustering. Default None
-        adj_matrix_key: adj_matrix_key in adata.obsp used for clustering. Default None
+        adj_matrix: the adjacency matrix to use for the cluster_community function. Default None
+        adj_matrix_key: adj_matrix_key in adata.obsp used for the cluster_community function. Default None
         result_key: the key to use for the clustering results. Default None
         layer: the adata layer where cluster algorithms will work on, by default None
         obsm_key: the key of the obsm to use for a function of neighbors. Default None
         selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters).
             filtering cells in adata based on cluster_key in adata.obs and only reserve cells in the allowed clusters.
-        selected_cell_subset: cluster only a subset of cells in adata, by default None. Default None
+        selected_cell_subset: a list of cell indices to cluster, by default None
         directed: whether the graph is directed. Default False
         copy: return a copy instead of writing to adata. Default False
-        **kwargs: additional arguments to pass to the clustering function.
+        **kwargs: additional arguments to pass to the cluster_community function.
 
     Returns:
-        adata: an updated AnnData object with the clustering updated.
-            Each result_key corresponds to two newly added columns, both .obs and .uns attribute.
-            These columns contain either the clustering results or the probability of each cell belonging to a cluster.
+        adata: An updated AnnData object with the leiden clustering results added.
     """
 
     kwargs.update(
@@ -287,26 +285,25 @@ def louvain(
             In our code, the resolution parameter in louvain is inverted to match the effect of leiden,
             for instance, increasing resolution creates more clusters and decreasing it generates fewer.
         use_weight: whether to use the weight of the edges in the clustering process. Default True
-        adj_matrix: the adjacency matrix to use for clustering. Default None
-        adj_matrix_key: adj_matrix_key in adata.obsp used for clustering. Default None
+        adj_matrix: the adjacency matrix to use for the cluster_community function. Default None
+        adj_matrix_key: adj_matrix_key in adata.obsp used for the cluster_community function. Default None
         randomize: randomState instance or None, optional (default=None).
             If int, random_state is the seed used by the random number generator;
             If RandomState instance, random_state is the random number generator;
-            If None, the random number generator is the RandomState instance used by np.random." - louvain-igraph
+            If None, the random number generator is the RandomState instance used by np.random.
+            according to louvain algorithm's documentation (cdlib.algorithms.louvain)
         result_key: the key to use for the clustering results. Default None
         layer: the adata layer where cluster algorithms will work on, by default None
         obsm_key: the key of the obsm to use for a function of neighbors. Default None
         selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters).
             filtering cells in adata based on cluster_key in adata.obs and only reserve cells in the allowed clusters.
-        selected_cell_subset: cluster only a subset of cells in adata, by default None. Default None
+        selected_cell_subset: a list of cell indices to cluster, by default None
         directed: whether the graph is directed. Default False
         copy: return a copy instead of writing to adata. Default False
         **kwargs: additional arguments to pass to the clustering function.
 
     Returns:
         adata: An updated AnnData object with the clustering updated.
-            Each result_key corresponds to two newly added columns, both .obs and .uns attribute.
-            These columns contain either the clustering results or the probability of each cell belonging to a cluster.
     """
     if directed:
         raise ValueError("CDlib does not support directed graph for Louvain community detection for now.")
@@ -575,10 +572,11 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
                 import leidenalg
             except ImportError:
                 raise ImportError(
-                    "Please install the excellent package `leidenalg` and 'igraph', if you want to set resolution in leiden algorithm."
+                    "Please install the packages `leidenalg` and 'igraph', "
+                    "via 'pip install leidenalg' and 'pip install igraph`."
                 )
 
-            # ModularityVertexPartition does not accept a resolution_parameter, you should use RBConfigurationVertexPartition instead.
+            # ModularityVertexPartition does not accept a resolution_parameter, instead RBConfigurationVertexPartition.
             coms = leidenalg.find_partition(
                 igraph.Graph.from_networkx(graph), leidenalg.RBConfigurationVertexPartition, **kwargs
             )
