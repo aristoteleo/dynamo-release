@@ -569,7 +569,7 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
             )
             initial_membership = None
 
-        if resolution is not 1:
+        if resolution != 1:
             try:
                 import igraph
                 import leidenalg
