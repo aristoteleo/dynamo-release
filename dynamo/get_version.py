@@ -213,13 +213,12 @@ def session_info():
     try:
         import session_info
     except:
-        logging.error("session_info not installed! Please install it with `pip install session_info`")
+        logging.error("session_info not installed! Please install it with `pip install -U session-info`")
 
     session_info.show(html=False, dependencies=True)
 
 
 __version__ = get_version(__file__)
-
 
 if __name__ == "__main__":
     print(__version__)
