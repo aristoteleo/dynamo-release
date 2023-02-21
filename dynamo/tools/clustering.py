@@ -176,7 +176,7 @@ def leiden(
     adata: AnnData,
     resolution: float = 1.0,
     use_weight: bool = True,
-    weight: Optional[list] = None,
+    weight: Optional[Union[str, list]] = None,
     initial_membership: Optional[list] = None,
     adj_matrix: Optional[csr_matrix] = None,
     adj_matrix_key: Optional[str] = None,
