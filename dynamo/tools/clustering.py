@@ -576,7 +576,11 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
 
             # ModularityVertexPartition does not accept a resolution_parameter, instead RBConfigurationVertexPartition.
             coms = leidenalg.find_partition(
-                igraph.Graph.from_networkx(graph), leidenalg.RBConfigurationVertexPartition, **kwargs
+                igraph.Graph.from_networkx(graph),
+                leidenalg.RBConfigurationVertexPartition,
+                initial_membership=initial_membership,
+                weights=weights,
+                **kwargs
             )
         else:
             coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
