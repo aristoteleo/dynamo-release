@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -180,6 +180,7 @@ def leiden(
     initial_membership: Optional[List[int]] = None,
     adj_matrix: Optional[csr_matrix] = None,
     adj_matrix_key: Optional[str] = None,
+    randomize: Optional[int] = None,
     result_key: Optional[str] = None,
     layer: Optional[str] = None,
     obsm_key: Optional[str] = None,
@@ -211,6 +212,7 @@ def leiden(
             If None then defaults to a singleton partition.
         adj_matrix: the adjacency matrix to use for the cluster_community function.
         adj_matrix_key: the key of the adjacency matrix in adata.obsp used for the cluster_community function.
+        randomize: seed for the random number generator. By default uses a random seed if nothing is specified.
         result_key: the key to use for saving clustering results which will be included in both adata.obs and adata.uns.
         layer: the adata layer where cluster algorithms will work on.
         obsm_key: the key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
@@ -234,6 +236,7 @@ def leiden(
             "resolution_parameter": resolution,
             "weight": weight,
             "initial_membership": initial_membership,
+            "randomize": randomize,
         }
     )
 
@@ -389,15 +392,15 @@ def infomap(
 def cluster_community(
     adata: AnnData,
     method: str = "leiden",
-    result_key: Union[str, None] = None,
-    adj_matrix: Union[list, np.array, csr_matrix, None] = None,
-    adj_matrix_key: Union[str, None] = None,
+    result_key: Optional[str] = None,
+    adj_matrix: Optional[Union[list, np.array, csr_matrix]] = None,
+    adj_matrix_key: Optional[str] = None,
     use_weight: bool = True,
     no_community_label: int = -1,
-    layer: Union[str, None] = None,
-    obsm_key: Union[str, None] = None,
-    cell_subsets: list = None,
-    cluster_and_subsets: list = None,
+    layer: Optional[str] = None,
+    obsm_key: Optional[str] = None,
+    cell_subsets: Optional[List[int]] = None,
+    cluster_and_subsets: Optional[Tuple[str, List[int]]] = None,
     directed: bool = True,
     copy: bool = False,
     **kwargs
@@ -524,19 +527,38 @@ def cluster_community(
         return adata
 
 
-def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", directed=False, **kwargs):
-    # -> NodeClustering:
-    """Detect communities based on graph inputs and selected methods with arguments passed in kwargs."""
+def cluster_community_from_graph(
+    graph: Any = None,
+    graph_sparse_matrix: Optional[csr_matrix] = None,
+    method: str = "leiden",
+    directed: bool = False,
+    **kwargs
+) -> Any:
+    """A function takes a graph as input and clusters its nodes into communities using one of three algorithms:
+    Leiden, Louvain, or Infomap.
+
+        Args:
+            graph: a graph object, by default None.
+            graph_sparse_matrix: a sparse matrix that stores the weights of the edges in the graph.
+            method: one of three clustering algorithms (Leiden, Louvain, or Infomap).
+            directed: if the edges in the graph should be directed, by default False.
+
+        Returns:
+            NodeClustering: a NodeClustering object that contains the communities detected by the chosen algorithm.
+    """
     logger = LoggerManager.get_main_logger()
     logger.info("Detecting communities on graph...")
 
     try:
+        import igraph
+        import leidenalg
         import networkx as nx
-        from cdlib import algorithms
     except ImportError:
         raise ImportError(
-            "You need to install the excellent package `cdlib` if you want to use louvain or leiden " "for clustering."
+            "Please install networkx, igraph, leidenalg via "
+            "`pip install networkx or igraph or leidenalg` for clustering on graph."
         )
+
     if graph is not None:
         # highest priority
         pass
@@ -564,8 +586,9 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         if "weight" in kwargs:
             weights = kwargs["weight"]
             kwargs.pop("weight")
-        if "resolution_parameter" in kwargs:
-            resolution = kwargs["resolution_parameter"]
+        if "randomize" in kwargs:
+            seed = kwargs["randomize"]
+            kwargs.pop("randomize")
 
         if initial_membership is not None:
             main_info(
@@ -574,28 +597,28 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
             )
             initial_membership = None
 
+        # ModularityVertexPartition does not accept a resolution_parameter, instead RBConfigurationVertexPartition.
         if resolution != 1:
-            try:
-                import igraph
-                import leidenalg
-            except ImportError:
-                raise ImportError(
-                    "Please install the packages `leidenalg` and 'igraph', "
-                    "via 'pip install leidenalg' and 'pip install igraph`."
-                )
-
-            # ModularityVertexPartition does not accept a resolution_parameter, instead RBConfigurationVertexPartition.
-            coms = leidenalg.find_partition(
-                igraph.Graph.from_networkx(graph),
-                leidenalg.RBConfigurationVertexPartition,
-                initial_membership=initial_membership,
-                weights=weights,
-                **kwargs
-            )
+            partition_type = leidenalg.RBConfigurationVertexPartition
         else:
-            coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
+            partition_type = leidenalg.ModularityVertexPartition
+            kwargs.pop("resolution_parameter")
+
+        coms = leidenalg.find_partition(
+            igraph.Graph.from_networkx(graph),
+            partition_type,
+            initial_membership=initial_membership,
+            weights=weights,
+            seed=seed,
+            **kwargs
+        )
 
     elif method == "louvain":
+        try:
+            from cdlib import algorithms
+        except ImportError:
+            raise ImportError("Please install cdlib via `pip install cdlib` for clustering on graph.")
+
         if "resolution" not in kwargs:
             raise KeyError("resolution not in louvain input parameters")
         # if "weight" not in kwargs:
