@@ -175,7 +175,7 @@ def hdbscan(
 def leiden(
     adata: AnnData,
     resolution: float = 1.0,
-    use_weight: bool = True,
+    use_weight: bool = False,
     weight: Optional[Union[str, Iterable]] = None,
     initial_membership: Optional[List[int]] = None,
     adj_matrix: Optional[csr_matrix] = None,
@@ -206,7 +206,7 @@ def leiden(
         adata: an adata object
         resolution: the resolution of the clustering that determines the level of detail in the clustering process.
             An increase in this value will result in the generation of a greater number of clusters.
-        use_weight: whether to use the weight of the edges in the clustering process. Default True.
+        use_weight: whether to use the weight of the edges in the clustering process. Default False.
         weight: weights of edges. Can be either an iterable (list of double) or an edge attribute.
         initial_membership: list of int. Initial membership for the partition.
             If None then defaults to a singleton partition.
@@ -260,7 +260,7 @@ def leiden(
 def louvain(
     adata: AnnData,
     resolution: float = 1.0,
-    use_weight: bool = True,
+    use_weight: bool = False,
     weight: Optional[Union[str, Iterable]] = None,
     initial_membership: Optional[List[int]] = None,
     adj_matrix: Optional[csr_matrix] = None,
@@ -294,7 +294,7 @@ def louvain(
             Please note that in louvain-igraph, increasing the parameter creates fewer clusters.
             In our code, the resolution parameter in louvain is inverted (1/resolution) to match the effect of leiden,
             As a result, increasing resolution creates more clusters and decreasing it generates fewer.
-        use_weight: whether to use the weight of the edges in the clustering process. Default True
+        use_weight: whether to use the weight of the edges in the clustering process. Default False
         weight: weights of edges. Can be either an iterable (list of double) or an edge attribute.
         initial_membership: list of int. Initial membership for the partition.
             If None then defaults to a singleton partition.
@@ -327,7 +327,7 @@ def louvain(
 
     kwargs.update(
         {
-            "resolution": resolution,
+            "resolution_parameter": resolution,
             "weight": weight,
             "initial_membership": initial_membership,
             "randomize": randomize,
@@ -395,7 +395,7 @@ def cluster_community(
     result_key: Optional[str] = None,
     adj_matrix: Optional[Union[list, np.array, csr_matrix]] = None,
     adj_matrix_key: Optional[str] = None,
-    use_weight: bool = True,
+    use_weight: bool = False,
     no_community_label: int = -1,
     layer: Optional[str] = None,
     obsm_key: Optional[str] = None,
@@ -491,9 +491,6 @@ def cluster_community(
         valid_indices = np.argwhere(valid_indices_bools).flatten()
         graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][:, valid_indices]
 
-    if not use_weight:
-        graph_sparse_matrix.data = 1
-
     community_result = cluster_community_from_graph(
         method=method, graph_sparse_matrix=graph_sparse_matrix, directed=directed, **kwargs
     )
@@ -552,44 +549,35 @@ def cluster_community_from_graph(
     try:
         import igraph
         import leidenalg
-        import networkx as nx
     except ImportError:
         raise ImportError(
             "Please install networkx, igraph, leidenalg via "
             "`pip install networkx or igraph or leidenalg` for clustering on graph."
         )
 
+    initial_membership, weights, seed = None, None, None
+    if "initial_membership" in kwargs:
+        logger.info("Detecting community with initial_membership input from caller")
+        initial_membership = kwargs["initial_membership"]
+        kwargs.pop("initial_membership")
+    if "weight" in kwargs:
+        weights = kwargs["weight"]
+        kwargs.pop("weight")
+    if "randomize" in kwargs:
+        seed = kwargs["randomize"]
+        kwargs.pop("randomize")
+
     if graph is not None:
         # highest priority
         pass
     elif graph_sparse_matrix is not None:
-        logger.info("Converting graph_sparse_matrix to networkx object", indent_level=2)
+        logger.info("Converting graph_sparse_matrix to igraph object", indent_level=2)
         # if graph matrix is with weight, then edge attr "weight" stores weight of edges
-        graph = nx.convert_matrix.from_scipy_sparse_matrix(graph_sparse_matrix, edge_attribute="weight")
-        for i in range(graph_sparse_matrix.shape[0]):
-            if not (i in graph.nodes):
-                graph.add_node(i)
+        graph = igraph.Graph.Adjacency((graph_sparse_matrix > 0), directed=directed)
     else:
         raise ValueError("Expected graph inputs are invalid")
 
-    if directed:
-        graph = graph.to_directed()
-    else:
-        graph = graph.to_undirected()
-
     if method == "leiden":
-        initial_membership, weights, resolution = None, None, None
-        if "initial_membership" in kwargs:
-            logger.info("Detecting community with initial_membership input from caller")
-            initial_membership = kwargs["initial_membership"]
-            kwargs.pop("initial_membership")
-        if "weight" in kwargs:
-            weights = kwargs["weight"]
-            kwargs.pop("weight")
-        if "randomize" in kwargs:
-            seed = kwargs["randomize"]
-            kwargs.pop("randomize")
-
         if initial_membership is not None:
             main_info(
                 "Currently initial_membership for leiden has some issue and thus we ignore it. "
@@ -598,41 +586,29 @@ def cluster_community_from_graph(
             initial_membership = None
 
         # ModularityVertexPartition does not accept a resolution_parameter, instead RBConfigurationVertexPartition.
-        if resolution != 1:
+        if kwargs["resolution_parameter"] != 1:
             partition_type = leidenalg.RBConfigurationVertexPartition
         else:
             partition_type = leidenalg.ModularityVertexPartition
             kwargs.pop("resolution_parameter")
 
         coms = leidenalg.find_partition(
-            igraph.Graph.from_networkx(graph),
-            partition_type,
-            initial_membership=initial_membership,
-            weights=weights,
-            seed=seed,
-            **kwargs
+            graph, partition_type, initial_membership=initial_membership, weights=weights, seed=seed, **kwargs
         )
 
     elif method == "louvain":
         try:
-            from cdlib import algorithms
+            import louvain
         except ImportError:
-            raise ImportError("Please install cdlib via `pip install cdlib` for clustering on graph.")
-
-        if "resolution" not in kwargs:
-            raise KeyError("resolution not in louvain input parameters")
-        # if "weight" not in kwargs:
-        #     raise KeyError("weight not in louvain input parameters")
-        if "randomize" not in kwargs:
-            raise KeyError("randomize not in louvain input parameters")
-
-        resolution = kwargs["resolution"]
-        weight = "weight"
-        randomize = kwargs["randomize"]
+            raise ImportError("Please install louvain via `pip install python-louvain==0.14` for clustering on graph.")
 
         # convert louvain's resolution so that the effect between leiden and louvain is the same.
-        coms = algorithms.louvain(graph, weight=weight, resolution=1 / resolution, randomize=randomize)
+        coms = louvain.find_partition(graph, louvain.RBConfigurationVertexPartition, seed=seed, **kwargs)
     elif method == "infomap":
+        try:
+            import cdlib as algorithms
+        except ImportError:
+            raise ImportError("Please install cdlib via `pip install cdlib` for clustering on graph.")
         coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
