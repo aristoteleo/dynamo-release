@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 - [ ] I am sure this issue is not simply a general python programming problem
-      (if so, please google the answers).
+      (if so, please google the answers or use chatGTP or Bing Chat).
 - [ ] I have searched github issues and confirm this issue has not reported previously.
 - [ ] I have confirmed the problem or enhancement is about the latest docs of dynamo rather than dynamo itself (if so, please use Bug report template).
 
@@ -42,6 +42,8 @@ Install session-info via `pip install session-info` and post the output after ru
 import dynamo as dyn
 import session_info
 session_info.show()
+# since we now included session_info in dynamo. we can use the following command to show the session info:
+dyn.session_info()
 ```
 
 **Additional context**
