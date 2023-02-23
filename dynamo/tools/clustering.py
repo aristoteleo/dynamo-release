@@ -176,11 +176,11 @@ def leiden(
     adata: AnnData,
     resolution: float = 1.0,
     use_weight: bool = False,
-    weight: Optional[Union[str, Iterable]] = None,
+    weights: Optional[Union[str, Iterable]] = None,
     initial_membership: Optional[List[int]] = None,
     adj_matrix: Optional[csr_matrix] = None,
     adj_matrix_key: Optional[str] = None,
-    randomize: Optional[int] = None,
+    seed: Optional[int] = None,
     result_key: Optional[str] = None,
     layer: Optional[str] = None,
     obsm_key: Optional[str] = None,
@@ -207,12 +207,12 @@ def leiden(
         resolution: the resolution of the clustering that determines the level of detail in the clustering process.
             An increase in this value will result in the generation of a greater number of clusters.
         use_weight: whether to use the weight of the edges in the clustering process. Default False.
-        weight: weights of edges. Can be either an iterable (list of double) or an edge attribute.
+        weights: weights of edges. Can be either an iterable (list of double) or an edge attribute.
         initial_membership: list of int. Initial membership for the partition.
             If None then defaults to a singleton partition.
         adj_matrix: the adjacency matrix to use for the cluster_community function.
         adj_matrix_key: the key of the adjacency matrix in adata.obsp used for the cluster_community function.
-        randomize: seed for the random number generator. By default uses a random seed if nothing is specified.
+        seed: seed for the random number generator. By default uses a random seed if nothing is specified.
         result_key: the key to use for saving clustering results which will be included in both adata.obs and adata.uns.
         layer: the adata layer where cluster algorithms will work on.
         obsm_key: the key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
@@ -234,9 +234,9 @@ def leiden(
     kwargs.update(
         {
             "resolution_parameter": resolution,
-            "weight": weight,
+            "weights": weights,
             "initial_membership": initial_membership,
-            "randomize": randomize,
+            "seed": seed,
         }
     )
 
@@ -261,11 +261,11 @@ def louvain(
     adata: AnnData,
     resolution: float = 1.0,
     use_weight: bool = False,
-    weight: Optional[Union[str, Iterable]] = None,
+    weights: Optional[Union[str, Iterable]] = None,
     initial_membership: Optional[List[int]] = None,
     adj_matrix: Optional[csr_matrix] = None,
     adj_matrix_key: Optional[str] = None,
-    randomize: Optional[int] = None,
+    seed: Optional[int] = None,
     result_key: Optional[str] = None,
     layer: Optional[str] = None,
     obsm_key: Optional[str] = None,
@@ -293,12 +293,12 @@ def louvain(
         resolution: the resolution of the clustering that determines the level of detail in the clustering process.
             An increase in this value will result in the generation of a greater number of clusters.
         use_weight: whether to use the weight of the edges in the clustering process. Default False
-        weight: weights of edges. Can be either an iterable (list of double) or an edge attribute.
+        weights: weights of edges. Can be either an iterable (list of double) or an edge attribute.
         initial_membership: list of int. Initial membership for the partition.
             If None then defaults to a singleton partition.
         adj_matrix: the adjacency matrix to use for the cluster_community function. Default None
         adj_matrix_key: adj_matrix_key in adata.obsp used for the cluster_community function. Default None
-        randomize: randomState instance or None, optional (default=None).
+        seed: randomState instance or None, optional (default=None).
             If int, random_state is the seed used by the random number generator;
             If RandomState instance, random_state is the random number generator;
             If None, the random number generator is the RandomState instance used by np.random.
@@ -326,9 +326,9 @@ def louvain(
     kwargs.update(
         {
             "resolution_parameter": resolution,
-            "weight": weight,
+            "weights": weights,
             "initial_membership": initial_membership,
-            "randomize": randomize,
+            "seed": seed,
         }
     )
 
@@ -553,25 +553,16 @@ def cluster_community_from_graph(
             "`pip install networkx or igraph or leidenalg` for clustering on graph."
         )
 
-    initial_membership, weights, seed = None, None, None
-    if "initial_membership" in kwargs:
-        logger.info("Detecting community with initial_membership input from caller")
-        initial_membership = kwargs["initial_membership"]
-        kwargs.pop("initial_membership")
-    if "weight" in kwargs:
-        weights = kwargs["weight"]
-        kwargs.pop("weight")
-    if "randomize" in kwargs:
-        seed = kwargs["randomize"]
-        kwargs.pop("randomize")
+    initial_membership = kwargs.pop("initial_membership", None)
+    weights = kwargs.pop("weights", None)
+    seed = kwargs.pop("seed", None)
 
     if graph is not None:
         # highest priority
         pass
     elif graph_sparse_matrix is not None:
         logger.info("Converting graph_sparse_matrix to igraph object", indent_level=2)
-        # if graph matrix is with weight, then edge attr "weight" stores weight of edges
-        graph = igraph.Graph.Adjacency((graph_sparse_matrix > 0), directed=directed)
+        graph = igraph.Graph.Weighted_Adjacency(graph_sparse_matrix, mode=directed)
     else:
         raise ValueError("Expected graph inputs are invalid")
 
