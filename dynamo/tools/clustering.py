@@ -290,10 +290,8 @@ def louvain(
 
     Args:
         adata: an adata object
-        resolution: The resolution parameter that determines clustering level of detail.
-            Please note that in louvain-igraph, increasing the parameter creates fewer clusters.
-            In our code, the resolution parameter in louvain is inverted (1/resolution) to match the effect of leiden,
-            As a result, increasing resolution creates more clusters and decreasing it generates fewer.
+        resolution: the resolution of the clustering that determines the level of detail in the clustering process.
+            An increase in this value will result in the generation of a greater number of clusters.
         use_weight: whether to use the weight of the edges in the clustering process. Default False
         weight: weights of edges. Can be either an iterable (list of double) or an edge attribute.
         initial_membership: list of int. Initial membership for the partition.
@@ -603,7 +601,14 @@ def cluster_community_from_graph(
             raise ImportError("Please install louvain via `pip install python-louvain==0.14` for clustering on graph.")
 
         # convert louvain's resolution so that the effect between leiden and louvain is the same.
-        coms = louvain.find_partition(graph, louvain.RBConfigurationVertexPartition, seed=seed, **kwargs)
+        coms = louvain.find_partition(
+            graph,
+            louvain.RBConfigurationVertexPartition,
+            initial_membership=initial_membership,
+            weights=weights,
+            seed=seed,
+            **kwargs
+        )
     elif method == "infomap":
         try:
             import cdlib as algorithms
