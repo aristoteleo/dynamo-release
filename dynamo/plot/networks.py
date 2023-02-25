@@ -1,10 +1,12 @@
 import networkx as nx
 import numpy as np
 import nxviz as nv
-import nxviz.annotate
 import pandas as pd
-from matplotlib.axes import Axes
+import warnings
+# nxviz prints long warning messages regarding nxviz's own version update information
+warnings.filterwarnings("ignore", module="nxviz")
 
+from matplotlib.axes import Axes
 from ..tools.utils import flatten, index_gene, update_dict
 from .utils import save_fig, set_colorbar
 from .utils_graph import ArcPlot
