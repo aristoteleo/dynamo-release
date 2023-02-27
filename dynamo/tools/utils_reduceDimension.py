@@ -1,6 +1,7 @@
 import warnings
 
 import numpy as np
+import pandas as pd
 
 from ..configuration import DKM
 from ..preprocessing.utils import pca_monocle
@@ -236,12 +237,13 @@ def run_reduce_dim(
             "indices": knn_indices,
         }
 
-        layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
-        neighbor_result_prefix = "" if layer is None else layer
-        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
-
+        # CHECK! UMAP is not hdf5 serializable, so convert to pd DataFrame. Need to convert back to UMAP when loading if needed.
+        # layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
+        # neighbor_result_prefix = "" if layer is None else layer
+        # conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+        umap_df = pd.DataFrame(mapper.embedding_, columns=["UMAP1", "UMAP2"])
         adata.uns["umap_fit"] = {
-            "fit": mapper,
+            "fit": umap_df,
             "n_pca_components": n_pca_components,
         }
     elif reduction_method == "psl":

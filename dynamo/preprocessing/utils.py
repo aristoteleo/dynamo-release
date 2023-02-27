@@ -133,8 +133,12 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
         merge_df = adata.var.merge(official_gene_df, left_on="query", right_on="query", how="left").set_index(
             adata.var.index
         )
-        adata.var = merge_df
+
         valid_ind = np.where(merge_df["notfound"] != True)[0]  # noqa: E712
+        merge_df.pop(
+            "notfound"
+        )  # It seems this column is added unintentionally in adata.var here. So I removed it. Need to check if this is correct.
+        adata.var = merge_df
 
         if subset is True:
             adata._inplace_subset_var(valid_ind)

@@ -666,7 +666,9 @@ def SVRs(
         )
 
         key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
-        adata_ori.uns[key] = {"SVR": fitted_fun}
+        adata_ori.uns[key] = {
+            "SVR": str(fitted_fun)
+        }  # CHECK! SVM is not hdf5 serializable, so convert to str. Need to convert back to SVM when loading if needed.
 
     adata_ori = merge_adata_attrs(adata_ori, adata, attr="var")
 

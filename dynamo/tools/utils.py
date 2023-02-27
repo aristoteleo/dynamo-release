@@ -1262,20 +1262,21 @@ def set_param_kinetic(
     cur_cells_bools,
     valid_ind,
 ):
-    if cur_grp == _group[0]:
-        (
-            adata.var[kin_param_pre + "alpha"],
-            adata.var[kin_param_pre + "a"],
-            adata.var[kin_param_pre + "b"],
-            adata.var[kin_param_pre + "alpha_a"],
-            adata.var[kin_param_pre + "alpha_i"],
-            adata.var[kin_param_pre + "beta"],
-            adata.var[kin_param_pre + "p_half_life"],
-            adata.var[kin_param_pre + "gamma"],
-            adata.var[kin_param_pre + "half_life"],
-            adata.var[kin_param_pre + "cost"],
-            adata.var[kin_param_pre + "logLL"],
-        ) = (None, None, None, None, None, None, None, None, None, None, None)
+    """Reset only time_3??? Is this code necessary?"""
+    # if cur_grp == _group[0]:
+    #     (
+    #         adata.var[kin_param_pre + "alpha"],
+    #         adata.var[kin_param_pre + "a"],
+    #         adata.var[kin_param_pre + "b"],
+    #         adata.var[kin_param_pre + "alpha_a"],
+    #         adata.var[kin_param_pre + "alpha_i"],
+    #         adata.var[kin_param_pre + "beta"],
+    #         adata.var[kin_param_pre + "p_half_life"],
+    #         adata.var[kin_param_pre + "gamma"],
+    #         adata.var[kin_param_pre + "half_life"],
+    #         adata.var[kin_param_pre + "cost"],
+    #         adata.var[kin_param_pre + "logLL"],
+    #     ) = (None, None, None, None, None, None, None, None, None, None, None)
 
     if isarray(alpha) and alpha.ndim > 1:
         adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
