@@ -19,11 +19,6 @@ requirements:
     - markdown 3.3.*
   build:
     - python
-    - numpy 1.23.*
-    - setuptools
-    - typing-extensions
-    - openpyxl
-    - get_version
   runs:
     - python
     - setuptools
