@@ -15,12 +15,10 @@ requirements:
     - typing-extensions
     - openpyxl
     - get_version
-    - anndata>=0.8.0
     - numpy 1.23.*
     - markdown 3.3.*
   build:
     - python
-    - anndata>=0.8.0
     - numpy 1.23.*
     - setuptools
     - typing-extensions
@@ -57,8 +55,7 @@ about:
   license: MIT
   license_familY: MIT
   license_file: LICENSE
-  summary: "Inclusive model of expression dynamics with conventional or metabolic labeling based scRNA-seq / multiomics,
-   vector field reconstruction and differential geometry analyses"
+  summary: "Inclusive model of expression dynamics with metabolic labeling based scRNA-seq / multiomics, vector field reconstruction, potential landscape mapping, differential geometry analyses, and most probably paths / in silico perturbation predictions."
 
 extra:
   recipe-maintainers:
