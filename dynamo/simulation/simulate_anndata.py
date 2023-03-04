@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 import anndata
 import numpy as np
@@ -506,25 +506,26 @@ class KinLabelingSimulator:
 
 class BifurcationTwoGenes(CellularModelSimulator):
     def __init__(
-        self, param_dict: dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None, report_stoich=False
+        self,
+        param_dict: Dict,
+        C0s: Optional[np.ndarray] = None,
+        r_aug: float = 20,
+        tau: float = 3,
+        n_C0s: int = 10,
+        gene_names: Optional[List] = None,
+        report_stoich: bool = False,
     ) -> None:
         """
         Two gene toggle switch model anndata simulator.
 
         Args:
-            param_dict: dict
-                The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
+            param_dict: The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
                 if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
-            C0s: None or :class:`~numpy.ndarray`
-                Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
-            r_aug: float
-                Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
-            tau: float
-                Time scale parameter which does not affect steady state solutions.
-            n_C0s: int
-                Number of augmented initial conditions, if C0s is `None`.
-            gene_names: None or list
-                List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
+            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
+            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+            tau: Time scale parameter which does not affect steady state solutions.
+            n_C0s: Number of augmented initial conditions, if C0s is `None`.
+            gene_names: List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
         """
         if gene_names is None:
             gene_names = ["gene_1", "gene_2"]
@@ -596,25 +597,27 @@ class BifurcationTwoGenes(CellularModelSimulator):
 
 
 class OscillationTwoGenes(CellularModelSimulator):
-    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None, report_stoich=False) -> None:
+    def __init__(
+        self,
+        param_dict: Dict,
+        C0s: Optional[np.ndarray] = None,
+        r_aug: float = 20,
+        tau: float = 3,
+        n_C0s: int = 10,
+        gene_names: Optional[List] = None,
+        report_stoich: bool = False,
+    ) -> None:
         """
         Two gene oscillation model anndata simulator. This is essentially a predator-prey model, where gene 1 (predator) inhibits gene 2 (prey) and gene 2 activates gene 1.
 
-        Parameters
-        ----------
-            param_dict: dict
-                The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
+        Args:
+            param_dict: The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
                 if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
-            C0s: None or :class:`~numpy.ndarray`
-                Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
-            r_aug: float
-                Parameter which augments copy numbers for the two genes.
-            tau: float
-                Time scale parameter which does not affect steady state solutions.
-            n_C0s: int
-                Number of augmented initial conditions, if C0s is `None`.
-            gene_names: None or list
-                List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
+            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
+            r_aug: Parameter which augments copy numbers for the two genes.
+            tau: Time scale parameter which does not affect steady state solutions.
+            n_C0s: Number of augmented initial conditions, if C0s is `None`.
+            gene_names: List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
         """
         if gene_names is None:
             gene_names = ["gene_1", "gene_2"]
@@ -691,23 +694,25 @@ class OscillationTwoGenes(CellularModelSimulator):
 
 
 class Neurongenesis(CellularModelSimulator):
-    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, report_stoich=False) -> None:
+    def __init__(
+        self,
+        param_dict: Dict,
+        C0s: Optional[np.ndarray] = None,
+        r_aug: float = 20,
+        tau: float = 3,
+        n_C0s: int = 10,
+        report_stoich: bool = False,
+    ) -> None:
         """
         Neurongenesis model from Xiaojie Qiu, et. al, 2012. anndata simulator.
 
-        Parameters
-        ----------
-            param_dict: dict
-                The parameter dictionary.
+        Args:
+            param_dict: The parameter dictionary.
                 if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
-            C0s: None or :class:`~numpy.ndarray`
-                Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
-            r_aug: float
-                Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
-            tau: float
-                Time scale parameter which does not affect steady state solutions.
-            n_C0s: int
-                Number of augmented initial conditions, if C0s is `None`.
+            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
+            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+            tau: Time scale parameter which does not affect steady state solutions.
+            n_C0s: Number of augmented initial conditions, if C0s is `None`.
         """
 
         gene_names = [
