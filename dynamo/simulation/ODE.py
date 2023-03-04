@@ -1,4 +1,5 @@
 from random import seed, uniform
+from typing import List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -6,28 +7,94 @@ import pandas as pd
 
 
 # TODO: import from here in ..estimation.fit_jacobian.py
-def hill_inh_func(x, A, K, n, g=0):
+def hill_inh_func(x: float, A: float, K: float, n: float, g: float = 0) -> float:
+    """Calculates the Hill inhibition function for a given input.
+
+    Args:
+        x: Input value for which the Hill inhibition function is to be calculated.
+        A: Scaling factor for the output of the function.
+        K: Concentration at which half-maximal inhibition occurs.
+        n: Hill coefficient, which describes the steepness of the function's curve.
+        g: Background inhibition parameter. Defaults to 0.
+
+    Returns:
+        float: The value of the Hill inhibition function for the given input.
+
+    """
     Kd = K**n
     return A * Kd / (Kd + x**n) - g * x
 
 
-def hill_inh_grad(x, A, K, n, g=0):
+def hill_inh_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float:
+    """Calculates the gradient of the Hill inhibition function for a given input.
+
+    Args:
+        x: Input value for which the gradient of the Hill inhibition function is to be calculated.
+        A: Scaling factor for the output of the function.
+        K: Concentration at which half-maximal inhibition occurs.
+        n: Hill coefficient, which describes the steepness of the function's curve.
+        g: Background inhibition parameter. Defaults to 0.
+
+    Returns:
+        float: The value of the gradient of the Hill inhibition function for the given input.
+
+    """
     Kd = K**n
     return -A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
-def hill_act_func(x, A, K, n, g=0):
+def hill_act_func(x: float, A: float, K: float, n: float, g: float = 0) -> float:
+    """Calculates the Hill activation function for a given input.
+
+    Args:
+        x: Input value for which the Hill activation function is to be calculated.
+        A: Scaling factor for the output of the function.
+        K: Concentration at which half-maximal activation occurs.
+        n: Hill coefficient, which describes the steepness of the function's curve.
+        g: Background activation parameter. Defaults to 0.
+
+    Returns:
+        float: The value of the Hill activation function for the given input.
+
+    """
     Kd = K**n
     return A * x**n / (Kd + x**n) - g * x
 
 
-def hill_act_grad(x, A, K, n, g=0):
+def hill_act_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float:
+    """Calculates the gradient of the Hill activation function for a given input.
+
+    Args:
+        x: Input value for which the gradient of the Hill activation function is to be calculated.
+        A: Scaling factor for the output of the function.
+        K: Concentration at which half-maximal activation occurs.
+        n: Hill coefficient, which describes the steepness of the function's curve.
+        g: Background activation parameter. Defaults to 0.
+
+    Returns:
+        float: The value of the gradient of the Hill activation function for the given input.
+
+    """
     Kd = K**n
     return A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
-def toggle(ab, t=None, beta=5, gamma=1, n=2):
-    """Right hand side (rhs) for toggle ODEs."""
+def toggle(
+    ab: Union[np.ndarray, Tuple[float, float]], t: Optional[float] = None, beta: float = 5, gamma: float = 1, n: int = 2
+) -> np.ndarray:
+    """Calculates the right-hand side (RHS) of the differential equations for the toggle switch system.
+
+    Args:
+        ab: An array or tuple containing the values of the variables a and b.
+        t: Time variable. Defaults to None.
+        beta: The rate of activation of a by b. Defaults to 5.
+        gamma: The rate of activation of b by a. Defaults to 1.
+        n: The Hill coefficient. Defaults to 2.
+
+    Returns:
+        np.ndarray: The RHS of the differential equations for the toggle switch system, calculated using the given input parameters.
+
+    """
     if len(ab.shape) == 2:
         a, b = ab[:, 0], ab[:, 1]
         res = np.array([beta / (1 + b**n) - a, gamma * (beta / (1 + a**n) - b)]).T
@@ -38,7 +105,7 @@ def toggle(ab, t=None, beta=5, gamma=1, n=2):
     return res
 
 
-def Ying_model(x, t=None):
+def Ying_model(x: np.ndarray, t=None):
     """network used in the potential landscape paper from Ying, et. al:
     https://www.nature.com/articles/s41598-017-15889-2.
     This is also the mixture of Gaussian model.
@@ -99,16 +166,42 @@ def hessian_Ying_model(x, t=None):
     return H
 
 
-def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
-    """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
+def ode_bifur2genes(
+    x: np.ndarray,
+    a: List = [1, 1],
+    b: List = [1, 1],
+    S: List = [0.5, 0.5],
+    K: List = [0.5, 0.5],
+    m: List = [4, 4],
+    n: List = [4, 4],
+    gamma: List = [1, 1],
+) -> np.ndarray:
+    """The ODEs for the toggle switch motif with self-activation and mutual inhibition.
+
+    Args:
+        x: The current state of the system.
+        a: The self-activation strengths of the genes. Defaults to [1, 1].
+        b: The mutual inhibition strengths of the genes. Defaults to [1, 1].
+        S: The self-activation thresholds of the genes. Defaults to [0.5, 0.5].
+        K: The mutual inhibition thresholds of the genes. Defaults to [0.5, 0.5].
+        m: The Hill coefficients for self-activation. Defaults to [4, 4].
+        n: The Hill coefficients for mutual inhibition. Defaults to [4, 4].
+        gamma: The degradation rates of the genes. Defaults to [1, 1].
+
+    Returns:
+        np.ndarray: The rate of change of the system state.
+    """
 
     d = x.ndim
     x = np.atleast_2d(x)
     dx = np.zeros(x.shape)
 
+    # Compute the rate of change of each gene's concentration using Hill functions for self-activation
+    # and mutual inhibition
     dx[:, 0] = hill_act_func(x[:, 0], a[0], S[0], m[0], g=gamma[0]) + hill_inh_func(x[:, 1], b[0], K[0], n[0])
     dx[:, 1] = hill_act_func(x[:, 1], a[1], S[1], m[1], g=gamma[1]) + hill_inh_func(x[:, 0], b[1], K[1], n[1])
 
+    # Flatten the result if the input was 1-dimensional
     if d == 1:
         dx = dx.flatten()
 
@@ -307,23 +400,20 @@ def state_space_sampler(ode, dim, seed_num=19491001, clip=True, min_val=0, max_v
     return X, Y
 
 
-def Simulator(motif="neurongenesis", seed_num=19491001, clip=None, cell_num=5000):
+def Simulator(
+    motif: str = "neurongenesis", seed_num=19491001, clip: Optional[bool] = None, cell_num: int = 5000
+) -> anndata.AnnData:
     """Simulate the gene expression dynamics via deterministic ODE model
 
-    Parameters
-    ----------
-    motif: str (default: "neurongenesis")
-        Name of the network motif that will be used in the simulation. Can be one of {"neurongenesis", "toggle",
-        "two_genes", "Ying", "mixture_of_gaussian", "four_attractors"}. The last three models are equivalent.
-    clip: bool (default: None)
-        Whether to clip data points that are negative.
-    cell_num: int (default: 5000)
-        Number of cells to simulate.
+    Args:
+        motif: str (default: "neurongenesis")
+            Name of the network motif that will be used in the simulation. Can be one of {"neurongenesis", "toggle",
+            "two_genes", "Ying", "mixture_of_gaussian", "four_attractors"}. The last three models are equivalent.
+        clip: Whether to clip data points that are negative.
+        cell_num: Number of cells to simulate.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object containing the simulated data.
+    Returns:
+        adata: an Annodata object containing the simulated data.
     """
 
     if motif == "toggle":

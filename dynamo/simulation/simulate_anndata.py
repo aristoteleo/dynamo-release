@@ -1,4 +1,4 @@
-from typing import Callable, Union
+from typing import Callable, List, Optional, Union
 
 import anndata
 import numpy as np
@@ -78,9 +78,9 @@ class AnnDataSimulator:
         C0s,
         param_dict,
         species: Union[None, CellularSpecies] = None,
-        gene_param_names=[],
-        required_param_names=[],
-        velocity_func=None,
+        gene_param_names: List = [],
+        required_param_names: List = [],
+        velocity_func: Optional[Callable] = None,
     ) -> None:
 
         # initialization of variables
@@ -252,39 +252,28 @@ class CellularModelSimulator(AnnDataSimulator):
         param_dict: dict,
         molecular_param_names: list = [],
         kinetic_param_names: list = [],
-        C0s: np.ndarray = None,
+        C0s: Optional[np.ndarray] = None,
         r_aug: float = 1,
         tau: float = 1,
         n_C0s: int = 10,
-        velocity_func: Union[None, Callable] = None,
-        report_stoich=False,
+        velocity_func: Optional[Callable] = None,
+        report_stoich: bool = False,
     ) -> None:
         """
         An anndata simulator class handling models with synthesis, splicing (optional), and first-order degrdation reactions.
 
-        Parameters
-        ----------
-            gene_names: list
-                List of gene names.
-            synthesis_param_names: list
-                List of kinetic parameters used to calculate synthesis rates.
-            param_dict: dict
-                The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
+        Args:
+            gene_names: List of gene names.
+            synthesis_param_names: List of kinetic parameters used to calculate synthesis rates.
+            param_dict: The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
                 if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (`unspliced` and `spliced` for each gene).
-            molecular_param_names: list
-                List of names of parameters which has `number of molecules` in their dimensions. These parameters will be multiplied with `r_aug` for scaling.
-            kinetic_param_names: list
-                List of names of parameters which has `time` in their dimensions. These parameters will be multiplied with `tau` to scale the kinetics.
-            C0s: None or :class:`~numpy.ndarray`
-                Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions.
-            r_aug: float
-                Parameter which augments steady state copy number for r1 and r2. At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
-            tau: float
-                Time scale parameter which does not affect steady state solutions.
-            n_C0s: int
-                Number of augmented initial conditions, if C0s is `None`.
-            velocity_func: None or Callable
-                Function used to calculate velocity. If `None`, the velocity will not be calculated.
+            molecular_param_names: List of names of parameters which has `number of molecules` in their dimensions. These parameters will be multiplied with `r_aug` for scaling.
+            kinetic_param_names: List of names of parameters which has `time` in their dimensions. These parameters will be multiplied with `tau` to scale the kinetics.
+            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions.
+            r_aug: Parameter which augments steady state copy number for r1 and r2. At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+            tau: Time scale parameter which does not affect steady state solutions.
+            n_C0s: Number of augmented initial conditions, if C0s is `None`.
+            velocity_func: Function used to calculate velocity. If `None`, the velocity will not be calculated.
         """
         self.splicing = True if "beta" in param_dict.keys() else False
         self.gene_names = gene_names
@@ -516,12 +505,13 @@ class KinLabelingSimulator:
 
 
 class BifurcationTwoGenes(CellularModelSimulator):
-    def __init__(self, param_dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None, report_stoich=False) -> None:
+    def __init__(
+        self, param_dict: dict, C0s=None, r_aug=20, tau=3, n_C0s=10, gene_names=None, report_stoich=False
+    ) -> None:
         """
         Two gene toggle switch model anndata simulator.
 
-        Parameters
-        ----------
+        Args:
             param_dict: dict
                 The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
                 if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
