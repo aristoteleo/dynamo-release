@@ -5,7 +5,7 @@ import numpy as np
 from anndata import AnnData
 from matplotlib.axes import Axes
 
-from .scatters import docstrings, scatters
+from .scatters import scatters
 from .utils import _to_hex
 
 

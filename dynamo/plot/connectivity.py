@@ -166,7 +166,7 @@ def connectivity_base(
             this will be used for shading points according to density (largely only of relevance for very large
             datasets). If values are passed this will be used for shading according the value. Note that if theme is
             passed then this value will be overridden by the corresponding option of the theme. Defaults to "Blues".
-        color_key: a way to assign colors to categoricals. This can either be an explicit dict mapping labels to colors
+        color_key: a way to assign colors to categorical. This can either be an explicit dict mapping labels to colors
             (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct category being
             provided in `labels`. Either way this mapping will be used to color points according to the label. Note that
             if theme is passed then this value will be overridden by the corresponding option of the theme. Defaults to
@@ -185,8 +185,8 @@ def connectivity_base(
         sort: the method to reorder data so that high values points will be on top of background points. Can be one of
             {'raw', 'abs'}, i.e. sorted by raw data or sort by absolute values. Defaults to "raw".
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the
                 {
                     "path": None,
                     "prefix": 'connectivity_base',
@@ -196,7 +196,7 @@ def connectivity_base(
                     "close": True,
                     "verbose": True
                 }
-            as its parameters. Otherwise you can provide a dictionary that properly modify those keys according to your
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to your
             needs. Defaults to {}.
 
     Raises:

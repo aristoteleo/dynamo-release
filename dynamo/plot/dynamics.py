@@ -127,13 +127,13 @@ def phase_portraits(
             theme is passed then this value will be overridden by the corresponding option of the theme. Defaults to
             None.
         figsize: the width and height of each panel in the figure. Defaults to (6, 4).
-        ncols: number of columns in each facet grid.. Defaults to None.
+        ncols: number of columns in each facet grid. Defaults to None.
         legend: the position to draw the legend. Legend is drawn by seaborn with “brief” mode, numeric hue and size v
-            ariables will be represented with a sample of evenly spaced values. By default legend is drawn on top of
+            ariables will be represented with a sample of evenly spaced values. By default, legend is drawn on top of
             cells. Defaults to "upper left".
         background: the background color. If set to None the face color of the figure would be used. Defaults to None.
         show_quiver: Whether to show the quiver plot. If velocity for x component (corresponds to either spliced, total
-            RNA, protein, etc) or y component (corresponds to either unspliced, new RNA, protein, etc) are both
+            RNA, protein, etc.) or y component (corresponds to either unspliced, new RNA, protein, etc.) are both
             calculated, quiver represents velocity for both components otherwise the uncalculated component (usually y
             component) will be set to be 0. Defaults to False.
         quiver_size: the size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is
@@ -155,8 +155,8 @@ def phase_portraits(
             currently using. If None, only the first panel in the expression / velocity plot will have the arrowed
             spine. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the
                 {
                     "path": None,
                     "prefix": 'phase_portraits',
@@ -166,7 +166,7 @@ def phase_portraits(
                     "close": True,
                     "verbose": True
                 }
-            as its parameters. Otherwise you can provide a dictionary that properly modify those keys according to
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
             your needs. Defaults to {}.
         **kwargs: additional parameters that will be passed to `plt.scatter` function.
 
@@ -1122,9 +1122,9 @@ def dynamics(
         genes: the key for variable or gene names.
         unit: the unit of the labeling time, for example, `hours` or `minutes`. Defaults to "hours".
         log_unnormalized: whether the data has logged value. Defaults to True.
-        y_log_scale: whether or not to use log scale for y-axis. Defaults to False.
-        ci: the confidence interval to be drawed for the parameter fitting. Currently not used. Defaults to None.
-        ncols: the number of columns in the plot.. Defaults to None.
+        y_log_scale: whether to use log scale for y-axis. Defaults to False.
+        ci: the confidence interval to be drawn for the parameter fitting. Currently not used. Defaults to None.
+        ncols: the number of columns in the plot. Defaults to None.
         figsize: the size of the each panel in the figure. Defaults to None.
         dpi: the resolution of the figure. Defaults to None.
         boxwidth: the width of the box of the boxplot. Defaults to None.
@@ -1138,10 +1138,19 @@ def dynamics(
         gene_order: the order of genes to present on the figure, either row-major or column major. Defaults to "column".
         font_size_scale: the scale factor of fonts. Defaults to 1.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'dynamics', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the
+            {
+                "path": None,
+                "prefix": 'dynamics',
+                "dpi": None,
+                "ext": 'pdf',
+                "transparent": True,
+                "close": True,
+                "verbose": True
+            }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to your
+            needs. Defaults to {}.
 
     Raises:
         ValueError: the gene specified does not have fitted kinetic parameters.
@@ -1172,9 +1181,7 @@ def dynamics(
     show_kin_parameters = True if true_param_prefix else show_kin_parameters
 
     uns_keys = np.array(adata.uns_keys())
-    tmp = np.array([i.split("_dynamics")[0] if i.endswith("_dynamics") else None for i in uns_keys])
-    tmp1 = [False if i is None else True for i in tmp]
-    group = tmp[tmp1][0] if sum(tmp1) > 0 else None
+    group = next((i.split("_dynamics")[0] for i in uns_keys if i.endswith("_dynamics")), None)
 
     if group is not None:
         uns_key = group + "_dynamics"
