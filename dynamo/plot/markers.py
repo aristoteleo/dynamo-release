@@ -66,7 +66,7 @@ def bubble(
         layer: the layer of data to use for the bubble plot. Defaults to None.
         theme: a color theme to use for plotting. A small set of predefined themes are provided which have relatively
             good aesthetics. Available themes are:
-                * 'blue'
+               * 'blue'
                * 'red'
                * 'green'
                * 'inferno'
@@ -112,10 +112,10 @@ def bubble(
         figsize: the size of the figure. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Can be one of "save", "show", or "return".
             Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide
+            a dictionary that properly modify those keys according to your needs.. Defaults to {}.
 
     Raises:
         ValueError: `group` is not a column name of `adata.obs`

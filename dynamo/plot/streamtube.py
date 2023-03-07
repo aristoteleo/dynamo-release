@@ -56,11 +56,11 @@ def plot_3d_streamtube(
         cmap: The name of a matplotlib colormap to use for coloring the plots. Defaults to None.
         color_key: the method to assign colors to categoricals. Defaults to None.
         color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. Defaults to None.
-        html_fname: html file name that will be use to save the streamtube interactive plot. Defaults to None.
+        html_fname: html file name that will be used to save the streamtube interactive plot. Defaults to None.
         save_show_or_return: whether to save, show, or return the figures. Defaults to "show".
-        save_kwargs:  A dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs:  A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Raises:

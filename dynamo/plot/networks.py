@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -48,10 +48,10 @@ def nxvizPlot(
         weight_threshold: the threshold of weight that will be used to trim the edges for network reconstruction. Defaults to 1e-4.
         figsize: the size of each panel of the figure. Defaults to (6, 6).
         save_show_or_return: whether to save, show, or return the plotted figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide
+            a dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs that would be passed to Arcplot or CircosPlot.
 
     Raises:
@@ -237,9 +237,9 @@ def arcPlot(
         figsize: the size of each panel of the figure. Defaults to (6, 6).
         save_show_or_return: whether to save, show, or return the plotted ArcPlot. Could be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs that would be passed to ArcPlot.
 
@@ -349,22 +349,17 @@ def circosPlot(
 ) -> Axes:
     """wrapper for drawing circos plot via nxviz >= 0.7.3
 
-    Parameters
-    ----------
-    network : nx.Graph
-        a network graph instance
-    node_label_key : str, optional
-        node label (attribute) in network for grouping nodes, by default None
-    circos_label_layout : str, optional
-        layout of circos plot (see nxviz docs for details), by default "rotate"
-    node_color_key : str, optional
-        node attribute in network, corresponding to color values of nodes, by default None
-    show_colorbar : bool, optional
-        whether to show colorbar, by default True
-    edge_lw_scale : float
-        the line width scale of edges drawn in in plot
-    edge_alpha_scale : float
-        the alpha (opacity, transparency) scale of edges, the value shoud be in [0, 1.0]
+    Args:
+        network : a network graph instance
+        node_label_key : node label (attribute) in network for grouping nodes, by default None
+        circos_label_layout : layout of circos plot (see nxviz docs for details), by default "rotate"
+        node_color_key : node attribute in network, corresponding to color values of nodes, by default None
+        show_colorbar : whether to show colorbar, by default True
+        edge_lw_scale : the line width scale of edges drawn in plot
+        edge_alpha_scale : the alpha (opacity, transparency) scale of edges, the value should be in [0, 1.0]
+
+    Returns:
+        the Matplotlib Axes on which the Circos plot is drawn.
     """
     ax = nv.circos(
         network,
@@ -374,7 +369,7 @@ def circosPlot(
         edge_alpha_by="weight",
         edge_enc_kwargs={
             "lw_scale": edge_lw_scale,
-            "alpha_scale": edge_alpha_scale,
+            "alpha_ scale": edge_alpha_scale,
         },
     )
 
@@ -405,7 +400,7 @@ def circosPlotDeprecated(
 
     """Deprecated.
 
-    A wrapper of `dynamo.pl.networks.nxvizPlot` to plot Circos graph. See the `nxvizPlot` for more informations.
+    A wrapper of `dynamo.pl.networks.nxvizPlot` to plot Circos graph. See the `nxvizPlot` for more information.
 
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the generated `nxviz` plot
@@ -452,9 +447,9 @@ def hivePlot(
         figsize: the size of each panel of the figure. Defaults to (6, 6).
         save_show_or_return: whether to save, show, or return the figure. Could be one of "save", "show", or "return".
             Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'hiveplot', "dpi": None, "ext": 'pdf',
-            "transparent": True,  "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'hiveplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Raises:

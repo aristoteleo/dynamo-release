@@ -29,12 +29,12 @@ def show_landscape(
         Xgrid: x-coordinates of the Grid produced from the meshgrid function.
         Ygrid: y-coordinates of the Grid produced from the meshgrid function.
         Zgrid: z-coordinates or potential at each of the x/y coordinate.
-        basis: the method of dimension reduction. By default it is trimap. Currently it is not checked with Xgrid and
+        basis: the method of dimension reduction. By default, it is trimap. Currently, it is not checked with Xgrid and
             Ygrid. Defaults to "umap".
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'show_landscape', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'show_landscape', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your need. Defaults to {}.
 
     Returns:

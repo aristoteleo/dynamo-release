@@ -237,12 +237,12 @@ def response(
         zero_line_width: line width of the zero line. Defaults to 2.5.
         mean_style: the line style for plotting the y mean data. Defaults to "c*".
         fit_curve: whether to fit the curve between `x` and `y`. Defaults to False.
-        fit_mode: the fitting mode for fitting the curve between `x` and `y`. Currently the relation ship can only be
+        fit_mode: the fitting mode for fitting the curve between `x` and `y`. Currently, the relationship can only be
             fit into Hill function. Defaults to "hill".
         curve_style: the line style of fitted curve. Defaults to "c-".
         curve_lw: the line width of the fitted curve. Defaults to 2.5.
         no_degradation: whether to consider degradation when fitting Hill equations. Defaults to True.
-        show_extent: whether to extent the figure. If False, `show_ridge` and `show_rug` would be set to False
+        show_extent: whether to extend the figure. If False, `show_ridge` and `show_rug` would be set to False
             automatically. Defaults to False.
         ext_format: the string/list of strings (the first is for x and second for y labels) that will be used to format
             the ticks on x or y-axis. If it is None or one of the element in the list is None, the default setting will
@@ -252,9 +252,9 @@ def response(
         figsize: size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to show or save the plotted figure or both. `"both"` and `"all"` have the same
             effect. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         return_data: whether to return the data used to generate the heatmap. Defaults to False.
 
@@ -566,6 +566,8 @@ def response(
                     )
                 else:
                     raise NotImplementedError("The hill function can be applied to the Jacobian response heatmap only.")
+            else:
+                raise NotImplementedError("Currently, the fit_mode can only be served by the hill function.")
 
         # set the x/y ticks
         inds = np.linspace(0, grid_num - 1, 5, endpoint=True)
@@ -672,9 +674,9 @@ def plot_hill_function(
         linewidth: the line width of the curve. Defaults to 2.
         save_show_or_return: whether to save or show the figure. Could be one of "save", "show", "both", or "all".
             "both" and "all" have the same effect. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **plot_kwargs: any other kwargs passed to `pyplot.plot`.
 
@@ -828,11 +830,11 @@ def causality(
         normalize: whether to row-scale the data. Defaults to True.
         grid_num: the number of grid when creating the lagged DREVI plot. Defaults to 25.
         n_row: the number of rows used to layout the faceted cluster panels. Defaults to 1.
-        n_col: the number of columns used to layout the faceted cluster panels.. Defaults to None.
+        n_col: the number of columns used to layout the faceted cluster panels. Defaults to None.
         cmap: the color map used to plot the heatmap. Could be the name of the color map or a matplotlib color map
             object. If None, the color map would be generated automatically. Defaults to "viridis".
         show_rug: whether to plot marginal distributions by drawing ticks along the x and y axes. Defaults to True.
-        show_extent: whether to extent the figure. If False, `show_ridge` and `show_rug` would be set to False
+        show_extent: whether to extend the figure. If False, `show_ridge` and `show_rug` would be set to False
             automatically. Defaults to False.
         ext_format: the string/list of strings (the first is for x and second for y labels) that will be used to format
             the ticks on x or y-axis. If it is None or one of the element in the list is None, the default setting will
@@ -842,9 +844,9 @@ def causality(
         figsize: the size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to show or save the plotted figure or both. `"both"` and `"all"` have the same
             effect. Defaults to "show". Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
         return_data: whether to return the calculated causality data. Defaults to False.
 
@@ -1260,13 +1262,13 @@ def comb_logic(
             Defaults to 0.
         grid_num: the number of grid when creating the lagged DREVI plot. Defaults to 25.
         n_row: the number of rows used to layout the faceted cluster panels. Defaults to 1.
-        n_col: the number of columns used to layout the faceted cluster panels.. Defaults to None.
+        n_col: the number of columns used to layout the faceted cluster panels. Defaults to None.
         cmap: the color map used to plot the heatmap. Could be the name of the color map or a matplotlib color map
             object. If None, the color map would be generated automatically. Defaults to "viridis".
         normalize: whether to row-scale the data. Defaults to True.
         k: number of k-nearest neighbors used in calculating 2-D kernel density. Defaults to 30.
         show_rug: whether to plot marginal distributions by drawing ticks along the x and y axes. Defaults to True.
-        show_extent: whether to extent the figure. If False, `show_ridge` and `show_rug` would be set to False
+        show_extent: whether to extend the figure. If False, `show_ridge` and `show_rug` would be set to False
             automatically. Defaults to False.
         ext_format: the string/list of strings (the first is for x and second for y labels) that will be used to format
             the ticks on x or y-axis. If it is None or one of the element in the list is None, the default setting will
@@ -1276,9 +1278,9 @@ def comb_logic(
         figsize: the size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to show or save the plotted figure or both. `"both"` and `"all"` have the same
             effect. Defaults to "show". Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
         return_data: whether to return the calculated causality data. Defaults to False.
 
@@ -1421,13 +1423,13 @@ def hessian(
             Defaults to 0.
         grid_num: the number of grid when creating the lagged DREVI plot. Defaults to 25.
         n_row: the number of rows used to layout the faceted cluster panels. Defaults to 1.
-        n_col: the number of columns used to layout the faceted cluster panels.. Defaults to None.
+        n_col: the number of columns used to layout the faceted cluster panels. Defaults to None.
         cmap: the color map used to plot the heatmap. Could be the name of the color map or a matplotlib color map
             object. If None, the color map would be generated automatically. Defaults to "viridis".
         normalize: whether to row-scale the data. Defaults to True.
         k: number of k-nearest neighbors used in calculating 2-D kernel density. Defaults to 30.
         show_rug: whether to plot marginal distributions by drawing ticks along the x and y axes. Defaults to True.
-        show_extent: whether to extent the figure. If False, `show_ridge` and `show_rug` would be set to False
+        show_extent: whether to extend the figure. If False, `show_ridge` and `show_rug` would be set to False
             automatically. Defaults to False.
         ext_format: the string/list of strings (the first is for x and second for y labels) that will be used to format
             the ticks on x or y-axis. If it is None or one of the element in the list is None, the default setting will
@@ -1437,16 +1439,16 @@ def hessian(
         figsize: the size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to show or save the plotted figure or both. `"both"` and `"all"` have the same
             effect. Defaults to "show". Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+         and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
         return_data: whether to return the calculated causality data. Defaults to False.
 
     Returns:
         None would be returned by default. If `return_data` is set to be True, the causality data, a DataFrame with
-        columns ("x": x coordination, "y": y coordination, "expected_z": expected z coordination, "pair": gene pairs) would
-        be returned.
+        columns ("x": x coordination, "y": y coordination, "expected_z": expected z coordination, "pair": gene pairs)
+        would be returned.
     """
 
     import matplotlib

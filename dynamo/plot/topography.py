@@ -65,21 +65,21 @@ def plot_flow_field(
         x_range: the range of values for x-axis.
         y_range: the range of values for y-axis.
         n_grid: the number of grid points to use in computing derivatives on phase portrait. Defaults to 100.
-        start_points: the initial points from which the streamline will be draw. Defaults to None.
+        start_points: the initial points from which the streamline will be drawn. Defaults to None.
         integration_direction: integrate the streamline in forward, backward or both directions. default is 'both'.
             Defaults to "both".
         background: the background color of the plot. Defaults to None.
         density: the density of the plt.streamplot function. Defaults to 1.
         linewidth: the multiplier of automatically calculated linewidth passed to the plt.streamplot function. Defaults
             to 1.
-        streamline_color: the color of the vector field stream lines. Defaults to None.
-        streamline_alpha: the alpha value applied to the vector field stream lines. Defaults to 0.4.
+        streamline_color: the color of the vector field streamlines. Defaults to None.
+        streamline_alpha: the alpha value applied to the vector field streamlines. Defaults to 0.4.
         color_start_points: the color of the starting point that will be used to predict cell fates. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'plot_flow_field', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'plot_flow_field', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the Axis on which to make the plot. Defaults to None.
 
     Returns:
@@ -212,10 +212,10 @@ def plot_nullclines(
         lw: the linewidth of the nullcline. Defaults to 3.
         background: the background color of the plot. Defaults to None.
         save_show_or_return: whether to save, show, or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'plot_nullclines', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'plot_nullclines', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the matplotlib axes used for plotting. Default is to use the current axis. Defaults to None.
 
     Returns:
@@ -317,10 +317,10 @@ def plot_fixed_points_2d(
             respectively. Defaults to ["full", "top", "none"].
         background: the background color of the plot. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the matplotlib axes used for plotting. Default is to use the current axis. Defaults to None.
 
     Returns:
@@ -431,11 +431,11 @@ def plot_fixed_points(
             respectively. Defaults to ["full", "top", "none"].
         background: the background color of the plot. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
-        ax: the matplotlib axes used for plotting. Default is to use the current axis.. Defaults to None.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
+        ax: the matplotlib axes used for plotting. Default is to use the current axis. Defaults to None.
 
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the Axes of the generated
@@ -579,11 +579,12 @@ def plot_traj(
         args: additional arguments to be passed to f. Defaults to ().
         lw: the line width of the trajectory. Defaults to 2.
         background: the background color of the plot. Defaults to None.
-        integration_direction: the integrate the trajectory in forward, backward or both directions. Defaults to "both".
+        integration_direction: Determines whether to integrate the trajectory in the forward, backward, or both
+            direction. Default to "both".
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'plot_traj', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'plot_traj', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the axis on which to make the plot. If None, new axis would be created. Defaults to None.
 
@@ -651,21 +652,21 @@ def plot_separatrix(
     Args:
         vecfld: an instance of the VectorField2D class which presumably has fixed points computed and stored.
         x_range: the range of values for x-axis.
-        y_range: he range of values for y-axis.
+        y_range: the range of values for y-axis.
         t: the time points for trajectory.
         noise: a small noise added to steady states for drawing the separatrix. Defaults to 1e-6.
         lw: the line width of the trajectory. Defaults to 3.
         vecfld_dict: a dict with entries to create a `VectorField2D` instance. Defaults to None.
         background: the background color of the plot. Defaults to None.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "return".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'plot_separatrix', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'plot_separatrix', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the axis on which to make the plot. Defaults to None.
 
     Returns:
-        None would be returned by defualt. If `save_show_or_return` is set to be 'return', the Axes of the generated
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the Axes of the generated
         figure would get returned.
     """
 
@@ -838,11 +839,11 @@ def topography(
     `init_cells`, `init_states`). The nullcline and separatrix provide topological information about the reconstructed
     vector field. By definition, the x/y-nullcline is a set of points in the phase plane so that dx/dt = 0 or dy/dt=0.
     Geometrically, these are the points where the vectors are either straight up or straight down. Algebraically, we
-    find the x-nullcline by solving f(x,y) = 0. The boundary different different attractor basis is the separatrix
+    find the x-nullcline by solving f(x,y) = 0. The boundary different attractor basis is the separatrix
     because it separates the regions into different subregions with a specific behavior. To find them is a very
-    difficult problem and separatrix calculated by dynamo requres manual inspection.
+    difficult problem and separatrix calculated by dynamo requires manual inspection.
 
-    Here is more details on the fixed points drawn on the vector field:  Fixed points are concepts introduced in dynamic
+    Here is more details on the fixed points drawn on the vector field: Fixed points are concepts introduced in dynamic
     systems theory. There are three types of fixed points: 1) repeller: a repelling state that only has outflows, which
     may correspond to a pluripotent cell state (ESC) that tends to differentiate into other cell states automatically or
     under small perturbation; 2) unstable fixed points or saddle points. Those states have attraction on some dimension
@@ -853,7 +854,7 @@ def topography(
     its cell state under extreme perturbation or in very rare situation. Fixed points are numbered with each number
     color coded. The mapping of the color of the number to the type of fixed point are: red: repellers; blue: saddle
     points; black: attractors. The scatter point itself also has filled color, which corresponds to confidence of the
-    estimated fixed point. The lighter, the more confident or the fixed points are are closer to the sequenced single
+    estimated fixed point. The lighter, the more confident or the fixed points are closer to the sequenced single
     cells. Confidence of each fixed points can be used in conjunction with the Jacobian analysis for investigating
     regulatory network with spatiotemporal resolution.
 
@@ -918,7 +919,7 @@ def topography(
         xlim: the range of x-coordinate. Defaults to None.
         ylim: the range of y-coordinate. Defaults to None.
         t: the length of the time period from which to predict cell state forward or backward over time. This is used by
-            the odeint function.. Defaults to None.
+            the odeint function. Defaults to None.
         terms: a tuple of plotting items to include in the final topography figure. ('streamline', 'nullcline',
             'fixed_points', 'separatrix', 'trajectory', 'quiver') are all the items that we can support. Defaults to
             ["streamline", "fixed_points"].
@@ -932,7 +933,7 @@ def topography(
             set to be the projected RNA velocity before vector field reconstruction automatically. If `init_cells` is
             not provided, this will set to be the velocity vectors calculated from the reconstructed vector field
             function automatically. If quiver_source is `reconstructed`, the velocity vectors calculated from the
-            reconstructed vector field function will be used.. Defaults to "raw".
+            reconstructed vector field function will be used. Defaults to "raw".
         fate: predict the historial, future or both cell fates. This corresponds to integrating the trajectory in
             forward, backward or both directions defined by the reconstructed vector field function. Defaults to "both".
         approx: whether to use streamplot to draw the integration line from the init_state. Defaults to False.
@@ -947,17 +948,17 @@ def topography(
         density: the density of the plt.streamplot function. Defaults to 1.
         linewidth: the multiplier of automatically calculated linewidth passed to the plt.streamplot function. Defaults
             to 1.
-        streamline_color: the color of the vector field stream lines. Defaults to None.
-        streamline_alpha: the alpha value applied to the vector field stream lines. Defaults to 0.4.
+        streamline_color: the color of the vector field streamlines. Defaults to None.
+        streamline_alpha: the alpha value applied to the vector field streamlines. Defaults to 0.4.
         color_start_points: the color of the starting point that will be used to predict cell fates. Defaults to None.
         markersize: the size of the marker. Defaults to 200.
         marker_cmap: the name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If
             None, the default color map will set to be viridis (inferno) when the background is white (black). Defaults
             to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         aggregate: the column in adata.obs that will be used to aggregate data points. Defaults to None.
         show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently

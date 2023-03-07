@@ -226,9 +226,9 @@ def state_graph(
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. If `contour` is set  to be True,
             `frontier` will be ignored as `contour` also add an outlier for data points. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: A dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {"alpha": 1}.
 

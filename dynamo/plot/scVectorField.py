@@ -5,7 +5,6 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-import matplotlib
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -116,11 +115,11 @@ def cell_wise_vectors_3d(
             or str (Cell names). Defaults to "all".
         vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
             field or acceleration field will be plotted. Defaults to "velocity".
-        save_show_or_return: whether to save, show or return the generated fugure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        save_show_or_return: whether to save, show or return the generated figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            an the save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         quiver_3d_kwargs: any other kwargs to be passed to `pyplot.quiver`. Defaults to { "zorder": 3, "length": 2,
             "linewidth": 5, "arrow_length_ratio": 5, "norm": cm.colors.Normalize(), "cmap": cm.PRGn, }.
         grid_color: the color of the grid lines. Defaults to None.
@@ -394,24 +393,24 @@ def line_integral_conv(
             dimensions. Defaults to [50, 50].
         method: the method to visualize the data. Defaults to "yt".
         cmap: the colormap used to plot the figure. Defaults to "viridis".
-        normalize: whether to normalize the orginal data. Defaults to False.
+        normalize: whether to normalize the original data. Defaults to False.
         density: density of the streamlines. Defaults to 1.
         lim: the value of line integral convolution will be clipped to the range of lim, which applies upper and lower
             bounds to the values of line integral convolution and enhance the visibility of plots. Each element should
             be in the range of [0,1].. Defaults to (0, 1).
         const_alpha: whether to prevent the alpha from being weighted spatially by the values of line integral
-            convolution; otherwise a constant value of the given alpha is used.. Defaults to False.
+            convolution; otherwise a constant value of the given alpha is used. Defaults to False.
         kernellen: the lens of kernel for convolution, which is the length over which the convolution will be performed.
-            For longer kernellen, longer streamline structure will appear.. Defaults to 100.
+            For longer kernellen, longer streamline structure will appear. Defaults to 100.
         V_threshold: the threshold of velocity value for visualization. Defaults to None.
         vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
-            field or acceleration field will be plotted.. Defaults to "velocity".
+            field or acceleration field will be plotted. Defaults to "velocity".
         file: the path to save the slice figure. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         g_kwargs_dict: any other kwargs that would be passed to `dynamo.tl.grid_velocity_filter`. Defaults to {}.
 
     Raises:
@@ -683,10 +682,10 @@ def cell_wise_vectors(
             tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: A dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         s_kwargs_dict: any other kwargs that will be passed to `dynamo.pl.scatters`. Defaults to {}.
         projection: the projection property of the matplotlib.Axes. Defaults to "2d".
 
@@ -1018,9 +1017,9 @@ def grid_vectors(
             tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
         s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {}.
         q_kwargs_dict: any other kwargs that would be passed to `pyplot.quiver`. Defaults to {}.
@@ -1359,7 +1358,7 @@ def streamline_plot(
         inverse: whether to inverse the direction of the velocity vectors. Defaults to False.
         cell_inds: the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer
             indices) or str (Cell names). Defaults to "all".
-        method: the method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the
+        method: the method to reconstruct the vector field. Currently, it supports either SparseVFC (default) or the
             empirical method Gaussian kernel method from RNA velocity (Gaussian). Defaults to "gaussian".
         xy_grid_nums: the number of grids in either x or y axis. Defaults to (50, 50).
         cut_off_velocity: whether to remove small velocity vectors from the recovered the vector field grid, either
@@ -1367,7 +1366,7 @@ def streamline_plot(
         density: density of the `plt.streamplot` function. Defaults to 1.
         linewidth: multiplier of automatically calculated linewidth passed to the `plt.streamplot function`. Defaults
             to 1.
-        streamline_alpha: the alpha value applied to the vector field stream lines. Defaults to 1.
+        streamline_alpha: the alpha value applied to the vector field streamlines. Defaults to 1.
         vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
             field or acceleration field will be plotted. Defaults to "velocity".
         frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
@@ -1375,10 +1374,10 @@ def streamline_plot(
             tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'streamline_plot', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs.. Defaults to {}.
         s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {}.
 
     Raises:
@@ -1386,7 +1385,7 @@ def streamline_plot(
         NotImplementedError: invalid `method`.
 
     Returns:
-        None would be returned by defualt. If `save_show_or_return` is set to 'return', the matplotlib Axes objects of
+        None would be returned by default. If `save_show_or_return` is set to 'return', the matplotlib Axes objects of
         the subplots would be returned.
     """
 
@@ -1634,9 +1633,9 @@ def plot_energy(
         fig: the figure object where panels of the energy or energy change rate over iteration plots will be appended
             to. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
 
     Raises:

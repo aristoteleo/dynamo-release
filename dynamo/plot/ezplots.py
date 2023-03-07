@@ -243,8 +243,8 @@ def zstreamline(
     adata: AnnData,
     basis: str = "umap",
     v_basis: Optional[str] = None,
-    x_layer: Optional[str] = "X",
-    v_layer: Optional[str] = "velocity",
+    x_layer: str = "X",
+    v_layer: str = "velocity",
     dim1: int = 0,
     dim2: int = 1,
     dims: Optional[List[int]] = None,
@@ -261,7 +261,7 @@ def zstreamline(
     density: float = 1,
     **streamline_kwargs,
 ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-    """Plot stream line graph with given AnnData object.
+    """Plot streamline graph with given AnnData object.
 
     Args:
         adata: an AnnData object.
@@ -363,7 +363,7 @@ def multiplot(
     plot_func: Callable,
     arr: Iterable[Any],
     n_row: Optional[int] = None,
-    n_col: Optional[int] = 3,
+    n_col: int = 3,
     fig: Figure = None,
     subplot_size: Tuple[float, float] = (6, 4),
 ) -> List[Axes]:
@@ -417,7 +417,7 @@ def multiplot(
 def plot_jacobian_gene(
     adata: AnnData,
     jkey: str = "jacobian",
-    basis: Optional[str] = "pca",
+    basis: str = "pca",
     regulators: Optional[Iterable[str]] = None,
     effectors: Optional[Iterable[str]] = None,
     **kwargs,

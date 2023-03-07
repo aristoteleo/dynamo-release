@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from typing import Literal
@@ -39,9 +39,9 @@ def basic_stats(
         figsize: the size of each panel in the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the plots. Could be one of 'save', 'show', or 'return'.
             Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Returns:
@@ -116,8 +116,6 @@ def basic_stats(
         s_kwargs = update_dict(s_kwargs, save_kwargs)
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        import matplotlib.pyplot as plt
-
         plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
@@ -142,9 +140,9 @@ def show_fraction(
         figsize: the size of each panel in the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the plots. Could be one of 'save', 'show', or 'return'.
             Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Raises:
@@ -155,9 +153,6 @@ def show_fraction(
         None would be returned by default. If `save_show_or_return` is set to 'return', the generated figure
         (seaborn.FacetGrid) would be returned.
     """
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     if genes is not None:
         genes = list(adata.var_names.intersection(genes))
@@ -382,17 +377,15 @@ def variance_explained(
         figsize: the size of each panel of the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib Axes of the
         figure would be returned.
     """
-
-    import matplotlib.pyplot as plt
 
     var_ = adata.uns["explained_variance_ratio_"]
     _, ax = plt.subplots(figsize=figsize)
@@ -460,10 +453,10 @@ def biplot(
         draw_pca_embedding: whether to draw the pca embedding. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
 
         ax: the axes object on which the graph would be plotted. If None, a new axis would be created. Defaults to None.
 
@@ -474,8 +467,6 @@ def biplot(
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib Axes of the
         figure would be returned.
     """
-
-    import matplotlib.pyplot as plt
 
     if loading_key in adata.uns.keys():
         PCs = adata.uns[loading_key]
@@ -554,14 +545,14 @@ def loading(
         adata: an AnnData object that has pca and loading information prepared.
         n_pcs: the number of pca components. Defaults to 10.
         loading_key: the key to the pca loading matrix. Defaults to "PCs".
-        n_top_genes: the number of top genes with highest absolute loading score. Defaults to 10.
+        n_top_genes: the number of top genes with the highest absolute loading score. Defaults to 10.
         ncol: the number of columns of the subplots. Defaults to 5.
         figsize: the size of each panel of the figure. Defaults to (6, 4).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Raises:
@@ -571,8 +562,6 @@ def loading(
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib Axes of the
         figure would be returned.
     """
-
-    import matplotlib.pyplot as plt
 
     if loading_key in adata.uns.keys():
         PCs = adata.uns[loading_key]
@@ -642,9 +631,9 @@ def feature_genes(
         figsize: the size of each panel of the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Raises:
@@ -654,8 +643,6 @@ def feature_genes(
         None would be returned by default. If `save_show_or_return` is set to be 'return', the `PathCollection`
         generated with `pyplot.scatter` would be returned.
     """
-
-    import matplotlib.pyplot as plt
 
     mode = adata.uns["feature_selection"] if mode is None else mode
 
@@ -784,7 +771,6 @@ def exp_by_groups(
 ) -> Optional[sns.FacetGrid]:
     """Plot the (labeled) expression values of genes across different groups (time points).
 
-
     Args:
         adata: an AnnData object,
         genes: the list of genes that you want to plot the gene expression.
@@ -803,9 +789,9 @@ def exp_by_groups(
         figsize: the size of each panel of the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Raises:
@@ -817,9 +803,6 @@ def exp_by_groups(
         None would be returned by default. If `save_show_or_return` is set to be 'return', the `FacetGrid` with violin
         plot generated with seaborn would be returned.
     """
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     valid_genes = adata.var_names.intersection(genes)
     if len(valid_genes) == 0:
@@ -991,7 +974,7 @@ def highest_frac_genes(
             y-axis. Defaults to "v".
         figsize: the size of each panel of the figure. Defaults to None.
         layer: layer on which the gene percents will be computed. Defaults to None.
-        title: the titile of the figure. Defaults to None.
+        title: the title of the figure. Defaults to None.
         v_rotation: rotation of text sticks when the direction is vertica. Defaults to 35.
 
     Raises:
@@ -1001,9 +984,6 @@ def highest_frac_genes(
     Returns:
         The matplotlib Axes of the figure.
     """
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     if ax is None:
         length = n_top * 0.4

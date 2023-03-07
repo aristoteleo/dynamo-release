@@ -339,7 +339,7 @@ def jacobian(
     x: int = 0,
     y: int = 1,
     layer: str = "M_s",
-    highlights: list = None,
+    highlights: Optional[list] = None,
     cmap: str = "bwr",
     background: Optional[str] = None,
     pointsize: Optional[float] = None,
@@ -359,9 +359,9 @@ def jacobian(
     Args:
         adata: an Annodata object with Jacobian matrix estimated.
         regulators: the list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to
-            genes that have already performed Jacobian analysis.. Defaults to None.
+            genes that have already performed Jacobian analysis. Defaults to None.
         effectors: the list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to
-            genes that have already performed Jacobian analysis.. Defaults to None.
+            genes that have already performed Jacobian analysis. Defaults to None.
         basis: the reduced dimension basis. Defaults to "umap".
         jkey: the key to the jacobian dictionary in .uns. Defaults to "jacobian".
         j_basis: the reduced dimension space that will be used to calculate the jacobian matrix. Defaults to "pca".
@@ -396,9 +396,9 @@ def jacobian(
         stacked_fraction: whether the jacobian will be represented as a stacked fraction in the title or a linear
             fraction style will be used. Defaults to False.
         save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
         **kwargs: any other kwargs that would be passed to `plt._matplotlib_points`.
 
@@ -622,9 +622,9 @@ def jacobian_heatmap(
         cmap: the mapping from data values to color space. If not provided, the default will depend on whether center is
             set. Defaults to "bwr".
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs passed to `sns.heatmap`.
 
@@ -782,9 +782,9 @@ def sensitivity(
         stacked_fraction: whether to represent the jacobianas a stacked fraction in the title or a linear fraction style
             will be used. Defaults to False.
         save_show_or_return: whether to save, show, or return the fugure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs passed to `plt._matplotlib_points`.
 
@@ -1005,9 +1005,9 @@ def sensitivity_heatmap(
         cmap: the mapping from data values to color space. If not provided, the default will depend on whether center is
             set. Defaults to "bwr".
         save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
         **kwargs: any other kwargs passed to `sns.heatmap`.
 

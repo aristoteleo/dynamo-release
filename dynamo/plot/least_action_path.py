@@ -45,10 +45,10 @@ def least_action(
         save_show_or_return: whether the figure should be saved, show, or return. Can be one of "save", "show",
             "return", "both", "all". "both" means that the figure would be shown and saved but not returned. Defaults to
             "show".
-        save_kwargs:a dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs:a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary and
+            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be `"return"` or `"all"`, the matplotlib
@@ -113,10 +113,10 @@ def lap_min_time(
         n_col: the number of subplot columns. Defaults to 3.
         save_show_or_return: whether to save or show the figure. Can be one of "save", "show", "both" or "all". "both"
             and "all" have the same effect. The axis of the plot cannot be returned here. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs. Defaults to {}.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide
+            a dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: not used here.
 
     Raises:

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple
 
 try:
     from typing import Literal
@@ -20,7 +20,7 @@ from .utils import map2color
 def fate_bias(
     adata: AnnData,
     group: str,
-    basis: Optional[str] = "umap",
+    basis: str = "umap",
     fate_bias_df: Optional[pd.DataFrame] = None,
     figsize: Tuple[float, float] = (6, 4),
     save_show_or_return: Literal["save", "show", "return"] = "show",
@@ -44,8 +44,8 @@ def fate_bias(
              fate_bias_df = dyn.tl.fate_bias(adata). Defaults to None.
         figsize: the size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the
                 {
                     "path": None,
                     "prefix": 'phase_portraits',
@@ -55,7 +55,7 @@ def fate_bias(
                     "close": True,
                     "verbose": True
                 }
-            as its parameters. Otherwise you can provide a dictionary that properly modify those keys according to
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
             your needs. Defaults to {}.
         **cluster_map_kwargs: any other kwargs to be passed to `seaborn.clustermap`.
 
@@ -116,8 +116,8 @@ def fate(
         ax: the matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
             If None, new axis would be created. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the
                 {
                     "path": None,
                     "prefix": 'phase_portraits',
@@ -127,7 +127,7 @@ def fate(
                     "close": True,
                     "verbose": True
                 }
-            as its parameters. Otherwise you can provide a dictionary that properly modify those keys according to
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
             your needs. Defaults to {}.
         **kwargs: any other kwargs to be passed to `dynamo.pl.scatters`.
     Returns:

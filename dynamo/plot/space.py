@@ -47,7 +47,7 @@ def space(
         genes: the gene list that will be used to plot the gene expression on the same scatter plot. Each gene will have
             a different color. Can be a single gene name string and we will convert it to a list. Defaults to [].
         gene_cmaps: a list of cmaps for mapping each gene's values according to a type of cmap when stacking gene colors
-            on the same subplot. The order of each gene's cmap corresponds to the order in genes.. Defaults to None.
+            on the same subplot. The order of each gene's cmap corresponds to the order in genes. Defaults to None.
         space_key: the key to space coordinates. Defaults to "spatial".
         width: the width of the figure. Would be used when `figsize` is not specified. Defaults to 6.
         marker: a string representing some marker from matplotlib

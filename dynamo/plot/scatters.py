@@ -347,7 +347,7 @@ def scatters(
                 x, y = ["total"], ["new"]
             else:
                 raise ValueError(
-                    "your adata oject is corrupted. Please make sure it has at least one of the following "
+                    "your adata object is corrupted. Please make sure it has at least one of the following "
                     "pair of layers:"
                     "'M_s', 'X_spliced', 'M_t', 'X_total', 'spliced', 'total' and "
                     "'M_u', 'X_unspliced', 'M_n', 'X_new', 'unspliced', 'new'. "
