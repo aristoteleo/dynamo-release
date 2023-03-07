@@ -103,7 +103,7 @@ def velocities(
     """
 
     if vector_field_class is None:
-        vector_field_class = vector_field_class = get_vf_class(adata, basis=basis)
+        vector_field_class = get_vf_class(adata, basis=basis)
 
     init_states, _, _, _ = fetch_states(adata, init_states, init_cells, basis, layer, False, None)
 
@@ -163,7 +163,7 @@ def speed(
     """
 
     if vector_field_class is None:
-        vector_field_class = vector_field_class = get_vf_class(adata, basis=basis)
+        vector_field_class = get_vf_class(adata, basis=basis)
 
     X, V = vector_field_class.get_data()
 
