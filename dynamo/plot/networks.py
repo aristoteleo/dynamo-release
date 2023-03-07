@@ -369,7 +369,7 @@ def circosPlot(
         edge_alpha_by="weight",
         edge_enc_kwargs={
             "lw_scale": edge_lw_scale,
-            "alpha_ scale": edge_alpha_scale,
+            "alpha_scale": edge_alpha_scale,
         },
     )
 
