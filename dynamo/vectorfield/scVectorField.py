@@ -17,6 +17,7 @@ import numpy.matlib
 import scipy.sparse as sp
 from anndata import AnnData
 from numpy import format_float_scientific as scinot
+from pynndescent import NNDescent
 from scipy.linalg import lstsq
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
@@ -245,14 +246,12 @@ def graphize_vecfld(
     distance_free: bool = True,
     n_int_steps: int = 20,
     cores: int = 1,
-) -> Tuple[np.ndarray, NearestNeighbors]:
+) -> Tuple[np.ndarray, Union[NNDescent, NearestNeighbors]]:
     n, d = X.shape
 
     nbrs = None
     if nbrs_idx is None:
         if X.shape[0] > 200000 and X.shape[1] > 2:
-            from pynndescent import NNDescent
-
             nbrs = NNDescent(
                 X,
                 metric="euclidean",
@@ -582,7 +581,11 @@ class BaseVectorField:
         self.fixed_points = kwargs.pop("fixed_points", None)
         super().__init__(**kwargs)
 
-    def construct_graph(self, X: Optional[np.ndarray] = None, **kwargs) -> Tuple[np.ndarray, NearestNeighbors]:
+    def construct_graph(
+        self,
+        X: Optional[np.ndarray] = None,
+        **kwargs,
+    ) -> Tuple[np.ndarray, Union[NNDescent, NearestNeighbors]]:
         X = self.data["X"] if X is None else X
         return graphize_vecfld(self.func, X, **kwargs)
 
