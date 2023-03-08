@@ -221,7 +221,7 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
     adata.uns["raw_data"] = True
 
 
-def aggregate_adata(file_list: list) -> "AnnData":
+def aggregate_adata(file_list: list) -> AnnData:
     """Aggregate gene expression from adata.X or layer for a list of adata based on the same cell and gene names.
 
     Parameters
