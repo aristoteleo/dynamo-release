@@ -3,6 +3,10 @@
 # from anndata._core.views import ArrayView
 # import scipy.sparse as sp
 from typing import Dict, List, Optional, Union
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 import pandas as pd
@@ -55,6 +59,15 @@ if use_dynode:
 
 
 def get_vf_class(adata: AnnData, basis: str = "pca") -> SvcVectorField:
+    """Get the corresponding vector field class according to different methods.
+
+        Args:
+            adata: AnnData object that contains the reconstructed vector field in the `uns` attribute.
+            basis: The embedding data in which the vector field was reconstructed.
+
+        Returns:
+            SvcVectorField object that is extracted from the `uns` attribute of adata.
+    """
     vf_dict = get_vf_dict(adata, basis=basis)
     if "method" not in vf_dict.keys():
         vf_dict["method"] = "sparsevfc"
@@ -184,7 +197,7 @@ def jacobian(
     regulators: Optional[List] = None,
     effectors: Optional[List] = None,
     cell_idx: Optional[List] = None,
-    sampling: Optional[str] = None,
+    sampling: Optional[Literal['random', 'velocity', 'trn']] = None,
     sample_ncells: int = 1000,
     basis: str = "pca",
     Qkey: str = "PCs",
@@ -327,7 +340,7 @@ def hessian(
     coregulators: List,
     effector: Optional[List] = None,
     cell_idx: Optional[List] = None,
-    sampling: Optional[bool] = None,
+    sampling: Optional[Literal['random', 'velocity', 'trn']] = None,
     sample_ncells: int = 1000,
     basis: str = "pca",
     Qkey: str = "PCs",
@@ -564,7 +577,7 @@ def sensitivity(
     regulators: Optional[List] = None,
     effectors: Optional[List] = None,
     cell_idx: Optional[List] = None,
-    sampling: Optional[str] = None,
+    sampling: Optional[Literal['random', 'velocity', 'trn']] = None,
     sample_ncells: int = 1000,
     basis: str = "pca",
     Qkey: str = "PCs",
@@ -926,8 +939,8 @@ def curl(
 
 def divergence(
     adata: AnnData,
-    cell_idx: bool = None,
-    sampling: bool = None,
+    cell_idx: Optional[List] = None,
+    sampling: Optional[Literal['random', 'velocity', 'trn']] = None,
     sample_ncells: int = 1000,
     basis: str = "pca",
     vector_field_class=None,
@@ -939,6 +952,11 @@ def divergence(
 
     Args:
         adata: AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        cell_idx: A list of cell index (or boolean flags) for which the jacobian is calculated.
+        sampling: {None, 'random', 'velocity', 'trn'}, (default: None)
+            See specific information on these methods in `.tl.sample`.
+            If `None`, all cells are used.
+        sample_ncells: The number of cells to be sampled. If `sampling` is None, this parameter is ignored.
         basis: The embedding data in which the vector field was reconstructed.
         vector_field_class: If not None, the divergene will be computed using this class instead of the vector field stored in adata.
         method: The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
