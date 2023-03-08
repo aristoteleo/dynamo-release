@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Union
 
 # from anndata._core.views import ArrayView
 import numpy as np
@@ -17,47 +17,39 @@ from ..vectorfield.topography import dup_osc_idx_iter
 # initial state related
 
 
-def init_r0_pulse(r, l, k):
+def init_r0_pulse(
+    r: Union[float, np.ndarray], l: Union[float, np.ndarray], k: Union[float, np.ndarray]
+) -> Union[float, np.ndarray]:
     """calculate initial total RNA via ODE formula of RNA kinetics for one-shot/kinetics experiment
 
-    Parameters
-    ----------
-        r:
-            total RNA at current time point.
-        l:
-            labeled RNA at current time point.
-        k:
-            $k = 1 - e^{-\gamma t}$
+    Args:
+        r: total RNA at current time point.
+        l: labeled RNA at current time point.
+        k: $k = 1 - e^{-\gamma t}$
 
-    Returns
-    -------
-        r0:
-            The intial total RNA at the beginning of the one-shot or kinetics experiment.
+    Returns:
+        r0: The intial total RNA at the beginning of the one-shot or kinetics experiment.
     """
     r0 = (r - l) / (1 - k)
 
     return r0
 
 
-def init_l0_chase(l, gamma, t):
-    """calculate initial total RNA via ODE formula of RNA kinetics for degradation experiment
+def init_l0_chase(
+    l: Union[float, np.ndarray], gamma: Union[float, np.ndarray], t: Union[float, np.ndarray]
+) -> Union[float, np.ndarray]:
+    """calculate initial la RNA via ODE formula of RNA kinetics for degradation experiment
 
     Note that this approach only estimate the initial labeled RNA based on first-order decay model. To get the intial r0
     we can also assume cells with extreme total RNA as steady state cells and use that to estimate transcription rate.
 
-    Parameters
-    ----------
-        l:
-            labeled RNA(s)
-        gamma:
-            degradation rate(s)
-        t:
-            labeling time(s)
+    Args:
+        l: labeled RNA(s)
+        gamma: degradation rate(s)
+        t:labeling time(s)
 
-    Returns
-    -------
-        l0:
-            The initial labeled RNA at the beginning of a degradation experiment.
+    Returns:
+        l0: The initial labeled RNA at the beginning of a degradation experiment.
     """
     l0 = l / np.exp(-gamma * t)
 
@@ -66,6 +58,8 @@ def init_l0_chase(l, gamma, t):
 
 # ---------------------------------------------------------------------------------------------------
 # integration related
+
+# TODO – a majority of the code below can be rewritten with the Trajectory class
 
 
 def integrate_vf_ivp(

@@ -1,9 +1,10 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 import anndata
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
+from anndata import AnnData
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
 from scipy.spatial import cKDTree
@@ -42,7 +43,7 @@ def prune_transition(
     neighbor_key: Union[str, None] = None,
     graph_mat: np.ndarray = None,
     state_graph_method: str = "vf",
-):
+) -> np.ndarray:
     """This function prune a cell group transiton graph based on cell similarity graph (kNN graph).
 
     The pruning algorithm is as following: assuming the vf based cell-type transition graph is `m` (cell type x cell
@@ -54,27 +55,18 @@ def prune_transition(
     based cell-type transition graph. As you can see the resultant graph considers both vector field based connection
     and the similarity relationship of cells in expression space.
 
-    Parameters
-    ----------
-    adata:
-        AnnData object.
-    group:
-        Cell graph that will be used to build transition graph and lineage tree.
-    basis:
-         The basis that will be used to build the k-nearest neighbor graph when neighbor_key is not set.
-    n_neighbors:
-        The number of neighbors that will be used to build the k-nn graph, passed to `dyn.tl.neighbors` function. Not
-        used when neighbor_key provided.
-    neighbor_key:
-         The nearest neighbor graph key in `adata.obsp`. This nearest neighbor graph will be used to build a
-         gene-expression space based cell-type level connectivity graph.
-    state_graph_method:
-         Method that will be used to build the initial state graph.
+    Args:
+        adata: AnnData object.
+        group: Cell graph that will be used to build transition graph and lineage tree.
+        basis: The basis that will be used to build the k-nearest neighbor graph when neighbor_key is not set.
+        n_neighbors: The number of neighbors that will be used to build the k-nn graph, passed to `dyn.tl.neighbors` function. Not
+            used when neighbor_key provided.
+        neighbor_key: The nearest neighbor graph key in `adata.obsp`. This nearest neighbor graph will be used to build a
+            gene-expression space based cell-type level connectivity graph.
+        state_graph_method: Method that will be used to build the initial state graph.
 
-    Returns
-    -------
-    M:
-        The pruned cell state transition graph.
+    Returns:
+        M: The pruned cell state transition graph.
     """
 
     logger = LoggerManager.gen_logger("dynamo-prune_transition")
@@ -126,55 +118,43 @@ def prune_transition(
 
 
 def state_graph(
-    adata,
-    group,
-    method="vf",
-    transition_mat_key="pearson_transition_matrix",
-    approx=False,
-    eignum=5,
-    basis="umap",
-    layer=None,
-    arc_sample=False,
-    sample_num=100,
-    prune_graph=False,
+    adata: AnnData,
+    group: str,
+    method: str = "vf",
+    transition_mat_key: str = "pearson_transition_matrix",
+    approx: bool = False,
+    eignum: int = 5,
+    basis: Optional[str] = "umap",
+    layer: Optional[str] = None,
+    arc_sample: bool = False,
+    sample_num: int = 100,
+    prune_graph: bool = False,
     **kwargs,
-):
+) -> AnnData:
     """Estimate the transition probability between cell types using method of vector field integrations or Markov chain
     lumping.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that will be used to calculate a cell type (group) transition graph.
-        group: `str`
-            The attribute to group cells (column names in the adata.obs).
-        method: `str` (default: 'vf')
-            The method that will be used to construct lumped cell state graph. Must be one of {`vf` or `markov`}
-        transition_mat_key: `str` (default: 'pearson_transition_matrix')
-            The key that corresponds to the transition graph used in the KernelMarkovChain class for lumping.
-        approx: `bool` (default: False)
-            Whether to use streamplot to get the integration lines from each cell.
-        eignum: `int` (default: 5)
-            The number of eigen-vectors when performing the eigen-decomposition to obtain the stationary
+    Args:
+        adata: AnnData object that will be used to calculate a cell type (group) transition graph.
+        group: The attribute to group cells (column names in the adata.obs).
+        method: The method that will be used to construct lumped cell state graph. Must be one of {`vf` or `markov`}
+        transition_mat_key: The key that corresponds to the transition graph used in the KernelMarkovChain class for lumping.
+        approx: Whether to use streamplot to get the integration lines from each cell.
+        eignum: The number of eigen-vectors when performing the eigen-decomposition to obtain the stationary
             distribution. 5 should be sufficient as the stationary distribution will be the first eigenvector. This also
             accelerates the calculation.
-        basis: `str` or None (default: `umap`)
-            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
+        basis: The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
             trajectory will be projected back to high dimensional space via the `inverse_transform` function.
-        layer: `str` or None (default: `None`)
-            Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
+        layer: Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
             The layer once provided, will override the `basis` argument and then predicting cell fate in high
             dimensional space.
-        sample_num: `int` (default: 100)
-            The number of cells to sample in each group that will be used for calculating the transitoin graph between
+        arc_sample: Whether to uniformly sample data points on the arc curve that are generated from vector field cell fate trajectory predictions.
+        sample_num: The number of cells to sample in each group that will be used for calculating the transitoin graph between
             cell groups. This is required for facilitating the calculation.
-        prune_graph: `bool` (default: `False`)
-            Whether to prune the transition graph based on cell similarities in `basis` bases.
-        kwargs:
-            Additional parameters that will be passed to `prune_transition` function.
+        prune_graph: Whether to prune the transition graph based on cell similarities in `basis` bases.
+        kwargs: Additional parameters that will be passed to `prune_transition` function.
 
-    Returns
-    -------
+    Returns:
         An updated adata object that is added with the `group + '_graph'` key, including the transition graph
         and the average transition time.
     """
@@ -343,14 +323,14 @@ def state_graph(
 
 
 def tree_model(
-    adata: anndata.AnnData,
+    adata: AnnData,
     group: str,
     progenitor: str,
     terminators: List[str],
     basis: str = "umap",
     n_neighbors: int = 30,
-    neighbor_key: Union[str, None] = None,
-    graph_mat: np.ndarray = None,
+    neighbor_key: Optional[str] = None,
+    graph_mat: Optional[np.ndarray] = None,
     state_graph_method: str = "vf",
     prune_graph: bool = True,
     row_norm: bool = True,
@@ -361,55 +341,41 @@ def tree_model(
     transition graph. The pruning was done by restricting cell state transition that are only between cell states that
     are nearby in gene expression space (often low gene expression space).
 
-    Parameters
-    ----------
-    adata:
-        AnnData object.
-    group:
-        Cell graph that will be used to build transition graph and lineage tree.
-    progenitor:
-        The source cell type name of the lineage tree.
-    terminators:
-         The terminal cell type names of the lineage tree.
-    basis:
-         The basis that will be used to build the k-nearest neighbor graph when neighbor_key is not set.
-    n_neighbors:
-        The number of neighbors that will be used to build the k-nn graph, passed to `dyn.tl.neighbors` function. Not
-        used when neighbor_key provided.
-    neighbor_key:
-         The nearest neighbor graph key in `adata.obsp`. This nearest neighbor graph will be used to build a
-         gene-expression space based cell-type level connectivity graph.
-    state_graph_method:
-         Method that will be used to build the initial state graph.
-    prune_graph: `bool` (default: `True`)
-        Whether to prune the transition graph based on cell similarities in `basis` bases first before learning tree
-        model.
-    row_norm: `bool` (default: `True`)
-        Whether to normalize each row so that each row sum up to be 1. Note that row, columns in transition matrix
-        correspond to source and targets in dynamo by default.
+    Args:
+        adata: AnnData object.
+        group: Cell graph that will be used to build transition graph and lineage tree.
+        progenitor: The source cell type name of the lineage tree.
+        terminators: The terminal cell type names of the lineage tree.
+        basis: The basis that will be used to build the k-nearest neighbor graph when neighbor_key is not set.
+        n_neighbors: The number of neighbors that will be used to build the k-nn graph, passed to `dyn.tl.neighbors` function. Not
+            used when neighbor_key provided.
+        neighbor_key: The nearest neighbor graph key in `adata.obsp`. This nearest neighbor graph will be used to build a
+            gene-expression space based cell-type level connectivity graph.
+        state_graph_method: Method that will be used to build the initial state graph.
+        prune_graph: Whether to prune the transition graph based on cell similarities in `basis` bases first before learning tree
+            model.
+        row_norm: Whether to normalize each row so that each row sum up to be 1. Note that row, columns in transition matrix
+            correspond to source and targets in dynamo by default.
 
-    Returns
-    -------
-    res:
-        The final tree model of cell groups. See following example on how to visualize the tree via dynamo.
+    Returns:
+        res: The final tree model of cell groups. See following example on how to visualize the tree via dynamo.
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.pancreatic_endocrinogenesis()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.cell_velocities(adata)
-    >>> dyn.vf.VectorField(adata, basis='umap', pot_curl_div=False)
-    >>> dyn.pd.state_graph(adata, group='clusters', basis='umap')
-    >>> res = dyn.pd.tree_model(adata, group='clusters', basis='umap')
-    >>> # in the following we first copy the state_graph result to a new key and then replace the `group_graph` key of
-    >>> # the state_graph result and visualize tree model via dynamo.
-    >>> adata.obs['clusters2'] = adata.obs['clusters'].copy()
-    >>> adata.uns['clusters2_graph'] = adata.uns['clusters_graph'].copy()
-    >>> adata.uns['clusters2_graph']['group_graph'] = res
-    >>> dyn.pl.state_graph(adata, group='clusters2', keep_only_one_direction=False, transition_threshold=None,
-    >>> color='clusters2', basis='umap', show_legend='on data')
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.pancreatic_endocrinogenesis()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.cell_velocities(adata)
+        >>> dyn.vf.VectorField(adata, basis='umap', pot_curl_div=False)
+        >>> dyn.pd.state_graph(adata, group='clusters', basis='umap')
+        >>> res = dyn.pd.tree_model(adata, group='clusters', basis='umap')
+        >>> # in the following we first copy the state_graph result to a new key and then replace the `group_graph` key of
+        >>> # the state_graph result and visualize tree model via dynamo.
+        >>> adata.obs['clusters2'] = adata.obs['clusters'].copy()
+        >>> adata.uns['clusters2_graph'] = adata.uns['clusters_graph'].copy()
+        >>> adata.uns['clusters2_graph']['group_graph'] = res
+        >>> dyn.pl.state_graph(adata, group='clusters2', keep_only_one_direction=False, transition_threshold=None,
+        >>> color='clusters2', basis='umap', show_legend='on data')
     """
 
     logger = LoggerManager.gen_logger("dynamo-tree_model")
