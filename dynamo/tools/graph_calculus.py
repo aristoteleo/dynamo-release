@@ -45,7 +45,7 @@ def graphize_velocity(
         k: int (optional, default 30)
             The number of neighbors for the KNN search.
         normalize_v: bool (optional, default False)
-            Whether or not normalizing the velocity vectors.
+            Whether to normalize the velocity vectors.
         E_func: str, function, or None (optional, default None)
             A variance stabilizing function for reducing the variance of the flows.
             If a string is passed, there are two options:

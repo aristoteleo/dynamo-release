@@ -426,6 +426,7 @@ def biplot(
     figsize: Tuple[float, float] = (6, 4),
     scale_pca_embedding: bool = False,
     draw_pca_embedding: bool = False,
+
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     ax: Optional[Axes] = None,
