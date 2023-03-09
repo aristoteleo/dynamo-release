@@ -189,6 +189,7 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 
                 # check if the current path *ended* in a different point compared to previous path (x-y grid spacing
                 # used as a "tolerance" for distance)
+
                 if endPt_dist_sqr > (2 * (xyGridSpacing**2)):
 
                     # --- check if this "different" attractor has been identified before

@@ -1,11 +1,11 @@
 numpy>=1.20.0
-pandas>=1.1.2
+pandas>=1.3.5
 scipy>=1.4.1
 scikit-learn>=0.19.1
-anndata==0.7.5
+anndata>=0.8.0
 KDEpy
 loompy>=3.0.5
-matplotlib>=3.4.1
+matplotlib>=3.5.3
 setuptools
 numdifftools>=0.9.39
 umap-learn>=0.5.1
@@ -16,6 +16,8 @@ seaborn>=0.9.0
 colorcet>=2.0.1
 tqdm
 python-igraph>=0.7.1
+cdlib>=0.2.6
+louvain==0.8.0
 pynndescent>=0.5.2
 pre-commit
 networkx
@@ -23,3 +25,5 @@ nxviz==0.7.3
 get_version>=3.5.4
 # trimap>=1.0.11
 openpyxl
+typing-extensions
+session-info>=1.0.0

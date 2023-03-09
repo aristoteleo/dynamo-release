@@ -284,6 +284,7 @@ zebrafish_colors = [
     "#ff4241",
     "#b77df9",
 ]
+
 zebrafish_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("zebrafish", zebrafish_colors)
 
 fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("fire", colorcet.fire)
@@ -311,16 +312,27 @@ glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 # register cmap
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    plt.register_cmap("zebrafish", zebrafish_cmap)
-    plt.register_cmap("fire", fire_cmap)
-    plt.register_cmap("darkblue", darkblue_cmap)
-    plt.register_cmap("darkgreen", darkgreen_cmap)
-    plt.register_cmap("darkred", darkred_cmap)
-    plt.register_cmap("darkpurple", darkpurple_cmap)
-    plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
-    plt.register_cmap("div_blue_red", div_blue_red_cmap)
-    plt.register_cmap("glasbey_white", glasbey_white_cmap)
-    plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
+    if "zebrafish" not in matplotlib.colormaps():
+        plt.register_cmap("zebrafish", zebrafish_cmap)
+    if "fire" not in matplotlib.colormaps():
+        plt.register_cmap("fire", fire_cmap)
+    if "darkblue" not in matplotlib.colormaps():
+        plt.register_cmap("darkblue", darkblue_cmap)
+    if "darkgreen" not in matplotlib.colormaps():
+        plt.register_cmap("darkgreen", darkgreen_cmap)
+    if "darkred" not in matplotlib.colormaps():
+        plt.register_cmap("darkred", darkred_cmap)
+    if "darkpurple" not in matplotlib.colormaps():
+        plt.register_cmap("darkpurple", darkpurple_cmap)
+    if "div_blue_black_red" not in matplotlib.colormaps():
+        plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
+    if "div_blue_red" not in matplotlib.colormaps():
+        plt.register_cmap("div_blue_red", div_blue_red_cmap)
+    if "glasbey_white" not in matplotlib.colormaps():
+        plt.register_cmap("glasbey_white", glasbey_white_cmap)
+    if "glasbey_dark" not in matplotlib.colormaps():
+        plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
+
 
 _themes = {
     "fire": {

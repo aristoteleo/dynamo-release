@@ -5,7 +5,7 @@
 ##
 
 [![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release/runs/950435412) 
-[![package](https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg)](https://pypi.org/project/dynamo-release/) 
+[![upload](https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg)](https://pypi.org/project/dynamo-release/) 
 [![documentation](https://readthedocs.org/projects/dynamo-release/badge/?version=latest)](https://dynamo-release.readthedocs.io/en/latest/)
 ![build](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-package.yml/badge.svg)
 ![test](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-plain-run-test.yml/badge.svg)
@@ -43,6 +43,8 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
 * 2/15/2022: primers and tutorials on least action paths and in silico perturbation are released.
 * 3/14/2022: Since today dynamo has its own logo! Here the arrow represents the RNA velocity vector field, while the helix the RNA molecule and the colored dots RNA metabolic labels (4sU labeling). See [readthedocs](https://dynamo-release.readthedocs.io/en/latest/index.html)
 * 4/14/2022: dynamo 1.1.0 released
+* 11/11/2022: the continuing development of dynamo and the Aristotle ecosystem will be supported by CZI. See [here](https://chanzuckerberg.com/eoss/proposals/predictive-modeling-of-single-cell-multiomics-over-time-and-space/)
+* 15/12/2022: dynamo 1.2.0 released
 
 ## Discussion 
 Please use github issue tracker to report coding related [issues](https://github.com/aristoteleo/dynamo-release/issues) of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: [dynamo-discussion](https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-itnzjdxs-PV~C3Hr9uOArHZcmv622Kg) (Only a working email address is required from the slack side). 

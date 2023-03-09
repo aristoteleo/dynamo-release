@@ -80,7 +80,7 @@ def plot_V(
     if dims is not None:
         dim1 = dims[0]
         dim2 = dims[1]
-    plt.quiver(X[:, dim1], X[:, dim2], V[:, dim1], V[:, dim2])
+    plt.quiver(X[:, dim1], X[:, dim2], V[:, dim1], V[:, dim2], **kwargs)
 
 
 def zscatter(

@@ -788,7 +788,7 @@ def compute_torsion(vf, f_jac, X):
     n = len(X)
 
     tor = np.zeros((n, X.shape[1], X.shape[1]))
-    v, J, a = compute_acceleration(vf, f_jac, X, return_all=True)
+    v, J, a_, a = compute_acceleration(vf, f_jac, X, return_all=True)
 
     for i in tqdm(range(n), desc="Calculating torsion"):
         tor[i] = torsion_(v[i], J[:, :, i], a[i])
@@ -822,7 +822,7 @@ def compute_sensitivity(f_jac, X):
     return S
 
 
-def _curl(f, x, method="analytical", VecFld=None, jac=None):
+def curl3d(f, x, method="analytical", VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
     if jac is None:
         if method == "analytical" and VecFld is not None:
@@ -858,8 +858,8 @@ def compute_curl(f_jac, X):
         curl = np.zeros(n)
         f = curl2d
     else:
-        curl = np.zeros((n, 2, 2))
-        f = _curl
+        curl = np.zeros((n, 3, 3))
+        f = curl3d
 
     for i in tqdm(range(n), desc=f"Calculating {X.shape[1]}-D curl"):
         J = f_jac(X[i])
