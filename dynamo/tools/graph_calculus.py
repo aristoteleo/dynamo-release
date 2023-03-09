@@ -136,6 +136,134 @@ def graphize_velocity(
 def graphize_velocity_coopt(
     X: np.ndarray,
     V: np.ndarray,
+    C: np.ndarray,
+    nbrs: list,
+    a: float = 1.0,
+    b: float = 1.0,
+    r: float = 1.0,
+    loss_func: str = "log",
+    nonneg: bool = False,
+    norm_dist: bool = False,
+):
+    # TODO: merge with graphize_velocity
+    """
+    The function generates a graph based on the velocity data by minimizing the loss function:
+                    L(w_i) = a |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
+    where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j],
+    and E[i, j] = -E[j, i].
+
+    Arguments
+    ---------
+        X: :class:`~numpy.ndarray`
+            The coordinates of cells in the expression space.
+        V: :class:`~numpy.ndarray`
+            The velocity vectors in the expression space.
+        C: :class:`~numpy.ndarray`
+            The transition matrix of cells based on the correlation/cosine kernel.
+        nbrs: list
+            List of neighbor indices for each cell.
+        a: float (default 1.0)
+            The weight for preserving the velocity length.
+        b: float (default 1.0)
+            The weight for the cosine similarity.
+        r: float (default 1.0)
+            The weight for the regularization.
+        nonneg: bool (default False)
+            Whether to ensure the resultant transition matrix to have non-negative values.
+        norm_dist: bool (defauilt False)
+            norm_dist should be False so that the resulting graph vector field penalizes long jumps.
+
+    Returns
+    -------
+        E: :class:`~numpy.ndarray`
+            The edge matrix.
+    """
+    E = np.zeros((X.shape[0], X.shape[0]))
+
+    for i, x in enumerate(X):
+        v, c, idx = V[i], C[i], nbrs[i]
+        c = c[idx]
+
+        # normalized differences
+        D = X[idx] - x
+        if norm_dist:
+            dist = np.linalg.norm(D, axis=1)
+            dist[dist == 0] = 1
+            D /= dist[:, None]
+
+        # co-optimization
+        c_norm = np.linalg.norm(c)
+
+        def func(w):
+            v_ = w @ D
+
+            # cosine similarity between w and c
+            if b == 0:
+                sim = 0
+            else:
+                cw = c_norm * np.linalg.norm(w)
+                if cw > 0:
+                    sim = c.dot(w) / cw
+                else:
+                    sim = 0
+
+            # reconstruction error between v_ and v
+            rec = v_ - v
+            rec = rec.dot(rec)
+            if loss_func is None or loss_func == "linear":
+                rec = rec
+            elif loss_func == "log":
+                rec = np.log(rec)
+            else:
+                raise NotImplementedError(
+                    f"The function {loss_func} is not supported. Choose either `linear` or `log`."
+                )
+
+            # regularization
+            reg = 0 if r == 0 else w.dot(w)
+
+            ret = a * rec - b * sim + r * reg
+            return ret
+
+        def fjac(w):
+            v_ = w @ D
+
+            # reconstruction error
+            jac_con = 2 * a * D @ (v_ - v)
+
+            if loss_func is None or loss_func == "linear":
+                jac_con = jac_con
+            elif loss_func == "log":
+                jac_con = jac_con / (v_ - v).dot(v_ - v)
+
+            # cosine similarity
+            w_norm = np.linalg.norm(w)
+            if w_norm == 0 or b == 0:
+                jac_sim = 0
+            else:
+                jac_sim = b * (c / (w_norm * c_norm) - w.dot(c) / (w_norm**3 * c_norm) * w)
+
+            # regularization
+            if r == 0:
+                jac_reg = 0
+            else:
+                jac_reg = 2 * r * w
+
+            return jac_con - jac_sim + jac_reg
+
+        if nonneg:
+            bounds = [(0, np.inf)] * D.shape[0]
+        else:
+            bounds = None
+
+        res = minimize(func, x0=D @ v, jac=fjac, bounds=bounds)
+        E[i][idx] = res["x"]
+    return E
+
+
+def _graphize_velocity_coopt(
+    X: np.ndarray,
+    V: np.ndarray,
     U: np.ndarray,
     nbrs: list,
     a: float = 1.0,

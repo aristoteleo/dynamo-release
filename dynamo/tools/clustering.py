@@ -5,12 +5,12 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+
 import anndata
 import numpy as np
 import pandas as pd
 from anndata import AnnData
-from scipy.sparse import csr_matrix
-from sklearn.neighbors import NearestNeighbors
+from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DKM
 from ..dynamo_logger import main_info
@@ -171,55 +171,72 @@ def hdbscan(
 
 def leiden(
     adata: AnnData,
-    use_weight: bool = True,
-    weight: List[float] = None,
+    resolution: float = 1.0,
+    use_weight: bool = False,
+    weights: Optional[Union[str, Iterable]] = None,
     initial_membership: Optional[List[int]] = None,
-    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
+    adj_matrix: Optional[csr_matrix] = None,
     adj_matrix_key: Optional[str] = None,
+    seed: Optional[int] = None,
     result_key: Optional[str] = None,
     layer: Optional[str] = None,
     obsm_key: Optional[str] = None,
-    selected_cluster_subset: Optional[Tuple[str, str]] = None,
-    selected_cell_subset: Union[List[int], List[str], None] = None,
-    directed: bool = False,
+    selected_cluster_subset: Optional[Tuple[str, List[int]]] = None,
+    selected_cell_subset: Optional[List[int]] = None,
+    directed: bool = True,
     copy: bool = False,
     **kwargs
-) -> Optional[AnnData]:
-    """Apply leiden clustering to adata.
+) -> anndata.AnnData:
+    """Apply leiden clustering to the input adata.
 
-    For other community detection general parameters, please refer to `~dynamo.tl.cluster_community` function.
-    "The Leiden algorithm is an improvement of the Louvain algorithm. The Leiden algorithm consists of three phases:
-    (1) local moving of nodes, (2) refinement of the partition (3) aggregation of the network based on the refined
-    partition, using the non-refined partition to create an initial partition for the aggregate network." - cdlib
+    For other general community detection related parameters, please refer to ``dynamo's``
+    :py:meth:`~dynamo.tl.cluster_community` function.
+
+    The Leiden algorithm is an improvement of the Louvain algorithm. Based on the cdlib package, the Leiden algorithm
+    consists of three phases:
+    (1) local moving of nodes,
+    (2) refinement of the partition,
+    (3) aggregation of the network based on the refined partition, using the non-refined partition to create an initial
+    partition for the aggregate network.
+
+    Please note that since 2/23/23, we have replaced the integrated louvain method from cdlib package with that from the
+    original leidenalg package.
 
     Args:
-        adata: an AnnData object.
-        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
-            Defaults to True.
-        weight: weight used to perform leiden algorithm. Defaults to None.
-        initial_membership: initial membership for the partition. If None, a singleton partition will be used. Defaults
-            to None.
-        adj_matrix: adj_matrix used for clustering. Defaults to None.
-        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
-        result_key: the key where the results will be stored in obs. Defaults to None.
-        layer: the adata layer on which cluster algorithms will work. Defaults to None.
-        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
-        selected_cluster_subset: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
-            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
-        selected_cell_subset: a subset of cells in adata that would be clustered. Could be a list of indices or a list
-            of cell names. Defaults to None.
-        directed: whether the edges in the graph should be directed. Defaults to False.
-        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
-        kwargs: all other kwargs that would be passed to cluster_community
+        adata: an adata object
+        resolution: the resolution of the clustering that determines the level of detail in the clustering process.
+            An increase in this value will result in the generation of a greater number of clusters.
+        use_weight: whether to use the weight of the edges in the clustering process. Default False.
+        weights: weights of edges. Can be either an iterable (list of double) or an edge attribute.
+        initial_membership: list of int. Initial membership for the partition.
+            If None then defaults to a singleton partition.
+        adj_matrix: the adjacency matrix to use for the cluster_community function.
+        adj_matrix_key: the key of the adjacency matrix in adata.obsp used for the cluster_community function.
+        seed: seed for the random number generator. By default uses a random seed if nothing is specified.
+        result_key: the key to use for saving clustering results which will be included in both adata.obs and adata.uns.
+        layer: the adata layer where cluster algorithms will work on.
+        obsm_key: the key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
+            calculate the nearest neighbor graph.
+        selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters) filtering cells in adata based on
+            cluster_key in adata.obs and only reserves cells in the allowed clusters.
+        selected_cell_subset: a list of cell indices to cluster.
+        directed: whether the graph is directed.
+        copy: return a copy instead of writing to adata.
+        **kwargs: additional arguments to pass to the cluster_community function.
 
     Returns:
-        An updated AnnData object if `copy` is set to be true.
+        adata: An updated AnnData object with the leiden clustering results added. The adata is updated up with the
+        `result_key` key to use for saving clustering results which will be included in both adata.obs and adata.uns.
+        adata.obs[result_key] saves the clustering identify of each cell where the adata.uns[result_key] saves the
+        relevant parameters for the leiden clustering .
     """
 
     kwargs.update(
         {
-            "weight": weight,
+            "resolution_parameter": resolution,
+            "weights": weights,
             "initial_membership": initial_membership,
+            "seed": seed,
         }
     )
 
@@ -243,61 +260,72 @@ def leiden(
 def louvain(
     adata: AnnData,
     resolution: float = 1.0,
-    use_weight: bool = True,
-    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
+    use_weight: bool = False,
+    weights: Optional[Union[str, Iterable]] = None,
+    initial_membership: Optional[List[int]] = None,
+    adj_matrix: Optional[csr_matrix] = None,
     adj_matrix_key: Optional[str] = None,
-    randomize: Union[int, np.random.RandomState, None] = None,
+    seed: Optional[int] = None,
     result_key: Optional[str] = None,
     layer: Optional[str] = None,
     obsm_key: Optional[str] = None,
-    selected_cluster_subset: Optional[Tuple[str, str]] = None,
-    selected_cell_subset: Union[List[int], List[str], None] = None,
-    directed: bool = False,
+    selected_cluster_subset: Optional[Tuple[str, List[int]]] = None,
+    selected_cell_subset: Optional[List[int]] = None,
+    directed: bool = True,
     copy: bool = False,
     **kwargs
-) -> AnnData:
-    """Louvain implementation from cdlib.
+) -> anndata.AnnData:
+    """Apply louvain clustering to adata.
 
-    For other community detection general parameters, please refer to `dynamo`'s `tl.cluster_community` function.
-    "Louvain maximizes a modularity score for each community. The algorithm optimises the modularity in two elementary
-    phases: (1) local moving of nodes; (2) aggregation of the network. In the local moving phase, individual nodes are
-    moved to the community that yields the largest increase in the quality function. In the aggregation phase, an
-    aggregate network is created based on the partition obtained in the local moving phase. Each community in this
-    partition becomes a node in the aggregate network. The two phases are repeated until the quality function cannot be
-    increased further." - cdlib
+    For other general community detection related parameters,
+    please refer to ``dynamo's`` :py:meth:`~dynamo.tl.cluster_community` function.
+
+    Based on the cdlib package, the Louvain algorithm optimises the modularity in two elementary phases:
+    (1) local moving of nodes;
+    (2) aggregation of the network.
+    In the local moving phase, individual nodes are moved to the community that yields the largest increase in the
+    quality function. In the aggregation phase, an aggregate network is created based on the partition obtained in the
+    local moving phase. Each community in this partition becomes a node in the aggregate network. The two phases are
+    repeated until the quality function cannot be increased further.
+
+    Please note that since 2/23/23, we have replaced the integrated louvain method from cdlib package with that from the
+    original louvain package.
 
     Args:
-        adata: an AnnData object.
-        resolution: the size of the communities. Defaults to 1.0.
-        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
-            Defaults to True.
-        adj_matrix: adj_matrix used for clustering. Defaults to None.
-        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
-        randomize: _description_. Defaults to None.
-        result_key: the key where the results will be stored in obs. Defaults to None.
-        layer: the adata layer on which cluster algorithms will work. Defaults to None.
-        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
-        selected_cluster_subset: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
-            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
-        selected_cell_subset: a subset of cells in adata that would be clustered. Could be a list of indices or a list
-            of cell names. Defaults to None.
-        directed: whether the edges in the graph should be directed. Defaults to False.
-        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
-        kwargs: all other kwargs that would be passed to cluster_community
-
-    Raises:
-        ValueError: directed is set to be true but louvain does not support directed graph now.
+        adata: an adata object
+        resolution: the resolution of the clustering that determines the level of detail in the clustering process.
+            An increase in this value will result in the generation of a greater number of clusters.
+        use_weight: whether to use the weight of the edges in the clustering process. Default False
+        weights: weights of edges. Can be either an iterable (list of double) or an edge attribute.
+        initial_membership: list of int. Initial membership for the partition.
+            If None then defaults to a singleton partition.
+        adj_matrix: the adjacency matrix to use for the cluster_community function. Default None
+        adj_matrix_key: adj_matrix_key in adata.obsp used for the cluster_community function. Default None
+        seed: seed for the random number generator. By default uses a random seed if nothing is specified.
+        result_key: the key to use for saving clustering results which will be included in both adata.obs and adata.uns.
+        layer: the adata layer where cluster algorithms will work on.
+        obsm_key: the key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
+            calculate the nearest neighbor graph.
+        selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters) filtering cells in adata based on
+            cluster_key in adata.obs and only reserves cells in the allowed clusters.
+        selected_cell_subset: a list of cell indices to cluster.
+        directed: whether the graph is directed.
+        copy: return a copy instead of writing to adata.
+        **kwargs: additional arguments to pass to the clustering function.
 
     Returns:
-        An updated AnnData object if `copy` is set to be true.
+        adata: An updated AnnData object with the leiden clustering results added. The adata is updated up with the
+        `result_key` key to use for saving clustering results which will be included in both adata.obs and adata.uns.
+        adata.obs[result_key] saves the clustering identify of each cell where the adata.uns[result_key] saves the
+        relevant parameters for the leiden clustering .
     """
 
-    if directed:
-        raise ValueError("CDlib does not support directed graph for Louvain community detection for now.")
     kwargs.update(
         {
-            "resolution": resolution,
-            "randomize": randomize,
+            "resolution_parameter": resolution,
+            "weights": weights,
+            "initial_membership": initial_membership,
+            "seed": seed,
         }
     )
 
@@ -381,22 +409,21 @@ def infomap(
 def cluster_community(
     adata: AnnData,
     method: Literal["leiden", "louvain", "infomap"] = "leiden",
-    result_key: Union[str, None] = None,
-    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
-    adj_matrix_key: Union[str, None] = None,
+    result_key: Optional[str] = None,
+    adj_matrix: Optional[Union[list, np.array, csr_matrix]] = None,
+    adj_matrix_key: Optional[str] = None,
     use_weight: bool = True,
     no_community_label: int = -1,
-    layer: Union[str, None] = None,
-    obsm_key: Union[str, None] = None,
-    cell_subsets: Union[List[int], List[str], None] = None,
-    cluster_and_subsets: Tuple[str, str] = None,
+    layer: Optional[str] = None,
+    obsm_key: Optional[str] = None,
+    cell_subsets: Optional[List[int]] = None,
+    cluster_and_subsets: Optional[Tuple[str, List[int]]] = None,
     directed: bool = True,
     copy: bool = False,
     **kwargs
-) -> Union[AnnData, None]:
-    """A base function for detecting communities and inserting results into adata with algorithms specified.
-
-    Adjacent matrix retrieval priority: adj_matrix > adj_matrix_key > others
+) -> Optional[AnnData]:
+    """A base function for detecting communities and inserting results into adata with algorithms specified parameters
+    passed in. Adjacent matrix retrieval priority: adj_matrix > adj_matrix_key > others
 
     Args:
         adata: an AnnData object.
@@ -455,7 +482,7 @@ def cluster_community(
                     X_data = adata.obsm[obsm_key]
                     neighbors(adata, X_data=X_data, result_prefix=obsm_key)
             else:
-                main_info("using PCA genes for clustering based on adata.var.use_for_pca...")
+                main_info("using PCA genes for clustering based on adata.var.use_for_pca ...")
                 X_data = adata[:, adata.var.use_for_pca].layers[layer]
                 neighbors(adata, X_data=X_data, result_prefix=layer)
 
@@ -492,9 +519,6 @@ def cluster_community(
         valid_indices = np.argwhere(valid_indices_bools).flatten()
         graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][:, valid_indices]
 
-    if not use_weight:
-        graph_sparse_matrix.data = 1
-
     community_result = cluster_community_from_graph(
         method=method, graph_sparse_matrix=graph_sparse_matrix, directed=directed, **kwargs
     )
@@ -504,8 +528,13 @@ def cluster_community(
     # No subset required case, use all indices
     if valid_indices is None:
         valid_indices = np.arange(0, len(adata))
-    for i, community in enumerate(community_result.communities):
-        labels[valid_indices[community]] = i
+
+    if hasattr(community_result, "membership"):
+        labels[valid_indices] = community_result.membership
+    else:
+        for i, community in enumerate(community_result.communities):
+            labels[valid_indices[community]] = i
+
     # clusters need to be categorical strings
     adata.obs[result_key] = pd.Categorical(labels.astype(str))
 
@@ -529,16 +558,12 @@ def cluster_community_from_graph(
     method: Literal["leiden", "louvain", "infomap"] = "louvain",
     directed: bool = False,
     **kwargs
-):
-    # -> NodeClustering:
-    """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
+) -> NodeClustering: a NodeClustering object that contains the communities detected by the chosen algorithm.
 
     Args:
         graph (nx.Graph): the input graph that would be directly used for clustering. Defaults to None.
-        graph_sparse_matrix: a sparse matrix that would be converted to a graph if `graph` is not supplied. Defaults to
-            None.
-        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain", or "infomap". Defaults
-            to "louvain".
+        graph_sparse_matrix: a sparse matrix that would be converted to a graph if `graph` is not supplied.
+        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain", or "infomap".
         directed: whether the edges in the graph should be directed. Defaults to False. Defaults to False.
 
     Raises:
@@ -549,65 +574,69 @@ def cluster_community_from_graph(
         NotImplementedError: `method` is invalid.
 
     Returns:
-        cdlib.NodeClustering: clusters of the nodes in the graph.
+        NodeClustering: a NodeClustering object that contains the communities detected by the chosen algorithm.
     """
 
     logger = LoggerManager.get_main_logger()
     logger.info("Detecting communities on graph...")
+
     try:
-        import networkx as nx
-        from cdlib import algorithms
+        import igraph
+        import leidenalg
     except ImportError:
         raise ImportError(
-            "You need to install the excellent package `cdlib` if you want to use louvain or leiden " "for clustering."
+            "Please install networkx, igraph, leidenalg via "
+            "`pip install networkx igraph leidenalg` for clustering on graph."
         )
+
+    initial_membership = kwargs.pop("initial_membership", None)
+    weights = kwargs.pop("weights", None)
+    seed = kwargs.pop("seed", None)
+
     if graph is not None:
         # highest priority
-        pass
-    elif graph_sparse_matrix is not None:
-        logger.info("Converting graph_sparse_matrix to networkx object", indent_level=2)
-        # if graph matrix is with weight, then edge attr "weight" stores weight of edges
-        graph = nx.convert_matrix.from_scipy_sparse_matrix(graph_sparse_matrix, edge_attribute="weight")
-        for i in range(graph_sparse_matrix.shape[0]):
-            if not (i in graph.nodes):
-                graph.add_node(i)
+        main_info("using graph from arg for clustering...")
+    elif issparse(graph_sparse_matrix):
+        logger.info("Converting graph_sparse_matrix to igraph object", indent_level=2)
+        if directed:
+            graph = igraph.Graph.Weighted_Adjacency(graph_sparse_matrix, mode="directed")
+        else:
+            graph = igraph.Graph.Weighted_Adjacency(graph_sparse_matrix, mode="undirected")
     else:
         raise ValueError("Expected graph inputs are invalid")
 
-    if directed:
-        graph = graph.to_directed()
-    else:
-        graph = graph.to_undirected()
-
     if method == "leiden":
-        initial_membership, weights = None, None
-        if "initial_membership" in kwargs:
-            logger.info("Detecting community with initial_membership input from caller")
-            initial_membership = kwargs["initial_membership"]
-        if "weights" in kwargs:
-            weights = kwargs["weights"]
+        # ModularityVertexPartition does not accept a resolution_parameter, instead RBConfigurationVertexPartition.
+        if kwargs["resolution_parameter"] != 1:
+            partition_type = leidenalg.RBConfigurationVertexPartition
+        else:
+            partition_type = leidenalg.ModularityVertexPartition
+            kwargs.pop("resolution_parameter")
 
-        if initial_membership is not None:
-            main_info(
-                "Currently initial_membership for leiden has some issue and thus we ignore it. "
-                "We will support it in future."
-            )
-            initial_membership = None
+        coms = leidenalg.find_partition(
+            graph, partition_type, initial_membership=initial_membership, weights=weights, seed=seed, **kwargs
+        )
 
-        coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
     elif method == "louvain":
-        if "resolution" not in kwargs:
-            raise KeyError("resolution not in louvain input parameters")
-        # if "weight" not in kwargs:
-        #     raise KeyError("weight not in louvain input parameters")
-        if "randomize" not in kwargs:
-            raise KeyError("randomize not in louvain input parameters")
+        try:
+            import louvain
+        except ImportError:
+            raise ImportError("Please install louvain via `pip install louvain==0.8.0` for clustering on graph.")
 
-        resolution = kwargs["resolution"]
-        weight = "weight"
-        randomize = kwargs["randomize"]
-        coms = algorithms.louvain(graph, weight=weight, resolution=resolution, randomize=randomize)
+        logger.warning("louvain is not maintained, we recommend using leiden instead.")
+        coms = louvain.find_partition(
+            graph,
+            louvain.RBConfigurationVertexPartition,
+            initial_membership=initial_membership,
+            weights=weights,
+            seed=seed,
+            **kwargs
+        )
     elif method == "infomap":
+        try:
+            import cdlib as algorithms
+        except ImportError:
+            raise ImportError("Please install cdlib via `pip install cdlib` for clustering on graph.")
         coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")

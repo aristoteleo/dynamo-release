@@ -33,7 +33,7 @@ from .dynamo_logger import (
     main_tqdm,
     main_warning,
 )
-from .get_version import get_all_dependencies_version
+from .get_version import get_all_dependencies_version, session_info
 
 # alias
 config = configuration

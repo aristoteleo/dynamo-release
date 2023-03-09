@@ -188,7 +188,7 @@ def ode_osc2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
     return dx
 
 
-def ode_neurogenesis(
+def ode_neurongenesis(
     x: np.ndarray,
     a,
     K,
@@ -238,7 +238,7 @@ def ode_neurogenesis(
     return dx
 
 
-def neurogenesis(
+def neurongenesis(
     x,
     t=None,
     mature_mu=0,
@@ -307,14 +307,15 @@ def state_space_sampler(ode, dim, seed_num=19491001, clip=True, min_val=0, max_v
     return X, Y
 
 
-def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000):
+def Simulator(motif="neurongenesis", seed_num=19491001, clip=None, cell_num=5000):
     """Simulate the gene expression dynamics via deterministic ODE model
 
     Parameters
     ----------
-    motif: str (default: "neurogenesis")
-        Name of the network motif that will be used in the simulation.
-    clip: bool (default: True)
+    motif: str (default: "neurongenesis")
+        Name of the network motif that will be used in the simulation. Can be one of {"neurongenesis", "toggle",
+        "two_genes", "Ying", "mixture_of_gaussian", "four_attractors"}. The last three models are equivalent.
+    clip: bool (default: None)
         Whether to clip data points that are negative.
     cell_num: int (default: 5000)
         Number of cells to simulate.
@@ -333,18 +334,18 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             min_val=0,
             max_val=6,
             N=cell_num,
-            clip=clip,
+            clip=True if clip is None else clip,
         )
         gene_name = np.array(["X", "Y"])
-    elif motif == "neurogenesis":
+    elif motif == "neurongenesis":
         X, Y = state_space_sampler(
-            ode=neurogenesis,
+            ode=neurongenesis,
             dim=13,
             seed_num=seed_num,
             min_val=0,
             max_val=6,
             N=cell_num,
-            clip=clip,
+            clip=True if clip is None else clip,
         )
 
         gene_name = np.array(
@@ -365,10 +366,24 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
             ]
         )
     elif motif == "twogenes":
-        X, Y = state_space_sampler(ode=ode_bifur2genes, dim=2, min_val=0, max_val=4, N=cell_num, clip=clip)
+        X, Y = state_space_sampler(
+            ode=ode_bifur2genes,
+            dim=2,
+            min_val=0,
+            max_val=4,
+            N=cell_num,
+            clip=True if clip is None else clip,
+        )
         gene_name = np.array(["Pu.1", "Gata.1"])
-    elif motif == "Ying":
-        X, Y = state_space_sampler(ode=Ying_model, dim=2, min_val=-3, max_val=3, N=cell_num, clip=clip)
+    elif motif in ["Ying", "mixture_of_gaussian", "four_attractors"]:
+        X, Y = state_space_sampler(
+            ode=Ying_model,
+            dim=2,
+            min_val=-3,
+            max_val=3,
+            N=cell_num,
+            clip=False if clip is None else clip,  # Y can be smaller than 0
+        )
         gene_name = np.array(["X", "Y"])
 
     var = pd.DataFrame({"gene_short_name": gene_name})  # use the real name in simulation?

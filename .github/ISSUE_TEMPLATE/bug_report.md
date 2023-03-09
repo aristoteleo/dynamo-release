@@ -13,7 +13,7 @@ assignees: ''
 
 ---
 
-** If this is a question and not a bug report or enhancement request, please post to our Github Discussions channel at [https://github.com/aristoteleo/dynamo-release/discussions](https://github.com/aristoteleo/dynamo-release/discussions)**
+**If this is a question and not a bug report or enhancement request, please post to our Github Discussions channel at [https://github.com/aristoteleo/dynamo-release/discussions](https://github.com/aristoteleo/dynamo-release/discussions)**
 
 **Describe the bug**
 A clear and concise description of what the bug is.
