@@ -30,6 +30,26 @@ def search_fixed_points(
     ignore_fsolve_err=False,
     **fsolve_kwargs
 ):
+    """Search the fixed points of (learned) vector field function in a given domain.
+
+    The initial points are sampled by given methods. Then the function uses the fsolve function
+    from SciPy to find the fixed points and Numdifftools to compute the Jacobian matrix of the function.
+
+    Args:
+        func: The function of the (learned) vector field function that are required to fixed points for.
+        domain: The domain to search in.
+        x0: The initial point to start with.
+        x0_method: The method to sample initial points.
+        reverse: Whether to reverse the sign (direction) of vector field (VF).
+        return_x0: Whether to return the initial points used in the search.
+        fval_tol: The tolerance for the function value at the fixed points.
+        remove_outliers: Whether to remove the outliers.
+        ignore_fsolve_err: Whether to ignore the fsolve error.
+
+    Returns:
+        The fixed points found with their Jacobian matrix of the function. The sampled initial points
+        will be returned as well if return_x0 == True.
+    """
     import numdifftools as nda
 
     func_ = (lambda x: -func(x)) if reverse else func
