@@ -12,7 +12,6 @@ except:
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import scipy.sparse as sp
 from anndata._core.anndata import AnnData
 from anndata._core.views import ArrayView
 from scipy import interpolate
@@ -342,7 +341,7 @@ def create_layer(
 
 
 def index_gene(adata: AnnData, arr: np.ndarray, genes: List[str]) -> np.ndarray:
-    """A light weight method for indexing adata arrays by genes.
+    """A lightweight method for indexing adata arrays by genes.
 
     The function is designed to have good memory efficiency especially when `.uns` contains large data.
 
@@ -436,7 +435,7 @@ def select_cell(
         grps: the value(s) in `.obs[grp_keys]` to be used for selecting cells. If a list, each element is a value that
             corresponds to an element in `grp_keys`.
         presel: an array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
-            `grp_keys` and `grps` according to `mode`.. Defaults to None.
+            `grp_keys` and `grps` according to `mode`. Defaults to None.
         mode: the mode to select cells.
             "union" - the selected cells are the union of the groups specified in `grp_keys` and `grps`;
             "intersection" - the selected cells are the intersection of the groups specified in `grp_keys` and `grps`.
@@ -506,7 +505,7 @@ def flatten(arr: Union[pd.Series, sp.csr_matrix, np.ndarray]) -> np.ndarray:
     """Flatten the given array-like object.
 
     Args:
-        arr: the array-like object to be flatten.
+        arr: the array-like object to be flattened.
 
     Returns:
         The flatten result.
@@ -664,9 +663,9 @@ def index_condensed_matrix(n: int, i: int, j: int) -> int:
     square form.
 
     Args:
-        n: size of the squareform.
-        i: row index of the element in the squareform.
-        j: column index of the element in the squareform.
+        n: size of the square form.
+        i: row index of the element in the square form.
+        j: column index of the element in the square form.
 
     Returns:
         The index of the element in the condensed matrix.
@@ -941,7 +940,7 @@ def table_rank_dict(
         n_top_genes: the number of top genes put into the Dataframe. Defaults to 30.
         order: the order of picking the top genes from the rank dictionary.
             1: ascending, -1: descending. Defaults to 1.
-        output_values: whether or not output the values along with gene names. Defaults to False.
+        output_values: whether output the values along with gene names. Defaults to False.
 
     Returns:
         The table of top genes of each group.

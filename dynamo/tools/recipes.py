@@ -35,7 +35,7 @@ def recipe_kin_data(
     splicing or only labeling data.
 
     Args:
-        adata: an AnnData object that stores data for the the kinetics experiment, must include `uu, ul, su, sl` four
+        adata: an AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
         tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
             support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
@@ -47,10 +47,10 @@ def recipe_kin_data(
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to True.
-        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Paramter to `recipe_monocle`
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
             function. Defaults to False.
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
-            Paramter to `recipe_monocle` function. Defaults to False.
+            Parameter to `recipe_monocle` function. Defaults to False.
         n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Arguments required by the `recipe_monocle` function. Defaults to 1000.
         keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object. Used in
@@ -202,7 +202,7 @@ def recipe_deg_data(
     labeling and splicing data or only labeling. Functions need to be updated.
 
     Args:
-        adata: an AnnData object that stores data for the the kinetics experiment, must include `uu, ul, su, sl` four
+        adata: an AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
         tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
             support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
@@ -214,10 +214,10 @@ def recipe_deg_data(
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to True.
-        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Paramter to `recipe_monocle`
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
             function. Defaults to False.
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
-            Paramter to `recipe_monocle` function. Defaults to False.
+            Parameter to `recipe_monocle` function. Defaults to False.
         n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Arguments required by the `recipe_monocle` function. Defaults to 1000.
         keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object. Used in
@@ -374,11 +374,11 @@ def recipe_mix_kin_deg_data(
     basis: str = "umap",
     rm_kwargs: Dict[str, Any] = {},
 ):
-    """An analysis recipe that properly pre-processes different layers for an mixture kinetics and degradation
+    """An analysis recipe that properly pre-processes different layers for a mixture kinetics and degradation
     experiment with both labeling and splicing or only labeling data.
 
     Args:
-        adata: an AnnData object that stores data for the the kinetics experiment, must include `uu, ul, su, sl` four
+        adata: an AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
         tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
             support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
@@ -390,10 +390,10 @@ def recipe_mix_kin_deg_data(
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to True.
-        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Paramter to `recipe_monocle`
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
             function. Defaults to False.
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
-            Paramter to `recipe_monocle` function. Defaults to False.
+            Parameter to `recipe_monocle` function. Defaults to False.
         n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Arguments required by the `recipe_monocle` function. Defaults to 1000.
         keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object. Used in
@@ -542,11 +542,11 @@ def recipe_one_shot_data(
     basis: str = "umap",
     rm_kwargs: Dict[str, Any] = {},
 ) -> AnnData:
-    """An analysis recipe that properly pre-processes different layers for an one-shot experiment with both labeling and
+    """An analysis recipe that properly pre-processes different layers for a one-shot experiment with both labeling and
     splicing data.
 
     Args:
-        adata: AnnData object that stores data for the the kinetics experiment, must include `uu, ul, su, sl` four
+        adata: AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
         tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
             support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
@@ -558,10 +558,10 @@ def recipe_one_shot_data(
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to True.
-        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Paramter to `recipe_monocle`
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
             function. Defaults to False.
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
-            Paramter to `recipe_monocle` function. Defaults to False.
+            Parameter to `recipe_monocle` function. Defaults to False.
         n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Arguments required by the `recipe_monocle` function. Defaults to 1000.
         keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object. Used in

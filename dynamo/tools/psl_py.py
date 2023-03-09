@@ -1,91 +1,29 @@
 # use for convert list of list to a list (https://stackoverflow.com/questions/952914/how-to-make-a-flat-list-out-of-list-of-lists)
 import functools
 import operator
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
-import numpy.matlib as matlib
 import scipy.sparse
 import scipy.spatial as ss
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigs
 
+from .DDRTree_py import repmat
+
 # from scikits.sparse.cholmod import cholesky
 
 
-
-def sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Calculate the square distance between a, b
-
-    Args:
-        a: a matrix with D x N dimension.
-        b: a matrix with D x N dimension.
-
-    Returns:
-        The matrix for the square distance. 
-    """    
-
-    aa = np.sum(a ** 2, axis=0)
-    bb = np.sum(b ** 2, axis=0)
-    ab = a.T.dot(b)
-
-    aa_repmat = matlib.repmat(aa[:, None], 1, b.shape[1])
-    bb_repmat = matlib.repmat(bb[None, :], a.shape[1], 1)
-
-    dist = abs(aa_repmat + bb_repmat - 2 * ab)
-
-    return dist
-
-
-def repmat(X: np.ndarray, m: int, n: int) -> np.ndarray:
-    """This function returns an array containing m (n) copies of A in the row (column) dimensions. The size of B is	
-    size(A)*n when A is a matrix.For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix.
+def diag_mat(values: List[int]):
+    """Returns a diagonal matrix with the given values on the diagonal.
 
     Args:
-        X: the matrix to be repeated. 
-        m: the number of copies in row. 
-        n: the number of copies in column. 
+        values: a list of values to place on the diagonal of the matrix.
 
     Returns:
-        The matrix containing repeating `X`. 
-    """    
-    
-    xy_rep = matlib.repmat(X, m, n)
-
-    return xy_rep
-
-
-def eye(m: int, n: int) -> np.ndarray:
-    """Equivalent of eye (matlab). 
-
-    Return a m x n matrix with 0th diagnal to be 1 and the rest to be 0. 
-
-    Args:
-        m: number of rows. 
-        n: number of columns. 
-
-    Returns:
-        The m x n eye matrix. 
+        A diagonal matrix with the given values on the diagonal.
     """
 
-    mat = np.eye(m, n)
-    return mat
-
-
-def diag_mat(values: int):
-    """Equivalent of diag (matlab)	
-    Arguments	
-    ---------	
-        values: 'int'	
-            dim of the matrix	
-    Returns	
-    -------	
-        mat: 'np.ndarray'	
-            A diag_matrix	
-    """
-    # mat = np.zeros((len(values),len(values)))
-    # for i in range(len(values)):
-    #     mat[i][i] = values[i]
     mat = np.zeros((len(values), len(values)))
     np.fill_diagonal(mat, values)
 
@@ -93,15 +31,15 @@ def diag_mat(values: int):
 
 
 def psl(
-    Y:np.ndarray, 
-    sG: Optional[csr_matrix]=None, 
-    dist: Optional[np.ndarray]=None, 
-    K: int=10, 
-    C: int=1e3, 
-    param_gamma: float=1e-3, 
-    d: int=2, 
-    maxIter: int=10, 
-    verbose: bool=False
+    Y: np.ndarray,
+    sG: Optional[csr_matrix] = None,
+    dist: Optional[np.ndarray] = None,
+    K: int = 10,
+    C: int = 1e3,
+    param_gamma: float = 1e-3,
+    d: int = 2,
+    maxIter: int = 10,
+    verbose: bool = False
 ) -> Tuple[csr_matrix, np.ndarray]:
     """This function is a pure Python implementation of the PSL algorithm.
 
@@ -118,14 +56,14 @@ def psl(
         C: the penalty parameter for loss term. It controls the preservation of distances. The larger it is, the 
             distance is more strictly preserve. If the structure is very clear, a larger C is preferred. Defaults to 
             1e3.
-        param_gamma: param_gamma is trying to make a matrix A nonsingular, it is like a round-off parameter. 1e-4 or 
+        param_gamma: param_gamma is trying to make a matrix A non-singular, it is like a round-off parameter. 1e-4 or
             1e-5 is good. It corresponds to the variance of prior embedding. Defaults to 1e-3.
         d: the embedding dimension. Defaults to 2.
         maxIter: number of maximum iterations. Defaults to 10.
         verbose: whether to print running information. Defaults to False.
 
     Returns:
-        A tuple (S, Z), where S is the adjancency matrix and Z is the reduced low dimension embedding. 
+        A tuple (S, Z), where S is the adjacency matrix and Z is the reduced low dimension embedding.
     """
 
     if sG is None:
@@ -271,11 +209,11 @@ def logdet(A: np.ndarray) -> float:
     to happen when applying det to large matrices.	
 
     Args:
-        A: an sqaure matrix. 
+        A: an square matrix.
 
     Returns:
         log(det(A)).
-    """    
+    """
 
     v = 2 * sum(np.log(np.diag(np.linalg.cholesky(A))))
     return v

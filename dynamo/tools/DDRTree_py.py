@@ -11,7 +11,7 @@ from scipy.sparse.linalg import inv
 
 
 def cal_ncenter(ncells: int, ncells_limit: int=100) -> int:
-    """Find out the number of cells to be most significant in the reduced space. 
+    """Calculate the number of cells to be most significant in the reduced space.
 
     Args:
         ncells: total number of cells. 
@@ -89,17 +89,16 @@ def repmat(X: np.ndarray, m: int, n: int) -> np.ndarray:
 
 
 def eye(m: int, n: int) -> np.ndarray:
-    """Equivalent of eye (matlab)	
-    Arguments	
-    ---------	
-        m: 'int'	
-            Number of rows	
-        n: 'int'	
-            Number of columns	
-    Returns	
-    -------	
-    mat: 'np.ndarray'	
-        A matrix of eye	
+    """Equivalent of eye (matlab).
+
+    Return a m x n matrix with 0th diagonal to be 1 and the rest to be 0.
+
+    Args:
+        m: number of rows.
+        n: number of columns.
+
+    Returns:
+        The m x n eye matrix.
     """
     mat = np.eye(m, n)
     return mat
@@ -194,7 +193,7 @@ def DDRTree(
         tmp_R = np.exp(-tmp_distZY / sigma)
         R = tmp_R / repmat(
             np.sum(tmp_R, 1).reshape(-1, 1), 1, K
-        )  ##########################3
+        )
         Gamma = np.diag(sum(R))
 
         # termination condition

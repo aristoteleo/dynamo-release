@@ -1009,7 +1009,7 @@ def kinetic_model(
             Available options are:
                 (1) 'deterministic': The method based on `deterministic` ordinary differential equations;
                 (2) 'stochastic' or `moment`: The new method from us that is based on `stochastic` master equations;
-            Note that `kinetic` model doesn't need to assumes the `experiment_type` is not `conventional`. As other
+            Note that `kinetic` model doesn't need to assume the `experiment_type` is not `conventional`. As other
             labeling experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional`
             scRNA-seq datasets. A "model_selection" model will be supported soon in which alpha, beta and gamma will be
             modeled as a function of time.
@@ -1710,15 +1710,6 @@ def kinetic_model(
         Estm_df["beta"] = Estm_df["gamma"] / gamma_k  # gamma_k = gamma / beta
         Estm_df["gamma_r2"] = gamma_all_r2
 
-        return (
-            Estm_df,
-            half_life,
-            cost,
-            logLL,
-            _param_ranges,
-            X_data,
-            X_fit_data,
-        )
     elif experiment_type.lower() in ["mix_pulse_chase", "mix_kin_deg"] and est_method == "twostep":
         if has_splicing:
             layers = (

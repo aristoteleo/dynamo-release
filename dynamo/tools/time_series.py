@@ -5,7 +5,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 
-from .DDRTree_py import DDRTree_py
+from .DDRTree_py import DDRTree
 
 
 def cal_ncenter(ncells: int, ncells_limit: int = 100) -> int:
@@ -64,7 +64,7 @@ def directed_pg(
     Lambda = 5 * X.shape[1] if Lambda is None else Lambda
     ncenter = 250 if cal_ncenter(X.shape[1]) is None else ncenter
 
-    DDRTree_res = DDRTree_py(
+    DDRTree_res = DDRTree(
         X,
         maxIter=maxIter,
         Lambda=Lambda,

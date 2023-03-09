@@ -1,8 +1,8 @@
 import warnings
 from typing import Callable, List, Optional, Tuple, Union
 
-import anndata
 import numpy as np
+from anndata import AnnData
 from scipy.sparse import csr_matrix, diags, issparse, lil_matrix
 from tqdm import tqdm
 
@@ -17,7 +17,7 @@ from .utils import elem_prod, get_mapper, inverse_norm
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
 def moments(
-    adata: anndata.AnnData,
+    adata: AnnData,
     X_data: Optional[np.ndarray] = None,
     genes: Optional[list] = None,
     group: Optional[str] = None,
@@ -29,7 +29,7 @@ def moments(
     n_pca_components: int = 30,
     n_neighbors: int = 30,
     copy: bool = False,
-) -> Optional[anndata.AnnData]:
+) -> Optional[AnnData]:
     """Calculate kNN based first and second moments (including uncentered covariance) for different layers of data.
 
     Args:
@@ -42,14 +42,14 @@ def moments(
              key in .var attributes if it exists otherwise it will also all genes stored in adata.X. Defaults to None.
         group: the column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used to compute kNN graph for each
-            group (i.e cell-type/time-point). This is important, for example, we don't want cells from different
+            group (i.e. cell-type/time-point). This is important, for example, we don't want cells from different
             labeling time points to be mixed when performing the kNN graph for calculating the moments. Defaults to
             None.
         conn: the connectivity graph that will be used for moment calculations. Defaults to None.
         use_gaussian_kernel: whether to normalize the kNN graph via a Guasian kernel. Defaults to False.
         normalize: whether to normalize the connectivity matrix so that each row sums up to 1. When
             `use_gaussian_kernel` is False, this will be reset to be False because we will already normalize the
-            connectivity matrix matrix by dividing each row the total number of connections. Defaults to True.
+            connectivity matrix by dividing each row the total number of connections. Defaults to True.
         use_mnn: whether to use mutual kNN across different layers as for the moment calculation. Defaults to False.
         layers: the layers that will be used for calculating the moments. Defaults to "all".
         n_pca_components: the number of pca components to use for constructing nearest neighbor graph and calculating
@@ -227,12 +227,12 @@ def moments(
 
 
 def time_moment(
-    adata: anndata.AnnData,
+    adata: AnnData,
     tkey: Optional[str],
     has_splicing: bool,
     has_labeling: bool = True,
     t_label_keys: Union[List[str], str, None] = None,
-) -> anndata.AnnData:
+) -> AnnData:
     """Calculate time based first and second moments (including uncentered covariance) for different layers of data.
 
     Args:
@@ -315,7 +315,7 @@ def get_layer_group(layer: str) -> Optional[str]:
 
 
 def prepare_data_deterministic(
-    adata: anndata.AnnData,
+    adata: AnnData,
     genes: List[str],
     time: np.ndarray,
     layers: List[str],
@@ -497,7 +497,7 @@ def prepare_data_deterministic(
 
 
 def prepare_data_has_splicing(
-    adata: anndata.AnnData,
+    adata: AnnData,
     genes: List[str],
     time: np.ndarray,
     layer_u: str,
@@ -652,7 +652,7 @@ def prepare_data_has_splicing(
 
 
 def prepare_data_no_splicing(
-    adata: anndata.AnnData,
+    adata: AnnData,
     genes: List[str],
     time: np.ndarray,
     layer: str,
@@ -763,7 +763,7 @@ def prepare_data_no_splicing(
 
 
 def prepare_data_mix_has_splicing(
-    adata: anndata.AnnData,
+    adata: AnnData,
     genes: List[str],
     time: np.ndarray,
     layer_u: str = "X_uu",
@@ -922,7 +922,7 @@ def prepare_data_mix_has_splicing(
 
 
 def prepare_data_mix_no_splicing(
-    adata: anndata.AnnData,
+    adata: AnnData,
     genes: List[str],
     time: np.ndarray,
     layer_n: str,
@@ -1076,7 +1076,7 @@ def strat_mom(arr: Union[np.ndarray, csr_matrix], strata: np.ndarray, fcn_mom: C
 
 
 def calc_mom_all_genes(
-    T: np.ndarray, adata: anndata.AnnData, fcn_mom: Callable
+    T: np.ndarray, adata: AnnData, fcn_mom: Callable
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate momentum for all genes in an AnnData object.
 
@@ -1254,7 +1254,7 @@ def calc_2nd_moment(
 
 # ---------------------------------------------------------------------------------------------------
 # old moment estimation code
-class MomData(anndata.AnnData):
+class MomData(AnnData):
     """deprecated"""
 
     def __init__(self, adata, time_key="Time", has_nan=False):

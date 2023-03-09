@@ -53,7 +53,7 @@ def score_cells(
         metric_kwds: additional keyword arguments for the metric function. Defaults to None.
         cores: the number of parallel jobs to run for neighbors search. `None` means 1 unless in a
             `joblib.parallel_backend` context. `-1` means using all processors. Defaults to 1.
-        seed: random seed to ensure the reproducibility of each run.. Defaults to 19491001.
+        seed: random seed to ensure the reproducibility of each run. Defaults to 19491001.
         return_score: whether to return the score. If False, save the smoothed score to `cell_scores` column in the
             `.obs` attribute and also to the dictionary corresponding to the `score_cells` key in the .uns attribute.
             Defaults to True.

@@ -6,13 +6,11 @@ try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
+
 import anndata
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-# import velocyto as vcy
-# import scvelo as scv
 from scipy.sparse import csr_matrix
 
 

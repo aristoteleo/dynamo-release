@@ -184,7 +184,7 @@ def leiden(
     directed: bool = False,
     copy: bool = False,
     **kwargs
-) -> Optional[anndata.AnnData]:
+) -> Optional[AnnData]:
     """Apply leiden clustering to adata.
 
     For other community detection general parameters, please refer to `~dynamo.tl.cluster_community` function.

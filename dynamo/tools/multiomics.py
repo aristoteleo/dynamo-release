@@ -1,5 +1,4 @@
 import anndata
-import numpy as np
 import pandas as pd
 
 # 1. concatenate RNA/protein data

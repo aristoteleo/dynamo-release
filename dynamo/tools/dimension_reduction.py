@@ -1,7 +1,7 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 
-import anndata
 import numpy as np
+from anndata import AnnData
 
 from ..dynamo_logger import LoggerManager
 from ..utils import copy_adata
@@ -11,7 +11,7 @@ from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
 
 def reduceDimension(
-    adata: anndata.AnnData,
+    adata: AnnData,
     X_data: np.ndarray = None,
     genes: Optional[List[str]] = None,
     layer: Optional[str] = None,
@@ -27,7 +27,7 @@ def reduceDimension(
     cores: int = 1,
     copy: bool = False,
     **kwargs,
-) -> Optional[anndata.AnnData]:
+) -> Optional[AnnData]:
     """Compute a low dimension reduction projection of an AnnData object first with PCA, followed by non-linear
     dimension reduction methods
 
@@ -73,7 +73,7 @@ def reduceDimension(
 
     adata = copy_adata(adata) if copy else adata
 
-    logger.info("retrive data for non-linear dimension reduction...", indent_level=1)
+    logger.info("retrieve data for non-linear dimension reduction...", indent_level=1)
     if X_data is None:
         X_data, n_components, basis = prepare_dim_reduction(
             adata,
@@ -126,7 +126,7 @@ def reduceDimension(
 
 
 def run_umap(
-    adata: anndata.AnnData,
+    adata: AnnData,
     X_data: np.ndarray = None,
     genes: Optional[List[str]] = None,
     layer: Optional[str] = None,
@@ -142,7 +142,7 @@ def run_umap(
     copy: bool = False,
     min_dist: float = 0.5,
     **kwargs,
-) -> Optional[anndata.AnnData]:
+) -> Optional[AnnData]:
     """Compute a low dimension reduction projection of an AnnData object first with PCA, followed by UMAP.
 
     This is a wrap for reduce Dimension, with the important min_dist value specified straightforwardly.
@@ -162,7 +162,7 @@ def run_umap(
             reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
             corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
         n_components: the dimension of the space to embed into. Defaults to 2.
-        n_neighbors: the number of nearest neighbors when constructing adjacency matrix.. Defaults to 30.
+        n_neighbors: the number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
         embedding_key: The str in .obsm that will be used as the key to save the reduced embedding space. By default it
             is None and embedding key is set as layer + reduction_method. If layer is None, it will be "X_neighbors".
             Defaults to None.

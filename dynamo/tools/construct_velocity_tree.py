@@ -1,13 +1,11 @@
 import re
 
 import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 import scipy
-from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
 
-from .DDRTree_py import DDRTree_py
+from .DDRTree_py import DDRTree
 
 
 def remove_velocity_points(G: np.ndarray, n: int) -> np.ndarray:
@@ -89,7 +87,7 @@ def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:
     gamma = 10
 
     # run DDRTree algorithm
-    W, Z, stree, Y, R, history = DDRTree_py(X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma)
+    W, Z, stree, Y, R, history = DDRTree(X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma)
 
     # draw velocity figure
 

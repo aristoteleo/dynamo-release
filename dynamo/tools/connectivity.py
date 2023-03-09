@@ -98,7 +98,7 @@ def get_conn_dist_graph(knn: np.ndarray, distances: np.ndarray) -> Tuple[csr_mat
 
     Args:
         knn: a matrix (n x n_neighbors) storing the indices for each node's n_neighbors nearest neighbors in knn graph.
-        distances: the distances to the n_neighbors closest points in knn graph.
+        distances: the distances to the n_neighbors the closest points in knn graph.
 
     Returns:
         A tuple (distances, connectivities), where distance is the distance sparse matrix and connectivities is the

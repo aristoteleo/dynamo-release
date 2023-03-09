@@ -1,4 +1,3 @@
-from dbm import ndbm
 from typing import Callable, List, Optional, Tuple, Union
 
 try:
@@ -57,7 +56,7 @@ def graphize_velocity(
                 'exp': the numpy.exp exponential function.
             Defaults to None.
         use_sparse: whether to use sparse matrix for edge matrix. Defaults to False.
-        return_nbrs: whther to return the neighbor object. Defaults to False.
+        return_nbrs: whether to return the neighbor object. Defaults to False.
 
     Raises:
         NotImplementedError: `E_func` is invalid.
@@ -160,7 +159,7 @@ def graphize_velocity_coopt(
         nbrs: list of neighbor indices for each cell.
         a: the weight for preserving the velocity length. Defaults to 1.0.
         b: the weight for the cosine similarity. Defaults to 1.0.
-        r: the weight for the regularization.. Defaults to 1.0.
+        r: the weight for the regularization. Defaults to 1.0.
         loss_func: the function used to reconstruct the loss. Defaults to "log".
         nonneg: whether to ensure the resultant transition matrix to have non-negative values.. Defaults to False.
         norm_dist: normally this value should only be False so that the resulting graph vector field penalizes long
@@ -423,7 +422,7 @@ def fp_operator(
         W: the edge weight. W_ij is the weight of edge e_ij. Defaults to None.
         symmetrize_E: whether to forcefully symmetrize `F`. Defaults to True.
         drift_weight: whether to drift with the weight . Defaults to False.
-        weight_mode: he method to apply the weight on the graph. Can be one of {"naive", "asymmetric", "symmetric"}.
+        weight_mode: the method to apply the weight on the graph. Can be one of {"naive", "asymmetric", "symmetric"}.
             Defaults to "asymmetric".
         renormalize: whether to renormalize the resulted transition rate matrix. Defaults to False.
 
@@ -553,7 +552,7 @@ def potential(
     """Calculate potential of a weighted graph.
 
     Potential is related to the intrinsic time. Note that the returned value from this function is the negative of
-    potential. Thus small potential is related to smaller intrinsic time and vice versa.
+    potential. Thus, small potential is related to smaller intrinsic time and vice versa.
 
     Args:
         F: the graph vector field. F_ij encodes the flow on edge e_ij (from vector i to j).

@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Union
+from typing import List, Optional, Union
 
 try:
     from typing import Literal

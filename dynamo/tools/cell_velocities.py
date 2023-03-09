@@ -5,11 +5,10 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-import anndata
 import numpy as np
 import scipy
-import scipy as scp
 import scipy.sparse as sp
+from anndata import AnnData
 from numba import jit
 from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
@@ -39,13 +38,13 @@ from .utils import (
 
 
 def cell_velocities(
-    adata: anndata.AnnData,
+    adata: AnnData,
     ekey: Union[str, None] = None,
     vkey: Union[str, None] = None,
-    X: Union[np.array, scipy.sparse.csr_matrix, None] = None,
-    V: Union[np.array, scipy.sparse.csr_matrix, None] = None,
+    X: Union[np.array, sp.csr_matrix, None] = None,
+    V: Union[np.array, sp.csr_matrix, None] = None,
     X_embedding: Union[np.ndarray, None] = None,
-    transition_matrix: Union[np.ndarray, scipy.sparse.csr_matrix, None] = None,
+    transition_matrix: Union[np.ndarray, sp.csr_matrix, None] = None,
     use_mnn: bool = False,
     n_pca_components: Union[int, None] = None,
     transition_genes: Union[str, List[str], List[bool], None] = None,
@@ -70,7 +69,7 @@ def cell_velocities(
     enforce: bool = False,
     preserve_len: bool = False,
     **kernel_kwargs,
-) -> anndata.AnnData:
+) -> AnnData:
     """Project high dimensional velocity vectors onto given low dimensional embeddings, and/or compute cell transition
         probabilities.
 
@@ -93,7 +92,7 @@ def cell_velocities(
             None.
         use_mnn: whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By
             default, we don't use the mutual nearest neighbors. Mutual nearest neighbors are calculated from nearest
-            neighbors across different layers, which which accounts for cases where, for example, the cells from spliced
+            neighbors across different layers, which accounts for cases where, for example, the cells from spliced
             expression may be nearest neighbors but far from nearest neighbors on unspliced data. Using mnn assumes your
             data from different layers are reliable (otherwise it will destroy real signals). Defaults to False.
         n_pca_components: the number of pca components to project the high dimensional X, V before calculating
@@ -600,7 +599,7 @@ def cell_velocities(
 
 
 def confident_cell_velocities(
-    adata: anndata.AnnData,
+    adata: AnnData,
     group: str,
     lineage_dict: Dict[str, Union[List[str], str]],
     ekey: Optional[str] = "M_s",
@@ -608,7 +607,7 @@ def confident_cell_velocities(
     basis: str = "umap",
     confidence_threshold: float = 0.85,
     only_transition_genes: bool = False,
-) -> anndata.AnnData:
+) -> AnnData:
     """Compute transition probability and perform velocity projection
 
     Confidently compute transition probability and project high dimension velocity vector to existing low dimension
@@ -697,7 +696,7 @@ def confident_cell_velocities(
 
 
 def stationary_distribution(
-    adata: anndata.AnnData,
+    adata: AnnData,
     method: str = "kmc",
     direction: Literal["both", "forward", "backward"] = "both",
     calc_rnd: bool = True,
@@ -771,7 +770,7 @@ def stationary_distribution(
                 adata.obs["source_steady_state_distribution_rnd"] = diffusion(T_rnd, backward=True)
 
 
-def generalized_diffusion_map(adata: anndata.AnnData, **kwargs) -> None:
+def generalized_diffusion_map(adata: AnnData, **kwargs) -> None:
     """Apply the diffusion map algorithm on the transition matrix build from Itô kernel.
 
     Update the AnnData object with X_diffusion_map embedded in obsm attribute.
@@ -798,7 +797,7 @@ def diffusion(
     Args:
         M: the transition matrix with dimension of n x n, where n is the cell number.
         P0: The initial cell state with dimension of n. Defaults to None.
-        steps: the random walk steps on the Markov transitioin matrix. Defaults to None.
+        steps: the random walk steps on the Markov transition matrix. Defaults to None.
         backward: whether the backward transition will be considered. Defaults to False.
 
     Returns:
@@ -812,7 +811,7 @@ def diffusion(
     if steps is None:
         # code inspired from  https://github.com/prob140/prob140/blob/master/prob140/markov_chains.py#L284
 
-        eigenvalue, eigen = scp.linalg.eig(
+        eigenvalue, eigen = scipy.linalg.eig(
             M, left=True, right=False
         )  # if not sp.issparse(M) else eigs(M) # source is on the row
 

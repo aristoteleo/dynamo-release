@@ -47,7 +47,7 @@ def moran_i(
     """Identify genes with strong spatial autocorrelation with Moran's I test.
 
     This can be used to identify genes that are potentially related to critical dynamic process. Moran's I test is first
-    introduced in single cell genomics analysis in (Cao, et al, 2019). Note that moran_i supports performing spatial
+    introduced in single cell genomics analysis in (Cao, et al. 2019). Note that moran_i supports performing spatial
     autocorrelation analysis for any layer or normalized data in your adata object. That is you can either use the
     total, new, unspliced or velocity, etc. for the Moran's I analysis.
 
@@ -164,7 +164,7 @@ def moran_i(
 
 def find_group_markers(
     adata: AnnData,
-    group: Optional[str],
+    group: str,
     genes: Optional[List[str]] = None,
     layer: Optional[str] = None,
     exp_frac_thresh: Optional[float] = None,
@@ -299,11 +299,11 @@ def find_group_markers(
 
 def two_groups_degs(
     adata: AnnData,
-    genes: Optional[List[str]],
-    layer: Optional[str],
-    group: Optional[str],
-    test_group: Optional[str],
-    control_groups: List[str],
+    genes: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    group: Optional[str] = None,
+    test_group: Optional[str] = None,
+    control_groups: List[str] = None,
     X_data: Optional[np.ndarray] = None,
     exp_frac_thresh: Optional[float] = None,
     log2_fc_thresh: Optional[str] = None,

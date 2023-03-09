@@ -1,13 +1,14 @@
 import warnings
 from typing import List, Optional, Tuple
 
-import anndata
 import numpy as np
 
 try:
     from typing import Literal
 except:
     from typing_extensions import Literal
+
+from anndata import AnnData
 
 from ..configuration import DKM
 from ..preprocessing.utils import pca_monocle
@@ -22,7 +23,7 @@ from .utils import log1p_, update_dict
 
 # ---------------------------------------------------------------------------------------------------
 def prepare_dim_reduction(
-    adata: anndata.AnnData,
+    adata: AnnData,
     genes: Optional[List[str]] = None,
     layer: Optional[str] = None,
     basis: str = "pca",
@@ -171,7 +172,7 @@ def prepare_dim_reduction(
 
 
 def run_reduce_dim(
-    adata: anndata.AnnData,
+    adata: AnnData,
     X_data: np.ndarray,
     n_components: int,
     n_pca_components: int,
@@ -181,7 +182,7 @@ def run_reduce_dim(
     neighbor_key: str,
     cores: int,
     **kwargs,
-) -> anndata.AnnData:
+) -> AnnData:
     """Perform dimension reduction.
 
     Args:

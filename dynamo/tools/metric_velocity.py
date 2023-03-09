@@ -247,7 +247,7 @@ def jaccard(
 
 
 def consensus(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    """Calculate the cosensus with expression matrix and velocity matrix.
+    """Calculate the consensus with expression matrix and velocity matrix.
 
     Args:
         x: expression matrix (genes x cells).
@@ -322,7 +322,7 @@ def gene_wise_confidence(
             progenitor as the key. Value can be either a string for one cell group or a list of string for multiple cell
             groups. Defaults to None.
         genes: the list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that
-            go through velocity estimation will be used.. Defaults to None.
+            go through velocity estimation will be used. Defaults to None.
         ekey: the layer that will be used to retrieve data for identifying the gene is in induction or repression phase
             at each cell state. If `None`, .X is used. Defaults to "M_s".
         vkey: the layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
