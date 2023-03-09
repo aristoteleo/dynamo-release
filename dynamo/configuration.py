@@ -107,7 +107,7 @@ class DynamoAdataKeyManager:
         """Get the list of available layers' keys.
 
         If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the
-        intersetion of available layers and `layers` will be returned.
+        intersection of available layers and `layers` will be returned.
         """
         layer_keys = list(adata.layers.keys())
         if remove_pp_layers:
@@ -207,7 +207,7 @@ class DynamoAdataConfig:
     def use_default_var_if_none(val, key, replace_val=None):
         """
         If `val` is equal to `replace_val`, then a config value will be returned according to `key` stored in dynamo
-        configuration. Otherwise return the original `val` value.
+        configuration. Otherwise, return the original `val` value.
 
         Parameters
         ----------
