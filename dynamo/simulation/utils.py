@@ -1,4 +1,4 @@
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -16,7 +16,7 @@ from ..dynamo_logger import (
 def directMethod(
     prop_fcn: Callable,
     update_fcn: Callable,
-    tspan: np.ndarray,
+    tspan: List,
     C0: np.ndarray,
     record_skip_steps: int = 0,
     record_max_length: int = 1e5,
@@ -364,7 +364,7 @@ class CellularSpecies:
                 self.species_dict[species_name] = [i + self.num_species for i in range(self.get_n_genes())]
                 self.num_species += self.get_n_genes()
 
-    def get_index(self, species: str, gene: Union[int, str] = None):
+    def get_index(self, species: str, gene: Optional[Union[int, str]] = None):
         if not species in self.species_dict.keys():
             raise Exception(f"Unregistered species `{species}`")
         idx = self.species_dict[species]
