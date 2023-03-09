@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -558,8 +558,10 @@ def cluster_community_from_graph(
     method: Literal["leiden", "louvain", "infomap"] = "louvain",
     directed: bool = False,
     **kwargs
-) -> NodeClustering: a NodeClustering object that contains the communities detected by the chosen algorithm.
-
+) -> Any:
+    """A function takes a graph as input and clusters its nodes into communities using one of three algorithms:
+    Leiden, Louvain, or Infomap.
+    
     Args:
         graph (nx.Graph): the input graph that would be directly used for clustering. Defaults to None.
         graph_sparse_matrix: a sparse matrix that would be converted to a graph if `graph` is not supplied.
