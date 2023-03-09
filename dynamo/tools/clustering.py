@@ -5,8 +5,6 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-
-import anndata
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -36,7 +34,7 @@ def hdbscan(
     result_key: Optional[str] = None,
     copy: bool = False,
     **hdbscan_kwargs
-) -> Optional[anndata.AnnData]:
+) -> Optional[AnnData]:
     """Apply hdbscan to cluster cells in the space defined by basis.
 
     HDBSCAN is a clustering algorithm developed by Campello, Moulavi, and Sander
@@ -186,7 +184,7 @@ def leiden(
     directed: bool = True,
     copy: bool = False,
     **kwargs
-) -> anndata.AnnData:
+) -> AnnData:
     """Apply leiden clustering to the input adata.
 
     For other general community detection related parameters, please refer to ``dynamo's``
@@ -274,7 +272,7 @@ def louvain(
     directed: bool = True,
     copy: bool = False,
     **kwargs
-) -> anndata.AnnData:
+) -> AnnData:
     """Apply louvain clustering to adata.
 
     For other general community detection related parameters,
@@ -412,7 +410,7 @@ def cluster_community(
     result_key: Optional[str] = None,
     adj_matrix: Optional[Union[list, np.array, csr_matrix]] = None,
     adj_matrix_key: Optional[str] = None,
-    use_weight: bool = True,
+    use_weight: bool = False,
     no_community_label: int = -1,
     layer: Optional[str] = None,
     obsm_key: Optional[str] = None,
