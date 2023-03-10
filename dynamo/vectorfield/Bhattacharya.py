@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Callable, Tuple, Union
 
 import numpy as np
 
@@ -7,7 +7,13 @@ from scipy.interpolate import griddata
 
 
 def path_integral(
-    VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTimeSteps=1400
+    VecFnc: Callable,
+    x_lim: np.ndarray,
+    y_lim: np.ndarray,
+    xyGridSpacing: Union[int, float],
+    dt: float = 1e-2,
+    tol: float = 1e-2,
+    numTimeSteps: int = 1400,
 ) -> Tuple[
     int, np.ndarray, np.ndarray, np.ndarray, int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
 ]:
@@ -15,7 +21,7 @@ def path_integral(
     Sudin Bhattacharya, Qiang Zhang and Melvin E. Andersen
 
     Args:
-        VecFnc: Takes in x, y and returns the vector field at that point.
+        VecFnc: The function of vector field that takes in x, y and returns the velocity at that point.
         x_lim: Lower or upper limit of x-axis.
         y_lim: Lower or upper limit of y-axis
         xyGridSpacing: Grid spacing for "starting points" for each "path" on the potential surface
