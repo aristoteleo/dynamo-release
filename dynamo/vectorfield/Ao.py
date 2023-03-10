@@ -82,9 +82,9 @@ def Ao_pot_map(
         general, Ao Ping, 2004
 
     Args:
-        vecFunc: The vector field function
-        fjac: function that returns the Jacobian of the vector field function evaluated at a particular point.
+        vecFunc: The vector field function.
         X: A (n_cell x n_dim) matrix of coordinates where the potential function is evaluated.
+        fjac: function that returns the Jacobian of the vector field function evaluated at a particular point.
         D: Diffusion matrix. It must be a square matrix with size corresponds to the number of columns (features) in the X matrix.
 
     Returns:
@@ -122,3 +122,22 @@ def Ao_pot_map(
     P = P / np.sum(P)
 
     return X, U, P, vecMat, S, A
+
+def Ao_pot_map_jac(fjac, X, D=None, **kwargs):
+    nobs, ndim = X.shape
+    if D is None:
+        D = 0.1 * np.eye(ndim)
+    elif np.isscalar(D):
+        D = D * np.eye(ndim)
+    U = np.zeros((nobs, 1))
+
+    m = int(ndim * (ndim - 1) / 2)
+    q0 = np.ones(m) * np.mean(np.diag(D)) * 1000
+    for i in tqdm(range(nobs), "Calc Ao potential"):
+        X_s = X[i, :]
+        F = fjac(X_s)
+        Q, _ = solveQ(D, F, q0=q0, **kwargs)
+        H = np.linalg.inv(D + Q).dot(F)
+        U[i] = -0.5 * X_s.dot(H).dot(X_s)
+
+    return U.flatten()
