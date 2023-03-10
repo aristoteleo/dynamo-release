@@ -86,18 +86,6 @@ def cluster_field(
     logger.log_time()
     adata = copy_adata(adata) if copy else adata
 
-    if method in ["louvain", "leiden"]:
-        try:
-            from cdlib import algorithms
-
-            "leiden" in dir(algorithms)
-
-        except ImportError:
-            raise ImportError(
-                "You need to install the excellent package `cdlib` if you want to use louvain or leiden "
-                "for clustering."
-            )
-
     features = list(
         set(features).intersection(["speed", "potential", "divergence", "acceleration", "curvature", "curl"])
     )
@@ -155,13 +143,6 @@ def cluster_field(
         # X = (X - X.min(0)) / X.ptp(0)
         X = (X - X.mean(0)) / X.std(0)
 
-    # add the resolution parameter to the kwargs so that it could be passed to downstream clustering function calls()
-    kwargs.update(
-        {
-            "resolution": resolution,
-        }
-    )
-
     if method in ["hdbscan", "kmeans"]:
         if method == "hdbscan":
             key = "field_hdbscan"
@@ -202,26 +183,11 @@ def cluster_field(
         adata.obsp["vf_feature_knn"] = graph
 
         if method == "leiden":
-            leiden(
-                adata,
-                adj_matrix_key="vf_feature_knn",
-                result_key="field_leiden",
-                **kwargs
-            )
+            leiden(adata, resolution=resolution, adj_matrix_key="vf_feature_knn", result_key="field_leiden", **kwargs)
         elif method == "louvain":
-            louvain(
-                adata,
-                adj_matrix_key="vf_feature_knn",
-                result_key="field_louvain",
-                **kwargs
-            )
+            louvain(adata, resolution=resolution, adj_matrix_key="vf_feature_knn", result_key="field_louvain", **kwargs)
         elif method == "infomap":
-            infomap(
-                adata,
-                adj_matrix_key="vf_feature_knn",
-                result_key="field_infomap",
-                **kwargs
-            )
+            infomap(adata, adj_matrix_key="vf_feature_knn", result_key="field_infomap", **kwargs)
 
     logger.finish_progress(progress_name="clustering_field")
 
@@ -264,18 +230,6 @@ def streamline_clusters(
     """
 
     import matplotlib.pyplot as plt
-
-    if method in ["louvain", "leiden"]:
-        try:
-            from cdlib import algorithms
-
-            "leiden" in dir(algorithms)
-
-        except ImportError:
-            raise ImportError(
-                "You need to install the excellent package `cdlib` if you want to use louvain or leiden "
-                "for clustering."
-            )
 
     vf_dict, func = vecfld_from_adata(adata, basis=basis)
     grid_kwargs_dict = {
