@@ -2,6 +2,7 @@ from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.optimize import least_squares
+import tqdm
 
 from ..tools.utils import condensed_idx_to_squareform_idx, squareform, timeit
 
