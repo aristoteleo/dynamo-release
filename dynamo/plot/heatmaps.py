@@ -1297,7 +1297,7 @@ def hessian(
     n_row=1,
     n_col=None,
     cmap="bwr",
-    normalize=True,
+    normalize=False,
     k=30,
     show_rug=True,
     show_extent=False,
@@ -1338,7 +1338,7 @@ def hessian(
             The number of grid when creating the lagged DREVI plot.
         n_row: `int` (Default: None)
             number of columns used to layout the faceted cluster panels.
-        normalize: `bool` (Default: True)
+        normalize: `bool` (Default: False)
             Whether to row-scale the data
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.

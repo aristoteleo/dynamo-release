@@ -349,7 +349,7 @@ def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all
             if np.amin(CM) < 0:
                 cur_cm -= np.amin(cur_cm)  # values cannot be negative
             cur_cm += 0.0000001  # np.min(array[array!=0]) #values cannot be 0
-            cur_cm = np.sort(cur_cm)  # values must be sorted
+            cur_cm = np.sort(cur_cm, axis=0)  # values must be sorted
             # index per array element
             index = np.arange(1, cur_cm.shape[0] + 1)
             n = cur_cm.shape[0]  # number of array elements

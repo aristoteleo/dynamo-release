@@ -1,6 +1,5 @@
 from typing import Optional, Sequence, Union
 
-import matplotlib
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -440,7 +439,7 @@ def biplot(
     draw_pca_embedding: bool = False,
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
-    ax: Union[matplotlib.axes._subplots.SubplotBase, None] = None,
+    ax: Optional[Axes] = None,
 ):
     """A biplot overlays a score plot and a loadings plot in a single graph. In such a plot, points are the projected
     observations; vectors are the projected variables. If the data are well-approximated by the first two principal
