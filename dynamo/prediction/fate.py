@@ -27,7 +27,7 @@ def fate(
     init_states: Optional[np.ndarray] = None,
     basis: Optional[None] = None,
     layer: str = "X",
-    dims: Union[np.ScalarType, Optional[List[np.ScalarType]]] = None,
+    dims: Optional[Union[tuple([List[Union[np.ScalarType]]] + list(np.ScalarType))]] = None,
     genes: Optional[List] = None,
     t_end: Optional[float] = None,
     direction: str = "both",
