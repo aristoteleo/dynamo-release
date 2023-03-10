@@ -123,50 +123,52 @@ def bandwidth_selector(X):
     return np.sqrt(2) * d
 
 
-def denorm(VecFld, X_old, V_old, norm_dict):
+def denorm(
+    VecFld: Dict[str, Union[np.ndarray, None]],
+    X_old: np.ndarray,
+    V_old: np.ndarray,
+    norm_dict: Dict[str, Union[np.ndarray, bool]],
+) -> Dict[str, Union[np.ndarray, None]]:
     """Denormalize data back to the original scale.
 
-    Parameters
-    ----------
-        VecFld:  `dict`
-            The dictionary that stores the information for the reconstructed vector field function.
-        X_old: `np.ndarray`
-            The original data for current state.
-        V_old: `np.ndarray`
-            The original velocity data.
-        norm_dict: `dict`
-            norm_dict to the class which includes the mean and scale values for X, Y used in normalizing the data.
+    Args:
+        VecFld: The dictionary that stores the information for the reconstructed vector field function.
+        X_old: The original data for current state.
+        V_old: The original velocity data.
+        norm_dict: The norm_dict dictionary that includes the mean and scale values for X, Y used in normalizing the
+            data.
 
-    Returns
-    -------
-        An updated VecFld function that includes denormalized X, Y, X_ctrl, grid, grid_V, V and the norm_dict key.
+    Returns:
+        return VecFld_denorm: An updated VecFld dictionary that includes denormalized X, Y, X_ctrl, grid, grid_V, V,
+            and the norm_dict key.
     """
-
     Y_old = X_old + V_old
-    X, Y, V, xm, ym, x_scale, y_scale, fix_velocity = (
-        VecFld["X"],
-        VecFld["Y"],
-        VecFld["V"],
-        norm_dict["xm"],
-        norm_dict["ym"],
-        norm_dict["xscale"],
-        norm_dict["yscale"],
-        norm_dict["fix_velocity"],
-    )
-    grid, grid_V = VecFld["grid"], VecFld["grid_V"]
+    xm, ym = norm_dict["xm"], norm_dict["ym"]
+    x_scale, y_scale = norm_dict["xscale"], norm_dict["yscale"]
     xy_m, xy_scale = (xm + ym) / 2, (x_scale + y_scale) / 2
 
-    VecFld["X"] = X_old
-    VecFld["Y"] = Y_old
-    # VecFld["X_ctrl"] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
-    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [grid.shape[0], 1]) if grid is not None else None
-    VecFld["grid_V"] = (
-        (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [grid_V.shape[0], 1]) - grid if grid_V is not None else None
+    X = VecFld["X"]
+    X_denorm = X_old
+    Y = VecFld["Y"]
+    Y_denorm = Y_old
+    V = VecFld["V"]
+    V_denorm = V_old if norm_dict["fix_velocity"] else (V + X) * y_scale + np.tile(ym, [V.shape[0], 1]) - X_denorm
+    grid = VecFld["grid"]
+    grid_denorm = grid * xy_scale + np.tile(xy_m, [grid.shape[0], 1]) if grid is not None else None
+    grid_V = VecFld["grid_V"]
+    grid_V_denorm = (
+        (grid + grid_V) * xy_scale + np.tile(xy_m, [grid_V.shape[0], 1]) - grid if grid_V is not None else None
     )
-    VecFld["V"] = V if fix_velocity else (V + X) * y_scale + np.matlib.tile(ym, [V.shape[0], 1]) - X_old
-    VecFld["norm_dict"] = norm_dict
+    VecFld_denorm = {
+        "X": X_denorm,
+        "Y": Y_denorm,
+        "V": V_denorm,
+        "grid": grid_denorm,
+        "grid_V": grid_V_denorm,
+        "norm_dict": norm_dict,
+    }
 
-    return VecFld
+    return VecFld_denorm
 
 
 @timeit
