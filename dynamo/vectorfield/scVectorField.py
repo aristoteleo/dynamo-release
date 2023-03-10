@@ -48,45 +48,38 @@ from .utils import (
 )
 
 
-def norm(X, V, T, fix_velocity=True):
-    """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
-        We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
+def norm(
+    X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: bool = True
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+    """
+    Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
+    We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
 
-    Arguments
-    ---------
-        X: :class:`~numpy.ndarray`
+    Args:
+        X: numpy.ndarray
             Current state. This corresponds to, for example, the spliced transcriptomic state.
-        V: :class:`~numpy.ndarray`
+        V: numpy.ndarray
             Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
             velocity estimated calculated by dynamo or velocyto, scvelo.
-        T: :class:`~numpy.ndarray`
+        T: numpy.ndarray
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state.
-        fix_velocity: bool (default: `True`)
-            Whether to fix velocity and don't transform it.
+        fix_velocity: bool, optional
+            Whether to fix velocity and don't transform it. Default is True.
 
-    Returns
-    -------
-        A tuple of updated X, V, T and norm_dict which includes the mean and scale values for original X, V data used
-        in normalization.
+    Returns:
+        Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, Dict[str, numpy.ndarray]]:
+            updated X, V, T and norm_dict which includes the mean and scale values for original X, V data used
+            in normalization.
     """
-
     Y = X + V
-    n, m = X.shape[0], V.shape[0]
 
-    xm = np.mean(X, 0)
-    ym = np.mean(Y, 0)
+    xm = np.mean(X, axis=0)
+    ym = np.mean(Y, axis=0)
 
-    x, y, t = (
-        X - xm[None, :],
-        Y - ym[None, :],
-        T - (1 / 2 * (xm[None, :] + ym[None, :])) if T is not None else None,
-    )
+    x, y, t = (X - xm[None, :], Y - ym[None, :], T - (1 / 2 * (xm[None, :] + ym[None, :])) if T is not None else None)
 
-    xscale, yscale = (
-        np.sqrt(np.sum(np.sum(x**2, 1)) / n),
-        np.sqrt(np.sum(np.sum(y**2, 1)) / m),
-    )
+    xscale, yscale = (np.sqrt(np.mean(x**2, axis=0))[None, :], np.sqrt(np.mean(y**2, axis=0))[None, :])
 
     X, Y, T = x / xscale, y / yscale, t / (1 / 2 * (xscale + yscale)) if T is not None else None
 
