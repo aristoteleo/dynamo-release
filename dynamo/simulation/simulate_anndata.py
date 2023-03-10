@@ -274,6 +274,7 @@ class CellularModelSimulator(AnnDataSimulator):
             tau: Time scale parameter which does not affect steady state solutions.
             n_C0s: Number of augmented initial conditions, if C0s is `None`.
             velocity_func: Function used to calculate velocity. If `None`, the velocity will not be calculated.
+            report_stoich: Whether to report the Stoichiometry Matrix.
         """
         self.splicing = True if "beta" in param_dict.keys() else False
         self.gene_names = gene_names
@@ -526,6 +527,7 @@ class BifurcationTwoGenes(CellularModelSimulator):
             tau: Time scale parameter which does not affect steady state solutions.
             n_C0s: Number of augmented initial conditions, if C0s is `None`.
             gene_names: List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
+            report_stoich: Whether to report the Stoichiometry Matrix.
         """
         if gene_names is None:
             gene_names = ["gene_1", "gene_2"]
@@ -618,6 +620,7 @@ class OscillationTwoGenes(CellularModelSimulator):
             tau: Time scale parameter which does not affect steady state solutions.
             n_C0s: Number of augmented initial conditions, if C0s is `None`.
             gene_names: List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
+            report_stoich: Whether to report the Stoichiometry Matrix.
         """
         if gene_names is None:
             gene_names = ["gene_1", "gene_2"]
@@ -713,6 +716,7 @@ class Neurongenesis(CellularModelSimulator):
             r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
             tau: Time scale parameter which does not affect steady state solutions.
             n_C0s: Number of augmented initial conditions, if C0s is `None`.
+            report_stoich: Whether to report the Stoichiometry Matrix.
         """
 
         gene_names = [
