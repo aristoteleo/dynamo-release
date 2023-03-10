@@ -11,7 +11,12 @@ from .utils import arclength_sampling_n, expr_to_pca, pca_to_expr
 
 
 class Trajectory:
-    def __init__(self, X: np.ndarray, t: Union[None, np.ndarray] = None, sort: bool = True) -> None:
+    def __init__(
+        self,
+        X: np.ndarray,
+        t: Union[None, np.ndarray] = None,
+        sort: bool = True,
+    ) -> None:
         """
         Base class for handling trajectory interpolation, resampling, etc.
         """
@@ -117,7 +122,12 @@ class VectorFieldTrajectory(Trajectory):
     def __init__(self, X, t, vecfld: DifferentiableVectorField) -> None:
         super().__init__(X, t=t)
         self.vecfld = vecfld
-        self.data = {"velocity": None, "acceleration": None, "curvature": None, "divergence": None}
+        self.data = {
+            "velocity": None,
+            "acceleration": None,
+            "curvature": None,
+            "divergence": None,
+        }
         self.Js = None
 
     def get_velocities(self):

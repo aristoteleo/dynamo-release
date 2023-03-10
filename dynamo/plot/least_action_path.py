@@ -13,7 +13,15 @@ from .utils import map2color
 
 
 def least_action(
-    adata, x=0, y=1, basis="pca", color="ntr", ax=None, save_show_or_return="show", save_kwargs={}, **kwargs
+    adata,
+    x=0,
+    y=1,
+    basis="pca",
+    color="ntr",
+    ax=None,
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
 ):
     """Draw the least action paths on the low-dimensional embedding.
 
@@ -52,7 +60,14 @@ def least_action(
 
     import matplotlib.pyplot as plt
 
-    ax = scatters(adata, basis=basis, color=color, save_show_or_return="return", ax=ax, **kwargs)
+    ax = scatters(
+        adata,
+        basis=basis,
+        color=color,
+        save_show_or_return="return",
+        ax=ax,
+        **kwargs,
+    )
 
     LAP_key = "LAP" if basis is None else "LAP_" + basis
     lap_dict = adata.uns[LAP_key]
@@ -130,7 +145,14 @@ def lap_min_time(
             n_col = 1
 
         figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
-        fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
+        fig, axes = plt.subplots(
+            n_row,
+            n_col,
+            figsize=figsize,
+            sharex=False,
+            sharey=False,
+            squeeze=False,
+        )
 
         for c in range(1 + num_t):
             i, j = c % n_row, c // n_row

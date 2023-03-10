@@ -54,9 +54,12 @@ def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None
         )
     else:
         path_0 = init_path
-    fun = lambda x: action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D)
-    jac = lambda x: action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D)
-    sol_dict = minimize(fun, path_0[1:-1], jac=jac)
+
+    sol_dict = minimize(
+        lambda x: action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D),
+        path_0[1:-1],
+        jac=lambda x: action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D),
+    )
     path_sol = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
 
     return path_sol, sol_dict

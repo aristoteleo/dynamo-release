@@ -102,7 +102,12 @@ def prune_transition(
 
     if neighbor_key is None:
         main_info(f"build knn graph with {n_neighbors} neighbors in {basis} basis.")
-        neighbors(adata, basis=basis, result_prefix=basis + "_knn", n_neighbors=n_neighbors)
+        neighbors(
+            adata,
+            basis=basis,
+            result_prefix=basis + "_knn",
+            n_neighbors=n_neighbors,
+        )
         transition_matrix = adata.obsp[basis + "_knn_distances"]
     else:
         main_info(f"retrieve knn graph via {neighbor_key} ley.")
@@ -337,7 +342,11 @@ def state_graph(
             graph_mat=grp_graph,
             **kwargs,
         )
-    adata.uns[group + "_graph"] = {"group_graph": grp_graph, "group_avg_time": grp_avg_time, "group_names": uniq_grp}
+    adata.uns[group + "_graph"] = {
+        "group_graph": grp_graph,
+        "group_avg_time": grp_avg_time,
+        "group_names": uniq_grp,
+    }
     timer_logger.finish_progress(progress_name="State graph estimation")
     return adata
 
@@ -453,7 +462,12 @@ def tree_model(
 
     M[M > 0] = 1 - M[M > 0]  # because it is shortest path, so we need to use 1 - M[M > 0]
 
-    D, Pr = shortest_path(np.copy(M, order="c"), directed=False, method="FW", return_predecessors=True)
+    D, Pr = shortest_path(
+        np.copy(M, order="c"),
+        directed=False,
+        method="FW",
+        return_predecessors=True,
+    )
     res = np.zeros(M.shape)
 
     # this builds the tree based on each shortest path connecting the source to each target cell type

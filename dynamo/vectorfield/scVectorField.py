@@ -77,10 +77,20 @@ def norm(
 
     xscale, yscale = (np.sqrt(np.mean(x**2, axis=0))[None, :], np.sqrt(np.mean(y**2, axis=0))[None, :])
 
-    X, Y, T = x / xscale, y / yscale, t / (1 / 2 * (xscale + yscale)) if T is not None else None
+    X, Y, T = (
+        x / xscale,
+        y / yscale,
+        t / (1 / 2 * (xscale + yscale)) if T is not None else None,
+    )
 
     X, V, T = X, V if fix_velocity else Y - X, T
-    norm_dict = {"xm": xm, "ym": ym, "xscale": xscale, "yscale": yscale, "fix_velocity": fix_velocity}
+    norm_dict = {
+        "xm": xm,
+        "ym": ym,
+        "xscale": xscale,
+        "yscale": yscale,
+        "fix_velocity": fix_velocity,
+    }
 
     return X, V, T, norm_dict
 
@@ -1058,7 +1068,17 @@ class SvcVectorField(DifferentiableVectorField):
 
 class KOVectorField(DifferentiableVectorField):
     def __init__(
-        self, X=None, V=None, Grid=None, K=None, func_base=None, fjac_base=None, PCs=None, mean=None, *args, **kwargs
+        self,
+        X=None,
+        V=None,
+        Grid=None,
+        K=None,
+        func_base=None,
+        fjac_base=None,
+        PCs=None,
+        mean=None,
+        *args,
+        **kwargs,
     ):
         super().__init__(X, V, Grid=Grid, *args, **kwargs)
 
@@ -1102,7 +1122,15 @@ class KOVectorField(DifferentiableVectorField):
             if exact:
                 if mu is None:
                     mu = self.mean
-                return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, exact=True, mu=mu, **kwargs)
+                return lambda x: Jacobian_kovf(
+                    x,
+                    self.fjac_base,
+                    self.K,
+                    self.PCs,
+                    exact=True,
+                    mu=mu,
+                    **kwargs,
+                )
             else:
                 return lambda x: Jacobian_kovf(x, self.fjac_base, self.K, self.PCs, **kwargs)
         elif method == "numerical":
@@ -1238,7 +1266,13 @@ def vector_field_function_knockout(
         v_gene = v_gene - k * x_gene
         return v_gene @ PCs"""
 
-    vf = KOVectorField(K=k, func_base=vf_func, fjac_base=vecfld.get_Jacobian(), PCs=PCs, mean=mean)
+    vf = KOVectorField(
+        K=k,
+        func_base=vf_func,
+        fjac_base=vecfld.get_Jacobian(),
+        PCs=PCs,
+        mean=mean,
+    )
     if not callable(vecfld):
         vf.data["X"] = vecfld.data["X"]
         vf.data["V"] = vf.func(vf.data["X"])

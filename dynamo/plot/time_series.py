@@ -348,7 +348,11 @@ def kinetic_heatmap(
 
         if gene_order_method == "half_max_ordering":
             time, all, valid_ind, gene_idx = _half_max_ordering(
-                exprs.T, time, mode=mode, interpolate=True, spaced_num=spaced_num
+                exprs.T,
+                time,
+                mode=mode,
+                interpolate=True,
+                spaced_num=spaced_num,
             )
             all, genes = (
                 all[np.isfinite(all.sum(1)), :],
@@ -408,7 +412,10 @@ def kinetic_heatmap(
 
     if transpose:
         row_colors, col_colors = col_colors, row_colors
-        cluster_row_col[0], cluster_row_col[1] = cluster_row_col[1], cluster_row_col[0]
+        cluster_row_col[0], cluster_row_col[1] = (
+            cluster_row_col[1],
+            cluster_row_col[0],
+        )
         df = df.T
 
     heatmap_kwargs = dict(

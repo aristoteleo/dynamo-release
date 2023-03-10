@@ -202,7 +202,9 @@ def moments(
         for layer2 in layers[i:]:
             layer_y = adata.layers[layer2].copy()
 
-            layer_y_group = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+            layer_y_group = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling,]])[
+                0
+            ][0]
             # don't calculate 2 moments among uu, ul, su, sl -
             # they should be time-dependent moments and
             # those calculations are model specific
@@ -1256,7 +1258,7 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
         if cur_grp == _group[0]:
             t_ind = 0
             g_len, t_len = len(_group), len(np.unique(adata.obs[tkey]))
-            (adata.uns["M_sl"], adata.uns["V_sl"], adata.uns["M_ul"], adata.uns["V_ul"]) = (
+            (adata.uns["M_sl"], adata.uns["V_sl"], adata.uns["M_ul"], adata.uns["V_ul"],) = (
                 np.zeros((Moment.M.shape[0], g_len * t_len)),
                 np.zeros((Moment.M.shape[0], g_len * t_len)),
                 np.zeros((Moment.M.shape[0], g_len * t_len)),

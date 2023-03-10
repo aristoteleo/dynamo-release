@@ -242,8 +242,8 @@ def dup_osc_idx_iter(x, max_iter=5, **kwargs):
     return idx, D
 
 
-# TODO: This should be inherited from the BaseVectorField/DifferentiatiableVectorField class,
-#       and BifurcationTwoGenes should be inherited from this class.
+# TODO: This should be inherited from the BaseVectorField/DifferentiatiableVectorField
+#       class, and BifurcationTwoGenes should be inherited from this class.
 class VectorField2D:
     def __init__(self, func, func_vx=None, func_vy=None, X_data=None):
         self.func = func
@@ -428,8 +428,8 @@ def topography(
         basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
         layer: `str` or None (default: None)
-            Which layer of the data will be used for vector field function reconstruction. This will be used in
-            conjunction with X.
+            Which layer of the data will be used for vector field function
+            reconstruction. This will be used in conjunction with X.
         X: 'np.ndarray' (dimension: n_obs x n_features)
                 Original data. Not used
         dims: `list` or `None` (default: `None`)
@@ -439,15 +439,16 @@ def topography(
         VecFld: `dictionary` or None (default: None)
             The reconstructed vector field function.
         kwargs:
-            Key word arguments passed to the find_fixed_point function of the vector field class for high dimension
-            fixed point identification.
+            Key word arguments passed to the find_fixed_point function of the vector
+            field class for high dimension fixed point identification.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            `AnnData` object that is updated with the `VecFld` or 'VecFld_' + basis dictionary in the `uns` attribute.
-            The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points,
-            nullcline, separatrix, computed and stored.
+            `AnnData` object that is updated with the `VecFld` or 'VecFld_' + basis
+            dictionary in the `uns` attribute. The `VecFld2D` key stores an instance of
+            the VectorField2D class which presumably has fixed points, nullcline,
+            separatrix, computed and stored.
     """
 
     if VecFld is None:
@@ -479,7 +480,9 @@ def topography(
     ) = util_topology(adata, basis, X, dims, func, VecFld, n=n, *kwargs)
 
     # commented for now, will go back to this later.
-    # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
+    # sep = compute_separatrices(
+    #     vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim
+    # )
 
     if layer is None:
         vf_key = "VecFld_" + basis
@@ -839,7 +842,10 @@ def VectorField(
                 else:
                     Dynode_obj = kwargs["Dynode"]
                     VecFld = dynode_vectorfield.fromDynode(Dynode_obj)
-                    X, Y = Dynode_obj.Velocity["sampler"].X_raw, Dynode_obj.Velocity["sampler"].V_raw
+                    X, Y = (
+                        Dynode_obj.Velocity["sampler"].X_raw,
+                        Dynode_obj.Velocity["sampler"].V_raw,
+                    )
                     cur_vf_dict = {
                         "X": X,
                         "Y": Y,

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from ..dynamo_logger import main_debug, main_info, main_tqdm
+from ..dynamo_logger import main_tqdm
 from .vector_calculus import rank_jacobian_genes
 
 
@@ -120,24 +120,34 @@ def build_network_per_cluster(
     genes = np.unique(genes)
     if full_reg_rank is None:
         full_reg_rank = rank_jacobian_genes(
-            adata, groups=cluster, mode="full reg", abs=abs, output_values=True, return_df=True
+            adata,
+            groups=cluster,
+            mode="full reg",
+            abs=abs,
+            output_values=True,
+            return_df=True,
         )
     if full_eff_rank is None:
         full_eff_rank = rank_jacobian_genes(
-            adata, groups=cluster, mode="full eff", abs=abs, output_values=True, return_df=True
+            adata,
+            groups=cluster,
+            mode="full eff",
+            abs=abs,
+            output_values=True,
+            return_df=True,
         )
 
     edges_list = {}
 
     reg_groups, eff_groups = full_reg_rank.keys(), full_eff_rank.keys()
     if reg_groups != eff_groups:
-        raise Exception(f"the regulators ranking and effector ranking dataframe must have the same keys.")
+        raise Exception("the regulators ranking and effector ranking dataframe must have the same keys.")
 
     if cluster_names is not None:
         reg_groups = list(set(reg_groups).intersection(cluster_names))
         if len(reg_groups) == 0:
             raise ValueError(
-                f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the " f"adata."
+                f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the adata."
             )
 
     for c in main_tqdm(reg_groups, desc="iterating reg_groups"):
@@ -218,7 +228,7 @@ def adj_list_to_matrix(adj_list, only_one_edge=False, clr=False, graph=False):
             import networkx as nx
         except ImportError:
             raise ImportError(
-                f"You need to install the package `networkx`." f"install networkx via `pip install networkx`."
+                "You need to install the package `networkx`. Install networkx via `pip install networkx`."
             )
 
         network = nx.from_pandas_adjacency(adj_matrix, create_using=nx.DiGraph())

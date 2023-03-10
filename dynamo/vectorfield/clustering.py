@@ -1,13 +1,9 @@
-from typing import Union
-
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 from scipy.stats import mode
 from sklearn.neighbors import NearestNeighbors
 
-from ..dynamo_logger import main_info
 from ..preprocessing.utils import pca_monocle
 from ..tools.clustering import hdbscan, infomap, leiden, louvain
 from ..tools.Markov import (
@@ -23,7 +19,14 @@ from .utils import vecfld_from_adata
 def cluster_field(
     adata,
     basis="pca",
-    features=["speed", "potential", "divergence", "acceleration", "curvature", "curl"],
+    features=[
+        "speed",
+        "potential",
+        "divergence",
+        "acceleration",
+        "curvature",
+        "curl",
+    ],
     add_embedding_basis=True,
     embedding_basis=None,
     normalize=False,
@@ -87,7 +90,16 @@ def cluster_field(
     adata = copy_adata(adata) if copy else adata
 
     features = list(
-        set(features).intersection(["speed", "potential", "divergence", "acceleration", "curvature", "curl"])
+        set(features).intersection(
+            [
+                "speed",
+                "potential",
+                "divergence",
+                "acceleration",
+                "curvature",
+                "curl",
+            ]
+        )
     )
     if len(features) < 1:
         raise ValueError(
@@ -199,7 +211,13 @@ def cluster_field(
 def streamline_clusters(
     adata: AnnData,
     basis: str = "umap",
-    features: list = ["speed", "divergence", "acceleration", "curvature", "curl"],
+    features: list = [
+        "speed",
+        "divergence",
+        "acceleration",
+        "curvature",
+        "curl",
+    ],
     method: str = "sparsevfc",
     xy_grid_nums: list = [50, 50],
     density: float = 5,
@@ -273,7 +291,7 @@ def streamline_clusters(
             **grid_kwargs_dict,
         )
     else:
-        raise ValueError(f"only `sparsevfc` and `gaussian` method supported")
+        raise ValueError("only `sparsevfc` and `gaussian` method supported")
 
     strm = plt.streamplot(
         X_grid[0],
@@ -338,7 +356,10 @@ def streamline_clusters(
         line_len.append(values.shape[0])
         tmp = None
         if has_acc:
-            acceleration_val, acceleration_vec = vector_field_class.compute_acceleration(values)
+            (
+                acceleration_val,
+                acceleration_vec,
+            ) = vector_field_class.compute_acceleration(values)
             acc_dict[key] = acceleration_val
 
             _, acc_hist = np.histogram(acceleration_val, bins=(bins - 1), density=True)
@@ -348,7 +369,10 @@ def streamline_clusters(
             curvature_val_1 = vector_field_class.compute_curvature(values, formula=1)[0]
             cur_1_dict[key] = curvature_val_1
 
-            curvature_val_2, curvature_vec = vector_field_class.compute_curvature(values)
+            (
+                curvature_val_2,
+                curvature_vec,
+            ) = vector_field_class.compute_curvature(values)
             cur_2_dict[key] = curvature_val_2
 
             _, cur_1_hist = np.histogram(curvature_val_1, bins=(bins - 1), density=True)

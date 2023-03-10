@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
 
-from ...dynamo_logger import main_debug, main_info
 from ..csc.utils_velocity import sol_s, sol_u
 
 

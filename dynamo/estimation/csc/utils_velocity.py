@@ -161,7 +161,8 @@ def solve_gamma(t, old, total):
 
 
 def solve_alpha_2p(t0, t1, alpha0, beta, u1):
-    """Given known steady state alpha and beta, solve stimulation alpha for a mixed steady state and stimulation labeling experiment.
+    """Given known steady state alpha and beta, solve stimulation alpha for a mixed steady state and stimulation
+    labeling experiment.
 
     Parameters
     ----------
@@ -348,7 +349,7 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method="rlm
                 f"estimation method {est_method} is not implemented. "
                 f"Currently supported linear regression methods include `rlm` and `ransac`."
             )
-    except:
+    except Exception:
         if intercept:
             ym = np.mean(yy)
             xm = np.mean(xx)
@@ -461,12 +462,10 @@ def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     l0 = np.nanmean(l[tau == 0])
 
     if fix_l0:
-        f_lsq = lambda b: sol_u(tau, l0, 0, b) - l
-        ret = least_squares(f_lsq, beta_0, bounds=bounds)
+        ret = least_squares(lambda b: sol_u(tau, l0, 0, b) - l, beta_0, bounds=bounds)
         beta = ret.x
     else:
-        f_lsq = lambda p: sol_u(tau, p[1], 0, p[0]) - l
-        ret = least_squares(f_lsq, np.array([beta_0, l0]), bounds=bounds)
+        ret = least_squares(lambda p: sol_u(tau, p[1], 0, p[0]) - l, np.array([beta_0, l0]), bounds=bounds)
         beta = ret.x[0]
         l0 = ret.x[1]
     return beta, l0
@@ -538,13 +537,11 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     g0 = beta * u0 / s0
 
     if fix_s0:
-        f_lsq = lambda g: sol_s(tau, s0, u0, 0, beta, g) - s
-        ret = least_squares(f_lsq, g0, bounds=bounds)
+        ret = least_squares(lambda g: sol_s(tau, s0, u0, 0, beta, g) - s, g0, bounds=bounds)
         gamma = ret.x
     else:
         if np.isfinite(g0):
-            f_lsq = lambda p: sol_s(tau, p[1], u0, 0, beta, p[0]) - s
-            ret = least_squares(f_lsq, np.array([g0, s0]), bounds=bounds)
+            ret = least_squares(lambda p: sol_s(tau, p[1], u0, 0, beta, p[0]) - s, np.array([g0, s0]), bounds=bounds)
             gamma = ret.x[0]
             s0 = ret.x[1]
         else:
@@ -582,8 +579,8 @@ def fit_alpha_synthesis(t, u, beta):
 
 
 def fit_alpha_degradation(t, u, beta, intercept=False):
-    """Estimate alpha with degradation data using linear regression. This is a lsq version of the following function that
-    constrains u0 to be larger than 0
+    """Estimate alpha with degradation data using linear regression. This is a lsq version of the following function
+    that constrains u0 to be larger than 0
 
     Arguments
     ---------
@@ -611,7 +608,9 @@ def fit_alpha_degradation(t, u, beta, intercept=False):
 
     tau = t - np.min(t)
 
-    f_lsq = lambda p: sol_u(tau, p[0], p[1], beta) - x
+    def f_lsq(p):
+        return sol_u(tau, p[0], p[1], beta) - x
+
     ret = least_squares(f_lsq, np.array([1, 1]), bounds=(0, np.inf))
     alpha, u0 = ret.x[0], ret.x[1]
 
@@ -705,8 +704,7 @@ def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
     tau = np.hstack((0, t))
     x = np.hstack((0, l))
 
-    f_lsq = lambda p: sol_u(tau, 0, p[0], p[1]) - x
-    ret = least_squares(f_lsq, np.array([alpha_0, beta_0]), bounds=bounds)
+    ret = least_squares(lambda p: sol_u(tau, 0, p[0], p[1]) - x, np.array([alpha_0, beta_0]), bounds=bounds)
     return ret.x[0], ret.x[1]
 
 
@@ -743,8 +741,11 @@ def fit_all_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1, gamma_0=1):
     tau = np.hstack((0, t))
     x = np.hstack((0, l))
 
-    f_lsq = lambda p: sol_u(tau, 0, p[0], p[1]) + sol_s(tau, 0, 0, p[0], p[1], p[2]) - x
-    ret = least_squares(f_lsq, np.array([alpha_0, beta_0, gamma_0]), bounds=bounds)
+    ret = least_squares(
+        lambda p: sol_u(tau, 0, p[0], p[1]) + sol_s(tau, 0, 0, p[0], p[1], p[2]) - x,
+        np.array([alpha_0, beta_0, gamma_0]),
+        bounds=bounds,
+    )
     return ret.x[0], ret.x[1], ret.x[2]
 
 
@@ -784,9 +785,15 @@ def fit_k_negative_binomial(n, r, var, phi=None, k0=None, return_k0=False):
     k0 = fit_linreg(r, n, intercept=False)[0] if k0 is None else k0
     phi = compute_dispersion(r, var) if phi is None else phi
 
-    g1 = lambda k: k * r - n
-    g2 = lambda k: k * k * var - k * n - phi * n * n
-    g = lambda k: np.hstack((g1(k) / max(g1(k0).std(0), 1e-3), g2(k) / max(g2(k0).std(0), 1e-3)))
+    def g1(k):
+        return k * r - n
+
+    def g2(k):
+        return k * k * var - k * n - phi * n * n
+
+    def g(k):
+        return np.hstack((g1(k) / max(g1(k0).std(0), 1e-3), g2(k) / max(g2(k0).std(0), 1e-3)))
+
     ret = least_squares(g, k0, bounds=(0, np.inf))
     if return_k0:
         return ret.x[0], k0

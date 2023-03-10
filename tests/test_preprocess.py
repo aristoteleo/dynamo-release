@@ -102,12 +102,22 @@ def test_recipe_monocle_feature_selection_layer_simple0():
         + rpe1_kinetics.layers["ul"],
     )
 
-    del rpe1_kinetics.layers["uu"], rpe1_kinetics.layers["ul"], rpe1_kinetics.layers["su"], rpe1_kinetics.layers["sl"]
+    del (
+        rpe1_kinetics.layers["uu"],
+        rpe1_kinetics.layers["ul"],
+        rpe1_kinetics.layers["su"],
+        rpe1_kinetics.layers["sl"],
+    )
     dyn.pl.basic_stats(rpe1_kinetics, save_show_or_return="return")
     rpe1_genes = ["UNG", "PCNA", "PLK1", "HPRT1"]
 
     # rpe1_kinetics = dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False, copy=True)
-    dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False, feature_selection_layer="new")
+    dyn.pp.recipe_monocle(
+        rpe1_kinetics,
+        n_top_genes=1000,
+        total_layers=False,
+        feature_selection_layer="new",
+    )
 
 
 def test_calc_dispersion_sparse():

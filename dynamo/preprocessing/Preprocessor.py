@@ -593,7 +593,10 @@ class Preprocessor:
         self.normalize_selected_genes = normalize_layers_pearson_residuals
         # select layers in adata to be normalized
         normalize_layers = DKM.get_raw_data_layers(adata)
-        self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": False}
+        self.normalize_selected_genes_kwargs = {
+            "layers": normalize_layers,
+            "copy": False,
+        }
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
         self.use_log1p = False
 

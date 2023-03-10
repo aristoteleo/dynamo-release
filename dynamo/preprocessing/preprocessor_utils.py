@@ -198,7 +198,11 @@ def calc_mean_var_dispersion_sparse(sparse_mat: csr_matrix, axis: int = 0) -> Tu
     # same as numpy var behavior: denominator is N, var=(data_arr-mean)/N
     var = np.power(sparse_mat - mean, 2).sum(axis) / sparse_mat.shape[axis]
     dispersion = var / mean
-    return np.array(mean).flatten(), np.array(var).flatten(), np.array(dispersion).flatten()
+    return (
+        np.array(mean).flatten(),
+        np.array(var).flatten(),
+        np.array(dispersion).flatten(),
+    )
 
 
 def seurat_get_mean_var(
@@ -318,11 +322,14 @@ def select_genes_by_dispersion_general(
 
     main_info("select genes by recipe: " + recipe)
     if recipe == "svr":
-        mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_dispersion_svr(
-            subset_adata, layer_mat, n_top_genes
-        )
+        (
+            mean,
+            variance,
+            highly_variable_mask,
+            highly_variable_scores,
+        ) = select_genes_by_dispersion_svr(subset_adata, layer_mat, n_top_genes)
     elif recipe == "seurat":
-        mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_seurat_recipe(
+        (mean, variance, highly_variable_mask, highly_variable_scores,) = select_genes_by_seurat_recipe(
             subset_adata,
             layer_mat,
             min_disp=seurat_min_disp,
@@ -487,12 +494,18 @@ def select_genes_by_dispersion_svr(
         main_info("layer_mat is np, dispatch to sparse calc function...")
         mean, variance, dispersion = calc_mean_var_dispersion_ndarray(layer_mat)
 
-    highly_variable_mask, highly_variable_scores = get_highly_variable_mask_by_dispersion_svr(
-        mean, variance, n_top_genes
-    )
+    (
+        highly_variable_mask,
+        highly_variable_scores,
+    ) = get_highly_variable_mask_by_dispersion_svr(mean, variance, n_top_genes)
     variance = np.array(variance).flatten()
 
-    return mean.flatten(), variance, highly_variable_mask, highly_variable_scores
+    return (
+        mean.flatten(),
+        variance,
+        highly_variable_mask,
+        highly_variable_scores,
+    )
 
 
 def SVRs(
@@ -829,7 +842,10 @@ def get_highly_variable_mask_by_dispersion_svr(
             )
         )
 
-    classifier.fit(mean_log[~is_nan_indices, np.newaxis], cv_log.reshape([-1, 1])[~is_nan_indices])
+    classifier.fit(
+        mean_log[~is_nan_indices, np.newaxis],
+        cv_log.reshape([-1, 1])[~is_nan_indices],
+    )
     scores = np.repeat(np.nan, len(mean_log))
     # TODO handle nan values during prediction here
     scores[~is_nan_indices] = cv_log[~is_nan_indices] - classifier.predict(mean_log[~is_nan_indices, np.newaxis])
@@ -1106,7 +1122,12 @@ def filter_cells_by_outliers(
         with only the cells pass filtering if keep_filtered is set to be False.
     """
 
-    predefined_layers_for_filtering = [DKM.X_LAYER, spliced_key, unspliced_key, protein_key]
+    predefined_layers_for_filtering = [
+        DKM.X_LAYER,
+        spliced_key,
+        unspliced_key,
+        protein_key,
+    ]
     predefined_range_dict = {
         DKM.X_LAYER: (min_expr_genes_s, max_expr_genes_s),
         spliced_key: (min_expr_genes_s, max_expr_genes_s),
@@ -1127,7 +1148,10 @@ def filter_cells_by_outliers(
         )
 
     detected_bool = get_filter_mask_cells_by_outliers(
-        adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
+        adata,
+        layer_keys_used_for_filtering,
+        predefined_range_dict,
+        shared_count,
     )
 
     if filter_bool is None:
@@ -1184,7 +1208,11 @@ def get_filter_mask_cells_by_outliers(
         main_info("filtering cells by layer:%s" % layer, indent_level=2)
         layer_data = DKM.select_layer_data(adata, layer)
         detected_mask = detected_mask & get_sum_in_range_mask(
-            layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, data_min_val_threshold=0
+            layer_data,
+            layer2range[layer][0],
+            layer2range[layer][1],
+            axis=1,
+            data_min_val_threshold=0,
         )
 
     if shared_count is not None:

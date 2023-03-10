@@ -399,13 +399,21 @@ def coexp_measure_mat(
     genes = TFs + Targets
     genes = np.unique(genes)
     t0_df = (
-        pd.DataFrame(adata[:, genes].layers[t0_key].todense(), index=adata.obs_names, columns=genes)
+        pd.DataFrame(
+            adata[:, genes].layers[t0_key].todense(),
+            index=adata.obs_names,
+            columns=genes,
+        )
         if isspmatrix(adata.layers[t0_key])
         else pd.DataFrame(adata[:, genes].layers[t0_key], index=adata.obs_names, columns=genes)
     )
 
     t1_df = (
-        pd.DataFrame(adata[:, genes].layers[t1_key].todense(), index=adata.obs_names, columns=genes)
+        pd.DataFrame(
+            adata[:, genes].layers[t1_key].todense(),
+            index=adata.obs_names,
+            columns=genes,
+        )
         if isspmatrix(adata.layers[t1_key])
         else pd.DataFrame(adata[:, genes].layers[t1_key], index=adata.obs_names, columns=genes)
     )
@@ -419,7 +427,8 @@ def coexp_measure_mat(
     pearson_mat, mi_mat = np.zeros((t0_df.shape[1], t0_df.shape[1])), np.zeros((t0_df.shape[1], t0_df.shape[1]))
 
     for g_a_ind, g_a in tqdm(
-        enumerate(TFs), desc="Calculate pearson correlation or mutual information from each TF to " "potential target:"
+        enumerate(TFs),
+        desc="Calculate pearson correlation or mutual information from each TF to " "potential target:",
     ):
         for g_b_ind, g_b in enumerate(Targets):
             x, y = t0_df.loc[:, g_a].values, t1_df.loc[:, g_b].values

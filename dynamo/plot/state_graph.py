@@ -239,7 +239,13 @@ def state_graph(
     graph_alpha = 0.8 if graph_alpha is None else graph_alpha
 
     arrows = create_edge_patches_from_markov_chain(
-        Pl, group_median, edgecolor=edgecolor, facecolor=facecolor, alpha=graph_alpha, tol=0.01, node_rad=15
+        Pl,
+        group_median,
+        edgecolor=edgecolor,
+        facecolor=facecolor,
+        alpha=graph_alpha,
+        tol=0.01,
+        node_rad=15,
     )
     if type(axes_list) == list:
         for i in range(len(axes_list)):

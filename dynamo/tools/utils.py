@@ -6,7 +6,6 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
-import scipy.sparse as sp
 from anndata._core.anndata import AnnData
 from anndata._core.views import ArrayView
 from scipy import interpolate
@@ -21,13 +20,10 @@ from tqdm import tqdm
 
 from ..dynamo_logger import (
     LoggerManager,
-    main_critical,
     main_debug,
-    main_exception,
     main_info,
     main_info_insert_adata,
     main_info_verbose_timeit,
-    main_tqdm,
     main_warning,
 )
 from ..preprocessing.utils import Freeman_Tukey
@@ -1962,7 +1958,11 @@ def get_ekey_vkey_from_adata(adata):
 # ---------------------------------------------------------------------------------------------------
 # cell velocities related
 def get_neighbor_indices(adjacency_list, source_idx, n_order_neighbors=2, max_neighbors_num=None):
-    """returns a list (np.array) of `n_order_neighbors` neighbor indices of source_idx. If `max_neighbors_num` is set and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list of neighbors will be randomly chosen and returned."""
+    """Returns a list (np.array) of `n_order_neighbors` neighbor indices of source_idx.
+
+    If `max_neighbors_num` is set and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list
+    of neighbors will be randomly chosen and returned.
+    """
     _indices = [source_idx]
     for _ in range(n_order_neighbors):
         _indices = np.append(_indices, adjacency_list[_indices])

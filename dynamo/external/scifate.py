@@ -2,8 +2,6 @@
 # the following code is based on Cao, et. al, Nature Biotechnology, 2020 and
 # https://github.com/JunyueC/sci-fate_analysis
 
-from typing import Union
-
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -28,20 +26,21 @@ def scifate_glmnet(
     """Reconstruction of regulatory network (Cao, et. al, Nature Biotechnology, 2020) from TFs to other target
      genes via LASSO regression between the total expression of known transcription factors and the newly synthesized
      RNA of potential targets. The inferred regulatory relationships between TF and targets are further filtered based
-     on evidence of promoter motifs (not implemented currently) and the ENCODE chip-seq peaks. The python wrapper for the
-     glmnet FORTRON code, glm-python (https://github.com/bbalasub1/glmnet_python) was used. More details on lasso regression
-     with glm-python can be found here (https://github.com/bbalasub1/glmnet_python/blob/master/test/glmnet_examples.ipynb).
-     Note that this function can be applied to both of the metabolic labeling single-cell assays with newly synthesized
-     and total RNA as well as the regular single cell assays with both the unspliced and spliced transcripts. Furthermore,
-     you can also replace the either the new or unspliced RNA with dynamo estimated cell-wise velocity, transcription,
-     splicing and degradation rates for each gene (similarly, replacing the expression values of transcription factors with RNA binding,
-     ribosome, epigenetics or epitranscriptomic factors, etc.) to infer the tottal regulatory effects, transcription, splicing
-     and post-transcriptional regulation of different factors. In addition, this approach will be fully integrated with
-     Scribe (Qiu, et. al, 2020) which employs restricted directed information to determine causality by estimating the
-     strength of information transferred from a potential regulator to its downstream target. In contrast of lasso regression,
-     Scribe can learn both linear and non-linear causality in deterministic and stochastic systems. It also incorporates
-     rigorous procedures to alleviate sampling bias and builds upon novel estimators and regularization techniques to
-     facilitate inference of large-scale causal networks.
+     on evidence of promoter motifs (not implemented currently) and the ENCODE chip-seq peaks. The python wrapper for
+     the glmnet FORTRON code, glm-python (https://github.com/bbalasub1/glmnet_python) was used. More details on lasso
+     regressionwith glm-python can be found here
+     (https://github.com/bbalasub1/glmnet_python/blob/master/test/glmnet_examples.ipynb). Note that this function can
+     be applied to both of the metabolic labeling single-cell assays with newly synthesized and total RNA as well as
+     the regular single cell assays with both the unspliced and spliced transcripts. Furthermore, you can also replace
+     the either the new or unspliced RNA with dynamo estimated cell-wise velocity, transcription, splicing and
+     degradation rates for each gene (similarly, replacing the expression values of transcription factors with RNA
+     binding, ribosome, epigenetics or epitranscriptomic factors, etc.) to infer the tottal regulatory effects,
+     transcription, splicing and post-transcriptional regulation of different factors. In addition, this approach will
+     be fully integrated with Scribe (Qiu, et. al, 2020) which employs restricted directed information to determine
+     causality by estimating the strength of information transferred from a potential regulator to its downstream
+     target. In contrast of lasso regression, Scribe can learn both linear and non-linear causality in deterministic
+     and stochastic systems. It also incorporates rigorous procedures to alleviate sampling bias and builds upon novel
+     estimators and regularization techniques to facilitate inference of large-scale causal networks.
 
     Parameters
     ----------
@@ -63,28 +62,28 @@ def scifate_glmnet(
             The path to the TF binding motif data as described above. It provides the list of TFs gene names and
             is used to process adata object to generate the TF expression and target new expression matrix for glmnet
             based TF-target synthesis rate linkage analysis. But currently it is not used for motif based filtering.
-            By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
-            https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
+            By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from
+            RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from
+            June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
         TF_link_ENCODE_ref:
-            The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data can
-            be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
+            The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data
+            can be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
         nt_layers:
             The layers that will be used for the network inference. Note that the layers can be changed flexibly. See
             the description of this function above.
 
-        Note that if your internet connection is slow, we recommend to download the `motif_ref` and `TF_link_ENCODE_ref` and
-        supplies those two arguments with the local paths where the downloaded datasets are saved.
+        Note that if your internet connection is slow, we recommend to download the `motif_ref` and
+        `TF_link_ENCODE_ref` and supplies those two arguments with the local paths where the downloaded datasets are
+        saved.
 
     Returns
     -------
-        An updated adata object with a new key `scifate` in .uns attribute, which stores the raw lasso regression results
-        and the filter results after applying the Fisher exact test of the ChIP-seq peaks.
+        An updated adata object with a new key `scifate` in .uns attribute, which stores the raw lasso regression
+        results and the filter results after applying the Fisher exact test of the ChIP-seq peaks.
     """
 
     try:
-        import glmnet_python
-
         global cvglmnet, cvglmnetCoef
         from glmnet_python import cvglmnet, cvglmnetCoef
     except ImportError:
@@ -222,7 +221,7 @@ def link_TF_gene_analysis(
     gene_list = gene_matrix.index
     link_result = [None] * len(gene_list)
 
-    for i, linked_gene in tqdm(enumerate(gene_list), desc=f"Perform lasso regression for each gene:"):
+    for i, linked_gene in tqdm(enumerate(gene_list), desc="Perform lasso regression for each gene:"):
         gene_name, TFs = (
             var_TF.loc[linked_gene, "gene_short_name"] if linked_gene in var_TF.index else None,
             TF_matrix.index,
@@ -267,7 +266,8 @@ def TF_gene_link(
 
 
 def lasso_regression_expression(x1, linked_gene, y, seed: int, parallel=1):
-    """Lasso linear model with iterative fitting along a regularization path. Select best model is by cross-validation."""
+    """Lasso linear model with iterative fitting along a regularization path. Select best model is by
+    cross-validation."""
 
     x1 = x1.loc[:, ~x1.columns.duplicated(keep="first")]
 

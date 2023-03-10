@@ -121,7 +121,7 @@ def construct_velocity_tree_py(X1, X2):
                 velocity_path = [shortest_mat[nodeid][ve_nodeid]] + velocity_path
                 ve_nodeid = shortest_mat[nodeid][ve_nodeid]
             velocity_path = [shortest_mat[nodeid][ve_nodeid]] + velocity_path
-            ###v_path = G.Nodes.Name(velocity_path)
+            # v_path = G.Nodes.Name(velocity_path)
 
             # check direction consistency between path and v_path
             valid_idx = []
@@ -197,9 +197,9 @@ def construct_velocity_tree_py(X1, X2):
         p1 = Y[:, row[tn]]
         p2 = Y[:, col[tn]]
         dp = p2 - p1
-        h = plt.quiver(p1(1), p1(2), dp(1), dp(2), "LineWidth", 5)  ###############need to plot it
-        set(h, "MaxHeadSize", 1e3, "AutoScaleFactor", 1)  #############
+        h = plt.quiver(p1(1), p1(2), dp(1), dp(2), "LineWidth", 5)
+        set(h, "MaxHeadSize", 1e3, "AutoScaleFactor", 1)
 
     for i in range(n):
-        plt.text(Y(1, i), Y(2, i), str(i))  ##############
-    plt.savefig("./results/t01_figure3.fig")  ##################
+        plt.text(Y(1, i), Y(2, i), str(i))
+    plt.savefig("./results/t01_figure3.fig")

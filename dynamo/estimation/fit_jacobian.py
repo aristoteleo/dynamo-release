@@ -35,7 +35,16 @@ def calc_mean_squared_deviation(func, x_data, y_mean, y_sigm, weighted=True):
     return np.sqrt(err.dot(err))
 
 
-def fit_hill_grad(x_data, y_mean, type, y_sigm=None, fix_g=None, n_num=5, x_tol=1e-5, x_shift=0):
+def fit_hill_grad(
+    x_data,
+    y_mean,
+    type,
+    y_sigm=None,
+    fix_g=None,
+    n_num=5,
+    x_tol=1e-5,
+    x_shift=0,
+):
     assert type in ["act", "inh"], "`type` must be either `act` or `inh`."
 
     A0 = -np.min(y_mean) if type == "inh" else np.max(y_mean)
@@ -58,17 +67,30 @@ def fit_hill_grad(x_data, y_mean, type, y_sigm=None, fix_g=None, n_num=5, x_tol=
 
     for logn0 in logN0:
         if fix_g is None:
-            fit_func = lambda x, A, K, logn, g: func(x, A, K, np.exp(logn), g)
+
+            def fit_func(x, A, K, logn, g):
+                return func(x, A, K, np.exp(logn), g)
+
+            # fit_func = temp
             p0 = [A0, K0, logn0, g0]
             bounds = [(0, 0, -np.inf, 0), (np.inf, np.inf, np.inf, np.inf)]
         else:
-            fit_func = lambda x, A, K, logn: func(x, A, K, np.exp(logn), fix_g)
+
+            def fit_func(x, A, K, logn):
+                return func(x, A, K, np.exp(logn), fix_g)
+
+            # fit_func = lambda x, A, K, logn: func(x, A, K, np.exp(logn), fix_g)
             p0 = [A0, K0, logn0]
             bounds = [(0, 0, -np.inf), (np.inf, np.inf, np.inf)]
 
         try:
             p_opt, _ = curve_fit(
-                fit_func, x_data_[x_data_ > x_tol], y_mean[x_data_ > x_tol], p0=p0, sigma=sig, bounds=bounds
+                fit_func,
+                x_data_[x_data_ > x_tol],
+                y_mean[x_data_ > x_tol],
+                p0=p0,
+                sigma=sig,
+                bounds=bounds,
             )
             if fix_g is None:
                 A, K, n, g = p_opt[0], p_opt[1], np.exp(p_opt[2]), p_opt[3]
@@ -81,7 +103,7 @@ def fit_hill_grad(x_data, y_mean, type, y_sigm=None, fix_g=None, n_num=5, x_tol=
                 msd_min = msd
                 p_opt_min = [A, K, n, g]
 
-        except:
+        except Exception:
             pass
 
     if p_opt_min is None:
@@ -126,10 +148,15 @@ def fit_hill_inh_grad(x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=
                 msd_min = msd
                 p_opt_min = p_opt
 
-        except:
+        except Exception:
             pass
 
-    return {"A": p_opt_min[0], "K": p_opt_min[1], "n": np.exp(p_opt_min[2]), "g": p_opt_min[3]}, msd_min
+    return {
+        "A": p_opt_min[0],
+        "K": p_opt_min[1],
+        "n": np.exp(p_opt_min[2]),
+        "g": p_opt_min[3],
+    }, msd_min
 
 
 def fit_hill_act_grad(x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=1e-4):
@@ -166,7 +193,12 @@ def fit_hill_act_grad(x_data, y_mean, y_sigm=None, n_num=5, x_tol=1e-5, x_shift=
                 msd_min = msd
                 p_opt_min = p_opt
 
-        except:
+        except Exception:
             pass
 
-    return {"A": p_opt_min[0], "K": p_opt_min[1], "n": np.exp(p_opt_min[2]), "g": p_opt_min[3]}, msd_min
+    return {
+        "A": p_opt_min[0],
+        "K": p_opt_min[1],
+        "n": np.exp(p_opt_min[2]),
+        "g": p_opt_min[3],
+    }, msd_min

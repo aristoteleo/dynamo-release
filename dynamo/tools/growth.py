@@ -74,12 +74,12 @@ def score_cells(
     """
 
     if basis is None and "X_pca" not in adata.obsm.keys():
-        raise ValueError(f"Your adata doesn't have 'X_pca' basis in .obsm.")
+        raise ValueError("Your adata doesn't have 'X_pca' basis in .obsm.")
     elif basis is not None and "X_" + basis not in adata.obsm.keys():
-        raise ValueError(f"Your adata doesn't have the {basis} you inputted in .obsm attribute of your adata.")
+        raise ValueError("Your adata doesn't have the {basis} you inputted in .obsm attribute of your adata.")
 
     if genes is None and "use_for_pca" not in adata.obs.keys():
-        raise ValueError(f"Your adata doesn't have 'use_for_pca' column in .obs.")
+        raise ValueError("Your adata doesn't have 'use_for_pca' column in .obs.")
 
     if genes is None:
         genes = adata.var_names[adata.use_for_pca]
@@ -93,7 +93,7 @@ def score_cells(
         )
 
     if len(genes) < 1:
-        raise ValueError(f"Your inputted gene list doesn't overlap any gene in your adata object.")
+        raise ValueError("Your inputted gene list doesn't overlap any gene in your adata object.")
 
     X_basis = adata.obsm["X_pca"] if basis is None else adata.obsm["X_" + basis]
 

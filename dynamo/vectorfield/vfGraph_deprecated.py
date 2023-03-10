@@ -3,7 +3,10 @@ import numpy as np
 
 
 class ConverterMixin(object):
-    """Answer by FastTurtle https://stackoverflow.com/questions/18020074/convert-a-baseclass-object-into-a-subclass-object-idiomatically"""
+    """
+    Answer by FastTurtle:
+    https://stackoverflow.com/questions/18020074/convert-a-baseclass-object-into-a-subclass-object-idiomatically
+    """
 
     @classmethod
     def convert_to_class(cls, obj):
@@ -11,8 +14,8 @@ class ConverterMixin(object):
 
 
 class vfGraph(ConverterMixin, ig.Graph):
-    """A class for manipulating the graph creating from the transition matrix, built from the (reconstructed) vector
-    field. This is a derived class from igraph's Graph.
+    """A class for manipulating the graph creating from the transition matrix, built from the (reconstructed)
+    vector field. This is a derived class from igraph's Graph.
     """
 
     def __init__(self, *args, **kwds):
@@ -30,7 +33,9 @@ class vfGraph(ConverterMixin, ig.Graph):
         )
 
     def multimaxflow(self, sources, sinks):
-        """Multi-source multi-sink maximum flow. Ported from https://github.com/kazumits/ddhodge/blob/master/R/graphConstr.R"""
+        """Multi-source multi-sink maximum flow. Ported from
+        https://github.com/kazumits/ddhodge/blob/master/R/graphConstr.R
+        """
 
         v_num, e_num = self.vcount(), self.ecount()
         usrc = v_num  # super-source

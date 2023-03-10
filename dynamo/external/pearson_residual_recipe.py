@@ -28,7 +28,6 @@ from ..preprocessing.preprocessor_utils import (
     is_nonnegative_integer_arr,
     seurat_get_mean_var,
 )
-from ..preprocessing.utils import pca_monocle
 
 main_logger = LoggerManager.main_logger
 
@@ -101,7 +100,11 @@ def _highly_variable_pearson_residuals(
         # Filter out zero genes
 
         nonzero_genes = filter_genes_by_outliers(
-            adata_subset, min_cell_s=1, min_cell_u=0, min_cell_p=0, shared_count=None
+            adata_subset,
+            min_cell_s=1,
+            min_cell_u=0,
+            min_cell_p=0,
+            shared_count=None,
         )
         # nonzero_genes = filter_genes(adata_subset, min_cells=1, inplace=False)[0]
         adata_subset = adata_subset[:, nonzero_genes]
@@ -185,7 +188,10 @@ def _highly_variable_pearson_residuals(
     df = df.loc[adata.var_names, :]
 
     if inplace:
-        adata.uns[DKM.UNS_PP_KEY]["hvg"] = {"flavor": "pearson_residuals", "computed_on": _computed_on_prompt_str}
+        adata.uns[DKM.UNS_PP_KEY]["hvg"] = {
+            "flavor": "pearson_residuals",
+            "computed_on": _computed_on_prompt_str,
+        }
         main_logger.debug(
             "added\n"
             "    'highly_variable', boolean vector (adata.var)\n"
@@ -213,7 +219,10 @@ def _highly_variable_pearson_residuals(
 
     else:
         if batch_key is None:
-            df = df.drop(["highly_variable_nbatches", "highly_variable_intersection"], axis=1)
+            df = df.drop(
+                ["highly_variable_nbatches", "highly_variable_intersection"],
+                axis=1,
+            )
         if subset:
             df = df.iloc[df.highly_variable.values, :]
 
@@ -459,8 +468,8 @@ def _normalize_single_layer_pearson_residuals(
         main_logger.info("replacing layer <%s> with pearson residual normalized data." % (layer))
         DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
         adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
-    else:
-        results_dict = dict(X=residuals, **pearson_residual_params_dict)
+    # else:
+    # results_dict = dict(X=residuals, **pearson_residual_params_dict)
 
     main_logger.finish_progress(progress_name="pearson residual normalization")
 
@@ -478,7 +487,7 @@ def normalize_layers_pearson_residuals(
 ):
     if len(layers) == 0:
         main_warning("layers arg has zero length. return and do nothing in normalize_layers_pearson_residuals.")
-    if not select_genes_layer in layers:
+    if select_genes_layer not in layers:
         main_warning(
             "select_genes_layer: %s not in layers, using layer: %s instead to select genes instead."
             % (select_genes_layer, layers[0])
@@ -493,7 +502,11 @@ def normalize_layers_pearson_residuals(
             temp_select_genes_key = select_genes_key
 
         temp_adata = _normalize_single_layer_pearson_residuals(
-            adata, layer=layer, var_select_genes_key=temp_select_genes_key, copy=copy, **normalize_pearson_residual_args
+            adata,
+            layer=layer,
+            var_select_genes_key=temp_select_genes_key,
+            copy=copy,
+            **normalize_pearson_residual_args,
         )
 
         # copy is False

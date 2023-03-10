@@ -123,7 +123,13 @@ def prepare_dim_reduction(
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, fit, _ = pca_monocle(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
+            adata, fit, _ = pca_monocle(
+                adata,
+                CM,
+                n_pca_components=n_pca_components,
+                pca_key=pca_key,
+                return_all=True,
+            )
             adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
             # valid genes used for dimension reduction calculation
@@ -151,7 +157,7 @@ def run_reduce_dim(
     if reduction_method == "trimap":
         try:
             import trimap
-        except ImportError as exception:
+        except ImportError:
             raise ImportError(
                 "Please 1) check if trimap is installed in your environment. 2) if you can import trimap successfully in your python console."
             )

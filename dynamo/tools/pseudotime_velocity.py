@@ -177,13 +177,19 @@ def pseudotime_velocity(
             logger.info_insert_adata("dynamics", "uns")
             adata.uns["dynamics"] = {}
 
-        logger.info_insert_adata("has_labeling, has_splicing, splicing_labeling", "uns['dynamics']", indent_level=2)
+        logger.info_insert_adata(
+            "has_labeling, has_splicing, splicing_labeling",
+            "uns['dynamics']",
+            indent_level=2,
+        )
         adata.uns["dynamics"]["has_labeling"] = False
         adata.uns["dynamics"]["has_splicing"] = True
         adata.uns["dynamics"]["splicing_labeling"] = False
 
         logger.info_insert_adata(
-            "experiment_type, use_smoothed, NTR_vel, est_method", "uns['dynamics']", indent_level=2
+            "experiment_type, use_smoothed, NTR_vel, est_method",
+            "uns['dynamics']",
+            indent_level=2,
         )
         adata.uns["dynamics"]["experiment_type"] = "conventional"
         adata.uns["dynamics"]["use_smoothed"] = True

@@ -9,7 +9,6 @@ from .Ao import Ao_pot_map
 from .Bhattacharya import alignment, path_integral
 from .topography import FixedPoints
 from .utils import is_outside_domain
-from .Wang import Wang_action, Wang_LAP
 
 # import autograd.numpy as autonp
 # from autograd import grad, jacobian # calculate gradient and jacobian
@@ -129,7 +128,7 @@ def gen_fixed_points(
     import numdifftools as nda
 
     if reverse is True:
-        func_ = lambda x: -func(x)
+        func_ = lambda x: -func(x)  # noqa: E731
     else:
         func_ = func
     ZeroConst = 1e-8
@@ -254,7 +253,6 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
         A matrix consists of the coordinates of the unstable steady state
     """
 
-    from StringFunction import StringFunction
     from sympy import Identity, Matrix, MatrixSymbol, simplify, symbols
 
     N = N + 1
@@ -291,9 +289,7 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
     f_str = """
     def graident(dt, x):
         ret = %s
-        
-        return ret
-                
+        return ret                
             """ % str(
         str_V_processed
     )
@@ -388,14 +384,17 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
 
     dim = point_end.shape[0]  # genes x cells
     dt = tmax / n_points
-    lambda_f = lambda x: IntGrad(
-        np.hstack((point_start, x.reshape((dim, -1)), point_end)),
-        Function,
-        DiffusionMatrix,
-        dt,
-    )
 
-    # initial path as a line connecting start point and end point point_start*ones(1,n_points+1)+(point_end-point_start)*(0:tmax/n_points:tmax)/tmax;
+    def lambda_f(x):
+        IntGrad(
+            np.hstack((point_start, x.reshape((dim, -1)), point_end)),
+            Function,
+            DiffusionMatrix,
+            dt,
+        )
+
+    # initial path as a line connecting start point and end point
+    # point_start*ones(1,n_points+1)+(point_end-point_start)*(0:tmax/n_points:tmax)/tmax;
     initpath = (
         point_start.dot(np.ones((1, n_points + 1)))
         + (point_end - point_start).dot(np.linspace(0, tmax, n_points + 1, endpoint=True).reshape(1, -1)) / tmax

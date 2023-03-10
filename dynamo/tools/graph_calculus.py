@@ -408,7 +408,14 @@ def dist_mat_to_gaussian_weight(dist, sigma):
     return W
 
 
-def calc_gaussian_weight(nbrs_idx, dists, sig=None, auto_sig_func=None, auto_sig_multiplier=2, format="squareform"):
+def calc_gaussian_weight(
+    nbrs_idx,
+    dists,
+    sig=None,
+    auto_sig_func=None,
+    auto_sig_multiplier=2,
+    format="squareform",
+):
     # TODO: deprecate this function
     n = len(nbrs_idx)
     if format == "sparse":
@@ -470,7 +477,14 @@ def calc_laplacian(W, E=None, weight_mode="asymmetric", convention="graph"):
 
 
 def fp_operator(
-    F, D, E=None, W=None, symmetrize_E=True, drift_weight=False, weight_mode="asymmetric", renormalize=False
+    F,
+    D,
+    E=None,
+    W=None,
+    symmetrize_E=True,
+    drift_weight=False,
+    weight_mode="asymmetric",
+    renormalize=False,
 ):
     """
     The output of this function is a transition rate matrix Q, encoding the transition rate
@@ -632,12 +646,23 @@ class GraphVectorField:
     def fp_operator(self, D, **kwargs):
         return fp_operator(self.asym(), D, E=self.E, W=self.W, symmetrize_E=False, **kwargs)
 
-    def project_velocity(self, X_emb, mode="raw", correct_density=False, norm_dist=False, **kwargs):
+    def project_velocity(
+        self,
+        X_emb,
+        mode="raw",
+        correct_density=False,
+        norm_dist=False,
+        **kwargs,
+    ):
         if mode == "raw":
             F_ = self.F
         elif mode == "asym":
             F_ = self.asym()
 
         return projection_with_transition_matrix(
-            F_, X_emb, correct_density=correct_density, norm_dist=norm_dist, **kwargs
+            F_,
+            X_emb,
+            correct_density=correct_density,
+            norm_dist=norm_dist,
+            **kwargs,
         )

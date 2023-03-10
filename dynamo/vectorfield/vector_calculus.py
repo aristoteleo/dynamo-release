@@ -8,10 +8,8 @@ from anndata._core.anndata import AnnData
 
 from ..dynamo_logger import (
     LoggerManager,
-    main_info,
     main_info_insert_adata,
     main_info_insert_adata_uns,
-    main_warning,
 )
 from ..tools.sampling import sample
 from ..tools.utils import (
@@ -53,7 +51,14 @@ if use_dynode:
 
 
 def velocities(
-    adata, init_cells, init_states=None, basis=None, vector_field_class=None, layer="X", dims=None, Qkey="PCs"
+    adata,
+    init_cells,
+    init_states=None,
+    basis=None,
+    vector_field_class=None,
+    layer="X",
+    dims=None,
+    Qkey="PCs",
 ):
     """Calculate the velocities for any cell state with the reconstructed vector field function.
 
@@ -104,7 +109,10 @@ def velocities(
     init_states, _, _, _ = fetch_states(adata, init_states, init_cells, basis, layer, False, None)
 
     if vector_field_class.vf_dict["normalize"]:
-        xm, xscale = vector_field_class.norm_dict["xm"][None, :], vector_field_class.norm_dict["xscale"]
+        xm, xscale = (
+            vector_field_class.norm_dict["xm"][None, :],
+            vector_field_class.norm_dict["xscale"],
+        )
         init_states = (init_states - xm) / xscale
     vec_mat = vector_field_class.func(init_states)
     vec_key = "velocities" if basis is None else "velocities_" + basis
@@ -327,7 +335,10 @@ def jacobian(
             Q = Q[:, : X.shape[1]]
             if len(regulators) == 1 and len(effectors) == 1:
                 Jacobian = elementwise_jacobian_transformation(
-                    Js, Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs
+                    Js,
+                    Q[eff_idx, :].flatten(),
+                    Q[reg_idx, :].flatten(),
+                    **kwargs,
                 )
             else:
                 Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
@@ -519,7 +530,13 @@ def hessian(
                 ]
             else:
                 Hessian = [
-                    hessian_transformation(Hs[:, :, :, i], Q[eff_idx, :], Q[reg_idx, :], Q[coreg_idx, :], **kwargs)
+                    hessian_transformation(
+                        Hs[:, :, :, i],
+                        Q[eff_idx, :],
+                        Q[reg_idx, :],
+                        Q[coreg_idx, :],
+                        **kwargs,
+                    )
                     for i in np.arange(Hs.shape[-1])
                 ]
         else:
@@ -811,7 +828,8 @@ def sensitivity(
             n_genes, n_genes_, n_cells = J.shape
             idenity = np.eye(n_genes)
             for i in LoggerManager.progress_logger(
-                np.arange(n_cells), progress_name="Calculating sensitivity matrix with precomputed gene-wise Jacobians"
+                np.arange(n_cells),
+                progress_name="Calculating sensitivity matrix with precomputed gene-wise Jacobians",
             ):
                 s = np.linalg.inv(idenity - J[:, :, i])  # np.transpose(J)
                 Sensitivity[:, :, i] = s.dot(np.diag(1 / np.diag(s)))
@@ -1175,7 +1193,10 @@ def divergence(
         Js = adata.uns[jkey]["jacobian"]
         cidx = adata.uns[jkey]["cell_idx"]
         for i, c in enumerate(
-            LoggerManager.progress_logger(cell_idx, progress_name="Calculating divergence with precomputed Jacobians")
+            LoggerManager.progress_logger(
+                cell_idx,
+                progress_name="Calculating divergence with precomputed Jacobians",
+            )
         ):
             if c in cidx:
                 calculated[i] = True

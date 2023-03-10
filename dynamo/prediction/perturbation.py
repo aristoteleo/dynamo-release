@@ -90,18 +90,30 @@ def KO(
     vf_ko = vector_field_function_knockout(adata, vf, KO_genes)
 
     if add_ko_basis_key is None:
-        x_basis_key, v_basis_key = "X_" + basis + "_KO", "velocity_" + basis + "_KO"
+        x_basis_key, v_basis_key = (
+            "X_" + basis + "_KO",
+            "velocity_" + basis + "_KO",
+        )
     else:
         if not add_ko_basis_key.startswith("velocity_"):
             raise ValueError(f"add_ko_basis_key {add_ko_basis_key} must starts with `velocity_`")
-        x_basis_key, v_basis_key = "X_" + add_ko_basis_key.split("velocity_")[1], add_ko_basis_key
+        x_basis_key, v_basis_key = (
+            "X_" + add_ko_basis_key.split("velocity_")[1],
+            add_ko_basis_key,
+        )
 
     if add_embedding_key is None:
-        x_emb_key, v_emb_key = "X_" + emb_basis + "_KO", "velocity_" + emb_basis + "_KO"
+        x_emb_key, v_emb_key = (
+            "X_" + emb_basis + "_KO",
+            "velocity_" + emb_basis + "_KO",
+        )
     else:
         if not add_embedding_key.startswith("velocity_"):
             raise ValueError(f"add_embedding_key {add_embedding_key} must starts with `velocity_`")
-        x_emb_key, v_emb_key = "X_" + add_embedding_key.split("velocity_")[1], add_embedding_key
+        x_emb_key, v_emb_key = (
+            "X_" + add_embedding_key.split("velocity_")[1],
+            add_embedding_key,
+        )
 
     logger.info_insert_adata(x_basis_key, "obsm")
     adata.obsm[x_basis_key] = adata.obsm["X_" + basis].copy()
@@ -229,7 +241,13 @@ def perturbation(
 
     """
 
-    if pertubation_method.lower() not in ["j_delta_x", "j_x_prime", "j_jv", "f_x_prime", "f_x_prime_minus_f_x_0"]:
+    if pertubation_method.lower() not in [
+        "j_delta_x",
+        "j_x_prime",
+        "j_jv",
+        "f_x_prime",
+        "f_x_prime_minus_f_x_0",
+    ]:
         raise ValueError(
             f"your method is set to be {pertubation_method.lower()} but must be one of `j_delta_x`, `j_x_prime`, "
             "`j_jv`,`f_x_prime`, `f_x_prime_minus_f_x_0`"
@@ -360,7 +378,10 @@ def perturbation(
         transition_key = add_transition_key
 
     if add_velocity_key is None:
-        velocity_key, embedding_key = "velocity_" + emb_basis + "_perturbation", "X_" + emb_basis + "_perturbation"
+        velocity_key, embedding_key = (
+            "velocity_" + emb_basis + "_perturbation",
+            "X_" + emb_basis + "_perturbation",
+        )
     else:
         velocity_key, embedding_key = add_velocity_key, add_embedding_key
 

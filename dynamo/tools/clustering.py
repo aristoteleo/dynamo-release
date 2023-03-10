@@ -653,7 +653,12 @@ def scc(
     conn.data[conn.data > 0] = 1
     adj = conn + adata.obsp["spatial_connectivities"]
     adj.data[adj.data > 0] = 1
-    leiden(adata, adj_matrix=adj, resolution=resolution, result_key="scc_e" + str(e_neigh) + "_s" + str(s_neigh))
+    leiden(
+        adata,
+        adj_matrix=adj,
+        resolution=resolution,
+        result_key="scc_e" + str(e_neigh) + "_s" + str(s_neigh),
+    )
 
     if copy:
         return adata
@@ -683,12 +688,22 @@ def purity(
     """
 
     if neighbors_key not in adata.obsp.keys():
-        neighbors(adata, n_neighbors=neighbor, basis=spatial_key, result_prefix=neighbors_key.split("_")[0])
+        neighbors(
+            adata,
+            n_neighbors=neighbor,
+            basis=spatial_key,
+            result_prefix=neighbors_key.split("_")[0],
+        )
 
     neighbor_graph = adata.obsp[neighbors_key]
 
     if cluster_key not in adata.obs.columns:
-        leiden(adata, adj_matrix=neighbor_graph, resolution=resolution, result_key=cluster_key)
+        leiden(
+            adata,
+            adj_matrix=neighbor_graph,
+            resolution=resolution,
+            result_key=cluster_key,
+        )
 
     cluster = adata.obs[cluster_key]
 

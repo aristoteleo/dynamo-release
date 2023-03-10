@@ -208,7 +208,10 @@ def ddhodge(
     potential_ = potential(adj_mat, W=A, div=ddhodge_div, **kwargs)
 
     if up_sampling and to_downsample:
-        main_info("Constructing W matrix according upsampling=True and downsampling=True options...", indent_level=2)
+        main_info(
+            "Constructing W matrix according upsampling=True and downsampling=True options...",
+            indent_level=2,
+        )
 
         query_idx = np.array(list(set(np.arange(adata.n_obs)).difference(cell_idx)))
         query_data = X_data_full[query_idx, :]

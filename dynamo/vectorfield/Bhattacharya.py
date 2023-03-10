@@ -187,8 +187,9 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                 # calculate distance between "end points" of current and previous paths
                 endPt_dist_sqr = (x_p - xp_lastPath) ** 2 + (y_p - yp_lastPath) ** 2
 
-                # check if the current path *ended* in a different point compared to previous path (x-y grid spacing used
-                # as a "tolerance" for distance)
+                # check if the current path *ended* in a different point compared to previous path (x-y grid spacing
+                # used as a "tolerance" for distance)
+
                 if endPt_dist_sqr > (2 * (xyGridSpacing**2)):
 
                     # --- check if this "different" attractor has been identified before
@@ -232,7 +233,9 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                                 if sepx_old_new_pathNum is not None
                                 else np.array([curr_sepx])
                             )  # append array (vertically)
-                            # attractors_pot = np.vstack((attractors_pot, Pot)) # append attractor potentials to array (vertically) #????????????????????????????????????????????????????????????????????????????????????
+
+                            # append attractor potentials to array (vertically) #??
+                            # attractors_pot = np.vstack((attractors_pot, Pot))
                             num_sepx = num_sepx + 1  # increment no. of separatrices
                     else:
                         # --- check if the attractor of the *previous* path
@@ -264,7 +267,9 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                                     if sepx_old_new_pathNum is not None
                                     else np.array([curr_sepx])
                                 )  # append array (vertically)
-                                # attractors_pot = np.vstack((attractors_pot, pot_p_lastPath)) # append attractor potentials to array vertically) #????????????????????????????????????????????????????????????????????????????????????
+
+                                # append attractor potentials to array vertically) #??
+                                # attractors_pot = np.vstack((attractors_pot, pot_p_lastPath))
                                 num_sepx = num_sepx + 1  # increment no. of separatrices
 
                 else:

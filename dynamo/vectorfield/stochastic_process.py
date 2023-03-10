@@ -58,7 +58,7 @@ def diffusionMatrix(
         if genes is not None:
             genes = adata.var_name.intersection(genes).to_list()
             if len(genes) == 0:
-                raise ValueError(f"no genes from your genes list appear in your adata object.")
+                raise ValueError("no genes from your genes list appear in your adata object.")
         if layer is not None:
             if layer not in adata.layers.keys():
                 raise ValueError(f"the layer {layer} you provided is not included in the adata object!")
@@ -73,7 +73,7 @@ def diffusionMatrix(
         if VecFld is None:
             VecFld, func = vecfld_from_adata(adata, basis)
         else:
-            func = lambda x: vector_field_function(x, VecFld)
+            func = lambda x: vector_field_function(x, VecFld)  # noqa: E731
 
         prefix = "X_" if layer is None else layer + "_"
 
@@ -86,8 +86,7 @@ def diffusionMatrix(
                 "diffmap",
             ]:
                 raise ValueError(
-                    f"basis (or the suffix of basis) can only be one of "
-                    f"['pca', 'umap', 'trimap', 'tsne', 'diffmap']."
+                    "basis (or the suffix of basis) can only be one of " "['pca', 'umap', 'trimap', 'tsne', 'diffmap']."
                 )
             if basis.startswith(prefix):
                 basis = basis

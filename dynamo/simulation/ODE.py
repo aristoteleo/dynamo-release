@@ -99,7 +99,16 @@ def hessian_Ying_model(x, t=None):
     return H
 
 
-def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]):
+def ode_bifur2genes(
+    x: np.ndarray,
+    a=[1, 1],
+    b=[1, 1],
+    S=[0.5, 0.5],
+    K=[0.5, 0.5],
+    m=[4, 4],
+    n=[4, 4],
+    gamma=[1, 1],
+):
     """The ODEs for the toggle switch motif with self-activation and mutual inhibition (e.g. Gata1-Pu.1)."""
 
     d = x.ndim
@@ -116,7 +125,14 @@ def ode_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5
 
 
 def jacobian_bifur2genes(
-    x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]
+    x: np.ndarray,
+    a=[1, 1],
+    b=[1, 1],
+    S=[0.5, 0.5],
+    K=[0.5, 0.5],
+    m=[4, 4],
+    n=[4, 4],
+    gamma=[1, 1],
 ):
     """The Jacobian of the toggle switch ODE model."""
     df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
@@ -154,7 +170,16 @@ def hill_act_grad2(x, A, K, n):
     return -A * n * Kd * x ** (n - 2) * ((n + 1) * x**n - Kd * n + Kd) / (Kd + x**n) ** 3
 
 
-def hessian_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], t=None):
+def hessian_bifur2genes(
+    x: np.ndarray,
+    a=[1, 1],
+    b=[1, 1],
+    S=[0.5, 0.5],
+    K=[0.5, 0.5],
+    m=[4, 4],
+    n=[4, 4],
+    t=None,
+):
     """The Hessian of the toggle switch ODE model."""
     if len(x.shape) == 2:
         H = np.zeros([2, 2, 2, x.shape[0]])

@@ -265,7 +265,8 @@ def response(
         )
     if cmap is None:
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-            "response", ["#000000", "#000000", "#000000", "#800080", "#FF0000", "#FFFF00"]
+            "response",
+            ["#000000", "#000000", "#000000", "#800080", "#FF0000", "#FFFF00"],
         )
     inset_dict = {
         "width": "5%",  # width = 5% of parent_bbox width
@@ -346,7 +347,11 @@ def response(
 
         # den_res[0, 0] is at the lower bottom; dens[1, 4]: is the 2nd on x-axis and 5th on y-axis
         x_meshgrid, y_meshgrid, den_res = kde2d(
-            x, y, n=[grid_num, grid_num], lims=[min(x), max(x), min(y), max(y)], h=bandwidth
+            x,
+            y,
+            n=[grid_num, grid_num],
+            lims=[min(x), max(x), min(y), max(y)],
+            h=bandwidth,
         )
         den_res = np.array(den_res)
 
@@ -434,7 +439,13 @@ def response(
         closest_x_ind = np.array([np.searchsorted(x_meshgrid, i) for i in xy_subset["x"].values])
         closest_y_ind = np.array([np.searchsorted(y_meshgrid, i) for i in xy_subset["y"].values])
         valid_ids = np.logical_and(closest_x_ind < grid_num, closest_y_ind < grid_num)
-        axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
+        axes[i, j].scatter(
+            closest_x_ind[valid_ids],
+            closest_y_ind[valid_ids],
+            color="gray",
+            alpha=0.1,
+            s=1,
+        )
 
         if xkey.startswith("jacobian"):
             if stacked_fraction:
@@ -457,12 +468,30 @@ def response(
             axes[i, j].title.set_text(rf"$\rho_{{{gene_pairs[1]}}}$ (${ykey}$)")
 
         if show_ridge:
-            axes[i, j].plot(ridge_curve_subset["x"].values, ridge_curve_subset["y"].values, color="red")
+            axes[i, j].plot(
+                ridge_curve_subset["x"].values,
+                ridge_curve_subset["y"].values,
+                color="red",
+            )
 
         if show_rug:
             xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
-            seaborn.rugplot(xy_subset["x"].values, height=0.01, axis="x", ax=axes[i, j], c="darkred", alpha=0.1)
-            seaborn.rugplot(xy_subset["y"].values, height=0.01, axis="y", ax=axes[i, j], c="darkred", alpha=0.1)
+            seaborn.rugplot(
+                xy_subset["x"].values,
+                height=0.01,
+                axis="x",
+                ax=axes[i, j],
+                c="darkred",
+                alpha=0.1,
+            )
+            seaborn.rugplot(
+                xy_subset["y"].values,
+                height=0.01,
+                axis="y",
+                ax=axes[i, j],
+                c="darkred",
+                alpha=0.1,
+            )
 
         if not show_extent:
             despline_all(axes[i, j])
@@ -485,12 +514,21 @@ def response(
             if fit_mode == "hill":
                 if ykey.startswith("jacobian"):
                     x_grid, y_mean, y_sigm = kde2d_to_mean_and_sigma(
-                        np.array(x_val), np.array(y_val), flat_res_subset["den"].values
+                        np.array(x_val),
+                        np.array(y_val),
+                        flat_res_subset["den"].values,
                     )
                     fix_g = 0 if no_degradation else None
 
                     pdict_act, msd_act = fit_hill_grad(x_grid, y_mean, "act", y_sigm=y_sigm, fix_g=fix_g)
-                    pdict_inh, msd_inh = fit_hill_grad(x_grid, y_mean, "inh", y_sigm=y_sigm, fix_g=fix_g, x_shift=1e-4)
+                    pdict_inh, msd_inh = fit_hill_grad(
+                        x_grid,
+                        y_mean,
+                        "inh",
+                        y_sigm=y_sigm,
+                        fix_g=fix_g,
+                        x_shift=1e-4,
+                    )
 
                     if msd_act < msd_inh:
                         fit_type = "act"
@@ -517,11 +555,23 @@ def response(
                     xplot = scale_func(xs, xlabels, grid_num)
                     if mean_style is not None:
                         axes[i, j].plot(
-                            scale_func(x_grid, xlabels, grid_num), scale_func(y_mean, ylabels, grid_num), mean_style
+                            scale_func(x_grid, xlabels, grid_num),
+                            scale_func(y_mean, ylabels, grid_num),
+                            mean_style,
                         )
                     axes[i, j].plot(
                         xplot,
-                        scale_func(func(xs, pdict["A"], pdict["K"], pdict["n"], pdict["g"]), ylabels, grid_num),
+                        scale_func(
+                            func(
+                                xs,
+                                pdict["A"],
+                                pdict["K"],
+                                pdict["n"],
+                                pdict["g"],
+                            ),
+                            ylabels,
+                            grid_num,
+                        ),
                         curve_style,
                         linewidth=curve_lw,
                     )
@@ -649,7 +699,10 @@ def plot_hill_function(
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
 
     for pair_i, gene_pairs in enumerate(pairs_mat):
-        i, j = pair_i % n_row, pair_i // n_row  # %: remainder; //: integer division
+        i, j = (
+            pair_i % n_row,
+            pair_i // n_row,
+        )  # %: remainder; //: integer division
 
         gene_pair_name = gene_pairs[0] + "->" + gene_pairs[1]
 
@@ -815,7 +868,8 @@ def causality(
             zkey = "M_n" if adata.uns["pp"]["has_labeling"] else "M_u"
     if cmap is None:
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-            "causality", ["#008000", "#ADFF2F", "#FFFF00", "#FFA500", "#FFC0CB", "#FFFFFE"]
+            "causality",
+            ["#008000", "#ADFF2F", "#FFFF00", "#FFA500", "#FFC0CB", "#FFFFFE"],
         )
 
     if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian", "hessian_pca"])):
@@ -921,7 +975,7 @@ def causality(
         if delay != 0:
             x = x[:-delay]
             y = y_ori[delay:]
-            z = z_ori[delay - 1 : -1]
+            z = z_ori[(delay - 1) : -1]
         else:
             y = y_ori
             z = z_ori
@@ -962,8 +1016,8 @@ def causality(
             if not np.isfinite(max_val):
                 max_val = 1e10
 
-            flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), 2] = (
-                flat_res.iloc[(f_ini_ind) : (f_ini_ind + len(dist_mat)), :]["expected_z"] / max_val
+            flat_res.iloc[f_ini_ind : (f_ini_ind + len(dist_mat)), 2] = (
+                flat_res.iloc[f_ini_ind : (f_ini_ind + len(dist_mat)), :]["expected_z"] / max_val
             )
 
         id = id + 1
@@ -993,7 +1047,11 @@ def causality(
         axins = inset_axes(axes[i, j], bbox_transform=axes[i, j].transAxes, **inset_dict)
 
         ext_lim = (min(x_val), max(x_val), min(y_val), max(y_val))
-        v_min, v_max, v_abs_max = min(values.flatten()), max(values.flatten()), max(abs(values.flatten()))
+        v_min, v_max, v_abs_max = (
+            min(values.flatten()),
+            max(values.flatten()),
+            max(abs(values.flatten())),
+        )
         im = axes[i, j].imshow(
             values,
             interpolation="mitchell",
@@ -1012,7 +1070,13 @@ def causality(
         closest_x_ind = np.array([np.searchsorted(x_meshgrid, i) for i in xy_subset["x"].values])
         closest_y_ind = np.array([np.searchsorted(y_meshgrid, i) for i in xy_subset["y"].values])
         valid_ids = np.logical_and(closest_x_ind < grid_num, closest_y_ind < grid_num)
-        axes[i, j].scatter(closest_x_ind[valid_ids], closest_y_ind[valid_ids], color="gray", alpha=0.1, s=1)
+        axes[i, j].scatter(
+            closest_x_ind[valid_ids],
+            closest_y_ind[valid_ids],
+            color="gray",
+            alpha=0.1,
+            s=1,
+        )
 
         if xkey.startswith("jacobian"):
             if stacked_fraction:
@@ -1051,8 +1115,22 @@ def causality(
 
         if show_rug:
             xy_subset = xy_subset.query("x > @ext_lim[0] & x < @ext_lim[1] & y > @ext_lim[2] & y < @ext_lim[3]")
-            seaborn.rugplot(xy_subset["x"].values, height=0.01, axis="x", ax=axes[i, j], c="darkred", alpha=0.1)
-            seaborn.rugplot(xy_subset["y"].values, height=0.01, axis="y", ax=axes[i, j], c="darkred", alpha=0.1)
+            seaborn.rugplot(
+                xy_subset["x"].values,
+                height=0.01,
+                axis="x",
+                ax=axes[i, j],
+                c="darkred",
+                alpha=0.1,
+            )
+            seaborn.rugplot(
+                xy_subset["y"].values,
+                height=0.01,
+                axis="y",
+                ax=axes[i, j],
+                c="darkred",
+                alpha=0.1,
+            )
 
         #         axes[i, j].plot(flat_res_subset['x'], [0.01]*len(flat_res_subset['x']), '|', color='k')
         #         axes[i, j].plot([0.01]*len(flat_res_subset['z']), flat_res_subset['z'], '|', color='k')

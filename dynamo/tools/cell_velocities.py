@@ -560,7 +560,9 @@ def cell_velocities(
         X_grid, V_grid, D = velocity_on_grid(X_embedding[:, :2], delta_X[:, :2], xy_grid_nums=xy_grid_nums)
         if calc_rnd_vel:
             X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(
-                X_embedding[:, :2], delta_X_rnd[:, :2], xy_grid_nums=xy_grid_nums
+                X_embedding[:, :2],
+                delta_X_rnd[:, :2],
+                xy_grid_nums=xy_grid_nums,
             )
 
     if preserve_len:
@@ -579,9 +581,15 @@ def cell_velocities(
 
     adata.obsp[transition_key] = T
     if add_velocity_key is None:
-        velocity_key, grid_velocity_key = "velocity_" + basis, "grid_velocity_" + basis
+        velocity_key, grid_velocity_key = (
+            "velocity_" + basis,
+            "grid_velocity_" + basis,
+        )
     else:
-        velocity_key, grid_velocity_key = add_velocity_key, "grid_" + add_velocity_key
+        velocity_key, grid_velocity_key = (
+            add_velocity_key,
+            "grid_" + add_velocity_key,
+        )
 
     adata.obsm[velocity_key] = delta_X
     adata.uns[grid_velocity_key] = {
@@ -597,9 +605,15 @@ def cell_velocities(
             transition_rnd_key = add_transition_key + "_rnd"
 
         if add_velocity_key is None:
-            velocity_rnd_key, grid_velocity_rnd_key = "velocity_" + basis + "_rnd", "grid_velocity_" + basis + "_rnd"
+            velocity_rnd_key, grid_velocity_rnd_key = (
+                "velocity_" + basis + "_rnd",
+                "grid_velocity_" + basis + "_rnd",
+            )
         else:
-            velocity_rnd_key, grid_velocity_rnd_key = add_velocity_key + "_rnd", "grid_" + add_velocity_key + "_rnd"
+            velocity_rnd_key, grid_velocity_rnd_key = (
+                add_velocity_key + "_rnd",
+                "grid_" + add_velocity_key + "_rnd",
+            )
 
         X_embedding_rnd = "X_" + basis + "_rnd"
         adata.obsp[transition_rnd_key] = T_rnd

@@ -362,7 +362,7 @@ def scatters(
         z = [z]
 
     if all([is_gene_name(adata, i) for i in basis]):
-        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
+        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total",] and y[0] not in [
             "M_u",
             "X_unspliced",
             "M_n",
@@ -472,9 +472,18 @@ def scatters(
         """
         nonlocal adata, x, y, z, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
 
-        if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
+        if cur_l in [
+            "acceleration",
+            "curvature",
+            "divergence",
+            "velocity_S",
+            "velocity_T",
+        ]:
             cur_l_smoothed = cur_l
-            cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in the future
+            cmap, sym_c = (
+                "bwr",
+                True,
+            )  # TODO maybe use other divergent color map in the future
         else:
             if use_smoothed:
                 cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
@@ -527,7 +536,8 @@ def scatters(
                 _adata = adata
                 _adata = adata[_color > stack_colors_threshold]
                 _stack_background_adata_indices = np.logical_and(
-                    _stack_background_adata_indices, (_color < stack_colors_threshold)
+                    _stack_background_adata_indices,
+                    (_color < stack_colors_threshold),
                 )
                 if values:
                     _values = values[_color > stack_colors_threshold]
@@ -650,7 +660,7 @@ def scatters(
                     # points = points.loc[points.iloc[:, 0] > 0, :]
                     points.columns = [cur_x, cur_y]
                     cur_title = cur_b
-                elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and type(cur_y) in [
+                elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray,] and type(cur_y) in [
                     anndata._core.views.ArrayView,
                     np.ndarray,
                 ]:
@@ -877,7 +887,10 @@ def scatters(
                             group_xnew * group_adata[:, cur_b].var.loc[:, group_k_name].unique()
                             + group_adata[:, cur_b].var.loc[:, group_b_key].unique()
                         )
-                        ax.annotate(group + "_" + cur_group, xy=(group_xnew[-1], group_ynew[-1]))
+                        ax.annotate(
+                            group + "_" + cur_group,
+                            xy=(group_xnew[-1], group_ynew[-1]),
+                        )
                         if group_k_name in group_adata.var.columns:
                             if not (group_b_key in group_adata.var.columns) or all(group_adata.var[group_b_key].isna()):
                                 group_adata.var.loc[:, group_b_key] = 0
@@ -897,7 +910,11 @@ def scatters(
         # add legends according to colors and cmaps
         # collected during for loop above
         if stack_colors:
-            ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_colors_legend_size})
+            ax.legend(
+                handles=stack_legend_handles,
+                loc="upper right",
+                prop={"size": stack_colors_legend_size},
+            )
 
     for cur_b in basis:
         for cur_l in layer:

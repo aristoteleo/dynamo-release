@@ -18,7 +18,11 @@ from ..utils import areinstance, isarray
 from .trajectory import Trajectory
 
 
-def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable, in_sink_state: Callable) -> float:
+def calc_mean_exit_time(
+    trajectories: List[Trajectory],
+    in_init_state: Callable,
+    in_sink_state: Callable,
+) -> float:
     met = []
     for traj in trajectories:
         t_init = -1
@@ -33,7 +37,10 @@ def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable,
 
 
 def calc_mean_first_passage_time(
-    trajectories: List[Trajectory], in_init_state: Callable, in_target_state: Callable, in_sink_state: Callable
+    trajectories: List[Trajectory],
+    in_init_state: Callable,
+    in_target_state: Callable,
+    in_sink_state: Callable,
 ) -> float:
     mfpt = []
     for traj in trajectories:
@@ -121,7 +128,10 @@ def mean_first_passage_time(
     else:
         main_info("Calculating mean first passage time to the target states...")
         mfpt = calc_mean_first_passage_time(
-            trajs, in_init_state=in_init_state, in_target_state=in_target_state, in_sink_state=in_sink_state
+            trajs,
+            in_init_state=in_init_state,
+            in_target_state=in_target_state,
+            in_sink_state=in_sink_state,
         )
 
     return mfpt

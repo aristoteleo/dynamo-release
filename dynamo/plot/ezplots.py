@@ -65,7 +65,16 @@ def plot_X(
         plt.gca().scatter(x, y, z, c=c, **kwargs)
 
 
-def plot_V(X, V, dim1=0, dim2=1, dims=None, create_figure=False, figsize=(6, 6), **kwargs):
+def plot_V(
+    X,
+    V,
+    dim1=0,
+    dim2=1,
+    dims=None,
+    create_figure=False,
+    figsize=(6, 6),
+    **kwargs,
+):
     if create_figure:
         plt.figure(figsize=figsize)
     if dims is not None:

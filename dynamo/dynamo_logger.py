@@ -172,16 +172,25 @@ class Logger:
         self.previous_timestamp = now
         return self.time_passed
 
-    def report_progress(self, percent=None, count=None, total=None, progress_name="", indent_level=1):
+    def report_progress(
+        self,
+        percent=None,
+        count=None,
+        total=None,
+        progress_name="",
+        indent_level=1,
+    ):
         if percent is None:
-            assert (not count is None) and (not total is None)
+            assert (count is not None) and (total is not None)
             percent = count / total * 100
         saved_terminator = self.logger_stream_handler.terminator
         self.logger_stream_handler.terminator = ""
         if progress_name != "":
             progress_name = "[" + str(progress_name) + "] "
         message = "\r" + format_logging_message(
-            "%sin progress: %.4f%%" % (progress_name, percent), logging_level=logging.INFO, indent_level=indent_level
+            "%sin progress: %.4f%%" % (progress_name, percent),
+            logging_level=logging.INFO,
+            indent_level=indent_level,
         )
         self.logger.info(message)
         self.logger_stream_handler.flush()
@@ -198,9 +207,15 @@ class Logger:
         self.logger_stream_handler.terminator = saved_terminator
 
         if time_unit == "s":
-            self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed), indent_level=indent_level)
+            self.info(
+                "[%s] finished [%.4fs]" % (progress_name, self.time_passed),
+                indent_level=indent_level,
+            )
         elif time_unit == "ms":
-            self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3), indent_level=indent_level)
+            self.info(
+                "[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3),
+                indent_level=indent_level,
+            )
         else:
             raise NotImplementedError
         # self.logger.info("|")
@@ -272,7 +287,10 @@ class LoggerManager:
             # report every `interval` percent
             if new_progress_percent - prev_progress_percent > 1 or new_progress_percent >= 100:
                 logger.report_progress(
-                    count=i, total=len(generator), progress_name=progress_name, indent_level=indent_level
+                    count=i,
+                    total=len(generator),
+                    progress_name=progress_name,
+                    indent_level=indent_level,
                 )
                 prev_progress_percent = new_progress_percent
             yield next(iterator)

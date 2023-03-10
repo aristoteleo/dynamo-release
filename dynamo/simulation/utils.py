@@ -13,7 +13,14 @@ from ..dynamo_logger import (
 )
 
 
-def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_skip_steps=0, record_max_length=1e5):
+def directMethod(
+    prop_fcn: Callable,
+    update_fcn: Callable,
+    tspan,
+    C0,
+    record_skip_steps=0,
+    record_max_length=1e5,
+):
     """Gillespie direct method.
 
     Parameters

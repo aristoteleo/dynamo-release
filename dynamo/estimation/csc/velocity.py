@@ -2,20 +2,35 @@ import itertools
 from multiprocessing.dummy import Pool as ThreadPool
 from warnings import warn
 
-from scipy.sparse import csr_matrix
+import numpy as np
+from scipy.sparse import csr_matrix, issparse
 from tqdm import tqdm
 
 from ...tools.moments import calc_2nd_moment, calc_12_mom_labeling
 from ...tools.utils import (
     calc_norm_loglikelihood,
     calc_R2,
-    one_shot_alpha,
+    find_extreme,
     one_shot_alpha_matrix,
     one_shot_gamma_alpha,
     one_shot_gamma_alpha_matrix,
     update_dict,
 )
-from .utils_velocity import *
+from .utils_velocity import (
+    compute_bursting_properties,
+    compute_dispersion,
+    concat_time_series_matrices,
+    fit_alpha_degradation,
+    fit_alpha_synthesis,
+    fit_first_order_deg_lsq,
+    fit_gamma_lsq,
+    fit_k_negative_binomial,
+    fit_linreg,
+    fit_linreg_robust,
+    fit_stochastic_linreg,
+    solve_alpha_2p,
+    solve_gamma,
+)
 
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
@@ -39,7 +54,8 @@ class Velocity:
         t: :class:`~numpy.ndarray` or None (default: None)
             A vector of the measured time points for cells
         estimation: :class:`~ss_estimation`
-            An instance of the estimation class. If this not None, the parameters will be taken from this class instead of the input arguments.
+            An instance of the estimation class. If this not None, the parameters will be taken from this class instead
+            of the input arguments.
     """
 
     def __init__(
@@ -312,7 +328,8 @@ class Velocity:
         Returns
         -------
             n_genes: int
-                The first dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or delta, if they are given.
+                The first dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or
+                delta, if they are given.
         """
         if self.parameters["alpha"] is not None:
             n_genes = self.parameters["alpha"].shape[0]
@@ -464,7 +481,7 @@ class ss_estimation:
             "U0": None,
             "S0": None,
             "total0": None,
-        }  # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
+        }  # NOTE: alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
     def fit(
@@ -484,9 +501,11 @@ class ss_estimation:
                 True -- the linear regression is performed with an unfixed intercept;
                 False -- the linear regression is performed with a fixed zero intercept.
             perc_left: `float` (default: 5)
-                The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
+                The percentage of samples included in the linear regression in the left tail. If set to None, then all
+                the samples are included.
             perc_right: `float` (default: 5)
-                The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+                The percentage of samples included in the linear regression in the right tail. If set to None, then all
+                the samples are included.
             clusters: `list`
                 A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
@@ -921,7 +940,7 @@ class ss_estimation:
                     for i in tqdm(range(n_genes), desc="estimating gamma"):
                         try:
                             gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
-                        except:
+                        except Exception:
                             gamma[i], u0[i] = 0, 0
                     self.parameters["gamma"], self.aux_param["uu0"] = gamma, u0
                     alpha = np.zeros(n_genes)
@@ -1018,7 +1037,12 @@ class ss_estimation:
                                 pool.join()
                                 alpha = np.array(alpha)
                             self.parameters["alpha"] = alpha
-                            # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                            # self.parameters['alpha'] = self.fit_alpha_oneshot(
+                            #     self.t,
+                            #     self.data['ul'],
+                            #     self.parameters['beta'],
+                            #     clusters
+                            # )
                     else:
                         if self._exist_data("ul") and self._exist_parameter("gamma"):
                             self.parameters["alpha"] = self.fit_alpha_oneshot(
@@ -1070,7 +1094,12 @@ class ss_estimation:
                                     pool.join()
                                     alpha = np.array(alpha)
                                 self.parameters["alpha"] = alpha
-                                # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                                # self.parameters['alpha'] = self.fit_alpha_oneshot(
+                                #     self.t,
+                                #     self.data['ul'],
+                                #     self.parameters['gamma'],
+                                #     clusters
+                                # )
                             elif one_shot_method == "combined":
                                 self.parameters["alpha"] = (
                                     csr_matrix(self.data["ul"].shape)
@@ -1422,7 +1451,7 @@ class ss_estimation:
                             bf,
                         )
             elif self.extyp.lower() == "mix_std_stm":
-                t_min, t_max = np.min(self.t), np.max(self.t)
+                t_min, t_max = np.min(self.t), np.max(self.t)  # noqa: F841
                 if np.all(self._exist_data("ul", "uu", "su")):
                     gamma, beta, total, U = (
                         np.zeros(n_genes),
@@ -1476,9 +1505,17 @@ class ss_estimation:
                         U[i] = np.mean(tmp_)
                         # gamma_1 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0], tmp) # steady state
                         gamma_2 = solve_gamma(t_max, self.data["uu"][i, self.t == t_max], tmp_)  # stimulation
-                        # gamma_3 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == np.max(self.t)], tmp) # sci-fate
+                        # sci-fate:
+                        # gamma_3 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == np.max(self.t)], tmp)
                         gamma[i] = gamma_2
-                        # print('Steady state, stimulation, sci-fate like gamma values are ', gamma_1, '; ', gamma_2, '; ', gamma_3)
+                        # print(
+                        #     'Steady state, stimulation, sci-fate like gamma values are ',
+                        #     gamma_1,
+                        #     '; ',
+                        #     gamma_2,
+                        #     '; ',
+                        #     gamma_3
+                        # )
                     (self.parameters["gamma"], self.aux_param["U0"], self.parameters["beta"],) = (
                         gamma,
                         U,
@@ -1566,11 +1603,11 @@ class ss_estimation:
                 True -- the linear regression is performed with an unfixed intercept;
                 False -- the linear regresssion is performed with a fixed zero intercept.
             perc_left: float
-                The percentage of samples included in the linear regression in the left tail. If set to None, then all the
-                left samples are excluded.
+                The percentage of samples included in the linear regression in the left tail. If set to None, then all
+                the left samples are excluded.
             perc_right: float
-                The percentage of samples included in the linear regression in the right tail. If set to None, then all the
-                samples are included.
+                The percentage of samples included in the linear regression in the right tail. If set to None, then all
+                the samples are included.
             normalize: bool
                 Whether to first normalize the data.
 
@@ -1623,26 +1660,28 @@ class ss_estimation:
         perc_right=5,
         normalize=True,
     ):
-        """Estimate gamma using GMM (generalized method of moments) or negbin distrubtion based on the steady state assumption.
+        """Estimate gamma using GMM (generalized method of moments) or negbin distrubtion based on the steady state
+        assumption.
 
         Arguments
         ---------
             est_method: `str` {`gmm`, `negbin`} The estimation method to be used when using the `stochastic` model.
                 * Available options when the `model` is 'ss' include:
-                (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
-                "moment" model in the excellent scVelo package;
-                (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
-                also built upon on master equations.
-                Note that all those methods require using extreme data points (except negbin, which use all data points) for
-                estimation. Extreme data points are defined as the data from cells whose expression of unspliced / spliced
-                or new / total RNA, etc. are in the top or bottom, 5%, for example. `linear_regression` only considers the mean of
-                RNA species (based on the `deterministic` ordinary different equations) while moment based methods (`gmm`, `negbin`)
-                considers both first moment (mean) and second moment (uncentered variance) of RNA species (based on the `stochastic`
-                master equations).
-                The above method are all (generalized) linear regression based method. In order to return estimated parameters
-                (including RNA half-life), it additionally returns R-squared (either just for extreme data points or all data points)
-                as well as the log-likelihood of the fitting, which will be used for transition matrix and velocity embedding.
-                All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial sampling.
+                (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to
+                the "moment" model in the excellent scVelo package;
+                (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial
+                distribution, also built upon on master equations.
+                Note that all those methods require using extreme data points (except negbin, which use all data
+                points) for estimation. Extreme data points are defined as the data from cells whose expression of
+                unspliced / spliced or new / total RNA, etc. are in the top or bottom, 5%, for example.
+                `linear_regression` only considers the mean of RNA species (based on the `deterministic` ordinary
+                different equations) while moment based methods (`gmm`, `negbin`) considers both first moment (mean)
+                and second moment (uncentered variance) of RNA species (based on the `stochastic` master equations).
+                The above method are all (generalized) linear regression based method. In order to return estimated
+                parameters (including RNA half-life), it additionally returns R-squared (either just for extreme data
+                points or all data points) as well as the log-likelihood of the fitting, which will be used for
+                transition matrix and velocity embedding. All `est_method` uses least square to estimate optimal
+                parameters with latin cubic sampler for initial sampling.
             u: :class:`~numpy.ndarray` or sparse `csr_matrix`
                 A matrix of unspliced mRNA counts. Dimension: genes x cells.
             s: :class:`~numpy.ndarray` or sparse `csr_matrix`
@@ -1652,9 +1691,11 @@ class ss_estimation:
             ss: :class:`~numpy.ndarray` or sparse `csr_matrix`
                 A matrix of spliced mRNA counts. Dimension: genes x cells.
             perc_left: float
-                The percentage of samples included in the linear regression in the left tail. If set to None, then all the left samples are excluded.
+                The percentage of samples included in the linear regression in the left tail. If set to None, then all
+                the left samples are excluded.
             perc_right: float
-                The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+                The percentage of samples included in the linear regression in the right tail. If set to None, then all
+                the samples are included.
             normalize: bool
                 Whether to first normalize the
 
@@ -1783,13 +1824,13 @@ class ss_estimation:
         Returns
         -------
             alpha_std, alpha_stm: `numpy.ndarray`, `numpy.ndarray`
-                The constant steady state transcription rate (alpha_std) or time-dependent or time-independent (determined by
-                alpha_time_dependent) transcription rate (alpha_stm)
+                The constant steady state transcription rate (alpha_std) or time-dependent or time-independent
+                (determined by alpha_time_dependent) transcription rate (alpha_stm)
         """
 
         # calculate alpha initial guess:
         t = np.array(t) if type(t) is list else t
-        t_std, t_stm, t_uniq, t_max, t_min = (
+        t_std, t_stm, t_uniq, t_max, t_min = (  # noqa: F841
             np.max(t) - t,
             t,
             np.unique(t),

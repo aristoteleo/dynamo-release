@@ -66,7 +66,11 @@ class CnmfPreprocessor(Preprocessor):
             close_clustergram_fig=False,
         )
         adata = read_h5ad(counts_fn)
-        hvg_path = os.path.join(self.output_dir, self.run_name, self.run_name + ".overdispersed_genes.txt")
+        hvg_path = os.path.join(
+            self.output_dir,
+            self.run_name,
+            self.run_name + ".overdispersed_genes.txt",
+        )
         hvgs = open(hvg_path).read().split("\n")
 
         self.force_gene_list = hvgs

@@ -85,7 +85,7 @@ def lines_to_arrows(lines, n=5, spacing=None, normalize=True):
         spacing = [curve_coord(l)[-1] / n for l in lines]
     try:
         len(spacing)
-    except:
+    except TypeError:
         spacing = [spacing] * len(lines)
 
     lines_s = [curve_extract(l, spacing=sp, offset=sp / 2) for l, sp in zip(lines, spacing)]

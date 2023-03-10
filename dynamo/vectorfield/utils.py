@@ -1,5 +1,3 @@
-import functools
-import inspect
 import itertools
 import multiprocessing as mp
 from multiprocessing.dummy import Pool as ThreadPool
@@ -14,13 +12,7 @@ from scipy.spatial.distance import cdist, pdist
 from tqdm import tqdm
 
 from ..dynamo_logger import LoggerManager, main_info
-from ..tools.utils import (
-    form_triu_matrix,
-    index_condensed_matrix,
-    subset_dict_with_key_list,
-    timeit,
-)
-from .FixedPoints import FixedPoints
+from ..tools.utils import form_triu_matrix, index_condensed_matrix, timeit
 
 
 def is_outside_domain(x, domain):
@@ -245,11 +237,11 @@ def vecfld_from_adata(adata, basis="", vf_key="VecFld"):
 
     method = vf_dict["method"]
     if method.lower() == "sparsevfc":
-        func = lambda x: vector_field_function(x, vf_dict)
+        func = lambda x: vector_field_function(x, vf_dict)  # noqa: E731
     elif method.lower() == "dynode":
-        func = lambda x: dynode_vector_field_function(x, vf_dict)
+        func = lambda x: dynode_vector_field_function(x, vf_dict)  # noqa: E731
     else:
-        raise ValueError(f"current only support two methods, SparseVFC and dynode")
+        raise ValueError("current only support two methods, SparseVFC and dynode")
 
     return vf_dict, func
 
@@ -349,7 +341,7 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     n_j_per_core = int(np.ceil(n / cores))
     xx = []
     for i in range(0, n, n_j_per_core):
-        xx.append(x[i : i + n_j_per_core])
+        xx.append(x[i : (i + n_j_per_core)])
     # with mp.Pool(cores) as p:
     #    ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
     with ThreadPool(cores) as p:
@@ -511,7 +503,7 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
         n_j_per_core = int(np.ceil(n / cores))
         JJ = []
         for i in range(0, n, n_j_per_core):
-            JJ.append(Js[:, :, i : i + n_j_per_core])
+            JJ.append(Js[:, :, i : (i + n_j_per_core)])
         with ThreadPool(cores) as p:
             ret = p.starmap(
                 transform_jacobian,
@@ -691,8 +683,8 @@ def compute_divergence(f_jac, X, Js=None, vectorize_size=1000):
 
     div = np.zeros(n)
     for i in tqdm(range(0, n, vectorize_size), desc="Calculating divergence"):
-        J = f_jac(X[i : i + vectorize_size]) if Js is None else Js[:, :, i : i + vectorize_size]
-        div[i : i + vectorize_size] = np.trace(J)
+        J = f_jac(X[i : (i + vectorize_size)]) if Js is None else Js[:, :, i : (i + vectorize_size)]
+        div[i : (i + vectorize_size)] = np.trace(J)
     return div
 
 
@@ -791,7 +783,7 @@ def compute_torsion(vf, f_jac, X):
     \tau = \frac{(\mathbf{v} \times \mathbf{a}) \cdot (\mathbf{J} \cdot \mathbf{a})}{||\mathbf{V} \times \mathbf{a}||^2}
     """
     if X.shape[1] != 3:
-        raise Exception(f"torsion is only defined in 3 dimension.")
+        raise Exception("torsion is only defined in 3 dimension.")
 
     n = len(X)
 
@@ -858,7 +850,7 @@ def curl2d(f, x, method="analytical", VecFld=None, jac=None):
 def compute_curl(f_jac, X):
     """Calculate curl for many samples for 2/3 D systems."""
     if X.shape[1] > 3:
-        raise Exception(f"curl is only defined in 2/3 dimension.")
+        raise Exception("curl is only defined in 2/3 dimension.")
 
     n = len(X)
 
@@ -887,7 +879,11 @@ def get_metric_gene_in_rank(mat: np.mat, genes: list, neg: bool = False):
 
 
 def get_metric_gene_in_rank_by_group(
-    mat: np.mat, genes: list, groups: np.array, selected_group, neg: bool = False
+    mat: np.mat,
+    genes: list,
+    groups: np.array,
+    selected_group,
+    neg: bool = False,
 ) -> tuple:
     mask = groups == selected_group
     if type(mask) == pd.Series:
@@ -1240,7 +1236,10 @@ def parse_int_df(
             good_int = np.ones(df_shape[0], dtype=bool)
 
         if genes is not None:
-            good_int &= np.logical_and([i in genes_set for i in gene_pairs[0]], [i in genes_set for i in gene_pairs[1]])
+            good_int &= np.logical_and(
+                [i in genes_set for i in gene_pairs[0]],
+                [i in genes_set for i in gene_pairs[1]],
+            )
 
         if col_step == 1:
             res[col] = cur_col.loc[good_int].values

@@ -208,7 +208,16 @@ def cell_wise_vectors_3d(
         V = -V
 
     main_info("X shape: " + str(X.shape) + " V shape: " + str(V.shape))
-    df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
+    df = pd.DataFrame(
+        {
+            "x": X[:, 0],
+            "y": X[:, 1],
+            "z": X[:, 2],
+            "u": V[:, 0],
+            "v": V[:, 1],
+            "w": V[:, 2],
+        }
+    )
 
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
@@ -684,7 +693,16 @@ def cell_wise_vectors(
     if projection == "2d":
         df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
     elif projection == "3d":
-        df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
+        df = pd.DataFrame(
+            {
+                "x": X[:, 0],
+                "y": X[:, 1],
+                "z": X[:, 2],
+                "u": V[:, 0],
+                "v": V[:, 1],
+                "w": V[:, 2],
+            }
+        )
     else:
         raise NotImplementedError
 
@@ -955,7 +973,16 @@ def cell_wise_vectors(
     if projection == "2d":
         df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
     elif projection == "3d":
-        df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
+        df = pd.DataFrame(
+            {
+                "x": X[:, 0],
+                "y": X[:, 1],
+                "z": X[:, 2],
+                "u": V[:, 0],
+                "v": V[:, 1],
+                "w": V[:, 2],
+            }
+        )
     else:
         raise NotImplementedError
 

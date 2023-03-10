@@ -139,7 +139,7 @@ def sctransform_core(
     genes_ix = genes.copy()
 
     X = X[:, genes]
-    Xraw = X.copy()
+    # Xraw = X.copy()
     gene_names = gene_names[genes]
     genes = np.arange(X.shape[1])
     genes_cell_count = X.sum(0).A.flatten()
@@ -169,7 +169,14 @@ def sctransform_core(
     cell_attrs = pd.DataFrame(
         index=cell_names,
         data=np.vstack((umi, log_umi, gene, log_gene, umi_per_gene, log_umi_per_gene)).T,
-        columns=["umi", "log_umi", "gene", "log_gene", "umi_per_gene", "log_umi_per_gene"],
+        columns=[
+            "umi",
+            "log_umi",
+            "gene",
+            "log_gene",
+            "umi_per_gene",
+            "log_umi_per_gene",
+        ],
     )
 
     data_step1 = cell_attrs.iloc[cells_step1]
@@ -181,7 +188,12 @@ def sctransform_core(
         xolo = genes_log_gmean_step1
         sampling_prob = 1 / (np.interp(xolo, xlo, ylo) + _EPS)
         genes_step1 = np.sort(
-            np.random.choice(genes_step1, size=n_genes, p=sampling_prob / sampling_prob.sum(), replace=False)
+            np.random.choice(
+                genes_step1,
+                size=n_genes,
+                p=sampling_prob / sampling_prob.sum(),
+                replace=False,
+            )
         )
         genes_log_gmean_step1 = np.log10(gmean(X[cells_step1, :][:, genes_step1], eps=gmean_eps))
 
@@ -194,12 +206,25 @@ def sctransform_core(
         genes_bin_regress = genes_step1[bin_ind == i]
         umi_bin = X[cells_step1, :][:, genes_bin_regress]
 
-        mm = np.vstack((np.ones(data_step1.shape[0]), data_step1["log_umi"].values.flatten())).T
+        mm = np.vstack(
+            (
+                np.ones(data_step1.shape[0]),
+                data_step1["log_umi"].values.flatten(),
+            )
+        ).T
 
         pc_chunksize = umi_bin.shape[1] // os.cpu_count() + 1
-        pool = Pool(os.cpu_count(), _parallel_init, [genes_bin_regress, umi_bin, gene_names, mm, ps])
+        pool = Pool(
+            os.cpu_count(),
+            _parallel_init,
+            [genes_bin_regress, umi_bin, gene_names, mm, ps],
+        )
         try:
-            pool.map(_parallel_wrapper, range(umi_bin.shape[1]), chunksize=pc_chunksize)
+            pool.map(
+                _parallel_wrapper,
+                range(umi_bin.shape[1]),
+                chunksize=pc_chunksize,
+            )
         finally:
             pool.close()
             pool.join()
@@ -238,15 +263,31 @@ def sctransform_core(
     z.evaluate()
     bw = z.bw * bw_adjust
 
-    x_points = np.vstack((genes_log_gmean, np.array([min(genes_log_gmean_step1)] * genes_log_gmean.size))).max(0)
-    x_points = np.vstack((x_points, np.array([max(genes_log_gmean_step1)] * genes_log_gmean.size))).min(0)
+    x_points = np.vstack(
+        (
+            genes_log_gmean,
+            np.array([min(genes_log_gmean_step1)] * genes_log_gmean.size),
+        )
+    ).max(0)
+    x_points = np.vstack(
+        (
+            x_points,
+            np.array([max(genes_log_gmean_step1)] * genes_log_gmean.size),
+        )
+    ).min(0)
 
     full_model_pars = pd.DataFrame(
-        data=np.zeros((x_points.size, model_pars.shape[1])), index=gene_names, columns=model_pars.columns
+        data=np.zeros((x_points.size, model_pars.shape[1])),
+        index=gene_names,
+        columns=model_pars.columns,
     )
     for i in model_pars.columns:
         kr = statsmodels.nonparametric.kernel_regression.KernelReg(
-            model_pars[i].values, genes_log_gmean_step1[:, None], ["c"], reg_type="ll", bw=[bw]
+            model_pars[i].values,
+            genes_log_gmean_step1[:, None],
+            ["c"],
+            reg_type="ll",
+            bw=[bw],
         )
         full_model_pars[i] = kr.fit(data_predict=x_points)[0]
 
@@ -254,9 +295,9 @@ def sctransform_core(
     full_model_pars["theta"] = theta
     del full_model_pars["dispersion"]
 
-    model_pars_outliers = outliers
+    # model_pars_outliers = outliers
 
-    regressor_data = np.vstack((np.ones(cell_attrs.shape[0]), cell_attrs["log_umi"].values)).T
+    # regressor_data = np.vstack((np.ones(cell_attrs.shape[0]), cell_attrs["log_umi"].values)).T
 
     d = X.data
     x, y = X.nonzero()
