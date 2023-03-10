@@ -224,8 +224,12 @@ def streamline_clusters(
     reversed_fixedpoints: bool = False,
     **kwargs,
 ) -> None:
-    """
-    Cluster streamlines based on vector field features. Initialize a grid over the state space and a velocity grid mapping each point to a vector. Based on a given density, computes the flow of data through the grid using plt.streamplot. For each individual streamline, computes the vector field `features` of interest and stores the data via histograms. Add fixed points and "reversed fixed points" (sources of the streamlines) to the feature data dataframe based on the `assigned_fixedpoints` and `reversed_fixedpoints` args. Finally, then cluster the streamlines based on these features using the given `clustering_method`.
+    """Cluster 2D streamlines based on vector field features. Initialize a grid over the state space and compute the
+    flow of data through the grid using plt.streamplot with a given density. For each point individual streamline,
+    computes the vector field 'features' of interest and stores the data via histograms. Add fixed points and
+    "reversed fixed points" (sources of the streamlines) to the feature data dataframe based on the
+    'assigned_fixedpoints' and 'reversed_fixedpoints' args. Finally, then cluster the streamlines based on these
+    features using the given 'clustering_method'.
 
     Args:
         adata: An AnnData object representing the network to be analyzed.

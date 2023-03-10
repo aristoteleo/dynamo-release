@@ -5,11 +5,18 @@ from scipy.linalg import eig
 
 
 class FixedPoints:
-    """The FixedPoints class stores a list of fixed points and their corresponding Jacobian matrices, and provides methods for computing the eigenvalues of the Jacobian matrices, determining the stability of the fixed points, and identifying saddle points."""
+    """The FixedPoints class stores a list of fixed points and their corresponding Jacobian matrices,
+    and provides methods for computing the eigenvalues of the Jacobian matrices, determining the
+    stability of the fixed points, and identifying saddle/stable fixed points."""
 
     def __init__(self, X: Optional[np.ndarray] = None, J: Optional[np.ndarray] = None):
-        """This class represents a set of fixed points and their corresponding Jacobian matrices. The fixed points and Jacobian matrices can be provided as
-            arguments, or they can be added to the object later using the add_fixed_points method. The eigvals attribute stores the eigenvalues of the Jacobian matrices, which can be computed using the compute_eigvals method. The is_stable and is_saddle methods can be used to determine the stability and saddle-point status of the fixed points, respectively, and the get_fixed_point_types method returns a list of integers indicating the stability of each fixed point (-1 for stable, 0 for saddle, and 1 for unstable).
+        """This class represents a set of fixed points and their corresponding Jacobian matrices.
+        The fixed points and Jacobian matrices can be provided as arguments, or they can be added
+        to the object later using the add_fixed_points method. The eigvals attribute stores the
+        eigenvalues of the Jacobian matrices, which can be computed using the compute_eigvals method.
+        The is_stable and is_saddle methods can be used to determine the stability and saddle-point
+        status of the fixed points, respectively, and the get_fixed_point_types method returns a list of
+        integers indicating the stability of each fixed point (-1 for stable, 0 for saddle, and 1 for unstable).
 
         Args:
             X: array of fixed points. Defaults to None.
