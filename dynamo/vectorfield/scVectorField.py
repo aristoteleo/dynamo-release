@@ -2,7 +2,7 @@ import functools
 import itertools
 import warnings
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Union
+from typing import Callable, Dict, Tuple, Union
 
 import numpy as np
 import numpy.matlib
@@ -56,16 +56,12 @@ def norm(
     We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
 
     Args:
-        X: numpy.ndarray
-            Current state. This corresponds to, for example, the spliced transcriptomic state.
-        V: numpy.ndarray
-            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
+        X: Current state. This corresponds to, for example, the spliced transcriptomic state.
+        V: Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
             velocity estimated calculated by dynamo or velocyto, scvelo.
-        T: numpy.ndarray
-            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
+        T: Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state.
-        fix_velocity: bool, optional
-            Whether to fix velocity and don't transform it. Default is True.
+        fix_velocity: Whether to fix velocity and don't transform it. Default is True.
 
     Returns:
         Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, Dict[str, numpy.ndarray]]:
