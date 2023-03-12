@@ -34,8 +34,8 @@ class LeastActionPath(Trajectory):
         _action: The Least Action Path action values for each point in the trajectory.
 
     Methods:
-        get_t(): Returns the time points of the trajectory.
-        get_dt(): Returns the time step of the trajectory.
+        get_t(): Returns the time points of the least action path.
+        get_dt(): Returns the time step of the least action path.
         action(t=None, **interp_kwargs): Returns the Least Action Path action values at time t.
                                          If t is None, returns the action values for all time points.
                                          **interp_kwargs are passed to the interp1d function.
@@ -140,7 +140,7 @@ class GeneLeastActionPath(GeneTrajectory):
             to_pca: Transformation matrix from gene expression space to PCA space.
             from_pca: Transformation matrix from PCA space to gene expression space.
             PCs: Principal components from PCA analysis.
-            func: Vector field function transformed to PCA space.
+            func: Vector field function reconstructed within the PCA space.
             D: Diffusivity value.
             t: Array of time values.
             action: Array of action values.
@@ -203,7 +203,7 @@ class GeneLeastActionPath(GeneTrajectory):
 
         return s
 
-    def select_genewise_action(self, genes) -> np.ndarray:
+    def select_genewise_action(self, genes: Union[str, List[str]]) -> np.ndarray:
         """
         Returns the genewise action values for the specified genes.
 
@@ -288,25 +288,26 @@ def reshape_path(path_flatten, dim, start=None, end=None):
 
 
 def lap_T(
-    path_0: List[List[float]],
+    path_0: List[np.ndarray],
     T: float,
-    vf_func: Callable[[List[float]], List[float]],
-    jac_func: Callable[[List[float]], List[List[float]]],
+    vf_func: Callable[[np.ndarray], np.ndarray],
+    jac_func: Callable[[np.ndarray], np.ndarray],
     D: float = 1,
-) -> Tuple[List[List[float]], float, float]:
+) -> Tuple[np.ndarray, float, float]:
     """
     Compute a time-optimal path between two points with a given velocity field.
 
     Args:
-        path_0: A list of points representing the initial path, where each point is a list of floats.
+        path_0: An array of points representing the initial path, where each point is a list of floats.
         T: A float representing the maximum time to reach the end of the path.
-        vf_func: A function that takes a point and returns a velocity vector as a list of floats.
-        jac_func: A function that takes a point and returns the Jacobian matrix of the velocity field at that point as a list of lists of floats.
+        vf_func: A function that takes a point and returns a velocity vector as an array.
+        jac_func: A function that takes a point and returns the Jacobian matrix of the velocity field
+            at that point as an array.
         D: A float representing the cost per unit of time.
 
     Returns:
         A tuple containing the following elements:
-        - path_sol: A list of points representing the optimized path, where each point is a list of floats.
+        - path_sol: An array of points representing the optimized path.
         - dt_sol: A float representing the time step used to compute the optimized path.
         - action_opt: A float representing the minimum action (cost) of the optimized path.
     """
@@ -358,7 +359,6 @@ def least_action_path(
 
     Returns:
         A tuple containing the least action path, the optimal time step, and the minimum action value.
-
     """
     if init_path is None:
         path = (
