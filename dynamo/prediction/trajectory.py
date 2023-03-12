@@ -112,6 +112,9 @@ class Trajectory:
 
         Raises:
             ValueError: If the specified number of points is less than 2.
+
+        TODO:
+            Decide whether the tol argument should be included or not during the code refactoring and optimization.
         """
         # remove redundant points
         """if tol is not None:
@@ -319,6 +322,11 @@ class VectorFieldTrajectory(Trajectory):
 
         Returns:
             The mean squared displacement of the specified vector component in the trajectory.
+
+        TODO:
+            Discuss should we also calculate other quantities during the code refactoring and
+                optimization phase (e.g. curl, hessian, laplacian, etc).
+
         """
         V = self.data[key]
         S = (V - V[ref]) ** 2
