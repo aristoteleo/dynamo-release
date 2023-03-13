@@ -190,7 +190,11 @@ def moments(
     layers.sort(reverse=True)  # ensure we get M_us, M_tn, etc (instead of M_su or M_nt).
     for i, layer in enumerate(layers):
         layer_x = adata.layers[layer].copy()
-        layer_x_group = np.where([layer in x for x in [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+        matched_x_group = np.where([layer in x for x in [only_splicing, only_labeling, splicing_and_labeling]])
+        if len(matched_x_group[0]) == 0:
+            logger.warning(f"layer {layer} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping...")
+            continue
+        layer_x_group = matched_x_group[0][0]
         layer_x = inverse_norm(adata, layer_x)
 
         if mapper[layer] not in adata.layers.keys():
@@ -200,9 +204,13 @@ def moments(
                 else (conn.dot(layer_x), conn)
             )
         for layer2 in layers[i:]:
+            matched_group_indices = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]])
+            if len(matched_group_indices[0]) == 0:
+                logger.warning(f"layer {layer2} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping...")
+                continue
             layer_y = adata.layers[layer2].copy()
 
-            layer_y_group = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+            layer_y_group = matched_group_indices[0][0]
             # don't calculate 2 moments among uu, ul, su, sl -
             # they should be time-dependent moments and
             # those calculations are model specific
