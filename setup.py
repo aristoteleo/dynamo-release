@@ -20,18 +20,9 @@ if __name__ == "__main__":
         version="v1.2.0",
         python_requires=">=3.7",
         install_requires=read_requirements("requirements.txt"),
-        # extras_require={
-        #     "spatial": ["pysal>2.0.0"],
-        #     "interactive_plots": ["plotly"],
-        #     "network": ["networkx", "nxviz", "hiveplotlib"],
-        #     "dimension_reduction": ["fitsne>=1.0.1", "dbmap>=1.1.2"],
-        #     "test": ["sympy>=1.4", "networkx"],
-        #     "bigdata_visualization": [
-        #         "datashader>=0.9.0",
-        #         "bokeh>=1.4.0",
-        #         "holoviews>=1.9.2",
-        #     ],
-        # },
+        extras_require={
+            "docs": read_requirements(os.path.join("docs", "requirements.txt")),
+        },
         packages=find_packages(exclude=("tests", "docs")),
         classifiers=[
             "Programming Language :: Python :: 3",
