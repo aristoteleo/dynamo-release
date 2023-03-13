@@ -30,7 +30,9 @@ pynndescent>=0.5.2
 gseapy
 GitPython
 KDEpy
-
+docutils
+mock
+readthedocs-sphinx-ext
 sphinxcontrib-bibtex>=2.3
 sphinx-gallery
 typing-extensions
