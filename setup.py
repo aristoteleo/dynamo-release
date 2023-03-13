@@ -1,8 +1,7 @@
 from pathlib import Path
 
 from setuptools import find_packages, setup
-
-# import numpy as np
+import os
 # from version import __version__
 
 
