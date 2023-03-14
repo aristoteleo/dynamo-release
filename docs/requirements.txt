@@ -32,6 +32,7 @@ GitPython
 KDEpy
 docutils
 mock
+pandocfilters
 readthedocs-sphinx-ext
 sphinxcontrib-bibtex>=2.3
 sphinx-gallery
