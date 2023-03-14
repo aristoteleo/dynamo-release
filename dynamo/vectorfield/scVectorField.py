@@ -2,7 +2,7 @@ import functools
 import itertools
 import warnings
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Dict, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
 import numpy.matlib
@@ -49,7 +49,7 @@ from .utils import (
 
 
 def norm(
-    X: np.ndarray, V: np.ndarray, T: np.ndarray, fix_velocity: bool = True
+    X: np.ndarray, V: np.ndarray, T: Optional[np.ndarray] = None, fix_velocity: bool = True
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
     Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
