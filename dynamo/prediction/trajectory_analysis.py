@@ -19,6 +19,23 @@ from .trajectory import Trajectory
 
 
 def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable, in_sink_state: Callable) -> float:
+    """
+    Calculates the mean exit time (MET) from the initial state to the sink state for a list of trajectories.
+
+    Args:
+        trajectories: A list of trajectories.
+        in_init_state: A callable that takes a state as an argument and returns a boolean indicating whether
+            the state is in the initial state.
+        in_sink_state: A callable that takes a state as an argument and returns a boolean indicating whether
+            the state is in the sink state.
+
+    Returns:
+        The mean exit time from the initial state to the sink state for the list of trajectories.
+
+    Raises:
+        ValueError: If no trajectory reaches the sink state.
+
+    """
     met = []
     for traj in trajectories:
         t_init = -1
@@ -35,6 +52,24 @@ def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable,
 def calc_mean_first_passage_time(
     trajectories: List[Trajectory], in_init_state: Callable, in_target_state: Callable, in_sink_state: Callable
 ) -> float:
+    """
+    Calculates the mean first-passage time (MFPT) from the initial state to the target state for a list of trajectories.
+
+    Args:
+        trajectories: A list of trajectories.
+        in_init_state: A callable that takes a state as an argument and returns a boolean indicating whether
+            the state is in the initial state.
+        in_target_state: A callable that takes a state as an argument and returns a boolean indicating whether
+            the state is in the target state.
+        in_sink_state: A callable that takes a state as an argument and returns a boolean indicating whether
+            the state is in the sink state.
+
+    Returns:
+        The mean first-passage time from the initial state to the target state for the list of trajectories.
+
+    Raises:
+        ValueError: If no trajectory reaches the target state.
+    """
     mfpt = []
     for traj in trajectories:
         t_init = -1
@@ -51,7 +86,17 @@ def calc_mean_first_passage_time(
     return np.mean(mfpt)
 
 
-def is_in_state(x, centers, radius):
+def is_in_state(x: np.ndarray, centers: np.ndarray, radius: float) -> bool:
+    """Checks whether a point is within a given radius of any center point in a set of centers.
+
+    Args:
+        x: The point to check.
+        centers: The set of center points.
+        radius: The radius within which to consider a point to be in a state.
+
+    Returns:
+        True if the point is within the given radius of any center point, False otherwise.
+    """
     in_state = False
     if np.min(np.linalg.norm(x - np.atleast_2d(centers), axis=1)) <= radius:
         in_state = True
@@ -66,11 +111,38 @@ def mean_first_passage_time(
     xkey: Union[None, str] = None,
     tkey: str = "time",
     traj_key: str = "trajectory",
-    init_T_quantile=0.01,
-    init_state_radius=0.1,
-    sink_state_radius=0.1,
-    target_state_radius=0.1,
+    init_T_quantile: float = 0.01,
+    init_state_radius: float = 0.1,
+    sink_state_radius: float = 0.1,
+    target_state_radius: float = 0.1,
 ) -> float:
+    """Calculate the mean first passage time or mean exit time of a set of trajectories.
+
+    Args:
+        adata: The annotated data object containing the trajectories.
+        sink_states: A sink state is a state that once entered, the trajectory can never leave. If it is a callable, it should take a point in the state space as input and return True if it is in a sink state and False otherwise.
+        init_states: Specifies the initial states. If it is a callable, it should take
+            a point in the state space as input and return True if it is in an initial state and False otherwise. If
+            not specified, the initial states will be defined as the states with time points less than or equal to
+            the `init_T_quantile` percentile of all time points.
+        target_states: Specifies the target states. A target state is a state that
+            once entered, the trajectory cannot return to the initial state. If it is a callable, it should take a
+            point in the state space as input and return True if it is in a target state and False otherwise. If not
+            specified, the mean exit time will be calculated instead of the mean first passage time.
+        xkey: The key for the matrix of cell states. If None, the X attribute of the `adata` object
+            will be used. Otherwise, the X attribute of the layer or the X attribute of the obsm slot of `adata` with
+            the corresponding key will be used.
+        tkey: Specifies the key for the time points of the trajectory. Default is "time".
+        traj_key: The key for the trajectory index of each cell. Default is "trajectory".
+        init_T_quantile: A float specifying the quantile threshold for defining initial states based on time points.
+            Only used if `init_states` is not specified. Default is 0.01.
+        init_state_radius: A float specifying the radius of the initial states. Default is 0.1.
+        sink_state_radius: A float specifying the radius of the sink states. Default is 0.1.
+        target_state_radius: A float specifying the radius of the target states. Default is 0.1.
+
+    Returns:
+        The mean first passage time or mean exit time, as a float.
+    """
 
     if xkey is None:
         X = adata.X
