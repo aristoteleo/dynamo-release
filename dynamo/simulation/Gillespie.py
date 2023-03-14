@@ -45,7 +45,7 @@ def Gillespie(
         ai: transcription rate with inactive promoter
         si: sigma, degradation rate
         be: beta, splicing rate
-        ga: gamma: the fraction of labeled u turns to unlabeled s
+        ga: gamma, the fraction of labeled u turns to unlabeled s
         C0: A numpy array with dimension of 5 x n_gene. Here 5 corresponds to the five species (s - promoter state, ul,
             uu, sl, su) for each gene.
         t_span: list of between and end time of simulation

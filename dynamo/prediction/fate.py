@@ -27,7 +27,7 @@ def fate(
     init_states: Optional[np.ndarray] = None,
     basis: Optional[None] = None,
     layer: str = "X",
-    dims: Optional[Union[tuple([List[Union[np.ScalarType]]] + list(np.ScalarType))]] = None,
+    dims: Optional[Union[int, List[int], Tuple[int], np.ndarray]] = None,
     genes: Optional[List] = None,
     t_end: Optional[float] = None,
     direction: str = "both",
@@ -211,7 +211,7 @@ def _fate(
     interpolation_num: int = 250,
     average: bool = True,
     sampling: str = "arc_length",
-    cores=1,
+    cores:int = 1,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector
     field functions from one or a set of initial cell state(s).
@@ -560,17 +560,18 @@ def andecestor(
             numerical integration. If the names in init_cells not found in the adata.obs_name, it will be treated as
             cell indices and must be integers.
         init_states: Initial cell states for the historical or future cell state prediction with numerical integration.
-        basis: The embedding data to use for predicting cell fate.
+        basis: The key in `adata.obsm` that points to the embedding data to use for predicting cell fate.
         cores: Number of cores to calculate nearest neighbor graph.
         t_end: The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
-        n_neighbors: Number of nearest neighbos.
-        direction: The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
+        n_neighbors: Number of nearest neighbors.
+        direction: The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
         interpolation_num: The number of uniformly interpolated time points.
-        metric: The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
-            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If
-            metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
-            :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
+        metric: The distance metric to use for the tree.  The default metric is 'euclidean', and with p=2 is
+            equivalent to the standard Euclidean metric. See the documentation of :class:`DistanceMetric` for
+            a list of available metrics. If metric is "precomputed", X is assumed to be a distance matrix and
+            must be square during fit. X may be a :term:`sparse graph`, in which case only "nonzero" elements
+            may be considered neighbors.
         metric_kwds : Additional keyword arguments for the metric function.
         seed: Random seed to ensure the reproducibility of each run.
         kwargs: Additional arguments that will be passed to each nearest neighbor search algorithm.

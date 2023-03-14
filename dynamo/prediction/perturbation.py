@@ -37,7 +37,7 @@ def KO(
     """In silico knockout genes (and thus the vector field function) and prediction of cell fate after knockout.
 
     Args:
-        adata: an Annodata object with the vector field function for PCA learned.
+        adata: an Anndata object with the vector field function for PCA learned.
         KO_genes: The gene or list of genes that will be used to perform in-silico knockout.
         vecfld: The vector field function.
         vf_key: A key to the vector field functions in adata.uns.

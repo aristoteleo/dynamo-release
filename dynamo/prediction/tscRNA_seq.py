@@ -27,7 +27,7 @@ def get_pulse_r0(
         tkey: the key for normalized total layer in adata.layers.
         nkey: the key for normalized new layer in adata.layers.
         gamma_k_key: the key for the parameter k for each gene in adata.var.
-        add_init_r0_key: the key that will be used to store the intial total RNA estimated, in adata.layers.
+        add_init_r0_key: the key that will be used to store the initial total RNA estimated, in adata.layers.
         copy: Whether copy the adata object.
 
     Returns:

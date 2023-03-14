@@ -38,7 +38,7 @@ def init_r0_pulse(
 def init_l0_chase(
     l: Union[float, np.ndarray], gamma: Union[float, np.ndarray], t: Union[float, np.ndarray]
 ) -> Union[float, np.ndarray]:
-    """calculate initial la RNA via ODE formula of RNA kinetics for degradation experiment
+    """calculate initial labeled RNA (l0) via ODE formula of RNA kinetics for degradation experiment
 
     Note that this approach only estimate the initial labeled RNA based on first-order decay model. To get the intial r0
     we can also assume cells with extreme total RNA as steady state cells and use that to estimate transcription rate.

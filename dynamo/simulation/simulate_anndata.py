@@ -75,8 +75,8 @@ class AnnDataSimulator:
     def __init__(
         self,
         reactions: GillespieReactions,
-        C0s,
-        param_dict,
+        C0s: Optional[np.ndarray],
+        param_dict: Dict,
         species: Union[None, CellularSpecies] = None,
         gene_param_names: List = [],
         required_param_names: List = [],
@@ -247,11 +247,11 @@ class AnnDataSimulator:
 class CellularModelSimulator(AnnDataSimulator):
     def __init__(
         self,
-        gene_names: list,
-        synthesis_param_names: list,
-        param_dict: dict,
-        molecular_param_names: list = [],
-        kinetic_param_names: list = [],
+        gene_names: List,
+        synthesis_param_names: List,
+        param_dict: Dict,
+        molecular_param_names: List = [],
+        kinetic_param_names: List = [],
         C0s: Optional[np.ndarray] = None,
         r_aug: float = 1,
         tau: float = 1,
