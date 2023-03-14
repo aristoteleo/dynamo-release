@@ -1,11 +1,10 @@
-setuptools
 sphinx>=4.0.2
 sphinx-rtd-theme>=0.5.1
 sphinx_autodoc_typehints
 
 # converting notebooks to html
 ipykernel>=5.1.0
-nbsphinx>=0.8.6
+nbsphinx==0.8.11
 pygments>=2.6.1
 
 numpy>=1.18.1
@@ -31,7 +30,10 @@ pynndescent>=0.5.2
 gseapy
 GitPython
 KDEpy
-
+docutils
+mock
+pandocfilters
+readthedocs-sphinx-ext
 sphinxcontrib-bibtex>=2.3
 sphinx-gallery
 typing-extensions
