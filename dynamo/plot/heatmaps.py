@@ -37,7 +37,8 @@ def bandwidth_nrd(x):
     x = pd.Series(x)
     h = (x.quantile([0.75]).values - x.quantile([0.25]).values) / 1.34
 
-    return 4 * 1.06 * min(math.sqrt(np.var(x, ddof=1)), h) * (len(x) ** (-1 / 5))
+    res = 4 * 1.06 * min(math.sqrt(np.var(x, ddof=1)), h) * (len(x) ** (-1 / 5))
+    return np.asscalar(res) if isinstance(res, np.ndarray) else res
 
 
 def rep(x, length):
@@ -118,12 +119,8 @@ def kde2d(x, y, h=None, n=25, lims=None):
             raise Exception("bandwidths must be strictly positive")
         else:
             h /= 4
-            ax = pd.DataFrame()
-            ay = pd.DataFrame()
-            for i in range(len(x)):
-                ax[i] = (gx - x[i]) / h[0]
-            for i in range(len(y)):
-                ay[i] = (gy - y[i]) / h[1]
+            ax = pd.DataFrame((gx - x[:, np.newaxis]) / h[0]).T
+            ay = pd.DataFrame((gy - y[:, np.newaxis]) / h[1]).T
             z = (np.matrix(dnorm(ax)) * np.matrix(dnorm(ay).T)) / (nx * h[0] * h[1])
     return gx, gy, z
 
