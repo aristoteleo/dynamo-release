@@ -101,11 +101,11 @@ def kde2d(x, y, h=None, n=25, lims=None):
     if not lims:
         lims = [min(x), max(x), min(y), max(y)]
     if len(y) != nx:
-        raise Exception("data vectors must be the same length")
-    elif (False in np.isfinite(x)) or (False in np.isfinite(y)):
-        raise Exception("missing or infinite values in the data are not allowed")
-    elif False in np.isfinite(lims):
-        raise Exception("only finite values are allowed in 'lims'")
+        raise ValueError("data vectors must be the same length")
+    elif not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+        raise ValueError("missing or infinite values in the data are not allowed")
+    elif not np.all(np.isfinite(lims)):
+        raise ValueError("only finite values are allowed in 'lims'")
     else:
         n = rep(n, length=2) if isinstance(n, list) else rep([n], length=2)
         gx = np.linspace(lims[0], lims[1], n[0])
@@ -113,10 +113,10 @@ def kde2d(x, y, h=None, n=25, lims=None):
         if h is None:
             h = [bandwidth_nrd(x), bandwidth_nrd(y)]
         else:
-            h = np.array(rep(h, length=2))
+            h = np.repeat(h, 2)
 
-        if h[0] <= 0 or h[1] <= 0:
-            raise Exception("bandwidths must be strictly positive")
+        if np.any(h <= 0):
+            raise ValueError("bandwidths must be strictly positive")
         else:
             h /= 4
             ax = pd.DataFrame((gx - x[:, np.newaxis]) / h[0]).T
