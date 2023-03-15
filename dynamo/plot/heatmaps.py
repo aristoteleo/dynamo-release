@@ -113,7 +113,7 @@ def kde2d(x, y, h=None, n=25, lims=None):
         if h is None:
             h = [bandwidth_nrd(x), bandwidth_nrd(y)]
         else:
-            h = np.repeat(h, 2)
+            h = np.array(rep(h, length=2))
 
         if np.any(h <= 0):
             raise ValueError("bandwidths must be strictly positive")
