@@ -10,6 +10,7 @@ from ..dynamo_logger import LoggerManager
 from ..tools.utils import fetch_states, nearest_neighbors
 from ..vectorfield import SvcVectorField
 from ..vectorfield.utils import (
+    vecfld_from_adata,
     vector_field_function_transformation,
     vector_transformation,
 )
@@ -472,8 +473,12 @@ def least_action(
     logger = LoggerManager.gen_logger("dynamo-least-action-path")
 
     if vecfld is None:
-        vf = SvcVectorField()
-        vf.from_adata(adata, basis=basis, vf_key=vf_key)
+        vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
+        if vf_dict["method"] == "dynode":
+            vf = vf_dict["dynode_object"]
+        else:
+            vf = SvcVectorField()
+            vf.from_adata(adata, basis=basis, vf_key=vf_key)
     else:
         vf = vecfld
 
