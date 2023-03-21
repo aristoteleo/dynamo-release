@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Iterable, List, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Tuple, Union
 
 try:
     from typing import Literal
@@ -14,8 +14,12 @@ import scipy
 import scipy.sparse
 import statsmodels.api as sm
 from anndata import AnnData
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse.linalg import LinearOperator, svds
+from scipy.sparse import csc_matrix, csr_matrix, issparse
 from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.utils import check_random_state
+from sklearn.utils.extmath import svd_flip
+from sklearn.utils.sparsefuncs import mean_variance_axis
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import (
@@ -774,6 +778,71 @@ def decode(adata: anndata.AnnData) -> None:
 # ---------------------------------------------------------------------------------------------------
 # pca
 
+def _truncatedSVD_with_center(
+    X: Union[csc_matrix, csr_matrix],
+    n_components: int = 30,
+    random_state: int = 0,
+) -> Dict:
+    """Center a sparse matrix and perform truncated SVD on it.
+
+    Args:
+        X: The input sparse matrix to perform truncated SVD on.
+        n_components: The number of components to keep. Default is 30.
+        random_state: Seed for the random number generator. Default is 0.
+
+    Returns:
+        A dictionary containing the following keys:
+        - 'X_pca': The transformed input matrix.
+        - 'components_': The right singular vectors of the input matrix.
+        - 'explained_variance_ratio_': The amount of variance explained by each
+          principal component.
+    """
+    random_state = check_random_state(random_state)
+    np.random.set_state(random_state.get_state())
+    v0 = random_state.uniform(-1, 1, np.min(X.shape))
+
+    mean = X.mean(0)
+    X_H = X.T.conj()
+    mean_H = mean.T.conj()
+    ones = np.ones(X.shape[0])[None, :].dot
+
+    def matvec(x):
+        return X.dot(x) - mean.dot(x)
+
+    def matmat(x):
+        return X.dot(x) - mean.dot(x)
+
+    def rmatvec(x):
+        return X_H.dot(x) - mean_H.dot(ones(x))
+
+    def rmatmat(x):
+        return X_H.dot(x) - mean_H.dot(ones(x))
+
+    X_centered = LinearOperator(
+        shape=X.shape,
+        matvec=matvec,
+        matmat=matmat,
+        rmatvec=rmatvec,
+        rmatmat=rmatmat,
+        dtype=X.dtype,
+    )
+
+    U, Sigma, VT = svds(X_centered , k=n_components, v0=v0)
+    Sigma = Sigma[::-1]
+    U, VT = svd_flip(U[:, ::-1], VT[::-1])
+    X_transformed = U * Sigma
+    components_ = VT
+    exp_var = np.var(X_transformed, axis=0)
+    _, full_var = mean_variance_axis(X, axis=0)
+    full_var = full_var.sum()
+
+    fit = {
+        "X_pca": X_transformed,
+        "components_": components_,
+        "explained_variance_ratio_": exp_var / full_var,
+    }
+
+    return fit
 
 def pca_monocle(
     adata: AnnData,
