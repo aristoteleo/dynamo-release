@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 try:
     from typing import Literal
@@ -6,7 +6,6 @@ except ImportError:
     from typing_extensions import Literal
 
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 
 from ..configuration import DKM
@@ -21,8 +20,7 @@ from ..external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
-from ..tools.connectivity import neighbors as default_neighbors
-from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
+from .preprocess import pca_monocle
 from .preprocessor_utils import _infer_labeling_experiment_type
 from .preprocessor_utils import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
@@ -37,6 +35,7 @@ from .preprocessor_utils import (
     select_genes_by_dispersion_general,
 )
 from .utils import (
+    basic_stats,
     collapse_species_adata,
     convert2symbol,
     convert_layers2csr,
@@ -48,22 +47,22 @@ from .utils import (
 class Preprocessor:
     def __init__(
         self,
-        collapse_speicies_adata_function: Callable = collapse_species_adata,
+        collapse_species_adata_function: Callable = collapse_species_adata,
         convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = monocle_filter_cells_by_outliers,
-        filter_cells_by_outliers_kwargs: dict = {},
+        filter_cells_by_outliers_kwargs: Dict[str, Any] = {},
         filter_genes_by_outliers_function: Callable = monocle_filter_genes_by_outliers,
-        filter_genes_by_outliers_kwargs: dict = {},
+        filter_genes_by_outliers_kwargs: Dict[str, Any] = {},
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
-        normalize_by_cells_function_kwargs: dict = {},
+        normalize_by_cells_function_kwargs: Dict[str, Any] = {},
         select_genes_function: Callable = select_genes_by_dispersion_general,
-        select_genes_kwargs: dict = {},
+        select_genes_kwargs: Dict[str, Any] = {},
         normalize_selected_genes_function: Callable = None,
-        normalize_selected_genes_kwargs: dict = {},
+        normalize_selected_genes_kwargs: Dict[str, Any] = {},
         use_log1p: bool = True,
-        log1p_kwargs: dict = {},
+        log1p_kwargs: Dict[str, Any] = {},
         pca_function: bool = pca_monocle,
-        pca_kwargs: dict = {},
+        pca_kwargs: Dict[str, Any] = {},
         gene_append_list: List[str] = [],
         gene_exclude_list: List[str] = [],
         force_gene_list: Optional[List[str]] = None,
@@ -77,7 +76,7 @@ class Preprocessor:
         attributes directly to your own implementation.
 
         Args:
-            collapse_speicies_adata_function: function for collapsing the species data. Defaults to
+            collapse_species_adata_function: function for collapsing the species data. Defaults to
                 collapse_species_adata.
             convert_gene_name_function: transform gene names, by default convert2symbol, which transforms unofficial
                 gene names to official gene names. Defaults to convert2symbol.
@@ -104,6 +103,7 @@ class Preprocessor:
             sctransform_kwargs: arguments passed into sctransform function. Defaults to {}.
         """
 
+        self.basic_stats = basic_stats
         self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
         self.log1p = log1p_adata
@@ -122,7 +122,7 @@ class Preprocessor:
 
         # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
-        self.collapse_species_adata = collapse_speicies_adata_function
+        self.collapse_species_adata = collapse_species_adata_function
         self.gene_append_list = gene_append_list
         self.gene_exclude_list = gene_exclude_list
         self.force_gene_list = force_gene_list
@@ -225,22 +225,19 @@ class Preprocessor:
 
         adata.uns["pp"] = {}
         adata.uns["pp"]["norm_method"] = None
+        self.basic_stats(adata)
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
-        main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
+        main_info_insert_adata("experiment_type=%s" % adata.uns["pp"]["experiment_type"], "uns['pp']", indent_level=2)
+
         main_info("making adata observation index unique...")
-        self.unique_var_obs_adata(adata)
         self.convert_layers2csr(adata)
+        self.collapse_species_adata(adata)
 
-        if self.collapse_species_adata:
-            main_info("applying collapse species adata...")
-            self.collapse_species_adata(adata)
-
-        if self.convert_gene_name:
-            main_info("applying convert_gene_name function...")
-            self.convert_gene_name(adata)
-            main_info("making adata observation index unique after gene name conversion...")
-            self.unique_var_obs_adata(adata)
+        main_info("applying convert_gene_name function...")
+        self.convert_gene_name(adata)
+        main_info("making adata observation index unique after gene name conversion...")
+        self.unique_var_obs_adata(adata)
 
     def _filter_cells_by_outliers(self, adata: AnnData) -> None:
         """Select valid cells based on the method specified as the preprocessor's `filter_cells_by_outliers`.
@@ -390,8 +387,7 @@ class Preprocessor:
             gene_selection_method: Which sorting method to be used to select genes. Defaults to "SVR".
         """
 
-        n_obs, n_genes = adata.n_obs, adata.n_vars
-        n_cells = n_obs
+        n_cells, n_genes = adata.n_obs, adata.n_vars
         self.use_log1p = False
         self.filter_cells_by_outliers = monocle_filter_cells_by_outliers
         self.filter_cells_by_outliers_kwargs = {
@@ -471,7 +467,7 @@ class Preprocessor:
         self._filter_cells_by_outliers(adata)
         self._select_genes(adata)
 
-        # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.
+        # gene selection has been completed. Now we need to append/delete/force selected gene list required by users.
         self._append_gene_list(adata)
         self._exclude_gene_list(adata)
         self._force_gene_list(adata)

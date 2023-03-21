@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -1057,7 +1057,7 @@ def get_sum_in_range_mask(
 
 
 def filter_cells_by_outliers(
-    adata: anndata.AnnData,
+    adata: AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
     keep_filtered: bool = False,
@@ -1067,12 +1067,13 @@ def filter_cells_by_outliers(
     max_expr_genes_s: float = np.inf,
     max_expr_genes_u: float = np.inf,
     max_expr_genes_p: float = np.inf,
-    shared_count: Union[int, None] = None,
+    max_pmito_s: Optional[float] = None,
+    shared_count: Optional[int] = None,
     spliced_key="spliced",
     unspliced_key="unspliced",
     protein_key="protein",
     obs_store_key="pass_basic_filter",
-) -> anndata.AnnData:
+) -> AnnData:
     """Select valid cells based on a collection of filters including spliced, unspliced and protein min/max vals.
 
     Args:
@@ -1092,6 +1093,7 @@ def filter_cells_by_outliers(
             Defaults to np.inf.
         max_expr_genes_p: maximal number of protein with expression for a cell in the data from the protein layer.
             Defaults to np.inf.
+        max_pmito_s: maximal percentage of mitochondrial genes for a cell in the data from the spliced layer.
         shared_count: the minimal shared number of counts for each cell across genes between layers. Defaults to None.
         spliced_key: name of the layer storing spliced data. Defaults to "spliced".
         unspliced_key: name of the layer storing unspliced data. Defaults to "unspliced".
@@ -1130,19 +1132,21 @@ def filter_cells_by_outliers(
         adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
     )
 
-    if filter_bool is None:
-        filter_bool = detected_bool
-    else:
-        filter_bool = np.array(filter_bool) & detected_bool
+    if max_pmito_s is not None:
+        detected_bool = detected_bool & (adata.obs["pMito"] < max_pmito_s)
+        main_info(
+            "filtered out %d cells by %f%% of mitochondrial genes for a cell."
+            % (adata.n_obs - (adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s),
+            indent_level=2,
+        )
+
+    filter_bool = detected_bool if filter_bool is None else np.array(filter_bool) & detected_bool
 
     main_info_insert_adata_obs(obs_store_key)
-    if keep_filtered:
-        main_info("keep filtered cell", indent_level=2)
-        adata.obs[obs_store_key] = filter_bool
-    else:
-        main_info("inplace subsetting adata by filtered cells", indent_level=2)
+    adata.obs[obs_store_key] = filter_bool
+
+    if not keep_filtered:
         adata._inplace_subset_obs(filter_bool)
-        adata.obs[obs_store_key] = True
 
     return adata
 
