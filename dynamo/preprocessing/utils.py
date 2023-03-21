@@ -917,18 +917,28 @@ def pca_monocle(
         X_data = X_data[:, valid_ind]
 
     USE_TRUNCATED_SVD_THRESHOLD = 100000
-    if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+    if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD and not issparse(X_data):
         pca = PCA(
             n_components=min(n_pca_components, X_data.shape[1] - 1),
             svd_solver="arpack",
             random_state=0,
         )
-        fit = pca.fit(X_data.toarray()) if issparse(X_data) else pca.fit(X_data)
-        X_pca = fit.transform(X_data.toarray()) if issparse(X_data) else fit.transform(X_data)
+        fit = pca.fit(X_data)
+        X_pca = fit.transform(X_data)
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
+    elif adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD and issparse(X_data):
+        fit = _truncatedSVD_with_center(
+            X_data,
+            n_components=min(n_pca_components, X_data.shape[1] - 1),
+            random_state=0,
+        )
+        adata.obsm[pca_key] = fit["X_pca"]
+        adata.uns[pcs_key] = fit["components_"].T
+
+        adata.uns["explained_variance_ratio_"] = fit["explained_variance_ratio_"]
     else:
         # unscaled PCA
         fit = TruncatedSVD(
@@ -942,7 +952,6 @@ def pca_monocle(
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-    adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
     adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
 
     if return_all:
