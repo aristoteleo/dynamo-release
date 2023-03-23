@@ -32,6 +32,7 @@ from .preprocessor_utils import (
     is_log1p_transformed_adata,
     log1p_adata,
     normalize_cell_expr_by_size_factors,
+    regress_out,
     select_genes_by_dispersion_general,
 )
 from .utils import (
@@ -116,7 +117,7 @@ class Preprocessor:
         self.select_genes = select_genes_function
         self.normalize_selected_genes = normalize_selected_genes_function
         self.use_log1p = use_log1p
-
+        self.regress_out = regress_out
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
 
@@ -365,6 +366,17 @@ class Preprocessor:
             main_info("applying log1p transformation on expression matrix data (adata.X)...")
             self.log1p(adata, **self.log1p_kwargs)
 
+    def _regress_out(self, adata: AnnData) -> None:
+        """Perform pca reduction with args specified in the preprocessor's `pca_kwargs`.
+
+        Args:
+            adata: an AnnData object.
+        """
+
+        if self.regress_out:
+            main_info("regressing out...")
+            self.regress_out(adata, adata.obs["nCounts"])
+
     def _pca(self, adata: AnnData) -> None:
         """Perform pca reduction with args specified in the preprocessor's `pca_kwargs`.
 
@@ -442,7 +454,7 @@ class Preprocessor:
         # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
         self.pca = pca_monocle
-        self.pca_kwargs = {"pca_key": "X_pca"}
+        self.pca_kwargs = {"pca_key": "X_pca", "layer": "spliced"}
 
     def preprocess_adata_monocle(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -476,7 +488,32 @@ class Preprocessor:
         self._normalize_by_cells(adata)
 
         self._log1p(adata)
+
+        print(adata.var.use_for_pca.values)
+        X_data = adata.X[:, adata.var.use_for_pca.values]
+        print(X_data)
+
+        Xs_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
+        print(Xs_data)
+
+        import timeit
+
+        import scanpy as sc
+
+        starttime = timeit.default_timer()
+        # self._regress_out(adata)
+        # sc.pp.regress_out(adata, ['nCounts'])
+        # print("The process time of _regress_out is :", timeit.default_timer() - starttime)
+        # X_data = adata.X[:, adata.var.use_for_pca.values]
+        # print(X_data)
+
+        self._regress_out(adata)
+        Xss_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
+        print(Xss_data)
+
+        starttime = timeit.default_timer()
         self._pca(adata)
+        print("The time difference of _pca is :", timeit.default_timer() - starttime)
 
         temp_logger.finish_progress(progress_name="preprocess")
 

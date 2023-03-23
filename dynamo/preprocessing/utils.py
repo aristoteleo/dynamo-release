@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Iterable, List, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -854,6 +854,7 @@ def pca_monocle(
             svd_solver="arpack",
             random_state=0,
         )
+
         fit = pca.fit(X_data.toarray()) if issparse(X_data) else pca.fit(X_data)
         X_pca = fit.transform(X_data.toarray()) if issparse(X_data) else fit.transform(X_data)
         adata.obsm[pca_key] = X_pca
@@ -1127,9 +1128,9 @@ def calc_new_to_total_ratio(adata: anndata.AnnData) -> Union[Tuple[np.ndarray, n
 
 
 def scale(
-    adata: anndata.AnnData,
+    adata: AnnData,
     layers: Union[List[str], str, None] = None,
-    scale_to_layer: Union[str, None] = None,
+    scale_to_layer: Optional[str] = None,
     scale_to: float = 1e6,
 ) -> anndata.AnnData:
     """Scale layers to a particular total expression value, similar to `normalize_expr_data` function.
@@ -1145,19 +1146,19 @@ def scale(
         The scaled AnnData object.
     """
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
-    has_splicing, has_labeling, _ = detect_experiment_datatype(adata)
-
-    if scale_to_layer is None:
-        scale_to_layer = "total" if has_labeling else None
-        scale = scale_to / adata.layers[scale_to_layer].sum(1)
-    else:
-        scale = None
+    # if layers is None:
+    #     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers="all")
+    # has_splicing, has_labeling = detect_experiment_datatype(adata)[:2]
+    #
+    # if scale_to_layer is None:
+    #     scale_to_layer = "total" if has_labeling else None
+    #     scale = scale_to / adata.layers[scale_to_layer].sum(1)
+    # else:
+    #     scale = None
 
     for layer in layers:
-        if scale is None:
-            scale = scale_to / adata.layers[layer].sum(1)
-
+        # if scale is None:
+        scale = scale_to / adata.layers[layer].sum(1)
         adata.layers[layer] = csr_matrix(adata.layers[layer].multiply(scale))
 
     return adata

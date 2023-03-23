@@ -13,6 +13,7 @@ import scipy.sparse
 from anndata import AnnData
 from scipy.sparse import csr_matrix, spmatrix
 from scipy.sparse.base import issparse
+from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
 from sklearn.utils import sparsefuncs
 
@@ -34,24 +35,15 @@ from ..utils import copy_adata
 from .preprocess_monocle_utils import top_table
 from .utils import (
     Freeman_Tukey,
-    add_noise_to_duplicates,
-    basic_stats,
-    calc_new_to_total_ratio,
-    clusters_stats,
-    collapse_species_adata,
     compute_gene_exp_fraction,
-    convert2symbol,
-    convert_layers2csr,
-    cook_dist,
-    detect_experiment_datatype,
     get_inrange_shared_counts_mask,
     get_svr_filter,
     get_sz_exprs,
     merge_adata_attrs,
     normalize_mat_monocle,
     pca_monocle,
+    scale,
     sz_util,
-    unique_var_obs_adata,
 )
 
 
@@ -1542,3 +1534,33 @@ def pca_selected_genes_wrapper(
     """
 
     adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
+
+
+def regress_out(adata: AnnData, vars_to_regress):
+    # Perform linear regression to remove the effects of given variables
+    # expr_matrix = adata.layers["X_spliced"] # TODO: adata will support X layer in the future?
+    expr_matrix = adata.X[:, adata.var.use_for_pca.values]
+    regression_model = LinearRegression().fit(expr_matrix, vars_to_regress)
+
+    print(regression_model.score(expr_matrix, vars_to_regress))
+    print(regression_model.coef_)
+    print(regression_model.intercept_)
+    type(vars_to_regress)
+
+    ret = np.dot(vars_to_regress.to_numpy().reshape(-1, 1), regression_model.coef_.reshape(1, -1))
+    print(ret.shape)
+
+    residuals = expr_matrix - ret  # regression_model.predict(vars_to_regress.to_numpy().reshape(1, -1))
+    # adata.layers["X_spliced"][:, adata.var.use_for_pca.values] = residuals
+    cnt = 0
+    for i, col in enumerate(adata.var.use_for_pca.values):
+        if col == True:
+            adata.layers["X_spliced"][:, i] = residuals[:, cnt]
+            cnt += 1
+
+    print(cnt)
+    # Scale the residuals
+    # scaled_residuals = scale(adata, layers=["X_spliced"])
+
+    # Return the corrected expression matrix
+    # return scaled_residuals
