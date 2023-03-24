@@ -836,13 +836,13 @@ def _truncatedSVD_with_center(
     _, full_var = mean_variance_axis(X, axis=0)
     full_var = full_var.sum()
 
-    fit = {
+    result_dict = {
         "X_pca": X_transformed,
         "components_": components_,
         "explained_variance_ratio_": exp_var / full_var,
     }
 
-    return fit
+    return result_dict
 
 def pca_monocle(
     adata: AnnData,
@@ -930,15 +930,22 @@ def pca_monocle(
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     elif adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD and issparse(X_data):
-        fit = _truncatedSVD_with_center(
+        result_dict = _truncatedSVD_with_center(
             X_data,
             n_components=min(n_pca_components, X_data.shape[1] - 1),
             random_state=0,
         )
-        adata.obsm[pca_key] = fit["X_pca"]
-        adata.uns[pcs_key] = fit["components_"].T
-
-        adata.uns["explained_variance_ratio_"] = fit["explained_variance_ratio_"]
+        fit = PCA(
+            n_components=min(n_pca_components, X_data.shape[1] - 1),
+            random_state=0,
+        )
+        X_pca = result_dict["X_pca"]
+        fit.components_ = result_dict["components_"]
+        fit.explained_variance_ratio_ = result_dict["explained_variance_ratio_"]
+        # TODO: further optimize this after removing sklearn TruncatedSVD
+        adata.obsm[pca_key] = result_dict["X_pca"]
+        adata.uns[pcs_key] = result_dict["components_"].T
+        adata.uns["explained_variance_ratio_"] = result_dict["explained_variance_ratio_"]
     else:
         # unscaled PCA
         fit = TruncatedSVD(
