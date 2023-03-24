@@ -67,7 +67,8 @@ class Preprocessor:
         gene_append_list: List[str] = [],
         gene_exclude_list: List[str] = [],
         force_gene_list: Optional[List[str]] = None,
-        sctransform_kwargs={},
+        sctransform_kwargs: Dict[str, Any] = {},
+        regress_out_kwargs: Dict[List[str], Any] = {},
     ) -> None:
         """Preprocessor constructor.
 
@@ -102,6 +103,7 @@ class Preprocessor:
             gene_exclude_list: exclude a list of genes in monocle recipe pipeline. Defaults to [].
             force_gene_list: use this gene list as selected genes in monocle recipe pipeline. Defaults to None.
             sctransform_kwargs: arguments passed into sctransform function. Defaults to {}.
+            regress_out_kwargs: arguments passed into regress_out function. Defaults to {}.
         """
 
         self.basic_stats = basic_stats
@@ -135,6 +137,7 @@ class Preprocessor:
         self.select_genes_kwargs = select_genes_kwargs
         self.sctransform_kwargs = sctransform_kwargs
         self.normalize_selected_genes_kwargs = normalize_selected_genes_kwargs
+        self.regress_out_kwargs = regress_out_kwargs
 
     def add_experiment_info(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -375,7 +378,7 @@ class Preprocessor:
 
         if self.regress_out:
             main_info("regressing out...")
-            self.regress_out(adata, adata.obs["nCounts"])
+            self.regress_out(adata, **self.regress_out_kwargs)
 
     def _pca(self, adata: AnnData) -> None:
         """Perform pca reduction with args specified in the preprocessor's `pca_kwargs`.
@@ -453,8 +456,9 @@ class Preprocessor:
 
         # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
+        self.regress_out_kwargs = {"variables": ["nCounts", "pMito", "testDummy"]}
         self.pca = pca_monocle
-        self.pca_kwargs = {"pca_key": "X_pca", "layer": "spliced"}
+        self.pca_kwargs = {"pca_key": "X_pca", "layer": "residuals_for_pca"}
 
     def preprocess_adata_monocle(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -500,16 +504,21 @@ class Preprocessor:
 
         import scanpy as sc
 
-        starttime = timeit.default_timer()
-        # self._regress_out(adata)
+        # starttime = timeit.default_timer()
         # sc.pp.regress_out(adata, ['nCounts'])
         # print("The process time of _regress_out is :", timeit.default_timer() - starttime)
         # X_data = adata.X[:, adata.var.use_for_pca.values]
         # print(X_data)
 
+        starttime = timeit.default_timer()
         self._regress_out(adata)
-        Xss_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
-        print(Xss_data)
+        print("The process time of _regress_out is :", timeit.default_timer() - starttime)
+        X_data = adata.obsm["X_residuals_for_pca"]
+        print(X_data)
+
+        starttime = timeit.default_timer()
+        sc.pp.pca(adata, svd_solver="arpack")
+        print("The time difference of sc.pp.pca is :", timeit.default_timer() - starttime)
 
         starttime = timeit.default_timer()
         self._pca(adata)

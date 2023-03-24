@@ -13,7 +13,6 @@ import scipy.sparse
 from anndata import AnnData
 from scipy.sparse import csr_matrix, spmatrix
 from scipy.sparse.base import issparse
-from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
 from sklearn.utils import sparsefuncs
 
@@ -1536,31 +1535,41 @@ def pca_selected_genes_wrapper(
     adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
 
 
-def regress_out(adata: AnnData, vars_to_regress):
-    # Perform linear regression to remove the effects of given variables
-    # expr_matrix = adata.layers["X_spliced"] # TODO: adata will support X layer in the future?
-    expr_matrix = adata.X[:, adata.var.use_for_pca.values]
-    regression_model = LinearRegression().fit(expr_matrix, vars_to_regress)
+def regress_out(adata: AnnData, variables: Optional[List[str]] = None):
+    """Perform linear regression to remove the effects of given variables from a target variable.
 
-    print(regression_model.score(expr_matrix, vars_to_regress))
-    print(regression_model.coef_)
-    print(regression_model.intercept_)
-    type(vars_to_regress)
+    Args:
+        adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
+        variables : List of observation keys to remove
 
-    ret = np.dot(vars_to_regress.to_numpy().reshape(-1, 1), regression_model.coef_.reshape(1, -1))
-    print(ret.shape)
+    Returns:
+        numpy array: Residuals after removing the effects of given variables
+    """
+    from sklearn.linear_model import LinearRegression
 
-    residuals = expr_matrix - ret  # regression_model.predict(vars_to_regress.to_numpy().reshape(1, -1))
-    # adata.layers["X_spliced"][:, adata.var.use_for_pca.values] = residuals
-    cnt = 0
-    for i, col in enumerate(adata.var.use_for_pca.values):
-        if col == True:
-            adata.layers["X_spliced"][:, i] = residuals[:, cnt]
-            cnt += 1
+    # Create a new feature matrix without the variables to remove
+    X_new = adata.X[:, adata.var.use_for_pca.values].toarray()  # TODO: Check X or splice. Also, use_for_pca.
+    y_new = X_new  # for the cases when variables are more than 1.
 
-    print(cnt)
-    # Scale the residuals
-    # scaled_residuals = scale(adata, layers=["X_spliced"])
+    for variable in variables:
+        if variable not in adata.obs.keys():
+            main_warning("No %s in adata.obs.keys")
+            continue
 
-    # Return the corrected expression matrix
-    # return scaled_residuals
+        # Select the variables to remove
+        X_remove = adata.obs[variable].to_numpy().reshape(-1, 1)
+
+        # Fit a linear regression model to the variables to remove
+        reg = LinearRegression().fit(X_remove, y_new)
+
+        # Predict the effects of the variables to remove
+        y_pred = reg.predict(X_remove)
+
+        # Remove the effects of the variables from the target variable
+        y_new -= y_pred
+
+    # Fit a linear regression model to the new feature matrix
+    reg_new = LinearRegression().fit(X_new, y_new)
+
+    # Predict the residuals after removing the effects of the variables and save to "X_residuals_for_pca"
+    adata.obsm["X_residuals_for_pca"] = reg_new.predict(X_new)

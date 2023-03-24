@@ -824,6 +824,8 @@ def pca_monocle(
                 X_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
             elif "protein" in layer:
                 X_data = adata.obsm["X_protein"]
+            elif "residuals_for_pca" in layer:
+                X_data = adata.obsm["X_residuals_for_pca"]
             elif type(layer) is str:
                 X_data = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
             else:
@@ -849,14 +851,24 @@ def pca_monocle(
 
     USE_TRUNCATED_SVD_THRESHOLD = 100000
     if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+        import timeit
+
+        starttime = timeit.default_timer()
+
         pca = PCA(
             n_components=min(n_pca_components, X_data.shape[1] - 1),
             svd_solver="arpack",
             random_state=0,
         )
-
+        print("The process time of PCA is :", timeit.default_timer() - starttime)
+        starttime = timeit.default_timer()
         fit = pca.fit(X_data.toarray()) if issparse(X_data) else pca.fit(X_data)
+        print("The process time of fit is :", timeit.default_timer() - starttime)
+
+        starttime = timeit.default_timer()
         X_pca = fit.transform(X_data.toarray()) if issparse(X_data) else fit.transform(X_data)
+        print("The process time of transform is :", timeit.default_timer() - starttime)
+
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
 
