@@ -920,7 +920,7 @@ def pca_monocle(
     if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD and not issparse(X_data):
         pca = PCA(
             n_components=min(n_pca_components, X_data.shape[1] - 1),
-            svd_solver="arpack",
+            svd_solver="randomized",
             random_state=0,
         )
         fit = pca.fit(X_data)
