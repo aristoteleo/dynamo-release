@@ -1554,7 +1554,9 @@ def highest_frac_genes(
         index=adata.obs_names,
         columns=gene_names,
     )
-    gene_percents_df = pd.Series(gene_percents, index=_adata.var_names)
+    gene_percents_df = pd.DataFrame(
+        gene_percents, index=_adata.var_names, columns=["percent"]
+    )  # Series is not appropriate for h5ad format.
 
     main_info_insert_adata_uns(store_key)
     adata.uns[store_key] = {

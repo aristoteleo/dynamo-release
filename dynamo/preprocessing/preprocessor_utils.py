@@ -561,7 +561,6 @@ def SVRs(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             adata = adata_ori[cell_inds, gene_inds].copy()
-        filter_bool = filter_bool[gene_inds]
 
     for layer in layers:
         if layer == "raw":
@@ -666,7 +665,9 @@ def SVRs(
         )
 
         key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
-        adata_ori.uns[key] = {"SVR": fitted_fun}
+        adata_ori.uns[key] = {
+            "SVR_gamma": svr_gamma
+        }  # Just save gamma value for more efficient memory uses and data saving operation.
 
     adata_ori = merge_adata_attrs(adata_ori, adata, attr="var")
 
