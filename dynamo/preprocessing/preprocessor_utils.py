@@ -1553,7 +1553,7 @@ def regress_out(adata: AnnData, variables: Optional[List[str]] = None):
 
     for variable in variables:
         if variable not in adata.obs.keys():
-            main_warning("No %s in adata.obs.keys")
+            main_warning("No %s in adata.obs.keys" % (variable))
             continue
 
         # Select the variables to remove
