@@ -22,6 +22,7 @@ def prepare_dim_reduction(
     dims=None,
     n_pca_components=30,
     n_components=2,
+    optimized=False,
 ):
     if genes is not None:
         genes = adata.var_names.intersection(genes).to_list()
@@ -99,8 +100,9 @@ def prepare_dim_reduction(
                     n_pca_components=n_pca_components,
                     pca_key=pca_key,
                     return_all=True,
+                    optimized=optimized,
                 )
-                adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+                # adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
                 # valid genes used for dimension reduction calculation
                 adata.uns["pca_valid_ind"] = valid_ind
@@ -123,8 +125,8 @@ def prepare_dim_reduction(
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, fit, _ = pca_monocle(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
-            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+            adata, fit, _ = pca_monocle(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True, optimized=optimized)
+            # adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
             # valid genes used for dimension reduction calculation
             adata.uns["pca_valid_ind"] = valid_ind

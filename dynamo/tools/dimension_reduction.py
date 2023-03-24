@@ -25,6 +25,7 @@ def reduceDimension(
     enforce: bool = False,
     cores: int = 1,
     copy: bool = False,
+    optimized=False,
     **kwargs,
 ) -> Union[anndata.AnnData, None]:
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear
@@ -88,6 +89,7 @@ def reduceDimension(
             dims=dims,
             n_pca_components=n_pca_components,
             n_components=n_components,
+            optimized=optimized,
         )
     if basis[:2] + reduction_method in adata.obsm_keys():
         has_basis = True

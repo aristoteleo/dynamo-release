@@ -1,7 +1,7 @@
 import warnings
 from collections.abc import Iterable
 from typing import Callable, List, Optional, Tuple, Union
-
+import time
 try:
     from typing import Literal
 except ImportError:
@@ -1285,7 +1285,10 @@ def recipe_monocle(
     logger.info("applying %s ..." % (method.upper()))
 
     if method == "pca":
+        start_t = time.time()
         adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower())
+        end_t = time.time()
+        print("pca time: ", end_t-start_t)
         # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
