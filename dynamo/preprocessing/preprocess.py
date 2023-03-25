@@ -14,6 +14,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
 from sklearn.utils import sparsefuncs
+from memory_profiler import profile
 
 from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
@@ -725,7 +726,7 @@ def filter_genes_by_outliers_legacy(
 
     return adata
 
-
+@profile()
 def recipe_monocle(
     adata: anndata.AnnData,
     reset_X: bool = False,
@@ -761,6 +762,7 @@ def recipe_monocle(
     sg_kwargs: Union[dict, None] = None,
     copy: bool = False,
     feature_selection_layer: Union[List[str], np.ndarray, np.array, str] = DKM.X_LAYER,
+    optimized=False,
 ) -> Union[anndata.AnnData, None]:
     """The monocle style preprocessing recipe.
 
@@ -1286,7 +1288,7 @@ def recipe_monocle(
 
     if method == "pca":
         start_t = time.time()
-        adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower())
+        adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower(), optimized=optimized)
         end_t = time.time()
         print("pca time: ", end_t-start_t)
         # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead

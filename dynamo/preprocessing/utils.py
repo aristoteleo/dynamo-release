@@ -20,6 +20,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import svd_flip
 from sklearn.utils.sparsefuncs import mean_variance_axis
+from memory_profiler import profile
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import (
