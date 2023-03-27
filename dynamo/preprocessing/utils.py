@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Iterable, List, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -853,6 +853,9 @@ def pca_monocle(
     genes_to_append: Union[List[str], None] = None,
     layer: Union[List[str], str, None] = None,
     return_all: bool = False,
+    random_state: int = 0,
+    use_IPCA: bool = False,
+    IPCA_batch_size: Optional[int] = None,
 ) -> Union[AnnData, Tuple[AnnData, Union[PCA, TruncatedSVD], np.ndarray]]:
     """Perform PCA reduction for monocle recipe.
 
@@ -861,20 +864,30 @@ def pca_monocle(
         X_data: the data to perform dimension reduction on. Defaults to None.
         n_pca_components: number of PCA components reduced to. Defaults to 30.
         pca_key: the key to store the reduced data. Defaults to "X".
-        pcs_key: the key to store the principle axes in feature space. Defaults to "PCs".
+        pcs_key: the key to store the principle axes in feature space. Defaults
+            to "PCs".
         genes_to_append: a list of genes should be inspected. Defaults to None.
-        layer: the layer(s) to perform dimension reduction on. Would be overrided by X_data. Defaults to None.
-        return_all: whether to return the PCA fit model and the reduced array together with the updated AnnData object.
+        layer: the layer(s) to perform dimension reduction on. Would be
+            overrided by X_data. Defaults to None.
+        return_all: whether to return the PCA fit model and the reduced array
+            together with the updated AnnData object.
             Defaults to False.
+        random_state: the seed used to initialize the random state for PCA.
+        use_IPCA: whether to use Incremental PCA. Recommend enabling IPCA when
+            dataset is too large to fit in memory.
+        IPCA_batch_size: The number of samples to use for each batch when
+            performing IPCA. If batch_size is None, then batch_size is inferred
+            from the data and set to 5 * n_features.
 
     Raises:
         ValueError: layer provided is not invalid.
         ValueError: list of genes to append is invalid.
 
     Returns:
-        The the updated AnnData object with reduced data if `return_all` is False. Otherwise, a tuple (adata, fit,
-        X_pca), where adata is the updated AnnData object, fit is the fit model for dimension reduction, and X_pca is
-        the reduced array, will be returned.
+        The updated AnnData object with reduced data if `return_all` is False.
+        Otherwise, a tuple (adata, fit, X_pca), where adata is the updated
+        AnnData object, fit is the fit model for dimension reduction, and X_pca
+        is the reduced array, will be returned.
     """
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
@@ -917,47 +930,55 @@ def pca_monocle(
         X_data = X_data[:, valid_ind]
 
     USE_TRUNCATED_SVD_THRESHOLD = 100000
-    if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD and not issparse(X_data):
-        pca = PCA(
+    if use_IPCA:
+        from sklearn.decomposition import IncrementalPCA
+        fit = IncrementalPCA(
             n_components=min(n_pca_components, X_data.shape[1] - 1),
-            svd_solver="randomized",
-            random_state=0,
-        )
-        fit = pca.fit(X_data)
+            batch_size=IPCA_batch_size,
+        ).fit(X_data)
         X_pca = fit.transform(X_data)
+    else:
+        if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+            if not issparse(X_data):
+                fit = PCA(
+                    n_components=min(n_pca_components, X_data.shape[1] - 1),
+                    svd_solver="randomized",
+                    random_state=random_state,
+                ).fit(X_data)
+                X_pca = fit.transform(X_data)
+            else:
+                result_dict = _truncatedSVD_with_center(
+                    X_data,
+                    n_components=min(n_pca_components, X_data.shape[1] - 1),
+                    random_state=random_state,
+                )
+                fit = PCA(
+                    n_components=min(n_pca_components, X_data.shape[1] - 1),
+                    random_state=random_state,
+                )
+                X_pca = result_dict["X_pca"]
+                fit.components_ = result_dict["components_"]
+                fit.explained_variance_ratio_ = result_dict[
+                    "explained_variance_ratio_"]
+        else:
+            # unscaled PCA
+            fit = TruncatedSVD(
+                n_components=min(n_pca_components + 1, X_data.shape[1] - 1),
+                random_state=random_state,
+            )
+            # first columns is related to the total UMI (or library size)
+            X_pca = fit.fit_transform(X_data)[:, 1:]
+    if use_IPCA or adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
-
-        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
-    elif adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD and issparse(X_data):
-        result_dict = _truncatedSVD_with_center(
-            X_data,
-            n_components=min(n_pca_components, X_data.shape[1] - 1),
-            random_state=0,
-        )
-        fit = PCA(
-            n_components=min(n_pca_components, X_data.shape[1] - 1),
-            random_state=0,
-        )
-        X_pca = result_dict["X_pca"]
-        fit.components_ = result_dict["components_"]
-        fit.explained_variance_ratio_ = result_dict["explained_variance_ratio_"]
-        # TODO: further optimize this after removing sklearn TruncatedSVD
-        adata.obsm[pca_key] = result_dict["X_pca"]
-        adata.uns[pcs_key] = result_dict["components_"].T
-        adata.uns["explained_variance_ratio_"] = result_dict["explained_variance_ratio_"]
+        adata.uns[
+            "explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
-        # unscaled PCA
-        fit = TruncatedSVD(
-            n_components=min(n_pca_components + 1, X_data.shape[1] - 1),
-            random_state=0,
-        )
         # first columns is related to the total UMI (or library size)
-        X_pca = fit.fit_transform(X_data)[:, 1:]
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T[:, 1:]
-
-        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+        adata.uns[
+            "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
     adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
 
