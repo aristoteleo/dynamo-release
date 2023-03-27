@@ -785,6 +785,9 @@ def _truncatedSVD_with_center(
 ) -> Dict:
     """Center a sparse matrix and perform truncated SVD on it.
 
+    This function is inspired by the implementation of scanpy
+    (https://github.com/scverse/scanpy).
+
     Args:
         X: The input sparse matrix to perform truncated SVD on.
         n_components: The number of components to keep. Default is 30.
@@ -968,18 +971,17 @@ def pca_monocle(
             )
             # first columns is related to the total UMI (or library size)
             X_pca = fit.fit_transform(X_data)[:, 1:]
+
+    adata.obsm[pca_key] = X_pca
     if use_IPCA or adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
-        adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
         adata.uns[
             "explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
         # first columns is related to the total UMI (or library size)
-        adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T[:, 1:]
         adata.uns[
             "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-
     adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
 
     if return_all:
