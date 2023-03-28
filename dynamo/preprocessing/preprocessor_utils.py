@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -495,6 +495,88 @@ def select_genes_by_dispersion_svr(
     return mean.flatten(), variance, highly_variable_mask, highly_variable_scores
 
 
+# Highly variable gene selection function:
+def get_highvar_genes_sparse(
+    expression: Union[
+        np.ndarray,
+        scipy.sparse.csr_matrix,
+        scipy.sparse.csc_matrix,
+        scipy.sparse.coo_matrix,
+    ],
+    expected_fano_threshold: Optional[float] = None,
+    numgenes: Optional[int] = None,
+    minimal_mean: float = 0.5,
+) -> Tuple[pd.DataFrame, Dict]:
+    """Find highly-variable genes in sparse single-cell data matrices.
+
+    Args:
+        expression: Gene expression matrix
+        expected_fano_threshold: Optionally can be used to set a manual dispersion threshold (for definition of
+            "highly-variable")
+        numgenes: Optionally can be used to find the n most variable genes
+        minimal_mean: Sets a threshold on the minimum mean expression to consider
+
+    Returns:
+        gene_counts_stats: Results dataframe containing pertinent information for each gene
+        gene_fano_parameters: Additional informative dictionary (w/ records of dispersion for each gene, threshold,
+        etc.)
+    """
+    gene_mean = np.array(expression.mean(axis=0)).astype(float).reshape(-1)
+    E2 = expression.copy()
+    E2.data **= 2
+    gene2_mean = np.array(E2.mean(axis=0)).reshape(-1)
+    gene_var = pd.Series(gene2_mean - (gene_mean**2))
+    del E2
+    gene_mean = pd.Series(gene_mean)
+    gene_fano = gene_var / gene_mean
+
+    # Find parameters for expected fano line -- this line can be non-linear...
+    top_genes = gene_mean.sort_values(ascending=False)[:20].index
+    A = (np.sqrt(gene_var) / gene_mean)[top_genes].min()
+
+    w_mean_low, w_mean_high = gene_mean.quantile([0.10, 0.90])
+    w_fano_low, w_fano_high = gene_fano.quantile([0.10, 0.90])
+    winsor_box = (
+        (gene_fano > w_fano_low) & (gene_fano < w_fano_high) & (gene_mean > w_mean_low) & (gene_mean < w_mean_high)
+    )
+    fano_median = gene_fano[winsor_box].median()
+    B = np.sqrt(fano_median)
+
+    gene_expected_fano = (A**2) * gene_mean + (B**2)
+    fano_ratio = gene_fano / gene_expected_fano
+
+    # Identify high var genes
+    if numgenes is not None:
+        highvargenes = fano_ratio.sort_values(ascending=False).index[:numgenes]
+        high_var_genes_ind = fano_ratio.index.isin(highvargenes)
+        T = None
+    else:
+        if not expected_fano_threshold:
+            T = 1.0 + gene_fano[winsor_box].std()
+        else:
+            T = expected_fano_threshold
+
+        high_var_genes_ind = (fano_ratio > T) & (gene_mean > minimal_mean)
+
+    gene_counts_stats = pd.DataFrame(
+        {
+            "mean": gene_mean,
+            "var": gene_var,
+            "fano": gene_fano,
+            "expected_fano": gene_expected_fano,
+            "high_var": high_var_genes_ind,
+            "fano_ratio": fano_ratio,
+        }
+    )
+    gene_fano_parameters = {
+        "A": A,
+        "B": B,
+        "T": T,
+        "minimal_mean": minimal_mean,
+    }
+    return (gene_counts_stats, gene_fano_parameters)
+
+
 def SVRs(
     adata_ori: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
@@ -641,11 +723,19 @@ def SVRs(
         if svr_gamma is None:
             svr_gamma = 150.0 / len(mu)
         # Fit the Support Vector Regression
-        clf = SVR(gamma=svr_gamma)
-        clf.fit(log_m[:, None], log_cv)
+        clf = SVR(kernel="rbf", gamma=svr_gamma)
+        # clf.fit(log_m[:, None], log_cv)
+
+        (gene_counts_stats, gene_fano_parameters) = get_highvar_genes_sparse(valid_CM)
+        target = np.array(gene_counts_stats["fano"]).flatten()
+        ground = np.array(gene_counts_stats["mean"]).flatten()[:, None]
+        clf.fit(ground, target)
+
         fitted_fun = clf.predict
-        ff = fitted_fun(log_m[:, None])
-        score = log_cv - ff
+        # ff = fitted_fun(log_m[:, None])
+        # score = log_cv - ff
+        ff = fitted_fun(ground)
+        score = target - ff
         if sort_inverse:
             score = -score
 
@@ -660,8 +750,8 @@ def SVRs(
             adata.var.loc[detected_bool, prefix + "log_cv"],
             adata.var.loc[detected_bool, prefix + "score"],
         ) = (
-            np.array(log_m).flatten(),
-            np.array(log_cv).flatten(),
+            np.array(ground).flatten(),
+            np.array(target).flatten(),
             np.array(score).flatten(),
         )
 
