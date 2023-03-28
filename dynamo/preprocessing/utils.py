@@ -785,8 +785,12 @@ def _truncatedSVD_with_center(
 ) -> Dict:
     """Center a sparse matrix and perform truncated SVD on it.
 
-    This function is inspired by the implementation of scanpy
-    (https://github.com/scverse/scanpy).
+    It uses `scipy.sparse.linalg.LinearOperator` to express the centered sparse
+    input by given matrix-vector and matrix-matrix products. Then truncated
+    singular value decomposition (SVD) can be solved without calculating the
+    individual entries of the centered matrix. The right singular vectors after
+    decomposition represent the principal components. This function is inspired
+    by the implementation of scanpy (https://github.com/scverse/scanpy).
 
     Args:
         X: The input sparse matrix to perform truncated SVD on.
