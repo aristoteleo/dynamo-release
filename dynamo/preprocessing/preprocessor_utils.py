@@ -1548,7 +1548,7 @@ def regress_out_parallel(adata: AnnData, variables: Optional[List[str]] = None, 
         numpy array: Residuals after removing the effects of given variables
     """
 
-    from multiprocessing import Pool
+    from multiprocessing import Pool as ThreadPool
 
     from sklearn.linear_model import LinearRegression
 
@@ -1580,9 +1580,11 @@ def regress_out_parallel(adata: AnnData, variables: Optional[List[str]] = None, 
     )
 
     # Create a pool of work processes
-    with Pool(n_cores) as pool:
-        results = pool.map(regress_out_chunk, chunks)
+    pool = ThreadPool(n_cores)
 
+    results = pool.starmap(regress_out_chunk, chunks)
+    pool.close()
+    pool.join()
     residuals = np.concatenate(results, axis=0)  # np.vstack(results)
 
     # Fit a linear regression model to the new feature matrix
