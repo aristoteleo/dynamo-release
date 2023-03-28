@@ -668,9 +668,9 @@ def select_genes_monocle(
     adata: anndata.AnnData,
     layer: str = "X",
     total_szfactor: str = "total_Size_Factor",
-    keep_filtered: bool = True,
     sort_by: Literal["SVR", "gini", "dispersion"] = "SVR",
     n_top_genes: int = 2000,
+    keep_filtered: bool = True,
     SVRs_kwargs: dict = {},
     only_bools: bool = False,
     exprs_frac_for_gene_exclusion: float = 1,
@@ -1456,8 +1456,9 @@ def normalize_cell_expr_by_size_factors(
             main_info_insert_adata_obsm("X_" + layer)
             adata.layers["X_" + layer] = CM
 
-        main_info_insert_adata_uns("pp.norm_method")
-        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
+        # _norm_methods are different for each layers. Currently it saves only the last norm_method. Is it a bug?
+        # main_info_insert_adata_uns("pp.norm_method")
+        # adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
 
     return adata
 
@@ -1535,41 +1536,87 @@ def pca_selected_genes_wrapper(
     adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
 
 
-def regress_out(adata: AnnData, variables: Optional[List[str]] = None):
+def regress_out_parallel(adata: AnnData, variables: Optional[List[str]] = None, n_cores: int = 8):
     """Perform linear regression to remove the effects of given variables from a target variable.
 
     Args:
         adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
         variables : List of observation keys to remove
+        n_cores : Change this to the number of cores on your system for parallel computing.
+
+    Returns:
+        numpy array: Residuals after removing the effects of given variables
+    """
+
+    from multiprocessing import Pool
+
+    from sklearn.linear_model import LinearRegression
+
+    for variable in variables.copy():
+        if variable not in adata.obs.keys():
+            main_warning("No %s in adata.obs.keys" % variable)
+            variables.remove(variable)
+
+    # TODO: Only for use_for_pca. For entire regress out, parallel computation implementation is needed.
+    x_prev = adata.X[:, adata.var.use_for_pca.values]
+
+    # Split the input data into chunks for parallel processing
+    chunk_size = x_prev.shape[0] // n_cores
+
+    chunks = [
+        (
+            x_prev[i * chunk_size : (i + 1) * chunk_size],
+            adata.obs[i * chunk_size : (i + 1) * chunk_size].to_numpy().reshape(-1, 1),
+            variables,
+        )
+        for i in range(n_cores - 1)
+    ]
+    chunks.append(
+        (
+            x_prev[(n_cores - 1) * chunk_size :],
+            adata.obs[(n_cores - 1) * chunk_size :].to_numpy().reshape(-1, 1),
+            variables,
+        )
+    )
+
+    # Create a pool of work processes
+    with Pool(n_cores) as pool:
+        results = pool.map(regress_out_chunk, chunks)
+
+    residuals = np.concatenate(results, axis=0)  # np.vstack(results)
+
+    # Fit a linear regression model to the new feature matrix
+    reg_new = LinearRegression().fit(x_prev, residuals)
+
+    # Predict the residuals after removing the effects of the variables and save to "X_residuals_for_pca"
+    adata.obsm["X_residuals_for_pca"] = reg_new.predict(x_prev)
+
+
+def regress_out_chunk(args):
+    """Perform linear regression to remove the effects of given variables from a target variable.
+
+    Args:
+        adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
+        variables : List of observation keys to remove
+        n_cores : Change this to the number of cores on your system for parallel computing.
 
     Returns:
         numpy array: Residuals after removing the effects of given variables
     """
     from sklearn.linear_model import LinearRegression
 
-    # Create a new feature matrix without the variables to remove
-    X_new = adata.X[:, adata.var.use_for_pca.values].toarray()  # TODO: Check X or splice. Also, use_for_pca.
-    y_new = X_new  # for the cases when variables are more than 1.
+    adata_chunk, remove, variables = args
+    # x_new = chunk[:, chunk.]
+    y_new = adata_chunk.toarray()  # for the cases when variables are more than 1.
 
     for variable in variables:
-        if variable not in adata.obs.keys():
-            main_warning("No %s in adata.obs.keys" % (variable))
-            continue
-
-        # Select the variables to remove
-        X_remove = adata.obs[variable].to_numpy().reshape(-1, 1)
-
         # Fit a linear regression model to the variables to remove
-        reg = LinearRegression().fit(X_remove, y_new)
+        reg = LinearRegression().fit(remove, y_new)
 
         # Predict the effects of the variables to remove
-        y_pred = reg.predict(X_remove)
+        y_pred = reg.predict(remove)
 
         # Remove the effects of the variables from the target variable
         y_new -= y_pred
 
-    # Fit a linear regression model to the new feature matrix
-    reg_new = LinearRegression().fit(X_new, y_new)
-
-    # Predict the residuals after removing the effects of the variables and save to "X_residuals_for_pca"
-    adata.obsm["X_residuals_for_pca"] = reg_new.predict(X_new)
+    return y_new

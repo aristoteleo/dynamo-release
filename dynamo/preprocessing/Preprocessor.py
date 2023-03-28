@@ -32,7 +32,7 @@ from .preprocessor_utils import (
     is_log1p_transformed_adata,
     log1p_adata,
     normalize_cell_expr_by_size_factors,
-    regress_out,
+    regress_out_parallel,
     select_genes_by_dispersion_general,
 )
 from .utils import (
@@ -119,7 +119,7 @@ class Preprocessor:
         self.select_genes = select_genes_function
         self.normalize_selected_genes = normalize_selected_genes_function
         self.use_log1p = use_log1p
-        self.regress_out = regress_out
+        self.regress_out = regress_out_parallel
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
 
@@ -392,7 +392,11 @@ class Preprocessor:
             self.pca(adata, **self.pca_kwargs)
 
     def config_monocle_recipe(
-        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"
+        self,
+        adata: AnnData,
+        n_top_genes: int = 2000,
+        gene_selection_method: str = "SVR",
+        regress_out_obs_keys: Optional[List[str]] = None,
     ) -> None:
         """Automatically configure the preprocessor for monocle recipe.
 
@@ -400,6 +404,7 @@ class Preprocessor:
             adata: an AnnData object.
             n_top_genes: Number of top feature genes to select in the preprocessing step. Defaults to 2000.
             gene_selection_method: Which sorting method to be used to select genes. Defaults to "SVR".
+            regress_out_obs_keys: The keys in adata.obs to be regressed out from normalized adata.X.
         """
 
         n_cells, n_genes = adata.n_obs, adata.n_vars
@@ -456,7 +461,7 @@ class Preprocessor:
 
         # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
-        self.regress_out_kwargs = {"variables": ["nCounts", "pMito", "testDummy"]}
+        self.regress_out_kwargs = {"variables": regress_out_obs_keys}
         self.pca = pca_monocle
         self.pca_kwargs = {"pca_key": "X_pca", "layer": "residuals_for_pca"}
 
@@ -491,34 +496,33 @@ class Preprocessor:
         self._normalize_selected_genes(adata)
         self._normalize_by_cells(adata)
 
-        self._log1p(adata)
+        self._log1p(adata)  # Always done in normalization process. Do we need this process explictly?
 
         print(adata.var.use_for_pca.values)
-        X_data = adata.X[:, adata.var.use_for_pca.values]
+        X_data = adata.X.toarray()  # [:, adata.var.use_for_pca.values]
         print(X_data)
-
-        Xs_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
-        print(Xs_data)
 
         import timeit
 
         import scanpy as sc
 
+        # print("--------------------Scanpy regress out----------------------")
         # starttime = timeit.default_timer()
-        # sc.pp.regress_out(adata, ['nCounts'])
+        # sc.pp.regress_out(adata, ["nCounts", "pMito"])
         # print("The process time of _regress_out is :", timeit.default_timer() - starttime)
         # X_data = adata.X[:, adata.var.use_for_pca.values]
         # print(X_data)
 
+        print("--------------------My regress out----------------------")
         starttime = timeit.default_timer()
         self._regress_out(adata)
         print("The process time of _regress_out is :", timeit.default_timer() - starttime)
-        X_data = adata.obsm["X_residuals_for_pca"]
+        X_data = adata.obsm["X_residuals_for_pca"][:, adata.var.use_for_pca.values]
         print(X_data)
 
-        starttime = timeit.default_timer()
-        sc.pp.pca(adata, svd_solver="arpack")
-        print("The time difference of sc.pp.pca is :", timeit.default_timer() - starttime)
+        # starttime = timeit.default_timer()
+        # sc.pp.pca(adata, svd_solver="arpack")
+        # print("The time difference of sc.pp.pca is :", timeit.default_timer() - starttime)
 
         starttime = timeit.default_timer()
         self._pca(adata)
@@ -729,6 +733,7 @@ class Preprocessor:
             "monocle", "seurat", "sctransform", "pearson_residuals", "monocle_pearson_residuals"
         ] = "monocle",
         tkey: Optional[str] = None,
+        regress_out: Optional[List[str]] = None,
     ) -> None:
         """Preprocess the AnnData object with the recipe specified.
 
@@ -736,13 +741,14 @@ class Preprocessor:
             adata: An AnnData object.
             recipe: The recipe used to preprocess the data. Defaults to "monocle".
             tkey: the key for time information (labeling time period for the cells) in .obs. Defaults to None.
+            regress_out: The key for regressing out in .obs.
 
         Raises:
             NotImplementedError: the recipe is invalid.
         """
 
         if recipe == "monocle":
-            self.config_monocle_recipe(adata)
+            self.config_monocle_recipe(adata, regress_out_obs_keys=regress_out)
             self.preprocess_adata_monocle(adata, tkey=tkey)
         elif recipe == "seurat":
             self.config_seurat_recipe(adata)
