@@ -605,17 +605,9 @@ def sz_util(
                     total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
                 adata.layers["_total_"] = total
 
-    if layer == "raw":
-        CM = adata.raw.X if CM is None else CM
-    elif layer == "X":
-        CM = adata.X if CM is None else CM
-    elif layer == "protein":
-        if "protein" in adata.obsm_keys():
-            CM = adata.obsm["protein"] if CM is None else CM
-        else:
-            return None, None
-    else:
-        CM = adata.layers[layer] if CM is None else CM
+    CM = DKM.select_layer_data(adata, layer) if CM is None else CM
+    if CM is None:
+        return None, None
 
     if round_exprs:
         main_info("rounding expression data of layer: %s during size factor calculation" % (layer))

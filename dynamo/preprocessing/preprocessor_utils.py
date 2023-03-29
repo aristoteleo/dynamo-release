@@ -1276,11 +1276,10 @@ def calc_sz_factor(
     if "raw" in layers and _adata.raw is None:
         _adata.raw = _adata.copy()
 
-    excluded_layers = []
-    if not X_total_layers:
-        excluded_layers.extend(["X"])
-    if not splicing_total_layers:
-        excluded_layers.extend(["spliced", "unspliced"])
+    excluded_layers = DKM.get_excluded_layers(
+        X_total_layers=X_total_layers,
+        splicing_total_layers=splicing_total_layers,
+    )
 
     for layer in layers:
         if layer in excluded_layers:
@@ -1399,11 +1398,10 @@ def normalize_cell_expr_by_size_factors(
             scale_to=scale_to,
         )
 
-    excluded_layers = []
-    if not X_total_layers:
-        excluded_layers.extend(["X"])
-    if not splicing_total_layers:
-        excluded_layers.extend(["spliced", "unspliced"])
+    excluded_layers = DKM.get_excluded_layers(
+        X_total_layers=X_total_layers,
+        splicing_total_layers=splicing_total_layers,
+    )
 
     main_info("size factor normalize following layers: " + str(layers))
     for layer in layers:

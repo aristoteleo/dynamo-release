@@ -62,16 +62,18 @@ class DynamoAdataKeyManager:
         )
 
     def select_layer_data(adata: AnnData, layer: str, copy=False) -> pd.DataFrame:
-        """select layer data based on layer key. The default layer is X layer in adata.
-        For layer-like data such as X stored in adata.X (but not in adata.layers) and protein data specified by dynamo convention,
-        this utility provides an unified interface for selecting layer data with shape n_obs x n_var."""
+        """select layer data based on layer key. The default layer is X layer in
+        adata. For layer-like data such as X stored in adata.X (but not in
+        adata.layers) and protein data specified by dynamo convention, this
+        utility provides an unified interface for selecting layer data with
+        shape n_obs x n_var."""
         if layer is None:
             layer = DynamoAdataKeyManager.X_LAYER
         res_data = None
         if layer == DynamoAdataKeyManager.X_LAYER:
             res_data = adata.X
         elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
-            res_data = adata.obsm["protein"]
+            res_data = adata.obsm["protein"] if "protein" in adata.obsm_keys() else None
         else:
             res_data = adata.layers[layer]
         if copy:
@@ -137,6 +139,17 @@ class DynamoAdataKeyManager:
     def init_uns_pp_namespace(adata: AnnData):
         adata.uns[DynamoAdataKeyManager.UNS_PP_KEY] = {}
 
+    def get_excluded_layers(
+        X_total_layers: bool = False,
+        splicing_total_layers: bool = False
+    ):
+        """ Get a list of excluded layers based on the provided arguments."""
+        excluded_layers = []
+        if not X_total_layers:
+            excluded_layers.extend(["X"])
+        if not splicing_total_layers:
+            excluded_layers.extend(["spliced", "unspliced"])
+        return excluded_layers
 
 # TODO discuss alias naming convention
 DKM = DynamoAdataKeyManager
