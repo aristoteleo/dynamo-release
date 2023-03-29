@@ -723,7 +723,7 @@ def SVRs(
         if svr_gamma is None:
             svr_gamma = 150.0 / len(mu)
         # Fit the Support Vector Regression
-        clf = SVR(kernel="rbf", gamma=svr_gamma)
+        clf = SVR(gamma=svr_gamma)
         # clf.fit(log_m[:, None], log_cv)
 
         (gene_counts_stats, gene_fano_parameters) = get_highvar_genes_sparse(valid_CM)
