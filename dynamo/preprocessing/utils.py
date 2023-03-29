@@ -856,6 +856,9 @@ def pca_monocle(
     return_all: bool = False,
     optimized: bool = False,
     user_threshold: int = None,
+    random_state: int = 0,
+    use_IPCA: bool = False,
+    IPCA_batch_size = None,
 ) -> Union[AnnData, Tuple[AnnData, Union[PCA, TruncatedSVD], np.ndarray]]:
     """Perform PCA reduction for monocle recipe.
 
@@ -921,44 +924,55 @@ def pca_monocle(
     USE_TRUNCATED_SVD_THRESHOLD = user_threshold if user_threshold else 100000
     print("sparse input, ", issparse(X_data))
     if optimized:
-        if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD and not issparse(X_data):
-
-            pca = PCA(
+        if use_IPCA:
+            from sklearn.decomposition import IncrementalPCA
+            fit = IncrementalPCA(
                 n_components=min(n_pca_components, X_data.shape[1] - 1),
-                svd_solver="arpack",
-                random_state=0,
-            )
-            fit = pca.fit(X_data)
+                batch_size=IPCA_batch_size,
+            ).fit(X_data)
             X_pca = fit.transform(X_data)
-
-            adata.obsm[pca_key] = X_pca
-            adata.uns[pcs_key] = fit.components_.T
-
-            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
-        elif adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD and issparse(X_data):
-            fit = _truncatedSVD_with_center(
-                X_data,
-                n_components=min(n_pca_components, X_data.shape[1] - 1),
-                random_state=0,
-            )
-            X_pca = fit["X_pca"]
-            adata.obsm[pca_key] = fit["X_pca"]
-            adata.uns[pcs_key] = fit["components_"].T
-
-            adata.uns["explained_variance_ratio_"] = fit["explained_variance_ratio_"]
-            print(fit)
         else:
-            # unscaled PCA
-            fit = TruncatedSVD(
-                n_components=min(n_pca_components + 1, X_data.shape[1] - 1),
-                random_state=0,
-            )
-            # first columns is related to the total UMI (or library size)
-            X_pca = fit.fit_transform(X_data)[:, 1:]
-            adata.obsm[pca_key] = X_pca
-            adata.uns[pcs_key] = fit.components_.T[:, 1:]
+            if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+                if not issparse(X_data):
+                    fit = PCA(
+                        n_components=min(n_pca_components, X_data.shape[1] - 1),
+                        svd_solver="randomized",
+                        random_state=random_state,
+                    ).fit(X_data)
+                    X_pca = fit.transform(X_data)
+                else:
+                    result_dict = _truncatedSVD_with_center(
+                        X_data,
+                        n_components=min(n_pca_components, X_data.shape[1] - 1),
+                        random_state=random_state,
+                    )
+                    fit = PCA(
+                        n_components=min(n_pca_components, X_data.shape[1] - 1),
+                        random_state=random_state,
+                    )
+                    X_pca = result_dict["X_pca"]
+                    fit.components_ = result_dict["components_"]
+                    fit.explained_variance_ratio_ = result_dict[
+                        "explained_variance_ratio_"]
+            else:
+                # unscaled PCA
+                fit = TruncatedSVD(
+                    n_components=min(n_pca_components + 1, X_data.shape[1] - 1),
+                    random_state=random_state,
+                )
+                # first columns is related to the total UMI (or library size)
+                X_pca = fit.fit_transform(X_data)[:, 1:]
 
-            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+        adata.obsm[pca_key] = X_pca
+        if use_IPCA or adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+            adata.uns[pcs_key] = fit.components_.T
+            adata.uns[
+                "explained_variance_ratio_"] = fit.explained_variance_ratio_
+        else:
+            # first columns is related to the total UMI (or library size)
+            adata.uns[pcs_key] = fit.components_.T[:, 1:]
+            adata.uns[
+                "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
     else:
         if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
             pca = PCA(
