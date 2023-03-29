@@ -18,7 +18,6 @@ from ..dynamo_logger import (
 )
 from ..external import (
     normalize_layers_pearson_residuals,
-    sctransform,
     select_genes_by_pearson_residuals,
 )
 from ..tools.connectivity import neighbors as default_neighbors
@@ -36,6 +35,7 @@ from .preprocessor_utils import (
     normalize_cell_expr_by_size_factors,
     select_genes_by_dispersion_general,
 )
+from .sctransform import sctransform
 from .utils import (
     collapse_species_adata,
     convert2symbol,

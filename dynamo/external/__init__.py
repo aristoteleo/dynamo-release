@@ -9,7 +9,6 @@ from .pearson_residual_recipe import (
 )
 from .scifate import scifate_glmnet
 from .scribe import coexp_measure, coexp_measure_mat, scribe
-from .sctransform import sctransform
 
 __all__ = [
     "enrichr",
@@ -20,5 +19,4 @@ __all__ = [
     "coexp_measure",
     "coexp_measure_mat",
     "scribe",
-    "sctransform",
 ]
