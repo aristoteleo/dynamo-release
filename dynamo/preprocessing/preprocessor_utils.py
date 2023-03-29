@@ -1263,14 +1263,11 @@ def calc_sz_factor(
                 _adata = _adata[:, _adata.var_names.intersection(genes_use_for_norm)]
 
     if total_layers is not None:
-        if not isinstance(total_layers, list):
-            total_layers = [total_layers]
-        if len(set(total_layers).difference(_adata.layers.keys())) == 0:
-            total = None
-            for t_key in total_layers:
-                total = _adata.layers[t_key] if total is None else total + _adata.layers[t_key]
-            _adata.layers["_total_"] = total
-            layers.extend(["_total_"])
+        total_layers, layers = DKM.aggregate_layers_into_total(
+            _adata,
+            layers=layers,
+            total_layers=total_layers,
+        )
 
     layers = DKM.get_available_layer_keys(_adata, layers)
     if "raw" in layers and _adata.raw is None:
@@ -1385,18 +1382,16 @@ def normalize_cell_expr_by_size_factors(
     layer_sz_column_names.extend(["Size_Factor"])
     # layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
     layers_to_sz = list(set(layer_sz_column_names))
-    if len(layers_to_sz) > 0:
-        layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
-        if "Size_Factor" in layers:
-            layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
-        calc_sz_factor(
-            adata,
-            layers=layers,
-            locfunc=np.nanmean,
-            round_exprs=True,
-            method=sz_method,
-            scale_to=scale_to,
-        )
+    layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
+    layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
+    calc_sz_factor(
+        adata,
+        layers=layers,
+        locfunc=np.nanmean,
+        round_exprs=True,
+        method=sz_method,
+        scale_to=scale_to,
+    )
 
     excluded_layers = DKM.get_excluded_layers(
         X_total_layers=X_total_layers,

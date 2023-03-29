@@ -597,13 +597,11 @@ def sz_util(
 
     if layer == "_total_" and "_total_" not in adata.layers.keys():
         if total_layers is not None:
-            if not isinstance(total_layers, list):
-                total_layers = [total_layers]
-            if len(set(total_layers).difference(adata.layers.keys())) == 0:
-                total = None
-                for t_key in total_layers:
-                    total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
-                adata.layers["_total_"] = total
+            total_layers, _ = DKM.aggregate_layers_into_total(
+                adata,
+                total_layers=total_layers,
+                extend_layers=False,
+            )
 
     CM = DKM.select_layer_data(adata, layer) if CM is None else CM
     if CM is None:

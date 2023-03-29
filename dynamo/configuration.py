@@ -1,4 +1,5 @@
 import warnings
+from typing import List, Union
 
 import colorcet
 import matplotlib
@@ -150,6 +151,24 @@ class DynamoAdataKeyManager:
         if not splicing_total_layers:
             excluded_layers.extend(["spliced", "unspliced"])
         return excluded_layers
+
+    def aggregate_layers_into_total(
+        _adata: AnnData,
+        layers: Union[str, List[str]] = "all",
+        total_layers: Union[List[str], None] = None,
+        extend_layers: bool = True,
+    ):
+        """Create a total layer in adata by aggregating multiple layers."""
+        if not isinstance(total_layers, list):
+            total_layers = [total_layers]
+        if len(set(total_layers).difference(_adata.layers.keys())) == 0:
+            total = None
+            for t_key in total_layers:
+                total = _adata.layers[t_key] if total is None else total + _adata.layers[t_key]
+            _adata.layers["_total_"] = total
+            if extend_layers:
+                layers.extend(["_total_"])
+        return total_layers, layers
 
 # TODO discuss alias naming convention
 DKM = DynamoAdataKeyManager
