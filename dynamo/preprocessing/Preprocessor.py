@@ -16,7 +16,7 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_warning,
 )
-from ..external import (
+from .external import (
     normalize_layers_pearson_residuals,
     select_genes_by_pearson_residuals,
 )

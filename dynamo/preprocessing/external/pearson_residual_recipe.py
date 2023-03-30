@@ -16,19 +16,19 @@ import scipy.sparse as sp_sparse
 from anndata import AnnData
 from scipy.sparse import issparse
 
-from ..configuration import DKM
-from ..dynamo_logger import (
+from ...configuration import DKM
+from ...dynamo_logger import (
     LoggerManager,
     main_info,
     main_info_insert_adata_layer,
     main_warning,
 )
-from ..preprocessing.preprocessor_utils import (
+from ...preprocessing.preprocessor_utils import (
     filter_genes_by_outliers,
     is_nonnegative_integer_arr,
     seurat_get_mean_var,
 )
-from ..preprocessing.utils import pca_monocle
+from ...preprocessing.utils import pca_monocle
 
 main_logger = LoggerManager.main_logger
 
