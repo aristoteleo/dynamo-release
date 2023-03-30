@@ -1551,9 +1551,6 @@ def regress_out_parallel(
         selected_genes: the key in adata.var that contains boolean for showing genes` filtering results. For example, "use_for_pca" is selected then it will regress out only for the genes that are True for "use_for_pca". This input will decrease processing time of regressing out data.
         n_cores: Change this to the number of cores on your system for parallel computing.
         obsm_store_key: the key to store the regress out result. Defaults to "X_residuals_for_pca".
-
-    Returns:
-        numpy array: Residuals after removing the effects of given variables
     """
 
     if len(variables) < 1:
@@ -1631,7 +1628,9 @@ def regress_out_parallel(
     adata.obsm[obsm_store_key] = res
 
 
-def regress_out_chunk(X, y):
+def regress_out_chunk(
+    X: Union[np.ndarray, spmatrix, list], y: Union[np.ndarray, spmatrix, list]
+) -> Union[np.ndarray, spmatrix, list]:
     """Perform linear regression to remove the effects of given variables from a target variable.
 
     Args:
