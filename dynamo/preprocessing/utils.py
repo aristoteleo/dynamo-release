@@ -825,7 +825,11 @@ def pca_monocle(
             elif "protein" in layer:
                 X_data = adata.obsm["X_protein"]
             elif "residuals_for_pca" in layer:
-                X_data = adata.obsm["X_residuals_for_pca"]
+                X_data = (
+                    adata.obsm["X_residuals_for_pca"]
+                    if "X_residuals_for_pca" in adata.obsm.keys()
+                    else adata.X[:, adata.var.use_for_pca.values]
+                )
             elif type(layer) is str:
                 X_data = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
             else:

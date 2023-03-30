@@ -1536,89 +1536,115 @@ def pca_selected_genes_wrapper(
     adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
 
 
-def regress_out_parallel(adata: AnnData, variables: Optional[List[str]] = None, n_cores: int = 8):
+def regress_out_parallel(
+    adata: AnnData,
+    variables: Optional[List[str]] = None,
+    selected_genes: Optional[str] = None,
+    n_cores: int = 1,
+    obsm_store_key: str = "X_residuals_for_pca",
+):
     """Perform linear regression to remove the effects of given variables from a target variable.
 
     Args:
         adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
-        variables : List of observation keys to remove
-        n_cores : Change this to the number of cores on your system for parallel computing.
+        variables: List of observation keys to remove
+        selected_genes: the key in adata.var that contains boolean for showing genes` filtering results. For example, "use_for_pca" is selected then it will regress out only for the genes that are True for "use_for_pca". This input will decrease processing time of regressing out data.
+        n_cores: Change this to the number of cores on your system for parallel computing.
+        obsm_store_key: the key to store the regress out result. Defaults to "X_residuals_for_pca".
 
     Returns:
         numpy array: Residuals after removing the effects of given variables
     """
 
-    from multiprocessing import Pool as ThreadPool
+    if len(variables) < 1:
+        main_warning("No variable to regress out")
+        return
 
-    from sklearn.linear_model import LinearRegression
+    if selected_genes is None:
+        x_prev = adata.X
+    else:
+        if selected_genes not in adata.var.keys():
+            raise ValueError(str(selected_genes) + " is not a key in adata.var")
 
-    for variable in variables.copy():
-        if variable not in adata.obs.keys():
-            main_warning("No %s in adata.obs.keys" % variable)
-            variables.remove(variable)
+        if not (adata.var[selected_genes].dtype == bool):
+            raise ValueError(str(selected_genes) + " is not a boolean")
 
-    # TODO: Only for use_for_pca. For entire regress out, parallel computation implementation is needed.
-    x_prev = adata.X[:, adata.var.use_for_pca.values]
+        x_prev = adata[:, adata.var.loc[:, selected_genes]].X
 
-    # Split the input data into chunks for parallel processing
-    chunk_size = x_prev.shape[0] // n_cores
+    x_prev = x_prev.toarray().copy()
 
-    chunks = [
-        (
-            x_prev[i * chunk_size : (i + 1) * chunk_size],
-            adata.obs[i * chunk_size : (i + 1) * chunk_size].to_numpy().reshape(-1, 1),
-            variables,
-        )
-        for i in range(n_cores - 1)
-    ]
-    chunks.append(
-        (
-            x_prev[(n_cores - 1) * chunk_size :],
-            adata.obs[(n_cores - 1) * chunk_size :].to_numpy().reshape(-1, 1),
-            variables,
-        )
-    )
+    if n_cores == 1:
+        y_new = x_prev  # for the cases when variables are more than 1.
 
-    # Create a pool of work processes
-    pool = ThreadPool(n_cores)
+        for variable in variables:
+            if variable not in adata.obs.keys():
+                main_warning("No %s in adata.obs.keys" % variable)
+                continue
 
-    results = pool.starmap(regress_out_chunk, chunks)
-    pool.close()
-    pool.join()
-    residuals = np.concatenate(results, axis=0)  # np.vstack(results)
+            # Select the variables to remove
+            x_remove = adata.obs[variable].to_numpy().reshape(-1, 1)
 
-    # Fit a linear regression model to the new feature matrix
-    reg_new = LinearRegression().fit(x_prev, residuals)
+            # Predict the effects of the variables to remove
+            y_pred = regress_out_chunk(x_remove, y_new)
 
-    # Predict the residuals after removing the effects of the variables and save to "X_residuals_for_pca"
-    adata.obsm["X_residuals_for_pca"] = reg_new.predict(x_prev)
+            # Remove the effects of the variables from the target variable
+            y_new -= y_pred
 
+        # Predict the residuals after removing the effects of the variables and save to "X_residuals_for_pca"
+        res = regress_out_chunk(x_prev, y_new)
 
-def regress_out_chunk(args):
-    """Perform linear regression to remove the effects of given variables from a target variable.
+    else:
+        from multiprocessing import Pool as ThreadPool
 
-    Args:
-        adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
-        variables : List of observation keys to remove
-        n_cores : Change this to the number of cores on your system for parallel computing.
+        regress_val = np.zeros((x_prev.shape[0], x_prev.shape[1]))
+        # Split the input data into chunks for parallel processing
+        chunk_size = x_prev.shape[1] // n_cores
 
-    Returns:
-        numpy array: Residuals after removing the effects of given variables
-    """
-    from sklearn.linear_model import LinearRegression
+        chunks = [x_prev[:, i * chunk_size : (i + 1) * chunk_size] for i in range(n_cores - 1)]
+        chunks.append(x_prev[:, (n_cores - 1) * chunk_size :])
 
-    adata_chunk, remove, variables = args
-    # x_new = chunk[:, chunk.]
-    y_new = adata_chunk.toarray()  # for the cases when variables are more than 1.
+        # Create a pool of work processes
+        pool = ThreadPool(n_cores)
 
-    for variable in variables:
-        # Fit a linear regression model to the variables to remove
-        reg = LinearRegression().fit(remove, y_new)
+        for variable in variables:
+            if variable not in adata.obs.keys():
+                main_warning("No %s in adata.obs.keys" % variable)
+                continue
 
-        # Predict the effects of the variables to remove
-        y_pred = reg.predict(remove)
+            x_remove = [adata.obs[variable].to_numpy().reshape(-1, 1)] * n_cores
+            results = pool.starmap(regress_out_chunk, zip(x_remove, chunks))
+            regress_val += np.hstack(results)
 
         # Remove the effects of the variables from the target variable
-        y_new -= y_pred
+        residuals = x_prev - regress_val
 
-    return y_new
+        chunks_res = [residuals[:, i * chunk_size : (i + 1) * chunk_size] for i in range(n_cores - 1)]
+        chunks_res.append(residuals[:, (n_cores - 1) * chunk_size :])
+
+        x_prev = [x_prev] * n_cores
+
+        results = pool.starmap(regress_out_chunk, zip(x_prev, chunks_res))
+        pool.close()
+        pool.join()
+        res = np.hstack(results)
+
+    adata.obsm[obsm_store_key] = res
+
+
+def regress_out_chunk(X, y):
+    """Perform linear regression to remove the effects of given variables from a target variable.
+
+    Args:
+        X: the training dataset to be regressed out from the target.
+        y : List of observation keys to remove
+
+    Returns:
+        numpy array: Predict the effects of the variables to remove
+    """
+    from sklearn.linear_model import LinearRegression
+
+    # Fit a linear regression model to the variables to remove
+    reg = LinearRegression().fit(X, y)
+
+    # Predict the effects of the variables to remove
+    return reg.predict(X)

@@ -461,7 +461,7 @@ class Preprocessor:
 
         # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
-        self.regress_out_kwargs = {"variables": regress_out_obs_keys}
+        self.regress_out_kwargs = {"variables": regress_out_obs_keys, "selected_genes": "use_for_pca"}
         self.pca = pca_monocle
         self.pca_kwargs = {"pca_key": "X_pca", "layer": "residuals_for_pca"}
 
@@ -498,35 +498,10 @@ class Preprocessor:
 
         self._log1p(adata)  # Always done in normalization process. Do we need this process explictly?
 
-        print(adata.var.use_for_pca.values)
-        X_data = adata.X.toarray()  # [:, adata.var.use_for_pca.values]
-        print(X_data)
+        if len(self.regress_out_kwargs["variables"]) > 0:
+            self._regress_out(adata)
 
-        import timeit
-
-        import scanpy as sc
-
-        # print("--------------------Scanpy regress out----------------------")
-        # starttime = timeit.default_timer()
-        # sc.pp.regress_out(adata, ["nCounts", "pMito"])
-        # print("The process time of _regress_out is :", timeit.default_timer() - starttime)
-        # X_data = adata.X[:, adata.var.use_for_pca.values]
-        # print(X_data)
-
-        print("--------------------My regress out----------------------")
-        starttime = timeit.default_timer()
-        self._regress_out(adata)
-        print("The process time of _regress_out is :", timeit.default_timer() - starttime)
-        X_data = adata.obsm["X_residuals_for_pca"][:, adata.var.use_for_pca.values]
-        print(X_data)
-
-        # starttime = timeit.default_timer()
-        # sc.pp.pca(adata, svd_solver="arpack")
-        # print("The time difference of sc.pp.pca is :", timeit.default_timer() - starttime)
-
-        starttime = timeit.default_timer()
         self._pca(adata)
-        print("The time difference of _pca is :", timeit.default_timer() - starttime)
 
         temp_logger.finish_progress(progress_name="preprocess")
 
