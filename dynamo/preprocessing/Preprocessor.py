@@ -6,7 +6,6 @@ except ImportError:
     from typing_extensions import Literal
 
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 
 from ..configuration import DKM
@@ -18,10 +17,10 @@ from ..dynamo_logger import (
 )
 from .external import (
     normalize_layers_pearson_residuals,
+    sctransform,
     select_genes_by_pearson_residuals,
 )
-from ..tools.connectivity import neighbors as default_neighbors
-from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
+from .preprocess import pca_monocle
 from .preprocessor_utils import _infer_labeling_experiment_type
 from .preprocessor_utils import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
@@ -35,7 +34,6 @@ from .preprocessor_utils import (
     normalize_cell_expr_by_size_factors,
     select_genes_by_dispersion_general,
 )
-from .sctransform import sctransform
 from .utils import (
     collapse_species_adata,
     convert2symbol,

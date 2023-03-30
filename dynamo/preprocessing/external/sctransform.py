@@ -20,8 +20,8 @@ from anndata import AnnData
 from KDEpy import FFTKDE
 from scipy import stats
 
-from ..configuration import DKM
-from ..dynamo_logger import main_info, main_info_insert_adata_layer
+from ...configuration import DKM
+from ...dynamo_logger import main_info, main_info_insert_adata_layer
 
 _EPS = np.finfo(float).eps
 
