@@ -814,18 +814,28 @@ def _truncatedSVD_with_center(
     mean_H = mean.T.conj()
     ones = np.ones(X.shape[0])[None, :].dot
 
+    # Following callables implements different type of matrix calculation.
     def matvec(x):
+        """Matrix-vector multiplication. Performs the operation X_centered*x
+        where x is a column vector or an 1-D array."""
         return X.dot(x) - mean.dot(x)
 
     def matmat(x):
+        """Matrix-matrix multiplication. Performs the operation X_centered*x
+        where x is a matrix or ndarray."""
         return X.dot(x) - mean.dot(x)
 
     def rmatvec(x):
+        """Adjoint matrix-vector multiplication. Performs the operation
+        X_centered^H * x where x is a column vector or an 1-d array."""
         return X_H.dot(x) - mean_H.dot(ones(x))
 
     def rmatmat(x):
+        """Adjoint matrix-matrix multiplication. Performs the operation
+        X_centered^H * x where x is a matrix or ndarray."""
         return X_H.dot(x) - mean_H.dot(ones(x))
 
+    # Construct the LinearOperator with callables above.
     X_centered = LinearOperator(
         shape=X.shape,
         matvec=matvec,
@@ -835,6 +845,7 @@ def _truncatedSVD_with_center(
         dtype=X.dtype,
     )
 
+    # Solve SVD without calculating individuals entries in LinearOperator.
     U, Sigma, VT = svds(X_centered , k=n_components, v0=v0)
     Sigma = Sigma[::-1]
     U, VT = svd_flip(U[:, ::-1], VT[::-1])
