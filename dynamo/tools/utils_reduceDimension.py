@@ -24,7 +24,7 @@ def prepare_dim_reduction(
     n_components=2,
 ):
     if genes is not None:
-        genes = adata.var_name.intersection(genes).to_list()
+        genes = adata.var_names.intersection(genes).to_list()
         if len(genes) == 0:
             raise ValueError("no genes from your genes list appear in your adata object.")
     if layer is not None:

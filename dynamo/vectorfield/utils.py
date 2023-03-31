@@ -665,22 +665,26 @@ def elementwise_hessian_transformation(H: np.ndarray, qi: np.ndarray, qj: np.nda
 
 
 # ---------------------------------------------------------------------------------------------------
-def Laplacian(H: np.ndarray) -> None:
+def Laplacian(H: np.ndarray) -> np.ndarray:
     """
     Computes the Laplacian of the Hessian matrix by summing the diagonal elements of the Hessian matrix (summing the unmixed second partial derivatives)
                                             :math: `\Delta f = \sum_{i=1}^{n} \frac{\partial^2 f}{\partial x_i^2}`
     Args:
         H: Hessian matrix
     """
+    # when H has four dimensions, H is calculated across all cells
     if H.ndim == 4:
         L = np.zeros([H.shape[2], H.shape[3]])
-        for sample_indx, i in enumerate(H):
+        for sample_indx in range(H.shape[3]):
             for out_indx in range(L.shape[0]):
-                L[out_indx, sample_indx] = np.diag(i[:, :, out_indx, sample_indx]).sum()
+                L[out_indx, sample_indx] = np.diag(H[:, :, out_indx, sample_indx]).sum()
     else:
+        # when H has three dimensions, H is calculated only on one single cell
         L = np.zeros([H.shape[2], 1])
         for out_indx in range(L.shape[0]):
             L[out_indx, 0] = np.diag(H[:, :, out_indx]).sum()
+
+    return L
 
 
 # ---------------------------------------------------------------------------------------------------

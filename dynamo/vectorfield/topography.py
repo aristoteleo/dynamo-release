@@ -879,6 +879,18 @@ def VectorField(
         if sp.issparse(X):
             X, V = X.A, V.A
 
+        # keep only genes with finite velocity and expression values, useful when learning vector field in the original
+        # gene expression space.
+        finite_genes = np.logical_and(np.isfinite(X).all(axis=0), np.isfinite(V).all(axis=0))
+        X, V = X[:, finite_genes], V[:, finite_genes]
+        valid_genes = np.array(valid_genes)[np.where(finite_genes)[0]].tolist()
+        if sum(finite_genes) < len(finite_genes):
+            logger.warning(
+                f"There are {(len(finite_genes) - sum(finite_genes))} genes with infinite expression or velocity "
+                f"values. These genes will be excluded from vector field reconstruction. Please make sure the genes you "
+                f"selected has no non-infinite values"
+            )
+
     Grid = None
     if X.shape[1] < 4 or grid_velocity:
         logger.info("Generating high dimensional grids and convert into a row matrix.")
