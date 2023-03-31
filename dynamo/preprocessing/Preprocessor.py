@@ -396,7 +396,7 @@ class Preprocessor:
         adata: AnnData,
         n_top_genes: int = 2000,
         gene_selection_method: str = "SVR",
-        regress_out_obs_keys: Optional[List[str]] = None,
+        regress_out_obs_keys: List[str] = [],
     ) -> None:
         """Automatically configure the preprocessor for monocle recipe.
 
@@ -708,7 +708,7 @@ class Preprocessor:
             "monocle", "seurat", "sctransform", "pearson_residuals", "monocle_pearson_residuals"
         ] = "monocle",
         tkey: Optional[str] = None,
-        regress_out: Optional[List[str]] = None,
+        regress_out: List[str] = [],
     ) -> None:
         """Preprocess the AnnData object with the recipe specified.
 
