@@ -379,6 +379,31 @@ class Preprocessor:
             main_info("reducing dimension by PCA...")
             self.pca(adata, **self.pca_kwargs)
 
+    def preprocess_adata_seurat_wo_pca(
+        self,
+        adata: AnnData,
+        tkey: Optional[str] = None,
+        experiment_type: Optional[str] = None
+    ) -> None:
+        """Preprocess the anndata object according to standard preprocessing in
+        Seurat recipe without PCA. This can be used to test different
+        dimentsion reduction methods.
+        """
+        main_info("Running preprocessing pipeline...")
+        temp_logger = LoggerManager.gen_logger("preprocessor-seurat_wo_pca")
+        temp_logger.log_time()
+
+        self.standardize_adata(adata, tkey, experiment_type)
+        self.filter_cells_by_outliers(adata)
+        self._filter_genes_by_outliers(adata)
+        self._normalize_by_cells(adata)
+        self._select_genes(adata)
+        self._log1p(adata)
+
+        temp_logger.finish_progress(
+            progress_name="preprocess by seurat wo pca recipe"
+        )
+
     def config_monocle_recipe(
         self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"
     ) -> None:

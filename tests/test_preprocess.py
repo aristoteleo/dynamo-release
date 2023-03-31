@@ -167,6 +167,8 @@ def test_compute_gene_exp_fraction():
 
 def test_pca():
     adata = dyn.sample_data.zebrafish()
+    preprocessor = Preprocessor()
+    preprocessor.preprocess_adata_seurat_wo_pca(adata)
     adata = dyn.pp.pca_monocle(adata, n_pca_components=30)
     assert adata.obsm["X"].shape[1] == 30
     assert adata.uns['PCs'].shape[1] == 30
