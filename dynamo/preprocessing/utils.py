@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Iterable, List, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Tuple, Union, Optional
 
 try:
     from typing import Literal
@@ -785,12 +785,16 @@ def _truncatedSVD_with_center(
     random_state: int = 0,
 ) -> Dict:
     """Center a sparse matrix and perform truncated SVD on it.
-
+    It uses `scipy.sparse.linalg.LinearOperator` to express the centered sparse
+    input by given matrix-vector and matrix-matrix products. Then truncated
+    singular value decomposition (SVD) can be solved without calculating the
+    individual entries of the centered matrix. The right singular vectors after
+    decomposition represent the principal components. This function is inspired
+    by the implementation of scanpy (https://github.com/scverse/scanpy).
     Args:
         X: The input sparse matrix to perform truncated SVD on.
         n_components: The number of components to keep. Default is 30.
         random_state: Seed for the random number generator. Default is 0.
-
     Returns:
         A dictionary containing the following keys:
         - 'X_pca': The transformed input matrix.
@@ -801,24 +805,35 @@ def _truncatedSVD_with_center(
     random_state = check_random_state(random_state)
     np.random.set_state(random_state.get_state())
     v0 = random_state.uniform(-1, 1, np.min(X.shape))
+    n_components = min(n_components, X.shape[1] - 1)
 
     mean = X.mean(0)
     X_H = X.T.conj()
     mean_H = mean.T.conj()
     ones = np.ones(X.shape[0])[None, :].dot
 
+    # Following callables implements different type of matrix calculation.
     def matvec(x):
+        """Matrix-vector multiplication. Performs the operation X_centered*x
+        where x is a column vector or an 1-D array."""
         return X.dot(x) - mean.dot(x)
 
     def matmat(x):
+        """Matrix-matrix multiplication. Performs the operation X_centered*x
+        where x is a matrix or ndarray."""
         return X.dot(x) - mean.dot(x)
 
     def rmatvec(x):
+        """Adjoint matrix-vector multiplication. Performs the operation
+        X_centered^H * x where x is a column vector or an 1-d array."""
         return X_H.dot(x) - mean_H.dot(ones(x))
 
     def rmatmat(x):
+        """Adjoint matrix-matrix multiplication. Performs the operation
+        X_centered^H * x where x is a matrix or ndarray."""
         return X_H.dot(x) - mean_H.dot(ones(x))
 
+    # Construct the LinearOperator with callables above.
     X_centered = LinearOperator(
         shape=X.shape,
         matvec=matvec,
@@ -828,6 +843,7 @@ def _truncatedSVD_with_center(
         dtype=X.dtype,
     )
 
+    # Solve SVD without calculating individuals entries in LinearOperator.
     U, Sigma, VT = svds(X_centered , k=n_components, v0=v0)
     Sigma = Sigma[::-1]
     U, VT = svd_flip(U[:, ::-1], VT[::-1])
@@ -837,13 +853,52 @@ def _truncatedSVD_with_center(
     _, full_var = mean_variance_axis(X, axis=0)
     full_var = full_var.sum()
 
-    fit = {
+    result_dict = {
         "X_pca": X_transformed,
         "components_": components_,
         "explained_variance_ratio_": exp_var / full_var,
     }
 
-    return fit
+    fit = PCA(
+        n_components=n_components,
+        random_state=random_state,
+    )
+    X_pca = result_dict["X_pca"]
+    fit.components_ = result_dict["components_"]
+    fit.explained_variance_ratio_ = result_dict[
+        "explained_variance_ratio_"]
+
+    return fit, X_pca
+
+def _pca_fit(
+    X: np.ndarray,
+    pca_func: Callable,
+    n_components: int = 30,
+    **kwargs,
+) -> Tuple:
+    """Apply PCA to the input data array X using the specified PCA function.
+    Args:
+        X: the input data array of shape (n_samples, n_features).
+        pca_func: the PCA function to use, which should have a 'fit' and
+            'transform' method, such as the PCA class or the IncrementalPCA
+            class from sklearn.decomposition.
+        n_components: the number of principal components to compute. If
+            n_components is greater than or equal to the number of features in
+            X, it will be set to n_features - 1 to avoid overfitting.
+        **kwargs: any additional keyword arguments that will be passed to the
+            PCA function.
+    Returns:
+        A tuple containing two elements:
+            - The fitted PCA object, which has a 'fit' and 'transform' method.
+            - The transformed array X_pca of shape (n_samples, n_components).
+        """
+    fit = pca_func(
+        n_components=min(n_components, X.shape[1] - 1),
+        **kwargs,
+    ).fit(X)
+    X_pca = fit.transform(X)
+    return fit, X_pca
+
 
 def pca_monocle(
     adata: AnnData,
@@ -853,34 +908,44 @@ def pca_monocle(
     pcs_key: str = "PCs",
     genes_to_append: Union[List[str], None] = None,
     layer: Union[List[str], str, None] = None,
-    return_all: bool = False,
-    optimized: bool = False,
-    user_threshold: int = None,
+    svd_solver: Literal["randomized", "arpack"] = "randomized",
     random_state: int = 0,
-    use_IPCA: bool = False,
-    IPCA_batch_size = None,
+    use_truncated_SVD_threshold: int = 500000,
+    use_incremental_PCA: bool = False,
+    incremental_batch_size: Optional[int] = None,
+    return_all: bool = False,
+    optimized: bool = True
 ) -> Union[AnnData, Tuple[AnnData, Union[PCA, TruncatedSVD], np.ndarray]]:
     """Perform PCA reduction for monocle recipe.
-
     Args:
         adata: an AnnData object.
         X_data: the data to perform dimension reduction on. Defaults to None.
         n_pca_components: number of PCA components reduced to. Defaults to 30.
         pca_key: the key to store the reduced data. Defaults to "X".
-        pcs_key: the key to store the principle axes in feature space. Defaults to "PCs".
+        pcs_key: the key to store the principle axes in feature space. Defaults
+            to "PCs".
         genes_to_append: a list of genes should be inspected. Defaults to None.
-        layer: the layer(s) to perform dimension reduction on. Would be overrided by X_data. Defaults to None.
-        return_all: whether to return the PCA fit model and the reduced array together with the updated AnnData object.
-            Defaults to False.
-
+        layer: the layer(s) to perform dimension reduction on. Would be
+            overrided by X_data. Defaults to None.
+        svd_solver: the svd_solver to solve svd decomposition in PCA.
+        random_state: the seed used to initialize the random state for PCA.
+        use_truncated_SVD_threshold: the threshold of observations to use
+            truncated SVD instead of standard PCA for efficiency.
+        use_incremental_PCA: whether to use Incremental PCA. Recommend enabling
+            incremental PCA when dataset is too large to fit in memory.
+        incremental_batch_size: The number of samples to use for each batch when
+            performing incremental PCA. If batch_size is None, then batch_size
+            is inferred from the data and set to 5 * n_features.
+        return_all: whether to return the PCA fit model and the reduced array
+            together with the updated AnnData object. Defaults to False.
     Raises:
         ValueError: layer provided is not invalid.
         ValueError: list of genes to append is invalid.
-
     Returns:
-        The the updated AnnData object with reduced data if `return_all` is False. Otherwise, a tuple (adata, fit,
-        X_pca), where adata is the updated AnnData object, fit is the fit model for dimension reduction, and X_pca is
-        the reduced array, will be returned.
+        The updated AnnData object with reduced data if `return_all` is False.
+        Otherwise, a tuple (adata, fit, X_pca), where adata is the updated
+        AnnData object, fit is the fit model for dimension reduction, and X_pca
+        is the reduced array, will be returned.
     """
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
@@ -921,50 +986,44 @@ def pca_monocle(
 
         adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
         X_data = X_data[:, valid_ind]
-    USE_TRUNCATED_SVD_THRESHOLD = user_threshold if user_threshold else 100000
-    print("sparse input, ", issparse(X_data))
     if optimized:
-        if use_IPCA:
+        if use_incremental_PCA:
             from sklearn.decomposition import IncrementalPCA
-            fit = IncrementalPCA(
-                n_components=min(n_pca_components, X_data.shape[1] - 1),
-                batch_size=IPCA_batch_size,
-            ).fit(X_data)
-            X_pca = fit.transform(X_data)
+            fit, X_pca = _pca_fit(
+                X_data,
+                pca_func=IncrementalPCA,
+                n_components=n_pca_components,
+                batch_size=incremental_batch_size,
+            )
         else:
-            if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+            if adata.n_obs < use_truncated_SVD_threshold:
                 if not issparse(X_data):
-                    fit = PCA(
-                        n_components=min(n_pca_components, X_data.shape[1] - 1),
-                        svd_solver="randomized",
-                        random_state=random_state,
-                    ).fit(X_data)
-                    X_pca = fit.transform(X_data)
-                else:
-                    result_dict = _truncatedSVD_with_center(
+                    fit, X_pca = _pca_fit(
                         X_data,
-                        n_components=min(n_pca_components, X_data.shape[1] - 1),
+                        pca_func=PCA,
+                        n_components=n_pca_components,
+                        svd_solver=svd_solver,
                         random_state=random_state,
                     )
-                    fit = PCA(
-                        n_components=min(n_pca_components, X_data.shape[1] - 1),
+                else:
+                    fit, X_pca = _truncatedSVD_with_center(
+                        X_data,
+                        n_components=n_pca_components,
                         random_state=random_state,
                     )
-                    X_pca = result_dict["X_pca"]
-                    fit.components_ = result_dict["components_"]
-                    fit.explained_variance_ratio_ = result_dict[
-                        "explained_variance_ratio_"]
             else:
                 # unscaled PCA
-                fit = TruncatedSVD(
-                    n_components=min(n_pca_components + 1, X_data.shape[1] - 1),
-                    random_state=random_state,
+                fit, X_pca = _pca_fit(
+                    X_data,
+                    pca_func=TruncatedSVD,
+                    n_components=n_pca_components + 1,
+                    random_state=random_state
                 )
                 # first columns is related to the total UMI (or library size)
-                X_pca = fit.fit_transform(X_data)[:, 1:]
+                X_pca = X_pca[:, 1:]
 
         adata.obsm[pca_key] = X_pca
-        if use_IPCA or adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+        if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
             adata.uns[pcs_key] = fit.components_.T
             adata.uns[
                 "explained_variance_ratio_"] = fit.explained_variance_ratio_
@@ -973,8 +1032,9 @@ def pca_monocle(
             adata.uns[pcs_key] = fit.components_.T[:, 1:]
             adata.uns[
                 "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+        adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
     else:
-        if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+        if adata.n_obs < use_truncated_SVD_threshold:
             pca = PCA(
                 n_components=min(n_pca_components, X_data.shape[1] - 1),
                 svd_solver="arpack",
@@ -998,8 +1058,7 @@ def pca_monocle(
             adata.uns[pcs_key] = fit.components_.T[:, 1:]
 
             adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-
-    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
+        adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
 
     if return_all:
         return adata, fit, X_pca
