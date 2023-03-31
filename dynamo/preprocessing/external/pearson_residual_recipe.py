@@ -32,7 +32,7 @@ from ...preprocessing.utils import pca_monocle
 
 main_logger = LoggerManager.main_logger
 
-#TODO: Use compute_pearson_residuals function to calculate residuals
+# TODO: Use compute_pearson_residuals function to calculate residuals
 def _highly_variable_pearson_residuals(
     adata: AnnData,
     theta: float = 100,
@@ -250,9 +250,9 @@ def _highly_variable_pearson_residuals(
 
         return df
 
-#TODO: Move this function to a higher level. Now this function is called by
-#pearson_residual_recipe, but this function aims to support different recipe in
-#the future.
+# TODO: Move this function to a higher level. Now this function is called by
+# pearson_residual_recipe, but this function aims to support different recipe in
+# the future.
 def compute_highly_variable_genes(
     adata: AnnData,
     *,
@@ -267,61 +267,8 @@ def compute_highly_variable_genes(
     subset: bool = False,
     inplace: bool = True,
 ) -> Optional[pd.DataFrame]:
-    """Annotate highly variable genes using analytic Pearson residuals
-    [Lause21]_.
-
-    For [Lause21]_, Pearson residuals of a negative binomial offset model (with
-    overdispersion theta shared across genes) are computed. By default,
-    overdispersion theta=100 is used and residuals are clipped to sqrt(n).
-    Finally, genes are ranked by residual variance. Expects raw count input.
-
-    Args:
-        adata: an annotated data matrix of shape `n_obs` × `n_vars`. Rows
-            correspond to cells and columns to genes.
-        theta: the negative binomial overdispersion parameter theta for Pearson
-            residuals. Higher values correspond to less overdispersion
-            (var = mean + mean^2/theta), and `theta=np.Inf` corresponds to a
-            Poisson model.
-        clip: the threshold to determine if and how residuals are clipped.
-            If `None`, residuals are clipped to the interval [-sqrt(n), sqrt(n)]
-            where n is the number of cells in the dataset (default behavior).
-            If any scalar c, residuals are clipped to the interval [-c, c]. Set
-            `clip=np.Inf` for no clipping.
-        n_top_genes: the number of highly-variable genes to keep.
-        batch_key: the key to indicate how highly-variable genes are selected
-            within each batch separately and merged later. This simple process
-            avoids the selection of batch-specific genes and acts as a
-            lightweight batch correction method. Genes are first sorted by how
-            many batches they are an HVG. Ties are broken by the median rank
-            (across batches) based on within-batch residual variance.
-        chunksize: the number of genes are processed at once while computing
-            the Pearson residual variance. Choosing a smaller value will reduce
-            the required memory.
-        recipe: the recipe for identifying highly variable genes. In this
-            experimental version, only 'pearson_residuals' is functional.
-        check_values: whether to check if counts in selected layer are integers.
-            A Warning is returned if set to True.
-        layer: the layer to perform gene selection on.
-        subset: whether to inplace subset to highly-variable genes. If `True`
-            otherwise merely indicate highly variable genes.
-        inplace: whether to place calculated metrics in `.var` or return them.
-
-    Returns:
-        Depending on `inplace` returns calculated metrics
-        (:class:`~pandas.DataFrame`) or updates `.var` with the following
-        fields:
-            highly_variable: boolean indicator of highly-variable genes.
-            means: means per gene.
-            variances: variance per gene.
-            residual_variances: For `recipe='pearson_residuals'`, residual
-                variance per gene. Averaged in the case of multiple batches.
-            highly_variable_rank: For `recipe='pearson_residuals'`, rank of the
-                gene according to residual variance, median rank in the case of
-                multiple batches.
-            highly_variable_nbatches: If `batch_key` given, denotes in how many
-                batches genes are detected as HVG.
-            highly_variable_intersection: If `batch_key` given, denotes the
-                genes that are highly variable in all batches.
+    """A wrapper calls corresponding recipe to identify highly variable genes.
+    Currently only 'pearson_residuals' is supported.
     """
 
     main_logger.info("extracting highly variable genes")
@@ -356,7 +303,7 @@ def compute_pearson_residuals(
     clip: Optional[float] = None,
     check_values: bool = True,
     copy: bool = False,
-):
+) -> np.ndarray:
     """Compute Pearson residuals from count data.
 
     Pearson residuals are a measure of the deviation of observed counts
@@ -415,7 +362,7 @@ def compute_pearson_residuals(
 
     return residuals
 
-#TODO: Read pearson residuals if they exists.
+# TODO: Read pearson residuals if they exist instead of calculating them again.
 def _normalize_single_layer_pearson_residuals(
     adata: AnnData,
     *,
@@ -425,7 +372,7 @@ def _normalize_single_layer_pearson_residuals(
     layer: Optional[str] = None,
     var_select_genes_key: np.array = None,
     copy: bool = False,
-) -> Optional[Dict[str, np.ndarray]]:
+) -> Optional[AnnData]:
     """Applies analytic Pearson residual normalization, based on [Lause21]_.
 
     The residuals are based on a negative binomial offset model with
@@ -495,7 +442,6 @@ def _normalize_single_layer_pearson_residuals(
     if copy:
         return adata
 
-
 def normalize_layers_pearson_residuals(
     adata: AnnData,
     layers: list = ["X"],
@@ -503,7 +449,7 @@ def normalize_layers_pearson_residuals(
     select_genes_key="use_for_pca",
     copy=False,
     **normalize_pearson_residual_args,
-):
+) -> None:
     """Normalize the given layers of the AnnData object using Pearson residuals.
 
     Args:
@@ -516,9 +462,7 @@ def normalize_layers_pearson_residuals(
             `_normalize_single_layer_pearson_residuals` function.
 
     Returns:
-        If `copy` is True, a new AnnData object with normalized layers will be
-        returned. If `copy` is False, modifies the given AnnData object in place
-        and returns None.
+        None. Anndata object will be updated.
     """
     if len(layers) == 0:
         main_warning("layers arg has zero length. return and do nothing in normalize_layers_pearson_residuals.")
@@ -553,7 +497,7 @@ def normalize_layers_pearson_residuals(
         main_info_insert_adata_layer(new_X_key, indent_level=2)
         adata.layers[new_X_key] = DKM.select_layer_data(temp_adata, layer)
 
-#TODO: Combine this function with compute_highly_variable_genes.
+# TODO: Combine this function with compute_highly_variable_genes.
 def select_genes_by_pearson_residuals(
     adata: AnnData,
     layer: str = None,
