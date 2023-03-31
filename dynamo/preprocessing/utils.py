@@ -807,6 +807,7 @@ def _truncatedSVD_with_center(
     random_state = check_random_state(random_state)
     np.random.set_state(random_state.get_state())
     v0 = random_state.uniform(-1, 1, np.min(X.shape))
+    n_components = min(n_components, X.shape[1] - 1)
 
     mean = X.mean(0)
     X_H = X.T.conj()
@@ -849,7 +850,48 @@ def _truncatedSVD_with_center(
         "explained_variance_ratio_": exp_var / full_var,
     }
 
-    return result_dict
+    fit = PCA(
+        n_components=n_components,
+        random_state=random_state,
+    )
+    X_pca = result_dict["X_pca"]
+    fit.components_ = result_dict["components_"]
+    fit.explained_variance_ratio_ = result_dict[
+        "explained_variance_ratio_"]
+
+    return fit, X_pca
+
+def _pca_fit(
+    X: np.ndarray,
+    pca_func: Callable,
+    n_components: int = 30,
+    **kwargs,
+) -> Tuple:
+    """Apply PCA to the input data array X using the specified PCA function.
+
+    Args:
+        X: the input data array of shape (n_samples, n_features).
+        pca_func: the PCA function to use, which should have a 'fit' and
+            'transform' method, such as the PCA class or the IncrementalPCA
+            class from sklearn.decomposition.
+        n_components: the number of principal components to compute. If
+            n_components is greater than or equal to the number of features in
+            X, it will be set to n_features - 1 to avoid overfitting.
+        **kwargs: any additional keyword arguments that will be passed to the
+            PCA function.
+
+    Returns:
+        A tuple containing two elements:
+            - The fitted PCA object, which has a 'fit' and 'transform' method.
+            - The transformed array X_pca of shape (n_samples, n_components).
+        """
+    fit = pca_func(
+        n_components=min(n_components, X.shape[1] - 1),
+        **kwargs,
+    ).fit(X)
+    X_pca = fit.transform(X)
+    return fit, X_pca
+
 
 def pca_monocle(
     adata: AnnData,
@@ -942,42 +984,38 @@ def pca_monocle(
 
     if use_incremental_PCA:
         from sklearn.decomposition import IncrementalPCA
-        fit = IncrementalPCA(
-            n_components=min(n_pca_components, X_data.shape[1] - 1),
+        fit, X_pca = _pca_fit(
+            X_data,
+            pca_func=IncrementalPCA,
+            n_components=n_pca_components,
             batch_size=incremental_batch_size,
-        ).fit(X_data)
-        X_pca = fit.transform(X_data)
+        )
     else:
         if adata.n_obs < use_truncated_SVD_threshold:
             if not issparse(X_data):
-                fit = PCA(
-                    n_components=min(n_pca_components, X_data.shape[1] - 1),
+                fit, X_pca = _pca_fit(
+                    X_data,
+                    pca_func=PCA,
+                    n_components=n_pca_components,
                     svd_solver=svd_solver,
                     random_state=random_state,
-                ).fit(X_data)
-                X_pca = fit.transform(X_data)
+                )
             else:
-                result_dict = _truncatedSVD_with_center(
+                fit, X_pca = _truncatedSVD_with_center(
                     X_data,
-                    n_components=min(n_pca_components, X_data.shape[1] - 1),
+                    n_components=n_pca_components,
                     random_state=random_state,
                 )
-                fit = PCA(
-                    n_components=min(n_pca_components, X_data.shape[1] - 1),
-                    random_state=random_state,
-                )
-                X_pca = result_dict["X_pca"]
-                fit.components_ = result_dict["components_"]
-                fit.explained_variance_ratio_ = result_dict[
-                    "explained_variance_ratio_"]
         else:
             # unscaled PCA
-            fit = TruncatedSVD(
-                n_components=min(n_pca_components + 1, X_data.shape[1] - 1),
-                random_state=random_state,
+            fit, X_pca = _pca_fit(
+                X_data,
+                pca_func=TruncatedSVD,
+                n_components=n_pca_components + 1,
+                random_state=random_state
             )
             # first columns is related to the total UMI (or library size)
-            X_pca = fit.fit_transform(X_data)[:, 1:]
+            X_pca = X_pca[:, 1:]
 
     adata.obsm[pca_key] = X_pca
     if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
