@@ -859,10 +859,12 @@ def pca_monocle(
     pcs_key: str = "PCs",
     genes_to_append: Union[List[str], None] = None,
     layer: Union[List[str], str, None] = None,
-    return_all: bool = False,
+    svd_solver: Literal["randomized", "arpack"] = "randomized",
     random_state: int = 0,
-    use_IPCA: bool = False,
-    IPCA_batch_size: Optional[int] = None,
+    use_truncated_SVD_threshold: int = 500000,
+    use_incremental_PCA: bool = False,
+    incremental_batch_size: Optional[int] = None,
+    return_all: bool = False,
 ) -> Union[AnnData, Tuple[AnnData, Union[PCA, TruncatedSVD], np.ndarray]]:
     """Perform PCA reduction for monocle recipe.
 
@@ -876,15 +878,17 @@ def pca_monocle(
         genes_to_append: a list of genes should be inspected. Defaults to None.
         layer: the layer(s) to perform dimension reduction on. Would be
             overrided by X_data. Defaults to None.
-        return_all: whether to return the PCA fit model and the reduced array
-            together with the updated AnnData object.
-            Defaults to False.
+        svd_solver: the svd_solver to solve svd decomposition in PCA.
         random_state: the seed used to initialize the random state for PCA.
-        use_IPCA: whether to use Incremental PCA. Recommend enabling IPCA when
-            dataset is too large to fit in memory.
-        IPCA_batch_size: The number of samples to use for each batch when
-            performing IPCA. If batch_size is None, then batch_size is inferred
-            from the data and set to 5 * n_features.
+        use_truncated_SVD_threshold: the threshold of observations to use
+            truncated SVD instead of standard PCA for efficiency.
+        use_incremental_PCA: whether to use Incremental PCA. Recommend enabling
+            incremental PCA when dataset is too large to fit in memory.
+        incremental_batch_size: The number of samples to use for each batch when
+            performing incremental PCA. If batch_size is None, then batch_size
+            is inferred from the data and set to 5 * n_features.
+        return_all: whether to return the PCA fit model and the reduced array
+            together with the updated AnnData object. Defaults to False.
 
     Raises:
         ValueError: layer provided is not invalid.
@@ -936,20 +940,19 @@ def pca_monocle(
         adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
         X_data = X_data[:, valid_ind]
 
-    USE_TRUNCATED_SVD_THRESHOLD = 100000
-    if use_IPCA:
+    if use_incremental_PCA:
         from sklearn.decomposition import IncrementalPCA
         fit = IncrementalPCA(
             n_components=min(n_pca_components, X_data.shape[1] - 1),
-            batch_size=IPCA_batch_size,
+            batch_size=incremental_batch_size,
         ).fit(X_data)
         X_pca = fit.transform(X_data)
     else:
-        if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+        if adata.n_obs < use_truncated_SVD_threshold:
             if not issparse(X_data):
                 fit = PCA(
                     n_components=min(n_pca_components, X_data.shape[1] - 1),
-                    svd_solver="randomized",
+                    svd_solver=svd_solver,
                     random_state=random_state,
                 ).fit(X_data)
                 X_pca = fit.transform(X_data)
@@ -977,7 +980,7 @@ def pca_monocle(
             X_pca = fit.fit_transform(X_data)[:, 1:]
 
     adata.obsm[pca_key] = X_pca
-    if use_IPCA or adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
+    if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
         adata.uns[pcs_key] = fit.components_.T
         adata.uns[
             "explained_variance_ratio_"] = fit.explained_variance_ratio_
