@@ -854,8 +854,8 @@ def select_genes_monocle(
                 filter_bool=filter_bool,
                 **SVRs_args,
             )
-
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
+        # elif sort_by == "fano":
 
     # filter genes by gene expression fraction as well
     adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)

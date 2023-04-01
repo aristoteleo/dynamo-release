@@ -35,6 +35,7 @@ from .preprocessor_utils import (
     log1p_adata,
     normalize_cell_expr_by_size_factors,
     select_genes_by_dispersion_general,
+    select_genes_monocle,
 )
 from .utils import (
     collapse_species_adata,
@@ -380,7 +381,7 @@ class Preprocessor:
             self.pca(adata, **self.pca_kwargs)
 
     def config_monocle_recipe(
-        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"
+        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "gini"
     ) -> None:
         """Automatically configure the preprocessor for monocle recipe.
 
@@ -421,24 +422,21 @@ class Preprocessor:
             "min_count_p": 0,
             "shared_count": 30,
         }
-        self.select_genes = select_genes_by_dispersion_general
+        self.select_genes = select_genes_monocle
         self.select_genes_kwargs = {
-            "recipe": "monocle",
-            "monocle_kwargs": {
-                "sort_by": gene_selection_method,
-                "n_top_genes": n_top_genes,
-                "keep_filtered": True,
-                "SVRs_kwargs": {
-                    "min_expr_cells": 0,
-                    "min_expr_avg": 0,
-                    "max_expr_avg": np.inf,
-                    "svr_gamma": None,
-                    "winsorize": False,
-                    "winsor_perc": (1, 99.5),
-                    "sort_inverse": False,
-                },
-                "only_bools": True,
+            "sort_by": gene_selection_method,
+            "n_top_genes": n_top_genes,
+            "keep_filtered": True,
+            "SVRs_kwargs": {
+                "min_expr_cells": 0,
+                "min_expr_avg": 0,
+                "max_expr_avg": np.inf,
+                "svr_gamma": None,
+                "winsorize": False,
+                "winsor_perc": (1, 99.5),
+                "sort_inverse": False,
             },
+            "only_bools": True,
         }
         self.normalize_selected_genes = None
         self.normalize_by_cells = normalize_cell_expr_by_size_factors
