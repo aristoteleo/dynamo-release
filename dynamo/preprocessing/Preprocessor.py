@@ -370,7 +370,7 @@ class Preprocessor:
             self.log1p(adata, **self.log1p_kwargs)
 
     def _regress_out(self, adata: AnnData) -> None:
-        """Perform pca reduction with args specified in the preprocessor's `pca_kwargs`.
+        """Perform regressing out with args specified in the preprocessor's `regress_out_kwargs`.
 
         Args:
             adata: an AnnData object.
@@ -381,7 +381,7 @@ class Preprocessor:
             self.regress_out(adata, **self.regress_out_kwargs)
 
     def _pca(self, adata: AnnData) -> None:
-        """Perform pca reduction with args specified in the preprocessor's `pca_kwargs`.
+        """Perform principal component analysis reduction with args specified in the preprocessor's `pca_kwargs`.
 
         Args:
             adata: an AnnData object.
@@ -463,7 +463,7 @@ class Preprocessor:
         self.use_log1p = False
         self.regress_out_kwargs = {"variables": regress_out_obs_keys, "selected_genes": "use_for_pca"}
         self.pca = pca_monocle
-        self.pca_kwargs = {"pca_key": "X_pca", "layer": "residuals_for_pca"}
+        self.pca_kwargs = {"pca_key": "X_pca", "layer": "regress_out"}
 
     def preprocess_adata_monocle(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None

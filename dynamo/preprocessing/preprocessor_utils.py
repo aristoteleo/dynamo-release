@@ -668,9 +668,9 @@ def select_genes_monocle(
     adata: anndata.AnnData,
     layer: str = "X",
     total_szfactor: str = "total_Size_Factor",
+    keep_filtered: bool = True,
     sort_by: Literal["SVR", "gini", "dispersion"] = "SVR",
     n_top_genes: int = 2000,
-    keep_filtered: bool = True,
     SVRs_kwargs: dict = {},
     only_bools: bool = False,
     exprs_frac_for_gene_exclusion: float = 1,
@@ -1457,8 +1457,8 @@ def normalize_cell_expr_by_size_factors(
             adata.layers["X_" + layer] = CM
 
         # _norm_methods are different for each layers. Currently it saves only the last norm_method. Is it a bug?
-        # main_info_insert_adata_uns("pp.norm_method")
-        # adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
+        main_info_insert_adata_uns("pp.norm_method")
+        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
 
     return adata
 
@@ -1538,35 +1538,39 @@ def pca_selected_genes_wrapper(
 
 def regress_out_parallel(
     adata: AnnData,
+    layer: str = DKM.X_LAYER,
     variables: Optional[List[str]] = None,
-    selected_genes: Optional[str] = None,
+    gene_selection_key: Optional[str] = None,
     n_cores: int = 1,
-    obsm_store_key: str = "X_residuals_for_pca",
+    obsm_store_key: str = "X_regress_out",
 ):
     """Perform linear regression to remove the effects of given variables from a target variable.
 
     Args:
         adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
+        layer: the layer to regress out. Defaults to "X".
         variables: List of observation keys to remove
-        selected_genes: the key in adata.var that contains boolean for showing genes` filtering results. For example, "use_for_pca" is selected then it will regress out only for the genes that are True for "use_for_pca". This input will decrease processing time of regressing out data.
+        gene_selection_key: the key in adata.var that contains boolean for showing genes` filtering results.
+            For example, "use_for_pca" is selected then it will regress out only for the genes that are True
+            for "use_for_pca". This input will decrease processing time of regressing out data.
         n_cores: Change this to the number of cores on your system for parallel computing.
-        obsm_store_key: the key to store the regress out result. Defaults to "X_residuals_for_pca".
+        obsm_store_key: the key to store the regress out result. Defaults to "X_regress_out".
     """
 
     if len(variables) < 1:
         main_warning("No variable to regress out")
         return
 
-    if selected_genes is None:
-        x_prev = adata.X
+    if gene_selection_key is None:
+        x_prev = DKM.select_layer_data(adata, layer)
     else:
-        if selected_genes not in adata.var.keys():
-            raise ValueError(str(selected_genes) + " is not a key in adata.var")
+        if gene_selection_key not in adata.var.keys():
+            raise ValueError(str(gene_selection_key) + " is not a key in adata.var")
 
-        if not (adata.var[selected_genes].dtype == bool):
-            raise ValueError(str(selected_genes) + " is not a boolean")
+        if not (adata.var[gene_selection_key].dtype == bool):
+            raise ValueError(str(gene_selection_key) + " is not a boolean")
 
-        x_prev = adata[:, adata.var.loc[:, selected_genes]].X
+        x_prev = adata[:, adata.var.loc[:, gene_selection_key]].X # TODO: check this line
 
     x_prev = x_prev.toarray().copy()
 
@@ -1587,7 +1591,7 @@ def regress_out_parallel(
             # Remove the effects of the variables from the target variable
             y_new -= y_pred
 
-        # Predict the residuals after removing the effects of the variables and save to "X_residuals_for_pca"
+        # Predict the residuals after removing the effects of the variables and save to "X_regress_out"
         res = regress_out_chunk(x_prev, y_new)
 
     else:
@@ -1629,13 +1633,13 @@ def regress_out_parallel(
 
 
 def regress_out_chunk(
-    X: Union[np.ndarray, spmatrix, list], y: Union[np.ndarray, spmatrix, list]
+    obs_feature: Union[np.ndarray, spmatrix, list], gene_expr: Union[np.ndarray, spmatrix, list]
 ) -> Union[np.ndarray, spmatrix, list]:
-    """Perform linear regression to remove the effects of given variables from a target variable.
+    """Perform a linear regression to remove the effects of cell features (percentage of mitochondria, etc.)
 
     Args:
-        X: the training dataset to be regressed out from the target.
-        y : List of observation keys to remove
+        obs_feature: the training dataset to be regressed out from the target.
+        gene_expr : List of observation keys used to regress out their effect to gene expression
 
     Returns:
         numpy array: Predict the effects of the variables to remove
@@ -1643,7 +1647,7 @@ def regress_out_chunk(
     from sklearn.linear_model import LinearRegression
 
     # Fit a linear regression model to the variables to remove
-    reg = LinearRegression().fit(X, y)
+    reg = LinearRegression().fit(obs_feature, gene_expr)
 
     # Predict the effects of the variables to remove
-    return reg.predict(X)
+    return reg.predict(obs_feature)
