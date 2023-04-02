@@ -1134,11 +1134,9 @@ def filter_cells_by_outliers(
 
     if max_pmito_s is not None:
         detected_bool = detected_bool & (adata.obs["pMito"] < max_pmito_s)
-        main_info(
+        main_debug(
             "filtered out %d cells by %f%% of mitochondrial genes for a cell."
-            % (adata.n_obs - (adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s),
-            indent_level=2,
-        )
+            % ((adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s), indent_level=2)
 
     filter_bool = detected_bool if filter_bool is None else np.array(filter_bool) & detected_bool
 

@@ -231,13 +231,18 @@ class Preprocessor:
         main_info_insert_adata("experiment_type=%s" % adata.uns["pp"]["experiment_type"], "uns['pp']", indent_level=2)
 
         main_info("making adata observation index unique...")
-        self.convert_layers2csr(adata)
-        self.collapse_species_adata(adata)
-
-        main_info("applying convert_gene_name function...")
-        self.convert_gene_name(adata)
-        main_info("making adata observation index unique after gene name conversion...")
         self.unique_var_obs_adata(adata)
+        self.convert_layers2csr(adata)
+        if self.collapse_species_adata:
+            main_info("applying collapse species adata...")
+            self.collapse_species_adata(adata)
+
+        if self.convert_gene_name:
+            main_info("applying convert_gene_name function...")
+            self.convert_gene_name(adata)
+            main_info("making adata observation index unique after gene name conversion...")
+            self.unique_var_obs_adata(adata)
+
 
     def _filter_cells_by_outliers(self, adata: AnnData) -> None:
         """Select valid cells based on the method specified as the preprocessor's `filter_cells_by_outliers`.
