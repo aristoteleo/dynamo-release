@@ -576,21 +576,26 @@ def sz_util(
     Args:
         adata: an AnnData object.
         layer: the layer to operate on.
-        round_exprs: whether the gene expression should be rounded into integers.
-        method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`.
+        round_exprs: whether the gene expression should be rounded into
+            integers.
+        method: the method used to calculate the expected total reads / UMI used
+            in size factor calculation. Only `mean-geometric-mean-total` /
+            `geometric` and `median` are supported. When `median` is used,
+            `locfunc` will be replaced with `np.nanmedian`.
         locfunc: the function to normalize the data.
-        total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
-            ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
+        total_layers: the layer(s) that can be summed up to get the total mRNA.
+            For example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or
+            ["new", "old"], etc. Defaults to None.
         CM: the data to operate on, overriding the layer. Defaults to None.
-        scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
+        scale_to: the final total expression for each cell that will be scaled
+            to. Defaults to None.
 
     Raises:
         NotImplementedError: method is invalid.
 
     Returns:
-        A tuple (sfs, cell_total) where sfs is the size factors and cell_total is the initial cell size.
+        A tuple (sfs, cell_total) where sfs is the size factors and cell_total
+        is the initial cell size.
     """
 
     adata = adata.copy()
@@ -637,12 +642,12 @@ def get_sz_exprs(
     Args:
         adata: an AnnData object.
         layer: the layer for which to get the size factor.
-        total_szfactor: the key-name for total size factor entry in `adata.obs`. If not None, would override the layer
-            selected. Defaults to None.
+        total_szfactor: the key-name for total size factor entry in `adata.obs`.
+            If not None, would override the layer selected. Defaults to None.
 
     Returns:
-        A tuple (szfactors, CM), where szfactors is the queried size factor and CM is the data of the layer
-        corresponding to the size factor.
+        A tuple (szfactors, CM), where szfactors is the queried size factor and
+        CM is the data of the layer corresponding to the size factor.
     """
 
     if layer == "raw":
