@@ -844,7 +844,7 @@ def _truncatedSVD_with_center(
     )
 
     # Solve SVD without calculating individuals entries in LinearOperator.
-    U, Sigma, VT = svds(X_centered , k=n_components, v0=v0)
+    U, Sigma, VT = svds(X_centered, solver='arpack', k=n_components, v0=v0)
     Sigma = Sigma[::-1]
     U, VT = svd_flip(U[:, ::-1], VT[::-1])
     X_transformed = U * Sigma
