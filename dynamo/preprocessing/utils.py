@@ -798,11 +798,9 @@ def _truncatedSVD_with_center(
         random_state: Seed for the random number generator. Default is 0.
 
     Returns:
-        A dictionary containing the following keys:
-        - 'X_pca': The transformed input matrix.
-        - 'components_': The right singular vectors of the input matrix.
-        - 'explained_variance_ratio_': The amount of variance explained by each
-          principal component.
+        The transformed input matrix and a sklearn PCA object containing the
+        right singular vectors and amount of variance explained by each
+        principal component.
     """
     random_state = check_random_state(random_state)
     np.random.set_state(random_state.get_state())
@@ -921,6 +919,14 @@ def pca_monocle(
 ) -> Union[AnnData, Tuple[AnnData, Union[PCA, TruncatedSVD], np.ndarray]]:
     """Perform PCA reduction for monocle recipe.
 
+    When large dataset is used (e.g. 1 million cells are used), Incremental PCA
+    is recommended to avoid the memory issue. When cell number is less than half
+    a million, by default PCA or _truncatedSVD_with_center (use sparse matrix
+    that doesn't explicitly perform centering) will be used. TruncatedSVD is the
+    fastest method. Unlike other methods which will center the data first,  it
+    performs SVD decomposition on raw input. Only use this when dataset is too
+    large for other methods.
+
     Args:
         adata: an AnnData object.
         X_data: the data to perform dimension reduction on. Defaults to None.
@@ -1018,7 +1024,9 @@ def pca_monocle(
                     random_state=random_state,
                 )
         else:
-            # unscaled PCA
+            # TruncatedSVD is the fastest method we have. It doesn't center the
+            # data. It only performs SVD decomposition, which is the second part
+            # in our _truncatedSVD_with_center function.
             fit, X_pca = _pca_fit(
                 X_data,
                 pca_func=TruncatedSVD,
