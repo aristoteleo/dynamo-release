@@ -902,7 +902,7 @@ def _pca_fit(
     return fit, X_pca
 
 
-def pca_monocle(
+def pca(
     adata: AnnData,
     X_data: np.ndarray = None,
     n_pca_components: int = 30,

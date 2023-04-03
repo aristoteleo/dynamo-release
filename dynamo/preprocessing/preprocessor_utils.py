@@ -49,7 +49,7 @@ from .utils import (
     get_sz_exprs,
     merge_adata_attrs,
     normalize_mat_monocle,
-    pca_monocle,
+    pca,
     sz_util,
     unique_var_obs_adata,
 )
@@ -1528,7 +1528,7 @@ def is_nonnegative_integer_arr(mat: Union[np.ndarray, spmatrix, list]) -> bool:
 def pca_selected_genes_wrapper(
     adata: AnnData, pca_input: Union[np.ndarray, None] = None, n_pca_components: int = 30, key: str = "X_pca"
 ):
-    """A wrapper for pca_monocle function to reduce dimensions of the Adata with PCA.
+    """A wrapper for pca function to reduce dimensions of the Adata with PCA.
 
     Args:
         adata: an AnnData object.
@@ -1537,4 +1537,4 @@ def pca_selected_genes_wrapper(
         key: the key to store the calculation result. Defaults to "X_pca".
     """
 
-    adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
+    adata = pca(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)

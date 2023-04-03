@@ -22,7 +22,7 @@ from ..external import (
     select_genes_by_pearson_residuals,
 )
 from ..tools.connectivity import neighbors as default_neighbors
-from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
+from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca
 from .preprocessor_utils import _infer_labeling_experiment_type
 from .preprocessor_utils import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
@@ -62,7 +62,7 @@ class Preprocessor:
         normalize_selected_genes_kwargs: dict = {},
         use_log1p: bool = True,
         log1p_kwargs: dict = {},
-        pca_function: bool = pca_monocle,
+        pca_function: bool = pca,
         pca_kwargs: dict = {},
         gene_append_list: List[str] = [],
         gene_exclude_list: List[str] = [],
@@ -95,7 +95,7 @@ class Preprocessor:
             normalize_selected_genes_kwargs: arguments that will be passed to normalize_selected_genes. Defaults to {}.
             use_log1p: whether to use log1p to normalize layers in adata. Defaults to True.
             log1p_kwargs: arguments passed to use_log1p. Defaults to {}.
-            pca_function: function to perform pca. Defaults to pca_monocle.
+            pca_function: function to perform pca. Defaults to pca in utils.py.
             pca_kwargs: arguments that will be passed pca. Defaults to {}.
             gene_append_list: ensure that a list of genes show up in selected genes in monocle recipe pipeline. Defaults
                 to [].
@@ -470,7 +470,7 @@ class Preprocessor:
 
         # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
-        self.pca = pca_monocle
+        self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
 
     def preprocess_adata_monocle(
