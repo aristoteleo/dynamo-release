@@ -65,7 +65,7 @@ def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
         A flag shows whether the adata object is log transformed.
     """
 
-    chosen_gene_indices = np.random.choice(adata.n_obs, 10)
+    chosen_gene_indices = np.random.choice(adata.n_vars, 10)
     _has_log1p_transformed = not np.allclose(
         np.array(adata.X[:, chosen_gene_indices].sum(1)),
         np.array(adata.layers["spliced"][:, chosen_gene_indices].sum(1)),
