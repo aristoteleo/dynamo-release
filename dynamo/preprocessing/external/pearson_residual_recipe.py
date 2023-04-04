@@ -572,3 +572,55 @@ def select_genes_by_pearson_residuals(
         return None
     else:
         return adata, hvg
+
+def pearson_residuals(
+    adata: AnnData,
+    n_top_genes: Optional[int] = 3000,
+    subset: bool = False,
+    theta: float = 100,
+    clip: Optional[float] = None,
+    check_values: bool = True,
+) -> None:
+    """Preprocess UMI count data with analytic Pearson residuals.
+
+    Pearson residuals transform raw UMI counts into a representation where three
+    aims are achieved:
+        1.Remove the technical variation that comes from differences in total
+            counts between cells.
+        2.Stabilize the mean-variance relationship across genes, i.e. ensure
+            that biological signal from both low and high expression genes can
+            contribute similarly to downstream processing.
+        3.Genes that are homogeneously expressed (like housekeeping genes) have
+            small variance, while genes that are differentially expressed (like
+            marker genes) have high variance.
+
+    Args:
+        adata: An anndata object.
+        n_top_genes: Number of highly-variable genes to keep.
+        subset: Inplace subset to highly-variable genes if `True` otherwise
+            merely indicate highly variable genes.
+        theta: The negative binomial overdispersion parameter theta for Pearson
+            residuals. Higher values correspond to less overdispersion
+            (var = mean + mean^2/theta), and `theta=np.Inf` corresponds to a
+            Poisson model.
+        clip: Determines if and how residuals are clipped:
+                * If `None`, residuals are clipped to the interval
+                    [-sqrt(n), sqrt(n)], where n is the number of cells in the
+                    dataset (default behavior).
+                * If any scalar c, residuals are clipped to the interval
+                    [-c, c]. Set `clip=np.Inf` for no clipping.
+        check_values: Check if counts in selected layer are integers. A Warning
+            is returned if set to True.
+
+    Returns:
+        Updates adata with the field ``adata.obsm["pearson_residuals"]``,
+        containing pearson_residuals.
+    """
+    if not (n_top_genes is None):
+        compute_highly_variable_genes(
+            adata, n_top_genes=n_top_genes, recipe="pearson_residuals", inplace=True, subset=subset
+        )
+
+    X = adata.X.copy()
+    residuals = compute_pearson_residuals(X, theta=theta, clip=clip, check_values=check_values)
+    adata.obsm["pearson_residuals"] = residuals
