@@ -21,7 +21,7 @@ from ..external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
-from ..tools.connectivity import neighbors as default_neighbors
+from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
 from .preprocessor_utils import _infer_labeling_experiment_type
 from .preprocessor_utils import (
@@ -34,8 +34,6 @@ from .preprocessor_utils import (
     is_log1p_transformed_adata,
     log1p_adata,
     normalize_cell_expr_by_size_factors,
-    select_genes_by_dispersion_general,
-    select_genes_monocle,
 )
 from .utils import (
     collapse_species_adata,
@@ -57,7 +55,7 @@ class Preprocessor:
         filter_genes_by_outliers_kwargs: dict = {},
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
         normalize_by_cells_function_kwargs: dict = {},
-        select_genes_function: Callable = select_genes_by_dispersion_general,
+        select_genes_function: Callable = select_genes_monocle,
         select_genes_kwargs: dict = {},
         normalize_selected_genes_function: Callable = None,
         normalize_selected_genes_kwargs: dict = {},
@@ -381,7 +379,7 @@ class Preprocessor:
             self.pca(adata, **self.pca_kwargs)
 
     def config_monocle_recipe(
-        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "gini"
+        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "cv_dispersion"
     ) -> None:
         """Automatically configure the preprocessor for monocle recipe.
 
@@ -424,19 +422,20 @@ class Preprocessor:
         }
         self.select_genes = select_genes_monocle
         self.select_genes_kwargs = {
-            "sort_by": gene_selection_method,
             "n_top_genes": n_top_genes,
+            "sort_by": "cv_dispersion" if gene_selection_method is None else gene_selection_method,
             "keep_filtered": True,
             "SVRs_kwargs": {
+                "relative_expr": True,
+                "total_szfactor": "total_Size_Factor",
                 "min_expr_cells": 0,
                 "min_expr_avg": 0,
                 "max_expr_avg": np.inf,
-                "svr_gamma": None,
                 "winsorize": False,
                 "winsor_perc": (1, 99.5),
                 "sort_inverse": False,
+                "svr_gamma": None,
             },
-            "only_bools": True,
         }
         self.normalize_selected_genes = None
         self.normalize_by_cells = normalize_cell_expr_by_size_factors
@@ -482,7 +481,7 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess")
 
-    def config_seurat_recipe(self, adata: AnnData) -> None:
+    def config_seurat_recipe(self, adata: AnnData, gene_selection_method: str = "seurat_dispersion") -> None:
         """Automatically configure the preprocessor for using the seurat style recipe.
 
         Args:
@@ -490,8 +489,11 @@ class Preprocessor:
         """
 
         self.config_monocle_recipe(adata)
-        self.select_genes = select_genes_by_dispersion_general
-        self.select_genes_kwargs = {"recipe": "seurat", "n_top_genes": 2000}
+        self.select_genes = select_genes_by_seurat_recipe
+        self.select_genes_kwargs = {
+            "algorithm": "seurat_dispersion" if gene_selection_method is None else gene_selection_method,
+            "n_top_genes": 2000,
+        }
         self.normalize_by_cells_function_kwargs = {"skip_log": True}
         self.pca_kwargs = {"pca_key": "X_pca"}
         self.filter_genes_by_outliers_kwargs = {"shared_count": 20}
@@ -684,6 +686,7 @@ class Preprocessor:
         recipe: Literal[
             "monocle", "seurat", "sctransform", "pearson_residuals", "monocle_pearson_residuals"
         ] = "monocle",
+        gene_selection_method: Optional[str] = None,
         tkey: Optional[str] = None,
     ) -> None:
         """Preprocess the AnnData object with the recipe specified.
@@ -698,10 +701,10 @@ class Preprocessor:
         """
 
         if recipe == "monocle":
-            self.config_monocle_recipe(adata)
+            self.config_monocle_recipe(adata, gene_selection_method=gene_selection_method)
             self.preprocess_adata_monocle(adata, tkey=tkey)
         elif recipe == "seurat":
-            self.config_seurat_recipe(adata)
+            self.config_seurat_recipe(adata, gene_selection_method=gene_selection_method)
             self.preprocess_adata_seurat(adata, tkey=tkey)
         elif recipe == "sctransform":
             self.config_sctransform_recipe(adata)

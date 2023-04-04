@@ -5,7 +5,6 @@ from .cell_cycle import cell_cycle_scores
 from .dynast import lambda_correction
 from .preprocess import (
     Gini,
-    SVRs,
     calc_sz_factor_legacy,
     filter_cells_by_outliers,
     filter_cells_legacy,
@@ -16,7 +15,6 @@ from .preprocess import (
     normalize_cell_expr_by_size_factors_legacy,
     recipe_monocle,
     recipe_velocyto,
-    select_genes_monocle,
 )
 from .preprocessor_utils import *
 from .utils import (
@@ -38,7 +36,12 @@ log1p = log1p_adata
 normalize_cells = normalize_cell_expr_by_size_factors
 
 from .CnmfPreprocessor import CnmfPreprocessor
-from .preprocess_monocle_utils import estimate_dispersion, top_table
+from .gene_selection import (
+    estimate_dispersion,
+    select_genes_by_svr,
+    select_genes_monocle,
+    top_table,
+)
 from .Preprocessor import Preprocessor
 
 __all__ = [
@@ -59,7 +62,7 @@ __all__ = [
     "filter_genes",
     "filter_genes_by_outliers",
     "filter_genes_by_clusters_",
-    "SVRs",
+    "select_genes_by_svr",
     "get_svr_filter",
     "highest_frac_genes",
     "cell_cycle_scores",

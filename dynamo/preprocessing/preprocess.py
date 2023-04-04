@@ -13,7 +13,6 @@ import pandas as pd
 from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
-from sklearn.utils import sparsefuncs
 
 from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
@@ -27,14 +26,12 @@ from ..dynamo_logger import (
 from ..tools.utils import update_dict
 from ..utils import copy_adata
 from .cell_cycle import cell_cycle_scores
-from .preprocess_monocle_utils import top_table
+from .gene_selection import select_genes_by_svr, top_table
 from .preprocessor_utils import (
-    SVRs,
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
     filter_genes_by_outliers,
     normalize_cell_expr_by_size_factors,
-    select_genes_monocle,
 )
 from .utils import (
     Freeman_Tukey,
@@ -348,17 +345,36 @@ def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all
             cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]
             if np.amin(CM) < 0:
                 cur_cm -= np.amin(cur_cm)  # values cannot be negative
-            cur_cm += 0.0000001  # np.min(array[array!=0]) #values cannot be 0
+            cur_cm = cur_cm.astype(float) + 0.0000001  # np.min(array[array!=0]) #values cannot be 0
             cur_cm = np.sort(cur_cm, axis=0)  # values must be sorted
             # index per array element
             index = np.arange(1, cur_cm.shape[0] + 1)
             n = cur_cm.shape[0]  # number of array elements
-            gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (n * np.sum(cur_cm))  # Gini coefficient
+            aa = np.sum((2 * index - n - 1) * cur_cm)
+            bb = n * np.sum(cur_cm)
+            # gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (n * np.sum(cur_cm))  # Gini coefficient
+            gini[i] = aa / bb
+            print(i, aa, bb, gini[i])
 
-        if layer in ["raw", "X"]:
-            adata.var["gini"] = gini
-        else:
-            adata.var[layer + "_gini"] = gini
+        # # all values are treated equally, arrays must be 1d
+        # cur_cm = CM.toarray() if issparse(CM) else CM.copy()
+        # cur_cm[cur_cm < 0] = 0  # values cannot be negative
+        # cur_cm = cur_cm.astype(float) + 0.0000001 # values cannot be 0
+        # cur_cm = np.sort(cur_cm, axis=0)  # values must be sorted
+        # # index per array element
+        # index = np.arange(1, cur_cm.shape[0] + 1)
+        # n = cur_cm.shape[0]  # number of array elements
+        # ccc = (2 * index - n - 1)[:, np.newaxis] * cur_cm
+        # aa = np.sum((2 * index - n - 1)[:, np.newaxis] * cur_cm, axis=0)
+        # bb = n * np.sum(cur_cm, axis=0)
+        # gini = aa / bb
+        # print(i, aa, bb, ccc, gini[i])
+        # #gini = (np.sum((2 * index - n - 1) * cur_cm, axis=0)) / (n * np.sum(cur_cm, axis=0))  # Gini coefficient
+        #
+        # if layer in ["raw", "X"]:
+        #     adata.var["gini"] = gini
+        # else:
+        #     adata.var[layer + "_gini"] = gini
 
     return adata
 
@@ -868,6 +884,7 @@ def recipe_monocle(
         X and reduced dimensions, etc., are updated. Otherwise, return None.
     """
 
+    main_warning(__name__ + " is deprecated.")
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
@@ -1398,7 +1415,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool]
 
-    adata = SVRs(
+    adata = get_highly_variable_genes_by_svr(
         adata,
         layers=["spliced"],
         min_expr_cells=2,
@@ -1641,7 +1658,7 @@ def select_genes_monocle_legacy(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = SVRs(
+            adata = get_highly_variable_genes_by_svr(
                 adata,
                 layers=[layer],
                 total_szfactor=total_szfactor,

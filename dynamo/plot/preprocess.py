@@ -9,7 +9,7 @@ from scipy.sparse import csr_matrix, issparse
 from ..configuration import DynamoAdataKeyManager
 from ..dynamo_logger import main_warning
 from ..preprocessing import preprocess as pp
-from ..preprocessing.preprocess_monocle_utils import top_table
+from ..preprocessing.gene_selection import top_table
 from ..preprocessing.utils import detect_experiment_datatype
 from ..tools.utils import get_mapper, update_dict
 from .utils import save_fig
