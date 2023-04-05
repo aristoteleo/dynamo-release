@@ -1,6 +1,8 @@
 import re
 import warnings
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from numpy import ndarray
 
 try:
     from typing import Literal
@@ -14,7 +16,7 @@ import statsmodels.api as sm
 from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 
-from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
+from ..configuration import DKM
 from ..dynamo_logger import (
     LoggerManager,
     main_debug,
@@ -23,13 +25,73 @@ from ..dynamo_logger import (
     main_warning,
 )
 from .preprocessor_utils import (
-    calc_mean_var_dispersion_sparse,
     calc_sz_factor,
     get_nan_or_inf_data_bool_mask,
     get_svr_filter,
     seurat_get_mean_var,
 )
 from .utils import compute_gene_exp_fraction, cook_dist, merge_adata_attrs
+
+
+def Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> AnnData:
+    """Calculate the Gini coefficient of a numpy array.
+    https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
+
+    Args:
+        adata: an AnnData object
+        layers: the layer(s) to be normalized. Defaults to "all".
+
+    Returns:
+        An updated anndata object with gini score for the layers (include .X) in the corresponding var columns
+        (layer + '_gini').
+    """
+
+    # From: https://github.com/oliviaguest/gini
+    # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
+    # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
+
+    layers = DKM.get_available_layer_keys(adata, layers)
+
+    def compute_gini(CM):
+        # convert to dense array if sparse
+        if issparse(CM):
+            CM = CM.A
+
+        # shift all values to be non-negative
+        CM -= np.min(CM)
+
+        # add small constant to avoid zeros
+        CM = CM.astype(float) + 0.0000001  # values cannot be 0
+
+        # sort values along axis 0
+        CM = np.sort(CM, axis=0)
+
+        # compute index array
+        n = CM.shape[0]
+        index = 2 * (np.arange(1, n + 1)) - n - 1
+
+        # compute Gini coefficient for each feature
+        gini = (np.sum(index[:, np.newaxis] * CM, axis=0)) / (n * np.sum(CM, axis=0))
+
+        return gini
+
+    for layer in layers:
+        if layer == "raw":
+            CM = adata.raw.X
+        elif layer == "X":
+            CM = adata.X
+        elif layer == "protein":
+            if "protein" in adata.obsm_keys():
+                CM = adata.obsm[layer]
+            else:
+                continue
+        else:
+            CM = adata.layers[layer]
+
+        var_gini = compute_gini(CM)
+        adata.var[layer + "_gini"] = var_gini
+
+    return adata
 
 
 def parametric_dispersion_fit(
@@ -46,7 +108,7 @@ def parametric_dispersion_fit(
 
     Returns:
         A tuple (fit, coefs, good), where fit is a statsmodels fitting object, coefs contains the two resulting gamma
-        fitting coefficient, and good is the the subsetted dispersion table that is subjected to Gamma fitting.
+        fitting coefficient, and good is the subsetted dispersion table that is subjected to Gamma fitting.
     """
 
     coefs = initial_coefs
@@ -100,7 +162,7 @@ def disp_calc_helper_NB(
         layers: a list of layers available.
         res_list: a list of pd.DataFrames with mu, dispersion for each gene that passes filters.
     """
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
+    layers = DKM.get_available_layer_keys(adata, layers=layers, include_protein=False)
 
     res_list = []
     for layer in layers:
@@ -276,7 +338,7 @@ def top_table(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gin
         the columns.
     """
 
-    layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
+    layer = DKM.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
 
     if layer in ["X"]:
         key = "dispFitInfo"
@@ -318,7 +380,7 @@ def select_genes_monocle(
     exprs_frac_for_gene_exclusion: float = 1,
     genes_to_exclude: Union[List[str], None] = None,
     SVRs_kwargs: dict = {},
-) -> Union[AnnData, np.ndarray]:
+):
     """Select genes based on monocle recipe.
 
     This version is here for modularization of preprocessing, so that users may try combinations of different
@@ -327,17 +389,14 @@ def select_genes_monocle(
     Args:
         adata: an AnnData object.
         layer: The data from a particular layer (include X) used for feature selection. Defaults to "X".
-        total_szfactor: The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-            Defaults to "total_Size_Factor".
         keep_filtered: Whether to keep genes that don't pass the filtering in the adata object. Defaults to True.
-        sort_by: the sorting methods, either SVR, dispersion or Gini index, to be used to select genes. Defaults to
-            "SVR".
         n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Defaults to 2000.
-        SVRs_kwargs: kwargs for `SVRs`. Defaults to {}.
-        only_bools: Only return a vector of bool values. Defaults to False.
+        sort_by: the sorting methods, either SVR, dispersion or Gini index, to be used to select genes. Defaults to
+            "SVR". TODO: Should be fixed!
         exprs_frac_for_gene_exclusion: threshold of fractions for high fraction genes. Defaults to 1.
         genes_to_exclude: genes that are excluded from evaluation. Defaults to None.
+        SVRs_kwargs: kwargs for `SVRs`. Defaults to {}.
 
     Returns:
         The adata object with genes updated if `only_bools` is false. Otherwise, the bool array representing selected
@@ -364,52 +423,14 @@ def select_genes_monocle(
     if adata.shape[1] <= n_top_genes:
         filter_bool = np.ones(adata.shape[1], dtype=bool)
     else:
-        # table = top_table(adata, layer, mode="dispersion")
-        # valid_table = table.query("dispersion_empirical > dispersion_fit")
-        # valid_table = valid_table.loc[
-        #     set(adata.var.index[filter_bool]).intersection(valid_table.index),
-        #     :,
-        # ]
-        # gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[:n_top_genes]
-        # gene_id = valid_table.iloc[gene_id, :].index
-        # filter_bool = adata.var.index.isin(gene_id)
         if sort_by == "gini":
-            # table = top_table(adata, layer, mode="gini")
-            valid_table = adata.var[layer + "_gini"].loc[filter_bool, :]
-            gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
-            gene_id = valid_table.index[gene_id]
-            filter_bool = gene_id.isin(adata.var.index)
-        # elif :
-        #     SVRs_args = {
-        #         "min_expr_cells": 0,
-        #         "min_expr_avg": 0,
-        #         "max_expr_avg": np.inf,
-        #         "svr_gamma": None,
-        #         "winsorize": False,
-        #         "winsor_perc": (1, 99.5),
-        #         "sort_inverse": False,
-        #     }
-        #     SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-        #     adata = SVRs(
-        #         adata,
-        #         layers=[layer],
-        #         total_szfactor=total_szfactor,
-        #         filter_bool=filter_bool,
-        #         **SVRs_args,
-        #     )
-        #     filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
+            if layer + "_gini" is not adata.var.keys():
+                Gini(adata)
+            valid_table = adata.var[layer + "_gini"][filter_bool]
+            feature_gene_idx = np.argsort(-valid_table)[:n_top_genes]
+            feature_gene_idx = valid_table.index[feature_gene_idx]
+            filter_bool = filter_bool.index.isin(feature_gene_idx)
         elif sort_by == "cv_dispersion" or sort_by == "fano_dispersion":
-            # These parameters are already defined as default values in SVRs function. Do we still need this?
-            # SVRs_args = {
-            #     "min_expr_cells": 0,
-            #     "min_expr_avg": 0,
-            #     "max_expr_avg": np.inf,
-            #     "svr_gamma": None,
-            #     "winsorize": False,
-            #     "winsor_perc": (1, 99.5),
-            #     "sort_inverse": False,
-            # }
-            # SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
             adata = select_genes_by_svr(
                 adata,
                 layers=[layer],
@@ -438,8 +459,6 @@ def select_genes_monocle(
         adata._inplace_subset_var(filter_bool)
         adata.var["use_for_pca"] = True
 
-    # return filter_bool if only_bools else adata
-
 
 def select_genes_by_svr(
     adata_ori: AnnData,
@@ -458,19 +477,7 @@ def select_genes_by_svr(
         filter_bool: A boolean array from the user to select genes for downstream analysis. Defaults to None.
         layers: The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Defaults
             to "X".
-        relative_expr: A logic flag to determine whether we need to divide gene expression values first by size factor
-            before run SVR. Defaults to True.
-        total_szfactor: The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-            Defaults to "total_Size_Factor".
-        min_expr_cells: minimum number of cells that express the gene for it to be considered in the fit. Defaults to 0.
-        min_expr_avg: The minimum average of genes across cells required for gene to be selected for SVR analyses.
-            Defaults to 0.
-        max_expr_avg: The maximum average of genes across cells required for gene to be selected for SVR analyses. Genes
-            with average gene expression larger than this value will be treated as house-keeping/outlier genes. Defaults
-            to np.inf.
-        svr_gamma: the gamma hyper-parameter of the SVR. Defaults to None.
-        winsorize: Weather to winsorize the data for the cv vs mean model. Defaults to False.
-        winsor_perc: the up and lower bound of the winsorization. Defaults to (1, 99.5).
+        algorithm:
         sort_inverse: whether to sort genes from less noisy to more noisy (to use for size estimation not for feature
             selection). Defaults to False.
         use_all_genes_cells: A logic flag to determine whether all cells and genes should be used for the size factor
@@ -552,6 +559,29 @@ def get_vaild_CM(
     winsorize: bool = False,
     winsor_perc: Tuple[float, float] = (1, 99.5),
 ):
+    """Find a valid CM that is the data of the layer corresponding to the size factor.
+
+    Args:
+        adata: an AnnData object.
+        layer: The data from a particular layer (include X) used for feature selection. Defaults to "X".
+        relative_expr: A logic flag to determine whether we need to divide gene expression values first by size factor
+            before run SVR. Defaults to True.
+        total_szfactor: The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
+            Defaults to "total_Size_Factor".
+        min_expr_cells: minimum number of cells that express the gene for it to be considered in the fit. Defaults to 0.
+        min_expr_avg: The minimum average of genes across cells required for gene to be selected for SVR analyses.
+            Defaults to 0.
+        max_expr_avg: The maximum average of genes across cells required for gene to be selected for SVR analyses. Genes
+            with average gene expression larger than this value will be treated as house-keeping/outlier genes. Defaults
+            to np.inf.
+        winsorize: Weather to winsorize the data for the cv vs mean model. Defaults to False.
+        winsor_perc: the up and lower bound of the winsorization. Defaults to (1, 99.5).
+
+    Returns:
+        An updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns attribute
+        as a new key.
+    """
+
     CM = None
     if layer == "raw":
         CM = adata.X.copy() if adata.raw is None else adata.raw
@@ -596,6 +626,19 @@ def get_vaild_CM(
 
 
 def get_ground_target(algorithm, valid_CM, winsorize, winsor_perc) -> AnnData:
+    """Find the training and target dataset to perform a base class for estimators that use libsvm as backing library.
+
+    Args:
+        algorithm: Method of calculating mean and coefficient of variation, either fano_dispersion or cv_dispersion.
+        valid_CM: Gene expression matrix.
+        winsorize: Weather to winsorize the data for the cv vs mean model. Defaults to False.
+        winsor_perc: the up and lower bound of the winsorization. Defaults to (1, 99.5).
+
+    Returns:
+        ground: the training array dataset that contains mean values of gene expression.
+        target: the target array dataset with coefficient of variation of gene expression.
+    """
+
     if algorithm == "fano_dispersion":
         (gene_counts_stats, gene_fano_parameters) = get_highvar_genes_sparse(valid_CM)
         ground = np.array(gene_counts_stats["mean"]).flatten()[:, None]
@@ -620,7 +663,7 @@ def get_ground_target(algorithm, valid_CM, winsorize, winsor_perc) -> AnnData:
             sigma = (
                 np.array(
                     np.sqrt(
-                        (valid_CM.multiply(valid_CM).mean(0).A1 - (mu) ** 2)
+                        (valid_CM.multiply(valid_CM).mean(0).A1 - mu**2)
                         # * (adata.n_obs)
                         # / (adata.n_obs - 1)
                     )
@@ -641,7 +684,18 @@ def get_ground_target(algorithm, valid_CM, winsorize, winsor_perc) -> AnnData:
     return ground, target, mu
 
 
-def get_prediction_by_svr(ground, target, mean, svr_gamma):
+def get_prediction_by_svr(ground: np.ndarray, target: np.ndarray, mean: np.ndarray, svr_gamma: Optional[float] = None):
+    """This function will return the base class for estimators that use libsvm as backing library.
+
+    Args:
+        ground: the training array dataset that contains mean values of gene expression.
+        target: the target array dataset with coefficient of variation of gene expression.
+        mean: the mean value to estimate a value of svr_gamma.
+        svr_gamma: the gamma hyperparameter of the SVR. Defaults to None.
+
+    Returns:
+        A fitted SVM model according to the given training and target data.
+    """
     from sklearn.svm import SVR
 
     if svr_gamma is None:
@@ -732,7 +786,7 @@ def get_highvar_genes_sparse(
         "T": T,
         "minimal_mean": minimal_mean,
     }
-    return (gene_counts_stats, gene_fano_parameters)
+    return gene_counts_stats, gene_fano_parameters
 
 
 def select_genes_by_seurat_recipe(
@@ -795,7 +849,6 @@ def select_genes_by_seurat_recipe(
 
     if algorithm == "seurat_dispersion":
         mean, variance, highly_variable_mask = select_genes_by_seurat_dispersion(
-            subset_adata,
             layer_mat,
             min_disp=seurat_min_disp,
             max_disp=seurat_max_disp,
@@ -836,7 +889,6 @@ def select_genes_by_seurat_recipe(
 
 
 def select_genes_by_seurat_dispersion(
-    adata: AnnData,
     sparse_layer_mat: csr_matrix,
     n_bins: int = 20,
     log_mean_and_dispersion: bool = True,
@@ -845,11 +897,10 @@ def select_genes_by_seurat_dispersion(
     min_mean: float = None,
     max_mean: float = None,
     n_top_genes: Union[int, None] = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, None]:
+) -> Tuple[ndarray, ndarray, Union[bool, ndarray]]:
     """Apply seurat's gene selection recipe by cutoffs.
 
     Args:
-        adata: an AnnData object
         sparse_layer_mat: the sparse matrix used for gene selection.
         n_bins: the number of bins for normalization. Defaults to 20.
         log_mean_and_dispersion: whether log the gene expression values before calculating the dispersion values.
@@ -911,7 +962,7 @@ def select_genes_by_seurat_dispersion(
 
     highly_variable_mask = None
     if n_top_genes is not None:
-        main_info("choose %d top genes" % (n_top_genes), indent_level=2)
+        main_info("choose %d top genes" % n_top_genes, indent_level=2)
         threshold = temp_df["dispersion_norm"].nlargest(n_top_genes).values[-1]
         highly_variable_mask = temp_df["dispersion_norm"].values >= threshold
     else:
@@ -932,7 +983,7 @@ def get_highly_variable_mask_by_dispersion_svr(
     mean: np.ndarray,
     var: np.ndarray,
     n_top_genes: int,
-    svr_gamma: Union[float, None] = None,
+    svr_gamma: Optional[float] = None,
     return_scores: bool = True,
 ) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     """Returns the mask with shape same as mean and var.
@@ -944,7 +995,7 @@ def get_highly_variable_mask_by_dispersion_svr(
         var: variance of the genes.
         n_top_genes: the number of top genes to be inspected.
         svr_gamma: coefficient for support vector regression. Defaults to None.
-        return_scores: whether returen the dispersion scores. Defaults to True.
+        return_scores: whether return the dispersion scores. Defaults to True.
 
     Returns:
         A tuple (highly_variable_mask, scores) where highly_variable_mask is a bool array indicating whether an element
@@ -965,8 +1016,8 @@ def get_highly_variable_mask_by_dispersion_svr(
     if np.sum(is_nan_indices) > 0:
         main_warning(
             (
-                "mean and cv_log contain NAN values. We exclude them in SVR training. Please use related gene filtering "
-                "methods to filter genes with zero means."
+                "mean and cv_log contain NAN values. We exclude them in SVR training. Please use related gene filtering"
+                " methods to filter genes with zero means."
             )
         )
 

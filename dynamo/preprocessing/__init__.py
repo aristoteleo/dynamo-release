@@ -4,7 +4,6 @@
 from .cell_cycle import cell_cycle_scores
 from .dynast import lambda_correction
 from .preprocess import (
-    Gini,
     calc_sz_factor_legacy,
     filter_cells_by_outliers,
     filter_cells_legacy,
@@ -37,6 +36,7 @@ normalize_cells = normalize_cell_expr_by_size_factors
 
 from .CnmfPreprocessor import CnmfPreprocessor
 from .gene_selection import (
+    Gini,
     estimate_dispersion,
     select_genes_by_svr,
     select_genes_monocle,
