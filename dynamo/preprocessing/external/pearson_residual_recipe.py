@@ -28,7 +28,7 @@ from ...preprocessing.preprocessor_utils import (
     is_nonnegative_integer_arr,
     seurat_get_mean_var,
 )
-from ...preprocessing.utils import pca_monocle
+from ...preprocessing.utils import pca
 
 main_logger = LoggerManager.main_logger
 
