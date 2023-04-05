@@ -20,7 +20,7 @@ from .external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
-from .preprocess import pca_monocle
+from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
 from .preprocessor_utils import _infer_labeling_experiment_type
 from .preprocessor_utils import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
