@@ -675,15 +675,21 @@ def get_sz_exprs(
 
 
 def normalize_mat_monocle(
-    mat: np.ndarray, szfactors: np.ndarray, relative_expr: bool, pseudo_expr: int, norm_method: Callable = np.log1p
+    mat: np.ndarray,
+    szfactors: np.ndarray,
+    relative_expr: bool,
+    pseudo_expr: int,
+    norm_method: Callable = np.log1p,
 ) -> np.ndarray:
     """Normalize the given array for monocle recipe.
 
     Args:
         mat: the array to operate on.
         szfactors: the size factors corresponding to the array.
-        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
-        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization.
+        relative_expr: whether we need to divide gene expression values first by
+            size factor before normalization.
+        pseudo_expr: a pseudocount added to the gene expression value before
+            log/log2 normalization.
         norm_method: the method used to normalize data. Defaults to np.log1p.
 
     Returns:
