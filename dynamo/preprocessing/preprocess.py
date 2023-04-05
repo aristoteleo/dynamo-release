@@ -308,14 +308,16 @@ def normalize_cell_expr_by_size_factors_legacy(
 
 
 def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all") -> anndata.AnnData:
-    """Calculate the Gini coefficient of a numpy array. https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
+    """Calculate the Gini coefficient of a numpy array.
+    https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
 
     Args:
         adata: an AnnData object
         layers: the layer(s) to be normalized. Defaults to "all".
 
     Returns:
-        An updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
+        An updated anndata object with gini score for the layers (include .X) in the corresponding var columns
+        (layer + '_gini').
     """
 
     # From: https://github.com/oliviaguest/gini
@@ -323,6 +325,34 @@ def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
 
     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
+
+    def compute_gini(CM):
+        # convert to dense array if sparse
+        if issparse(CM):
+            CM = CM.A
+
+        # shift all values to be non-negative
+        CM -= np.min(CM)
+
+        # add small constant to avoid zeros
+        CM = CM.astype(float) + 0.0000001  # values cannot be 0
+
+        # sort values along axis 0
+        CM = np.sort(CM, axis=0)
+
+        # compute index array
+        n = CM.shape[0]
+        index = np.arange(1, n + 1)
+
+        # compute numerator and denominator of Gini coefficient
+        test = 2 * index - n - 1
+        numerator = np.sum(test[:, np.newaxis] * CM, axis=0)
+        denominator = n * np.sum(CM, axis=0)
+
+        # compute Gini coefficient for each feature
+        gini = numerator / denominator
+
+        return gini
 
     for layer in layers:
         if layer == "raw":
@@ -337,44 +367,12 @@ def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all
         else:
             CM = adata.layers[layer]
 
-        n_features = adata.shape[1]
-        gini = np.zeros(n_features)
+        var_gini = compute_gini(CM)
 
-        for i in np.arange(n_features):
-            # all values are treated equally, arrays must be 1d
-            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]
-            if np.amin(CM) < 0:
-                cur_cm -= np.amin(cur_cm)  # values cannot be negative
-            cur_cm = cur_cm.astype(float) + 0.0000001  # np.min(array[array!=0]) #values cannot be 0
-            cur_cm = np.sort(cur_cm, axis=0)  # values must be sorted
-            # index per array element
-            index = np.arange(1, cur_cm.shape[0] + 1)
-            n = cur_cm.shape[0]  # number of array elements
-            aa = np.sum((2 * index - n - 1) * cur_cm)
-            bb = n * np.sum(cur_cm)
-            # gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (n * np.sum(cur_cm))  # Gini coefficient
-            gini[i] = aa / bb
-            print(i, aa, bb, gini[i])
-
-        # # all values are treated equally, arrays must be 1d
-        # cur_cm = CM.toarray() if issparse(CM) else CM.copy()
-        # cur_cm[cur_cm < 0] = 0  # values cannot be negative
-        # cur_cm = cur_cm.astype(float) + 0.0000001 # values cannot be 0
-        # cur_cm = np.sort(cur_cm, axis=0)  # values must be sorted
-        # # index per array element
-        # index = np.arange(1, cur_cm.shape[0] + 1)
-        # n = cur_cm.shape[0]  # number of array elements
-        # ccc = (2 * index - n - 1)[:, np.newaxis] * cur_cm
-        # aa = np.sum((2 * index - n - 1)[:, np.newaxis] * cur_cm, axis=0)
-        # bb = n * np.sum(cur_cm, axis=0)
-        # gini = aa / bb
-        # print(i, aa, bb, ccc, gini[i])
-        # #gini = (np.sum((2 * index - n - 1) * cur_cm, axis=0)) / (n * np.sum(cur_cm, axis=0))  # Gini coefficient
-        #
-        # if layer in ["raw", "X"]:
-        #     adata.var["gini"] = gini
-        # else:
-        #     adata.var[layer + "_gini"] = gini
+    if layer in ["raw", "X"]:
+        adata.var["gini"] = var_gini
+    else:
+        adata.var[layer + "_gini"] = var_gini
 
     return adata
 
@@ -1415,7 +1413,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool]
 
-    adata = get_highly_variable_genes_by_svr(
+    adata = select_genes_by_svr(
         adata,
         layers=["spliced"],
         min_expr_cells=2,
@@ -1658,7 +1656,7 @@ def select_genes_monocle_legacy(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = get_highly_variable_genes_by_svr(
+            adata = select_genes_by_svr(
                 adata,
                 layers=[layer],
                 total_szfactor=total_szfactor,
