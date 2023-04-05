@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import pca
 from ..utils import copy_adata
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from .utils import elem_prod, get_mapper, inverse_norm
@@ -121,7 +121,7 @@ def moments(
                         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                         valid_ind = np.array(valid_ind).flatten()
                         CM = CM[:, valid_ind]
-                        adata, fit, _ = pca_monocle(
+                        adata, fit, _ = pca(
                             adata,
                             CM,
                             n_pca_components=n_pca_components,

@@ -11,7 +11,7 @@ from ..dynamo_logger import main_info
 from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
 from ..preprocessing.preprocessor_utils import log1p_adata as log1p
 from ..preprocessing.preprocessor_utils import normalize_cell_expr_by_size_factors
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import pca
 from ..utils import LoggerManager, copy_adata
 from .connectivity import _gen_neighbor_keys, neighbors
 from .utils import update_dict
@@ -642,7 +642,7 @@ def scc(
     adata.uns["pp"] = {}
     normalize_cell_expr_by_size_factors(adata, layers="X")
     log1p(adata)
-    pca_monocle(adata, n_pca_components=30, pca_key="X_pca")
+    pca(adata, n_pca_components=30, pca_key="X_pca")
 
     neighbors(adata, n_neighbors=e_neigh)
     if "X_" + spatial_key not in adata.obsm.keys():
