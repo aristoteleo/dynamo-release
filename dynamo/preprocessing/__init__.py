@@ -4,6 +4,8 @@
 from .cell_cycle import cell_cycle_scores
 from .dynast import lambda_correction
 from .external import (
+    harmony_debatch,
+    integrate,
     normalize_layers_pearson_residuals,
     sctransform,
     select_genes_by_pearson_residuals,
@@ -85,4 +87,6 @@ __all__ = [
     "log1p",
     "log1p_adata",
     "log1p_adata_layer",
+    "harmony_debatch",
+    "integrate",
 ]
