@@ -477,7 +477,7 @@ def select_genes_by_svr(
         filter_bool: A boolean array from the user to select genes for downstream analysis. Defaults to None.
         layers: The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Defaults
             to "X".
-        algorithm: Select a method to calculate the dispersion of genes, whether "cv_dispersion" or "fano_dispersion"
+        algorithm: Method of calculating mean and coefficient of variation, either "cv_dispersion" or "fano_dispersion"
         sort_inverse: whether to sort genes from less noisy to more noisy (to use for size estimation not for feature
             selection). Defaults to False.
         use_all_genes_cells: A logic flag to determine whether all cells and genes should be used for the size factor
