@@ -88,7 +88,7 @@ class Preprocessor:
                 normalize_cell_expr_by_size_factors.
             normalize_by_cells_function_kwargs: arguments that will be passed to normalize_by_cells_function. Defaults
                 to {}.
-            select_genes_function: function for selecting gene features. Defaults to select_genes_by_dispersion_general.
+            select_genes_function: function for selecting gene features. Defaults to select_genes_monocle.
             select_genes_kwargs: arguments that will be passed to select_genes. Defaults to {}.
             normalize_selected_genes_function: function for normalize selected genes. Defaults to None.
             normalize_selected_genes_kwargs: arguments that will be passed to normalize_selected_genes. Defaults to {}.

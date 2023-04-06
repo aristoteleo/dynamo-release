@@ -1,3 +1,5 @@
+import timeit
+
 import anndata
 import numpy as np
 import pandas as pd
@@ -17,7 +19,6 @@ from dynamo.preprocessing.preprocessor_utils import (
     is_nonnegative,
     is_nonnegative_integer_arr,
     log1p_adata,
-    select_genes_by_dispersion_general,
 )
 from dynamo.preprocessing.utils import convert_layers2csr
 
@@ -209,6 +210,71 @@ def test_is_nonnegative():
     assert not is_nonnegative_integer_arr(test_mat)
 
 
+def test_gene_selection_method():
+    adata = dyn.sample_data.zebrafish()
+    dyn.pl.basic_stats(adata)
+    dyn.pl.highest_frac_genes(adata)
+
+    # Drawing for the downstream analysis.
+    # df = adata.obs.loc[:, ["nCounts", "pMito", "nGenes"]]
+    # g = sns.PairGrid(df, y_vars=["pMito", "nGenes"], x_vars=["nCounts"], height=4)
+    # g.map(sns.regplot, color=".3")
+    # # g.set(ylim=(-1, 11), yticks=[0, 5, 10])
+    # g.add_legend()
+    # plt.show()
+
+    bdata = adata.copy()
+    cdata = adata.copy()
+    ddata = adata.copy()
+    edata = adata.copy()
+    preprocessor = Preprocessor()
+
+    starttime = timeit.default_timer()
+    preprocessor.preprocess_adata(edata, recipe="monocle", gene_selection_method="gini")
+    monocle_gini_result = edata.var.use_for_pca
+
+    preprocessor.preprocess_adata(adata, recipe="monocle", gene_selection_method="cv_dispersion")
+    monocle_cv_dispersion_result_1 = adata.var.use_for_pca
+
+    preprocessor.preprocess_adata(bdata, recipe="monocle", gene_selection_method="fano_dispersion")
+    monocle_fano_dispersion_result_2 = bdata.var.use_for_pca
+
+    preprocessor.preprocess_adata(cdata, recipe="seurat", gene_selection_method="fano_dispersion")
+    seurat_fano_dispersion_result_3 = cdata.var.use_for_pca
+
+    preprocessor.preprocess_adata(ddata, recipe="seurat", gene_selection_method="seurat_dispersion")
+    seurat_seurat_dispersion_result_4 = ddata.var.use_for_pca
+
+    diff_count = sum(1 for x, y in zip(monocle_cv_dispersion_result_1, monocle_gini_result) if x != y)
+    print(diff_count / len(monocle_cv_dispersion_result_1) * 100)
+
+    diff_count = sum(1 for x, y in zip(monocle_cv_dispersion_result_1, monocle_fano_dispersion_result_2) if x != y)
+    print(diff_count / len(monocle_cv_dispersion_result_1) * 100)
+
+    diff_count = sum(1 for x, y in zip(monocle_fano_dispersion_result_2, seurat_fano_dispersion_result_3) if x != y)
+    print(diff_count / len(monocle_fano_dispersion_result_2) * 100)
+
+    diff_count = sum(1 for x, y in zip(seurat_fano_dispersion_result_3, seurat_seurat_dispersion_result_4) if x != y)
+    print(diff_count / len(seurat_fano_dispersion_result_3) * 100)
+
+    diff_count = sum(1 for x, y in zip(monocle_cv_dispersion_result_1, seurat_seurat_dispersion_result_4) if x != y)
+    print(diff_count / len(monocle_cv_dispersion_result_1) * 100)
+
+    print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
+
+
+def test_regress_out():
+    adata = dyn.sample_data.hematopoiesis_raw()
+    dyn.pl.basic_stats(adata)
+    dyn.pl.highest_frac_genes(adata)
+
+    preprocessor = Preprocessor()
+
+    starttime = timeit.default_timer()
+    preprocessor.preprocess_adata(adata, recipe="monocle", regress_out=["nCounts", "Dummy", "Test", "pMito"])
+    print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
+
+
 if __name__ == "__main__":
     # test_is_nonnegative()
 
@@ -228,4 +294,5 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot(adata.copy())
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
+    # test_gene_selection_method()
     pass

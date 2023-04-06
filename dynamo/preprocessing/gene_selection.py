@@ -477,7 +477,7 @@ def select_genes_by_svr(
         filter_bool: A boolean array from the user to select genes for downstream analysis. Defaults to None.
         layers: The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Defaults
             to "X".
-        algorithm:
+        algorithm: Select a method to calculate the dispersion of genes, whether "cv_dispersion" or "fano_dispersion"
         sort_inverse: whether to sort genes from less noisy to more noisy (to use for size estimation not for feature
             selection). Defaults to False.
         use_all_genes_cells: A logic flag to determine whether all cells and genes should be used for the size factor
@@ -517,9 +517,9 @@ def select_genes_by_svr(
         if valid_CM is None:
             continue
 
-        ground, target, mean = get_ground_target(algorithm, valid_CM, winsorize, winsor_perc)
-        fitted_fun = get_prediction_by_svr(ground, target, mean, svr_gamma)
-        score = target - fitted_fun(ground)
+        mean, cv = get_mean_cv(valid_CM, algorithm, winsorize, winsor_perc)
+        fitted_fun = get_prediction_by_svr(mean, cv, svr_gamma)
+        score = cv - fitted_fun(mean)
         if sort_inverse:
             score = -score
 
@@ -538,8 +538,8 @@ def select_genes_by_svr(
             adata.var.loc[detected_bool, prefix + "log_cv"],
             adata.var.loc[detected_bool, prefix + "score"],
         ) = (
-            np.array(ground).flatten(),
-            np.array(target).flatten(),
+            np.array(mean).flatten(),
+            np.array(cv).flatten(),
             np.array(score).flatten(),
         )
 
@@ -625,25 +625,31 @@ def get_vaild_CM(
     return CM[:, detected_bool], detected_bool
 
 
-def get_ground_target(algorithm, valid_CM, winsorize, winsor_perc) -> AnnData:
-    """Find the training and target dataset to perform a base class for estimators that use libsvm as backing library.
+def get_mean_cv(
+    valid_CM: Union[np.ndarray, scipy.sparse.csr_matrix, scipy.sparse.csc_matrix, scipy.sparse.coo_matrix],
+    algorithm: Literal["cv_dispersion", "fano_dispersion"] = "cv_dispersion",
+    winsorize: bool = False,
+    winsor_perc: Tuple[float, float] = (1, 99.5),
+) -> AnnData:
+    """Find the mean and coefficient of variation of gene expression.
 
     Args:
         algorithm: Method of calculating mean and coefficient of variation, either fano_dispersion or cv_dispersion.
-        valid_CM: Gene expression matrix.
-        winsorize: Weather to winsorize the data for the cv vs mean model. Defaults to False.
-        winsor_perc: the up and lower bound of the winsorization. Defaults to (1, 99.5).
+        valid_CM: Gene expression matrix to be used in a downstream analysis.
+        winsorize: Whether to winsorize the data for the cv vs mean model. Defaults to False.
+        winsor_perc: The up and lower bound of the winsorization. Defaults to (1, 99.5).
 
     Returns:
-        ground: the training array dataset that contains mean values of gene expression.
-        target: the target array dataset with coefficient of variation of gene expression.
+        mean: the array dataset that contains mean values of gene expression.
+        cv: the array dataset with coefficient of variation of gene expression.
     """
 
     if algorithm == "fano_dispersion":
         (gene_counts_stats, gene_fano_parameters) = get_highvar_genes_sparse(valid_CM)
-        ground = np.array(gene_counts_stats["mean"]).flatten()[:, None]
-        target = np.array(gene_counts_stats["fano"]).flatten()
+        mean = np.array(gene_counts_stats["mean"]).flatten()[:, None]
+        cv = np.array(gene_counts_stats["fano"]).flatten()
         mu = gene_counts_stats["mean"]
+        return mean, cv
     elif algorithm == "cv_dispersion":
         if winsorize:
             down, up = (
@@ -676,15 +682,12 @@ def get_ground_target(algorithm, valid_CM, winsorize, winsor_perc) -> AnnData:
         log_m = np.array(np.log2(mu)).flatten()
         log_cv = np.array(np.log2(cv)).flatten()
         log_m[mu == 0], log_cv[mu == 0] = 0, 0
-        ground = log_m[:, None]
-        target = log_cv
+        return log_m[:, None], log_cv
     else:
         raise ValueError(f"The algorithm {algorithm} is not existed")
 
-    return ground, target, mu
 
-
-def get_prediction_by_svr(ground: np.ndarray, target: np.ndarray, mean: np.ndarray, svr_gamma: Optional[float] = None):
+def get_prediction_by_svr(ground: np.ndarray, target: np.ndarray, svr_gamma: Optional[float] = None):
     """This function will return the base class for estimators that use libsvm as backing library.
 
     Args:
@@ -699,7 +702,7 @@ def get_prediction_by_svr(ground: np.ndarray, target: np.ndarray, mean: np.ndarr
     from sklearn.svm import SVR
 
     if svr_gamma is None:
-        svr_gamma = 150.0 / len(mean)
+        svr_gamma = 150.0 / len(ground)
 
     # Fit the Support Vector Regression
     clf = SVR(gamma=svr_gamma)
