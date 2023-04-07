@@ -10,6 +10,7 @@ from sklearn.decomposition import PCA
 # from utils import *
 import dynamo as dyn
 from dynamo.preprocessing import Preprocessor
+from dynamo.preprocessing.cell_cycle import get_cell_phase
 from dynamo.preprocessing.preprocessor_utils import (
     calc_mean_var_dispersion_sparse,
     is_float_integer_arr,
@@ -165,6 +166,7 @@ def test_compute_gene_exp_fraction():
     print("frac:", list(frac))
     assert np.all(np.isclose(frac.flatten(), [2 / 5, 3 / 5]))
 
+
 def test_pca():
     adata = dyn.sample_data.zebrafish()
     preprocessor = Preprocessor()
@@ -180,6 +182,7 @@ def test_pca():
     assert np.linalg.norm(X_pca_sklearn[:, :10] - adata.obsm['X'][:, :10]) < 1e-1
     assert np.linalg.norm(pca.components_.T[:, :10] - adata.uns['PCs'][:, :10]) < 1e-1
     assert np.linalg.norm(pca.explained_variance_ratio_[:10] - adata.uns['explained_variance_ratio_'][:10]) < 1e-1
+
 
 def test_preprocessor_seurat(adata):
     adata = dyn.sample_data.zebrafish()
@@ -224,6 +227,7 @@ def test_is_nonnegative():
     test_mat = test_mat.toarray()
     assert not is_nonnegative_integer_arr(test_mat)
 
+
 def test_filter_genes_by_clusters_():
     # Create test data
     n_cells = 1000
@@ -254,6 +258,7 @@ def test_filter_genes_by_clusters_():
     S_avgs = np.array([np.mean(S[clusters == i], axis=0) for i in range(3)])
     expected_clu_avg_selected = np.any((U_avgs.max(1) > 0.02) & (S_avgs.max(1) > 0.08), axis=0)
     assert np.array_equal(clu_avg_selected, expected_clu_avg_selected)
+
 
 def test_filter_genes_by_outliers():
     # create a small test AnnData object
@@ -288,6 +293,7 @@ def test_filter_genes_by_outliers():
     assert adata.shape == (6, 3)
     assert np.all(adata.var_names.values == ["gene2", "gene3", "gene4"])
 
+
 def test_filter_cells_by_outliers():
     # Create a test AnnData object with some example data
     adata = anndata.AnnData(
@@ -310,6 +316,32 @@ def test_filter_cells_by_outliers():
         assert False, "Expected ValueError"
     except ValueError:
         pass
+
+def test_get_cell_phase():
+    from collections import OrderedDict
+
+    # create a mock anndata object with mock data
+    adata = anndata.AnnData(
+        X=pd.DataFrame(
+            [[1, 2, 7, 4, 1], [4, 3, 3, 5, 16], [5, 26, 7, 18, 9], [8, 39, 1, 1, 12]],
+            columns=["arglu1", "dynll1", "cdca5", "cdca8", "ckap2"],
+        )
+    )
+
+    # expected output
+    expected_output = pd.DataFrame(
+        {
+            "G1-S": [0.52330,-0.28244,-0.38155,-0.13393],
+            "S": [-0.77308, 0.98018, 0.39221, -0.38089],
+            "G2-M": [-0.33656, -0.27547, 0.70090, 0.35216],
+            "M": [0.07714, -0.36019, -0.67685, 0.77044],
+            "M-G1": [0.50919, -0.06209, -0.03472, -0.60778],
+        },
+    )
+
+    # test the function output against the expected output
+    np.allclose(get_cell_phase(adata).iloc[:, :5], expected_output)
+
 
 if __name__ == "__main__":
     # test_is_nonnegative()
@@ -334,4 +366,5 @@ if __name__ == "__main__":
     # test_filter_genes_by_clusters_()
     # test_filter_genes_by_outliers()
     # test_filter_cells_by_outliers()
+    # test_get_cell_phase()
     pass
