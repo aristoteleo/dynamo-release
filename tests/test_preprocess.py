@@ -1,9 +1,10 @@
+import timeit
+
 import anndata
 import numpy as np
 import pandas as pd
 import scipy
 import scipy.sparse
-from scipy import sparse
 from scipy.sparse.csr import csr_matrix
 
 # from utils import *
@@ -209,6 +210,19 @@ def test_is_nonnegative():
     assert not is_nonnegative_integer_arr(test_mat)
 
 
+def test_regress_out():
+    adata = dyn.sample_data.hematopoiesis_raw()
+    dyn.pl.basic_stats(adata)
+    dyn.pl.highest_frac_genes(adata)
+
+    preprocessor = Preprocessor()
+
+    starttime = timeit.default_timer()
+    # preprocessor.preprocess_adata(adata, recipe="monocle", regress_out=["nCounts", "Dummy", "Test", "pMito"])
+    preprocessor.preprocess_adata(adata, recipe="seurat", regress_out=["nCounts", "pMito"])
+    print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
+
+
 if __name__ == "__main__":
     # test_is_nonnegative()
 
@@ -228,4 +242,5 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot(adata.copy())
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
+    test_regress_out()
     pass

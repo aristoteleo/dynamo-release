@@ -1570,7 +1570,8 @@ def regress_out_parallel(
         if not (adata.var[gene_selection_key].dtype == bool):
             raise ValueError(str(gene_selection_key) + " is not a boolean")
 
-        x_prev = adata[:, adata.var.loc[:, gene_selection_key]].X # TODO: check this line
+        subset_adata = adata[:, adata.var.loc[:, gene_selection_key]]
+        x_prev = DKM.select_layer_data(subset_adata, layer)
 
     x_prev = x_prev.toarray().copy()
 

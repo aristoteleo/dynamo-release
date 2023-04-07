@@ -168,7 +168,11 @@ class Preprocessor:
         if has_labeling:
             main_info("data contains labeling info, checking tkey:" + str(tkey))
             if tkey not in adata.obs.keys():
-                raise ValueError("tkey:%s encoding the labeling time is not existed in your adata." % (str(tkey)))
+                if tkey is None and "time" in adata.obs.keys():
+                    main_warning("Automatically set to tkey as adata.obs.time due to no tkey was set as input")
+                    tkey = "time"
+                else:
+                    raise ValueError("tkey:%s encoding the labeling time is not existed in your adata." % (str(tkey)))
             if tkey is not None and adata.obs[tkey].max() > 60:
                 main_warning(
                     "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
@@ -461,7 +465,7 @@ class Preprocessor:
 
         # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
-        self.regress_out_kwargs = {"variables": regress_out_obs_keys, "selected_genes": "use_for_pca"}
+        self.regress_out_kwargs = {"variables": regress_out_obs_keys, "gene_selection_key": "use_for_pca"}
         self.pca = pca_monocle
         self.pca_kwargs = {"pca_key": "X_pca", "layer": "regress_out"}
 
@@ -505,7 +509,7 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess")
 
-    def config_seurat_recipe(self, adata: AnnData) -> None:
+    def config_seurat_recipe(self, adata: AnnData, regress_out_obs_keys: List[str] = []) -> None:
         """Automatically configure the preprocessor for using the seurat style recipe.
 
         Args:
@@ -520,6 +524,7 @@ class Preprocessor:
         self.filter_genes_by_outliers_kwargs = {"shared_count": 20}
         self.use_log1p = True
         self.log1p_kwargs = {"layers": ["X"]}
+        self.regress_out_kwargs = {"variables": regress_out_obs_keys, "gene_selection_key": "use_for_pca"}
 
     def preprocess_adata_seurat(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -545,6 +550,8 @@ class Preprocessor:
         self._normalize_by_cells(adata)
         self._select_genes(adata)
         self._log1p(adata)
+        if len(self.regress_out_kwargs["variables"]) > 0:
+            self._regress_out(adata)
         self._pca(adata)
         temp_logger.finish_progress(progress_name="preprocess by seurat recipe")
 
@@ -726,7 +733,7 @@ class Preprocessor:
             self.config_monocle_recipe(adata, regress_out_obs_keys=regress_out)
             self.preprocess_adata_monocle(adata, tkey=tkey)
         elif recipe == "seurat":
-            self.config_seurat_recipe(adata)
+            self.config_seurat_recipe(adata, regress_out_obs_keys=regress_out)
             self.preprocess_adata_seurat(adata, tkey=tkey)
         elif recipe == "sctransform":
             self.config_sctransform_recipe(adata)
