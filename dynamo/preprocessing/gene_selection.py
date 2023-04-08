@@ -347,6 +347,7 @@ def top_table(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gin
 
     if mode == "dispersion":
         if adata.uns[key] is None:
+            main_warning("dispersion mode is deprecated. This mode will be removed in the future.")
             estimate_dispersion(adata, layers=[layer])
 
         if adata.uns[key] is None:
