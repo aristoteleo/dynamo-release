@@ -37,7 +37,6 @@ normalize_cells = normalize_cell_expr_by_size_factors
 from .CnmfPreprocessor import CnmfPreprocessor
 from .gene_selection import (
     Gini,
-    estimate_dispersion,
     select_genes_by_svr,
     select_genes_monocle,
     top_table,
@@ -56,7 +55,6 @@ __all__ = [
     "recipe_velocyto",
     "Gini",
     "top_table",
-    "estimate_dispersion",
     "filter_cells_by_outliers",
     "select_genes_monocle",
     "filter_genes",
