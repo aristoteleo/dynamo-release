@@ -508,7 +508,7 @@ def fp_operator(
     return Q
 
 
-def divergence(E, W=None, method="operator"):
+def divergence(E, W=None, method="operator", weighted: bool = False):
     # TODO: support weight in the future
     if method == "direct":
         n = E.shape[0]
@@ -518,7 +518,10 @@ def divergence(E, W=None, method="operator"):
         div *= 0.5
     elif method == "operator":
         W = np.abs(np.sign(E)) if W is None else W
-        div = divop(W) @ E[W.nonzero()]
+        if weighted:
+            div = divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()]
+        else:
+            div = divop(W) @ E[W.nonzero()]
     else:
         raise NotImplementedError(f"Unsupported method `{method}`")
 
