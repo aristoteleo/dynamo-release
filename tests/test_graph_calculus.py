@@ -4,6 +4,22 @@ import pandas as pd
 import scipy.sparse as sp
 
 
+def test_calc_laplacian():
+    # Test naive weight mode
+    W = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+    expected_result = np.array([[1, -1, 0], [-1, 2, -1], [0, -1, 1]])
+    assert np.allclose(dyn.tl.graph_calculus.calc_laplacian(W, convention="graph"), expected_result)
+
+    # Test E argument
+    W = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+    E = np.array([[0, 2, 0], [2, 0, 1], [0, 1, 0]])
+    expected_result = np.array([[0.25, -0.25, 0], [-0.25, 1.25, -1], [0, -1, 1]])
+    assert np.allclose(
+        dyn.tl.graph_calculus.calc_laplacian(W, E=E, weight_mode="asymmetric", convention="graph"),
+        expected_result,
+    )
+
+
 def test_divergence():
     # Create a test adjacency matrix
     adj = np.array([[0, 0, 0], [1, 0, 1], [0, 0, 0]])
@@ -43,6 +59,7 @@ def test_gradop():
 
 
 if __name__ == "__main__":
+    test_calc_laplacian()
     test_divergence()
     test_gradop()
     pass
