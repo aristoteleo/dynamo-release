@@ -8,7 +8,7 @@ from scipy.stats import mode
 from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import main_info
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import pca
 from ..tools.clustering import hdbscan, infomap, leiden, louvain
 from ..tools.Markov import (
     grid_velocity_filter,
@@ -390,7 +390,7 @@ def streamline_clusters(
 
     # clustering
     feature_adata = AnnData(feature_df)
-    pca_monocle(feature_adata, X_data=feature_df, pca_key="X_pca")
+    pca(feature_adata, X_data=feature_df, pca_key="X_pca")
     if clustering_method == "louvain":
         louvain(feature_adata, obsm_key="X_pca")
     elif clustering_method == "leiden":

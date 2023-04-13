@@ -541,9 +541,9 @@ def cell_velocities(
 
         if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
             CM = adata.X[:, adata.var.use_for_dynamics.values]
-            from ..preprocessing.utils import pca_monocle
+            from ..preprocessing.utils import pca
 
-            adata, pca_fit, X_pca = pca_monocle(adata, CM, n_pca_components, "X", return_all=True)
+            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X", return_all=True)
             adata.uns["pca_fit"] = pca_fit
 
         X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
