@@ -501,7 +501,6 @@ class Preprocessor:
 
         self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
-        self._filter_cells_by_outliers(adata)
         self._select_genes(adata)
 
         # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.
