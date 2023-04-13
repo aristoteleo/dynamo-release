@@ -1538,9 +1538,8 @@ def pca_selected_genes_wrapper(
 def regress_out_parallel(
     adata: AnnData,
     layer: str = DKM.X_LAYER,
-    variables: Optional[List[str]] = None,
+    obs_key: Optional[List[str]] = None,
     gene_selection_key: Optional[str] = None,
-    n_cores: int = 1,
     obsm_store_key: str = "X_regress_out",
 ):
     """Perform linear regression to remove the effects of given variables from a target variable.
@@ -1548,7 +1547,7 @@ def regress_out_parallel(
     Args:
         adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
         layer: the layer to regress out. Defaults to "X".
-        variables: List of observation keys to remove
+        obs_key: List of observation keys to be removed
         gene_selection_key: the key in adata.var that contains boolean for showing genes` filtering results.
             For example, "use_for_pca" is selected then it will regress out only for the genes that are True
             for "use_for_pca". This input will decrease processing time of regressing out data.
@@ -1556,7 +1555,7 @@ def regress_out_parallel(
         obsm_store_key: the key to store the regress out result. Defaults to "X_regress_out".
     """
 
-    if len(variables) < 1:
+    if len(obs_key) < 1:
         main_warning("No variable to regress out")
         return
 
@@ -1573,17 +1572,20 @@ def regress_out_parallel(
         x_prev = DKM.select_layer_data(subset_adata, layer)
 
     x_prev = x_prev.toarray().copy()
+    import timeit
 
-    if n_cores == 1:
+    stime = timeit.default_timer()
+
+    if x_prev.shape[1] < 10000:
         y_new = x_prev  # for the cases when variables are more than 1.
 
-        for variable in variables:
-            if variable not in adata.obs.keys():
-                main_warning("No %s in adata.obs.keys" % variable)
+        for key in obs_key:
+            if key not in adata.obs.keys():
+                main_warning("No %s in adata.obs.keys" % key)
                 continue
 
             # Select the variables to remove
-            x_remove = adata.obs[variable].to_numpy().reshape(-1, 1)
+            x_remove = adata.obs[key].to_numpy().reshape(-1, 1)
 
             # Predict the effects of the variables to remove
             y_pred = regress_out_chunk(x_remove, y_new)
@@ -1593,9 +1595,12 @@ def regress_out_parallel(
 
         # Predict the residuals after removing the effects of the variables and save to "X_regress_out"
         res = regress_out_chunk(x_prev, y_new)
-
     else:
-        from multiprocessing import Pool as ThreadPool
+        import multiprocessing
+        import os
+
+        ctx = multiprocessing.get_context("fork")
+        n_cores = os.cpu_count()
 
         regress_val = np.zeros((x_prev.shape[0], x_prev.shape[1]))
         # Split the input data into chunks for parallel processing
@@ -1605,14 +1610,14 @@ def regress_out_parallel(
         chunks.append(x_prev[:, (n_cores - 1) * chunk_size :])
 
         # Create a pool of work processes
-        pool = ThreadPool(n_cores)
+        pool = ctx.Pool(n_cores)
 
-        for variable in variables:
-            if variable not in adata.obs.keys():
-                main_warning("No %s in adata.obs.keys" % variable)
+        for key in obs_key:
+            if key not in adata.obs.keys():
+                main_warning("No %s in adata.obs.keys" % key)
                 continue
 
-            x_remove = [adata.obs[variable].to_numpy().reshape(-1, 1)] * n_cores
+            x_remove = [adata.obs[key].to_numpy().reshape(-1, 1)] * n_cores
             results = pool.starmap(regress_out_chunk, zip(x_remove, chunks))
             regress_val += np.hstack(results)
 
@@ -1627,8 +1632,10 @@ def regress_out_parallel(
         results = pool.starmap(regress_out_chunk, zip(x_prev, chunks_res))
         pool.close()
         pool.join()
+
         res = np.hstack(results)
 
+    main_info("regress out: keys(%s), time(%f)" % (obs_key, timeit.default_timer() - stime))
     adata.obsm[obsm_store_key] = res
 
 
@@ -1651,4 +1658,3 @@ def regress_out_chunk(
 
     # Predict the effects of the variables to remove
     return reg.predict(obs_feature)
-
