@@ -9,7 +9,7 @@ from scipy.sparse import csr_matrix, issparse
 from ..configuration import DynamoAdataKeyManager
 from ..dynamo_logger import main_warning
 from ..preprocessing import preprocess as pp
-from ..preprocessing.gene_selection import top_table
+from ..preprocessing.gene_selection import get_prediction_by_svr, top_table
 from ..preprocessing.utils import detect_experiment_datatype
 from ..tools.utils import get_mapper, update_dict
 from .utils import save_fig
@@ -705,15 +705,25 @@ def feature_genes(
                 np.nanmin(table[prefix + "log_m"]),
                 np.nanmax(table[prefix + "log_m"]),
             )
+    else:  # TODO: Gini?
+        raise NotImplementedError(f"The mode{mode} to plot the feature genes not implemented yet")
 
     ordering_genes = adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
-    fit = (
-        adata.uns[uns_store_key]["disp_func"](mu_linspace)
-        if mode == "dispersion"
-        else adata.uns[uns_store_key]["SVR"](mu_linspace.reshape(-1, 1))
-    )
+    if "_dispersion" in mode:
+        mean = adata.uns[uns_store_key]["mean"]
+        cv = adata.uns[uns_store_key]["cv"]
+        svr_gamma = adata.uns[uns_store_key]["svr_gamma"]
+        fit = get_prediction_by_svr(mean, cv, svr_gamma)
+        fit = fit(mu_linspace.reshape(-1, 1))
+    else:
+        raise NotImplementedError(f"The mode{mode} to plot the feature genes not implemented yet")
+    # fit = (
+    #     adata.uns[uns_store_key]["disp_func"](mu_linspace)
+    #     if mode == "dispersion"
+    #     else adata.uns[uns_store_key]["SVR"](mu_linspace.reshape(-1, 1))
+    # )
 
     plt.figure(figsize=figsize)
     plt.plot(mu_linspace, fit, alpha=0.4, color="r")
@@ -732,7 +742,7 @@ def feature_genes(
             alpha=1,
             color="xkcd:red",
         )
-    elif mode == "SVR":
+    elif "_dispersion" in mode:
         ax = plt.scatter(
             valid_disp_table[prefix + "log_m"],
             valid_disp_table[prefix + "log_cv"],
@@ -751,7 +761,7 @@ def feature_genes(
             alpha=0.5,
             color="xkcd:grey",
         )
-    elif mode == "SVR":
+    elif "_dispersion" in mode:
         ax = plt.scatter(
             neg_disp_table[prefix + "log_m"],
             neg_disp_table[prefix + "log_cv"],

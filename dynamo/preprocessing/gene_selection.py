@@ -301,8 +301,8 @@ def select_genes_by_svr(
             score = -score
 
         # Now we can get "SVR" from get_prediction_by_svr
-        # key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
-        # adata_ori.uns[key] = {"SVR": fitted_fun}
+        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
+        adata_ori.uns[key] = {"mean": mean, "cv": cv, "svr_gamma": svr_gamma}
 
         prefix = "" if layer == "X" else layer + "_"
         (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
