@@ -18,6 +18,7 @@ from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
     LoggerManager,
     main_critical,
+    main_debug,
     main_info,
     main_info_insert_adata_obsm,
     main_info_insert_adata_uns,
@@ -1450,7 +1451,7 @@ def highest_frac_genes(
     not_all_zero = cell_expression_sum != 0
     filtered_adata = adata[not_all_zero, :]
     cell_expression_sum = cell_expression_sum[not_all_zero]
-    main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
+    main_debug("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
 
     valid_gene_set = set()
     prefix_to_genes = {}

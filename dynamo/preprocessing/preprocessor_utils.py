@@ -100,10 +100,9 @@ def _infer_labeling_experiment_type(adata: anndata.AnnData, tkey: str) -> Litera
 
         # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
         experiment_type = "kin" if k > 0 else "deg"
-    main_info(
-        f"\nDynamo detects your labeling data is from a {experiment_type} experiment. If experiment type is not corrent, please correct "
-        f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
-        f"needed."
+    main_debug(
+        f"\nDynamo has detected that your labeling data is from a kin experiment. \nIf the experiment type is incorrect, "
+        f"please provide the correct experiment_type (one-shot, kin, or deg)."
     )
     return experiment_type
 
@@ -543,10 +542,10 @@ def filter_cells_by_outliers(
 
     main_info_insert_adata_obs(obs_store_key)
     if keep_filtered:
-        main_info("keep filtered cell", indent_level=2)
+        main_debug("keep filtered cell", indent_level=2)
         adata.obs[obs_store_key] = filter_bool
     else:
-        main_info("inplace subsetting adata by filtered cells", indent_level=2)
+        main_debug("inplace subsetting adata by filtered cells", indent_level=2)
         adata._inplace_subset_obs(filter_bool)
         adata.obs[obs_store_key] = True
 
@@ -578,23 +577,23 @@ def get_filter_mask_cells_by_outliers(
 
     for i, layer in enumerate(layers):
         if layer not in layer2range:
-            main_info(
+            main_debug(
                 "skip filtering cells by layer: %s as it is not in the layer2range mapping passed in:" % layer,
                 indent_level=2,
             )
             continue
         if not DKM.check_if_layer_exist(adata, layer):
-            main_info("skip filtering by layer:%s as it is not in adata." % layer)
+            main_debug("skip filtering by layer:%s as it is not in adata." % layer)
             continue
 
-        main_info("filtering cells by layer:%s" % layer, indent_level=2)
+        main_debug("filtering cells by layer:%s" % layer, indent_level=2)
         layer_data = DKM.select_layer_data(adata, layer)
         detected_mask = detected_mask & get_sum_in_range_mask(
             layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, data_min_val_threshold=0
         )
 
     if shared_count is not None:
-        main_info("filtering cells by shared counts from all layers", indent_level=2)
+        main_debug("filtering cells by shared counts from all layers", indent_level=2)
         layers = DKM.get_available_layer_keys(adata, layers, False)
         detected_mask = detected_mask & get_inrange_shared_counts_mask(adata, layers, shared_count, "cell")
 
@@ -831,7 +830,7 @@ def normalize_cell_expr_by_size_factors(
             _norm_method = None
 
         if _norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
-            main_info("applying %s to layer<%s>" % (_norm_method, layer))
+            main_debug("applying %s to layer<%s>" % (_norm_method, layer))
             CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, _norm_method)
 
         elif layer == "protein":  # norm_method == 'clr':
@@ -858,7 +857,7 @@ def normalize_cell_expr_by_size_factors(
             main_warning(_norm_method + " is not implemented yet")
 
         if layer in ["raw", "X"]:
-            main_info("set adata <X> to normalized data.")
+            main_info("set adata <X> to normalized data using %s" % _norm_method)
             adata.X = CM
         elif layer == "protein" and "protein" in adata.obsm_keys():
             main_info_insert_adata_obsm("X_protein")

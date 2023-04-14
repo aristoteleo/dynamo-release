@@ -154,8 +154,8 @@ class Logger:
 
     def info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs):
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
-        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
-        return self.logger.error(message, *args, **kwargs)
+        message = format_logging_message(message, logging.DEBUG, indent_level=indent_level)
+        return self.logger.debug(message, *args, **kwargs)
 
     def info_insert_adata_var(self, key, indent_level=1, *args, **kwargs):
         return self.info_insert_adata(self, key, adata_attr="var", indent_level=1, *args, **kwargs)

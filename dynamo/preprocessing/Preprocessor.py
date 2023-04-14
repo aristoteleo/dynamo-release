@@ -244,18 +244,17 @@ class Preprocessor:
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
         main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
-        main_info("making adata observation index unique...")
+        main_debug("making adata observation index unique...")
         self.convert_layers2csr(adata)
 
         if self.collapse_species_adata:
-            main_info("applying collapse species adata...")
+            main_debug("applying collapse species adata...")
             self.collapse_species_adata(adata)
 
         if self.convert_gene_name:
-            main_info("applying convert_gene_name function...")
             self.convert_gene_name(adata)
 
-        main_info("making adata observation index unique after gene name conversion...")
+        main_debug("making adata observation index unique after gene name conversion...")
         self.unique_var_obs_adata(adata)
 
     def _filter_cells_by_outliers(self, adata: AnnData) -> None:
@@ -267,8 +266,8 @@ class Preprocessor:
         """
 
         if self.filter_cells_by_outliers:
-            main_info("filtering outlier cells...")
-            main_info("cell filter kwargs:" + str(self.filter_cells_by_outliers_kwargs))
+            main_debug("filtering outlier cells...")
+            main_debug("cell filter kwargs:" + str(self.filter_cells_by_outliers_kwargs))
             self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
 
     def _filter_genes_by_outliers(self, adata: AnnData) -> None:
@@ -280,8 +279,8 @@ class Preprocessor:
         """
 
         if self.filter_genes_by_outliers:
-            main_info("filtering outlier genes...")
-            main_info("gene filter kwargs:" + str(self.filter_genes_by_outliers_kwargs))
+            main_debug("filtering outlier genes...")
+            main_debug("gene filter kwargs:" + str(self.filter_genes_by_outliers_kwargs))
             self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
 
     def _select_genes(self, adata: AnnData) -> None:
@@ -293,8 +292,8 @@ class Preprocessor:
         """
 
         if self.select_genes:
-            main_info("selecting genes...")
-            main_info("select_genes kwargs:" + str(self.select_genes_kwargs))
+            main_debug("selecting genes...")
+            main_debug("select_genes kwargs:" + str(self.select_genes_kwargs))
             self.select_genes(adata, **self.select_genes_kwargs)
 
     def _append_gene_list(self, adata: AnnData) -> None:
@@ -305,7 +304,7 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if self.gene_append_list is not None:
+        if len(self.gene_append_list) > 0:
             append_genes = adata.var.index.intersection(self.gene_append_list)
             adata.var.loc[append_genes, DKM.VAR_USE_FOR_PCA] = True
             main_info("appended %d extra genes as required..." % len(append_genes))
@@ -318,7 +317,7 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if self.gene_exclude_list is not None:
+        if len(self.gene_exclude_list) > 0:
             exclude_genes = adata.var.index.intersection(self.gene_exclude_list)
             adata.var.loc[exclude_genes, DKM.VAR_USE_FOR_PCA] = False
             main_info("excluded %d genes as required..." % len(exclude_genes))
@@ -339,40 +338,28 @@ class Preprocessor:
                 "OVERWRITE all gene selection results above according to user gene list inputs. %d genes in use."
                 % len(forced_genes)
             )
-        else:
-            main_info("self.force_gene_list is None, skipping filtering by gene list...")
 
     def _normalize_selected_genes(self, adata: AnnData) -> None:
-        """Normalize selected genes with method specified in the preprocessor's
-        `normalize_selected_genes`
+        """Normalize selected genes with method specified in the preprocessor's `normalize_selected_genes`
 
         Args:
             adata: an AnnData object.
         """
 
-        if not callable(self.normalize_selected_genes):
-            main_info(
-                "skipping normalize by selected genes as preprocessor normalize_selected_genes is not callable..."
-            )
-            return
-
-        main_info("normalizing selected genes...")
-        self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
+        if callable(self.normalize_selected_genes):
+            main_debug("normalizing selected genes...")
+            self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
 
     def _normalize_by_cells(self, adata: AnnData) -> None:
-        """Performing cell-wise normalization based on method specified as the
-        preprocessor's `normalize_by_cells`.
+        """Performing cell-wise normalization based on method specified as the preprocessor's `normalize_by_cells`.
 
         Args:
             adata: an AnnData object.
         """
 
-        if not callable(self.normalize_by_cells):
-            main_info("skipping normalize by cells as preprocessor normalize_by_cells is not callable...")
-            return
-
-        main_info("applying normalize by cells function...")
-        self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
+        if callable(self.normalize_by_cells):
+            main_debug("applying normalize by cells function...")
+            self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
 
     def _log1p(self, adata: AnnData) -> None:
         """Perform log1p on the data with args specified in the preprocessor's
@@ -390,7 +377,7 @@ class Preprocessor:
             # TODO: the following line is for monocle recipe and later dynamics matrix recovery
             # refactor with dynamics module
             adata.uns["pp"]["norm_method"] = "log1p"
-            main_info("applying log1p transformation on expression matrix data (adata.X)...")
+            main_debug("applying log1p transformation on expression matrix data (adata.X)...")
             self.log1p(adata, **self.log1p_kwargs)
 
     def _pca(self, adata: AnnData) -> None:
@@ -530,7 +517,7 @@ class Preprocessor:
                 would be inferred from the data. Defaults to None.
         """
 
-        main_info("Running preprocessing pipeline...")
+        main_info("Running monocle preprocessing pipeline...")
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle")
         temp_logger.log_time()
 
@@ -593,7 +580,7 @@ class Preprocessor:
 
         temp_logger = LoggerManager.gen_logger("preprocessor-seurat")
         temp_logger.log_time()
-        main_info("Applying Seurat recipe preprocessing...")
+        main_info("Running Seurat recipe preprocessing...")
 
         self.standardize_adata(adata, tkey, experiment_type)
         self._filter_genes_by_outliers(adata)
@@ -644,7 +631,7 @@ class Preprocessor:
 
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
-        main_info("Applying Sctransform recipe preprocessing...")
+        main_info("Running Sctransform recipe preprocessing...")
 
         self.standardize_adata(adata, tkey, experiment_type)
 

@@ -440,7 +440,7 @@ def get_cell_phase(
     # pick maximal score as the phase for that cell
     cell_cycle_scores["cell_cycle_phase"] = cell_cycle_scores.idxmax(axis=1)
     cell_cycle_scores["cell_cycle_phase"] = cell_cycle_scores["cell_cycle_phase"].astype("category")
-    cell_cycle_scores["cell_cycle_phase"].cat.set_categories(phase_list, inplace=True)
+    cell_cycle_scores["cell_cycle_phase"].cat.set_categories(phase_list)
 
     def progress_ratio(x, phase_list):
         ind = phase_list.index(x["cell_cycle_phase"])
@@ -458,9 +458,9 @@ def get_cell_phase(
 
     # order of cell within cell cycle phase
     cell_cycle_scores["cell_cycle_order"] = cell_cycle_scores.groupby("cell_cycle_phase").cumcount()
-    cell_cycle_scores["cell_cycle_order"] = cell_cycle_scores.groupby("cell_cycle_phase")["cell_cycle_order"].apply(
-        lambda x: x / (len(x) - 1)
-    )
+    cell_cycle_scores["cell_cycle_order"] = cell_cycle_scores.groupby("cell_cycle_phase", group_keys=False)[
+        "cell_cycle_order"
+    ].apply(lambda x: x / (len(x) - 1))
 
     return cell_cycle_scores
 
