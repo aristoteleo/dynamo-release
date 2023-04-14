@@ -22,6 +22,7 @@ from ..dynamo_logger import (
     main_info_insert_adata_var,
     main_warning,
 )
+from ._deprecated import _estimate_dispersion
 from .preprocessor_utils import (
     calc_sz_factor,
     get_nan_or_inf_data_bool_mask,
@@ -29,7 +30,6 @@ from .preprocessor_utils import (
     seurat_get_mean_var,
 )
 from .utils import compute_gene_exp_fraction, merge_adata_attrs
-from ._deprecated import _estimate_dispersion
 
 
 def Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> AnnData:
@@ -233,6 +233,8 @@ def select_genes_monocle(
     else:
         adata._inplace_subset_var(filter_bool)
         adata.var["use_for_pca"] = True
+
+    adata.uns["feature_selection"] = sort_by
 
 
 def select_genes_by_svr(

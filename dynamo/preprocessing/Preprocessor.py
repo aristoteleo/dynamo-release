@@ -12,6 +12,7 @@ from anndata import AnnData
 from ..configuration import DKM
 from ..dynamo_logger import (
     LoggerManager,
+    main_debug,
     main_info,
     main_info_insert_adata,
     main_warning,
@@ -21,6 +22,7 @@ from ..external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
+from .cell_cycle import cell_cycle_scores
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca
 from .preprocessor_utils import _infer_labeling_experiment_type
@@ -66,7 +68,8 @@ class Preprocessor:
         gene_append_list: List[str] = [],
         gene_exclude_list: List[str] = [],
         force_gene_list: Optional[List[str]] = None,
-        sctransform_kwargs={},
+        sctransform_kwargs: dict = {},
+        cell_cycle_score_kwargs: dict = {},
     ) -> None:
         """Preprocessor constructor.
 
@@ -119,6 +122,7 @@ class Preprocessor:
 
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
+        self.cell_cycle_score = cell_cycle_scores
 
         # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
@@ -134,6 +138,7 @@ class Preprocessor:
         self.select_genes_kwargs = select_genes_kwargs
         self.sctransform_kwargs = sctransform_kwargs
         self.normalize_selected_genes_kwargs = normalize_selected_genes_kwargs
+        self.cell_cycle_score_kwargs = cell_cycle_score_kwargs
 
     def add_experiment_info(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -164,14 +169,21 @@ class Preprocessor:
         ) = detect_experiment_datatype(adata)
         # check whether tkey info exists if has_labeling
         if has_labeling:
-            main_info("data contains labeling info, checking tkey:" + str(tkey))
-            if tkey not in adata.obs.keys():
-                raise ValueError("tkey:%s encoding the labeling time is not existed in your adata." % (str(tkey)))
+            main_debug("data contains labeling info, checking tkey:" + str(tkey))
             if tkey is not None and adata.obs[tkey].max() > 60:
                 main_warning(
                     "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
                     "we recommend using hour as the time unit."
                 )
+            if tkey not in adata.obs.keys():
+                if (tkey is None) and (DKM.UNS_PP_TKEY in adata.obs.keys()):
+                    tkey = DKM.UNS_PP_TKEY
+                    main_warning(
+                        "No 'tkey' value was given despite 'tkey' information in the adata, "
+                        "so we will use 'time' in the adata as the default."
+                    )
+                else:
+                    raise ValueError("tkey:%s encoding the labeling time is not existed in your adata." % (str(tkey)))
 
         adata.uns["pp"]["tkey"] = tkey
         adata.uns["pp"]["has_splicing"] = has_splicing
@@ -382,8 +394,7 @@ class Preprocessor:
             self.log1p(adata, **self.log1p_kwargs)
 
     def _pca(self, adata: AnnData) -> None:
-        """Perform pca reduction with args specified in the preprocessor's
-        `pca_kwargs`.
+        """Perform pca reduction with args specified in the preprocessor's `pca_kwargs`.
 
         Args:
             adata: an AnnData object.
@@ -392,6 +403,24 @@ class Preprocessor:
         if self.pca:
             main_info("reducing dimension by PCA...")
             self.pca(adata, **self.pca_kwargs)
+
+    def _cell_cycle_score(self, adata: AnnData) -> None:
+        """Estimate cell cycle stage of each cell based on its gene expression pattern.
+
+        Args:
+            adata: an AnnData object.
+        """
+
+        if self.cell_cycle_score:
+            main_debug("cell cycle scoring...")
+            try:
+                self.cell_cycle_score(adata, **self.cell_cycle_score_kwargs)
+            except Exception:
+                main_warning(
+                    "\nDynamo is not able to perform cell cycle staging for you automatically. \n"
+                    "Since dyn.pl.phase_diagram in dynamo by default colors cells by its cell-cycle stage, \n"
+                    "you need to set color argument accordingly if confronting errors related to this."
+                )
 
     def preprocess_adata_seurat_wo_pca(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -480,6 +509,14 @@ class Preprocessor:
         self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
 
+        self.cell_cycle_score_kwargs = {
+            "layer": None,
+            "gene_list": None,
+            "refine": True,
+            "threshold": 0.3,
+            "copy": False,
+        }
+
     def preprocess_adata_monocle(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ) -> None:
@@ -513,6 +550,7 @@ class Preprocessor:
 
         self._log1p(adata)
         self._pca(adata)
+        self._cell_cycle_score(adata)
 
         temp_logger.finish_progress(progress_name="preprocess")
 

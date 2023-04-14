@@ -677,11 +677,11 @@ def feature_genes(
     import matplotlib.pyplot as plt
 
     mode = adata.uns["feature_selection"] if mode is None else mode
-
     layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, include_protein=False)[0]
-
     uns_store_key = None
-    if mode == "dispersion":
+
+    if mode == "dispersion":  # TODO: Deprecated.
+        main_warning("dispersion is deprecated for soon-to-be removed features.")
         uns_store_key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
 
         table = top_table(adata, layer)
@@ -689,7 +689,7 @@ def feature_genes(
             np.nanmin(table["mean_expression"]),
             np.nanmax(table["mean_expression"]),
         )
-    elif mode == "SVR":
+    elif "_dispersion" in mode:  # "cv_dispersion", "fano_dispersion"
         prefix = "" if layer == "X" else layer + "_"
         uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
 
