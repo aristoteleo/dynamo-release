@@ -78,7 +78,7 @@ def reduceDimension(
 
     adata = copy_adata(adata) if copy else adata
 
-    logger.info("retrive data for non-linear dimension reduction...", indent_level=1)
+    logger.debug("retrive data for non-linear dimension reduction...", indent_level=1)
     if X_data is None:
         X_data, n_components, basis = prepare_dim_reduction(
             adata,
@@ -107,7 +107,7 @@ def reduceDimension(
         conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
 
     if enforce or not has_basis:
-        logger.info(f"perform {reduction_method}...", indent_level=1)
+        logger.info(f"[{reduction_method.upper()}] using {basis} with n_pca_components = {n_pca_components}", indent_level=1)
         adata = run_reduce_dim(
             adata,
             X_data,
@@ -123,7 +123,7 @@ def reduceDimension(
     if neighbor_key not in adata.uns_keys():
         neighbors(adata)
 
-    logger.finish_progress(progress_name="dimension_reduction projection")
+    logger.finish_progress(progress_name=reduction_method.upper())
 
     if copy:
         return adata

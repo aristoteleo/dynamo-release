@@ -388,7 +388,7 @@ class Preprocessor:
         """
 
         if self.pca:
-            main_info("reducing dimension by PCA...")
+            main_info("PCA dimension reduction")
             self.pca(adata, **self.pca_kwargs)
 
     def _cell_cycle_score(self, adata: AnnData) -> None:
@@ -539,7 +539,7 @@ class Preprocessor:
         self._pca(adata)
         self._cell_cycle_score(adata)
 
-        temp_logger.finish_progress(progress_name="preprocess")
+        temp_logger.finish_progress(progress_name="Preprocessor-monocle")
 
     def config_seurat_recipe(self, adata: AnnData) -> None:
         """Automatically configure the preprocessor for using the seurat style recipe.
@@ -588,7 +588,7 @@ class Preprocessor:
         self._select_genes(adata)
         self._log1p(adata)
         self._pca(adata)
-        temp_logger.finish_progress(progress_name="preprocess by seurat recipe")
+        temp_logger.finish_progress(progress_name="Preprocessor-seurat")
 
     def config_sctransform_recipe(self, adata: AnnData) -> None:
         """Automatically configure the preprocessor for using the sctransform
@@ -643,7 +643,7 @@ class Preprocessor:
         self.sctransform(adata, **self.sctransform_kwargs)
         self._pca(adata)
 
-        temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
+        temp_logger.finish_progress(progress_name="Preprocessor-sctransform")
 
     def config_pearson_residuals_recipe(self, adata: AnnData) -> None:
         """Automatically configure the preprocessor for using the Pearson
@@ -682,7 +682,7 @@ class Preprocessor:
                 would be inferred from the data. Defaults to None.
         """
 
-        temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
+        temp_logger = LoggerManager.gen_logger("Preprocessor-pearson residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
 
@@ -690,7 +690,7 @@ class Preprocessor:
         self._normalize_selected_genes(adata)
         self._pca(adata)
 
-        temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
+        temp_logger.finish_progress(progress_name="Preprocessor-pearson residual")
 
     def config_monocle_pearson_residuals_recipe(self, adata: AnnData) -> None:
         """Automatically configure the preprocessor for using the
@@ -755,7 +755,7 @@ class Preprocessor:
         #         adata.layers[layer] = adata.
 
         self.pca(adata, **self.pca_kwargs)
-        temp_logger.finish_progress(progress_name="preprocess by monocle pearson residual recipe")
+        temp_logger.finish_progress(progress_name="Preprocessor-monocle-pearson-residual")
 
     def preprocess_adata(
         self,

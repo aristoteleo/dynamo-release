@@ -508,7 +508,7 @@ def cell_cycle_scores(
         gene_list=gene_list,
         threshold=threshold,
     )
-    temp_timer_logger.finish_progress(progress_name="cell phase estimation")
+    temp_timer_logger.finish_progress(progress_name="Cell Phase Estimation")
 
     cell_cycle_scores.index = adata.obs_names[cell_cycle_scores.index.values.astype("int")]
 

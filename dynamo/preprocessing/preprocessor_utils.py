@@ -432,6 +432,7 @@ def filter_genes_by_outliers(
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
+    main_info("filtered out %d outlier genes" % (adata.n_vars - sum(filter_bool)), indent_level=2)
 
     if inplace:
         adata._inplace_subset_var(adata.var["pass_basic_filter"])
@@ -540,6 +541,7 @@ def filter_cells_by_outliers(
     else:
         filter_bool = np.array(filter_bool) & detected_bool
 
+    main_info("filtered out %d outlier cells" % (adata.n_obs - sum(filter_bool)), indent_level=2)
     main_info_insert_adata_obs(obs_store_key)
     if keep_filtered:
         main_debug("keep filtered cell", indent_level=2)
