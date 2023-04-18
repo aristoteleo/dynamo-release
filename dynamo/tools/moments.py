@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
-from ..preprocessing.utils import pca
+from ..preprocessing.utils import pca, normalize_mat_monocle, sz_util
 from ..utils import copy_adata
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from .utils import elem_prod, get_mapper, inverse_norm
