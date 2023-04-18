@@ -4,7 +4,7 @@ import numpy as np
 from anndata import AnnData
 
 from ..configuration import DynamoAdataConfig
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import pca
 from .cell_velocities import cell_velocities
 from .connectivity import neighbors, normalize_knn_graph
 from .dimension_reduction import reduceDimension
@@ -77,7 +77,7 @@ def recipe_kin_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import detect_experiment_datatype, pca_monocle
+    from ..preprocessing.utils import detect_experiment_datatype, pca
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -135,7 +135,7 @@ def recipe_kin_data(
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
 
-        pca_monocle(adata, CM[:, valid_ind], pca_key="X_spliced_pca")
+        pca(adata, CM[:, valid_ind], pca_key="X_spliced_pca")
         # then get neighbors graph based on X_spliced_pca
         neighbors(adata, X_data=adata.obsm["X_spliced_pca"], layer="X_spliced")
         # then normalize neighbors graph so that each row sums up to be 1
@@ -246,7 +246,7 @@ def recipe_deg_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import detect_experiment_datatype, pca_monocle
+    from ..preprocessing.utils import detect_experiment_datatype, pca
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -300,7 +300,7 @@ def recipe_deg_data(
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
-        pca_monocle(adata, CM[:, valid_ind], pca_key="X_total_pca")
+        pca(adata, CM[:, valid_ind], pca_key="X_total_pca")
         # then get neighbors graph based on X_spliced_pca
         neighbors(adata, X_data=adata.obsm["X_total_pca"], layer="X_total")
         # then normalize neighbors graph so that each row sums up to be 1
@@ -420,7 +420,7 @@ def recipe_mix_kin_deg_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import detect_experiment_datatype, pca_monocle
+    from ..preprocessing.utils import detect_experiment_datatype, pca
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -478,7 +478,7 @@ def recipe_mix_kin_deg_data(
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
 
-        pca_monocle(adata, CM[:, valid_ind], pca_key="X_spliced_pca")
+        pca(adata, CM[:, valid_ind], pca_key="X_spliced_pca")
         # then get neighbors graph based on X_spliced_pca
         neighbors(adata, X_data=adata.obsm["X_spliced_pca"], layer="X_spliced")
         # then normalize neighbors graph so that each row sums up to be 1
@@ -590,7 +590,7 @@ def recipe_one_shot_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import detect_experiment_datatype, pca_monocle
+    from ..preprocessing.utils import detect_experiment_datatype, pca
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -648,7 +648,7 @@ def recipe_one_shot_data(
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
 
-        pca_monocle(adata, CM[:, valid_ind], pca_key="X_spliced_pca")
+        pca(adata, CM[:, valid_ind], pca_key="X_spliced_pca")
         # then get neighbors graph based on X_spliced_pca
         neighbors(adata, X_data=adata.obsm["X_spliced_pca"], layer="X_spliced")
         # then normalize neighbors graph so that each row sums up to be 1
@@ -801,7 +801,7 @@ def velocity_N(
 
     # now let us first run pca with new RNA
     if recalculate_pca:
-        pca_monocle(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]), pca_key="X_pca")
+        pca(adata, np.log1p(adata[:, adata.var.use_for_pca].layers["X_new"]), pca_key="X_pca")
 
     # if there are unspliced / spliced data, delete them for now:
     for i in ["spliced", "unspliced", "X_spliced", "X_unspliced"]:

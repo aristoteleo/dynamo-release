@@ -660,6 +660,7 @@ def jacobian(
 def jacobian_heatmap(
     adata: AnnData,
     cell_idx: Union[int, List],
+    average: bool = False,
     jkey: str = "jacobian",
     basis: str = "umap",
     regulators: Optional[List] = None,
@@ -672,7 +673,7 @@ def jacobian_heatmap(
     **kwargs,
 ):
     """\
-    Plot the Jacobian matrix for each cell as a heatmap.
+    Plot the Jacobian matrix for each cell or the average Jacobian matrix of the cells from input indices as a heatmap.
 
     Note that Jacobian matrix can be understood as a regulatory activity matrix between genes directly computed from the
     reconstructed vector fields.
@@ -683,6 +684,8 @@ def jacobian_heatmap(
             an Annodata object with Jacobian matrix estimated.
         cell_idx: `int` or `list`
             The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
+        average: `bool`, optional (default: `False`)
+            Whether to average the Jacobian matrix of the cells from the input indices.
         jkey: `str` (default: `jacobian`)
             The key to the jacobian dictionary in .uns.
         basis: `str`
@@ -750,7 +753,7 @@ def jacobian_heatmap(
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
     if len(valid_cell_idx) == 0:
         raise ValueError(
-            f"Jacobian matrix was not calculated for the cells you provided {cell_indx}."
+            f"Jacobian matrix was not calculated for the cells you provided {cell_idx}."
             f"Check adata.uns[{Jacobian_}].values() for available cells that have Jacobian matrix calculated."
             f"Note that limiting calculation of Jacobian matrix only for a subset of cells are required for "
             f"speeding up calculations."
@@ -758,7 +761,7 @@ def jacobian_heatmap(
     else:
         cell_names = adata.obs_names[valid_cell_idx]
 
-    total_panels, ncols = len(valid_cell_idx), ncols
+    total_panels, ncols = len(valid_cell_idx) if not average else 1, ncols
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
 
     if figsize is None:
@@ -769,11 +772,11 @@ def jacobian_heatmap(
     gs = plt.GridSpec(nrow, ncol)
     heatmap_kwargs = dict(xticklabels=1, yticklabels=1)
     heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
-    for i, name in enumerate(cell_names):
-        ind = np.where(adata_.obs_names == name)[0]
-        J = Der[:, :, ind][:, :, 0].T  # dim 0: target; dim 1: source
+
+    if average:
+        J = np.mean(Der[:, :, valid_cell_idx], axis=2).T
         J = pd.DataFrame(J, index=regulators, columns=effectors)
-        ax = plt.subplot(gs[i])
+        ax = plt.subplot(gs[0, 0])
         sns.heatmap(
             J,
             annot=True,
@@ -783,7 +786,23 @@ def jacobian_heatmap(
             center=0,
             **heatmap_kwargs,
         )
-        plt.title(name)
+        ax.set_title("Average Jacobian Matrix")
+    else:
+        for i, name in enumerate(cell_names):
+            ind = np.where(adata_.obs_names == name)[0]
+            J = Der[:, :, ind][:, :, 0].T  # dim 0: target; dim 1: source
+            J = pd.DataFrame(J, index=regulators, columns=effectors)
+            ax = plt.subplot(gs[i])
+            sns.heatmap(
+                J,
+                annot=True,
+                ax=ax,
+                cmap=cmap,
+                cbar=False,
+                center=0,
+                **heatmap_kwargs,
+            )
+            ax.title(name)
 
     if save_show_or_return == "save":
         s_kwargs = {

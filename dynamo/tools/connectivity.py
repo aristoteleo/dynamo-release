@@ -573,14 +573,14 @@ def neighbors(
         logger.info("X_data is None, fetching or recomputing...", indent_level=2)
         if basis == "pca" and "X_pca" not in adata.obsm_keys():
             logger.info("PCA as basis not X_pca not found, doing PCAs", indent_level=2)
-            from ..preprocessing.utils import pca_monocle
+            from ..preprocessing.utils import pca
 
             CM = adata.X if genes is None else adata[:, genes].X
             cm_genesums = CM.sum(axis=0)
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, _, _ = pca_monocle(adata, CM, pca_key="X_pca", n_pca_components=n_pca_components, return_all=True)
+            adata, _, _ = pca(adata, CM, pca_key="X_pca", n_pca_components=n_pca_components, return_all=True)
 
             X_data = adata.obsm["X_pca"]
         else:

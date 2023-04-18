@@ -617,7 +617,7 @@ def laplacian(
     Ls = Laplacian_func(H)
 
     L_key = "Laplacian" if basis is None else "Laplacian_" + basis
-    adata.obsm[L_key] = Ls
+    adata.obsm[L_key] = Ls.T
     adata.obs[L_key] = np.linalg.norm(Ls, axis=0)
     if basis == "pca":
         if Qkey in adata.uns.keys():
@@ -626,7 +626,7 @@ def laplacian(
             Q = adata.varm[Qkey]
         else:
             raise Exception(f"No PC matrix {Qkey} found in neither .uns nor .varm.")
-        Ls_hi = vector_transformation(Ls, Q)
+        Ls_hi = vector_transformation(Ls.T, Q)
         create_layer(
             adata,
             Ls_hi,
@@ -636,7 +636,7 @@ def laplacian(
     elif basis is None:
         create_layer(
             adata,
-            Ls,
+            Ls.T,
             layer_key="laplacian",
             genes=adata.var.use_for_pca,
         )

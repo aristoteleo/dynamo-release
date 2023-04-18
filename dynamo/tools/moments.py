@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
-from ..preprocessing.utils import normalize_mat_monocle, pca_monocle, sz_util
+from ..preprocessing.utils import pca
 from ..utils import copy_adata
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from .utils import elem_prod, get_mapper, inverse_norm
@@ -115,7 +115,7 @@ def moments(
                         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                         valid_ind = np.array(valid_ind).flatten()
                         CM = CM[:, valid_ind]
-                        adata, fit, _ = pca_monocle(
+                        adata, fit, _ = pca(
                             adata,
                             CM,
                             n_pca_components=n_pca_components,
@@ -184,7 +184,11 @@ def moments(
     layers.sort(reverse=True)  # ensure we get M_us, M_tn, etc (instead of M_su or M_nt).
     for i, layer in enumerate(layers):
         layer_x = adata.layers[layer].copy()
-        layer_x_group = np.where([layer in x for x in [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+        matched_x_group_indices = np.where([layer in x for x in [only_splicing, only_labeling, splicing_and_labeling]])
+        if len(matched_x_group_indices[0]) == 0:
+            logger.warning(f"layer {layer} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping...")
+            continue
+        layer_x_group = matched_x_group_indices[0][0]
         layer_x = inverse_norm(adata, layer_x)
 
         if mapper[layer] not in adata.layers.keys():
@@ -194,9 +198,13 @@ def moments(
                 else (conn.dot(layer_x), conn)
             )
         for layer2 in layers[i:]:
+            matched_y_group_indices = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]])
+            if len(matched_y_group_indices[0]) == 0:
+                logger.warning(f"layer {layer2} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping...")
+                continue
             layer_y = adata.layers[layer2].copy()
 
-            layer_y_group = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+            layer_y_group = matched_y_group_indices[0][0]
             # don't calculate 2 moments among uu, ul, su, sl -
             # they should be time-dependent moments and
             # those calculations are model specific

@@ -11,7 +11,7 @@ except:
 from anndata import AnnData
 
 from ..configuration import DKM
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import pca
 from .connectivity import (
     _gen_neighbor_keys,
     knn_to_adj,
@@ -59,7 +59,7 @@ def prepare_dim_reduction(
     """
 
     if genes is not None:
-        genes = adata.var_name.intersection(genes).to_list()
+        genes = adata.var_names.intersection(genes).to_list()
         if len(genes) == 0:
             raise ValueError("no genes from your genes list appear in your adata object.")
     if layer is not None:
@@ -128,7 +128,7 @@ def prepare_dim_reduction(
                 valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                 valid_ind = np.array(valid_ind).flatten()
                 CM = CM[:, valid_ind]
-                adata, fit, _ = pca_monocle(
+                adata, fit, _ = pca(
                     adata,
                     CM,
                     n_pca_components=n_pca_components,
@@ -158,7 +158,7 @@ def prepare_dim_reduction(
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, fit, _ = pca_monocle(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
+            adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
             adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
             # valid genes used for dimension reduction calculation

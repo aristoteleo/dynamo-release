@@ -37,7 +37,8 @@ def bandwidth_nrd(x):
     x = pd.Series(x)
     h = (x.quantile([0.75]).values - x.quantile([0.25]).values) / 1.34
 
-    return 4 * 1.06 * min(math.sqrt(np.var(x, ddof=1)), h) * (len(x) ** (-1 / 5))
+    res = 4 * 1.06 * min(math.sqrt(np.var(x, ddof=1)), h) * (len(x) ** (-1 / 5))
+    return np.asscalar(res) if isinstance(res, np.ndarray) else res
 
 
 def rep(x, length):
@@ -100,11 +101,11 @@ def kde2d(x, y, h=None, n=25, lims=None):
     if not lims:
         lims = [min(x), max(x), min(y), max(y)]
     if len(y) != nx:
-        raise Exception("data vectors must be the same length")
-    elif (False in np.isfinite(x)) or (False in np.isfinite(y)):
-        raise Exception("missing or infinite values in the data are not allowed")
-    elif False in np.isfinite(lims):
-        raise Exception("only finite values are allowed in 'lims'")
+        raise ValueError("data vectors must be the same length")
+    elif not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+        raise ValueError("missing or infinite values in the data are not allowed")
+    elif not np.all(np.isfinite(lims)):
+        raise ValueError("only finite values are allowed in 'lims'")
     else:
         n = rep(n, length=2) if isinstance(n, list) else rep([n], length=2)
         gx = np.linspace(lims[0], lims[1], n[0])
@@ -114,16 +115,12 @@ def kde2d(x, y, h=None, n=25, lims=None):
         else:
             h = np.array(rep(h, length=2))
 
-        if h[0] <= 0 or h[1] <= 0:
-            raise Exception("bandwidths must be strictly positive")
+        if np.any(h <= 0):
+            raise ValueError("bandwidths must be strictly positive")
         else:
             h /= 4
-            ax = pd.DataFrame()
-            ay = pd.DataFrame()
-            for i in range(len(x)):
-                ax[i] = (gx - x[i]) / h[0]
-            for i in range(len(y)):
-                ay[i] = (gy - y[i]) / h[1]
+            ax = pd.DataFrame((gx - x[:, np.newaxis]) / h[0]).T
+            ay = pd.DataFrame((gy - y[:, np.newaxis]) / h[1]).T
             z = (np.matrix(dnorm(ax)) * np.matrix(dnorm(ay).T)) / (nx * h[0] * h[1])
     return gx, gy, z
 
@@ -1297,7 +1294,7 @@ def hessian(
     n_row=1,
     n_col=None,
     cmap="bwr",
-    normalize=True,
+    normalize=False,
     k=30,
     show_rug=True,
     show_extent=False,
@@ -1338,7 +1335,7 @@ def hessian(
             The number of grid when creating the lagged DREVI plot.
         n_row: `int` (Default: None)
             number of columns used to layout the faceted cluster panels.
-        normalize: `bool` (Default: True)
+        normalize: `bool` (Default: False)
             Whether to row-scale the data
         n_col: `int` (Default: 1)
             number of columns used to layout the faceted cluster panels.
