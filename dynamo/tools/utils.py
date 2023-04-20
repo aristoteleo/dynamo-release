@@ -25,6 +25,7 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from ..dynamo_logger import (
+    Logger,
     LoggerManager,
     main_critical,
     main_debug,
@@ -193,6 +194,9 @@ def nearest_neighbors(coord: np.ndarray, coords: Union[np.ndarray, sp.csr_matrix
 def k_nearest_neighbors(
     X: np.ndarray,
     k: int,
+    method: Optional[str] = None,
+    metric: Union[str, Callable] = "euclidean",
+    metric_kwads: Dict[str, Any] = None,
     exclude_self: bool = True,
     knn_dim: int = 10,
     pynn_num: int = int(2e5),
@@ -200,12 +204,21 @@ def k_nearest_neighbors(
     pynn_rand_state: int = 19491001,
     n_jobs: int = -1,
     return_nbrs: bool = False,
+    logger: Logger = None,
+    **kwargs,
 ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, NearestNeighbors]]:
     """Compute k nearest neighbors for a given space.
 
     Args:
         X: the space to find nearest neighbors on.
         k: the number of neighbors to be found, excluding the point itself.
+        method: the method used for nearest neighbor search. If it is None, will choose algorithm based on the size of
+            the input data.
+        metric: the distance metric to use for the tree. The default metric is euclidean, and with p=2 is equivalent to
+            the standard Euclidean metric. See the documentation of `DistanceMetric` for a list of available metrics. If
+            metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
+            `sparse graph`, in which case only "nonzero" elements may be considered neighbors. Defaults to "euclidean".
+        metric_kwads: additional keyword arguments for the metric function. Defaults to None.
         exclude_self: whether to exclude the point itself from the result. Defaults to True.
         knn_dim: the lowest threshold of dimensions of data to use `ball_tree` algorithm. If dimensions of the data is
             smaller than this value, `kd_tree` algorithm would be used. Defaults to 10.
@@ -216,6 +229,8 @@ def k_nearest_neighbors(
         pynn_rand_state: the random seed for NNDescent calculation. Defaults to 19491001.
         n_jobs: number of parallel jobs for NNDescent. -1 means all cores would be used. Defaults to -1.
         return_nbrs: whether to return the fitted nearest neighbor object. Defaults to False.
+        logger: the Logger object to display the log information.
+        kwargs: additional arguments that will be passed to each nearest neighbor search algorithm.
 
     Returns:
         A tuple (nbrs_idx, dists, [nbrs]), where nbrs_idx contains the indices of nearest neighbors found for each
@@ -223,22 +238,44 @@ def k_nearest_neighbors(
         object and it would be returned only if `return_nbrs` is True.
     """
 
-    n, d = np.atleast_2d(X).shape
-    if n > int(pynn_num) and d > pynn_dim:
-        from pynndescent import NNDescent
+    if method is None:
+        if logger is None:
+            logger = LoggerManager.gen_logger("neighbors")
+        logger.info("method arg is None, choosing methods automatically...")
+        if X.shape[0] > pynn_num and X.shape[1] > pynn_dim:
+            method = "pynn"
+        else:
+            if X.shape[1] > knn_dim:
+                method = "ball_tree"
+            else:
+                method = "kd_tree"
+        logger.info("method %s selected" % (method), indent_level=2)
 
+    if method.lower() in ["pynn", "umap"]:
+        from pynndescent import NNDescent
         nbrs = NNDescent(
             X,
-            metric="euclidean",
+            metric=metric,
             n_neighbors=k + 1,
             n_jobs=n_jobs,
             random_state=pynn_rand_state,
+            **kwargs,
         )
         nbrs_idx, dists = nbrs.query(X, k=k + 1)
-    else:
-        alg = "ball_tree" if d > knn_dim else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=n_jobs).fit(X)
+    elif method in ["ball_tree", "kd_tree"]:
+        from sklearn.neighbors import NearestNeighbors
+        # print("***debug X_data:", X_data)
+        nbrs = NearestNeighbors(
+            n_neighbors=k + 1,
+            metric=metric,
+            metric_params=metric_kwads,
+            algorithm=method,
+            n_jobs=n_jobs,
+            **kwargs,
+        ).fit(X)
         dists, nbrs_idx = nbrs.kneighbors(X)
+    else:
+        raise ImportError(f"nearest neighbor search method {method} is not supported")
 
     nbrs_idx = np.array(nbrs_idx)
     if exclude_self:

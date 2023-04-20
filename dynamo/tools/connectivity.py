@@ -21,7 +21,7 @@ from umap import UMAP
 from ..configuration import DynamoAdataKeyManager
 from ..docrep import DocstringProcessor
 from ..dynamo_logger import LoggerManager, main_info, main_warning
-from .utils import fetch_X_data, log1p_
+from .utils import fetch_X_data, k_nearest_neighbors, log1p_
 
 docstrings = DocstringProcessor()
 
@@ -587,45 +587,18 @@ def neighbors(
             logger.info("fetching X data from layer:%s, basis:%s" % (str(layer), str(basis)))
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
-    if method is None:
-        logger.info("method arg is None, choosing methods automatically...")
-        if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
-
-            from pynndescent import NNDescent
-
-            method = "pynn"
-        elif X_data.shape[1] > 10:
-            method = "ball_tree"
-        else:
-            method = "kd_tree"
-        logger.info("method %s selected" % (method), indent_level=2)
-
-    # may distinguish between umap and pynndescent -- treat them equal for now
-    if method.lower() in ["pynn", "umap"]:
-        index = NNDescent(
-            X_data,
-            metric=metric,
-            n_neighbors=n_neighbors,
-            n_jobs=cores,
-            random_state=seed,
-            **kwargs,
-        )
-        knn, distances = index.query(X_data, k=n_neighbors)
-    elif method in ["ball_tree", "kd_tree"]:
-        from sklearn.neighbors import NearestNeighbors
-
-        # print("***debug X_data:", X_data)
-        nbrs = NearestNeighbors(
-            n_neighbors=n_neighbors,
-            metric=metric,
-            metric_params=metric_kwads,
-            algorithm=method,
-            n_jobs=cores,
-            **kwargs,
-        ).fit(X_data)
-        distances, knn = nbrs.kneighbors(X_data)
-    else:
-        raise ImportError(f"nearest neighbor search method {method} is not supported")
+    knn, distances = k_nearest_neighbors(
+        X_data,
+        k=n_neighbors - 1,
+        method=method,
+        metric=metric,
+        metric_kwads=metric_kwads,
+        exclude_self=False,
+        pynn_rand_state=seed,
+        n_jobs=cores,
+        logger=logger,
+        **kwargs,
+    )
 
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
     logger.info_insert_adata(conn_key, adata_attr="obsp")
