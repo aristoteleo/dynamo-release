@@ -58,8 +58,24 @@ def test_gradop():
     assert np.all(grad.indptr == expected_indptr)
 
 
+def test_norm_loglikelihood():
+    from scipy.stats import norm
+
+    # Generate some data from a normal distribution
+    mu = 0.0
+    sigma = 2.0
+    data = np.random.normal(mu, sigma, size=100)
+
+    # Calculate the log-likelihood of the data
+    ll_ground_truth = np.sum(norm.logpdf(data, mu, sigma))
+    ll = dyn.tl.utils.norm_loglikelihood(data, mu, sigma)
+    print(ll, ll_ground_truth)
+    assert ll == ll_ground_truth
+
+
 if __name__ == "__main__":
-    test_calc_laplacian()
-    test_divergence()
-    test_gradop()
+    # test_calc_laplacian()
+    # test_divergence()
+    # test_gradop()
+    # test_norm_loglikelihood()
     pass
