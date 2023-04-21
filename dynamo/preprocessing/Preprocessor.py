@@ -24,8 +24,8 @@ from ..external import (
 )
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
-from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca
-from .preprocessor_utils import _infer_labeling_experiment_type
+from .preprocess import pca
+from .preprocessor_utils import _infer_labeling_experiment_type, calc_sz_factor
 from .preprocessor_utils import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
 )
@@ -49,7 +49,7 @@ from .utils import (
 class Preprocessor:
     def __init__(
         self,
-        collapse_speicies_adata_function: Callable = collapse_species_adata,
+        collapse_species_adata_function: Callable = collapse_species_adata,
         convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = monocle_filter_cells_by_outliers,
         filter_cells_by_outliers_kwargs: dict = {},
@@ -57,6 +57,8 @@ class Preprocessor:
         filter_genes_by_outliers_kwargs: dict = {},
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
         normalize_by_cells_function_kwargs: dict = {},
+        size_factor_function: Callable = calc_sz_factor,
+        size_factor_kwargs: dict = {},
         select_genes_function: Callable = select_genes_monocle,
         select_genes_kwargs: dict = {},
         normalize_selected_genes_function: Callable = None,
@@ -74,13 +76,12 @@ class Preprocessor:
         """Preprocessor constructor.
 
         The default preprocess functions are those of monocle recipe by default.
-        You can pass your own Callable objects (functions) to this constructor
-        directly, which wil be used in the preprocess steps later. These
-        functions parameters are saved into Preprocessor instances. You can set
-        these attributes directly to your own implementation.
+        You can pass your own Callable objects (functions) to this constructor directly, which wil be used in
+        the preprocess steps later. These functions parameters are saved into Preprocessor instances.
+        You can set these attributes directly to your own implementation.
 
         Args:
-            collapse_speicies_adata_function: function for collapsing the species data. Defaults to
+            collapse_species_adata_function: function for collapsing the species data. Defaults to
                 collapse_species_adata.
             convert_gene_name_function: transform gene names, by default convert2symbol, which transforms unofficial
                 gene names to official gene names. Defaults to convert2symbol.
@@ -100,10 +101,10 @@ class Preprocessor:
             log1p_kwargs: arguments passed to use_log1p. Defaults to {}.
             pca_function: function to perform pca. Defaults to pca in utils.py.
             pca_kwargs: arguments that will be passed pca. Defaults to {}.
-            gene_append_list: ensure that a list of genes show up in selected genes in monocle recipe pipeline.
+            gene_append_list: ensure that a list of genes show up in selected genes across all the recipe pipeline.
                 Defaults to [].
-            gene_exclude_list: exclude a list of genes in monocle recipe pipeline. Defaults to [].
-            force_gene_list: use this gene list as selected genes in monocle recipe pipeline. Defaults to None.
+            gene_exclude_list: exclude a list of genes across all the recipe pipeline. Defaults to [].
+            force_gene_list: use this gene list as selected genes across all the recipe pipeline. Defaults to None.
             sctransform_kwargs: arguments passed into sctransform function. Defaults to {}.
         """
 
@@ -116,6 +117,7 @@ class Preprocessor:
         self.filter_cells_by_outliers = filter_cells_by_outliers_function
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
         self.normalize_by_cells = normalize_by_cells_function
+        self.calc_size_factor = size_factor_function
         self.select_genes = select_genes_function
         self.normalize_selected_genes = normalize_selected_genes_function
         self.use_log1p = use_log1p
@@ -126,7 +128,7 @@ class Preprocessor:
 
         # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
-        self.collapse_species_adata = collapse_speicies_adata_function
+        self.collapse_species_adata = collapse_species_adata_function
         self.gene_append_list = gene_append_list
         self.gene_exclude_list = gene_exclude_list
         self.force_gene_list = force_gene_list
@@ -135,6 +137,7 @@ class Preprocessor:
         self.filter_genes_by_outliers_kwargs = filter_genes_by_outliers_kwargs
         self.normalize_by_cells_function_kwargs = normalize_by_cells_function_kwargs
         self.filter_cells_by_outliers_kwargs = filter_cells_by_outliers_kwargs
+        self.size_factor_kwargs = size_factor_kwargs
         self.select_genes_kwargs = select_genes_kwargs
         self.sctransform_kwargs = sctransform_kwargs
         self.normalize_selected_genes_kwargs = normalize_selected_genes_kwargs
@@ -271,8 +274,7 @@ class Preprocessor:
             self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
 
     def _filter_genes_by_outliers(self, adata: AnnData) -> None:
-        """Select valid genes based on the method specified as the
-        preprocessor's `filter_genes_by_outliers`.
+        """Select valid genes based on the method specified as the preprocessor's `filter_genes_by_outliers`.
 
         Args:
             adata: an AnnData object.
@@ -283,9 +285,25 @@ class Preprocessor:
             main_debug("gene filter kwargs:" + str(self.filter_genes_by_outliers_kwargs))
             self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
 
+    def _calc_size_factor(self, adata: AnnData) -> None:
+        """Calculate the size factor of each cell based on method specified as the preprocessor's `calc_size_factor`.
+
+        Args:
+            adata: an AnnData object.
+        """
+
+        if self.calc_size_factor:
+            main_debug("size factor calculation...")
+            main_debug("size_factor_kwargs kwargs:" + str(self.size_factor_kwargs))
+            self.calc_size_factor(
+                adata,
+                total_layers=adata.uns["pp"]["experiment_total_layers"],
+                layers=adata.uns["pp"]["experiment_layers"],
+                **self.size_factor_kwargs
+            )
+
     def _select_genes(self, adata: AnnData) -> None:
-        """selecting gene by features, based on method specified as the
-        preprocessor's `select_genes`.
+        """selecting gene by features, based on method specified as the preprocessor's `select_genes`.
 
         Args:
             adata: an AnnData object.
@@ -297,8 +315,7 @@ class Preprocessor:
             self.select_genes(adata, **self.select_genes_kwargs)
 
     def _append_gene_list(self, adata: AnnData) -> None:
-        """Add genes to the feature gene list detected by the preprocessing
-        steps.
+        """Add genes to the feature gene list detected by the preprocessing steps.
 
         Args:
             adata: an AnnData object.
@@ -310,8 +327,7 @@ class Preprocessor:
             main_info("appended %d extra genes as required..." % len(append_genes))
 
     def _exclude_gene_list(self, adata: AnnData) -> None:
-        """Remove genes from the feature gene list detected by the preprocessing
-        steps.
+        """Remove genes from the feature gene list detected by the preprocessing steps.
 
         Args:
             adata: an AnnData object.
@@ -434,10 +450,7 @@ class Preprocessor:
 
         Args:
             adata: an AnnData object.
-            n_top_genes: Number of top feature genes to select in the
-                preprocessing step. Defaults to 2000.
-            gene_selection_method: Which sorting method to be used to select
-                genes. Defaults to "SVR".
+            n_top_genes: Number of top feature genes to select in the preprocessing step. Defaults to 2000.
         """
 
         n_obs, n_genes = adata.n_obs, adata.n_vars
@@ -478,7 +491,6 @@ class Preprocessor:
             "keep_filtered": True,
             "SVRs_kwargs": {
                 "relative_expr": True,
-                "total_szfactor": "total_Size_Factor",
                 "min_expr_cells": 0,
                 "min_expr_avg": 0,
                 "max_expr_avg": np.inf,
@@ -525,15 +537,17 @@ class Preprocessor:
 
         self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
+        # The following size factor calculation is a prerequisite for monocle recipe preprocess in preprocessor.
+        self._calc_size_factor(adata)
+
         self._select_genes(adata)
 
-        # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.
+        # append/delete/force selected gene list required by users.
         self._append_gene_list(adata)
         self._exclude_gene_list(adata)
         self._force_gene_list(adata)
 
-        self._normalize_selected_genes(adata)
-        self._normalize_by_cells(adata)
+        # self._normalize_by_cells(adata)
 
         self._log1p(adata)
         self._pca(adata)
@@ -586,6 +600,12 @@ class Preprocessor:
         self._filter_genes_by_outliers(adata)
         self._normalize_by_cells(adata)
         self._select_genes(adata)
+
+        # append/delete/force selected gene list required by users.
+        self._append_gene_list(adata)
+        self._exclude_gene_list(adata)
+        self._force_gene_list(adata)
+
         self._log1p(adata)
         self._pca(adata)
         temp_logger.finish_progress(progress_name="Preprocessor-seurat")
@@ -640,6 +660,12 @@ class Preprocessor:
         self._select_genes(adata)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])
+
+        # append/delete/force selected gene list required by users.
+        self._append_gene_list(adata)
+        self._exclude_gene_list(adata)
+        self._force_gene_list(adata)
+
         self.sctransform(adata, **self.sctransform_kwargs)
         self._pca(adata)
 
@@ -687,6 +713,11 @@ class Preprocessor:
         self.standardize_adata(adata, tkey, experiment_type)
 
         self._select_genes(adata)
+        # append/delete/force selected gene list required by users.
+        self._append_gene_list(adata)
+        self._exclude_gene_list(adata)
+        self._force_gene_list(adata)
+
         self._normalize_selected_genes(adata)
         self._pca(adata)
 
@@ -742,6 +773,12 @@ class Preprocessor:
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
         self._select_genes(adata)
+
+        # append/delete/force selected gene list required by users.
+        self._append_gene_list(adata)
+        self._exclude_gene_list(adata)
+        self._force_gene_list(adata)
+
         X_copy = adata.X.copy()
         self._normalize_by_cells(adata)
         adata.X = X_copy

@@ -1,17 +1,14 @@
-from typing import Dict, List, Optional, Tuple, Union
-from anndata import AnnData
+import re
+from typing import Dict, List, Literal, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-import re
-from ..configuration import DKM
-from ..dynamo_logger import (
-    LoggerManager,
-    main_debug,
-    main_info,
-    main_warning,
-)
+from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
+
+from ..configuration import DKM
+from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning
 from .utils import cook_dist
 
 
@@ -237,3 +234,55 @@ def _estimate_dispersion(
             }
 
     return adata
+
+
+def _top_table(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gini"] = "dispersion") -> pd.DataFrame:
+    """Retrieve a table that contains gene names and other info whose dispersions/gini index are highest.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Get information of the top layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer(s) that would be searched for. Defaults to "X".
+        mode: either "dispersion" or "gini", deciding whether dispersion data or gini data would be acquired. Defaults
+            to "dispersion".
+
+    Raises:
+        KeyError: if mode is set to dispersion but there is no available dispersion model.
+
+    Returns:
+        The data frame of the top layer with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as
+        the columns.
+    """
+
+    layer = DKM.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
+
+    if layer in ["X"]:
+        key = "dispFitInfo"
+    else:
+        key = layer + "_dispFitInfo"
+
+    if mode == "dispersion":
+        if adata.uns[key] is None:
+            _estimate_dispersion(adata, layers=[layer])
+            raise KeyError(
+                "Error: for adata.uns.key=%s, no dispersion model found. Please call estimate_dispersion() before calling this function"
+                % key
+            )
+
+        top_df = pd.DataFrame(
+            {
+                "gene_id": adata.uns[key]["disp_table"]["gene_id"],
+                "mean_expression": adata.uns[key]["disp_table"]["mu"],
+                "dispersion_fit": adata.uns[key]["disp_func"](adata.uns[key]["disp_table"]["mu"]),
+                "dispersion_empirical": adata.uns[key]["disp_table"]["disp"],
+            }
+        )
+        top_df = top_df.set_index("gene_id")
+
+    elif mode == "gini":
+        top_df = adata.var[layer + "_gini"]
+
+    return top_df

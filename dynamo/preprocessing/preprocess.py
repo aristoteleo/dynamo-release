@@ -26,8 +26,9 @@ from ..dynamo_logger import (
 )
 from ..tools.utils import update_dict
 from ..utils import copy_adata
+from ._deprecated import _top_table
 from .cell_cycle import cell_cycle_scores
-from .gene_selection import select_genes_by_svr, top_table
+from .gene_selection import select_genes_by_svr
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
@@ -306,93 +307,6 @@ def normalize_cell_expr_by_size_factors_legacy(
         adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
 
     return adata
-
-
-def disp_calc_helper_NB(
-    adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
-) -> Tuple[List[str], List[pd.DataFrame]]:
-    """Calculate the dispersion parameter of the negative binomial distribution.
-
-    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Args:
-        adata: an adata object
-        layers: the layer of data used for dispersion fitting. Defaults to "X".
-        min_cells_detected: the minimal required number of cells with expression for selecting gene for dispersion
-            fitting. Defaults to 1.
-
-    Returns:
-        A tuple (layers, res_list), where layers is a list of layers available and res_list is a list of pd.DataFrame's
-        with mu, dispersion for each gene that passes filters.
-    """
-
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
-
-    res_list = []
-    for layer in layers:
-        if layer == "raw":
-            CM = adata.raw.X
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
-        elif layer == "X":
-            CM = adata.X
-            szfactors = adata.obs["Size_Factor"][:, None]
-        else:
-            CM = adata.layers[layer]
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
-
-        if issparse(CM):
-            CM.data = np.round(CM.data, 0)
-            rounded = CM
-        else:
-            rounded = CM.round().astype("int")
-
-        lowerDetectedLimit = adata.uns["lowerDetectedLimit"] if "lowerDetectedLimit" in adata.uns.keys() else 1
-        nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
-        nzGenes = nzGenes > min_cells_detected
-
-        nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
-        if layer.startswith("X_"):
-            x = rounded[:, nzGenes]
-        else:
-            x = (
-                rounded[:, nzGenes].multiply(csr_matrix(1 / szfactors))
-                if issparse(rounded)
-                else rounded[:, nzGenes] / szfactors
-            )
-
-        xim = np.mean(1 / szfactors) if szfactors is not None else 1
-
-        f_expression_mean = x.mean(axis=0)
-
-        # For NB: Var(Y) = mu * (1 + mu / k)
-        # x.A.var(axis=0, ddof=1)
-        f_expression_var = (
-            (x.multiply(x).mean(0).A1 - f_expression_mean.A1**2) * x.shape[0] / (x.shape[0] - 1)
-            if issparse(x)
-            else x.var(axis=0, ddof=0) ** 2
-        )  # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
-        # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
-        disp_guess_meth_moments = f_expression_var - xim * f_expression_mean  # variance - mu
-
-        disp_guess_meth_moments = disp_guess_meth_moments / np.power(
-            f_expression_mean, 2
-        )  # this is dispersion parameter (1/k)
-
-        res = pd.DataFrame(
-            {
-                "mu": np.array(f_expression_mean).flatten(),
-                "disp": np.array(disp_guess_meth_moments).flatten(),
-            }
-        )
-        res.loc[res["mu"] == 0, "mu"] = None
-        res.loc[res["mu"] == 0, "disp"] = None
-        res.loc[res["disp"] < 0, "disp"] = 0
-
-        res["gene_id"] = adata.var_names[nzGenes]
-
-        res_list.append(res)
-
-    return layers, res_list
 
 
 def vstExprs(
@@ -1561,7 +1475,7 @@ def select_genes_monocle_legacy(
         filter_bool = np.ones(adata.shape[1], dtype=bool)
     else:
         if sort_by == "dispersion":
-            table = top_table(adata, layer, mode="dispersion")
+            table = _top_table(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
             valid_table = valid_table.loc[
                 set(adata.var.index[filter_bool]).intersection(valid_table.index),
@@ -1571,7 +1485,7 @@ def select_genes_monocle_legacy(
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
         elif sort_by == "gini":
-            table = top_table(adata, layer, mode="gini")
+            table = _top_table(adata, layer, mode="gini")
             valid_table = table.loc[filter_bool, :]
             gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
             gene_id = valid_table.index[gene_id]

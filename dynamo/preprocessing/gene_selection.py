@@ -22,9 +22,7 @@ from ..dynamo_logger import (
     main_info_insert_adata_var,
     main_warning,
 )
-from ._deprecated import _estimate_dispersion
 from .preprocessor_utils import (
-    calc_sz_factor,
     get_nan_or_inf_data_bool_mask,
     get_svr_filter,
     seurat_get_mean_var,
@@ -93,59 +91,6 @@ def Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> An
     return adata
 
 
-def top_table(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gini"] = "dispersion") -> pd.DataFrame:
-    """Retrieve a table that contains gene names and other info whose dispersions/gini index are highest.
-
-    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Get information of the top layer.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer(s) that would be searched for. Defaults to "X".
-        mode: either "dispersion" or "gini", deciding whether dispersion data or gini data would be acquired. Defaults
-            to "dispersion".
-
-    Raises:
-        KeyError: if mode is set to dispersion but there is no available dispersion model.
-
-    Returns:
-        The data frame of the top layer with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as
-        the columns.
-    """
-
-    layer = DKM.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
-
-    if layer in ["X"]:
-        key = "dispFitInfo"
-    else:
-        key = layer + "_dispFitInfo"
-
-    if mode == "dispersion":
-        if adata.uns[key] is None:
-            main_warning("dispersion mode is deprecated. This mode will be removed in the future.")
-            _estimate_dispersion(adata, layers=[layer])
-            raise KeyError(
-                "Error: for adata.uns.key=%s, no dispersion model found. Please call estimate_dispersion() before calling this function"
-                % key
-            )
-
-        top_df = pd.DataFrame(
-            {
-                "gene_id": adata.uns[key]["disp_table"]["gene_id"],
-                "mean_expression": adata.uns[key]["disp_table"]["mu"],
-                "dispersion_fit": adata.uns[key]["disp_func"](adata.uns[key]["disp_table"]["mu"]),
-                "dispersion_empirical": adata.uns[key]["disp_table"]["disp"],
-            }
-        )
-        top_df = top_df.set_index("gene_id")
-
-    elif mode == "gini":
-        top_df = adata.var[layer + "_gini"]
-
-    return top_df
-
-
 def select_genes_monocle(
     adata: AnnData,
     layer: str = "X",
@@ -173,21 +118,9 @@ def select_genes_monocle(
         genes_to_exclude: genes that are excluded from evaluation. Defaults to None.
         SVRs_kwargs: kwargs for `SVRs`. Defaults to {}.
 
-    Returns:
-        The adata object with genes updated if `only_bools` is false. Otherwise, the bool array representing selected
-        genes.
+    Raises:
+        NotImplementedError: the 'sort_by' algorithm is invalid/unsupported.
     """
-
-    # The following size factor calculation is a prerequisite for monocle recipe preprocess in preprocessor.
-    adata = calc_sz_factor(
-        adata,
-        total_layers=adata.uns["pp"]["experiment_total_layers"],
-        scale_to=None,
-        splicing_total_layers=False,
-        X_total_layers=False,
-        layers=adata.uns["pp"]["experiment_layers"],
-        genes_use_for_norm=None,
-    )
 
     filter_bool = (
         adata.var["pass_basic_filter"]
@@ -215,10 +148,11 @@ def select_genes_monocle(
             )
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
         else:
-            raise ValueError(f"The algorithm {sort_by} is not existed")
+            raise NotImplementedError(f"The algorithm {sort_by} is invalid/unsupported")
 
     # filter genes by gene expression fraction as well
-    adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
+    if "frac" not in adata.var.keys():
+        adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
     genes_to_exclude = (
         list(adata.var_names[invalid_ids])
         if genes_to_exclude is None
