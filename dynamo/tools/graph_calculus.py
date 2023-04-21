@@ -11,13 +11,13 @@ from scipy.linalg import qr
 from scipy.optimize import lsq_linear, minimize
 from sklearn.neighbors import NearestNeighbors
 
+from .connectivity import k_nearest_neighbors
 from ..dynamo_logger import main_info, main_warning
 from ..tools.utils import projection_with_transition_matrix
 from .utils import (
     elem_prod,
     flatten,
     index_condensed_matrix,
-    k_nearest_neighbors,
     nbrs_to_dists,
     symmetrize_symmetric_matrix,
 )
