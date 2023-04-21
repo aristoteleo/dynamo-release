@@ -93,7 +93,7 @@ def Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> An
 
 def select_genes_monocle(
     adata: AnnData,
-    layer: str = "X",
+    layer: str = DKM.X_LAYER,
     keep_filtered: bool = True,
     n_top_genes: int = 2000,
     sort_by: Literal["gini", "cv_dispersion", "fano_dispersion"] = "cv_dispersion",
@@ -139,13 +139,14 @@ def select_genes_monocle(
             feature_gene_idx = valid_table.index[feature_gene_idx]
             filter_bool = filter_bool.index.isin(feature_gene_idx)
         elif sort_by == "cv_dispersion" or sort_by == "fano_dispersion":
-            adata = select_genes_by_svr(
-                adata,
-                layers=[layer],
-                filter_bool=filter_bool,
-                algorithm=sort_by,
-                **SVRs_kwargs,
-            )
+            if not any("velocyto_SVR" in key for key in adata.uns.keys()):
+                select_genes_by_svr(
+                    adata,
+                    layers=layer,
+                    filter_bool=filter_bool,
+                    algorithm=sort_by,
+                    **SVRs_kwargs,
+                )
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
         else:
             raise NotImplementedError(f"The algorithm {sort_by} is invalid/unsupported")
@@ -153,6 +154,7 @@ def select_genes_monocle(
     # filter genes by gene expression fraction as well
     if "frac" not in adata.var.keys():
         adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
+
     genes_to_exclude = (
         list(adata.var_names[invalid_ids])
         if genes_to_exclude is None
@@ -229,7 +231,7 @@ def select_genes_by_svr(
             continue
 
         mean, cv = get_mean_cv(valid_CM, algorithm, winsorize, winsor_perc)
-        fitted_fun = get_prediction_by_svr(mean, cv, svr_gamma)
+        fitted_fun, svr_gamma = get_prediction_by_svr(mean, cv, svr_gamma)
         score = cv - fitted_fun(mean)
         if sort_inverse:
             score = -score
@@ -317,13 +319,13 @@ def get_vaild_CM(
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor].values[:, None] if total_szfactor in adata.obs.columns else None
 
-    if szfactors is not None and relative_expr:
-        if issparse(CM):
-            from sklearn.utils import sparsefuncs
-
-            sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
-        else:
-            CM /= szfactors
+    # if szfactors is not None and relative_expr:
+    #     if issparse(CM):
+    #         from sklearn.utils import sparsefuncs
+    #
+    #         sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
+    #     else:
+    #         CM /= szfactors
 
     if winsorize:
         if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
@@ -359,7 +361,6 @@ def get_mean_cv(
         (gene_counts_stats, gene_fano_parameters) = get_highvar_genes_sparse(valid_CM)
         mean = np.array(gene_counts_stats["mean"]).flatten()[:, None]
         cv = np.array(gene_counts_stats["fano"]).flatten()
-        mu = gene_counts_stats["mean"]
         return mean, cv
     elif algorithm == "cv_dispersion":
         if winsorize:
@@ -418,7 +419,7 @@ def get_prediction_by_svr(ground: np.ndarray, target: np.ndarray, svr_gamma: Opt
     # Fit the Support Vector Regression
     clf = SVR(gamma=svr_gamma)
     clf.fit(ground, target)
-    return clf.predict
+    return clf.predict, svr_gamma
 
 
 # Highly variable gene selection function:

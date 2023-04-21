@@ -455,7 +455,6 @@ class Preprocessor:
 
         n_obs, n_genes = adata.n_obs, adata.n_vars
         n_cells = n_obs
-        self.use_log1p = False
         self.filter_cells_by_outliers = monocle_filter_cells_by_outliers
         self.filter_cells_by_outliers_kwargs = {
             "filter_bool": None,
@@ -502,9 +501,7 @@ class Preprocessor:
         }
         self.normalize_selected_genes = None
         self.normalize_by_cells = normalize_cell_expr_by_size_factors
-
-        # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
-        self.use_log1p = False
+        self.use_log1p = True
         self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
 
@@ -534,20 +531,18 @@ class Preprocessor:
         temp_logger.log_time()
 
         self.standardize_adata(adata, tkey, experiment_type)
-
         self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
+
         # The following size factor calculation is a prerequisite for monocle recipe preprocess in preprocessor.
         self._calc_size_factor(adata)
-
+        self._normalize_by_cells(adata)
         self._select_genes(adata)
 
         # append/delete/force selected gene list required by users.
         self._append_gene_list(adata)
         self._exclude_gene_list(adata)
         self._force_gene_list(adata)
-
-        # self._normalize_by_cells(adata)
 
         self._log1p(adata)
         self._pca(adata)
@@ -598,6 +593,7 @@ class Preprocessor:
 
         self.standardize_adata(adata, tkey, experiment_type)
         self._filter_genes_by_outliers(adata)
+        self._calc_size_factor(adata)
         self._normalize_by_cells(adata)
         self._select_genes(adata)
 
@@ -654,9 +650,11 @@ class Preprocessor:
         main_info("Running Sctransform recipe preprocessing...")
 
         self.standardize_adata(adata, tkey, experiment_type)
-
         self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
+
+        self._calc_size_factor(adata)
+        self._normalize_by_cells(adata)
         self._select_genes(adata)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])

@@ -66,7 +66,7 @@ def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
     chosen_gene_indices = np.random.choice(adata.n_vars, 10)
     _has_log1p_transformed = not np.allclose(
         np.array(adata.X[:, chosen_gene_indices].sum(1)),
-        np.array(adata.layers["spliced"][:, chosen_gene_indices].sum(1)),
+        np.array(adata.layers["X_spliced"][:, chosen_gene_indices].sum(1)),
         atol=1e-4,
     )
     return _has_log1p_transformed
@@ -793,10 +793,8 @@ def normalize_cell_expr_by_size_factors(
     layer_sz_column_names.extend(["Size_Factor"])
     # layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
     layers_to_sz = list(set(layer_sz_column_names))
-    if len(layers_to_sz) > 0:
-        layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
-        if "Size_Factor" in layers:
-            layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
+
+    if not all(key in adata.obs.keys() for key in layers_to_sz):
         calc_sz_factor(
             adata,
             layers=layers,
@@ -806,13 +804,16 @@ def normalize_cell_expr_by_size_factors(
             scale_to=scale_to,
         )
 
+    layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
+    layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
+
     excluded_layers = []
     if not X_total_layers:
         excluded_layers.extend(["X"])
     if not splicing_total_layers:
         excluded_layers.extend(["spliced", "unspliced"])
 
-    main_info("size factor normalize following layers: " + str(layers))
+    main_debug("size factor normalize following layers: " + str(layers))
     for layer in layers:
         if layer in excluded_layers:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
@@ -859,7 +860,7 @@ def normalize_cell_expr_by_size_factors(
             main_warning(_norm_method + " is not implemented yet")
 
         if layer in ["raw", "X"]:
-            main_info("set adata <X> to normalized data using %s" % _norm_method)
+            main_debug("set adata <X> to normalized data using %s" % _norm_method)
             adata.X = CM
         elif layer == "protein" and "protein" in adata.obsm_keys():
             main_info_insert_adata_obsm("X_protein")

@@ -702,7 +702,7 @@ def feature_genes(
         mean = adata.uns[uns_store_key]["mean"]
         cv = adata.uns[uns_store_key]["cv"]
         svr_gamma = adata.uns[uns_store_key]["svr_gamma"]
-        fit = get_prediction_by_svr(mean, cv, svr_gamma)
+        fit, _ = get_prediction_by_svr(mean, cv, svr_gamma)
         fit = fit(mu_linspace.reshape(-1, 1))
 
     plt.figure(figsize=figsize)
