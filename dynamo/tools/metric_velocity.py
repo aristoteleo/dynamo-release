@@ -16,6 +16,7 @@ from ..dynamo_logger import LoggerManager, main_critical, main_info, main_warnin
 from .connectivity import (
     adj_to_knn,
     check_and_recompute_neighbors,
+    k_nearest_neighbors,
     mnn_from_list,
     umap_conn_indices_dist_embedding,
 )
@@ -89,22 +90,12 @@ def cell_wise_confidence(
         )
     else:
         n_neigh = 30
-
-        if X.shape[0] > 200000 and X.shape[1] > 2:
-            from pynndescent import NNDescent
-
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=n_neigh + 1,
-                n_jobs=-1,
-                random_state=19491001,
-            )
-            nbrs_idx, dist = nbrs.query(X, k=n_neigh + 1)
-        else:
-            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=n_neigh + 1, algorithm=alg, n_jobs=-1).fit(X)
-            dist, nbrs_idx = nbrs.kneighbors(X)
+        nbrs_idx, dist = k_nearest_neighbors(
+            X,
+            k=n_neigh,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+        )
 
         row = np.repeat(nbrs_idx[:, 0], n_neigh)
         col = nbrs_idx[:, 1:].flatten()

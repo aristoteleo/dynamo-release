@@ -78,7 +78,7 @@ def graphize_velocity(
 
     if nbrs_idx is None or return_nbrs:
         main_info("calculating neighbor indices...", indent_level=2)
-        nbrs_idx, dists, nbrs = k_nearest_neighbors(X, k, exclude_self=True, return_nbrs=True)
+        nbrs_idx, dists, nbrs, _ = k_nearest_neighbors(X, k, exclude_self=True, return_nbrs=True)
 
     if dists is None:
         dists = nbrs_to_dists(X, nbrs_idx)

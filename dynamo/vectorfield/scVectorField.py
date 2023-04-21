@@ -14,6 +14,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..simulation.ODE import jacobian_bifur2genes, ode_bifur2genes
+from ..tools.connectivity import k_nearest_neighbors
 from ..tools.sampling import lhsclassic, sample, sample_by_velocity
 from ..tools.utils import (
     index_condensed_matrix,
@@ -103,21 +104,13 @@ def bandwidth_selector(X):
     This function computes an empirical bandwidth for a Gaussian kernel.
     """
     n, m = X.shape
-    if n > 200000 and m > 2:
-        from pynndescent import NNDescent
 
-        nbrs = NNDescent(
-            X,
-            metric="euclidean",
-            n_neighbors=max(2, int(0.2 * n)),
-            n_jobs=-1,
-            random_state=19491001,
-        )
-        _, distances = nbrs.query(X, k=max(2, int(0.2 * n)))
-    else:
-        alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2 * n)), algorithm=alg, n_jobs=-1).fit(X)
-        distances, _ = nbrs.kneighbors(X)
+    _, distances = k_nearest_neighbors(
+        X,
+        k=max(2, int(0.2 * n)) - 1,
+        exclude_self=False,
+        pynn_rand_state=19491001,
+    )
 
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
@@ -241,21 +234,13 @@ def graphize_vecfld(
 
     nbrs = None
     if nbrs_idx is None:
-        if X.shape[0] > 200000 and X.shape[1] > 2:
-            from pynndescent import NNDescent
-
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=k + 1,
-                n_jobs=-1,
-                random_state=19491001,
-            )
-            nbrs_idx, dist = nbrs.query(X, k=k + 1)
-        else:
-            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
-            dist, nbrs_idx = nbrs.kneighbors(X)
+        nbrs_idx, dist, nbrs, _ = k_nearest_neighbors(
+            X,
+            k=k,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+            return_nbrs=True,
+        )
 
     if dist is None and not distance_free:
         D = pdist(X)

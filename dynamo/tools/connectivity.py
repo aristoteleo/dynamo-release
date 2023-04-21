@@ -515,7 +515,7 @@ def _gen_neighbor_keys(result_prefix: str = "") -> Tuple[str, str, str]:
     return conn_key, dist_key, neighbor_key
 
 
-def _correct_hnsw_neighbors(knn_hn: np.ndarray, distances_hn: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def correct_hnsw_neighbors(knn_hn: np.ndarray, distances_hn: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Corrects the indices and corresponding distances obtained from a hnswlib by manually adding self neighbors.
 
     Args:
@@ -542,6 +542,7 @@ def _correct_hnsw_neighbors(knn_hn: np.ndarray, distances_hn: np.ndarray) -> Tup
 def k_nearest_neighbors(
     X: np.ndarray,
     k: int,
+    query_X: Optional[np.ndarray] = None,
     method: Optional[str] = None,
     metric: Union[str, Callable] = "euclidean",
     metric_kwads: Dict[str, Any] = None,
@@ -578,7 +579,8 @@ def k_nearest_neighbors(
         hnswlib_num: the lowest threshold of features to use `hnswlib` nearest neighbors. Defaults to int(2e5).
         pynn_rand_state: the random seed for NNDescent calculation. Defaults to 19491001.
         n_jobs: number of parallel jobs for NNDescent. -1 means all cores would be used. Defaults to -1.
-        return_nbrs: whether to return the fitted nearest neighbor object. Defaults to False.
+        return_nbrs: whether to return the fitted nearest neighbor object. If True, will return nearest neighbor object
+            and the method. Defaults to False.
         logger: the Logger object to display the log information.
         kwargs: additional arguments that will be passed to each nearest neighbor search algorithm.
 
@@ -603,6 +605,9 @@ def k_nearest_neighbors(
                 method = "kd_tree"
         logger.info("method %s selected" % (method), indent_level=2)
 
+    if query_X is None:
+        query_X = X
+
     if method.lower() in ["pynn", "umap"]:
         from pynndescent import NNDescent
         nbrs = NNDescent(
@@ -613,7 +618,7 @@ def k_nearest_neighbors(
             random_state=pynn_rand_state,
             **kwargs,
         )
-        nbrs_idx, dists = nbrs.query(X, k=k + 1)
+        nbrs_idx, dists = nbrs.query(query_X, k=k + 1)
     elif method in ["ball_tree", "kd_tree"]:
         from sklearn.neighbors import NearestNeighbors
         # print("***debug X_data:", X_data)
@@ -625,7 +630,7 @@ def k_nearest_neighbors(
             n_jobs=n_jobs,
             **kwargs,
         ).fit(X)
-        dists, nbrs_idx = nbrs.kneighbors(X)
+        dists, nbrs_idx = nbrs.kneighbors(query_X)
     elif method == "hnswlib":
         import hnswlib
         space = "l2" if metric == "euclidean" else metric
@@ -635,10 +640,10 @@ def k_nearest_neighbors(
         nbrs.init_index(max_elements=X.shape[0], random_seed=pynn_rand_state, **kwargs)
         nbrs.set_num_threads(n_jobs)
         nbrs.add_items(X)
-        nbrs_idx, dists = nbrs.knn_query(X, k=k + 1)
+        nbrs_idx, dists = nbrs.knn_query(query_X, k=k + 1)
         if space == "l2":
             dists = np.sqrt(dists)
-        nbrs_idx, dists = _correct_hnsw_neighbors(nbrs_idx, dists)
+        nbrs_idx, dists = correct_hnsw_neighbors(nbrs_idx, dists)
     else:
         raise ImportError(f"nearest neighbor search method {method} is not supported")
 
@@ -647,7 +652,7 @@ def k_nearest_neighbors(
         nbrs_idx = nbrs_idx[:, 1:]
         dists = dists[:, 1:]
     if return_nbrs:
-        return nbrs_idx, dists, nbrs
+        return nbrs_idx, dists, nbrs, method
     return nbrs_idx, dists
 
 
