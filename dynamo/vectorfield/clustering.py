@@ -10,6 +10,7 @@ from sklearn.neighbors import NearestNeighbors
 from ..dynamo_logger import main_info
 from ..preprocessing.utils import pca
 from ..tools.clustering import hdbscan, infomap, leiden, louvain
+from ..tools.connectivity import k_nearest_neighbors
 from ..tools.Markov import (
     grid_velocity_filter,
     prepare_velocity_grid_data,
@@ -159,20 +160,15 @@ def cluster_field(
         adata.obs[key] = adata.obs.obs[key].astype("category")
 
     elif method in ["louvain", "leiden", "infomap"]:
-        if X.shape[0] > 200000 and X.shape[1] > 2:
-            from pynndescent import NNDescent
 
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=31,
-                n_jobs=cores,
-                random_state=19491001,
-            )
-            nbrs_idx, dist = nbrs.query(X, k=31)
-        else:
-            nbrs = NearestNeighbors(n_neighbors=31, n_jobs=cores).fit(X)
-            dist, nbrs_idx = nbrs.kneighbors(X)
+        nbrs_idx, dist = k_nearest_neighbors(
+            X,
+            k=30,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+            n_jobs=cores,
+            logger=logger,
+        )
 
         row = np.repeat(nbrs_idx[:, 0], 30)
         col = nbrs_idx[:, 1:].flatten()
