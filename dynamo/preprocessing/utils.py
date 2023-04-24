@@ -707,12 +707,12 @@ def normalize_mat_monocle(
     if pseudo_expr is None:
         pseudo_expr = 1
 
-    # if issparse(mat):
-    #     mat.data = norm_method(mat.data + pseudo_expr) if norm_method is not None else mat.data
-    #     if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
-    #         mat.data -= 1
-    # else:
-    #     mat = norm_method(mat + pseudo_expr) if norm_method is not None else mat
+    if issparse(mat):
+        mat.data = norm_method(mat.data + pseudo_expr) if norm_method is not None else mat.data
+        if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
+            mat.data -= 1
+    else:
+        mat = norm_method(mat + pseudo_expr) if norm_method is not None else mat
 
     return mat
 

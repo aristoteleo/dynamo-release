@@ -386,12 +386,6 @@ class Preprocessor:
         """
 
         if self.use_log1p:
-            if is_log1p_transformed_adata(adata):
-                main_warning(
-                    "Your adata.X maybe log1p transformed before. If you are sure that your adata is not log1p transformed, please ignore this warning. Dynamo will do log1p transformation still."
-                )
-            # TODO: the following line is for monocle recipe and later dynamics matrix recovery
-            # refactor with dynamics module
             adata.uns["pp"]["norm_method"] = "log1p"
             main_debug("applying log1p transformation on expression matrix data (adata.X)...")
             self.log1p(adata, **self.log1p_kwargs)
@@ -484,23 +478,10 @@ class Preprocessor:
             "shared_count": 30,
         }
         self.select_genes = select_genes_monocle
-        self.select_genes_kwargs = {
-            "n_top_genes": n_top_genes,
-            "sort_by": "cv_dispersion",
-            "keep_filtered": True,
-            "SVRs_kwargs": {
-                "relative_expr": True,
-                "min_expr_cells": 0,
-                "min_expr_avg": 0,
-                "max_expr_avg": np.inf,
-                "winsorize": False,
-                "winsor_perc": (1, 99.5),
-                "sort_inverse": False,
-                "svr_gamma": None,
-            },
-        }
+        self.select_genes_kwargs = {"n_top_genes": n_top_genes, "SVRs_kwargs": {"relative_expr": False}}
         self.normalize_selected_genes = None
         self.normalize_by_cells = normalize_cell_expr_by_size_factors
+        self.normalize_by_cells_function_kwargs = {"skip_log": True}
         self.use_log1p = True
         self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
@@ -626,6 +607,7 @@ class Preprocessor:
         }
         self.select_genes = select_genes_by_seurat_recipe
         self.select_genes_kwargs = {"inplace": True}
+        self.normalize_by_cells_function_kwargs = {"skip_log": True}
         self.sctransform_kwargs = {"layers": raw_layers, "n_top_genes": 2000}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
@@ -738,6 +720,7 @@ class Preprocessor:
         # self.filter_cells_by_outliers = None
         # self.filter_genes_by_outliers = None
         self.normalize_by_cells = normalize_cell_expr_by_size_factors
+        self.normalize_by_cells_function_kwargs = {"skip_log": True}
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals

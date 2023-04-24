@@ -66,7 +66,7 @@ def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
     chosen_gene_indices = np.random.choice(adata.n_vars, 10)
     _has_log1p_transformed = not np.allclose(
         np.array(adata.X[:, chosen_gene_indices].sum(1)),
-        np.array(adata.layers["X_spliced"][:, chosen_gene_indices].sum(1)),
+        np.array(adata.layers["spliced"][:, chosen_gene_indices].sum(1)),
         atol=1e-4,
     )
     return _has_log1p_transformed
@@ -829,7 +829,7 @@ def normalize_cell_expr_by_size_factors(
             _norm_method = norm_method
 
         if skip_log:
-            main_info("skipping log transformation as input requires...")
+            main_debug("skipping log transformation as input requires...")
             _norm_method = None
 
         if _norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":

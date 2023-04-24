@@ -189,11 +189,10 @@ class Logger:
 
     def finish_progress(self, progress_name="", time_unit="s", indent_level=1):
         self.log_time()
-        #self.report_progress(percent=100, progress_name=progress_name)
+        # self.report_progress(percent=100, progress_name=progress_name)
 
         saved_terminator = self.logger_stream_handler.terminator
         self.logger_stream_handler.terminator = ""
-        #self.logger.info("\n")
         self.logger_stream_handler.flush()
         self.logger_stream_handler.terminator = saved_terminator
 

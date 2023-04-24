@@ -319,13 +319,13 @@ def get_vaild_CM(
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor].values[:, None] if total_szfactor in adata.obs.columns else None
 
-    # if szfactors is not None and relative_expr:
-    #     if issparse(CM):
-    #         from sklearn.utils import sparsefuncs
-    #
-    #         sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
-    #     else:
-    #         CM /= szfactors
+    if szfactors is not None and relative_expr:
+        if issparse(CM):
+            from sklearn.utils import sparsefuncs
+
+            sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
+        else:
+            CM /= szfactors
 
     if winsorize:
         if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
