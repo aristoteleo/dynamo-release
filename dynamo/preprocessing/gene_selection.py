@@ -140,7 +140,7 @@ def select_genes_monocle(
             filter_bool = filter_bool.index.isin(feature_gene_idx)
         elif sort_by == "cv_dispersion" or sort_by == "fano_dispersion":
             if not any("velocyto_SVR" in key for key in adata.uns.keys()):
-                select_genes_by_svr(
+                _select_genes_by_svr(
                     adata,
                     layers=layer,
                     filter_bool=filter_bool,
@@ -173,7 +173,7 @@ def select_genes_monocle(
     adata.uns["feature_selection"] = sort_by
 
 
-def select_genes_by_svr(
+def _select_genes_by_svr(
     adata_ori: AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layers: str = "X",

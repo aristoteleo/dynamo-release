@@ -730,7 +730,7 @@ def size_factor_normalize(mat: np.ndarray, szfactors: np.ndarray) -> np.ndarray:
     return mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
 
 
-def Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
+def _Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
     """perform Freeman-Tukey transform or inverse transform on the given array.
 
     Args:

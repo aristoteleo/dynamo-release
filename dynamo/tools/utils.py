@@ -35,7 +35,7 @@ from ..dynamo_logger import (
     main_tqdm,
     main_warning,
 )
-from ..preprocessing.utils import Freeman_Tukey
+from ..preprocessing.utils import _Freeman_Tukey
 from ..utils import areinstance, isarray
 
 
@@ -999,7 +999,7 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
             if adata.uns["pp"]["norm_method"] == "log2"
             else np.exp(layer_x.data) - 1
             if adata.uns["pp"]["norm_method"] == "log"
-            else Freeman_Tukey(layer_x.data + 1, inverse=True)
+            else _Freeman_Tukey(layer_x.data + 1, inverse=True)
             if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
             else layer_x.data
         )
@@ -1011,7 +1011,7 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
             if adata.uns["pp"]["norm_method"] == "log2"
             else np.exp(layer_x) - 1
             if adata.uns["pp"]["norm_method"] == "log"
-            else Freeman_Tukey(layer_x, inverse=True)
+            else _Freeman_Tukey(layer_x, inverse=True)
             if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
             else layer_x
         )

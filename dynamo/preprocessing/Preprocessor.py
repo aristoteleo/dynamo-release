@@ -25,14 +25,18 @@ from ..external import (
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .preprocess import pca
-from .preprocessor_utils import _infer_labeling_experiment_type, calc_sz_factor
+from .preprocessor_utils import (
+    Freeman_Tukey,
+    _infer_labeling_experiment_type,
+    calc_sz_factor,
+)
 from .preprocessor_utils import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
 )
 from .preprocessor_utils import (
     filter_genes_by_outliers as monocle_filter_genes_by_outliers,
 )
-from .preprocessor_utils import is_log1p_transformed_adata, log1p, normalize
+from .preprocessor_utils import log, log1p, log2, normalize
 from .utils import (
     collapse_species_adata,
     convert2symbol,

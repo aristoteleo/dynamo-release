@@ -31,7 +31,7 @@ from ..dynamo_logger import (
 from ..tools.utils import update_dict
 from ..utils import copy_adata
 from .utils import (
-    Freeman_Tukey,
+    _Freeman_Tukey,
     add_noise_to_duplicates,
     basic_stats,
     calc_new_to_total_ratio,
@@ -449,7 +449,7 @@ def _log2_inplace(data: np.ndarray) -> np.ndarray:
         The updated array.
     """
 
-    return np.log2(data, out=data)
+    return np.log2(data + 1, out=data)
 
 
 def _log_inplace(data: np.ndarray) -> np.ndarray:
@@ -462,7 +462,7 @@ def _log_inplace(data: np.ndarray) -> np.ndarray:
         The updated array.
     """
 
-    return np.log(data, out=data)
+    return np.log(data + 1, out=data)
 
 
 def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
@@ -485,7 +485,7 @@ def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
 
 
 def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
-    """Calculate log1p (log(1+x)) for a layer of an AnnData object inplace.
+    """Calculate Base-2 logarithm of `x` for a layer of an AnnData object inplace.
 
     Args:
         adata: an AnnData object.
@@ -497,14 +497,14 @@ def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
         if is_integer_arr(mat.data):
             mat = mat.asfptype()
             DKM.set_layer_data(adata, layer, mat)
-        _log2_inplace(mat.data + 1)
+        _log2_inplace(mat.data)
     else:
         mat = mat.astype(np.float)
-        _log2_inplace(mat + 1)
+        _log2_inplace(mat)
 
 
 def log_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
-    """Calculate log1p (log(1+x)) for a layer of an AnnData object inplace.
+    """Calculate the natural logarithm `log(exp(x)) = x` for a layer of an AnnData object inplace.
 
     Args:
         adata: an AnnData object.
@@ -516,10 +516,10 @@ def log_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
         if is_integer_arr(mat.data):
             mat = mat.asfptype()
             DKM.set_layer_data(adata, layer, mat)
-        _log_inplace(mat.data + 1)
+        _log_inplace(mat.data)
     else:
         mat = mat.astype(np.float)
-        _log_inplace(mat + 1)
+        _log_inplace(mat)
 
 
 def Freeman_Tukey_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
@@ -534,10 +534,10 @@ def Freeman_Tukey_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
         if is_integer_arr(mat.data):
             mat = mat.asfptype()
             DKM.set_layer_data(adata, layer, mat)
-        Freeman_Tukey(mat.data)
+        _Freeman_Tukey(mat.data)
     else:
         mat = mat.astype(np.float)
-        Freeman_Tukey(mat)
+        _Freeman_Tukey(mat)
 
     mat.data -= 1
     DKM.set_layer_data(adata, layer, mat)

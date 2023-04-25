@@ -28,7 +28,7 @@ from ..tools.utils import update_dict
 from ..utils import copy_adata
 from ._deprecated import _top_table
 from .cell_cycle import cell_cycle_scores
-from .gene_selection import select_genes_by_svr
+from .gene_selection import _select_genes_by_svr
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
@@ -36,7 +36,7 @@ from .preprocessor_utils import (
     normalize,
 )
 from .utils import (
-    Freeman_Tukey,
+    _Freeman_Tukey,
     add_noise_to_duplicates,
     basic_stats,
     calc_new_to_total_ratio,
@@ -270,7 +270,7 @@ def normalize_cell_expr_by_size_factors_legacy(
 
         if norm_method is None and layer == "X":
             CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
-        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
+        elif norm_method in [np.log1p, np.log, np.log2, _Freeman_Tukey, None] and layer != "protein":
             CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, norm_method)
         elif layer == "protein":  # norm_method == 'clr':
             if norm_method != "clr":
@@ -753,7 +753,7 @@ def recipe_monocle(
     # we should create all following data after convert2symbol (gene names)
     adata.uns["pp"] = {}
     if norm_method == "Freeman_Tukey":
-        norm_method = Freeman_Tukey
+        norm_method = _Freeman_Tukey
 
     basic_stats(adata)
     (
@@ -1258,7 +1258,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool]
 
-    adata = select_genes_by_svr(
+    adata = _select_genes_by_svr(
         adata,
         layers=["spliced"],
         min_expr_cells=2,
@@ -1501,7 +1501,7 @@ def select_genes_monocle_legacy(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = select_genes_by_svr(
+            adata = _select_genes_by_svr(
                 adata,
                 layers=[layer],
                 total_szfactor=total_szfactor,
