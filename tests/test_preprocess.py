@@ -19,7 +19,7 @@ from dynamo.preprocessing.preprocessor_utils import (
     is_log1p_transformed_adata,
     is_nonnegative,
     is_nonnegative_integer_arr,
-    log1p_adata,
+    log1p,
 )
 from dynamo.preprocessing.utils import convert_layers2csr
 
@@ -145,7 +145,7 @@ def test_Preprocessor_simple_run(adata):
 def test_is_log_transformed():
     adata = dyn.sample_data.zebrafish()
     assert not is_log1p_transformed_adata(adata)
-    log1p_adata(adata)
+    log1p(adata)
     assert is_log1p_transformed_adata(adata)
 
 

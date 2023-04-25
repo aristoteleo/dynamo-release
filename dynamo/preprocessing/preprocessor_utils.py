@@ -21,10 +21,10 @@ from ..dynamo_logger import (
     main_finish_progress,
     main_info,
     main_info_insert_adata,
+    main_info_insert_adata_layer,
     main_info_insert_adata_obs,
     main_info_insert_adata_obsm,
     main_info_insert_adata_uns,
-    main_info_insert_adata_var,
     main_log_time,
     main_warning,
 )
@@ -46,8 +46,8 @@ from .utils import (
     get_svr_filter,
     get_sz_exprs,
     merge_adata_attrs,
-    normalize_mat_monocle,
     pca,
+    size_factor_normalize,
     sz_util,
     unique_var_obs_adata,
 )
@@ -269,7 +269,64 @@ def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = Fal
     return _adata
 
 
-def log1p_adata(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
+def log2_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate log2 of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    log2_inplace(_adata, layer=layer)
+    return _adata
+
+
+def log_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate log of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    log_inplace(_adata, layer=layer)
+    return _adata
+
+
+def Freeman_Tukey_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate Freeman_Tukey of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    Freeman_Tukey_inplace(_adata, layer=layer)
+    return _adata
+
+
+def log1p(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
     """Perform log1p transform on selected adata layers
 
     Args:
@@ -285,9 +342,87 @@ def log1p_adata(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False
     if copy:
         _adata = copy_adata(adata)
 
-    main_info("log1p transform applied to layers: %s" % (str(layers)))
+    main_debug("[log1p] transform applied to layers: %s" % (str(layers)))
     for layer in layers:
         log1p_adata_layer(_adata, layer=layer)
+
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = "log1p"
+    return _adata
+
+
+def log2(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
+    """Perform log2 transform on selected adata layers
+
+    Args:
+        adata: an AnnData object.
+        layers: the layers to operate on. Defaults to [DKM.X_LAYER].
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+
+    main_debug("[log2] transform applied to layers: %s" % (str(layers)))
+    for layer in layers:
+        log2_adata_layer(_adata, layer=layer)
+
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = "log2"
+    return _adata
+
+
+def log(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
+    """Perform log transform on selected adata layers
+
+    Args:
+        adata: an AnnData object.
+        layers: the layers to operate on. Defaults to [DKM.X_LAYER].
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+
+    main_debug("[log] transform applied to layers: %s" % (str(layers)))
+    for layer in layers:
+        log_adata_layer(_adata, layer=layer)
+
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = "log"
+    return _adata
+
+
+def Freeman_Tukey(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
+    """Perform Freeman_Tukey transform on selected adata layers
+
+    Args:
+        adata: an AnnData object.
+        layers: the layers to operate on. Defaults to [DKM.X_LAYER].
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+
+    main_debug("[Freeman_Tukey] transform applied to layers: %s" % (str(layers)))
+    for layer in layers:
+        Freeman_Tukey_adata_layer(_adata, layer=layer)
+
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = "Freeman_Tukey"
     return _adata
 
 
@@ -302,6 +437,32 @@ def _log1p_inplace(data: np.ndarray) -> np.ndarray:
     """
 
     return np.log1p(data, out=data)
+
+
+def _log2_inplace(data: np.ndarray) -> np.ndarray:
+    """Calculate Base-2 logarithm of `x` of an array and update the array inplace.
+
+    Args:
+        data: the array for calculation.
+
+    Returns:
+        The updated array.
+    """
+
+    return np.log2(data, out=data)
+
+
+def _log_inplace(data: np.ndarray) -> np.ndarray:
+    """Calculate the natural logarithm `log(exp(x)) = x` of an array and update the array inplace.
+
+    Args:
+        data: the array for calculation.
+
+    Returns:
+        The updated array.
+    """
+
+    return np.log(data, out=data)
 
 
 def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
@@ -321,6 +482,65 @@ def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
     else:
         mat = mat.astype(np.float)
         _log1p_inplace(mat)
+
+
+def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
+    """Calculate log1p (log(1+x)) for a layer of an AnnData object inplace.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+    """
+
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        _log2_inplace(mat.data + 1)
+    else:
+        mat = mat.astype(np.float)
+        _log2_inplace(mat + 1)
+
+
+def log_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
+    """Calculate log1p (log(1+x)) for a layer of an AnnData object inplace.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+    """
+
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        _log_inplace(mat.data + 1)
+    else:
+        mat = mat.astype(np.float)
+        _log_inplace(mat + 1)
+
+
+def Freeman_Tukey_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
+    """Calculate Freeman-Tukey transform for a layer of an AnnData object inplace.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+    """
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        Freeman_Tukey(mat.data)
+    else:
+        mat = mat.astype(np.float)
+        Freeman_Tukey(mat)
+
+    mat.data -= 1
+    DKM.set_layer_data(adata, layer, mat)
 
 
 def filter_genes_by_outliers(
@@ -733,20 +953,16 @@ def calc_sz_factor(
 
 
 # TODO refactor the function below
-def normalize_cell_expr_by_size_factors(
+def normalize(
     adata: anndata.AnnData,
     layers: str = "all",
     total_szfactor: str = "total_Size_Factor",
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
-    norm_method: Union[Callable, None] = None,
-    pseudo_expr: int = 1,
-    relative_expr: bool = True,
     keep_filtered: bool = True,
     recalc_sz: bool = False,
     sz_method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
-    skip_log: bool = False,
 ) -> anndata.AnnData:
     """Normalize the gene expression value for the AnnData object.
 
@@ -761,12 +977,6 @@ def normalize_cell_expr_by_size_factors(
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Defaults to False.
         X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
-        norm_method: the method used to normalize data. Can be either function `np.log1p`, `np.log2` or any other
-            functions or string `clr`. By default, only .X will be size normalized and log1p transformed while data in
-            other layers will only be size normalized. Defaults to None.
-        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
-        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
-            Defaults to True.
         keep_filtered: whether we will only store feature genes in the adata object. If it is False, size factor will be
             recalculated only for the selected feature genes. Defaults to True.
         recalc_sz: whether we need to recalculate size factor based on selected genes before normalization. Defaults to
@@ -775,7 +985,6 @@ def normalize_cell_expr_by_size_factors(
             `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
             be replaced with `np.nanmedian`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
-        skip_log: whether skip log transformation. Defaults to False.
 
     Returns:
         An updated anndata object that are updated with normalized expression values for different layers.
@@ -791,7 +1000,6 @@ def normalize_cell_expr_by_size_factors(
 
     layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
-    # layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
     layers_to_sz = list(set(layer_sz_column_names))
 
     if not all(key in adata.obs.keys() for key in layers_to_sz):
@@ -820,27 +1028,7 @@ def normalize_cell_expr_by_size_factors(
         else:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
-        # log transforms
-
-        # special default norm case for adata.X in monocle logics
-        if norm_method is None and layer == "X":
-            _norm_method = np.log1p
-        else:
-            _norm_method = norm_method
-
-        if skip_log:
-            main_debug("skipping log transformation as input requires...")
-            _norm_method = None
-
-        if _norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
-            main_debug("applying %s to layer<%s>" % (_norm_method, layer))
-            CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, _norm_method)
-
-        elif layer == "protein":  # norm_method == 'clr':
-            if _norm_method != "clr":
-                main_warning(
-                    "For protein data, log transformation is not recommended. Using clr normalization by default."
-                )
+        if layer == "protein":
             """This normalization implements the centered log-ratio (CLR) normalization from Seurat which is computed
             for each gene (M Stoeckius, 2017).
             """
@@ -857,20 +1045,17 @@ def normalize_cell_expr_by_size_factors(
 
             CM = CM.T
         else:
-            main_warning(_norm_method + " is not implemented yet")
+            CM = size_factor_normalize(CM, szfactors)
 
         if layer in ["raw", "X"]:
-            main_debug("set adata <X> to normalized data using %s" % _norm_method)
+            main_debug("set adata <X> to normalized data.")
             adata.X = CM
         elif layer == "protein" and "protein" in adata.obsm_keys():
             main_info_insert_adata_obsm("X_protein")
             adata.obsm["X_protein"] = CM
         else:
-            main_info_insert_adata_obsm("X_" + layer)
+            main_info_insert_adata_layer("X_" + layer)
             adata.layers["X_" + layer] = CM
-
-        main_info_insert_adata_uns("pp.norm_method")
-        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
 
     return adata
 

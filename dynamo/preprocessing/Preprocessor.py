@@ -32,11 +32,7 @@ from .preprocessor_utils import (
 from .preprocessor_utils import (
     filter_genes_by_outliers as monocle_filter_genes_by_outliers,
 )
-from .preprocessor_utils import (
-    is_log1p_transformed_adata,
-    log1p_adata,
-    normalize_cell_expr_by_size_factors,
-)
+from .preprocessor_utils import is_log1p_transformed_adata, log1p, normalize
 from .utils import (
     collapse_species_adata,
     convert2symbol,
@@ -55,7 +51,7 @@ class Preprocessor:
         filter_cells_by_outliers_kwargs: dict = {},
         filter_genes_by_outliers_function: Callable = monocle_filter_genes_by_outliers,
         filter_genes_by_outliers_kwargs: dict = {},
-        normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
+        normalize_by_cells_function: Callable = normalize,
         normalize_by_cells_function_kwargs: dict = {},
         size_factor_function: Callable = calc_sz_factor,
         size_factor_kwargs: dict = {},
@@ -63,8 +59,8 @@ class Preprocessor:
         select_genes_kwargs: dict = {},
         normalize_selected_genes_function: Callable = None,
         normalize_selected_genes_kwargs: dict = {},
-        use_log1p: bool = True,
-        log1p_kwargs: dict = {},
+        norm_method: bool = True,
+        norm_method_kwargs: dict = {},
         pca_function: Callable = pca,
         pca_kwargs: dict = {},
         gene_append_list: List[str] = [],
@@ -97,8 +93,8 @@ class Preprocessor:
             select_genes_kwargs: arguments that will be passed to select_genes. Defaults to {}.
             normalize_selected_genes_function: function for normalize selected genes. Defaults to None.
             normalize_selected_genes_kwargs: arguments that will be passed to normalize_selected_genes. Defaults to {}.
-            use_log1p: whether to use log1p to normalize layers in adata. Defaults to True.
-            log1p_kwargs: arguments passed to use_log1p. Defaults to {}.
+            norm_method: whether to use a method to normalize layers in adata. Defaults to True.
+            norm_method_kwargs: arguments passed to norm_method. Defaults to {}.
             pca_function: function to perform pca. Defaults to pca in utils.py.
             pca_kwargs: arguments that will be passed pca. Defaults to {}.
             gene_append_list: ensure that a list of genes show up in selected genes across all the recipe pipeline.
@@ -110,8 +106,8 @@ class Preprocessor:
 
         self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
-        self.log1p = log1p_adata
-        self.log1p_kwargs = log1p_kwargs
+        self.norm_method = log1p
+        self.norm_method_kwargs = norm_method_kwargs
         self.sctransform = sctransform
 
         self.filter_cells_by_outliers = filter_cells_by_outliers_function
@@ -120,7 +116,6 @@ class Preprocessor:
         self.calc_size_factor = size_factor_function
         self.select_genes = select_genes_function
         self.normalize_selected_genes = normalize_selected_genes_function
-        self.use_log1p = use_log1p
 
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
@@ -377,18 +372,16 @@ class Preprocessor:
             main_debug("applying normalize by cells function...")
             self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
 
-    def _log1p(self, adata: AnnData) -> None:
-        """Perform log1p on the data with args specified in the preprocessor's
-        `log1p_kwargs`.
+    def _norm_method(self, adata: AnnData) -> None:
+        """Perform a normalization method on the data with args specified in the preprocessor's `norm_method_kwargs`.
 
         Args:
             adata: an AnnData object.
         """
 
-        if self.use_log1p:
-            adata.uns["pp"]["norm_method"] = "log1p"
-            main_debug("applying log1p transformation on expression matrix data (adata.X)...")
-            self.log1p(adata, **self.log1p_kwargs)
+        if callable(self.norm_method):
+            main_debug("applying a normalization method transformation on expression matrix data...")
+            self.norm_method(adata, **self.norm_method_kwargs)
 
     def _pca(self, adata: AnnData) -> None:
         """Perform pca reduction with args specified in the preprocessor's `pca_kwargs`.
@@ -435,7 +428,7 @@ class Preprocessor:
         self._filter_genes_by_outliers(adata)
         self._normalize_by_cells(adata)
         self._select_genes(adata)
-        self._log1p(adata)
+        self._norm_method(adata)
 
         temp_logger.finish_progress(progress_name="preprocess by seurat wo pca recipe")
 
@@ -480,9 +473,8 @@ class Preprocessor:
         self.select_genes = select_genes_monocle
         self.select_genes_kwargs = {"n_top_genes": n_top_genes, "SVRs_kwargs": {"relative_expr": False}}
         self.normalize_selected_genes = None
-        self.normalize_by_cells = normalize_cell_expr_by_size_factors
-        self.normalize_by_cells_function_kwargs = {"skip_log": True}
-        self.use_log1p = True
+        self.normalize_by_cells = normalize
+        self.norm_method = log1p
         self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
 
@@ -525,7 +517,7 @@ class Preprocessor:
         self._exclude_gene_list(adata)
         self._force_gene_list(adata)
 
-        self._log1p(adata)
+        self._norm_method(adata)
         self._pca(adata)
         self._cell_cycle_score(adata)
 
@@ -544,11 +536,8 @@ class Preprocessor:
             "algorithm": "seurat_dispersion",
             "n_top_genes": 2000,
         }
-        self.normalize_by_cells_function_kwargs = {"skip_log": True}
         self.pca_kwargs = {"pca_key": "X_pca"}
         self.filter_genes_by_outliers_kwargs = {"shared_count": 20}
-        self.use_log1p = True
-        self.log1p_kwargs = {"layers": ["X"]}
 
     def preprocess_adata_seurat(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -583,7 +572,7 @@ class Preprocessor:
         self._exclude_gene_list(adata)
         self._force_gene_list(adata)
 
-        self._log1p(adata)
+        self._norm_method(adata)
         self._pca(adata)
         temp_logger.finish_progress(progress_name="Preprocessor-seurat")
 
@@ -595,7 +584,6 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        self.use_log1p = False
         raw_layers = DKM.get_raw_data_layers(adata)
         self.filter_cells_by_outliers_kwargs = {"keep_filtered": False}
         self.filter_genes_by_outliers_kwargs = {
@@ -607,7 +595,6 @@ class Preprocessor:
         }
         self.select_genes = select_genes_by_seurat_recipe
         self.select_genes_kwargs = {"inplace": True}
-        self.normalize_by_cells_function_kwargs = {"skip_log": True}
         self.sctransform_kwargs = {"layers": raw_layers, "n_top_genes": 2000}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
@@ -635,8 +622,6 @@ class Preprocessor:
         self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
 
-        self._calc_size_factor(adata)
-        self._normalize_by_cells(adata)
         self._select_genes(adata)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])
@@ -669,7 +654,6 @@ class Preprocessor:
         normalize_layers = DKM.get_raw_data_layers(adata)
         self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": False}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
-        self.use_log1p = False
 
     def preprocess_adata_pearson_residuals(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -719,16 +703,12 @@ class Preprocessor:
         self.config_monocle_recipe(adata)
         # self.filter_cells_by_outliers = None
         # self.filter_genes_by_outliers = None
-        self.normalize_by_cells = normalize_cell_expr_by_size_factors
-        self.normalize_by_cells_function_kwargs = {"skip_log": True}
+        self.normalize_by_cells = normalize
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
-
         self.normalize_selected_genes_kwargs = {"layers": ["X"], "copy": False}
-
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
-        self.use_log1p = False
 
     def preprocess_adata_monocle_pearson_residuals(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None

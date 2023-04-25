@@ -31,8 +31,8 @@ from .utils import (
 
 filter_cells = filter_cells_by_outliers
 filter_genes = filter_genes_by_outliers
-log1p = log1p_adata
-normalize_cells = normalize_cell_expr_by_size_factors
+log1p = log1p
+normalize_cells = normalize
 
 from .CnmfPreprocessor import CnmfPreprocessor
 from .gene_selection import Gini, select_genes_by_svr, select_genes_monocle
@@ -45,7 +45,7 @@ __all__ = [
     "normalize_cells",
     "lambda_correction",
     "calc_sz_factor_legacy",
-    "normalize_cell_expr_by_size_factors",
+    "normalize",
     "recipe_monocle",
     "recipe_velocyto",
     "Gini",
@@ -70,6 +70,6 @@ __all__ = [
     "Preprocessor",
     "CnmfPreprocessor",
     "log1p",
-    "log1p_adata",
+    "log1p",
     "log1p_adata_layer",
 ]

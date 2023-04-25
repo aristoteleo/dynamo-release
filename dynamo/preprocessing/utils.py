@@ -717,6 +717,19 @@ def normalize_mat_monocle(
     return mat
 
 
+def size_factor_normalize(mat: np.ndarray, szfactors: np.ndarray) -> np.ndarray:
+    """perform size factor normalization on the given array.
+
+    Args:
+        mat: the array to operate on.
+        szfactors: the size factors corresponding to the array.
+
+    Returns:
+        The normalized array divided by size factor
+    """
+    return mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
+
+
 def Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
     """perform Freeman-Tukey transform or inverse transform on the given array.
 

@@ -33,7 +33,7 @@ from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
     filter_genes_by_outliers,
-    normalize_cell_expr_by_size_factors,
+    normalize,
 )
 from .utils import (
     Freeman_Tukey,

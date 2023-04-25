@@ -657,7 +657,7 @@ def feature_genes(
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for making the feature gene plot.
         mode: None or `str` (default: `None`)
-            The method to select the feature genes (can be either `dispersion`, `gini` or `SVR`).
+            The method to select the feature genes (can be either `cv_dispersion`, `fano_dispersion` or `gini`).
         figsize: `string` (default: (4, 3))
             Figure size of each facet.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
