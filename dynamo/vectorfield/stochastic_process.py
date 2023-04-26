@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
+from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors, k_nearest_neighbors
 from ..tools.utils import log1p_
 from .utils import vecfld_from_adata, vector_field_function
 
@@ -152,21 +152,12 @@ def diffusionMatrix(
     neighbor_result_prefix = "" if layer is None else layer
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
     if neighbor_key not in adata.uns_keys() or (X_data is not None and V_data is not None):
-        if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
-            from pynndescent import NNDescent
-
-            nbrs = NNDescent(
-                X_data,
-                metric="euclidean",
-                n_neighbors=n,
-                n_jobs=-1,
-                random_state=19491001,
-            )
-            Idx, _ = nbrs.query(X_data, k=n)
-        else:
-            alg = "ball_tree" if X_data.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=n, algorithm=alg, n_jobs=-1).fit(X_data)
-            _, Idx = nbrs.kneighbors(X_data)
+        Idx, _ = k_nearest_neighbors(
+            X_data,
+            k=n - 1,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+        )
     else:
         check_and_recompute_neighbors(adata, result_prefix=layer)
         conn_key = "connectivities" if layer is None else layer + "_connectivities"
