@@ -63,7 +63,7 @@ class Preprocessor:
         select_genes_kwargs: dict = {},
         normalize_selected_genes_function: Callable = None,
         normalize_selected_genes_kwargs: dict = {},
-        norm_method: bool = True,
+        norm_method: Callable = log1p,
         norm_method_kwargs: dict = {},
         pca_function: Callable = pca,
         pca_kwargs: dict = {},
@@ -566,7 +566,9 @@ class Preprocessor:
         main_info("Running Seurat recipe preprocessing...")
 
         self.standardize_adata(adata, tkey, experiment_type)
+        self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
+
         self._calc_size_factor(adata)
         self._normalize_by_cells(adata)
         self._select_genes(adata)
@@ -679,6 +681,8 @@ class Preprocessor:
         temp_logger = LoggerManager.gen_logger("Preprocessor-pearson residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
+        self._filter_cells_by_outliers(adata)
+        self._filter_genes_by_outliers(adata)
 
         self._select_genes(adata)
         # append/delete/force selected gene list required by users.
@@ -737,6 +741,8 @@ class Preprocessor:
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
+        self._filter_cells_by_outliers(adata)
+        self._filter_genes_by_outliers(adata)
         self._select_genes(adata)
 
         # append/delete/force selected gene list required by users.

@@ -230,7 +230,7 @@ def _select_genes_by_svr(
         if valid_CM is None:
             continue
 
-        mean, cv = get_mean_cv(valid_CM, algorithm, winsorize, winsor_perc)
+        mean, cv = get_mean_cv(adata, valid_CM, algorithm, winsorize, winsor_perc)
         fitted_fun, svr_gamma = get_prediction_by_svr(mean, cv, svr_gamma)
         score = cv - fitted_fun(mean)
         if sort_inverse:
@@ -339,6 +339,7 @@ def get_vaild_CM(
 
 
 def get_mean_cv(
+    adata: AnnData,
     valid_CM: Union[np.ndarray, scipy.sparse.csr_matrix, scipy.sparse.csc_matrix, scipy.sparse.coo_matrix],
     algorithm: Literal["cv_dispersion", "fano_dispersion"] = "cv_dispersion",
     winsorize: bool = False,
@@ -347,6 +348,7 @@ def get_mean_cv(
     """Find the mean and coefficient of variation of gene expression.
 
     Args:
+        adata: an AnnData object
         algorithm: Method of calculating mean and coefficient of variation, either fano_dispersion or cv_dispersion.
         valid_CM: Gene expression matrix to be used in a downstream analysis.
         winsorize: Whether to winsorize the data for the cv vs mean model. Defaults to False.
@@ -358,7 +360,7 @@ def get_mean_cv(
     """
 
     if algorithm == "fano_dispersion":
-        (gene_counts_stats, gene_fano_parameters) = get_highvar_genes_sparse(valid_CM)
+        (gene_counts_stats, gene_fano_parameters) = get_highvar_genes_sparse(adata, valid_CM)
         mean = np.array(gene_counts_stats["mean"]).flatten()[:, None]
         cv = np.array(gene_counts_stats["fano"]).flatten()
         return mean, cv
@@ -424,6 +426,7 @@ def get_prediction_by_svr(ground: np.ndarray, target: np.ndarray, svr_gamma: Opt
 
 # Highly variable gene selection function:
 def get_highvar_genes_sparse(
+    adata: AnnData,
     expression: Union[
         np.ndarray,
         scipy.sparse.csr_matrix,
@@ -433,15 +436,18 @@ def get_highvar_genes_sparse(
     expected_fano_threshold: Optional[float] = None,
     numgenes: Optional[int] = None,
     minimal_mean: float = 0.5,
+    save_key: Optional[str] = None,
 ) -> Tuple[pd.DataFrame, Dict]:
     """Find highly-variable genes in sparse single-cell data matrices.
 
     Args:
+        adata: an AnnData object
         expression: Gene expression matrix
         expected_fano_threshold: Optionally can be used to set a manual dispersion threshold (for definition of
             "highly-variable")
         numgenes: Optionally can be used to find the n most variable genes
         minimal_mean: Sets a threshold on the minimum mean expression to consider
+        save_key: the key to store the fano calculation results
 
     Returns:
         gene_counts_stats: Results dataframe containing pertinent information for each gene
@@ -501,6 +507,11 @@ def get_highvar_genes_sparse(
         "T": T,
         "minimal_mean": minimal_mean,
     }
+
+    if save_key is not None:
+        LoggerManager.main_logger.info_insert_adata(save_key, "varm")
+        gene_counts_stats.set_index(adata.var.index, inplace=True)
+        adata.varm[save_key] = gene_counts_stats
     return gene_counts_stats, gene_fano_parameters
 
 
