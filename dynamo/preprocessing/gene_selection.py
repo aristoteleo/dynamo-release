@@ -27,7 +27,7 @@ from .preprocessor_utils import (
     get_svr_filter,
     seurat_get_mean_var,
 )
-from .utils import compute_gene_exp_fraction, merge_adata_attrs
+from .utils import compute_gene_exp_fraction, get_gene_selection_filter, merge_adata_attrs
 
 
 def calc_Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> AnnData:
@@ -91,30 +91,6 @@ def calc_Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") 
     return adata
 
 
-def get_Gini_filter(
-    adata: AnnData,
-    layer: str = DKM.X_LAYER,
-    n_top_genes: int = 2000,
-    basic_filter: Union[np.ndarray, pd.Series] = None,
-) -> np.ndarray:
-    """Generate the mask showing the genes with Gini coefficient.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer to operate on. Defaults to "spliced".
-        n_top_genes: number of top genes to be filtered. Defaults to 3000.
-        basic_filter: the filter to remove outliers. Should be `adata.var["pass_basic_filter"]` in most cases.
-
-    Returns:
-        The filter mask as a bool array.
-    """
-    valid_table = adata.var[layer + "_gini"][basic_filter]
-    feature_gene_idx = np.argsort(-valid_table)[:n_top_genes]
-    feature_gene_idx = valid_table.index[feature_gene_idx]
-    filter_bool = basic_filter.index.isin(feature_gene_idx)
-    return filter_bool
-
-
 def select_genes_monocle(
     adata: AnnData,
     layer: str = DKM.X_LAYER,
@@ -158,7 +134,8 @@ def select_genes_monocle(
         if sort_by == "gini":
             if layer + "_gini" is not adata.var.keys():
                 calc_Gini(adata)
-            filter_bool = get_Gini_filter(adata, layer=layer, n_top_genes=n_top_genes, basic_filter=filter_bool)
+            filter_bool = get_gene_selection_filter(
+                adata.var[layer + "_gini"][filter_bool], n_top_genes=n_top_genes, basic_filter=filter_bool)
         elif sort_by == "cv_dispersion" or sort_by == "fano_dispersion":
             if not any("velocyto_SVR" in key for key in adata.uns.keys()):
                 calc_dispersion_by_svr(
