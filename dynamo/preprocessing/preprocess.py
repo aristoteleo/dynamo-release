@@ -28,7 +28,7 @@ from ..tools.utils import update_dict
 from ..utils import copy_adata
 from ._deprecated import _top_table
 from .cell_cycle import cell_cycle_scores
-from .gene_selection import _select_genes_by_svr
+from .gene_selection import calc_dispersion_by_svr
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
@@ -1258,7 +1258,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool]
 
-    adata = _select_genes_by_svr(
+    adata = calc_dispersion_by_svr(
         adata,
         layers=["spliced"],
         min_expr_cells=2,
@@ -1501,7 +1501,7 @@ def select_genes_monocle_legacy(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = _select_genes_by_svr(
+            adata = calc_dispersion_by_svr(
                 adata,
                 layers=[layer],
                 total_szfactor=total_szfactor,

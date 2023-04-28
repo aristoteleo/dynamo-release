@@ -35,7 +35,7 @@ log1p = log1p
 normalize_cells = normalize
 
 from .CnmfPreprocessor import CnmfPreprocessor
-from .gene_selection import Gini, _select_genes_by_svr, select_genes_monocle
+from .gene_selection import calc_Gini, calc_dispersion_by_svr, select_genes_monocle
 from .Preprocessor import Preprocessor
 
 __all__ = [
@@ -48,13 +48,13 @@ __all__ = [
     "normalize",
     "recipe_monocle",
     "recipe_velocyto",
-    "Gini",
+    "calc_Gini",
     "filter_cells_by_outliers",
     "select_genes_monocle",
     "filter_genes",
     "filter_genes_by_outliers",
     "filter_genes_by_clusters_",
-    "_select_genes_by_svr",
+    "calc_dispersion_by_svr",
     "get_svr_filter",
     "highest_frac_genes",
     "cell_cycle_scores",

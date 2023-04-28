@@ -30,7 +30,7 @@ from .preprocessor_utils import (
 from .utils import compute_gene_exp_fraction, merge_adata_attrs
 
 
-def Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> AnnData:
+def calc_Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> AnnData:
     """Calculate the Gini coefficient of a numpy array.
     https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
 
@@ -49,7 +49,7 @@ def Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> An
 
     layers = DKM.get_available_layer_keys(adata, layers)
 
-    def compute_gini(CM):
+    def _compute_gini(CM):
         # convert to dense array if sparse
         if issparse(CM):
             CM = CM.A
@@ -85,10 +85,34 @@ def Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> An
         else:
             CM = adata.layers[layer]
 
-        var_gini = compute_gini(CM)
+        var_gini = _compute_gini(CM)
         adata.var[layer + "_gini"] = var_gini
 
     return adata
+
+
+def get_Gini_filter(
+    adata: AnnData,
+    layer: str = DKM.X_LAYER,
+    n_top_genes: int = 2000,
+    basic_filter: Union[np.ndarray, pd.Series] = None,
+) -> np.ndarray:
+    """Generate the mask showing the genes with Gini coefficient.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to "spliced".
+        n_top_genes: number of top genes to be filtered. Defaults to 3000.
+        basic_filter: the filter to remove outliers. Should be `adata.var["pass_basic_filter"]` in most cases.
+
+    Returns:
+        The filter mask as a bool array.
+    """
+    valid_table = adata.var[layer + "_gini"][basic_filter]
+    feature_gene_idx = np.argsort(-valid_table)[:n_top_genes]
+    feature_gene_idx = valid_table.index[feature_gene_idx]
+    filter_bool = basic_filter.index.isin(feature_gene_idx)
+    return filter_bool
 
 
 def select_genes_monocle(
@@ -133,14 +157,11 @@ def select_genes_monocle(
     else:
         if sort_by == "gini":
             if layer + "_gini" is not adata.var.keys():
-                Gini(adata)
-            valid_table = adata.var[layer + "_gini"][filter_bool]
-            feature_gene_idx = np.argsort(-valid_table)[:n_top_genes]
-            feature_gene_idx = valid_table.index[feature_gene_idx]
-            filter_bool = filter_bool.index.isin(feature_gene_idx)
+                calc_Gini(adata)
+            filter_bool = get_Gini_filter(adata, layer=layer, n_top_genes=n_top_genes, basic_filter=filter_bool)
         elif sort_by == "cv_dispersion" or sort_by == "fano_dispersion":
             if not any("velocyto_SVR" in key for key in adata.uns.keys()):
-                _select_genes_by_svr(
+                calc_dispersion_by_svr(
                     adata,
                     layers=layer,
                     filter_bool=filter_bool,
@@ -173,7 +194,7 @@ def select_genes_monocle(
     adata.uns["feature_selection"] = sort_by
 
 
-def _select_genes_by_svr(
+def calc_dispersion_by_svr(
     adata_ori: AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layers: str = "X",
