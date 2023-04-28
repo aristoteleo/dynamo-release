@@ -599,8 +599,6 @@ class Preprocessor:
             "min_cell_u": 5,
             "min_count_u": 1,
         }
-        self.select_genes = select_genes_by_seurat_recipe
-        self.select_genes_kwargs = {"inplace": True}
         self.sctransform_kwargs = {"layers": raw_layers, "n_top_genes": 2000}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
@@ -628,6 +626,8 @@ class Preprocessor:
         self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
 
+        main_warning("Sctransform recipe will subset the data first with default gene selection function for "
+                     "efficiency. If you want to disable this, please perform sctransform without recipe.")
         self._select_genes(adata)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])

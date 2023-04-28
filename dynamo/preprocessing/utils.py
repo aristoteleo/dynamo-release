@@ -528,6 +528,28 @@ def clusters_stats(
     return U_avgs, S_avgs
 
 
+def get_gene_selection_filter(
+    valid_table: pd.Series,
+    n_top_genes: int = 2000,
+    basic_filter: Optional[pd.Series] = None,
+) -> np.ndarray:
+    """Generate the mask by sorting given table of scores.
+
+        Args:
+            valid_table: the scores used to sort the highly variable genes.
+            n_top_genes: number of top genes to be filtered. Defaults to 2000.
+            basic_filter: the filter to remove outliers. For example, the `adata.var["pass_basic_filter"]`.
+
+        Returns:
+            The filter mask as a bool array.
+    """
+    if basic_filter is None:
+        basic_filter = pd.Series(True, index=valid_table.index)
+    feature_gene_idx = np.argsort(-valid_table)[:n_top_genes]
+    feature_gene_idx = valid_table.index[feature_gene_idx]
+    return basic_filter.index.isin(feature_gene_idx)
+
+
 def get_svr_filter(
     adata: anndata.AnnData, layer: str = "spliced", n_top_genes: int = 3000, return_adata: bool = False
 ) -> Union[anndata.AnnData, np.ndarray]:
