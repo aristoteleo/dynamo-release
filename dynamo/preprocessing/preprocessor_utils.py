@@ -1210,44 +1210,37 @@ def calc_sz_factor(
     use_all_genes_cells: bool = True,
     genes_use_for_norm: Union[List[str], None] = None,
 ) -> anndata.AnnData:
-    """Calculate the size factor of the each cell using geometric mean of total
-    UMI across cells for a AnnData object.
+    """Calculate the size factor of each cell using geometric mean or median of total UMI across cells for a AnnData
+    object.
 
-    This function is partly based on Monocle R package
-    (https://github.com/cole-trapnell-lab/monocle3).
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Args:
         adata_ori: an AnnData object.
-        layers: the layer(s) to be normalized. Defaults to "all", including RNA
-            (X, raw) or spliced, unspliced, protein, etc.
-        total_layers: the layer(s) that can be summed up to get the total mRNA.
-            For example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or
-            ["new", "old"], etc. Defaults to None.
-        splicing_total_layers: whether to also normalize spliced / unspliced
-            layers by size factor from total RNA. Defaults to False.
-        X_total_layers: whether to also normalize adata.X by size factor from
-            total RNA. Defaults to False.
+        layers: the layer(s) to be normalized. Defaults to "all", including RNA (X, raw) or spliced, unspliced, protein,
+            etc.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
+            ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
+        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+            Defaults to False.
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
         locfunc: the function to normalize the data. Defaults to np.nanmean.
-        round_exprs: whether the gene expression should be rounded into
-            integers. Defaults to False.
-        method: the method used to calculate the expected total reads / UMI used
-            in size factor calculation. Only `mean-geometric-mean-total` /
-            `geometric` and `median` are supported. When `median` is used,
-            `locfunc` will be replaced with `np.nanmedian`. Defaults to
-            "median".
-        scale_to: the final total expression for each cell that will be scaled
-            to. Defaults to None.
-        use_all_genes_cells: whether all cells and genes should be used for the
-            size factor calculation. Defaults to True.
-        genes_use_for_norm: A list of gene names that will be used to calculate
-            total RNA for each cell and then the size factor for normalization.
-            This is often very useful when you want to use only the host genes
-            to normalize the dataset in a virus infection experiment (i.e. CMV
-            or SARS-CoV-2 infection). Defaults to None.
+        round_exprs: whether the gene expression should be rounded into integers. Defaults to False.
+        method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
+        scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
+        use_all_genes_cells: whether all cells and genes should be used for the size factor calculation. Defaults to
+            True.
+        genes_use_for_norm: A list of gene names that will be used to calculate total RNA for each cell and then the
+            size factor for normalization. This is often very useful when you want to use only the host genes to
+            normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
 
     Returns:
-        An updated anndata object that are updated with the `Size_Factor`
-        (`layer_` + `Size_Factor`) column(s) in the obs attribute.
+        An updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the
+        obs attribute.
     """
 
     if use_all_genes_cells:
@@ -1353,40 +1346,33 @@ def normalize_cell_expr_by_size_factors(
 
     Args:
         adata: an AnnData object.
-        layers: the layer(s) to be normalized. Default is all, including RNA
-            (X, raw) or spliced, unspliced, protein, etc.
-        total_szfactor: the column name in the .obs attribute that corresponds
-            to the size factor for the total mRNA. Defaults to
-            "total_Size_Factor".
-        splicing_total_layers: whether to also normalize spliced / unspliced
-            layers by size factor from total RNA. Defaults to False.
-        X_total_layers: whether to also normalize adata.X by size factor from
-            total RNA. Defaults to False.
-        norm_method: the method used to normalize data. Can be either function
-            `np.log1p`, `np.log2` or any other functions or string `clr`. By
-            default, only .X will be size normalized and log1p transformed while
-            data in other layers will only be size normalized. Defaults to None.
-        pseudo_expr: a pseudocount added to the gene expression value before
-            log/log2 normalization. Defaults to 1.
-        relative_expr: whether we need to divide gene expression values first by
-            size factor before normalization. Defaults to True.
-        keep_filtered: whether we will only store feature genes in the adata
-            object. If it is False, size factor will be recalculated only for
-            the selected feature genes. Defaults to True.
-        recalc_sz: whether we need to recalculate size factor based on selected
-            genes before normalization. Defaults to False.
-        sz_method: the method used to calculate the expected total reads / UMI
-            used in size factor calculation. Only `mean-geometric-mean-total` /
-            `geometric` and `median` are supported. When `median` is used,
-            `locfunc` will be replaced with `np.nanmedian`. Defaults to
-            "median".
-        scale_to: the final total expression for each cell that will be scaled
-            to. Defaults to None.
+        layers: the layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein,
+            etc.
+        total_szfactor: the column name in the .obs attribute that corresponds to the size factor for the total mRNA.
+            Defaults to "total_Size_Factor".
+        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+            Defaults to False.
+        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
+        norm_method: the method used to normalize data. Can be either function `np.log1p`, `np.log2` or any other
+            functions or string `clr`. By default, only .X will be size normalized and log1p transformed while data
+            in other layers will only be size normalized. Defaults to None.
+        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
+        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
+            Defaults to True.
+        keep_filtered: whether we will only store feature genes in the adata object. If it is False, size factor will be
+            recalculated only for the selected feature genes. Defaults to True.
+        recalc_sz: whether we need to recalculate size factor based on selected genes before normalization. Defaults to
+            False.
+        sz_method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
+        scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
         skip_log: whether skip log transformation. Defaults to False.
 
     Returns:
-        An updated anndata object that are updated with normalized expression
-        values for different layers.
+        An updated anndata object that are updated with normalized expression values for different layers.
     """
 
     if recalc_sz:

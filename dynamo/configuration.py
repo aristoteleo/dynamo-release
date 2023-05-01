@@ -1,5 +1,5 @@
 import warnings
-from typing import List, Union
+from typing import List, Optional, Tuple, Union
 
 import colorcet
 import matplotlib
@@ -63,11 +63,12 @@ class DynamoAdataKeyManager:
         )
 
     def select_layer_data(adata: AnnData, layer: str, copy=False) -> pd.DataFrame:
-        """select layer data based on layer key. The default layer is X layer in
-        adata. For layer-like data such as X stored in adata.X (but not in
-        adata.layers) and protein data specified by dynamo convention, this
-        utility provides an unified interface for selecting layer data with
-        shape n_obs x n_var."""
+        """This utility provides a unified interface for selecting layer data.
+
+        The default layer is X layer in adata with shape n_obs x n_var. For protein data it selects adata.obsm["protein"]
+        as specified by dynamo convention (the number of proteins are generally less than detected genes `n_var`).
+        For other layer data, select data based on layer key with shape n_obs x n_var.
+        """
         if layer is None:
             layer = DynamoAdataKeyManager.X_LAYER
         res_data = None
@@ -143,8 +144,20 @@ class DynamoAdataKeyManager:
     def get_excluded_layers(
         X_total_layers: bool = False,
         splicing_total_layers: bool = False
-    ):
-        """ Get a list of excluded layers based on the provided arguments."""
+    ) -> List:
+        """Get a list of excluded layers based on the provided arguments.
+
+        When splicing_total_layers is False, the function normalize spliced and unspliced RNA separately using each
+        layer's size factors. When X_total_layers is False, the function normalize X (normally it corresponds to the
+        spliced RNA or total RNA for a conventional scRNA-seq or labeling scRNA-seq) using its own size factor.
+
+        Args:
+            X_total_layers: whether to also normalize adata.X by size factor from total RNA.
+            splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+
+        Returns:
+            The list of layers to be excluded.
+        """
         excluded_layers = []
         if not X_total_layers:
             excluded_layers.extend(["X"])
@@ -155,10 +168,24 @@ class DynamoAdataKeyManager:
     def aggregate_layers_into_total(
         _adata: AnnData,
         layers: Union[str, List[str]] = "all",
-        total_layers: Union[List[str], None] = None,
+        total_layers: Optional[List[str]] = None,
         extend_layers: bool = True,
-    ):
-        """Create a total layer in adata by aggregating multiple layers."""
+    ) -> Tuple[Optional[List[str]], Union[str, List[str]]]:
+        """Create a total layer in adata by aggregating multiple layers.
+
+        The size factor normalization function is able to calculate size factors from customized layers. Given list
+        of total_layers, this helper function will calculate a temporary `_total_` layer.
+
+        Args:
+            _adata: the Anndata object.
+            layers: the layer(s) to be normailized in the normailzation function.
+            total_layers: the layer(s) to sum up to get the total mRNA. For example, ["spliced", "unspliced"],
+                ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
+            extend_layers: whether to extend the `_total_` layer to the list of layers.
+
+        Returns:
+            The tuple contains total layers and layers. Anndata object will be updated with `_total_` layer.
+        """
         if not isinstance(total_layers, list):
             total_layers = [total_layers]
         if len(set(total_layers).difference(_adata.layers.keys())) == 0:
