@@ -32,21 +32,16 @@ def robust_scale_binned(
     x: np.ndarray,
     breaks: np.ndarray,
 ) -> np.ndarray:
-    """Scale the values of y based on their medians and absolute deviations in
-    each bin defined by the breaks of x.
+    """Scale the values of y based on their medians and absolute deviations in each bin defined by the breaks of x.
 
-    The scaling factor for each bin is determined by the median absolute
-    deviation (MAD) of the residuals, which are defined as the differences
-    between the y values and their median in each bin, divided by a constant
-    factor of 1.4826. This scaling is robust to the presence of outliers in each
-    bin.
+    The scaling factor for each bin is determined by the median absolute deviation (MAD) of the residuals, which are
+    defined as the differences between the y values and their median in each bin, divided by a constant factor of
+    1.4826. This scaling is robust to the presence of outliers in each bin.
 
     Args:
         y: the array of values to be scaled. Must have the same length as x.
-        x: the array of values to define the bins for scaling. Must have the
-            same length as y.
-        breaks: the sequence of break points for binning the x values. Must be
-            sorted in increasing order.
+        x: the array of values to define the bins for scaling. Must have the same length as y.
+        breaks: the sequence of break points for binning the x values. Must be sorted in increasing order.
 
     Returns:
         An array of the same shape as y, with the scaled values.
@@ -66,8 +61,7 @@ def is_outlier(
     x: np.ndarray,
     th: Union[int, float] = 10,
 ) -> np.ndarray:
-    """Identify outliers in a dataset using robust scaling and a FFTKDE density
-    estimate.
+    """Identify outliers in a dataset using robust scaling and a FFTKDE density estimate.
 
     Args:
        y: the array of values to test for outliers.
@@ -75,8 +69,7 @@ def is_outlier(
        th: threshold value for outlier detection.
 
     Returns:
-       Boolean array indicating whether each value in `y` is an outlier (`True`)
-       or not (`False`).
+       Boolean array indicating whether each value in `y` is an outlier (`True`) or not (`False`).
    """
     z = FFTKDE(kernel="gaussian", bw="ISJ").fit(x)
     z.evaluate()
@@ -126,21 +119,18 @@ def gmean(
     axis: int = 0,
     eps: Union[int, float] = 1,
 ) -> np.ndarray:
-    """Compute the geometric mean of the non-zero elements in each column
-    (or row) of a sparse matrix.
+    """Compute the geometric mean of the non-zero elements in each column (or row) of a sparse matrix.
 
     Args:
-        X: the sparse matrix of shape (n_samples, n_features) whose columns
-            (or rows) are to be averaged.
-        axis: the axis along which to average the columns (or rows). By default,
-            the function averages over columns (axis=0).
-        eps: A small positive number added to the elements of the sparse matrix
-            before taking the logarithm. This is necessary to avoid taking the
-            logarithm of zero.
+        X: the sparse matrix of shape (n_samples, n_features) whose columns (or rows) are to be averaged.
+        axis: the axis along which to average the columns (or rows). By default, the function averages over columns
+            (axis=0).
+        eps: A small positive number added to the elements of the sparse matrix before taking the logarithm. This is
+            necessary to avoid taking the logarithm of zero.
 
     Returns:
-        An array of shape (n_features,) containing the geometric means of the
-        non-zero elements in each column (or row) of the input sparse matrix X.
+        An array of shape (n_features,) containing the geometric means of the non-zero elements in each column (or row)
+        of the input sparse matrix X.
     """
     X = X.copy()
     X = X.asfptype()
@@ -156,9 +146,8 @@ def gmean(
 def theta_ml(y: np.ndarray, mu: np.ndarray) -> float:
     """Compute the maximum likelihood estimator of theta parameter.
 
-    This function uses an iterative algorithm to optimize the log-likelihood of
-    the Poisson distribution with respect to the theta parameter. The algorithm
-    stops when the change in theta estimate is smaller than a threshold value.
+    This function uses an iterative algorithm to optimize the log-likelihood of the Poisson distribution with respect to
+    the theta parameter. The algorithm stops when the change in theta estimate is smaller than a threshold value.
 
     Args:
         y: the observed count data.
@@ -211,17 +200,14 @@ def sctransform_core(
     Args:
         adata: an Annotated data matrix.
         layer: the name of the layer to perform sctransform
-        min_cells: minimum number of cells expressing a gene to be included in
-            sctransform.
-        gmean_eps: epsilon value to add to the geometric mean to avoid log(0)
-            when calculating the log of geometric mean.
+        min_cells: minimum number of cells expressing a gene to be included in sctransform.
+        gmean_eps: epsilon value to add to the geometric mean to avoid log(0) when calculating the log of geometric
+            mean.
         n_genes: number of genes to be used for sctransform.
-        n_cells: number of cells to be used for sctransform. If None, use all
-            cells.
+        n_cells: number of cells to be used for sctransform. If None, use all cells.
         bin_size: size of bins in which to group genes during sctransform.
         bw_adjust: bandwidth adjustment factor for kernel density estimation.
-        inplace: whether to perform the sctransform in-place or return a copy of
-            the original data matrix.
+        inplace: whether to perform the sctransform in-place or return a copy of the original data matrix.
 
     Returns:
         If inplace=True, adata is updated with results in layer `layer`.

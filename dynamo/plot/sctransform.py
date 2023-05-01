@@ -17,8 +17,7 @@ def sctransform_plot_fit(
     Args:
         adata: annotated data matrix after sctransform.
         xaxis: the gene expression metric is plotted on the x-axis.
-        fig: Matplotlib figure object to use for the plot. If not provided,
-            a new figure is created.
+        fig: Matplotlib figure object to use for the plot. If not provided, a new figure is created.
 
     Returns:
         The matplotlib figure object containing the plot.
@@ -99,27 +98,21 @@ def plot_residual_var(
     label_genes: bool = True,
     ax: Optional[Axes] = None,
 ) -> Figure:
-    """Plot the relationship between the mean and variance of gene expression
-    across cells, highlighting the genes with the highest residual variance.
+    """Plot the relationship between the mean and variance of gene expression across cells, highlighting the genes with
+    the highest residual variance.
 
     Args:
         adata: annotated data matrix after sctransform.
-        topngenes: the number of genes with the highest residual variance to
-            highlight in the plot.
-        label_genes: whether to label the highlighted genes in the plot. If
-            `topngenes` is large, labeling genes may lead to plotting error
-            because of the space limitation.
-        ax: the axes on which to draw the plot. If None, a new figure and axes
-            are created.
+        topngenes: the number of genes with the highest residual variance to highlight in the plot.
+        label_genes: whether to label the highlighted genes in the plot. If `topngenes` is large, labeling genes may
+            lead to plotting error because of the space limitation.
+        ax: the axes on which to draw the plot. If None, a new figure and axes are created.
 
     Returns:
         The Figure object if `ax` is not given, else None.
     """
     def vars(a, axis=None):
-        """Helper function to calculate variance of sparse matrix by following
-        equation:
-                var = mean(a**2) - mean(a)**2
-        """
+        """Helper function to calculate variance of sparse matrix by equation: var = mean(a**2) - mean(a)**2"""
         a_squared = a.copy()
         a_squared.data **= 2
         return a_squared.mean(axis) - np.square(a.mean(axis))

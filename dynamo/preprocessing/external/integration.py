@@ -20,8 +20,7 @@ def integrate(
         fill_value: Scalar value to fill newly missing values in arrays with.
 
     Returns:
-        The concatenated AnnData, where adata.obs[batch_key] stores a
-        categorical variable labeling the batch.
+        The concatenated AnnData, where adata.obs[batch_key] stores a categorical variable labeling the batch.
     """
 
     batch_ca = [adata.obs[batch_key][0] for adata in adatas]
@@ -89,25 +88,22 @@ def harmony_debatch(
 ) -> Optional[AnnData]:
     """Use harmonypy [Korunsky19]_ to remove batch effects.
 
-    This function should be run after performing PCA but before computing the
-    neighbor graph. Original Code Repository: https://github.com/slowkow/harmonypy
-    Interesting example: https://slowkow.com/notes/harmony-animation/
+    This function should be run after performing PCA but before computing the neighbor graph. Original Code Repository
+    is https://github.com/slowkow/harmonypy. Interesting example: https://slowkow.com/notes/harmony-animation/
 
     Args:
         adata: An Anndata object.
-        key: The name of the column in ``adata.obs`` that differentiates among
-            experiments/batches.
-        basis: The name of the field in ``adata.obsm`` where the PCA table is
-            stored.
-        adjusted_basis: The name of the field in ``adata.obsm`` where the
-            adjusted PCA table will be stored after running this function.
-        max_iter_harmony: Maximum number of rounds to run Harmony. One round of
-            Harmony involves one clustering and one correction step.
+        key: The name of the column in ``adata.obs`` that differentiates among experiments/batches.
+        basis: The name of the field in ``adata.obsm`` where the PCA table is stored.
+        adjusted_basis: The name of the field in ``adata.obsm`` where the adjusted PCA table will be stored after
+            running this function.
+        max_iter_harmony: Maximum number of rounds to run Harmony. One round of Harmony involves one clustering and one
+            correction step.
         copy: Whether to copy `adata` or modify it inplace.
 
     Returns:
-        Updates adata with the field ``adata.obsm[adjusted_basis]``, containing
-        principal components adjusted by Harmony.
+        Updates adata with the field ``adata.obsm[adjusted_basis]``, containing principal components adjusted by
+        Harmony.
     """
     try:
         import harmonypy
