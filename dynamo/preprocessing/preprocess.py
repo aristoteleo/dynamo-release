@@ -762,6 +762,7 @@ def recipe_monocle(
     copy: bool = False,
     feature_selection_layer: Union[List[str], np.ndarray, np.array, str] = DKM.X_LAYER,
     optimized=False,
+    use_truncated_SVD_threshold = 500000,
 ) -> Union[anndata.AnnData, None]:
     """The monocle style preprocessing recipe.
 
@@ -1287,7 +1288,7 @@ def recipe_monocle(
 
     if method == "pca":
         start_t = time.time()
-        adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower(), optimized=optimized)
+        adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower(), optimized=optimized, use_truncated_SVD_threshold=use_truncated_SVD_threshold)
         end_t = time.time()
         print("pca time: ", end_t-start_t)
         # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead

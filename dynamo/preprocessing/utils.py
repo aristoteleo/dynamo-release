@@ -1017,11 +1017,11 @@ def pca_monocle(
                 fit, X_pca = _pca_fit(
                     X_data,
                     pca_func=TruncatedSVD,
-                    n_components=n_pca_components + 1,
+                    n_components=n_pca_components,
                     random_state=random_state
                 )
                 # first columns is related to the total UMI (or library size)
-                X_pca = X_pca[:, 1:]
+                X_pca = X_pca
 
         adata.obsm[pca_key] = X_pca
         if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
@@ -1030,10 +1030,10 @@ def pca_monocle(
                 "explained_variance_ratio_"] = fit.explained_variance_ratio_
         else:
             # first columns is related to the total UMI (or library size)
-            adata.uns[pcs_key] = fit.components_.T[:, 1:]
+            adata.uns[pcs_key] = fit.components_.T
             adata.uns[
-                "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-        adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
+                "explained_variance_ratio_"] = fit.explained_variance_ratio_
+        adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else np.zeros(X_data.shape[1])
     else:
         if adata.n_obs < use_truncated_SVD_threshold:
             pca = PCA(
@@ -1059,7 +1059,7 @@ def pca_monocle(
             adata.uns[pcs_key] = fit.components_.T[:, 1:]
 
             adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-        adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
+        adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else np.zeros(X_data.shape[1])
 
     if return_all:
         return adata, fit, X_pca
