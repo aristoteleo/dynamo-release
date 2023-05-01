@@ -726,7 +726,6 @@ def filter_genes_by_outliers_legacy(
 
     return adata
 
-@profile()
 def recipe_monocle(
     adata: anndata.AnnData,
     reset_X: bool = False,

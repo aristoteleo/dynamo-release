@@ -864,6 +864,7 @@ def _truncatedSVD_with_center(
         random_state=random_state,
     )
     X_pca = result_dict["X_pca"]
+    fit.mean_ = mean.A1.flatten()
     fit.components_ = result_dict["components_"]
     fit.explained_variance_ratio_ = result_dict[
         "explained_variance_ratio_"]
