@@ -599,6 +599,7 @@ class Preprocessor:
             "min_cell_u": 5,
             "min_count_u": 1,
         }
+        self.select_genes_kwargs = {"n_top_genes": 3000}
         self.sctransform_kwargs = {"layers": raw_layers, "n_top_genes": 2000}
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
