@@ -976,6 +976,12 @@ def pca(
                 X_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
             elif "protein" in layer:
                 X_data = adata.obsm["X_protein"]
+            elif "regress_out" in layer:
+                X_data = (
+                    adata.obsm["X_regress_out"]
+                    if "X_regress_out" in adata.obsm.keys()
+                    else adata.X[:, adata.var.use_for_pca.values]
+                )
             elif type(layer) is str:
                 X_data = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
             else:
@@ -1299,10 +1305,10 @@ def calc_new_to_total_ratio(adata: anndata.AnnData) -> Union[Tuple[np.ndarray, n
 
 
 def scale(
-    adata: anndata.AnnData,
+    adata: AnnData,
     layers: Union[List[str], str, None] = None,
-    scale_to_layer: Union[str, None] = None,
-    scale_to: float = 1e6,
+    scale_to_layer: Optional[str] = None,
+    scale_to: float = 1e4,
 ) -> anndata.AnnData:
     """Scale layers to a particular total expression value, similar to `normalize_expr_data` function.
 
@@ -1317,8 +1323,9 @@ def scale(
         The scaled AnnData object.
     """
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
-    has_splicing, has_labeling, _ = detect_experiment_datatype(adata)
+    if layers is None:
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers="all")
+    has_splicing, has_labeling = detect_experiment_datatype(adata)[:2]
 
     if scale_to_layer is None:
         scale_to_layer = "total" if has_labeling else None
@@ -1327,9 +1334,8 @@ def scale(
         scale = None
 
     for layer in layers:
-        if scale is None:
-            scale = scale_to / adata.layers[layer].sum(1)
-
+        # if scale is None:
+        scale = scale_to / adata.layers[layer].sum(1)
         adata.layers[layer] = csr_matrix(adata.layers[layer].multiply(scale))
 
     return adata

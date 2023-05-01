@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 try:
     from typing import Literal
@@ -6,7 +6,6 @@ except ImportError:
     from typing_extensions import Literal
 
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 
 from ..configuration import DKM
@@ -34,9 +33,11 @@ from .preprocessor_utils import (
     is_log1p_transformed_adata,
     log1p_adata,
     normalize_cell_expr_by_size_factors,
+    regress_out_parallel,
     select_genes_by_dispersion_general,
 )
 from .utils import (
+    basic_stats,
     collapse_species_adata,
     convert2symbol,
     convert_layers2csr,
@@ -48,26 +49,27 @@ from .utils import (
 class Preprocessor:
     def __init__(
         self,
-        collapse_speicies_adata_function: Callable = collapse_species_adata,
+        collapse_species_adata_function: Callable = collapse_species_adata,
         convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = monocle_filter_cells_by_outliers,
-        filter_cells_by_outliers_kwargs: dict = {},
+        filter_cells_by_outliers_kwargs: Dict[str, Any] = {},
         filter_genes_by_outliers_function: Callable = monocle_filter_genes_by_outliers,
-        filter_genes_by_outliers_kwargs: dict = {},
+        filter_genes_by_outliers_kwargs: Dict[str, Any] = {},
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
-        normalize_by_cells_function_kwargs: dict = {},
+        normalize_by_cells_function_kwargs: Dict[str, Any] = {},
         select_genes_function: Callable = select_genes_by_dispersion_general,
-        select_genes_kwargs: dict = {},
+        select_genes_kwargs: Dict[str, Any] = {},
         normalize_selected_genes_function: Callable = None,
-        normalize_selected_genes_kwargs: dict = {},
+        normalize_selected_genes_kwargs: Dict[str, Any] = {},
         use_log1p: bool = True,
-        log1p_kwargs: dict = {},
+        log1p_kwargs: Dict[str, Any] = {},
         pca_function: Callable = pca,
-        pca_kwargs: dict = {},
+        pca_kwargs: Dict[str, Any] = {},
         gene_append_list: List[str] = [],
         gene_exclude_list: List[str] = [],
         force_gene_list: Optional[List[str]] = None,
-        sctransform_kwargs={},
+        sctransform_kwargs: Dict[str, Any] = {},
+        regress_out_kwargs: Dict[List[str], Any] = {},
     ) -> None:
         """Preprocessor constructor.
 
@@ -78,46 +80,35 @@ class Preprocessor:
         these attributes directly to your own implementation.
 
         Args:
-            collapse_speicies_adata_function: function for collapsing the
-                species data. Defaults to collapse_species_adata.
-            convert_gene_name_function: transform gene names, by default
-                convert2symbol, which transforms unofficial gene names to
-                official gene names. Defaults to convert2symbol.
-            filter_cells_by_outliers_function: filter cells by thresholds.
-                Defaults to monocle_filter_cells_by_outliers.
-            filter_cells_by_outliers_kwargs: arguments that will be passed to
-                filter_cells_by_outliers. Defaults to {}.
-            filter_genes_by_outliers_function: filter genes by thresholds.
-                Defaults to monocle_filter_genes_by_outliers.
-            filter_genes_by_outliers_kwargs: arguments that will be passed to
-                filter_genes_by_outliers. Defaults to {}.
-            normalize_by_cells_function: function for performing cell-wise
-                normalization. Defaults to normalize_cell_expr_by_size_factors.
-            normalize_by_cells_function_kwargs: arguments that will be passed to
-                normalize_by_cells_function. Defaults to {}.
-            select_genes_function: function for selecting gene features.
-                Defaults to select_genes_by_dispersion_general.
-            select_genes_kwargs: arguments that will be passed to select_genes.
-                Defaults to {}.
-            normalize_selected_genes_function: function for normalize selected
-                genes. Defaults to None.
-            normalize_selected_genes_kwargs: arguments that will be passed to
-                normalize_selected_genes. Defaults to {}.
-            use_log1p: whether to use log1p to normalize layers in adata.
-                Defaults to True.
+            collapse_species_adata_function: function for collapsing the species data. Defaults to
+                collapse_species_adata.
+            convert_gene_name_function: transform gene names, by default convert2symbol, which transforms unofficial
+                gene names to official gene names. Defaults to convert2symbol.
+            filter_cells_by_outliers_function: filter cells by thresholds. Defaults to monocle_filter_cells_by_outliers.
+            filter_cells_by_outliers_kwargs: arguments that will be passed to filter_cells_by_outliers. Defaults to {}.
+            filter_genes_by_outliers_function: filter genes by thresholds. Defaults to monocle_filter_genes_by_outliers.
+            filter_genes_by_outliers_kwargs: arguments that will be passed to filter_genes_by_outliers. Defaults to {}.
+            normalize_by_cells_function: function for performing cell-wise normalization. Defaults to
+                normalize_cell_expr_by_size_factors.
+            normalize_by_cells_function_kwargs: arguments that will be passed to normalize_by_cells_function. Defaults
+                to {}.
+            select_genes_function: function for selecting gene features. Defaults to select_genes_by_dispersion_general.
+            select_genes_kwargs: arguments that will be passed to select_genes. Defaults to {}.
+            normalize_selected_genes_function: function for normalize selected genes. Defaults to None.
+            normalize_selected_genes_kwargs: arguments that will be passed to normalize_selected_genes. Defaults to {}.
+            use_log1p: whether to use log1p to normalize layers in adata. Defaults to True.
             log1p_kwargs: arguments passed to use_log1p. Defaults to {}.
             pca_function: function to perform pca. Defaults to pca in utils.py.
             pca_kwargs: arguments that will be passed pca. Defaults to {}.
-            gene_append_list: ensure that a list of genes show up in selected
-                genes in monocle recipe pipeline. Defaults to [].
-            gene_exclude_list: exclude a list of genes in monocle recipe
-                pipeline. Defaults to [].
-            force_gene_list: use this gene list as selected genes in monocle
-                recipe pipeline. Defaults to None.
-            sctransform_kwargs: arguments passed into sctransform function.
-                Defaults to {}.
+            gene_append_list: ensure that a list of genes show up in selected genes in monocle recipe pipeline. Defaults
+                to [].
+            gene_exclude_list: exclude a list of genes in monocle recipe pipeline. Defaults to [].
+            force_gene_list: use this gene list as selected genes in monocle recipe pipeline. Defaults to None.
+            sctransform_kwargs: arguments passed into sctransform function. Defaults to {}.
+            regress_out_kwargs: arguments passed into regress_out function. Defaults to {}.
         """
 
+        self.basic_stats = basic_stats
         self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
         self.log1p = log1p_adata
@@ -130,13 +121,13 @@ class Preprocessor:
         self.select_genes = select_genes_function
         self.normalize_selected_genes = normalize_selected_genes_function
         self.use_log1p = use_log1p
-
+        self.regress_out = regress_out_parallel
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
 
         # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
-        self.collapse_species_adata = collapse_speicies_adata_function
+        self.collapse_species_adata = collapse_species_adata_function
         self.gene_append_list = gene_append_list
         self.gene_exclude_list = gene_exclude_list
         self.force_gene_list = force_gene_list
@@ -148,6 +139,7 @@ class Preprocessor:
         self.select_genes_kwargs = select_genes_kwargs
         self.sctransform_kwargs = sctransform_kwargs
         self.normalize_selected_genes_kwargs = normalize_selected_genes_kwargs
+        self.regress_out_kwargs = regress_out_kwargs
 
     def add_experiment_info(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -157,10 +149,8 @@ class Preprocessor:
 
         Args:
             adata: an AnnData object.
-            tkey: the key for time information (labeling time period for the
-                cells) in .obs. Defaults to None.
-            experiment_type: the experiment type. If set to None, the experiment
-                type would be inferred from the data. Defaults to None.
+            tkey: the key for time information (labeling time period for the cells) in .obs. Defaults to None.
+            experiment_type: the experiment type. If set to None, the experiment type would be inferred from the data.
 
         Raises:
             ValueError: the tkey is invalid.
@@ -180,7 +170,11 @@ class Preprocessor:
         if has_labeling:
             main_info("data contains labeling info, checking tkey:" + str(tkey))
             if tkey not in adata.obs.keys():
-                raise ValueError("tkey:%s encoding the labeling time is not existed in your adata." % (str(tkey)))
+                if tkey is None and "time" in adata.obs.keys():
+                    main_warning("Automatically set to tkey as adata.obs.time due to no tkey was set as input")
+                    tkey = "time"
+                else:
+                    raise ValueError("tkey:%s encoding the labeling time is not existed in your adata." % (str(tkey)))
             if tkey is not None and adata.obs[tkey].max() > 60:
                 main_warning(
                     "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
@@ -228,41 +222,35 @@ class Preprocessor:
     def standardize_adata(self, adata: AnnData, tkey: str, experiment_type: str) -> None:
         """Process the AnnData object to make it meet the standards of dynamo.
 
-        The index of the observations would be ensured to be unique.
-        The layers with sparse matrix would be converted to compressed
-        csr_matrix. DKM.allowed_layer_raw_names() will be used to define
-        only_splicing, only_labeling and splicing_labeling keys. The genes
-        would be renamed to their official name.
+        The index of the observations would be ensured to be unique. The layers with sparse matrix would be converted to
+        compressed csr_matrix. DKM.allowed_layer_raw_names() will be used to define only_splicing, only_labeling and
+        splicing_labeling keys. The genes would be renamed to their official name.
 
         Args:
             adata: an AnnData object.
-            tkey: the key for time information (labeling time period for the
-                cells) in .obs.
+            tkey: the key for time information (labeling time period for the cells) in .obs.
             experiment_type: the experiment type.
         """
 
         adata.uns["pp"] = {}
         adata.uns["pp"]["norm_method"] = None
+        self.basic_stats(adata)
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
-        main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
+        main_info_insert_adata("experiment_type=%s" % adata.uns["pp"]["experiment_type"], "uns['pp']", indent_level=2)
+
         main_info("making adata observation index unique...")
         self.convert_layers2csr(adata)
+        self.collapse_species_adata(adata)
 
-        if self.collapse_species_adata:
-            main_info("applying collapse species adata...")
-            self.collapse_species_adata(adata)
-
-        if self.convert_gene_name:
-            main_info("applying convert_gene_name function...")
-            self.convert_gene_name(adata)
+        main_info("applying convert_gene_name function...")
+        self.convert_gene_name(adata)
 
         main_info("making adata observation index unique after gene name conversion...")
         self.unique_var_obs_adata(adata)
 
     def _filter_cells_by_outliers(self, adata: AnnData) -> None:
-        """Select valid cells based on the method specified as the
-        preprocessor's `filter_cells_by_outliers`.
+        """Select valid cells based on the method specified as the preprocessor's `filter_cells_by_outliers`.
 
         Args:
             adata: an AnnData object.
@@ -274,8 +262,7 @@ class Preprocessor:
             self.filter_cells_by_outliers(adata, **self.filter_cells_by_outliers_kwargs)
 
     def _filter_genes_by_outliers(self, adata: AnnData) -> None:
-        """Select valid genes based on the method specified as the
-        preprocessor's `filter_genes_by_outliers`.
+        """Select valid genes based on the method specified as the preprocessor's `filter_genes_by_outliers`.
 
         Args:
             adata: an AnnData object.
@@ -287,8 +274,7 @@ class Preprocessor:
             self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
 
     def _select_genes(self, adata: AnnData) -> None:
-        """selecting gene by features, based on method specified as the
-        preprocessor's `select_genes`.
+        """selecting gene by features, based on method specified as the preprocessor's `select_genes`.
 
         Args:
             adata: an AnnData object.
@@ -300,8 +286,7 @@ class Preprocessor:
             self.select_genes(adata, **self.select_genes_kwargs)
 
     def _append_gene_list(self, adata: AnnData) -> None:
-        """Add genes to the feature gene list detected by the preprocessing
-        steps.
+        """Add genes to the feature gene list detected by the preprocessing.
 
         Args:
             adata: an AnnData object.
@@ -313,8 +298,7 @@ class Preprocessor:
             main_info("appended %d extra genes as required..." % len(append_genes))
 
     def _exclude_gene_list(self, adata: AnnData) -> None:
-        """Remove genes from the feature gene list detected by the preprocessing
-        steps.
+        """Remove genes from the feature gene list detected by the preprocessing.
 
         Args:
             adata: an AnnData object.
@@ -326,8 +310,7 @@ class Preprocessor:
             main_info("excluded %d genes as required..." % len(exclude_genes))
 
     def _force_gene_list(self, adata: AnnData) -> None:
-        """Use the provided gene list as the feature gene list, overwrite the
-        gene list detected by the preprocessing steps.
+        """Use the provided gene list as the feature gene list, overwrite the gene list detected by the preprocessing.
 
         Args:
             adata: an AnnData object.
@@ -345,8 +328,7 @@ class Preprocessor:
             main_info("self.force_gene_list is None, skipping filtering by gene list...")
 
     def _normalize_selected_genes(self, adata: AnnData) -> None:
-        """Normalize selected genes with method specified in the preprocessor's
-        `normalize_selected_genes`
+        """Normalize selected genes with method specified in the preprocessor's `normalize_selected_genes`
 
         Args:
             adata: an AnnData object.
@@ -362,8 +344,7 @@ class Preprocessor:
         self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
 
     def _normalize_by_cells(self, adata: AnnData) -> None:
-        """Performing cell-wise normalization based on method specified as the
-        preprocessor's `normalize_by_cells`.
+        """Performing cell-wise normalization based on method specified as the preprocessor's `normalize_by_cells`.
 
         Args:
             adata: an AnnData object.
@@ -395,9 +376,19 @@ class Preprocessor:
             main_info("applying log1p transformation on expression matrix data (adata.X)...")
             self.log1p(adata, **self.log1p_kwargs)
 
+    def _regress_out(self, adata: AnnData) -> None:
+        """Perform regressing out with args specified in the preprocessor's `regress_out_kwargs`.
+
+        Args:
+            adata: an AnnData object.
+        """
+
+        if self.regress_out:
+            main_info("regressing out...")
+            self.regress_out(adata, **self.regress_out_kwargs)
+
     def _pca(self, adata: AnnData) -> None:
-        """Perform pca reduction with args specified in the preprocessor's
-        `pca_kwargs`.
+        """Perform principal component analysis reduction with args specified in the preprocessor's `pca_kwargs`.
 
         Args:
             adata: an AnnData object.
@@ -408,14 +399,10 @@ class Preprocessor:
             self.pca(adata, **self.pca_kwargs)
 
     def preprocess_adata_seurat_wo_pca(
-        self,
-        adata: AnnData,
-        tkey: Optional[str] = None,
-        experiment_type: Optional[str] = None
+        self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ) -> None:
-        """Preprocess the anndata object according to standard preprocessing in
-        Seurat recipe without PCA. This can be used to test different
-        dimentsion reduction methods.
+        """Preprocess the anndata object according to standard preprocessing in Seurat recipe without PCA.
+        This can be used to test different dimension reduction methods.
         """
         main_info("Running preprocessing pipeline...")
         temp_logger = LoggerManager.gen_logger("preprocessor-seurat_wo_pca")
@@ -428,25 +415,23 @@ class Preprocessor:
         self._select_genes(adata)
         self._log1p(adata)
 
-        temp_logger.finish_progress(
-            progress_name="preprocess by seurat wo pca recipe"
-        )
+        temp_logger.finish_progress(progress_name="preprocess by seurat wo pca recipe")
 
     def config_monocle_recipe(
-        self, adata: AnnData, n_top_genes: int = 2000, gene_selection_method: str = "SVR"
+        self,
+        adata: AnnData,
+        n_top_genes: int = 2000,
+        gene_selection_method: str = "SVR",
     ) -> None:
         """Automatically configure the preprocessor for monocle recipe.
 
         Args:
             adata: an AnnData object.
-            n_top_genes: Number of top feature genes to select in the
-                preprocessing step. Defaults to 2000.
-            gene_selection_method: Which sorting method to be used to select
-                genes. Defaults to "SVR".
+            n_top_genes: Number of top feature genes to select in the preprocessing step. Defaults to 2000.
+            gene_selection_method: Which sorting method to be used to select genes. Defaults to "SVR".
         """
 
-        n_obs, n_genes = adata.n_obs, adata.n_vars
-        n_cells = n_obs
+        n_cells, n_genes = adata.n_obs, adata.n_vars
         self.use_log1p = False
         self.filter_cells_by_outliers = monocle_filter_cells_by_outliers
         self.filter_cells_by_outliers_kwargs = {
@@ -500,6 +485,7 @@ class Preprocessor:
 
         # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
+        self.regress_out_kwargs = {"obs_key": [], "gene_selection_key": "use_for_pca"}
         self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
 
@@ -527,7 +513,7 @@ class Preprocessor:
         self._filter_cells_by_outliers(adata)
         self._select_genes(adata)
 
-        # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.
+        # gene selection has been completed. Now we need to append/delete/force selected gene list required by users.
         self._append_gene_list(adata)
         self._exclude_gene_list(adata)
         self._force_gene_list(adata)
@@ -535,14 +521,17 @@ class Preprocessor:
         self._normalize_selected_genes(adata)
         self._normalize_by_cells(adata)
 
-        self._log1p(adata)
+        self._log1p(adata)  # Always done in normalization process. Do we need this process explictly?
+
+        if len(self.regress_out_kwargs["obs_key"]) > 0:
+            self._regress_out(adata)
+
         self._pca(adata)
 
         temp_logger.finish_progress(progress_name="preprocess")
 
-    def config_seurat_recipe(self, adata: AnnData) -> None:
-        """Automatically configure the preprocessor for using the seurat style
-        recipe.
+    def config_seurat_recipe(self, adata: AnnData, regress_out_obs_keys: List[str] = []) -> None:
+        """Automatically configure the preprocessor for using the seurat style recipe.
 
         Args:
             adata: an AnnData object.
@@ -556,12 +545,12 @@ class Preprocessor:
         self.filter_genes_by_outliers_kwargs = {"shared_count": 20}
         self.use_log1p = True
         self.log1p_kwargs = {"layers": ["X"]}
+        self.regress_out_kwargs = {"obs_key": [], "gene_selection_key": "use_for_pca"}
 
     def preprocess_adata_seurat(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
     ) -> None:
-        """The preprocess pipeline in Seurat based on dispersion, implemented by
-        dynamo authors.
+        """The preprocess pipeline in Seurat based on dispersion, implemented by dynamo authors.
 
         Stuart and Butler et al. Comprehensive Integration of Single-Cell Data.
         Cell (2019) Butler et al. Integrating single-cell transcriptomic data
@@ -569,10 +558,8 @@ class Preprocessor:
 
         Args:
             adata: an AnnData object
-            tkey: the key for time information (labeling time period for the
-                cells) in .obs. Defaults to None.
-            experiment_type: the experiment type of the data. If not provided,
-                would be inferred from the data. Defaults to None.
+            tkey: the key for time information (labeling time period for the cells) in .obs. Defaults to None.
+            experiment_type: the experiment type of the data. If not provided, would be inferred from the data.
         """
 
         temp_logger = LoggerManager.gen_logger("preprocessor-seurat")
@@ -584,12 +571,13 @@ class Preprocessor:
         self._normalize_by_cells(adata)
         self._select_genes(adata)
         self._log1p(adata)
+        if len(self.regress_out_kwargs["obs_key"]) > 0:
+            self._regress_out(adata)
         self._pca(adata)
         temp_logger.finish_progress(progress_name="preprocess by seurat recipe")
 
     def config_sctransform_recipe(self, adata: AnnData) -> None:
-        """Automatically configure the preprocessor for using the sctransform
-        style recipe.
+        """Automatically configure the preprocessor for using the sctransform style recipe.
 
         Args:
             adata: an AnnData object.
@@ -614,8 +602,7 @@ class Preprocessor:
     ) -> None:
         """Python implementation of https://github.com/satijalab/sctransform.
 
-        Hao and Hao et al. Integrated analysis of multimodal single-cell data.
-        Cell (2021)
+        Hao and Hao et al. Integrated analysis of multimodal single-cell data. Cell (2021)
 
         Args:
             adata: an AnnData object
@@ -642,8 +629,7 @@ class Preprocessor:
         temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
 
     def config_pearson_residuals_recipe(self, adata: AnnData) -> None:
-        """Automatically configure the preprocessor for using the Pearson
-        residuals style recipe.
+        """Automatically configure the preprocessor for using the Pearson residuals style recipe.
 
         Args:
             adata: an AnnData object.
@@ -666,9 +652,8 @@ class Preprocessor:
     ) -> None:
         """A pipeline proposed in Pearson residuals (Lause, Berens & Kobak, 2021).
 
-        Lause, J., Berens, P. & Kobak, D. Analytic Pearson residuals for
-        normalization of single-cell RNA-seq UMI data. Genome Biol 22, 258
-        (2021). https://doi.org/10.1186/s13059-021-02451-7
+        Lause, J., Berens, P. & Kobak, D. Analytic Pearson residuals for normalization of single-cell RNA-seq UMI data.
+        Genome Biol 22, 258 (2021). https://doi.org/10.1186/s13059-021-02451-7
 
         Args:
             adata: an AnnData object
@@ -689,13 +674,10 @@ class Preprocessor:
         temp_logger.finish_progress(progress_name="preprocess by pearson residual recipe")
 
     def config_monocle_pearson_residuals_recipe(self, adata: AnnData) -> None:
-        """Automatically configure the preprocessor for using the
-        Monocle-Pearson-residuals style recipe.
+        """Automatically configure the preprocessor for using the Monocle-Pearson-residuals style recipe.
 
-        Useful when you want to use Pearson residual to obtain feature genes and
-        perform PCA but also using the standard size-factor normalization and
-        log1p analyses to normalize data for RNA velocity and vector field
-        analyses.
+        Useful when you want to use Pearson residual to obtain feature genes and perform PCA but also using the standard
+        size-factor normalization and log1p analyses to normalize data for RNA velocity and vector field analyses.
 
         Args:
             adata: an AnnData object.
@@ -719,19 +701,15 @@ class Preprocessor:
     ) -> None:
         """A combined pipeline of monocle and pearson_residuals.
 
-        Results after running pearson_residuals can contain negative values, an
-        undesired feature for later RNA velocity analysis. This function combine
-        pearson_residual and monocle recipes so that it uses Pearson residual to
-        obtain feature genes and perform PCA but also uses monocle recipe to
-        generate X_spliced, X_unspliced, X_new, X_total or other data values for
-        RNA velocity and downstream vector field analyses.
+        Results after running pearson_residuals can contain negative values, an undesired feature for later RNA velocity
+        analysis. This function combine pearson_residual and monocle recipes so that it uses Pearson residual to obtain
+        feature genes and perform PCA but also uses monocle recipe to generate X_spliced, X_unspliced, X_new, X_total or
+        other data values for RNA velocity and downstream vector field analyses.
 
         Args:
             adata: an AnnData object
-            tkey: the key for time information (labeling time period for the
-                cells) in .obs. Defaults to None.
-            experiment_type: the experiment type of the data. If not provided,
-                would be inferred from the data. Defaults to None.
+            tkey: the key for time information (labeling time period for the cells) in .obs. Defaults to None.
+            experiment_type: the experiment type of the data. If not provided, would be inferred from the data.
         """
 
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
@@ -765,10 +743,8 @@ class Preprocessor:
 
         Args:
             adata: An AnnData object.
-            recipe: The recipe used to preprocess the data. Defaults to
-                "monocle".
-            tkey: the key for time information (labeling time period for the
-                cells) in .obs. Defaults to None.
+            recipe: The recipe used to preprocess the data. Defaults to "monocle".
+            tkey: the key for time information (labeling time period for the cells) in .obs. Defaults to None.
 
         Raises:
             NotImplementedError: the recipe is invalid.
