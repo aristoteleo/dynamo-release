@@ -106,6 +106,8 @@ class DynamoAdataKeyManager:
     def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True):
         """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
         layer_keys = list(adata.layers.keys())
+        if layers is None: # layers=adata.uns["pp"]["experiment_layers"], in calc_sz_factor
+            layers = "X"
         if remove_pp_layers:
             layer_keys = [i for i in layer_keys if not i.startswith("X_")]
 

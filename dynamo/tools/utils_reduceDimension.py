@@ -1,9 +1,17 @@
 import warnings
+from typing import List, Optional, Tuple
 
 import numpy as np
 
+try:
+    from typing import Literal
+except:
+    from typing_extensions import Literal
+
+from anndata import AnnData
+
 from ..configuration import DKM
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import pca
 from .connectivity import (
     _gen_neighbor_keys,
     knn_to_adj,
@@ -15,14 +23,41 @@ from .utils import log1p_, update_dict
 
 # ---------------------------------------------------------------------------------------------------
 def prepare_dim_reduction(
-    adata,
-    genes=None,
-    layer=None,
-    basis="pca",
-    dims=None,
-    n_pca_components=30,
-    n_components=2,
-):
+    adata: AnnData,
+    genes: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    basis: str = "pca",
+    dims: Optional[List[int]] = None,
+    n_pca_components: int = 30,
+    n_components: int = 2,
+) -> Tuple[np.ndarray, int, str]:
+    """Prepare the data for dimension reduction.
+
+    Args:
+        adata: an AnnData object.
+        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+            all genes will be used. Defaults to None.
+        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+            used. Defaults to None.
+        basis: the space that will be used for clustering. Defaults to "pca".
+        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+            Defaults to None.
+        n_pca_components: Number of input PCs (principle components) that will be used for further non-linear dimension
+            reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
+            corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
+        n_components: the dimension of the space to embed into. Defaults to 2.
+
+    Raises:
+        ValueError: _description_
+        ValueError: _description_
+        ValueError: _description_
+
+    Returns:
+        A tuple (X_data, n_components, basis) where `X_data` is the extracted data from adata to perform dimension
+        reduction, `n_components` is the target dimension of the space to embed into, `basis` is the space that would be
+        used for clustering.
+    """
+
     if genes is not None:
         genes = adata.var_names.intersection(genes).to_list()
         if len(genes) == 0:
@@ -93,7 +128,7 @@ def prepare_dim_reduction(
                 valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                 valid_ind = np.array(valid_ind).flatten()
                 CM = CM[:, valid_ind]
-                adata, fit, _ = pca_monocle(
+                adata, fit, _ = pca(
                     adata,
                     CM,
                     n_pca_components=n_pca_components,
@@ -123,7 +158,7 @@ def prepare_dim_reduction(
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, fit, _ = pca_monocle(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
+            adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
             adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
             # valid genes used for dimension reduction calculation
@@ -137,17 +172,42 @@ def prepare_dim_reduction(
 
 
 def run_reduce_dim(
-    adata,
-    X_data,
-    n_components,
-    n_pca_components,
-    reduction_method,
-    embedding_key,
-    n_neighbors,
-    neighbor_key,
-    cores,
+    adata: AnnData,
+    X_data: np.ndarray,
+    n_components: int,
+    n_pca_components: int,
+    reduction_method: Literal["trimap", "diffusion_map", "tsne", "umap", "psl"],
+    embedding_key: str,
+    n_neighbors: int,
+    neighbor_key: str,
+    cores: int,
     **kwargs,
-):
+) -> AnnData:
+    """Perform dimension reduction.
+
+    Args:
+        adata: an AnnData object.
+        X_data: the user supplied data that will be used for dimension reduction directly.
+        n_components: the dimension of the space to embed into.
+        n_pca_components: Number of input PCs (principle components) that will be used for further non-linear dimension
+            reduction.
+        reduction_method: Non-linear dimension reduction method to further reduce dimension based on the top
+            n_pca_components PCA components.
+        embedding_key: The str in .obsm that will be used as the key to save the reduced embedding space.
+        n_neighbors: the number of nearest neighbors when constructing adjacency matrix.
+        neighbor_key: The str in .uns that will be used as the key to save the nearest neighbor graph.
+        cores: the number of threads used for calculation.
+        kwargs: other kwargs passed to umap calculation (see `umap_conn_indices_dist_embedding`).
+
+    Raises:
+        ImportError: `trimap` cannot be imported.
+        ImportError: `FItSNE` cannot be imported.
+        Exception: invalid `reduction_method`.
+
+    Returns:
+        The updated AnnData object with reduced dimension space and related parameters.
+    """
+
     if reduction_method == "trimap":
         try:
             import trimap

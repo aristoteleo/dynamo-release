@@ -1,48 +1,58 @@
+from typing import Optional
+
+import anndata
 import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 
-from .DDRTree_py import DDRTree_py
+from .DDRTree_py import DDRTree
 
 
-def cal_ncenter(ncells, ncells_limit=100):
+def cal_ncenter(ncells: int, ncells_limit: int = 100) -> int:
+    """Calculate number of centers to be considered.
+
+    Args:
+        ncells: the number of cells.
+        ncells_limit: the limitation of number of cells to be considered. Defaults to 100.
+
+    Returns:
+        The number of centers to be considered
+    """
     return np.round(2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit)))
 
 
 def directed_pg(
-    adata,
-    basis="umap",
-    maxIter=10,
-    sigma=0.001,
-    Lambda=None,
-    gamma=10,
-    ncenter=None,
-    raw_embedding=True,
-):
+    adata: anndata.AnnData,
+    basis: str = "umap",
+    maxIter: int = 10,
+    sigma: float = 0.001,
+    Lambda: Optional[float] = None,
+    gamma: float = 10,
+    ncenter: Optional[int] = None,
+    raw_embedding: bool = True,
+) -> anndata.AnnData:
     """A function that learns a direct principal graph by integrating the transition matrix between and DDRTree.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        maxIter: `int` (default: 10)
-            maximum iterations
-        sigma: `float` (default: 0.001)
-            bandwidth parameter
-        Lambda: None or `float` (default: None)
-            regularization parameter for inverse graph embedding
-        ncenter: None or `int` (default: None)
-            number of nodes allowed in the regularization graph
-        gamma: `float` (default: 10)
-            regularization parameter for k-means.
-        raw_embedding: `bool` (default: True)
-            Whether to project the nodes on the principal graph into the original embedding.
+    Args:
+        adata: an AnnData object,
+        basis: the dimension reduction method utilized. Defaults to "umap".
+        maxIter: the max iteration numbers. Defaults to 10.
+        sigma: the bandwidth parameter. Defaults to 0.001.
+        Lambda: the regularization parameter for inverse graph embedding. Defaults to None.
+        gamma: the regularization parameter for k-means. Defaults to 10.
+        ncenter: the number of centers to be considered. If None, number of centers would be calculated automatically.
+            Defaults to None.
+        raw_embedding: whether to project the nodes on the principal graph into the original embedding. Defaults to
+            True.
 
-    Returns
-    -------
+    Raises:
+        Exception: invalid `basis`.
+        Exception: adata.uns["transition_matrix"] not defined.
+
+    Returns:
         An updated AnnData object that is updated with principal_g_transition, X__DDRTree and and X_DDRTree_pg keys.
-
     """
+
     X = adata.obsm["X_" + basis].T if basis in adata.obsm.keys() else None
     if X is None:
         raise Exception("{} is not a key of obsm ({} dimension reduction is not performed yet.).".format(basis, basis))
@@ -54,7 +64,7 @@ def directed_pg(
     Lambda = 5 * X.shape[1] if Lambda is None else Lambda
     ncenter = 250 if cal_ncenter(X.shape[1]) is None else ncenter
 
-    DDRTree_res = DDRTree_py(
+    DDRTree_res = DDRTree(
         X,
         maxIter=maxIter,
         Lambda=Lambda,

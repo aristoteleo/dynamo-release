@@ -1,10 +1,12 @@
+import timeit
+
 import anndata
 import numpy as np
 import pandas as pd
 import scipy
 import scipy.sparse
-from scipy import sparse
 from scipy.sparse.csr import csr_matrix
+from sklearn.decomposition import PCA
 
 # from utils import *
 import dynamo as dyn
@@ -166,6 +168,23 @@ def test_compute_gene_exp_fraction():
     assert np.all(np.isclose(frac.flatten(), [2 / 5, 3 / 5]))
 
 
+def test_pca():
+    adata = dyn.sample_data.zebrafish()
+    preprocessor = Preprocessor()
+    preprocessor.preprocess_adata_seurat_wo_pca(adata)
+    adata = dyn.pp.pca(adata, n_pca_components=30)
+    assert adata.obsm["X"].shape[1] == 30
+    assert adata.uns["PCs"].shape[1] == 30
+    assert adata.uns["explained_variance_ratio_"].shape[0] == 30
+
+    X_filterd = adata.X[:, adata.var.use_for_pca.values].copy()
+    pca = PCA(n_components=30, random_state=0)
+    X_pca_sklearn = pca.fit_transform(X_filterd.toarray())
+    assert np.linalg.norm(X_pca_sklearn[:, :10] - adata.obsm["X"][:, :10]) < 1e-1
+    assert np.linalg.norm(pca.components_.T[:, :10] - adata.uns["PCs"][:, :10]) < 1e-1
+    assert np.linalg.norm(pca.explained_variance_ratio_[:10] - adata.uns["explained_variance_ratio_"][:10]) < 1e-1
+
+
 def test_preprocessor_seurat(adata):
     adata = dyn.sample_data.zebrafish()
     preprocessor = dyn.pp.Preprocessor()
@@ -251,6 +270,19 @@ def test_normalize_cell_expr_by_size_factors():
     )
 
 
+def test_regress_out():
+    adata = dyn.sample_data.hematopoiesis_raw()
+    dyn.pl.basic_stats(adata)
+    dyn.pl.highest_frac_genes(adata)
+
+    preprocessor = Preprocessor()
+
+    starttime = timeit.default_timer()
+    # preprocessor.preprocess_adata(adata, recipe="monocle", regress_out=["nCounts", "Dummy", "Test", "pMito"])
+    preprocessor.preprocess_adata(adata, recipe="seurat", regress_out=["nCounts", "pMito"])
+    print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
+
+
 if __name__ == "__main__":
     # test_is_nonnegative()
 
@@ -263,6 +295,7 @@ if __name__ == "__main__":
     # # generate data if needed
     # adata = utils.gen_or_read_zebrafish_data()
     # test_is_log_transformed()
+    # test_pca()
     # test_Preprocessor_simple_run(dyn.sample_data.zebrafish())
 
     # test_calc_dispersion_sparse()
@@ -271,4 +304,5 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
     # test_normalize_cell_expr_by_size_factors()
+    # test_regress_out()
     pass

@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Iterable
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -10,10 +10,10 @@ except ImportError:
 import anndata
 import numpy as np
 import pandas as pd
+import scipy
 from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
-from sklearn.utils import sparsefuncs
 
 from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
@@ -53,7 +53,7 @@ from .utils import (
     get_sz_exprs,
     merge_adata_attrs,
     normalize_mat_monocle,
-    pca_monocle,
+    pca,
     sz_util,
     unique_var_obs_adata,
 )
@@ -1285,7 +1285,7 @@ def recipe_monocle(
     logger.info("applying %s ..." % (method.upper()))
 
     if method == "pca":
-        adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower())
+        adata = pca(adata, pca_input, num_dim, "X_" + method.lower())
         # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
@@ -1438,7 +1438,7 @@ def recipe_velocyto(
     CM = CM[:, valid_ind]
 
     if method == "pca":
-        adata, fit, _ = pca_monocle(adata, CM, num_dim, "X_" + method.lower(), return_all=True)
+        adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower(), return_all=True)
         # adata.obsm['X_' + method.lower()] = reduce_dim
 
     elif method == "ica":
@@ -1641,6 +1641,7 @@ def select_genes_monocle_legacy(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
+
             adata = SVRs(
                 adata,
                 layers=[layer],

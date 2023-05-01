@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -34,24 +34,14 @@ from ..utils import copy_adata
 from .preprocess_monocle_utils import top_table
 from .utils import (
     Freeman_Tukey,
-    add_noise_to_duplicates,
-    basic_stats,
-    calc_new_to_total_ratio,
-    clusters_stats,
-    collapse_species_adata,
     compute_gene_exp_fraction,
-    convert2symbol,
-    convert_layers2csr,
-    cook_dist,
-    detect_experiment_datatype,
     get_inrange_shared_counts_mask,
     get_svr_filter,
     get_sz_exprs,
     merge_adata_attrs,
     normalize_mat_monocle,
-    pca_monocle,
+    pca,
     sz_util,
-    unique_var_obs_adata,
 )
 
 
@@ -65,7 +55,7 @@ def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
         A flag shows whether the adata object is log transformed.
     """
 
-    chosen_gene_indices = np.random.choice(adata.n_obs, 10)
+    chosen_gene_indices = np.random.choice(adata.n_vars, 10)
     _has_log1p_transformed = not np.allclose(
         np.array(adata.X[:, chosen_gene_indices].sum(1)),
         np.array(adata.layers["spliced"][:, chosen_gene_indices].sum(1)),
@@ -1057,7 +1047,7 @@ def get_sum_in_range_mask(
 
 
 def filter_cells_by_outliers(
-    adata: anndata.AnnData,
+    adata: AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
     keep_filtered: bool = False,
@@ -1067,12 +1057,13 @@ def filter_cells_by_outliers(
     max_expr_genes_s: float = np.inf,
     max_expr_genes_u: float = np.inf,
     max_expr_genes_p: float = np.inf,
-    shared_count: Union[int, None] = None,
+    max_pmito_s: Optional[float] = None,
+    shared_count: Optional[int] = None,
     spliced_key="spliced",
     unspliced_key="unspliced",
     protein_key="protein",
     obs_store_key="pass_basic_filter",
-) -> anndata.AnnData:
+) -> AnnData:
     """Select valid cells based on a collection of filters including spliced, unspliced and protein min/max vals.
 
     Args:
@@ -1092,6 +1083,7 @@ def filter_cells_by_outliers(
             Defaults to np.inf.
         max_expr_genes_p: maximal number of protein with expression for a cell in the data from the protein layer.
             Defaults to np.inf.
+        max_pmito_s: maximal percentage of mitochondrial genes for a cell in the data from the spliced layer.
         shared_count: the minimal shared number of counts for each cell across genes between layers. Defaults to None.
         spliced_key: name of the layer storing spliced data. Defaults to "spliced".
         unspliced_key: name of the layer storing unspliced data. Defaults to "unspliced".
@@ -1130,19 +1122,21 @@ def filter_cells_by_outliers(
         adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
     )
 
-    if filter_bool is None:
-        filter_bool = detected_bool
-    else:
-        filter_bool = np.array(filter_bool) & detected_bool
+    if max_pmito_s is not None:
+        detected_bool = detected_bool & (adata.obs["pMito"] < max_pmito_s)
+        main_info(
+            "filtered out %d cells by %f%% of mitochondrial genes for a cell."
+            % (adata.n_obs - (adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s),
+            indent_level=2,
+        )
+
+    filter_bool = detected_bool if filter_bool is None else np.array(filter_bool) & detected_bool
 
     main_info_insert_adata_obs(obs_store_key)
-    if keep_filtered:
-        main_info("keep filtered cell", indent_level=2)
-        adata.obs[obs_store_key] = filter_bool
-    else:
-        main_info("inplace subsetting adata by filtered cells", indent_level=2)
+    adata.obs[obs_store_key] = filter_bool
+
+    if not keep_filtered:
         adata._inplace_subset_obs(filter_bool)
-        adata.obs[obs_store_key] = True
 
     return adata
 
@@ -1459,6 +1453,7 @@ def normalize_cell_expr_by_size_factors(
             main_info_insert_adata_obsm("X_" + layer)
             adata.layers["X_" + layer] = CM
 
+        # _norm_methods are different for each layers. Currently it saves only the last norm_method. Is it a bug?
         main_info_insert_adata_uns("pp.norm_method")
         adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
 
@@ -1526,7 +1521,7 @@ def is_nonnegative_integer_arr(mat: Union[np.ndarray, spmatrix, list]) -> bool:
 def pca_selected_genes_wrapper(
     adata: AnnData, pca_input: Union[np.ndarray, None] = None, n_pca_components: int = 30, key: str = "X_pca"
 ):
-    """A wrapper for pca_monocle function to reduce dimensions of the Adata with PCA.
+    """A wrapper for pca function to reduce dimensions of the Adata with PCA.
 
     Args:
         adata: an AnnData object.
@@ -1535,4 +1530,129 @@ def pca_selected_genes_wrapper(
         key: the key to store the calculation result. Defaults to "X_pca".
     """
 
-    adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
+    adata = pca(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
+
+
+def regress_out_parallel(
+    adata: AnnData,
+    layer: str = DKM.X_LAYER,
+    obs_key: Optional[List[str]] = None,
+    gene_selection_key: Optional[str] = None,
+    obsm_store_key: str = "X_regress_out",
+):
+    """Perform linear regression to remove the effects of given variables from a target variable.
+
+    Args:
+        adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
+        layer: the layer to regress out. Defaults to "X".
+        obs_key: List of observation keys to be removed
+        gene_selection_key: the key in adata.var that contains boolean for showing genes` filtering results.
+            For example, "use_for_pca" is selected then it will regress out only for the genes that are True
+            for "use_for_pca". This input will decrease processing time of regressing out data.
+        n_cores: Change this to the number of cores on your system for parallel computing.
+        obsm_store_key: the key to store the regress out result. Defaults to "X_regress_out".
+    """
+
+    if len(obs_key) < 1:
+        main_warning("No variable to regress out")
+        return
+
+    if gene_selection_key is None:
+        x_prev = DKM.select_layer_data(adata, layer)
+    else:
+        if gene_selection_key not in adata.var.keys():
+            raise ValueError(str(gene_selection_key) + " is not a key in adata.var")
+
+        if not (adata.var[gene_selection_key].dtype == bool):
+            raise ValueError(str(gene_selection_key) + " is not a boolean")
+
+        subset_adata = adata[:, adata.var.loc[:, gene_selection_key]]
+        x_prev = DKM.select_layer_data(subset_adata, layer)
+
+    x_prev = x_prev.toarray().copy()
+    import timeit
+
+    stime = timeit.default_timer()
+
+    if x_prev.shape[1] < 10000:
+        y_new = x_prev  # for the cases when variables are more than 1.
+
+        for key in obs_key:
+            if key not in adata.obs.keys():
+                main_warning("No %s in adata.obs.keys" % key)
+                continue
+
+            # Select the variables to remove
+            x_remove = adata.obs[key].to_numpy().reshape(-1, 1)
+
+            # Predict the effects of the variables to remove
+            y_pred = regress_out_chunk(x_remove, y_new)
+
+            # Remove the effects of the variables from the target variable
+            y_new -= y_pred
+
+        # Predict the residuals after removing the effects of the variables and save to "X_regress_out"
+        res = regress_out_chunk(x_prev, y_new)
+    else:
+        import multiprocessing
+        import os
+
+        ctx = multiprocessing.get_context("fork")
+        n_cores = os.cpu_count()
+
+        regress_val = np.zeros((x_prev.shape[0], x_prev.shape[1]))
+        # Split the input data into chunks for parallel processing
+        chunk_size = x_prev.shape[1] // n_cores
+
+        chunks = [x_prev[:, i * chunk_size : (i + 1) * chunk_size] for i in range(n_cores - 1)]
+        chunks.append(x_prev[:, (n_cores - 1) * chunk_size :])
+
+        # Create a pool of work processes
+        pool = ctx.Pool(n_cores)
+
+        for key in obs_key:
+            if key not in adata.obs.keys():
+                main_warning("No %s in adata.obs.keys" % key)
+                continue
+
+            x_remove = [adata.obs[key].to_numpy().reshape(-1, 1)] * n_cores
+            results = pool.starmap(regress_out_chunk, zip(x_remove, chunks))
+            regress_val += np.hstack(results)
+
+        # Remove the effects of the variables from the target variable
+        residuals = x_prev - regress_val
+
+        chunks_res = [residuals[:, i * chunk_size : (i + 1) * chunk_size] for i in range(n_cores - 1)]
+        chunks_res.append(residuals[:, (n_cores - 1) * chunk_size :])
+
+        x_prev = [x_prev] * n_cores
+
+        results = pool.starmap(regress_out_chunk, zip(x_prev, chunks_res))
+        pool.close()
+        pool.join()
+
+        res = np.hstack(results)
+
+    main_info("regress out: keys(%s), time(%f)" % (obs_key, timeit.default_timer() - stime))
+    adata.obsm[obsm_store_key] = res
+
+
+def regress_out_chunk(
+    obs_feature: Union[np.ndarray, spmatrix, list], gene_expr: Union[np.ndarray, spmatrix, list]
+) -> Union[np.ndarray, spmatrix, list]:
+    """Perform a linear regression to remove the effects of cell features (percentage of mitochondria, etc.)
+
+    Args:
+        obs_feature: the training dataset to be regressed out from the target.
+        gene_expr : List of observation keys used to regress out their effect to gene expression
+
+    Returns:
+        numpy array: Predict the effects of the variables to remove
+    """
+    from sklearn.linear_model import LinearRegression
+
+    # Fit a linear regression model to the variables to remove
+    reg = LinearRegression().fit(obs_feature, gene_expr)
+
+    # Predict the effects of the variables to remove
+    return reg.predict(obs_feature)
