@@ -172,14 +172,14 @@ def test_pca():
     preprocessor = Preprocessor()
     preprocessor.preprocess_adata_seurat_wo_pca(adata)
     adata = dyn.pp.pca(adata, n_pca_components=30)
-    assert adata.obsm["X"].shape[1] == 30
+    assert adata.obsm["X_pca"].shape[1] == 30
     assert adata.uns["PCs"].shape[1] == 30
     assert adata.uns["explained_variance_ratio_"].shape[0] == 30
 
     X_filterd = adata.X[:, adata.var.use_for_pca.values].copy()
     pca = PCA(n_components=30, random_state=0)
     X_pca_sklearn = pca.fit_transform(X_filterd.toarray())
-    assert np.linalg.norm(X_pca_sklearn[:, :10] - adata.obsm["X"][:, :10]) < 1e-1
+    assert np.linalg.norm(X_pca_sklearn[:, :10] - adata.obsm["X_pca"][:, :10]) < 1e-1
     assert np.linalg.norm(pca.components_.T[:, :10] - adata.uns["PCs"][:, :10]) < 1e-1
     assert np.linalg.norm(pca.explained_variance_ratio_[:10] - adata.uns["explained_variance_ratio_"][:10]) < 1e-1
 
@@ -229,15 +229,19 @@ def test_is_nonnegative():
 
 
 def test_regress_out():
-    adata = dyn.sample_data.hematopoiesis_raw()
+    starttime = timeit.default_timer()
+    celltype_key = "Cell_type"
+    figsize = (10, 10)
+    adata = dyn.read("./data/zebrafish.h5ad")  # dyn.sample_data.hematopoiesis_raw()
     dyn.pl.basic_stats(adata)
     dyn.pl.highest_frac_genes(adata)
 
-    preprocessor = Preprocessor()
+    preprocessor = Preprocessor(regress_out_kwargs={"obs_key": ["nCounts", "pMito"]})
 
-    starttime = timeit.default_timer()
-    # preprocessor.preprocess_adata(adata, recipe="monocle", regress_out=["nCounts", "Dummy", "Test", "pMito"])
-    preprocessor.preprocess_adata(adata, recipe="seurat", regress_out=["nCounts", "pMito"])
+    preprocessor.preprocess_adata(adata, recipe="monocle")
+    dyn.tl.reduceDimension(adata, basis="pca")
+
+    dyn.pl.umap(adata, color=celltype_key, figsize=figsize)
     print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
 
 
