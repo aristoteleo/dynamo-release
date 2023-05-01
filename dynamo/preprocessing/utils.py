@@ -1047,7 +1047,7 @@ def pca(
         adata.uns[pcs_key] = fit.components_.T[:, 1:]
         adata.uns[
             "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
+    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else np.zeros(X_data.shape[1])
 
     if return_all:
         return adata, fit, X_pca
