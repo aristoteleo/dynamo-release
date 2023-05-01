@@ -582,8 +582,10 @@ def sz_util(
         layer: the layer to operate on.
         round_exprs: whether the gene expression should be rounded into integers.
         method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`.
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         locfunc: the function to normalize the data.
         total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
@@ -601,25 +603,15 @@ def sz_util(
 
     if layer == "_total_" and "_total_" not in adata.layers.keys():
         if total_layers is not None:
-            if not isinstance(total_layers, list):
-                total_layers = [total_layers]
-            if len(set(total_layers).difference(adata.layers.keys())) == 0:
-                total = None
-                for t_key in total_layers:
-                    total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
-                adata.layers["_total_"] = total
+            total_layers, _ = DKM.aggregate_layers_into_total(
+                adata,
+                total_layers=total_layers,
+                extend_layers=False,
+            )
 
-    if layer == "raw":
-        CM = adata.raw.X if CM is None else CM
-    elif layer == "X":
-        CM = adata.X if CM is None else CM
-    elif layer == "protein":
-        if "protein" in adata.obsm_keys():
-            CM = adata.obsm["protein"] if CM is None else CM
-        else:
-            return None, None
-    else:
-        CM = adata.layers[layer] if CM is None else CM
+    CM = DKM.select_layer_data(adata, layer) if CM is None else CM
+    if CM is None:
+        return None, None
 
     if round_exprs:
         main_info("rounding expression data of layer: %s during size factor calculation" % (layer))
@@ -684,15 +676,21 @@ def get_sz_exprs(
 
 
 def normalize_mat_monocle(
-    mat: np.ndarray, szfactors: np.ndarray, relative_expr: bool, pseudo_expr: int, norm_method: Callable = np.log1p
+    mat: np.ndarray,
+    szfactors: np.ndarray,
+    relative_expr: bool,
+    pseudo_expr: int,
+    norm_method: Callable = np.log1p,
 ) -> np.ndarray:
     """Normalize the given array for monocle recipe.
 
     Args:
         mat: the array to operate on.
         szfactors: the size factors corresponding to the array.
-        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
-        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization.
+        relative_expr: whether we need to divide gene expression values first by
+            size factor before normalization.
+        pseudo_expr: a pseudocount added to the gene expression value before
+            log/log2 normalization.
         norm_method: the method used to normalize data. Defaults to np.log1p.
 
     Returns:

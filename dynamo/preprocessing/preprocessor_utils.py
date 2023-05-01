@@ -1204,7 +1204,8 @@ def calc_sz_factor(
     use_all_genes_cells: bool = True,
     genes_use_for_norm: Union[List[str], None] = None,
 ) -> anndata.AnnData:
-    """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
+    """Calculate the size factor of each cell using geometric mean or median of total UMI across cells for a AnnData
+    object.
 
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -1212,7 +1213,7 @@ def calc_sz_factor(
         adata_ori: an AnnData object.
         layers: the layer(s) to be normalized. Defaults to "all", including RNA (X, raw) or spliced, unspliced, protein,
             etc.
-        total_layers: the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"],
+        total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Defaults to False.
@@ -1220,8 +1221,10 @@ def calc_sz_factor(
         locfunc: the function to normalize the data. Defaults to np.nanmean.
         round_exprs: whether the gene expression should be rounded into integers. Defaults to False.
         method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`. Defaults to "median".
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
         use_all_genes_cells: whether all cells and genes should be used for the size factor calculation. Defaults to
             True.
@@ -1257,24 +1260,20 @@ def calc_sz_factor(
                 _adata = _adata[:, _adata.var_names.intersection(genes_use_for_norm)]
 
     if total_layers is not None:
-        if not isinstance(total_layers, list):
-            total_layers = [total_layers]
-        if len(set(total_layers).difference(_adata.layers.keys())) == 0:
-            total = None
-            for t_key in total_layers:
-                total = _adata.layers[t_key] if total is None else total + _adata.layers[t_key]
-            _adata.layers["_total_"] = total
-            layers.extend(["_total_"])
+        total_layers, layers = DKM.aggregate_layers_into_total(
+            _adata,
+            layers=layers,
+            total_layers=total_layers,
+        )
 
     layers = DKM.get_available_layer_keys(_adata, layers)
     if "raw" in layers and _adata.raw is None:
         _adata.raw = _adata.copy()
 
-    excluded_layers = []
-    if not X_total_layers:
-        excluded_layers.extend(["X"])
-    if not splicing_total_layers:
-        excluded_layers.extend(["spliced", "unspliced"])
+    excluded_layers = DKM.get_excluded_layers(
+        X_total_layers=X_total_layers,
+        splicing_total_layers=splicing_total_layers,
+    )
 
     for layer in layers:
         if layer in excluded_layers:
@@ -1349,8 +1348,8 @@ def normalize_cell_expr_by_size_factors(
             Defaults to False.
         X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
         norm_method: the method used to normalize data. Can be either function `np.log1p`, `np.log2` or any other
-            functions or string `clr`. By default, only .X will be size normalized and log1p transformed while data in
-            other layers will only be size normalized. Defaults to None.
+            functions or string `clr`. By default, only .X will be size normalized and log1p transformed while data
+            in other layers will only be size normalized. Defaults to None.
         pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
         relative_expr: whether we need to divide gene expression values first by size factor before normalization.
             Defaults to True.
@@ -1359,8 +1358,10 @@ def normalize_cell_expr_by_size_factors(
         recalc_sz: whether we need to recalculate size factor based on selected genes before normalization. Defaults to
             False.
         sz_method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`. Defaults to "median".
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
         skip_log: whether skip log transformation. Defaults to False.
 
@@ -1380,24 +1381,21 @@ def normalize_cell_expr_by_size_factors(
     layer_sz_column_names.extend(["Size_Factor"])
     # layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
     layers_to_sz = list(set(layer_sz_column_names))
-    if len(layers_to_sz) > 0:
-        layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
-        if "Size_Factor" in layers:
-            layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
-        calc_sz_factor(
-            adata,
-            layers=layers,
-            locfunc=np.nanmean,
-            round_exprs=True,
-            method=sz_method,
-            scale_to=scale_to,
-        )
+    layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
+    layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
+    calc_sz_factor(
+        adata,
+        layers=layers,
+        locfunc=np.nanmean,
+        round_exprs=True,
+        method=sz_method,
+        scale_to=scale_to,
+    )
 
-    excluded_layers = []
-    if not X_total_layers:
-        excluded_layers.extend(["X"])
-    if not splicing_total_layers:
-        excluded_layers.extend(["spliced", "unspliced"])
+    excluded_layers = DKM.get_excluded_layers(
+        X_total_layers=X_total_layers,
+        splicing_total_layers=splicing_total_layers,
+    )
 
     main_info("size factor normalize following layers: " + str(layers))
     for layer in layers:
