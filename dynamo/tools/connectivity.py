@@ -229,100 +229,6 @@ def umap_conn_indices_dist_embedding(
     default_epochs = 500 if X.shape[0] <= 10000 else 200
     max_iter = default_epochs if max_iter is None else max_iter
 
-    random_state = check_random_state(random_state)
-
-    _raw_data = X
-
-    if X.shape[0] < 4096:  # 1
-        dmat = pairwise_distances(X, metric=metric)
-        graph = fuzzy_simplicial_set(
-            X=dmat,
-            n_neighbors=n_neighbors,
-            random_state=random_state,
-            metric="precomputed",
-            verbose=verbose,
-        )
-        if type(graph) == tuple:
-            graph = graph[0]
-
-        # extract knn_indices, knn_dist
-        g_tmp = deepcopy(graph)
-        g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
-        knn_indices, knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
-    else:
-        # Standard case
-        (knn_indices, knn_dists, rp_forest) = nearest_neighbors(
-            X=X,
-            n_neighbors=n_neighbors,
-            metric=metric,
-            metric_kwds={},
-            angular=False,
-            random_state=random_state,
-            verbose=verbose,
-        )
-
-        graph = fuzzy_simplicial_set(
-            X=X,
-            n_neighbors=n_neighbors,
-            random_state=random_state,
-            metric=metric,
-            knn_indices=knn_indices,
-            knn_dists=knn_dists,
-            angular=rp_forest,
-            verbose=verbose,
-        )
-
-        _raw_data = X
-        # _transform_available = True
-        # The corresponding nonzero values are stored in similar fashion in self.data.
-        _search_graph, _ = get_conn_dist_graph(knn_indices, knn_dists)
-        _search_graph = _search_graph.maximum(  # Element-wise maximum between this and another matrix.
-            _search_graph.transpose()
-        ).tocsr()
-
-    if verbose:
-        print("Construct embedding")
-
-    a, b = find_ab_params(spread, min_dist)
-    if type(graph) == tuple:
-        graph = graph[0]
-
-    dens_lambda = dens_lambda if densmap else 0.0
-    dens_frac = dens_frac if densmap else 0.0
-
-    if dens_lambda < 0.0:
-        raise ValueError("dens_lambda cannot be negative")
-    if dens_frac < 0.0 or dens_frac > 1.0:
-        raise ValueError("dens_frac must be between 0.0 and 1.0")
-    if dens_var_shift < 0.0:
-        raise ValueError("dens_var_shift cannot be negative")
-
-    densmap_kwds = {
-        "lambda": dens_lambda,
-        "frac": dens_frac,
-        "var_shift": dens_var_shift,
-        "n_neighbors": n_neighbors,
-    }
-    embedding_, aux_data = simplicial_set_embedding(
-        data=_raw_data,
-        graph=graph,
-        n_components=n_components,
-        initial_alpha=alpha,  # learning_rate
-        a=a,
-        b=b,
-        gamma=gamma,
-        negative_sample_rate=negative_sample_rate,
-        n_epochs=max_iter,
-        init=init_pos,
-        random_state=random_state,
-        metric=metric,
-        metric_kwds={},
-        verbose=verbose,
-        densmap=densmap,
-        densmap_kwds=densmap_kwds,
-        output_dens=output_dens,
-    )
-
     if return_mapper:
         import umap.umap_ as umap
 
@@ -341,7 +247,7 @@ def umap_conn_indices_dist_embedding(
             "transform_seed": 42,
         }
         umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
-
+        dmat = pairwise_distances(X, metric=metric)
         mapper = umap.UMAP(
             n_neighbors=n_neighbors,
             n_components=n_components,
@@ -358,8 +264,106 @@ def umap_conn_indices_dist_embedding(
             **umap_kwargs,
         ).fit(X)
 
-        return mapper, graph, knn_indices, knn_dists, embedding_
+        if X.shape[0] < 4096:
+            g_tmp = deepcopy(mapper.graph_)
+            g_tmp[mapper.graph_.nonzero()] = dmat[mapper.graph_.nonzero()]
+            mapper._knn_indices, mapper._knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
+
+        return mapper, mapper.graph_, mapper._knn_indices, mapper._knn_dists, mapper.embedding_
     else:
+        random_state = check_random_state(random_state)
+
+        _raw_data = X
+
+        if X.shape[0] < 4096:  # 1
+            dmat = pairwise_distances(X, metric=metric)
+            graph = fuzzy_simplicial_set(
+                X=dmat,
+                n_neighbors=n_neighbors,
+                random_state=random_state,
+                metric="precomputed",
+                verbose=verbose,
+            )
+            if type(graph) == tuple:
+                graph = graph[0]
+
+            # extract knn_indices, knn_dist
+            g_tmp = deepcopy(graph)
+            g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
+            knn_indices, knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
+        else:
+            # Standard case
+            (knn_indices, knn_dists, rp_forest) = nearest_neighbors(
+                X=X,
+                n_neighbors=n_neighbors,
+                metric=metric,
+                metric_kwds={},
+                angular=False,
+                random_state=random_state,
+                verbose=verbose,
+            )
+
+            graph = fuzzy_simplicial_set(
+                X=X,
+                n_neighbors=n_neighbors,
+                random_state=random_state,
+                metric=metric,
+                knn_indices=knn_indices,
+                knn_dists=knn_dists,
+                angular=rp_forest,
+                verbose=verbose,
+            )
+
+            _raw_data = X
+            # _transform_available = True
+            # The corresponding nonzero values are stored in similar fashion in self.data.
+            _search_graph, _ = get_conn_dist_graph(knn_indices, knn_dists)
+            _search_graph = _search_graph.maximum(  # Element-wise maximum between this and another matrix.
+                _search_graph.transpose()
+            ).tocsr()
+
+        if verbose:
+            print("Construct embedding")
+
+        a, b = find_ab_params(spread, min_dist)
+        if type(graph) == tuple:
+            graph = graph[0]
+
+        dens_lambda = dens_lambda if densmap else 0.0
+        dens_frac = dens_frac if densmap else 0.0
+
+        if dens_lambda < 0.0:
+            raise ValueError("dens_lambda cannot be negative")
+        if dens_frac < 0.0 or dens_frac > 1.0:
+            raise ValueError("dens_frac must be between 0.0 and 1.0")
+        if dens_var_shift < 0.0:
+            raise ValueError("dens_var_shift cannot be negative")
+
+        densmap_kwds = {
+            "lambda": dens_lambda,
+            "frac": dens_frac,
+            "var_shift": dens_var_shift,
+            "n_neighbors": n_neighbors,
+        }
+        embedding_, aux_data = simplicial_set_embedding(
+            data=_raw_data,
+            graph=graph,
+            n_components=n_components,
+            initial_alpha=alpha,  # learning_rate
+            a=a,
+            b=b,
+            gamma=gamma,
+            negative_sample_rate=negative_sample_rate,
+            n_epochs=max_iter,
+            init=init_pos,
+            random_state=random_state,
+            metric=metric,
+            metric_kwds={},
+            verbose=verbose,
+            densmap=densmap,
+            densmap_kwds=densmap_kwds,
+            output_dens=output_dens,
+        )
         return graph, knn_indices, knn_dists, embedding_
 
 
