@@ -907,7 +907,7 @@ def pca(
     adata: AnnData,
     X_data: np.ndarray = None,
     n_pca_components: int = 30,
-    pca_key: str = "X",
+    pca_key: str = "X_pca",
     pcs_key: str = "PCs",
     genes_to_append: Union[List[str], None] = None,
     layer: Union[List[str], str, None] = None,
