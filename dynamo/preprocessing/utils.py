@@ -862,6 +862,7 @@ def _truncatedSVD_with_center(
         random_state=random_state,
     )
     X_pca = result_dict["X_pca"]
+    fit.mean_ = mean.A1.flatten()
     fit.components_ = result_dict["components_"]
     fit.explained_variance_ratio_ = result_dict[
         "explained_variance_ratio_"]
@@ -1050,7 +1051,7 @@ def pca(
         adata.uns[pcs_key] = fit.components_.T[:, 1:]
         adata.uns[
             "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
+    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else np.zeros(X_data.shape[1])
 
     if return_all:
         return adata, fit, X_pca
