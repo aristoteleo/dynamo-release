@@ -1536,29 +1536,32 @@ def pca_selected_genes_wrapper(
 def regress_out_parallel(
     adata: AnnData,
     layer: str = DKM.X_LAYER,
-    obs_key: Optional[List[str]] = None,
+    obs_keys: Optional[List[str]] = None,
     gene_selection_key: Optional[str] = None,
+    n_cores: Optional[int] = None,
     obsm_store_key: str = "X_regress_out",
 ):
     """Perform linear regression to remove the effects of given variables from a target variable.
 
     Args:
-        adata: an AnnData object. Feature matrix of shape (n_samples, n_features)
+        adata: an AnnData object. Feature matrix of shape (n_samples, n_features).
         layer: the layer to regress out. Defaults to "X".
-        obs_key: List of observation keys to be removed
+        obs_keys: List of observation keys to be removed.
         gene_selection_key: the key in adata.var that contains boolean for showing genes` filtering results.
             For example, "use_for_pca" is selected then it will regress out only for the genes that are True
             for "use_for_pca". This input will decrease processing time of regressing out data.
-        n_cores: Change this to the number of cores on your system for parallel computing.
+        n_cores: Change this to the number of cores on your system for parallel computing. Default to be None.
         obsm_store_key: the key to store the regress out result. Defaults to "X_regress_out".
     """
+    main_debug("regress out %s by multiprocessing..." % obs_keys)
+    main_log_time()
 
-    if len(obs_key) < 1:
+    if len(obs_keys) < 1:
         main_warning("No variable to regress out")
         return
 
     if gene_selection_key is None:
-        x_prev = DKM.select_layer_data(adata, layer)
+        regressor = DKM.select_layer_data(adata, layer)
     else:
         if gene_selection_key not in adata.var.keys():
             raise ValueError(str(gene_selection_key) + " is not a key in adata.var")
@@ -1567,87 +1570,58 @@ def regress_out_parallel(
             raise ValueError(str(gene_selection_key) + " is not a boolean")
 
         subset_adata = adata[:, adata.var.loc[:, gene_selection_key]]
-        x_prev = DKM.select_layer_data(subset_adata, layer)
+        regressor = DKM.select_layer_data(subset_adata, layer)
 
-    x_prev = x_prev.toarray().copy()
-    import timeit
+    import itertools
+    import os
 
-    stime = timeit.default_timer()
+    if issparse(regressor):
+        regressor = regressor.toarray()
 
-    if x_prev.shape[1] < 10000:
-        y_new = x_prev  # for the cases when variables are more than 1.
+    if n_cores is None:
+        n_cores = os.cpu_count() // 2  # Use half of available cores as the default.
 
-        for key in obs_key:
-            if key not in adata.obs.keys():
-                main_warning("No %s in adata.obs.keys" % key)
-                continue
+    # Split the input data into chunks for parallel processing
+    chunk_size = min(1000, regressor.shape[1] // n_cores + 1)
+    chunk_len = regressor.shape[1] // chunk_size
+    regressor_chunks = np.array_split(regressor, chunk_len, axis=1)
 
-            # Select the variables to remove
-            x_remove = adata.obs[key].to_numpy().reshape(-1, 1)
+    # Select the variables to remove
+    remove = adata.obs[obs_keys].to_numpy()
 
-            # Predict the effects of the variables to remove
-            y_pred = regress_out_chunk(x_remove, y_new)
+    res = _parallel_wrapper(regress_out_chunk_helper, zip(itertools.repeat(remove), regressor_chunks), n_cores)
 
-            # Remove the effects of the variables from the target variable
-            y_new -= y_pred
+    # Remove the effects of the variables from the target variable
+    residuals = regressor - np.hstack(res)
 
-        # Predict the residuals after removing the effects of the variables and save to "X_regress_out"
-        res = regress_out_chunk(x_prev, y_new)
-    else:
-        import multiprocessing
-        import os
-
-        ctx = multiprocessing.get_context("fork")
-        n_cores = os.cpu_count()
-
-        regress_val = np.zeros((x_prev.shape[0], x_prev.shape[1]))
-        # Split the input data into chunks for parallel processing
-        chunk_size = x_prev.shape[1] // n_cores
-
-        chunks = [x_prev[:, i * chunk_size : (i + 1) * chunk_size] for i in range(n_cores - 1)]
-        chunks.append(x_prev[:, (n_cores - 1) * chunk_size :])
-
-        # Create a pool of work processes
-        pool = ctx.Pool(n_cores)
-
-        for key in obs_key:
-            if key not in adata.obs.keys():
-                main_warning("No %s in adata.obs.keys" % key)
-                continue
-
-            x_remove = [adata.obs[key].to_numpy().reshape(-1, 1)] * n_cores
-            results = pool.starmap(regress_out_chunk, zip(x_remove, chunks))
-            regress_val += np.hstack(results)
-
-        # Remove the effects of the variables from the target variable
-        residuals = x_prev - regress_val
-
-        chunks_res = [residuals[:, i * chunk_size : (i + 1) * chunk_size] for i in range(n_cores - 1)]
-        chunks_res.append(residuals[:, (n_cores - 1) * chunk_size :])
-
-        x_prev = [x_prev] * n_cores
-
-        results = pool.starmap(regress_out_chunk, zip(x_prev, chunks_res))
-        pool.close()
-        pool.join()
-
-        res = np.hstack(results)
-
-    main_info("regress out: keys(%s), time(%f)" % (obs_key, timeit.default_timer() - stime))
-    adata.obsm[obsm_store_key] = res
+    DKM.set_layer_data(adata, layer, residuals)
+    main_finish_progress("regress out")
 
 
-def regress_out_chunk(
+def regress_out_chunk_helper(args):
+    """A helper function for each regressout chunk.
+
+    Args:
+        args: list of arguments that is used in _regress_out_chunk.
+
+    Returns:
+        numpy array: predicted the effects of the variables calculated by _regress_out_chunk.
+    """
+    obs_feature, gene_expr = args
+    return _regress_out_chunk(obs_feature, gene_expr)
+
+
+def _regress_out_chunk(
     obs_feature: Union[np.ndarray, spmatrix, list], gene_expr: Union[np.ndarray, spmatrix, list]
 ) -> Union[np.ndarray, spmatrix, list]:
     """Perform a linear regression to remove the effects of cell features (percentage of mitochondria, etc.)
 
     Args:
-        obs_feature: the training dataset to be regressed out from the target.
-        gene_expr : List of observation keys used to regress out their effect to gene expression
+        obs_feature: list of observation keys used to regress out their effect to gene expression.
+        gene_expr : the current gene expression values of the target variables.
 
     Returns:
-        numpy array: Predict the effects of the variables to remove
+        numpy array: the residuals that are predicted the effects of the variables.
     """
     from sklearn.linear_model import LinearRegression
 
@@ -1656,3 +1630,26 @@ def regress_out_chunk(
 
     # Predict the effects of the variables to remove
     return reg.predict(obs_feature)
+
+
+def _parallel_wrapper(func: Callable, args_list, n_cores: Optional[int] = None):
+    """A wrapper for parallel operation to regress out of the input variables.
+
+    Args:
+        func: The function to be conducted the multiprocessing.
+        args_list: The iterable of arguments to be passed to the function.
+        n_cores: The number of CPU cores to be used for parallel processing. Default to be None.
+
+    Returns:
+        results: The list of results returned by the function for each element of the iterable.
+    """
+    import multiprocessing as mp
+
+    ctx = mp.get_context("fork")
+
+    with ctx.Pool(n_cores) as pool:
+        results = pool.map(func, args_list)
+        pool.close()
+        pool.join()
+
+    return results

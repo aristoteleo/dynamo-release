@@ -14,8 +14,8 @@ import scipy
 import scipy.sparse
 import statsmodels.api as sm
 from anndata import AnnData
-from scipy.sparse.linalg import LinearOperator, svds
 from scipy.sparse import csc_matrix, csr_matrix, issparse
+from scipy.sparse.linalg import LinearOperator, svds
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import svd_flip
@@ -776,6 +776,7 @@ def decode(adata: anndata.AnnData) -> None:
 # ---------------------------------------------------------------------------------------------------
 # pca
 
+
 def _truncatedSVD_with_center(
     X: Union[csc_matrix, csr_matrix],
     n_components: int = 30,
@@ -842,7 +843,7 @@ def _truncatedSVD_with_center(
     )
 
     # Solve SVD without calculating individuals entries in LinearOperator.
-    U, Sigma, VT = svds(X_centered, solver='arpack', k=n_components, v0=v0)
+    U, Sigma, VT = svds(X_centered, solver="arpack", k=n_components, v0=v0)
     Sigma = Sigma[::-1]
     U, VT = svd_flip(U[:, ::-1], VT[::-1])
     X_transformed = U * Sigma
@@ -864,10 +865,10 @@ def _truncatedSVD_with_center(
     X_pca = result_dict["X_pca"]
     fit.mean_ = mean.A1.flatten()
     fit.components_ = result_dict["components_"]
-    fit.explained_variance_ratio_ = result_dict[
-        "explained_variance_ratio_"]
+    fit.explained_variance_ratio_ = result_dict["explained_variance_ratio_"]
 
     return fit, X_pca
+
 
 def _pca_fit(
     X: np.ndarray,
@@ -892,7 +893,7 @@ def _pca_fit(
         A tuple containing two elements:
             - The fitted PCA object, which has a 'fit' and 'transform' method.
             - The transformed array X_pca of shape (n_samples, n_components).
-        """
+    """
     fit = pca_func(
         n_components=min(n_components, X.shape[1] - 1),
         **kwargs,
@@ -905,7 +906,7 @@ def pca(
     adata: AnnData,
     X_data: np.ndarray = None,
     n_pca_components: int = 30,
-    pca_key: str = "X",
+    pca_key: str = "X_pca",
     pcs_key: str = "PCs",
     genes_to_append: Union[List[str], None] = None,
     layer: Union[List[str], str, None] = None,
@@ -975,12 +976,6 @@ def pca(
                 X_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
             elif "protein" in layer:
                 X_data = adata.obsm["X_protein"]
-            elif "regress_out" in layer:
-                X_data = (
-                    adata.obsm["X_regress_out"]
-                    if "X_regress_out" in adata.obsm.keys()
-                    else adata.X[:, adata.var.use_for_pca.values]
-                )
             elif type(layer) is str:
                 X_data = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
             else:
@@ -1006,6 +1001,7 @@ def pca(
 
     if use_incremental_PCA:
         from sklearn.decomposition import IncrementalPCA
+
         fit, X_pca = _pca_fit(
             X_data,
             pca_func=IncrementalPCA,
@@ -1033,10 +1029,7 @@ def pca(
             # data. It only performs SVD decomposition, which is the second part
             # in our _truncatedSVD_with_center function.
             fit, X_pca = _pca_fit(
-                X_data,
-                pca_func=TruncatedSVD,
-                n_components=n_pca_components + 1,
-                random_state=random_state
+                X_data, pca_func=TruncatedSVD, n_components=n_pca_components + 1, random_state=random_state
             )
             # first columns is related to the total UMI (or library size)
             X_pca = X_pca[:, 1:]
@@ -1044,13 +1037,11 @@ def pca(
     adata.obsm[pca_key] = X_pca
     if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
         adata.uns[pcs_key] = fit.components_.T
-        adata.uns[
-            "explained_variance_ratio_"] = fit.explained_variance_ratio_
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
         # first columns is related to the total UMI (or library size)
         adata.uns[pcs_key] = fit.components_.T[:, 1:]
-        adata.uns[
-            "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
     adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else np.zeros(X_data.shape[1])
 
     if return_all:
