@@ -19,6 +19,7 @@ from dynamo.preprocessing.preprocessor_utils import (
     is_nonnegative,
     is_nonnegative_integer_arr,
     log1p_adata,
+    normalize_cell_expr_by_size_factors,
     select_genes_by_dispersion_general,
 )
 from dynamo.preprocessing.utils import convert_layers2csr
@@ -228,6 +229,46 @@ def test_is_nonnegative():
     assert not is_nonnegative_integer_arr(test_mat)
 
 
+def test_normalize_cell_expr_by_size_factors():
+    # Set up test data
+    X = np.array([[1, 2], [3, 4], [5, 6]])
+    layers = {
+        "spliced": csr_matrix(X),
+        "unspliced": csr_matrix(X),
+    }
+    adata = anndata.AnnData(
+        X=X,
+        obs=pd.DataFrame(
+            {
+                "batch": ["batch1", "batch2", "batch2"],
+                "use_for_pca": [True, True, True],
+            }
+        ),
+        var=pd.DataFrame(index=["gene1", "gene2"]),
+        layers=layers,
+    )
+    adata.uns["pp"] = dict()
+
+    # Call the function
+    normalized = normalize_cell_expr_by_size_factors(
+        adata=adata,
+        norm_method=np.log1p,
+    )
+
+    # Assert that the output is a valid AnnData object
+    assert isinstance(normalized, anndata.AnnData)
+
+    # Assert that the shape of the expression matrix is the same
+    assert normalized.X.shape == (3, 2)
+    assert normalized.layers["X_spliced"].shape == (3, 2)
+
+    # Assert that the normalization was applied correctly
+    assert np.allclose(normalized.X, np.log1p(X / adata.obs["Size_Factor"].values[:, None]))
+    assert np.allclose(
+        normalized.layers["X_spliced"].toarray(), np.log1p(X / adata.obs["spliced_Size_Factor"].values[:, None])
+    )
+
+
 def test_regress_out():
     starttime = timeit.default_timer()
     celltype_key = "Cell_type"
@@ -284,5 +325,7 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot(adata.copy())
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
-    test_regress_out()
+    # test_regress_out()
+    # test_normalize_cell_expr_by_size_factors()
+    # test_regress_out()
     pass
