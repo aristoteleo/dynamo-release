@@ -236,7 +236,7 @@ def test_regress_out():
     dyn.pl.basic_stats(adata)
     dyn.pl.highest_frac_genes(adata)
 
-    preprocessor = Preprocessor(regress_out_kwargs={"obs_key": ["nCounts", "pMito"]})
+    preprocessor = Preprocessor(regress_out_kwargs={"obs_keys": ["nCounts", "pMito"]})
 
     preprocessor.preprocess_adata(adata, recipe="monocle")
     dyn.tl.reduceDimension(adata, basis="pca")
@@ -244,8 +244,27 @@ def test_regress_out():
     dyn.pl.umap(adata, color=celltype_key, figsize=figsize)
     print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
 
+    ################TEST#################
+    # import timeit
+    # import scanpy as sc
+    #
+    # starttime = timeit.default_timer()
+    # scanpydata = adata.copy()
+    # sc.pp.regress_out(scanpydata, ["nCounts", "pMito", "umap_1"])
+    # print("The scanpy regress out time difference is :", timeit.default_timer() - starttime)
+    #
+    # starttime = timeit.default_timer()
+    # bdata = adata.copy()
+    # self.regress_out_kwargs = {"obs_keys": ["pMito", "nCounts", "umap_1"]}
+    # self._regress_out(bdata)
+    # print("The dynamo regress out time difference is :", timeit.default_timer() - starttime)
+    #
+    # starttime = timeit.default_timer()
+    # self.regress_out_kwargs = {"obs_keys": ["umap_1", "nCounts", "pMito"]}
+
 
 if __name__ == "__main__":
+    dyn.dynamo_logger.main_set_level("DEBUG")
     # test_is_nonnegative()
 
     # test_calc_dispersion_sparse()
@@ -265,5 +284,5 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot(adata.copy())
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
-    # test_regress_out()
+    test_regress_out()
     pass

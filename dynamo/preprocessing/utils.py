@@ -977,12 +977,6 @@ def pca(
                 X_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
             elif "protein" in layer:
                 X_data = adata.obsm["X_protein"]
-            elif "regress_out" in layer:
-                X_data = (
-                    adata.obsm["X_regress_out"]
-                    if "X_regress_out" in adata.obsm.keys()
-                    else adata.X[:, adata.var.use_for_pca.values]
-                )
             elif type(layer) is str:
                 X_data = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
             else:

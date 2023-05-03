@@ -486,9 +486,7 @@ class Preprocessor:
 
         # recipe monocle log1p all raw data in normalize_by_cells (dynamo version), so we do not need extra log1p transform.
         self.use_log1p = False
-        self.regress_out_kwargs = update_dict(
-            {"obs_key": [], "gene_selection_key": "use_for_pca"}, self.regress_out_kwargs
-        )
+        self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
 
@@ -526,15 +524,14 @@ class Preprocessor:
 
         self._log1p(adata)  # Always done in normalization process. Do we need this process explictly?
 
-        if len(self.regress_out_kwargs["obs_key"]) > 0:
+        if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
-            self.pca_kwargs.update({"layer": "regress_out"})
 
         self._pca(adata)
 
         temp_logger.finish_progress(progress_name="preprocess")
 
-    def config_seurat_recipe(self, adata: AnnData, regress_out_obs_keys: List[str] = []) -> None:
+    def config_seurat_recipe(self, adata: AnnData) -> None:
         """Automatically configure the preprocessor for using the seurat style recipe.
 
         Args:
@@ -549,9 +546,7 @@ class Preprocessor:
         self.filter_genes_by_outliers_kwargs = {"shared_count": 20}
         self.use_log1p = True
         self.log1p_kwargs = {"layers": ["X"]}
-        self.regress_out_kwargs = update_dict(
-            {"obs_key": [], "gene_selection_key": "use_for_pca"}, self.regress_out_kwargs
-        )
+        self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
 
     def preprocess_adata_seurat(
         self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
@@ -577,9 +572,8 @@ class Preprocessor:
         self._normalize_by_cells(adata)
         self._select_genes(adata)
         self._log1p(adata)
-        if len(self.regress_out_kwargs["obs_key"]) > 0:
+        if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
-            self.pca_kwargs.update({"layer": "regress_out"})
         self._pca(adata)
         temp_logger.finish_progress(progress_name="preprocess by seurat recipe")
 
@@ -602,9 +596,7 @@ class Preprocessor:
         }
         self.select_genes_kwargs = {"inplace": True}
         self.sctransform_kwargs = {"layers": raw_layers, "n_top_genes": 2000}
-        self.regress_out_kwargs = update_dict(
-            {"obs_key": [], "gene_selection_key": "use_for_pca"}, self.regress_out_kwargs
-        )
+        self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
     def preprocess_adata_sctransform(
@@ -634,9 +626,8 @@ class Preprocessor:
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])
         self.sctransform(adata, **self.sctransform_kwargs)
-        if len(self.regress_out_kwargs["obs_key"]) > 0:
+        if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
-            self.pca_kwargs.update({"layer": "regress_out"})
         self._pca(adata)
 
         temp_logger.finish_progress(progress_name="preprocess by sctransform recipe")
@@ -657,9 +648,7 @@ class Preprocessor:
         # select layers in adata to be normalized
         normalize_layers = DKM.get_raw_data_layers(adata)
         self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": False}
-        self.regress_out_kwargs = update_dict(
-            {"obs_key": [], "gene_selection_key": "use_for_pca"}, self.regress_out_kwargs
-        )
+        self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
         self.use_log1p = False
 
@@ -685,9 +674,8 @@ class Preprocessor:
 
         self._select_genes(adata)
         self._normalize_selected_genes(adata)
-        if len(self.regress_out_kwargs["obs_key"]) > 0:
+        if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
-            self.pca_kwargs.update({"layer": "regress_out"})
 
         self._pca(adata)
 
@@ -712,10 +700,7 @@ class Preprocessor:
         self.normalize_selected_genes = normalize_layers_pearson_residuals
 
         self.normalize_selected_genes_kwargs = {"layers": ["X"], "copy": False}
-        self.regress_out_kwargs = update_dict(
-            {"obs_key": [], "gene_selection_key": "use_for_pca"}, self.regress_out_kwargs
-        )
-
+        self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
         self.use_log1p = False
 
@@ -743,9 +728,8 @@ class Preprocessor:
         self._normalize_by_cells(adata)
         adata.X = X_copy
         self._normalize_selected_genes(adata)
-        if len(self.regress_out_kwargs["obs_key"]) > 0:
+        if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
-            self.pca_kwargs.update({"layer": "regress_out"})
 
         self.pca(adata, **self.pca_kwargs)
         temp_logger.finish_progress(progress_name="preprocess by monocle pearson residual recipe")
