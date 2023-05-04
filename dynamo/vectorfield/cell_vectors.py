@@ -1,11 +1,21 @@
+from typing import Dict
+
+from anndata import AnnData
+
 from ..tools.cell_velocities import cell_velocities
 from .topography import VectorField
 from .vector_calculus import acceleration, curvature
 
 
 def cell_accelerations(
-    adata, vf_basis="pca", basis="umap", enforce=True, preserve_len=True, other_kernels_dict={}, **kwargs
-):
+    adata: AnnData,
+    vf_basis: str = "pca",
+    basis: str = "umap",
+    enforce: bool = True,
+    preserve_len: bool = True,
+    other_kernels_dict: Dict = {},
+    **kwargs
+) -> None:
     """Compute RNA acceleration field via reconstructed vector field and project it to low dimensional embeddings.
 
     In classical physics, including fluidics and aerodynamics, velocity and acceleration vector fields are used as
@@ -32,36 +42,27 @@ def cell_accelerations(
     provides such functionalities in dynamo, with vector field that changes over time, similar methods, for example,
     streakline, pathline, timeline, etc. can be used to visualize the evolution of single cell or cell populations.
 
-    Arguments
-    ---------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        vf_basis: 'int' (optional, default `pca`)
-            The dictionary key that corresponds to the low dimensional embedding where the vector field function
+    Args:
+        adata: an Anndata object.
+        vf_basis: The dictionary key that corresponds to the low dimensional embedding where the vector field function
             reconstructed.
-        basis: 'int' (optional, default `umap`)
-            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
-        enforce: `bool` (default: `False`)
-            Whether to enforce 1) redefining use_for_transition column in obs attribute;
+        basis: The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
+        enforce: Whether to enforce 1) redefining use_for_transition column in obs attribute;
                                2) recalculation of transition matrix.
-        preserve_len: `bool` (default: `True`)
-            Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
+        preserve_len: Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
             dimension projected vector will be proportionally scaled to that of the high dimensional vector. Note that
-            when preserve_len is set to be True, the acceleration field may seem to be messy (although the magnitude will
-            be reflected) while the trend of acceleration when `preserve_len` is `True` is more clearer but will lose
+            when `preserve_len` is set to be `True`, the acceleration field may seem to be messy (although the magnitude will
+            be reflected) while the trend of acceleration when `preserve_len` is `False` is clearer but will lose
             information of acceleration magnitude. This is because the acceleration is not directly related to the
             distance of cells in the low embedding space; thus the acceleration direction can be better preserved than
             the magnitude. On the other hand, velocity is more relevant to the distance in low embedding space, so
             preserving magnitude and direction of velocity vector in low dimension can be more easily achieved.
-        other_kernels_dict: `dict` (default: `{}`)
-            A dictionary of paramters that will be passed to the cosine/correlation kernel.
+        other_kernels_dict: A dictionary of paramters that will be passed to the cosine/correlation kernel.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension
+    Returns:
+        adata: Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension
             acceleration vectors in the existing embeddings of current cell state, calculated using either the Itô
-            kernel method (default) or the diffusion approximation or the method from (La Manno et al. 2018).
+            kernel method (default), the diffusion approximation, or the method from (La Manno et al. 2018).
     """
 
     if "velocity_" + vf_basis not in adata.obsm.keys():
@@ -99,8 +100,14 @@ def cell_accelerations(
 
 
 def cell_curvatures(
-    adata, vf_basis="pca", basis="umap", enforce=True, preserve_len=True, other_kernels_dict={}, **kwargs
-):
+    adata: AnnData,
+    vf_basis: str = "pca",
+    basis: str = "umap",
+    enforce: bool = True,
+    preserve_len: bool = True,
+    other_kernels_dict: Dict = {},
+    **kwargs
+) -> None:
     """Compute RNA curvature field via reconstructed vector field and project it to low dimensional embeddings.
 
     In classical physics, including fluidics and aerodynamics, velocity and acceleration vector fields are used as
@@ -127,20 +134,14 @@ def cell_curvatures(
     provides such functionalities in dynamo, with vector field that changes over time, similar methods, for example,
     streakline, pathline, timeline, etc. can be used to visualize the evolution of single cell or cell populations.
 
-    Arguments
-    ---------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        vf_basis: 'int' (optional, default `pca`)
-            The dictionary key that corresponds to the low dimensional embedding where the vector field function
+    Args:
+        adata: an AnnData object.
+        vf_basis: The dictionary key that corresponds to the low dimensional embedding where the vector field function
             reconstructed.
-        basis: 'int' (optional, default `umap`)
-            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
-        enforce: `bool` (default: `False`)
-            Whether to enforce 1) redefining use_for_transition column in obs attribute;
+        basis: The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
+        enforce: Whether to enforce 1) redefining use_for_transition column in obs attribute;
                                2) recalculation of transition matrix.
-        preserve_len: `bool` (default: `True`)
-            Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
+        preserve_len: Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
             dimension projected vector will be proportionally scaled to that of the high dimensional vector. Note that
             when preserve_len is set to be True, the acceleration field may seem to be messy (although the magnitude will
             be reflected) while the trend of acceleration when `preserve_len` is `True` is more clearer but will lose
@@ -148,13 +149,10 @@ def cell_curvatures(
             distance of cells in the low embedding space; thus the acceleration direction can be better preserved than
             the magnitude. On the other hand, velocity is more relevant to the distance in low embedding space, so
             preserving magnitude and direction of velocity vector in low dimension can be more easily achieved.
-        other_kernels_dict: `dict` (default: `{}`)
-            A dictionary of paramters that will be passed to the cosine/correlation kernel.
+        other_kernels_dict: A dictionary of paramters that will be passed to the cosine/correlation kernel.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension
+    Returns:
+        adata: Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension
             curvature vectors in the existing embeddings of current cell state, calculated using either the Itô kernel
             method (default) or the diffusion approximation or the method from (La Manno et al. 2018).
     """
