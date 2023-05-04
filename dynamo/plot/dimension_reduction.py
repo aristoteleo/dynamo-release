@@ -23,7 +23,7 @@ def pca(adata: AnnData, *args, **kwargs) -> Optional[Axes]:
         `save_show_or_return='return'` as a kwarg, the axes of the plot would be returned.
     """
 
-    scatters(adata, "pca", *args, **kwargs)
+    return scatters(adata, "pca", *args, **kwargs)
 
 
 def umap(adata: AnnData, *args, **kwargs) -> Optional[Axes]:

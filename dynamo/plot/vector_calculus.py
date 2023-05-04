@@ -405,6 +405,17 @@ def jacobian(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
         the figure would be returned.
+        
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.cell_velocities(adata, basis='pca')
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.jacobian(adata)
     """
 
     regulators, effectors = (
@@ -568,7 +579,7 @@ def jacobian(
                 despline_all(ax)
                 deaxis_all(ax)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": jkey,
@@ -580,11 +591,14 @@ def jacobian(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
@@ -724,7 +738,7 @@ def jacobian_heatmap(
             )
             ax.title(name)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": jkey + "_heatmap",
@@ -736,11 +750,14 @@ def jacobian_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
@@ -820,6 +837,17 @@ def sensitivity(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
         the figure would be returned.
+    
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.cell_velocities(adata, basis='pca')
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.sensitivity(adata)
     """
 
     regulators, effectors = (
@@ -980,7 +1008,7 @@ def sensitivity(
                 despline_all(ax)
                 deaxis_all(ax)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": skey,
@@ -992,11 +1020,14 @@ def sensitivity(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
@@ -1046,6 +1077,18 @@ def sensitivity_heatmap(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
         the figure would be returned.
+    
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.reduceDimension(adata)
+        >>> dyn.tl.cell_velocities(adata, basis='pca')
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.sensitivity_heatmap(adata)
     """
 
     regulators, effectors = (
@@ -1108,7 +1151,7 @@ def sensitivity_heatmap(
         )
         plt.title(name)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": skey + "_heatmap",
@@ -1120,9 +1163,12 @@ def sensitivity_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs

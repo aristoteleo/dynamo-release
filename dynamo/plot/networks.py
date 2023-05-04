@@ -174,7 +174,7 @@ def nxvizPlot(
     for e in network.edges():
         network.edges[e]["weight"] /= weight_scale
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
@@ -189,15 +189,18 @@ def nxvizPlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
         # Display the plot
         plt.show()
         # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return nv_ax
 
 
@@ -313,7 +316,7 @@ def arcPlot(
         cb.locator = MaxNLocator(nbins=3, integer=True)
         cb.update_ticks()
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         # Draw a to the screen
         plt.autoscale()
         s_kwargs = {
@@ -327,14 +330,17 @@ def arcPlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         # Draw a to the screen
         plt.autoscale()
         # Display the plot
         plt.show()
         # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ap
 
 
@@ -573,7 +579,7 @@ def hivePlot(
     # ax.legend(custom_lines, reg_groups, loc='upper left', bbox_to_anchor=(0.37, 0.35),
     #           title="Regulatory network based on Jacobian analysis")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "hiveplot",
@@ -585,9 +591,12 @@ def hivePlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax

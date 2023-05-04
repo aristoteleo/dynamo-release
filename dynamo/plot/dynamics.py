@@ -1064,7 +1064,7 @@ def phase_portraits(
                 despline_all(ax6)
                 deaxis_all(ax6)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "phase_portraits",
@@ -1076,15 +1076,18 @@ def phase_portraits(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
 
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
     else:
         raise NotImplementedError("Unsupported save_show_or_return")
@@ -2727,7 +2730,7 @@ def dynamics(
                 elif experiment_type == "coassay":
                     pass  # show protein velocity (steady state and the Gamma distribution model)
     # g.autofmt_xdate(rotation=-30, ha='right')
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "dynamics",
@@ -2738,11 +2741,15 @@ def dynamics(
             "verbose": True,
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 

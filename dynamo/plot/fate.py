@@ -74,7 +74,7 @@ def fate_bias(
         fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False, **cluster_maps_kwargs
     )
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "fate_bias",
@@ -86,11 +86,14 @@ def fate_bias(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -154,11 +157,16 @@ def fate(
             "close": True,
             "verbose": True,
         }
+
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return in ["return", "all"]:
+    if save_show_or_return in ["return", "all"]:
         return ax
