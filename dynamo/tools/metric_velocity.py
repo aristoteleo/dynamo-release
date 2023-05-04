@@ -1,5 +1,13 @@
+from typing import Dict, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
@@ -15,46 +23,40 @@ from .utils import einsum_correlation, fetch_X_data, get_finite_inds, inverse_no
 
 
 def cell_wise_confidence(
-    adata,
-    X_data=None,
-    V_data=None,
-    ekey="M_s",
-    vkey="velocity_S",
-    neighbors_from_basis=False,
-    method="jaccard",
-):
+    adata: AnnData,
+    X_data: Union[np.ndarray, csr_matrix, None] = None,
+    V_data: Union[np.ndarray, csr_matrix, None] = None,
+    ekey: str = "M_s",
+    vkey: str = "velocity_S",
+    neighbors_from_basis: bool = False,
+    method: Literal["cosine", "consensus", "correlation", "jaccard", "hybrid", "divergence"] = "jaccard",
+) -> AnnData:
     """Calculate the cell-wise velocity confidence metric.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        X_data: 'np.ndarray' or `sp.csr_matrix` or None (optional, default `None`)
-            The expression states of single cells (or expression states in reduced dimension, like pca, of single cells)
-        V_data: 'np.ndarray' or `sp.csr_matrix` or None (optional, default `None`)
-            The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
-            cells). Note that X, V_mat need to have the exact dimensionalities.
-        ekey: `str` (optional, default `M_s`)
-            The dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the
-            smoothed expression `M_s`.
-        vkey: 'str' (optional, default `velocity_S`)
-            The dictionary key that corresponds to the estimated velocity values in layers attribute.
-        neighbors_from_basis: `bool` (optional, default `False`)
-            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`, instead of using
-            that calculated during UMAP process.
-        method: `str` (optional, default `jaccard`)
-            Which method will be used for calculating the cell wise velocity confidence metric.
-            By default it uses
-            `jaccard` index, which measures how well each velocity vector meets the geometric constraints defined by the
+    Args:
+        adata: an AnnData object.
+        X_data: the expression states of single cells (or expression states in reduced dimension, like pca, of single
+            cells). Defaults to None.
+        V_data: the RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of
+            single cells). Note that X, V_mat need to have the exact dimensionalities. Defaults to None.
+        ekey: the dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the
+            smoothed expression `M_s`. Defaults to "M_s".
+        vkey: the dictionary key that corresponds to the estimated velocity values in layers attribute. Defaults to
+            "velocity_S".
+        neighbors_from_basis: whether to construct nearest neighbors from low dimensional space as defined by the
+            `basis`, instead of using that calculated during UMAP process. Defaults to False.
+        method: which method will be used for calculating the cell wise velocity confidence metric. Defaults to
+            "jaccard", which measures how well each velocity vector meets the geometric constraints defined by the
             local neighborhood structure. Jaccard index is calculated as the fraction of the number of the intersected
             set of nearest neighbors from each cell at current expression state (X) and that from the future expression
-            state (X + V) over the number of the union of these two sets. The `cosine` or `correlation` method is similar
-            to that used by scVelo (https://github.com/theislab/scvelo).
+            state (X + V) over the number of the union of these two sets. The `cosine` or `correlation` method is
+            similar to that used by scVelo (https://github.com/theislab/scvelo).
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with `.obs.confidence` as the cell-wise velocity confidence.
+    Raises:
+        NotImplementedError: `method` is invalid.
+
+    Returns:
+        An updated AnnData object with `.obs.confidence` as the cell-wise velocity confidence.
     """
 
     if method in ["cosine", "consensus", "correlation"]:
@@ -190,7 +192,7 @@ def cell_wise_confidence(
         pass
 
     else:
-        raise Exception(
+        raise NotImplementedError(
             "The input {} method for cell-wise velocity confidence calculation is not implemented" " yet".format(method)
         )
 
@@ -199,7 +201,26 @@ def cell_wise_confidence(
     return adata
 
 
-def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
+def jaccard(
+    X: np.ndarray, V: np.ndarray, n_pca_components: int, n_neigh: int, X_neighbors: csr_matrix
+) -> Tuple[np.ndarray, csr_matrix, np.ndarray]:
+    """Calculate cell-wise confidence matrix with Jaccard method.
+
+    This method measures how well each velocity vector meets the geometric constraints defined by the local neighborhood structure. Jaccard index is calculated as the fraction of the number of the intersected set of nearest neighbors
+    from each cell at current expression state (X) and that from the future expression state (X + V) over the number of
+    the union of these two sets.
+
+    Args:
+        X: the expression states of single cells (or expression states in reduced dimension, like pca, of single cells).
+        V: the RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+            cells). Note that X, V_mat need to have the exact dimensionalities.
+        n_pca_components: the number of PCA components of the expression data.
+        n_neigh: the number of neighbors to be found.
+        X_neighbors: the neighbor matrix.
+
+    Returns:
+        The cell wise velocity confidence metric.
+    """
     from sklearn.decomposition import TruncatedSVD
 
     transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
@@ -225,7 +246,16 @@ def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
     return jaccard, intersect_, union_
 
 
-def consensus(x, y):
+def consensus(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Calculate the consensus with expression matrix and velocity matrix.
+
+    Args:
+        x: expression matrix (genes x cells).
+        y: velocity vectors y_i for gene i.
+
+    Returns:
+        The consensus matrix.
+    """
     x_norm, y_norm = np.linalg.norm(x), np.linalg.norm(y)
     consensus = (
         einsum_correlation(x[None, :], y, type="cosine")[0, 0] * np.min([x_norm, y_norm]) / np.max([x_norm, y_norm])
@@ -235,17 +265,21 @@ def consensus(x, y):
 
 
 def gene_wise_confidence(
-    adata,
-    group,
-    lineage_dict=None,
-    genes=None,
-    ekey="M_s",
-    vkey="velocity_S",
-    X_data=None,
-    V_data=None,
-    V_threshold=1,
-):
+    adata: AnnData,
+    group: str,
+    lineage_dict: Optional[Dict[str, str]] = None,
+    genes: Optional[List[str]] = None,
+    ekey: str = "M_s",
+    vkey: str = "velocity_S",
+    X_data: Optional[np.ndarray] = None,
+    V_data: Optional[np.ndarray] = None,
+    V_threshold: float = 1,
+) -> None:
     """Diagnostic measure to identify genes contributed to "wrong" directionality of the vector flow.
+
+    The results would be stored in a new `gene_wise_confidence` key in .uns, which contains gene-wise confidence score
+    in each cell state. `.var` will also be updated with `avg_prog_confidence` and `avg_mature_confidence` key which
+    correspond to the average gene wise confidence in the progenitor state or the mature cell state.
 
     In some scenarios, you may find unexpected "wrong vector back-flow" from your dynamo analyses, in order to diagnose
     those cases, we can identify those genes showing up in the wrong phase portrait position. Then we may remove those
@@ -275,44 +309,36 @@ def gene_wise_confidence(
     should end up in a different expression state and there are intermediate cells going to the dead end cells in the
     each terminal group (or most terminal groups).
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        group: `str`
-            The column key/name that identifies the cell state grouping information of cells. This will be used for
+    Args:
+        adata: an AnnData object.
+        group: the column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
-        lineage_dict: `dict`
-            A dictionary describes lineage priors. Keys corresponds to the group name from `group` that corresponding
-            to the state of one progenitor type while values correspond to the group names from `group` that
-            corresponding to the states of one or multiple terminal cell states. The best practice for determining
+        lineage_dict: a dictionary describes lineage priors. Keys corresponds to the group name from `group` that
+            corresponding to the state of one progenitor type while values correspond to the group names from `group`
+            that corresponding to the states of one or multiple terminal cell states. The best practice for determining
             terminal cell states are those fully functional cells instead of intermediate cell states. Note that in
             python a dictionary key cannot be a list, so if you have two progenitor types converge into one terminal
-            cell state, you need to create two records each with the same terminal cell as value but different progenitor
-            as the key. Value can be either a string for one cell group or a list of string for multiple cell groups.
-        genes: `list` or None (default: `None`)
-            The list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that go
-            through velocity estimation will be used.
-        ekey: `str` or None (default: `M_s`)
-            The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
-            each cell state. If `None`, .X is used.
-        vkey: `str` or None (default: `velocity_S`)
-            The layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
-            `velocity_S` is used.
-        X_data: `np.ndarray` (default: `None`)
-            The user supplied data that will be used for identifying the gene is in induction or repression phase at
-            each cell state directly
-        V_data: `np.ndarray` (default: `None`)
-            The user supplied data that will be used for calculating gene-wise confidence directly.
-        V_threshold: `float` (default: `1`)
-            The threshold of velocity to calculate the gene wise confidence.
+            cell state, you need to create two records each with the same terminal cell as value but different
+            progenitor as the key. Value can be either a string for one cell group or a list of string for multiple cell
+            groups. Defaults to None.
+        genes: the list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that
+            go through velocity estimation will be used. Defaults to None.
+        ekey: the layer that will be used to retrieve data for identifying the gene is in induction or repression phase
+            at each cell state. If `None`, .X is used. Defaults to "M_s".
+        vkey: the layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
+            `velocity_S` is used. Defaults to "velocity_S".
+        X_data: the user supplied data that will be used for identifying the gene is in induction or repression phase at
+            each cell state directly. Defaults to None.
+        V_data: the user supplied data that will be used for calculating gene-wise confidence directly. Defaults to None.
+        V_threshold: the threshold of velocity to calculate the gene wise confidence. Defaults to 1.
 
-    Returns
-    -------
-        An updated adata object with a new `gene_wise_confidence` key in .uns, which contains gene-wise confidence score
-        in each cell state. .var will also be updated with `avg_prog_confidence` and `avg_mature_confidence` key which
-        correspond to the average gene wise confidence in the progenitor state or the mature cell state.
+    Raises:
+        ValueError: `X_data` is provided but `genes` does not correspond to its columns.
+        ValueError: `X_data` is provided but `genes` does not correspond to its columns.
+        Exception: progenitor cell extracted from lineage_dict is not in `adata.obs[group]`.
+        Exception: terminal cell extracted from lineage_dict is not in `adata.obs[group]`.
     """
+
     logger = LoggerManager.gen_logger("gene_wise_confidence")
 
     if X_data is None:

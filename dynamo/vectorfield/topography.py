@@ -2,11 +2,12 @@
 import datetime
 import os
 import warnings
-from typing import Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
 import scipy.sparse as sp
+from anndata import AnnData
 from scipy.integrate import odeint
 from scipy.linalg import eig
 from scipy.optimize import fsolve
@@ -18,6 +19,7 @@ from ..utils import copy_adata
 from .FixedPoints import FixedPoints
 from .scVectorField import BaseVectorField, SvcVectorField
 from .utils import (
+    VecFldDict,
     angle,
     dynode_vector_field_function,
     find_fixed_points,
@@ -26,10 +28,20 @@ from .utils import (
     vecfld_from_adata,
     vector_field_function,
 )
-from .vector_calculus import curl, divergence
 
 
-def pac_onestep(x0, func, v0, ds=0.01):
+def pac_onestep(x0: np.ndarray, func: Callable, v0: np.ndarray, ds: float = 0.01):
+    """One step of the predictor-corrector method
+
+    Args:
+        x0: current value
+        func: function to be integrated
+        v0: tangent predictor
+        ds: step size, Defaults to 0.01.
+
+    Returns:
+        x1: next value
+    """
     x01 = x0 + v0 * ds
 
     def F(x):
@@ -39,7 +51,29 @@ def pac_onestep(x0, func, v0, ds=0.01):
     return x1
 
 
-def continuation(x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_direction=1):
+def continuation(
+    x0: np.ndarray,
+    func: Callable,
+    s_max: float,
+    ds: float = 0.01,
+    v0: Optional[np.ndarray] = None,
+    param_axis: int = 0,
+    param_direction: int = 1,
+) -> np.ndarray:
+    """Continually integrate the ODE `func` from x0
+
+    Args:
+        x0: initial value
+        func: function to be integrated
+        s_max: maximum integration length
+        ds: step size, Defaults to 0.01.
+        v0: initial tangent vector, Defaults to None.
+        param_axis: axis of the parameter, Defaults to 0.
+        param_direction: direction of the parameter, Defaults to 1.
+
+    Returns:
+        np.ndarray of values along the curve
+    """
     ret = [x0]
     if v0 is None:  # initialize tangent predictor
         v = np.zeros_like(x0)
@@ -59,7 +93,19 @@ def continuation(x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_directio
     return np.array(ret)
 
 
-def clip_curves(curves, domain, tol_discont=None):
+def clip_curves(
+    curves: Union[List[List], List[np.ndarray]], domain: np.ndarray, tol_discont=None
+) -> Union[List[List], List[np.ndarray]]:
+    """Clip curves to the domain
+
+    Args:
+        curves: list of curves
+        domain: domain of the curves of dimension n x 2
+        tol_discont: tolerance for discontinuity, Defaults to None.
+
+    Returns:
+        list of clipped curves joined together
+    """
     ret = []
     for cur in curves:
         clip_away = np.zeros(len(cur), dtype=bool)
@@ -87,7 +133,29 @@ def clip_curves(curves, domain, tol_discont=None):
     return ret
 
 
-def compute_nullclines_2d(X0, fdx, fdy, x_range, y_range, s_max=None, ds=None):
+def compute_nullclines_2d(
+    X0: Union[List, np.ndarray],
+    fdx: Callable,
+    fdy: Callable,
+    x_range: List,
+    y_range: List,
+    s_max: Optional[float] = None,
+    ds: Optional[float] = None,
+) -> Tuple[List]:
+    """Compute nullclines of a 2D vector field. Nullclines are curves along which vector field is zero in either the x or y direction.
+
+    Args:
+        X0: initial value
+        fdx: differential equation for x
+        fdy: differential equation for y
+        x_range: range of x
+        y_range: range of y
+        s_max: maximum integration length, Defaults to None.
+        ds: step size, Defaults to None.
+
+    Returns:
+        Tuple of nullclines in x and y
+    """
     if s_max is None:
         s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
     if ds is None:
@@ -110,7 +178,31 @@ def compute_nullclines_2d(X0, fdx, fdy, x_range, y_range, s_max=None, ds=None):
     return NCx, NCy
 
 
-def compute_separatrices(Xss, Js, func, x_range, y_range, t=50, n_sample=500, eps=1e-6):
+def compute_separatrices(
+    Xss: np.ndarray,
+    Js: np.ndarray,
+    func: Callable,
+    x_range: List,
+    y_range: List,
+    t: int = 50,
+    n_sample: int = 500,
+    eps: float = 1e-6,
+) -> List:
+    """Compute separatrix based on jacobians at points in `Xss`
+
+    Args:
+        Xss: list of steady states
+        Js: list of jacobians at steady states
+        func: function to be integrated
+        x_range: range of x
+        y_range: range of y
+        t: integration time, Defaults to 50.
+        n_sample: number of samples, Defaults to 500.
+        eps: tolerance for discontinuity, Defaults to 1e-6.
+
+    Returns:
+        list of separatrices
+    """
     ret = []
     for i, x in enumerate(Xss):
         print(x)
@@ -137,7 +229,16 @@ def compute_separatrices(Xss, Js, func, x_range, y_range, t=50, n_sample=500, ep
     return ret
 
 
-def set_test_points_on_curve(curve, interval):
+def set_test_points_on_curve(curve: List[np.ndarray], interval: float) -> np.ndarray:
+    """Generates an np.ndarray of test points that are spaced out by `interval` distance
+
+    Args:
+        curve: list of points
+        interval: distance for separation
+
+    Returns:
+        np.ndarray of test points
+    """
     P = [curve[0]]
     dist = 0
     for i in range(1, len(curve)):
@@ -148,7 +249,17 @@ def set_test_points_on_curve(curve, interval):
     return np.array(P)
 
 
-def find_intersection_2d(curve1, curve2, tol_redundant=1e-4):
+def find_intersection_2d(curve1: List[np.ndarray], curve2: List[np.ndarray], tol_redundant: float = 1e-4) -> np.ndarray:
+    """Compute intersections between curve 1 and curve2
+
+    Args:
+        curve1: list of points
+        curve2: list of points
+        tol_redundant: Defaults to 1e-4.
+
+    Returns:
+        np.ndarray of intersection points between curve1 and curve2
+    """
     P = []
     for i in range(len(curve1) - 1):
         for j in range(len(curve2) - 1):
@@ -167,7 +278,25 @@ def find_intersection_2d(curve1, curve2, tol_redundant=1e-4):
     return np.array(P)
 
 
-def find_fixed_points_nullcline(func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4):
+def find_fixed_points_nullcline(
+    func: Callable,
+    NCx: List[List[np.ndarray]],
+    NCy: List[List[np.ndarray]],
+    sample_interval: float = 0.5,
+    tol_redundant: float = 1e-4,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Find fixed points by computing the intersections of x and y nullclines using `find_intersection_2d` and passing these intersection points as samppling points to `find_fixed_points`.
+
+    Args:
+        func: Callable passed to `find_fixed_points` along with the intersection points of the two nullclines
+        NCx: List of x nullcline
+        NCy: List of y nullcline
+        sample_interval: Interval for sampling test points along x and y nullclines. Defaults to 0.5.
+        tol_redundant: Defaults to 1e-4.
+
+    Returns:
+        A tuple with solutions for where func(x) = 0 and the Jacobian matrix
+    """
     test_Px = []
     for i in range(len(NCx)):
         test_Px.append(set_test_points_on_curve(NCx[i], sample_interval))
@@ -195,7 +324,18 @@ def calc_fft(x):
     return xFFT[: int(n / 2)], freq
 
 
-def dup_osc_idx(x, n_dom=3, tol=0.05):
+def dup_osc_idx(x: np.ndarray, n_dom: int = 3, tol: float = 0.05):
+    """
+    Find the index of the end of the first division in an array where the oscillatory patterns of two consecutive divisions are similar within a given tolerance.
+
+    Args:
+        x: An array-like object containing the data to be analyzed.
+        n_dom: An integer specifying the number of divisions to make in the array. Defaults to 3.
+        tol: A float specifying the tolerance for considering the oscillatory patterns of two divisions to be similar. Defaults to 0.05.
+
+    Returns:
+        A tuple containing the index of the end of the first division and the difference between the FFTs of the two divisions. If the oscillatory patterns of the two divisions are not similar within the given tolerance, returns (None, None).
+    """
     l_int = int(np.floor(len(x) / n_dom))
     ind_a, ind_b = np.arange((n_dom - 2) * l_int, (n_dom - 1) * l_int), np.arange((n_dom - 1) * l_int, n_dom * l_int)
     y1 = x[ind_a]
@@ -223,7 +363,17 @@ def dup_osc_idx(x, n_dom=3, tol=0.05):
     return idx, diff
 
 
-def dup_osc_idx_iter(x, max_iter=5, **kwargs):
+def dup_osc_idx_iter(x: np.ndarray, max_iter: int = 5, **kwargs) -> Tuple[int, np.ndarray]:
+    """
+    Find the index of the end of the first division in an array where the oscillatory patterns of two consecutive divisions are similar within a given tolerance, using iterative search.
+
+    Args:
+        x: An array-like object containing the data to be analyzed.
+        max_iter: An integer specifying the maximum number of iterations to perform. Defaults to 5.
+
+    Returns:
+        A tuple containing the index of the end of the first division and an array of differences between the FFTs of consecutive divisions. If the oscillatory patterns of the two divisions are not similar within the given tolerance after the maximum number of iterations, returns the index and array from the final iteration.
+    """
     stop = False
     idx = len(x)
     j = 0
@@ -245,7 +395,29 @@ def dup_osc_idx_iter(x, max_iter=5, **kwargs):
 # TODO: This should be inherited from the BaseVectorField/DifferentiatiableVectorField class,
 #       and BifurcationTwoGenes should be inherited from this class.
 class VectorField2D:
-    def __init__(self, func, func_vx=None, func_vy=None, X_data=None):
+    """
+    The VectorField2D class is a class that represents a 2D vector field, which is a type of mathematical object that assigns a 2D vector to each point in a 2D space. This vector field can be defined using a function that returns the vector at each point, or by separate functions for the x and y components of the vector.
+
+    The class also has several methods for finding fixed points (points where the vector is zero) in the vector field, as well as for querying the fixed points that have been found. The `find_fixed_points_by_sampling` method uses sampling to find fixed points within a specified range in the x and y dimensions. It does this by generating a set of random or Latin Hypercube Sampled (LHS) points within the specified range, and then using the `find_fixed_points` function to find the fixed points that are closest to these points. The `find_fixed_points function` uses an iterative method to find fixed points, starting from an initial guess and using the Jacobian matrix at each point to update the guess until the fixed point is found to within a certain tolerance.
+
+    The `get_Xss_confidence` method estimates the confidence of the fixed points by computing the mean distance of each fixed point to its nearest
+    neighbors in the data used to define the vector field. It returns an array of confidence values for each fixed point, with higher values indicating higher confidence.
+    """
+
+    def __init__(
+        self,
+        func: Callable,
+        func_vx: Optional[Callable] = None,
+        func_vy: Optional[Callable] = None,
+        X_data: Optional[np.ndarray] = None,
+    ):
+        """
+        Args:
+            func: a function that takes an (n, 2) array of coordinates and returns an (n, 2) array of vectors
+            func_vx: a function that takes an (n, 2) array of coordinates and returns an (n,) array of x components of the vectors, Defaults to None.
+            func_vy: a function that takes an (n, 2) array of coordinates and returns an (n,) array of y components of the vectors, Defaults to None.
+            X_data: Defaults to None.
+        """
         self.func = func
 
         def func_dim(x, func, dim):
@@ -269,10 +441,27 @@ class VectorField2D:
         self.NCx = None
         self.NCy = None
 
-    def get_num_fixed_points(self):
+    def get_num_fixed_points(self) -> int:
+        """
+        Get the number of fixed points stored in the `Xss` attribute.
+
+        Returns:
+            int: the number of fixed points
+        """
         return len(self.Xss.get_X())
 
-    def get_fixed_points(self, get_types=True):
+    def get_fixed_points(self, get_types: Optional[bool] = True) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
+        """
+        Get the fixed points stored in the `Xss` attribute, along with their types (stable, saddle, or unstable) if `get_types` is `True`.
+
+        Args:
+            get_types: whether to include the types of the fixed points. Defaults to `True`.
+
+        Returns:
+            tuple: a tuple containing:
+                - X (np.array): an (n, 2) array of coordinates of the fixed points
+                - ftype (np.array): an (n,) array of the types of the fixed points (-1 for stable, 0 for saddle, 1 for unstable). Only returned if `get_types` is `True`.
+        """
         X = self.Xss.get_X()
         if not get_types:
             return X
@@ -287,7 +476,15 @@ class VectorField2D:
                     ftype[i] = -1
             return X, ftype
 
-    def get_Xss_confidence(self, k=50):
+    def get_Xss_confidence(self, k: Optional[int] = 50) -> np.ndarray:
+        """Get the confidence of each fixed point stored in the `Xss` attribute.
+
+        Args:
+            k: the number of nearest neighbors to consider for each fixed point. Defaults to 50.
+
+        Returns:
+            an (n,) array of confidences for the fixed points
+        """
         X = self.X_data
         X = X.A if sp.issparse(X) else X
         Xss = self.Xss.get_X()
@@ -317,7 +514,24 @@ class VectorField2D:
         confidence /= np.max(confidence)
         return confidence[:-1]
 
-    def find_fixed_points_by_sampling(self, n, x_range, y_range, lhs=True, tol_redundant=1e-4):
+    def find_fixed_points_by_sampling(
+        self,
+        n: int,
+        x_range: Tuple[float, float],
+        y_range: Tuple[float, float],
+        lhs: Optional[bool] = True,
+        tol_redundant: float = 1e-4,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Find fixed points by sampling the vector field within a specified range of coordinates.
+
+        Args:
+            n: the number of samples to take
+            x_range: a tuple of two floats specifying the range of x coordinates to sample
+            y_range: a tuple of two floats specifying the range of y coordinates to sample
+            lhs: whether to use Latin Hypercube Sampling to generate the samples. Defaults to `True`.
+            tol_redundant: the tolerance for removing redundant fixed points. Defaults to 1e-4.
+        """
         if lhs:
             from ..tools.sampling import lhsclassic
 
@@ -335,12 +549,37 @@ class VectorField2D:
         if len(X) > 0:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def find_nearest_fixed_point(self, x, x_range, y_range, tol_redundant=1e-4):
+    def find_nearest_fixed_point(
+        self, x: np.ndarray, x_range: Tuple[float, float], y_range: Tuple[float, float], tol_redundant: float = 1e-4
+    ):
+        """Find the fixed point closest to a given initial guess within a given range.
+
+        Args:
+            x: an array specifying the initial guess
+            x_range: a tuple of two floats specifying the range of x coordinates
+            y_range: a tuple of two floats specifying the range of y coordinates
+                tol_redundant: the tolerance for removing redundant fixed points. Defaults to 1e-4.
+        """
         X, J, _ = find_fixed_points(x, self.func, domain=[x_range, y_range], tol_redundant=tol_redundant)
         if len(X) > 0:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def compute_nullclines(self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4):
+    def compute_nullclines(
+        self,
+        x_range: Tuple[float, float],
+        y_range: Tuple[float, float],
+        find_new_fixed_points: Optional[bool] = False,
+        tol_redundant: Optional[float] = 1e-4,
+    ):
+        """Compute nullclines. Nullclines are curves along which vector field is zero along a particular dimension.
+
+        Args:
+            x_range: range of x
+            y_range: range of y
+            find_new_fixed_points: whether to find new fixed points along the nullclines and add to `self.Xss`. Defaults to False.
+            s_max: maximum integration length, Defaults to None.
+            ds: step size, Defaults to None.
+        """
         # compute arguments
         s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
         ds = s_max / 1e3
@@ -359,6 +598,8 @@ class VectorField2D:
             outside = is_outside(X, [x_range, y_range])
             self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
+    # TODO Refactor dict_vf
+
     def output_to_dict(self, dict_vf):
         dict_vf["NCx"] = self.NCx
         dict_vf["NCy"] = self.NCy
@@ -368,7 +609,37 @@ class VectorField2D:
         return dict_vf
 
 
-def util_topology(adata, basis, X, dims, func, VecFld, n=25, **kwargs):
+def util_topology(
+    adata: AnnData,
+    basis: str,
+    dims: Tuple[int, int],
+    func: Callable,
+    VecFld: VecFldDict,
+    X: Optional[np.ndarray] = None,
+    n: Optional[int] = 25,
+    **kwargs,
+):
+    """A function that computes nullclines and fixed points defined by the function func.
+
+    Args:
+        adata: `AnnData` object containing cell state information.
+        basis: A string specifying the reduced dimension embedding  to use for the computation.
+        dims: A tuple of two integers specifying the dimensions of X to consider.
+        func: A vector-valued function taking in coordinates and returning the vector field.
+        VecFld: `VecFldDict` TypedDict storing information about the vector field and SparseVFC-related parameters and computations.
+        X: an alternative to providing an `AnnData` object. Provide an np.ndarray from which `dims` are accessed, Defaults to None.
+        n: An optional integer specifying the number of points to use for computing fixed points. Defaults to 25.
+
+    Returns:
+        A tuple consisting of the following elements:
+            - X_basis: an array of shape (n, 2) where n is the number of points in X. This is the subset of X consisting of the first two dimensions specified by dims. If X is not provided, X_basis is taken from the obsm attribute of adata using the key "X_" + basis.
+            - xlim, ylim: a tuple of floats specifying the limits of the x and y axes, respectively. These are computed based on the minimum and maximum values of X_basis.
+            - confidence: an array of shape (n, ) containing the confidence scores of the fixed points.
+            - NCx, NCy: arrays of shape (n, ) containing the x and y coordinates of the nullclines (lines where the derivative of the system is zero), respectively.
+            - Xss: an array of shape (n, k) where k is the number of dimensions of the system, containing the fixed points.
+            - ftype: an array of shape (n, ) containing the types of fixed points (attractor, repeller, or saddle).
+            - an array of shape (n, ) containing the indices of the fixed points in the original data.
+    """
     X_basis = adata.obsm["X_" + basis][:, dims] if X is None else X[:, dims]
 
     if X_basis.shape[1] == 2:
@@ -410,44 +681,31 @@ def util_topology(adata, basis, X, dims, func, VecFld, n=25, **kwargs):
 
 
 def topography(
-    adata,
-    basis="umap",
-    layer=None,
-    X=None,
-    dims=None,
-    n=25,
-    VecFld=None,
+    adata: AnnData,
+    basis: Optional[str] = "umap",
+    layer: Optional[str] = None,
+    X: Optional[np.ndarray] = None,
+    dims: Optional[list] = None,
+    n: Optional[int] = 25,
+    VecFld: Optional[VecFldDict] = None,
     **kwargs,
-):
+) -> AnnData:
     """Map the topography of the single cell vector field in (first) two dimensions.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        basis: `str` (default: `trimap`)
-            The reduced dimension embedding of cells to visualize.
-        layer: `str` or None (default: None)
-            Which layer of the data will be used for vector field function reconstruction. This will be used in
-            conjunction with X.
-        X: 'np.ndarray' (dimension: n_obs x n_features)
-                Original data. Not used
-        dims: `list` or `None` (default: `None`)
-            The dimensions that will be used for vector field reconstruction.
-        n: `int` (default: `10`)
-            Number of samples for calculating the fixed points.
-        VecFld: `dictionary` or None (default: None)
-            The reconstructed vector field function.
-        kwargs:
-            Key word arguments passed to the find_fixed_point function of the vector field class for high dimension
-            fixed point identification.
+    Args:
+        adata: an AnnData object.
+        basis: The reduced dimension embedding of cells to visualize.
+        layer: Which layer of the data will be used for vector field function reconstruction. This will be used in conjunction with X.
+        X: Original data. Not used
+        dims: The dimensions that will be used for vector field reconstruction.
+        n: Number of samples for calculating the fixed points.
+        VecFld: The reconstructed vector field function.
+        kwargs: Key word arguments passed to the find_fixed_point function of the vector field class for high dimension
+        fixed point identification.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            `AnnData` object that is updated with the `VecFld` or 'VecFld_' + basis dictionary in the `uns` attribute.
-            The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points,
-            nullcline, separatrix, computed and stored.
+    Returns:
+        `AnnData` object that is updated with the `VecFld` or 'VecFld_' + basis dictionary in the `uns` attribute.
+        The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline, separatrix, computed and stored.
     """
 
     if VecFld is None:
@@ -518,106 +776,70 @@ def topography(
 
 def VectorField(
     adata: anndata.AnnData,
-    basis: Union[None, str] = None,
-    layer: Union[None, str] = None,
-    dims: Union[int, list, None] = None,
-    genes: Union[list, None] = None,
-    normalize: bool = False,
+    basis: Optional[str] = None,
+    layer: Optional[str] = None,
+    dims: Optional[Union[int, list]] = None,
+    genes: Optional[list] = None,
+    normalize: Optional[bool] = False,
     grid_velocity: bool = False,
     grid_num: int = 50,
     velocity_key: str = "velocity_S",
     method: str = "SparseVFC",
     min_vel_corr: float = 0.6,
     restart_num: int = 5,
-    restart_seed: Union[None, list] = [0, 100, 200, 300, 400],
-    model_buffer_path: Union[str, None] = None,
+    restart_seed: Optional[list] = [0, 100, 200, 300, 400],
+    model_buffer_path: Optional[str] = None,
     return_vf_object: bool = False,
     map_topography: bool = False,
     pot_curl_div: bool = False,
     cores: int = 1,
-    result_key: Union[str, None] = None,
+    result_key: Optional[str] = None,
     copy: bool = False,
     **kwargs,
 ) -> Union[anndata.AnnData, BaseVectorField]:
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains embedding and velocity data
-        basis:
-            The embedding data to use. The vector field function will be learned on the low dimensional embedding and
-            can be then projected back to the high dimensional space.
-        layer:
-            Which layer of the data will be used for vector field function reconstruction. The layer once provided, will
-            override the `basis` argument and then learn the vector field function in high dimensional space.
-        dims:
-            The dimensions that will be used for reconstructing vector field functions. If it is an `int` all dimension
-            from the first dimension to `dims` will be used; if it is a list, the dimensions in the list will be used.
-        genes:
-            The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
-            set to None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field
-            reconstruction. Note that the genes to be used need to have velocity calculated.
-        normalize:
-            Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is often
-            required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension). But it is
-            normally not required for low dimensional embeddings by PCA or other non-linear dimension reduction methods.
-        grid_velocity:
-            Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with
-            embedding dimension less than 4, the grid velocity will still be generated. Please note that number of total
-            grids in the space increases exponentially as the number of dimensions increases. So it may quickly lead to
-            lack of memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6
-            (50^6 total grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field
-            function can still be learned for thousands of dimensions and we can still predict the transcriptomic cell
-            states over long time period.
-        grid_num:
-            The number of grids in each dimension for generating the grid velocity.
-        velocity_key:
-            The key from the adata layer that corresponds to the velocity matrix.
-        method:
-            Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but
-            other improved approaches are under development.
-        min_vel_corr:
-            The minimal threshold for the cosine correlation between input velocities and learned velocities to consider
-            as a successful vector field reconstruction procedure. If the cosine correlation is less than this
-            threshold and restart_num > 1, `restart_num` trials will be attempted with different seeds to reconstruct
-            the vector field function. This can avoid some reconstructions to be trapped in some local optimal.
-        restart_num:
-            The number of retrials for vector field reconstructions.
-        restart_seed:
-            A list of seeds for each retrial. Must be the same length as `restart_num` or None.
-        buffer_path:
-               The directory address keeping all the saved/to-be-saved torch variables and NN modules. When `method` is
-               set to be `dynode`, buffer_path will set to be
-        return_vf_object:
-            Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
-            attribute.
-        map_topography:
-            Whether to quantify the topography of vector field. Note that for higher than 2D vector field, we can only
-            identify fixed points as high-dimensional nullcline and separatrices are mathematically difficult to be
-            identified. Nullcline and separatrices will also be a surface or manifold in high-dimensional vector field.
-        pot_curl_div:
-            Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis
-            while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
-            dimension while curl is generally only defined for 2/3 D systems.
-        cores:
-            Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to
+    Args:
+        adata: AnnData object that contains embedding and velocity data
+        basis: The embedding data to use. The vector field function will be learned on the low  dimensional embedding and can be then projected
+            back to the high dimensional space.
+        layer: Which layer of the data will be used for vector field function reconstruction. The layer once provided, will override the `basis`
+            argument and then learn the vector field function in high dimensional space.
+        dims: The dimensions that will be used for reconstructing vector field functions. If it is an `int` all     dimension from the first
+            dimension to `dims` will be used; if it is a list, the dimensions in the list will be used.
+        genes: The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is set to None), the genes
+            used for velocity embedding (var.use_for_transition) will be used for vector field reconstruction. Note that the genes to be used need to have velocity calculated.
+        normalize: Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is often required for raw
+            dataset (for example, raw UMI counts and RNA velocity values in high dimension). But it is normally not required for low dimensional embeddings by PCA or other non-linear dimension reduction methods.
+        grid_velocity: Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding dimension
+            less than 4, the grid velocity will still be generated. Please note that number of total grids in the space increases exponentially as the number of dimensions increases. So it may quickly lead to lack of memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6 (50^6 total grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field function can still be learned for thousands of dimensions and we can still predict the transcriptomic cell states over long time period.
+        grid_num: The number of grids in each dimension for generating the grid velocity.
+        velocity_key: The key from the adata layer that corresponds to the velocity matrix.
+        method: Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other improved approaches
+            are under development.
+        min_vel_corr: The minimal threshold for the cosine correlation between input velocities and learned velocities to consider as a successful
+            vector field reconstruction procedure. If the cosine correlation is less than this threshold and restart_num > 1, `restart_num` trials will be attempted with different seeds to reconstruct the vector field function. This can avoid some reconstructions to be trapped in some local optimal.
+        restart_num: The number of retrials for vector field reconstructions.
+        restart_seed: A list of seeds for each retrial. Must be the same length as `restart_num` or None.
+        buffer_path: The directory address keeping all the saved/to-be-saved torch variables and NN modules. When `method` is set to be `dynode`,
+            buffer_path will set to be
+        return_vf_object: Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`attribute.
+        map_topography: Whether to quantify the topography of vector field. Note that for higher than 2D vector     field, we can only identify
+            fixed points as high-dimensional nullcline and separatrices are mathematically difficult to be identified. Nullcline and separatrices will also be a surface or manifold in high-dimensional vector field.
+        pot_curl_div: Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis while curl and
+            divergence is by default only applied to 2D basis. However, divergence is applicable for any dimension while curl is generally only defined for 2/3 D systems.
+        cores: Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to
             parallel the ddhodge calculation.
         result_key:
             The key that will be used as prefix for the vector field key in .uns
-        copy:
-            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and
+        copy: Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and
             returning `None`.
-        kwargs:
-            Other additional parameters passed to the vectorfield class.
+        kwargs: Other additional parameters passed to the vectorfield class.
 
-    Returns
-    -------
-        adata: :class:`Union[anndata.AnnData, base_vectorfield]`
-            If `copy` and `return_vf_object` arguments are set to False, `annData` object is updated with the `VecFld`
-            dictionary in the `uns` attribute.
-            If `return_vf_object` is set to True, then a vector field class object is returned.
-            If `copy` is set to True, a deep copy of the original `adata` object is returned.
+    Returns:
+        If `copy` and `return_vf_object` arguments are set to False, `annData` object is updated with the `VecFld`dictionary in the `uns` attribute.
+        If `return_vf_object` is set to True, then a vector field class object is returned.
+        If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
     logger = LoggerManager.gen_logger("dynamo-topography")
     logger.info("VectorField reconstruction begins...", indent_level=1)
@@ -955,6 +1177,8 @@ def VectorField(
                 **tp_kwargs,
             )
     if pot_curl_div:
+        from .vector_calculus import curl, divergence
+
         logger.info(f"Running ddhodge to estimate vector field based pseudotime in {basis} basis...")
         from ..external.hodge import ddhodge
 
@@ -1004,27 +1228,21 @@ def VectorField(
 
 
 def assign_fixedpoints(
-    adata: anndata.AnnData,
+    adata: AnnData,
     basis: str = "pca",
     cores: int = 1,
     copy: bool = False,
-) -> Union[None, anndata.AnnData]:
+) -> Optional[AnnData]:
     """Assign each cell in our data to a fixed point.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains reconstructed vector field in the `basis` space.
-        basis:
-            The vector field function for the `basis` that will be used to assign fixed points for each cell.
-        cores:
-            Number of cores to run the fixed-point search for each cell.
-        copy:
-            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and
+    Args:
+        adata: AnnData object that contains reconstructed vector field in the `basis` space.
+        basis: The vector field function for the `basis` that will be used to assign fixed points for each cell.
+        cores: Number of cores to run the fixed-point search for each cell.
+        copy: Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and
             returning `None`.
 
-    Returns
-    -------
+    Returns:
         adata: :class:`Union[None, anndata.AnnData]`
             If `copy` is set to False, return None but the adata object will updated with a `fps_assignment` in .obs as
             well as the `'fps_assignment_' + basis` in the .uns.

@@ -8,7 +8,6 @@
 # =================================================================
 
 import os
-from multiprocessing import Manager, Pool
 from typing import Dict, Optional, Union
 
 import numpy as np
@@ -23,6 +22,7 @@ from scipy import stats
 
 from ...configuration import DKM
 from ...dynamo_logger import main_info, main_info_insert_adata_layer
+from ..utils import get_gene_selection_filter
 
 _EPS = np.finfo(float).eps
 
@@ -213,6 +213,8 @@ def sctransform_core(
         If inplace=True, adata is updated with results in layer `layer`.
         If inplace=False, a new AnnData object with results will be returned.
     """
+    import multiprocessing
+
     main_info("sctransform adata on layer: %s" % (layer))
     X = DKM.select_layer_data(adata, layer).copy()
     X = sp.sparse.csr_matrix(X)
@@ -224,10 +226,8 @@ def sctransform_core(
     genes_ix = genes.copy()
 
     X = X[:, genes]
-    Xraw = X.copy()
     gene_names = gene_names[genes]
     genes = np.arange(X.shape[1])
-    genes_cell_count = X.sum(0).A.flatten()
 
     genes_log_gmean = np.log10(gmean(X, axis=0, eps=gmean_eps))
 
@@ -273,7 +273,10 @@ def sctransform_core(
     bin_ind = np.ceil(np.arange(1, genes_step1.size + 1) / bin_size)
     max_bin = max(bin_ind)
 
-    ps = Manager().dict()
+    ps = multiprocessing.Manager().dict()
+
+    # create a process context of fork that copy a Python process from an existing process.
+    ctx = multiprocessing.get_context("fork")
 
     for i in range(1, int(max_bin) + 1):
         genes_bin_regress = genes_step1[bin_ind == i]
@@ -282,7 +285,9 @@ def sctransform_core(
         mm = np.vstack((np.ones(data_step1.shape[0]), data_step1["log_umi"].values.flatten())).T
 
         pc_chunksize = umi_bin.shape[1] // os.cpu_count() + 1
-        pool = Pool(os.cpu_count(), _parallel_init, [genes_bin_regress, umi_bin, gene_names, mm, ps])
+
+        pool = ctx.Pool(os.cpu_count(), _parallel_init, [genes_bin_regress, umi_bin, gene_names, mm, ps])
+
         try:
             pool.map(_parallel_wrapper, range(umi_bin.shape[1]), chunksize=pc_chunksize)
         finally:
@@ -338,10 +343,6 @@ def sctransform_core(
     theta = 10**genes_log_gmean / (10 ** full_model_pars["dispersion"].values - 1)
     full_model_pars["theta"] = theta
     del full_model_pars["dispersion"]
-
-    model_pars_outliers = outliers
-
-    regressor_data = np.vstack((np.ones(cell_attrs.shape[0]), cell_attrs["log_umi"].values)).T
 
     d = X.data
     x, y = X.nonzero()
@@ -422,3 +423,9 @@ def sctransform(
     """A wrapper calls sctransform_core and set dynamo style keys in adata"""
     for layer in layers:
         sctransform_core(adata, layer=layer, n_genes=n_top_genes, **kwargs)
+    if adata.X.shape[1] > n_top_genes:
+        X_squared = adata.X.copy()
+        X_squared.data **= 2
+        variance = X_squared.mean(0) - np.square(adata.X.mean(0))
+        adata.var["sct_score"] = variance.A1
+        adata.var["use_for_pca"] = get_gene_selection_filter(adata.var["sct_score"], n_top_genes=n_top_genes)

@@ -1,76 +1,71 @@
-from typing import Union
+from typing import List, Optional
 
-import anndata
 import numpy as np
+from anndata import AnnData
 
 from ..dynamo_logger import LoggerManager
 from ..utils import copy_adata
 from .connectivity import _gen_neighbor_keys, neighbors
+from .utils import update_dict
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
 
 def reduceDimension(
-    adata: anndata.AnnData,
+    adata: AnnData,
     X_data: np.ndarray = None,
-    genes: Union[list, None] = None,
-    layer: Union[str, None] = None,
-    basis: Union[str, None] = "pca",
-    dims: Union[list, None] = None,
+    genes: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    basis: Optional[str] = "pca",
+    dims: Optional[List[int]] = None,
     n_pca_components: int = 30,
     n_components: int = 2,
     n_neighbors: int = 30,
     reduction_method: str = "umap",
-    embedding_key: Union[str, None] = None,
-    neighbor_key: Union[str, None] = None,
+    embedding_key: Optional[str] = None,
+    neighbor_key: Optional[str] = None,
     enforce: bool = False,
     cores: int = 1,
     copy: bool = False,
     **kwargs,
-) -> Union[anndata.AnnData, None]:
-    """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear
+) -> Optional[AnnData]:
+    """Compute a low dimension reduction projection of an AnnData object first with PCA, followed by non-linear
     dimension reduction methods
 
-    Arguments
-    ---------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        X_data:
-            The user supplied data that will be used for dimension reduction directly.
-        genes:
-            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
-            all genes will be used.
-        layer:
-            The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
-        basis:
-            The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`, `velocity_pca`
-            (that is, you can use velocity for clustering), etc.
-        dims:
-            The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
-        n_pca_components:
-            Number of input PCs (principle components) that will be used for further non-linear dimension reduction.. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested.
-        n_components:
-            The dimension of the space to embed into.
-        n_neighbors:
-            Number of nearest neighbors when constructing adjacency matrix.
-        reduction_method:
-            Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA
-            components. Currently, PSL
-            (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE
-            used) or umap are supported.
-        embedding_key:
-            The str in .obsm that will be used as the key to save the reduced embedding space. By default it is None and
-            embedding key is set as layer + reduction_method. If layer is None, it will be "X_neighbors".
-        neighbor_key:
-            The str in .uns that will be used as the key to save the nearest neighbor graph. By default it is None and
-            neighbor_key key is set as layer + "_neighbors". If layer is None, it will be "X_neighbors".
-        cores:
-            Number of cores. Used only when the tSNE reduction_method is used.
+    Args:
+        adata: an AnnData object.
+        X_data: the user supplied data that will be used for dimension reduction directly. Defaults to None.
+        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+            all genes will be used. Defaults to None.
+        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+            used. Defaults to None.
+        basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
+            `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
+        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+            Defaults to None.
+        n_pca_components: Number of input PCs (principle components) that will be used for further non-linear dimension
+            reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
+            corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
+        n_components: the dimension of the space to embed into. Defaults to 2.
+        n_neighbors: the number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
+        reduction_method: Non-linear dimension reduction method to further reduce dimension based on the top
+            n_pca_components PCA components. Currently, PSL (probablistic structure learning, a new dimension reduction
+            by us), tSNE (fitsne instead of traditional tSNE used) or umap are supported. Defaults to "umap".
+        embedding_key: The str in .obsm that will be used as the key to save the reduced embedding space. By default it
+            is None and embedding key is set as layer + reduction_method. If layer is None, it will be "X_neighbors".
+            Defaults to None.
+        neighbor_key: The str in .uns that will be used as the key to save the nearest neighbor graph. By default it is
+            None and neighbor_key key is set as layer + "_neighbors". If layer is None, it will be "X_neighbors".
+            Defaults to None.
+        enforce: whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
+            Defaults to False.
+        cores: the number of cores used for calculation. Used only when tSNE reduction_method is used. Defaults to 1.
+        copy: whether to return a copy of the AnnData object or update the object in place. Defaults to False.
+        kwargs: other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
+            significantly influence the reduction result.
 
-    Returns
-    -------
-       adata: :class:`~anndata.AnnData`
-            An new or updated anndata object, based on copy parameter, that are updated with reduced dimension data for
-            data from different layers.
+    Returns:
+        An updated AnnData object updated with reduced dimension data for data from different layers, returned if `copy`
+        is true.
     """
 
     logger = LoggerManager.gen_logger("dynamo-dimension-reduction")
@@ -78,7 +73,8 @@ def reduceDimension(
 
     adata = copy_adata(adata) if copy else adata
 
-    logger.info("retrive data for non-linear dimension reduction...", indent_level=1)
+    logger.info("retrieve data for non-linear dimension reduction...", indent_level=1)
+
     if X_data is None:
         X_data, n_components, basis = prepare_dim_reduction(
             adata,
@@ -107,7 +103,7 @@ def reduceDimension(
         conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
 
     if enforce or not has_basis:
-        logger.info(f"perform {reduction_method}...", indent_level=1)
+        logger.info(f"[{reduction_method.upper()}] using {basis} with n_pca_components = {n_pca_components}", indent_level=1)
         adata = run_reduce_dim(
             adata,
             X_data,
@@ -123,11 +119,88 @@ def reduceDimension(
     if neighbor_key not in adata.uns_keys():
         neighbors(adata)
 
-    logger.finish_progress(progress_name="dimension_reduction projection")
+    logger.finish_progress(progress_name=reduction_method.upper())
 
     if copy:
         return adata
     return None
+
+
+def run_umap(
+    adata: AnnData,
+    X_data: np.ndarray = None,
+    genes: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    basis: Optional[str] = "pca",
+    dims: Optional[List[int]] = None,
+    n_pca_components: int = 30,
+    n_components: int = 2,
+    n_neighbors: int = 30,
+    embedding_key: Optional[str] = None,
+    neighbor_key: Optional[str] = None,
+    enforce: bool = False,
+    cores: int = 1,
+    copy: bool = False,
+    min_dist: float = 0.5,
+    **kwargs,
+) -> Optional[AnnData]:
+    """Compute a low dimension reduction projection of an AnnData object first with PCA, followed by UMAP.
+
+    This is a wrap for reduce Dimension, with the important min_dist value specified straightforwardly.
+
+    Args:
+        adata: an AnnData object.
+        X_data: the user supplied data that will be used for dimension reduction directly. Defaults to None.
+        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+            all genes will be used. Defaults to None.
+        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+            used. Defaults to None.
+        basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
+            `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
+        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+            Defaults to None.
+        n_pca_components: Number of input PCs (principle components) that will be used for further non-linear dimension
+            reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
+            corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
+        n_components: the dimension of the space to embed into. Defaults to 2.
+        n_neighbors: the number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
+        embedding_key: The str in .obsm that will be used as the key to save the reduced embedding space. By default it
+            is None and embedding key is set as layer + reduction_method. If layer is None, it will be "X_neighbors".
+            Defaults to None.
+        neighbor_key: The str in .uns that will be used as the key to save the nearest neighbor graph. By default it is
+            None and neighbor_key key is set as layer + "_neighbors". If layer is None, it will be "X_neighbors".
+            Defaults to None.
+        enforce: whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
+            Defaults to False.
+        cores: the number of cores used for calculation. Used only when tSNE reduction_method is used. Defaults to 1.
+        copy: whether to return a copy of the AnnData object or update the object in place. Defaults to False.
+        min_dist: the min_dist arg passed to umap.UMAP.
+        kwargs: other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
+            significantly influence the reduction result.
+
+    Returns:
+        An updated AnnData object updated with reduced dimension data for data from different layers, returned if `copy`
+        is true.
+    """
+    kwargs = update_dict(kwargs, {"min_dist": min_dist})
+    return reduceDimension(
+        adata=adata,
+        X_data=X_data,
+        genes=genes,
+        layer=layer,
+        basis=basis,
+        dims=dims,
+        n_pca_components=n_pca_components,
+        n_components=n_components,
+        n_neighbors=n_neighbors,
+        reduction_method="umap",
+        embedding_key=embedding_key,
+        neighbor_key=neighbor_key,
+        enforce=enforce,
+        cores=cores,
+        copy=copy,
+        **kwargs,
+    )
 
 
 # @docstrings.with_indent(4)

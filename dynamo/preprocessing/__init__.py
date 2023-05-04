@@ -11,8 +11,6 @@ from .external import (
     select_genes_by_pearson_residuals,
 )
 from .preprocess import (
-    Gini,
-    SVRs,
     calc_sz_factor_legacy,
     filter_cells_by_outliers,
     filter_cells_legacy,
@@ -23,7 +21,6 @@ from .preprocess import (
     normalize_cell_expr_by_size_factors_legacy,
     recipe_monocle,
     recipe_velocyto,
-    select_genes_monocle,
 )
 from .preprocessor_utils import *
 from .utils import (
@@ -41,11 +38,11 @@ from .utils import (
 
 filter_cells = filter_cells_by_outliers
 filter_genes = filter_genes_by_outliers
-log1p = log1p_adata
-normalize_cells = normalize_cell_expr_by_size_factors
+log1p = log1p
+normalize_cells = normalize
 
 from .CnmfPreprocessor import CnmfPreprocessor
-from .preprocess_monocle_utils import estimate_dispersion, top_table
+from .gene_selection import calc_Gini, calc_dispersion_by_svr, select_genes_monocle
 from .Preprocessor import Preprocessor
 
 __all__ = [
@@ -55,20 +52,18 @@ __all__ = [
     "normalize_cells",
     "lambda_correction",
     "calc_sz_factor_legacy",
-    "normalize_cell_expr_by_size_factors",
     "normalize_layers_pearson_residuals",
+    "normalize",
     "recipe_monocle",
     "recipe_velocyto",
-    "Gini",
-    "top_table",
-    "estimate_dispersion",
+    "calc_Gini",
     "filter_cells_by_outliers",
     "select_genes_monocle",
     "select_genes_by_pearson_residuals",
     "filter_genes",
     "filter_genes_by_outliers",
     "filter_genes_by_clusters_",
-    "SVRs",
+    "calc_dispersion_by_svr",
     "get_svr_filter",
     "highest_frac_genes",
     "cell_cycle_scores",
@@ -85,7 +80,7 @@ __all__ = [
     "Preprocessor",
     "CnmfPreprocessor",
     "log1p",
-    "log1p_adata",
+    "log1p",
     "log1p_adata_layer",
     "harmony_debatch",
     "integrate",
