@@ -1,42 +1,45 @@
+from typing import Any, Dict, Optional
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
+import numpy as np
+from anndata import AnnData
+from matplotlib.axes import Axes
+
 from ..tools.utils import update_dict
 from .utils import save_fig
 
 
 def show_landscape(
-    adata,
-    Xgrid,
-    Ygrid,
-    Zgrid,
-    basis="umap",
-    save_show_or_return="show",
-    save_kwargs={},
-):
+    adata: AnnData,
+    Xgrid: np.ndarray,
+    Ygrid: np.ndarray,
+    Zgrid: np.ndarray,
+    basis: str = "umap",
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[Axes]:
     """Plot the quasi-potential landscape.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains Xgrid, Ygrid and Zgrid data for visualizing potential landscape.
-        Xgrid: `numpy.ndarray`
-            x-coordinates of the Grid produced from the meshgrid function.
-        Ygrid: `numpy.ndarray`
-                y-coordinates of the Grid produced from the meshgrid function.
-        Zgrid: `numpy.ndarray`
-                z-coordinates or potential at each of the x/y coordinate.
-        basis: `str` (default: umap)
-            The method of dimension reduction. By default it is trimap. Currently it is not checked with Xgrid and Ygrid.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'show_landscape', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+    Args:
+        adata: an AnnData object that contains Xgrid, Ygrid and Zgrid data for visualizing potential landscape.
+        Xgrid: x-coordinates of the Grid produced from the meshgrid function.
+        Ygrid: y-coordinates of the Grid produced from the meshgrid function.
+        Zgrid: z-coordinates or potential at each of the x/y coordinate.
+        basis: the method of dimension reduction. By default, it is trimap. Currently, it is not checked with Xgrid and
+            Ygrid. Defaults to "umap".
+        save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'show_landscape', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your need. Defaults to {}.
 
-    Returns
-    -------
-        A 3D plot showing the quasi-potential of each cell state.
-
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib axes of the
+        figure would be returned.
     """
 
     if "grid_Pot_" + basis in adata.uns.keys():
@@ -84,7 +87,7 @@ def show_landscape(
     ax.set_ylabel(basis + "_2")
     ax.set_zlabel("U")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "show_landscape",
@@ -96,11 +99,14 @@ def show_landscape(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 

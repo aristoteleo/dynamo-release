@@ -10,6 +10,7 @@ from ..dynamo_logger import LoggerManager
 from ..tools.utils import fetch_states, nearest_neighbors
 from ..vectorfield import SvcVectorField
 from ..vectorfield.utils import (
+    vecfld_from_adata,
     vector_field_function_transformation,
     vector_transformation,
 )
@@ -61,7 +62,7 @@ class LeastActionPath(Trajectory):
         self.D = D
         self._action = np.zeros(X.shape[0])
         for i in range(1, len(self._action)):
-            self._action[i] = self.action(self.X[: i + 1], self.func, self.D, dt)
+            self._action[i] = action(self.X[: i + 1], self.func, self.D, dt)
 
     def get_t(self) -> np.ndarray:
         """
@@ -81,7 +82,7 @@ class LeastActionPath(Trajectory):
         """
         return np.mean(np.diff(self.t))
 
-    def action(self, t: Optional[float] = None, **interp_kwargs) -> np.ndarray:
+    def action_t(self, t: Optional[float] = None, **interp_kwargs) -> np.ndarray:
         """
         Returns the Least Action Path action values at time t.
 
@@ -472,8 +473,12 @@ def least_action(
     logger = LoggerManager.gen_logger("dynamo-least-action-path")
 
     if vecfld is None:
-        vf = SvcVectorField()
-        vf.from_adata(adata, basis=basis, vf_key=vf_key)
+        vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
+        if vf_dict["method"] == "dynode":
+            vf = vf_dict["dynode_object"]
+        else:
+            vf = SvcVectorField()
+            vf.from_adata(adata, basis=basis, vf_key=vf_key)
     else:
         vf = vecfld
 
@@ -572,7 +577,7 @@ def least_action(
         trajectory.append(traj)
         t.append(np.arange(path_sol.shape[0]) * dt_sol)
         prediction.append(path_sol)
-        action.append(traj.action())
+        action.append(traj.action_t())
         mftp.append(traj.mfpt())
 
         if basis == "pca":

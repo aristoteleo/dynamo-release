@@ -1,10 +1,16 @@
+from typing import Optional
+
+import anndata
 import numpy as np
 
 from .DDRTree_py import DDRTree
 from .utils import log1p_
 
 
-def Pseudotime(adata, layer="X", basis=None, method="DDRTree", **kwargs):
+def Pseudotime(
+    adata: anndata.AnnData, layer: str = "X", basis: Optional[str] = None, method: str = "DDRTree", **kwargs
+) -> anndata.AnnData:
+
     """
 
     Parameters

@@ -1,17 +1,23 @@
 import re
 
-import matplotlib
 import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 import scipy
-from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
 
-from .DDRTree_py import DDRTree_py
+from .DDRTree_py import DDRTree
 
 
-def remove_velocity_points(G, n):
+def remove_velocity_points(G: np.ndarray, n: int) -> np.ndarray:
+    """Modify a tree graph to remove the nodes themselves and recalculate the weights.
+
+    Args:
+        G: a smooth tree graph embedded in the low dimension space.
+        n: the number of genes (column num of the original data)
+
+    Returns:
+        The tree graph with a node itself removed and weight recalculated.
+    """
     for nodeid in range(n, 2 * n):
         nb_ids = []
         for nb_id in range(len(G[0])):
@@ -41,7 +47,18 @@ def remove_velocity_points(G, n):
     return G
 
 
-def calculate_angle(o, y, x):
+def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
+    """Calculate the angle between two vectors.
+
+    Args:
+        o: coordination of the origin.
+        y: end point of the first vector.
+        x: end point of the second vector.
+
+    Returns:
+        The angle between the two vectors.
+    """
+
     yo = y - o
     norm_yo = yo / scipy.linalg.norm(yo)
     xo = x - o
@@ -50,7 +67,13 @@ def calculate_angle(o, y, x):
     return angle
 
 
-def construct_velocity_tree_py(X1, X2):
+def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:
+    """Save a velocity tree graph with given data.
+
+    Args:
+        X1: epxression matrix.
+        X2: velocity matrix.
+    """
     n = X1.shape[1]
 
     # merge two data with a given time
@@ -64,7 +87,7 @@ def construct_velocity_tree_py(X1, X2):
     gamma = 10
 
     # run DDRTree algorithm
-    W, Z, stree, Y, R, history = DDRTree_py(X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma)
+    W, Z, stree, Y, R, history = DDRTree(X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma)
 
     # draw velocity figure
 

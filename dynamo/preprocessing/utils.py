@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Iterable, List, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -14,8 +14,12 @@ import scipy
 import scipy.sparse
 import statsmodels.api as sm
 from anndata import AnnData
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse import csc_matrix, csr_matrix, issparse
+from scipy.sparse.linalg import LinearOperator, svds
 from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.utils import check_random_state
+from sklearn.utils.extmath import svd_flip
+from sklearn.utils.sparsefuncs import mean_variance_axis
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import (
@@ -398,7 +402,7 @@ def merge_adata_attrs(adata_ori: AnnData, adata: AnnData, attr: Literal["var", "
             The merged DataFrame.
         """
 
-        _columns = set(diff_df.columns).difference(origin_df.columns)
+        _columns = list(set(diff_df.columns).difference(origin_df.columns))
         new_df = origin_df.merge(diff_df[_columns], how="left", left_index=True, right_index=True)
         return new_df.loc[origin_df.index, :]
 
@@ -524,6 +528,28 @@ def clusters_stats(
     return U_avgs, S_avgs
 
 
+def get_gene_selection_filter(
+    valid_table: pd.Series,
+    n_top_genes: int = 2000,
+    basic_filter: Optional[pd.Series] = None,
+) -> np.ndarray:
+    """Generate the mask by sorting given table of scores.
+
+        Args:
+            valid_table: the scores used to sort the highly variable genes.
+            n_top_genes: number of top genes to be filtered. Defaults to 2000.
+            basic_filter: the filter to remove outliers. For example, the `adata.var["pass_basic_filter"]`.
+
+        Returns:
+            The filter mask as a bool array.
+    """
+    if basic_filter is None:
+        basic_filter = pd.Series(True, index=valid_table.index)
+    feature_gene_idx = np.argsort(-valid_table)[:n_top_genes]
+    feature_gene_idx = valid_table.index[feature_gene_idx]
+    return basic_filter.index.isin(feature_gene_idx)
+
+
 def get_svr_filter(
     adata: anndata.AnnData, layer: str = "spliced", n_top_genes: int = 3000, return_adata: bool = False
 ) -> Union[anndata.AnnData, np.ndarray]:
@@ -578,8 +604,10 @@ def sz_util(
         layer: the layer to operate on.
         round_exprs: whether the gene expression should be rounded into integers.
         method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`.
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         locfunc: the function to normalize the data.
         total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
@@ -597,28 +625,18 @@ def sz_util(
 
     if layer == "_total_" and "_total_" not in adata.layers.keys():
         if total_layers is not None:
-            if not isinstance(total_layers, list):
-                total_layers = [total_layers]
-            if len(set(total_layers).difference(adata.layers.keys())) == 0:
-                total = None
-                for t_key in total_layers:
-                    total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
-                adata.layers["_total_"] = total
+            total_layers, _ = DKM.aggregate_layers_into_total(
+                adata,
+                total_layers=total_layers,
+                extend_layers=False,
+            )
 
-    if layer == "raw":
-        CM = adata.raw.X if CM is None else CM
-    elif layer == "X":
-        CM = adata.X if CM is None else CM
-    elif layer == "protein":
-        if "protein" in adata.obsm_keys():
-            CM = adata.obsm["protein"] if CM is None else CM
-        else:
-            return None, None
-    else:
-        CM = adata.layers[layer] if CM is None else CM
+    CM = DKM.select_layer_data(adata, layer) if CM is None else CM
+    if CM is None:
+        return None, None
 
     if round_exprs:
-        main_info("rounding expression data of layer: %s during size factor calculation" % (layer))
+        main_debug("rounding expression data of layer: %s during size factor calculation" % (layer))
         if issparse(CM):
             CM.data = np.round(CM.data, 0)
         else:
@@ -680,15 +698,21 @@ def get_sz_exprs(
 
 
 def normalize_mat_monocle(
-    mat: np.ndarray, szfactors: np.ndarray, relative_expr: bool, pseudo_expr: int, norm_method: Callable = np.log1p
+    mat: np.ndarray,
+    szfactors: np.ndarray,
+    relative_expr: bool,
+    pseudo_expr: int,
+    norm_method: Callable = np.log1p,
 ) -> np.ndarray:
     """Normalize the given array for monocle recipe.
 
     Args:
         mat: the array to operate on.
         szfactors: the size factors corresponding to the array.
-        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
-        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization.
+        relative_expr: whether we need to divide gene expression values first by
+            size factor before normalization.
+        pseudo_expr: a pseudocount added to the gene expression value before
+            log/log2 normalization.
         norm_method: the method used to normalize data. Defaults to np.log1p.
 
     Returns:
@@ -713,7 +737,20 @@ def normalize_mat_monocle(
     return mat
 
 
-def Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
+def size_factor_normalize(mat: np.ndarray, szfactors: np.ndarray) -> np.ndarray:
+    """perform size factor normalization on the given array.
+
+    Args:
+        mat: the array to operate on.
+        szfactors: the size factors corresponding to the array.
+
+    Returns:
+        The normalized array divided by size factor
+    """
+    return mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
+
+
+def _Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
     """perform Freeman-Tukey transform or inverse transform on the given array.
 
     Args:
@@ -775,37 +812,187 @@ def decode(adata: anndata.AnnData) -> None:
 # pca
 
 
-def pca_monocle(
+def _truncatedSVD_with_center(
+    X: Union[csc_matrix, csr_matrix],
+    n_components: int = 30,
+    random_state: int = 0,
+) -> Dict:
+    """Center a sparse matrix and perform truncated SVD on it.
+
+    It uses `scipy.sparse.linalg.LinearOperator` to express the centered sparse
+    input by given matrix-vector and matrix-matrix products. Then truncated
+    singular value decomposition (SVD) can be solved without calculating the
+    individual entries of the centered matrix. The right singular vectors after
+    decomposition represent the principal components. This function is inspired
+    by the implementation of scanpy (https://github.com/scverse/scanpy).
+
+    Args:
+        X: The input sparse matrix to perform truncated SVD on.
+        n_components: The number of components to keep. Default is 30.
+        random_state: Seed for the random number generator. Default is 0.
+
+    Returns:
+        The transformed input matrix and a sklearn PCA object containing the
+        right singular vectors and amount of variance explained by each
+        principal component.
+    """
+    random_state = check_random_state(random_state)
+    np.random.set_state(random_state.get_state())
+    v0 = random_state.uniform(-1, 1, np.min(X.shape))
+    n_components = min(n_components, X.shape[1] - 1)
+
+    mean = X.mean(0)
+    X_H = X.T.conj()
+    mean_H = mean.T.conj()
+    ones = np.ones(X.shape[0])[None, :].dot
+
+    # Following callables implements different type of matrix calculation.
+    def matvec(x):
+        """Matrix-vector multiplication. Performs the operation X_centered*x
+        where x is a column vector or an 1-D array."""
+        return X.dot(x) - mean.dot(x)
+
+    def matmat(x):
+        """Matrix-matrix multiplication. Performs the operation X_centered*x
+        where x is a matrix or ndarray."""
+        return X.dot(x) - mean.dot(x)
+
+    def rmatvec(x):
+        """Adjoint matrix-vector multiplication. Performs the operation
+        X_centered^H * x where x is a column vector or an 1-d array."""
+        return X_H.dot(x) - mean_H.dot(ones(x))
+
+    def rmatmat(x):
+        """Adjoint matrix-matrix multiplication. Performs the operation
+        X_centered^H * x where x is a matrix or ndarray."""
+        return X_H.dot(x) - mean_H.dot(ones(x))
+
+    # Construct the LinearOperator with callables above.
+    X_centered = LinearOperator(
+        shape=X.shape,
+        matvec=matvec,
+        matmat=matmat,
+        rmatvec=rmatvec,
+        rmatmat=rmatmat,
+        dtype=X.dtype,
+    )
+
+    # Solve SVD without calculating individuals entries in LinearOperator.
+    U, Sigma, VT = svds(X_centered, solver="arpack", k=n_components, v0=v0)
+    Sigma = Sigma[::-1]
+    U, VT = svd_flip(U[:, ::-1], VT[::-1])
+    X_transformed = U * Sigma
+    components_ = VT
+    exp_var = np.var(X_transformed, axis=0)
+    _, full_var = mean_variance_axis(X, axis=0)
+    full_var = full_var.sum()
+
+    result_dict = {
+        "X_pca": X_transformed,
+        "components_": components_,
+        "explained_variance_ratio_": exp_var / full_var,
+    }
+
+    fit = PCA(
+        n_components=n_components,
+        random_state=random_state,
+    )
+    X_pca = result_dict["X_pca"]
+    fit.mean_ = mean.A1.flatten()
+    fit.components_ = result_dict["components_"]
+    fit.explained_variance_ratio_ = result_dict["explained_variance_ratio_"]
+
+    return fit, X_pca
+
+
+def _pca_fit(
+    X: np.ndarray,
+    pca_func: Callable,
+    n_components: int = 30,
+    **kwargs,
+) -> Tuple:
+    """Apply PCA to the input data array X using the specified PCA function.
+
+    Args:
+        X: the input data array of shape (n_samples, n_features).
+        pca_func: the PCA function to use, which should have a 'fit' and
+            'transform' method, such as the PCA class or the IncrementalPCA
+            class from sklearn.decomposition.
+        n_components: the number of principal components to compute. If
+            n_components is greater than or equal to the number of features in
+            X, it will be set to n_features - 1 to avoid overfitting.
+        **kwargs: any additional keyword arguments that will be passed to the
+            PCA function.
+
+    Returns:
+        A tuple containing two elements:
+            - The fitted PCA object, which has a 'fit' and 'transform' method.
+            - The transformed array X_pca of shape (n_samples, n_components).
+    """
+    fit = pca_func(
+        n_components=min(n_components, X.shape[1] - 1),
+        **kwargs,
+    ).fit(X)
+    X_pca = fit.transform(X)
+    return fit, X_pca
+
+
+def pca(
     adata: AnnData,
     X_data: np.ndarray = None,
     n_pca_components: int = 30,
-    pca_key: str = "X",
+    pca_key: str = "X_pca",
     pcs_key: str = "PCs",
     genes_to_append: Union[List[str], None] = None,
     layer: Union[List[str], str, None] = None,
+    svd_solver: Literal["randomized", "arpack"] = "randomized",
+    random_state: int = 0,
+    use_truncated_SVD_threshold: int = 500000,
+    use_incremental_PCA: bool = False,
+    incremental_batch_size: Optional[int] = None,
     return_all: bool = False,
 ) -> Union[AnnData, Tuple[AnnData, Union[PCA, TruncatedSVD], np.ndarray]]:
     """Perform PCA reduction for monocle recipe.
+
+    When large dataset is used (e.g. 1 million cells are used), Incremental PCA
+    is recommended to avoid the memory issue. When cell number is less than half
+    a million, by default PCA or _truncatedSVD_with_center (use sparse matrix
+    that doesn't explicitly perform centering) will be used. TruncatedSVD is the
+    fastest method. Unlike other methods which will center the data first,  it
+    performs SVD decomposition on raw input. Only use this when dataset is too
+    large for other methods.
 
     Args:
         adata: an AnnData object.
         X_data: the data to perform dimension reduction on. Defaults to None.
         n_pca_components: number of PCA components reduced to. Defaults to 30.
         pca_key: the key to store the reduced data. Defaults to "X".
-        pcs_key: the key to store the principle axes in feature space. Defaults to "PCs".
+        pcs_key: the key to store the principle axes in feature space. Defaults
+            to "PCs".
         genes_to_append: a list of genes should be inspected. Defaults to None.
-        layer: the layer(s) to perform dimension reduction on. Would be overrided by X_data. Defaults to None.
-        return_all: whether to return the PCA fit model and the reduced array together with the updated AnnData object.
-            Defaults to False.
+        layer: the layer(s) to perform dimension reduction on. Would be
+            overrided by X_data. Defaults to None.
+        svd_solver: the svd_solver to solve svd decomposition in PCA.
+        random_state: the seed used to initialize the random state for PCA.
+        use_truncated_SVD_threshold: the threshold of observations to use
+            truncated SVD instead of standard PCA for efficiency.
+        use_incremental_PCA: whether to use Incremental PCA. Recommend enabling
+            incremental PCA when dataset is too large to fit in memory.
+        incremental_batch_size: The number of samples to use for each batch when
+            performing incremental PCA. If batch_size is None, then batch_size
+            is inferred from the data and set to 5 * n_features.
+        return_all: whether to return the PCA fit model and the reduced array
+            together with the updated AnnData object. Defaults to False.
 
     Raises:
         ValueError: layer provided is not invalid.
         ValueError: list of genes to append is invalid.
 
     Returns:
-        The the updated AnnData object with reduced data if `return_all` is False. Otherwise, a tuple (adata, fit,
-        X_pca), where adata is the updated AnnData object, fit is the fit model for dimension reduction, and X_pca is
-        the reduced array, will be returned.
+        The updated AnnData object with reduced data if `return_all` is False.
+        Otherwise, a tuple (adata, fit, X_pca), where adata is the updated
+        AnnData object, fit is the fit model for dimension reduction, and X_pca
+        is the reduced array, will be returned.
     """
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
@@ -847,34 +1034,51 @@ def pca_monocle(
         adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
         X_data = X_data[:, valid_ind]
 
-    USE_TRUNCATED_SVD_THRESHOLD = 100000
-    if adata.n_obs < USE_TRUNCATED_SVD_THRESHOLD:
-        pca = PCA(
-            n_components=min(n_pca_components, X_data.shape[1] - 1),
-            svd_solver="arpack",
-            random_state=0,
-        )
-        fit = pca.fit(X_data.toarray()) if issparse(X_data) else pca.fit(X_data)
-        X_pca = fit.transform(X_data.toarray()) if issparse(X_data) else fit.transform(X_data)
-        adata.obsm[pca_key] = X_pca
-        adata.uns[pcs_key] = fit.components_.T
+    if use_incremental_PCA:
+        from sklearn.decomposition import IncrementalPCA
 
+        fit, X_pca = _pca_fit(
+            X_data,
+            pca_func=IncrementalPCA,
+            n_components=n_pca_components,
+            batch_size=incremental_batch_size,
+        )
+    else:
+        if adata.n_obs < use_truncated_SVD_threshold:
+            if not issparse(X_data):
+                fit, X_pca = _pca_fit(
+                    X_data,
+                    pca_func=PCA,
+                    n_components=n_pca_components,
+                    svd_solver=svd_solver,
+                    random_state=random_state,
+                )
+            else:
+                fit, X_pca = _truncatedSVD_with_center(
+                    X_data,
+                    n_components=n_pca_components,
+                    random_state=random_state,
+                )
+        else:
+            # TruncatedSVD is the fastest method we have. It doesn't center the
+            # data. It only performs SVD decomposition, which is the second part
+            # in our _truncatedSVD_with_center function.
+            fit, X_pca = _pca_fit(
+                X_data, pca_func=TruncatedSVD, n_components=n_pca_components + 1, random_state=random_state
+            )
+            # first columns is related to the total UMI (or library size)
+            X_pca = X_pca[:, 1:]
+
+    adata.obsm[pca_key] = X_pca
+    if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
+        adata.uns[pcs_key] = fit.components_.T
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
-        # unscaled PCA
-        fit = TruncatedSVD(
-            n_components=min(n_pca_components + 1, X_data.shape[1] - 1),
-            random_state=0,
-        )
         # first columns is related to the total UMI (or library size)
-        X_pca = fit.fit_transform(X_data)[:, 1:]
-        adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T[:, 1:]
-
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-    adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
+    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else np.zeros(X_data.shape[1])
 
     if return_all:
         return adata, fit, X_pca
@@ -1127,10 +1331,10 @@ def calc_new_to_total_ratio(adata: anndata.AnnData) -> Union[Tuple[np.ndarray, n
 
 
 def scale(
-    adata: anndata.AnnData,
+    adata: AnnData,
     layers: Union[List[str], str, None] = None,
-    scale_to_layer: Union[str, None] = None,
-    scale_to: float = 1e6,
+    scale_to_layer: Optional[str] = None,
+    scale_to: float = 1e4,
 ) -> anndata.AnnData:
     """Scale layers to a particular total expression value, similar to `normalize_expr_data` function.
 
@@ -1145,8 +1349,9 @@ def scale(
         The scaled AnnData object.
     """
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
-    has_splicing, has_labeling, _ = detect_experiment_datatype(adata)
+    if layers is None:
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers="all")
+    has_splicing, has_labeling = detect_experiment_datatype(adata)[:2]
 
     if scale_to_layer is None:
         scale_to_layer = "total" if has_labeling else None
@@ -1155,9 +1360,8 @@ def scale(
         scale = None
 
     for layer in layers:
-        if scale is None:
-            scale = scale_to / adata.layers[layer].sum(1)
-
+        # if scale is None:
+        scale = scale_to / adata.layers[layer].sum(1)
         adata.layers[layer] = csr_matrix(adata.layers[layer].multiply(scale))
 
     return adata

@@ -1,14 +1,14 @@
 import warnings
-from typing import Union
+from typing import Callable, List, Optional, Tuple, Union
 
-import anndata
 import numpy as np
+from anndata import AnnData
 from scipy.sparse import csr_matrix, diags, issparse, lil_matrix
 from tqdm import tqdm
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import pca, normalize_mat_monocle, sz_util
 from ..utils import copy_adata
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from .utils import elem_prod, get_mapper, inverse_norm
@@ -17,62 +17,56 @@ from .utils import elem_prod, get_mapper, inverse_norm
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
 def moments(
-    adata: anndata.AnnData,
-    X_data: np.ndarray = None,
-    genes: Union[list, None] = None,
-    group: Union[str, None] = None,
-    conn: Union[csr_matrix, None] = None,
+    adata: AnnData,
+    X_data: Optional[np.ndarray] = None,
+    genes: Optional[list] = None,
+    group: Optional[str] = None,
+    conn: Optional[csr_matrix] = None,
     use_gaussian_kernel: bool = False,
     normalize: bool = True,
     use_mnn: bool = False,
-    layers: str = "all",
+    layers: Union[List[str], str] = "all",
     n_pca_components: int = 30,
     n_neighbors: int = 30,
     copy: bool = False,
-) -> Union[anndata.AnnData, None]:
-    """Calculate kNN based first and second moments (including uncentered covariance) for
-     different layers of data.
+) -> Optional[AnnData]:
+    """Calculate kNN based first and second moments (including uncentered covariance) for different layers of data.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object.
-        X_data: `np.ndarray` (default: `None`)
-            The user supplied data that will be used for constructing the nearest neighbor graph directly.
-        genes: `np.array` (default: `None`)
-            The one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is
+    Args:
+        adata: an AnnData object.
+        X_data: the user supplied data that will be used for constructing the nearest neighbor graph directly. Defaults
+            to None.
+        genes: the one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is
              not available). `X` keyname (instead of `X_pca`) was used to enable you use a different set of genes for
              flexible connectivity graph construction. If `None`, by default it will select genes based `use_for_pca`
-             key in .var attributes if it exists otherwise it will also all genes stored in adata.X
-        group: `str` or None (default: `None`)
-            The column key/name that identifies the grouping information (for example, clusters that correspond to
+             key in .var attributes if it exists otherwise it will also all genes stored in adata.X. Defaults to None.
+        group: the column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used to compute kNN graph for each
-            group (i.e cell-type/time-point). This is important, for example, we don't want cells from different
-            labeling time points to be mixed when performing the kNN graph for calculating the moments.
-        conn: csr_matrix or None (default: `None`)
-            The connectivity graph that will be used for moment calculations.
-        use_gaussian_kernel: `bool` (default: `True`)
-            Whether to normalize the kNN graph via a Guasian kernel.
-        normalize: `bool` (default: `True`)
-            Whether to normalize the connectivity matrix so that each row sums up to 1. When `use_gaussian_kernel` is
-            False, this will be reset to be False because we will already normalize the connectivity matrix matrix by
-            dividing each row the total number of connections.
-        use_mnn: `bool` (default: `False`)
-            Whether to use mutual kNN across different layers as for the moment calculation.
-        layers: `str` or a list of str (default: `str`)
-            The layers that will be used for calculating the moments.
-        n_pca_components: `int` (default: `30`)
-            The number of pca components to use for constructing nearest neighbor graph and calculating 1/2-st moments.
-        n_neighbors: `int` (default: `30`)
-            The number of neighbors for constructing nearest neighbor graph used to calculate 1/2-st moments.
+            group (i.e. cell-type/time-point). This is important, for example, we don't want cells from different
+            labeling time points to be mixed when performing the kNN graph for calculating the moments. Defaults to
+            None.
+        conn: the connectivity graph that will be used for moment calculations. Defaults to None.
+        use_gaussian_kernel: whether to normalize the kNN graph via a Guasian kernel. Defaults to False.
+        normalize: whether to normalize the connectivity matrix so that each row sums up to 1. When
+            `use_gaussian_kernel` is False, this will be reset to be False because we will already normalize the
+            connectivity matrix by dividing each row the total number of connections. Defaults to True.
+        use_mnn: whether to use mutual kNN across different layers as for the moment calculation. Defaults to False.
+        layers: the layers that will be used for calculating the moments. Defaults to "all".
+        n_pca_components: the number of pca components to use for constructing nearest neighbor graph and calculating
+            1/2-st moments. Defaults to 30.
+        n_neighbors: the number of pca components to use for constructing nearest neighbor graph and calculating 1/2-st
+            moments. Defaults to 30.
+        copy: whether to return a new updated AnnData object or update inplace. Defaults to False.
 
-    Returns
-    -------
-         adata: :class:`Union[AnnData, None]`
-            If `copy` is set to False, `annData` object is updated with with calculated first/second moments (including
-                uncentered covariance)
-            If `copy` is set to True, a deep copy of the original `adata` object is returned.
+    Raises:
+        Exception: `group` is invalid.
+        ValueError: `conn` is invalid. It should be a square array with dimension equal to the cell number.
+
+    Returns:
+        The updated AnnData object if `copy` is true. Otherwise, the AnnData object passed in would be updated inplace
+        and None would be returned.
     """
+
     logger = LoggerManager.gen_logger("dynamo-moments")
     logger.info("calculating first/second moments...", indent_level=1)
     logger.log_time()
@@ -121,7 +115,7 @@ def moments(
                         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                         valid_ind = np.array(valid_ind).flatten()
                         CM = CM[:, valid_ind]
-                        adata, fit, _ = pca_monocle(
+                        adata, fit, _ = pca(
                             adata,
                             CM,
                             n_pca_components=n_pca_components,
@@ -241,36 +235,26 @@ def moments(
 
 
 def time_moment(
-    adata,
-    tkey,
-    has_splicing,
-    has_labeling=True,
-    t_label_keys=None,
-):
-    """Calculate time based first and second moments (including uncentered covariance) for
-     different layers of data.
+    adata: AnnData,
+    tkey: Optional[str],
+    has_splicing: bool,
+    has_labeling: bool = True,
+    t_label_keys: Union[List[str], str, None] = None,
+) -> AnnData:
+    """Calculate time based first and second moments (including uncentered covariance) for different layers of data.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object.
-        tkey: `str` or None (default: None)
-            The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            mode  with labeled data.
-        has_splicing: `bool`
-            Whether the data has splicing information.
-        has_labeling: `bool` (default: True)
-            Whether the data has labeling information.
-        t_label_keys: `str`, `list` or None (default: None)
-            The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
-            of the experiment).
+    Args:
+        adata: an AnnData object.
+        tkey: The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
+        has_splicing: whether the data has splicing information.
+        has_labeling: whether the data has labeling information. Defaults to True.
+        t_label_keys: (not used for now) The column key(s) for the labeling time label of cells in .obs. Used for either
+            "ss" or "kinetic" model. `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the
+            time of the experiment). Defaults to None.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated AnnData object with calculated first/second moments (including uncentered covariance) for
-             each time point for each layer included.
+    Returns:
+        An updated AnnData object with calculated first/second moments (including uncentered covariance) for each time
+        point for each layer included.
     """
 
     if has_labeling:
@@ -292,7 +276,15 @@ def time_moment(
 
 # ---------------------------------------------------------------------------------------------------
 # use for kinetic assumption
-def get_layer_pair(layer):
+def get_layer_pair(layer: str) -> Optional[str]:
+    """Get the layer in pair for the input layer.
+
+    Args:
+        layer: the key for the input layer.
+
+    Returns:
+        The key for corresponding layer in pair.
+    """
     pair = {
         "new": "total",
         "total": "new",
@@ -304,7 +296,15 @@ def get_layer_pair(layer):
     return pair[layer] if layer in pair.keys() else None
 
 
-def get_layer_group(layer):
+def get_layer_group(layer: str) -> Optional[str]:
+    """Get the layer group in pair for the input layer group.
+
+    Args:
+        layer: the key for the input layer group.
+
+    Returns:
+        The key for corresponding layer group in pair.
+    """
     group = {
         "uu": "ul",
         "ul": "uu",
@@ -323,16 +323,32 @@ def get_layer_group(layer):
 
 
 def prepare_data_deterministic(
-    adata,
-    genes,
-    time,
-    layers,
-    use_total_layers=True,
-    total_layers=["X_ul", "X_sl", "X_uu", "X_su"],
-    log=False,
-    return_ntr=False,
-):
-    from ..preprocessing.utils import normalize_mat_monocle, sz_util
+    adata: AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layers: List[str],
+    use_total_layers: bool = True,
+    total_layers: List[str] = ["X_ul", "X_sl", "X_uu", "X_su"],
+    log: bool = False,
+    return_ntr: bool = False,
+) -> Tuple[List[np.ndarray], List[np.ndarray], List[Union[np.ndarray, csr_matrix]]]:
+    """Prepare the data for kinetic calculation based on deterministic model.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamp.
+        layers: the layer keys in adata object to be processed.
+        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+            "X_su"].
+        log: whether to perform log1p (i.e. log(1+x)) on result data. Defaults to False.
+        return_ntr: whether to deal with new/total ratio. Defaults to False.
+
+    Returns:
+        A tuple [m, v, raw], where `m` is the first momentum, `v` is the second momentum, and `raw` is the normalized
+        expression data.
+    """
 
     if return_ntr:
         use_total_layers = True
@@ -489,19 +505,35 @@ def prepare_data_deterministic(
 
 
 def prepare_data_has_splicing(
-    adata,
-    genes,
-    time,
-    layer_u,
-    layer_s,
-    use_total_layers=True,
-    total_layers=["X_ul", "X_sl", "X_uu", "X_su"],
-    total_layer="X_total",
-    return_cov=True,
-    return_ntr=False,
-):
-    """Prepare data when assumption is kinetic and data has splicing"""
-    from ..preprocessing.utils import normalize_mat_monocle, sz_util
+    adata: AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layer_u: str,
+    layer_s: str,
+    use_total_layers: bool = True,
+    total_layers: List[str] = ["X_ul", "X_sl", "X_uu", "X_su"],
+    total_layer: str = "X_total",
+    return_cov: bool = True,
+    return_ntr: bool = False,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Prepare data when assumption is kinetic and data has splicing.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamps.
+        layer_u: the layer key for unspliced data.
+        layer_s: the layer key for spliced data.
+        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+            "X_su"].
+        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
+        return_cov: whether to calculate the covariance between spliced and unspliced data. Defaults to True.
+        return_ntr: whether to return the new to total ratio or original expression data. Defaults to False.
+
+    Returns:
+        A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
+    """
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -628,16 +660,32 @@ def prepare_data_has_splicing(
 
 
 def prepare_data_no_splicing(
-    adata,
-    genes,
-    time,
-    layer,
-    use_total_layers=True,
-    total_layer="X_total",
-    return_old=False,
-    return_ntr=False,
-):
-    """Prepare data when assumption is kinetic and data has no splicing"""
+    adata: AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layer: str,
+    use_total_layers: bool = True,
+    total_layer: str = "X_total",
+    return_old: bool = False,
+    return_ntr: bool = False,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Prepare the data when assumption is kinetic and data has no splicing.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamps.
+        layer: the layer containing the expression data.
+        use_total_layers: whether to use the total data embedded in the AnnData object. Defaults to True.
+        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
+        return_old: whether to return the old expression data together or the newly expressed gene data only. Defaults
+            to False.
+        return_ntr: whether to return the new to total ratio or the original expression data. Defaults to False.
+
+    Returns:
+        A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
+    """
+
     from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
@@ -723,21 +771,40 @@ def prepare_data_no_splicing(
 
 
 def prepare_data_mix_has_splicing(
-    adata,
-    genes,
-    time,
-    layer_u="X_uu",
-    layer_s="X_su",
-    layer_ul="X_ul",
-    layer_sl="X_sl",
-    use_total_layers=True,
-    total_layers=["X_ul", "X_sl", "X_uu", "X_su"],
-    mix_model_indices=None,
-):
+    adata: AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layer_u: str = "X_uu",
+    layer_s: str = "X_su",
+    layer_ul: str = "X_ul",
+    layer_sl: str = "X_sl",
+    use_total_layers: bool = True,
+    total_layers: List[str] = ["X_ul", "X_sl", "X_uu", "X_su"],
+    mix_model_indices: Optional[List[int]] = None,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Prepare data for mixture modeling when assumption is kinetic and data has splicing.
-    Note that the mix_model_indices is indexed on 10 total species, which can be used to specify
-    the data required for different mixture models.
+
+    Note that the mix_model_indices is indexed on 10 total species, which can be used to specify the data required for
+    different mixture models.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamps.
+        layer_u: the layer key for unspliced mRNA count data. Defaults to "X_uu".
+        layer_s: the layer key for spliced mRNA count data. Defaults to "X_su".
+        layer_ul: the layer key for unspliced, labeled mRNA count data. Defaults to "X_ul".
+        layer_sl: the layer key for spliced, labeled mRNA count data. Defaults to "X_sl".
+        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+            "X_su"].
+        mix_model_indices: the indices for data required by the mixture model. If None, all data would be returned.
+            Defaults to None.
+
+    Returns:
+        A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
+
     from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
@@ -863,19 +930,34 @@ def prepare_data_mix_has_splicing(
 
 
 def prepare_data_mix_no_splicing(
-    adata,
-    genes,
-    time,
-    layer_n,
-    layer_t,
-    use_total_layers=True,
-    total_layer="X_total",
-    mix_model_indices=None,
-):
+    adata: AnnData,
+    genes: List[str],
+    time: np.ndarray,
+    layer_n: str,
+    layer_t: str,
+    use_total_layers: bool = True,
+    total_layer: bool = "X_total",
+    mix_model_indices: Optional[List[int]] = None,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Prepare data for mixture modeling when assumption is kinetic and data has NO splicing.
+
     Note that the mix_model_indices is indexed on 4 total species, which can be used to specify
     the data required for different mixture models.
+
+    Args:
+        adata: an AnnData object.
+        genes: the genes to be estimated.
+        time: the array containing time stamps.
+        layer_n: the layer key for new mRNA count.
+        layer_t: the layer key for total mRNA count.
+        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
+        mix_model_indices: the indices for data required by the mixture model. If None, all data would be returned. Defaults to None.
+
+    Returns:
+        A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
+
     from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
@@ -968,18 +1050,53 @@ def prepare_data_mix_no_splicing(
 # moment related:
 
 
-def stratify(arr, strata):
+def stratify(arr: np.ndarray, strata: np.ndarray) -> List[np.ndarray]:
+    """Stratify the given array with the given reference strata.
+
+    Args:
+        arr: The array to be stratified.
+        strata: The reference strata vector.
+
+    Returns:
+        A list containing the strata from the array, with each element of the list to be the components with line index
+        corresponding to the reference strata vector's unique elements' index.
+    """
+
     s = np.unique(strata)
     return [arr[strata == s[i]] for i in range(len(s))]
 
 
-def strat_mom(arr, strata, fcn_mom):
+def strat_mom(arr: Union[np.ndarray, csr_matrix], strata: np.ndarray, fcn_mom: Callable) -> np.ndarray:
+    """Stratify the mRNA expression data and calculate its momentum.
+
+    Args:
+        arr: the mRNA expression data.
+        strata: the time stamp array used to stratify `arr`.
+        fcn_mom: the function used to calculate the momentum.
+
+    Returns:
+        The momentum for each stratum.
+    """
+
     arr = arr.A if issparse(arr) else arr
     x = stratify(arr, strata)
     return np.array([fcn_mom(y) for y in x])
 
 
-def calc_mom_all_genes(T, adata, fcn_mom):
+def calc_mom_all_genes(
+    T: np.ndarray, adata: AnnData, fcn_mom: Callable
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate momentum for all genes in an AnnData object.
+
+    Args:
+        T: the time stamp array.
+        adata: an AnnData object.
+        fcn_mom: the function used to calculate momentum.
+
+    Returns:
+        A tuple (Mn, Mo, Mt, Mr), where `Mn` is momentum calculated from labeled (new) mRNA count, `Mo` is from
+        unlabeled (old) mRNA count, `Mt` is from total mRNA count, and `Mr` is from new to total ratio.
+    """
     ng = adata.var.shape[0]
     nT = len(np.unique(T))
     Mn = np.zeros((ng, nT))
@@ -1018,7 +1135,21 @@ def _calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
     return XY
 
 
-def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
+def gaussian_kernel(
+    X: np.ndarray, nbr_idx: np.ndarray, sigma: int, k: Optional[int] = None, dists: Optional[np.ndarray] = None
+) -> csr_matrix:
+    """Normalize connectivity map with Gaussian kernel.
+
+    Args:
+        X: the mRNA expression data.
+        nbr_idx: the indices of nearest neighbors of each cell.
+        sigma: the standard deviation for gaussian model.
+        k: the number of nearest neighbors to be considered. Defaults to None.
+        dists: the distances to the n_neighbors closest points in knn graph. Defaults to None.
+
+    Returns:
+        The normalized connectivity map.
+    """
     n = X.shape[0]
     if dists is None:
         dists = []
@@ -1033,7 +1164,21 @@ def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
     return csr_matrix(W)
 
 
-def calc_12_mom_labeling(data, t, calculate_2_mom=True):
+def calc_12_mom_labeling(
+    data: np.ndarray, t: np.ndarray, calculate_2_mom: bool = True
+) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]:
+    """Calculate 1st and 2nd momentum for given data.
+
+    Args:
+        data: the normalized mRNA expression data.
+        t: the time stamp array.
+        calculate_2_mom: whether to calculate 2nd momentum. Defaults to True.
+
+    Returns:
+        A tuple (m, [v], t_uniq) where `m` is the first momentum, `v` is the second momentum which would be returned only
+        if `calculate_2_mom` is true, and `t_uniq` is the unique time stamps.
+    """
+
     t_uniq = np.unique(t)
 
     m = np.zeros((data.shape[0], len(t_uniq)))
@@ -1051,7 +1196,19 @@ def calc_12_mom_labeling(data, t, calculate_2_mom=True):
     return (m, v, t_uniq) if calculate_2_mom else (m, t_uniq)
 
 
-def calc_1nd_moment(X, W, normalize_W=True):
+def calc_1nd_moment(
+    X: np.ndarray, W: np.ndarray, normalize_W: bool = True
+) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    """Calculate first moment for the layers.
+
+    Args:
+        X: the layer to calculate the moment.
+        W: the connectivity graph that will be used for moment calculations.
+        normalize_W: whether to normalize W before calculation. Defaults to True.
+
+    Returns:
+        The first moment of the layer.
+    """
     if normalize_W:
         if type(W) == np.ndarray:
             d = np.sum(W, 1).flatten()
@@ -1063,7 +1220,29 @@ def calc_1nd_moment(X, W, normalize_W=True):
         return W @ X
 
 
-def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
+def calc_2nd_moment(
+    X: np.ndarray,
+    Y: np.ndarray,
+    W: np.ndarray,
+    normalize_W: bool = True,
+    center: bool = False,
+    mX: np.ndarray = None,
+    mY: np.ndarray = None,
+) -> np.ndarray:
+    """Calculate the 2nd moment for the layers.
+
+    Args:
+        X: the first layer to be used.
+        Y: the second layer to be used.
+        W: the connectivity graph that will be used for moment calculations.
+        normalize_W: whether to normalize W before calculation. Defaults to True.
+        center: whether to correct the center. Defaults to False.
+        mX: the moment matrix to correct the center. Defaults to None.
+        mY: the moment matrix to correct the center. Defaults to None.
+
+    Returns:
+        The second moment of the layers.
+    """
     if normalize_W:
         if type(W) == np.ndarray:
             d = np.sum(W, 1).flatten()
@@ -1083,7 +1262,7 @@ def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
 
 # ---------------------------------------------------------------------------------------------------
 # old moment estimation code
-class MomData(anndata.AnnData):
+class MomData(AnnData):
     """deprecated"""
 
     def __init__(self, adata, time_key="Time", has_nan=False):
