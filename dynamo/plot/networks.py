@@ -1,7 +1,5 @@
 import networkx as nx
 import numpy as np
-import nxviz as nv
-import nxviz.annotate
 import pandas as pd
 from matplotlib.axes import Axes
 
@@ -386,6 +384,11 @@ def circosPlot(
     edge_alpha_scale : float
         the alpha (opacity, transparency) scale of edges, the value shoud be in [0, 1.0]
     """
+    try:
+        import nxviz as nv
+    except ImportError:
+        raise ImportError("install nxviz via `pip install nxviz`.")
+
     ax = nv.circos(
         network,
         group_by=node_label_key,
