@@ -29,7 +29,7 @@ def nxvizPlot(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> Union[nv.ArcPlot, nv.CircosPlot, None]:
+) -> Optional[Any]:
     """Arc or circos plot of gene regulatory network for a particular cell cluster.
 
     Args:
@@ -217,7 +217,7 @@ def arcPlot(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> Optional[nv.ArcPlot]:
+) -> Optional[Any]:
     """Arc plot of gene regulatory network for a particular cell cluster.
 
     Args:
@@ -405,7 +405,7 @@ def circosPlotDeprecated(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> nv.CircosPlot:
+) -> Optional[Any]:
 
     """Deprecated.
 
