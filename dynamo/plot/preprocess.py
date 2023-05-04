@@ -9,7 +9,7 @@ from scipy.sparse import csr_matrix, issparse
 from ..configuration import DynamoAdataKeyManager
 from ..dynamo_logger import main_warning
 from ..preprocessing import preprocess as pp
-from ..preprocessing.preprocess_monocle_utils import top_table
+from ..preprocessing.gene_selection import get_prediction_by_svr
 from ..preprocessing.utils import detect_experiment_datatype
 from ..tools.utils import get_mapper, update_dict
 from .utils import save_fig
@@ -649,47 +649,36 @@ def feature_genes(
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
 ):
-    """Plot selected feature genes on top of the mean vs. dispersion scatterplot.
+    """Plot selected feature genes on top of the mean vs. dispersion scatter plot.
 
-    Parameters
-    ----------
+    Args:
         adata: :class:`~anndata.AnnData`
             AnnData object
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for making the feature gene plot.
         mode: None or `str` (default: `None`)
-            The method to select the feature genes (can be either `dispersion`, `gini` or `SVR`).
+            The method to select the feature genes (can be either `cv_dispersion`, `fano_dispersion` or `gini`).
         figsize: `string` (default: (4, 3))
             Figure size of each facet.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary and the
             save_fig function will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.
 
-    Returns
-    -------
+    Returns:
         Nothing but plots the selected feature genes via the mean, CV plot.
     """
 
     import matplotlib.pyplot as plt
 
     mode = adata.uns["feature_selection"] if mode is None else mode
-
     layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, include_protein=False)[0]
-
     uns_store_key = None
-    if mode == "dispersion":
-        uns_store_key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
 
-        table = top_table(adata, layer)
-        x_min, x_max = (
-            np.nanmin(table["mean_expression"]),
-            np.nanmax(table["mean_expression"]),
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:  # "cv_dispersion", "fano_dispersion"
         prefix = "" if layer == "X" else layer + "_"
         uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
 
@@ -709,11 +698,12 @@ def feature_genes(
     ordering_genes = adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
-    fit = (
-        adata.uns[uns_store_key]["disp_func"](mu_linspace)
-        if mode == "dispersion"
-        else adata.uns[uns_store_key]["SVR"](mu_linspace.reshape(-1, 1))
-    )
+    if "_dispersion" in mode:
+        mean = adata.uns[uns_store_key]["mean"]
+        cv = adata.uns[uns_store_key]["cv"]
+        svr_gamma = adata.uns[uns_store_key]["svr_gamma"]
+        fit, _ = get_prediction_by_svr(mean, cv, svr_gamma)
+        fit = fit(mu_linspace.reshape(-1, 1))
 
     plt.figure(figsize=figsize)
     plt.plot(mu_linspace, fit, alpha=0.4, color="r")
@@ -724,15 +714,7 @@ def feature_genes(
     )
 
     valid_disp_table = table.iloc[valid_ind, :]
-    if mode == "dispersion":
-        ax = plt.scatter(
-            valid_disp_table["mean_expression"],
-            valid_disp_table["dispersion_empirical"],
-            s=3,
-            alpha=1,
-            color="xkcd:red",
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:
         ax = plt.scatter(
             valid_disp_table[prefix + "log_m"],
             valid_disp_table[prefix + "log_cv"],
@@ -743,15 +725,7 @@ def feature_genes(
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
-    if mode == "dispersion":
-        ax = plt.scatter(
-            neg_disp_table["mean_expression"],
-            neg_disp_table["dispersion_empirical"],
-            s=3,
-            alpha=0.5,
-            color="xkcd:grey",
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:
         ax = plt.scatter(
             neg_disp_table[prefix + "log_m"],
             neg_disp_table[prefix + "log_cv"],
@@ -760,9 +734,6 @@ def feature_genes(
             color="xkcd:grey",
         )
 
-    # plt.xlim((0, 100))
-    if mode == "dispersion":
-        plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Mean (log)")
     plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")

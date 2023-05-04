@@ -3,9 +3,7 @@ import timeit
 import anndata
 import numpy as np
 import pandas as pd
-import scipy
-import scipy.sparse
-from scipy.sparse.csr import csr_matrix
+from scipy.sparse import csr_matrix
 from sklearn.decomposition import PCA
 
 # from utils import *
@@ -18,9 +16,8 @@ from dynamo.preprocessing.preprocessor_utils import (
     is_log1p_transformed_adata,
     is_nonnegative,
     is_nonnegative_integer_arr,
-    log1p_adata,
-    normalize_cell_expr_by_size_factors,
-    select_genes_by_dispersion_general,
+    log1p,
+    normalize,
 )
 from dynamo.preprocessing.utils import convert_layers2csr
 
@@ -146,7 +143,7 @@ def test_Preprocessor_simple_run(adata):
 def test_is_log_transformed():
     adata = dyn.sample_data.zebrafish()
     assert not is_log1p_transformed_adata(adata)
-    log1p_adata(adata)
+    log1p(adata)
     assert is_log1p_transformed_adata(adata)
 
 
@@ -162,7 +159,7 @@ def test_layers2csr_matrix():
 def test_compute_gene_exp_fraction():
     # TODO fix compute_gene_exp_fraction: discuss with Xiaojie
     # df = pd.DataFrame([[1, 2], [1, 1]]) # input cannot be dataframe
-    df = scipy.sparse.csr_matrix([[1, 2], [1, 1]])
+    df = csr_matrix([[1, 2], [1, 1]])
     frac, indices = dyn.preprocessing.compute_gene_exp_fraction(df)
     print("frac:", list(frac))
     assert np.all(np.isclose(frac.flatten(), [2 / 5, 3 / 5]))
@@ -173,6 +170,7 @@ def test_pca():
     preprocessor = Preprocessor()
     preprocessor.preprocess_adata_seurat_wo_pca(adata)
     adata = dyn.pp.pca(adata, n_pca_components=30)
+
     assert adata.obsm["X_pca"].shape[1] == 30
     assert adata.uns["PCs"].shape[1] == 30
     assert adata.uns["explained_variance_ratio_"].shape[0] == 30
@@ -180,6 +178,7 @@ def test_pca():
     X_filterd = adata.X[:, adata.var.use_for_pca.values].copy()
     pca = PCA(n_components=30, random_state=0)
     X_pca_sklearn = pca.fit_transform(X_filterd.toarray())
+
     assert np.linalg.norm(X_pca_sklearn[:, :10] - adata.obsm["X_pca"][:, :10]) < 1e-1
     assert np.linalg.norm(pca.components_.T[:, :10] - adata.uns["PCs"][:, :10]) < 1e-1
     assert np.linalg.norm(pca.explained_variance_ratio_[:10] - adata.uns["explained_variance_ratio_"][:10]) < 1e-1
@@ -229,7 +228,60 @@ def test_is_nonnegative():
     assert not is_nonnegative_integer_arr(test_mat)
 
 
-def test_normalize_cell_expr_by_size_factors():
+def test_gene_selection_method():
+    adata = dyn.sample_data.zebrafish()
+    dyn.pl.basic_stats(adata)
+    dyn.pl.highest_frac_genes(adata)
+
+    # Drawing for the downstream analysis.
+    # df = adata.obs.loc[:, ["nCounts", "pMito", "nGenes"]]
+    # g = sns.PairGrid(df, y_vars=["pMito", "nGenes"], x_vars=["nCounts"], height=4)
+    # g.map(sns.regplot, color=".3")
+    # # g.set(ylim=(-1, 11), yticks=[0, 5, 10])
+    # g.add_legend()
+    # plt.show()
+
+    bdata = adata.copy()
+    cdata = adata.copy()
+    ddata = adata.copy()
+    edata = adata.copy()
+    preprocessor = Preprocessor()
+
+    starttime = timeit.default_timer()
+    preprocessor.preprocess_adata(edata, recipe="monocle", gene_selection_method="gini")
+    monocle_gini_result = edata.var.use_for_pca
+
+    preprocessor.preprocess_adata(adata, recipe="monocle", gene_selection_method="cv_dispersion")
+    monocle_cv_dispersion_result_1 = adata.var.use_for_pca
+
+    preprocessor.preprocess_adata(bdata, recipe="monocle", gene_selection_method="fano_dispersion")
+    monocle_fano_dispersion_result_2 = bdata.var.use_for_pca
+
+    preprocessor.preprocess_adata(cdata, recipe="seurat", gene_selection_method="fano_dispersion")
+    seurat_fano_dispersion_result_3 = cdata.var.use_for_pca
+
+    preprocessor.preprocess_adata(ddata, recipe="seurat", gene_selection_method="seurat_dispersion")
+    seurat_seurat_dispersion_result_4 = ddata.var.use_for_pca
+
+    diff_count = sum(1 for x, y in zip(monocle_cv_dispersion_result_1, monocle_gini_result) if x != y)
+    print(diff_count / len(monocle_cv_dispersion_result_1) * 100)
+
+    diff_count = sum(1 for x, y in zip(monocle_cv_dispersion_result_1, monocle_fano_dispersion_result_2) if x != y)
+    print(diff_count / len(monocle_cv_dispersion_result_1) * 100)
+
+    diff_count = sum(1 for x, y in zip(monocle_fano_dispersion_result_2, seurat_fano_dispersion_result_3) if x != y)
+    print(diff_count / len(monocle_fano_dispersion_result_2) * 100)
+
+    diff_count = sum(1 for x, y in zip(seurat_fano_dispersion_result_3, seurat_seurat_dispersion_result_4) if x != y)
+    print(diff_count / len(seurat_fano_dispersion_result_3) * 100)
+
+    diff_count = sum(1 for x, y in zip(monocle_cv_dispersion_result_1, seurat_seurat_dispersion_result_4) if x != y)
+    print(diff_count / len(monocle_cv_dispersion_result_1) * 100)
+
+    print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
+
+
+def test_normalize():
     # Set up test data
     X = np.array([[1, 2], [3, 4], [5, 6]])
     layers = {
@@ -250,9 +302,9 @@ def test_normalize_cell_expr_by_size_factors():
     adata.uns["pp"] = dict()
 
     # Call the function
-    normalized = normalize_cell_expr_by_size_factors(
+    normalized = normalize(
         adata=adata,
-        norm_method=np.log1p,
+        # norm_method=np.log1p,
     )
 
     # Assert that the output is a valid AnnData object
@@ -263,10 +315,8 @@ def test_normalize_cell_expr_by_size_factors():
     assert normalized.layers["X_spliced"].shape == (3, 2)
 
     # Assert that the normalization was applied correctly
-    assert np.allclose(normalized.X, np.log1p(X / adata.obs["Size_Factor"].values[:, None]))
-    assert np.allclose(
-        normalized.layers["X_spliced"].toarray(), np.log1p(X / adata.obs["spliced_Size_Factor"].values[:, None])
-    )
+    assert np.allclose(normalized.X, (X / adata.obs["Size_Factor"].values[:, None]))
+    assert np.allclose(normalized.layers["X_spliced"].toarray(), (X / adata.obs["spliced_Size_Factor"].values[:, None]))
 
 
 def test_regress_out():
@@ -284,24 +334,6 @@ def test_regress_out():
 
     dyn.pl.umap(adata, color=celltype_key, figsize=figsize)
     print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
-
-    ################TEST#################
-    # import timeit
-    # import scanpy as sc
-    #
-    # starttime = timeit.default_timer()
-    # scanpydata = adata.copy()
-    # sc.pp.regress_out(scanpydata, ["nCounts", "pMito", "umap_1"])
-    # print("The scanpy regress out time difference is :", timeit.default_timer() - starttime)
-    #
-    # starttime = timeit.default_timer()
-    # bdata = adata.copy()
-    # self.regress_out_kwargs = {"obs_keys": ["pMito", "nCounts", "umap_1"]}
-    # self._regress_out(bdata)
-    # print("The dynamo regress out time difference is :", timeit.default_timer() - starttime)
-    #
-    # starttime = timeit.default_timer()
-    # self.regress_out_kwargs = {"obs_keys": ["umap_1", "nCounts", "pMito"]}
 
 
 if __name__ == "__main__":
@@ -325,7 +357,7 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot(adata.copy())
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
-    # test_regress_out()
-    # test_normalize_cell_expr_by_size_factors()
+    # test_gene_selection_method()
+    test_normalize()
     # test_regress_out()
     pass

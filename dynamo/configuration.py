@@ -10,7 +10,7 @@ from anndata._core.anndata import AnnData
 from cycler import cycler
 from matplotlib import cm, colors, rcParams
 
-from .dynamo_logger import main_info, main_warning
+from .dynamo_logger import main_debug, main_info
 
 
 class DynamoAdataKeyManager:
@@ -847,5 +847,5 @@ def set_pub_style_mpltex():
 
 # initialize DynamoSaveConfig and DynamoVisConfig mode defaults
 DynamoAdataConfig.update_data_store_mode("full")
-main_info("setting visualization default mode in dynamo. Your customized matplotlib settings might be overritten.")
+main_debug("setting visualization default mode in dynamo. Your customized matplotlib settings might be overwritten.")
 DynamoVisConfig.set_default_mode()
