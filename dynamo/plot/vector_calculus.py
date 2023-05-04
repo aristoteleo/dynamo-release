@@ -591,6 +591,7 @@ def jacobian(
 def jacobian_heatmap(
     adata: AnnData,
     cell_idx: Union[int, List[int]],
+    average: bool = False,
     jkey: str = "jacobian",
     basis: str = "umap",
     regulators: Optional[List[str]] = None,
@@ -602,7 +603,7 @@ def jacobian_heatmap(
     save_kwargs: dict = {},
     **kwargs,
 ) -> Optional[GridSpec]:
-    """Plot the Jacobian matrix for each cell as a heatmap.
+    """Plot the Jacobian matrix for each cell or the average Jacobian matrix of the cells from input indices as a heatmap.
 
     Note that Jacobian matrix can be understood as a regulatory activity matrix between genes directly computed from the
     reconstructed vector fields.
@@ -611,6 +612,7 @@ def jacobian_heatmap(
         adata: an Annodata object with Jacobian matrix estimated.
         cell_idx: the numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory
             activity.
+        average: whether to average the Jacobian matrix of the cells from the input indices.
         jkey: the key to the jacobian dictionary in .uns. Defaults to "jacobian".
         basis: the reduced dimension basis. Defaults to "umap".
         regulators: the list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to
@@ -634,6 +636,17 @@ def jacobian_heatmap(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
         the figure would be returned.
+
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.cell_velocities(adata, basis='pca')
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.jacobian_heatmap(adata)
     """
 
     regulators, effectors = (
@@ -660,7 +673,7 @@ def jacobian_heatmap(
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
     if len(valid_cell_idx) == 0:
         raise ValueError(
-            f"Jacobian matrix was not calculated for the cells you provided {cell_indx}."
+            f"Jacobian matrix was not calculated for the cells you provided {cell_idx}."
             f"Check adata.uns[{Jacobian_}].values() for available cells that have Jacobian matrix calculated."
             f"Note that limiting calculation of Jacobian matrix only for a subset of cells are required for "
             f"speeding up calculations."
@@ -668,7 +681,7 @@ def jacobian_heatmap(
     else:
         cell_names = adata.obs_names[valid_cell_idx]
 
-    total_panels, ncols = len(valid_cell_idx), ncols
+    total_panels, ncols = len(valid_cell_idx) if not average else 1, ncols
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
 
     if figsize is None:
@@ -679,11 +692,11 @@ def jacobian_heatmap(
     gs = plt.GridSpec(nrow, ncol)
     heatmap_kwargs = dict(xticklabels=1, yticklabels=1)
     heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
-    for i, name in enumerate(cell_names):
-        ind = np.where(adata_.obs_names == name)[0]
-        J = Der[:, :, ind][:, :, 0].T  # dim 0: target; dim 1: source
+
+    if average:
+        J = np.mean(Der[:, :, valid_cell_idx], axis=2).T
         J = pd.DataFrame(J, index=regulators, columns=effectors)
-        ax = plt.subplot(gs[i])
+        ax = plt.subplot(gs[0, 0])
         sns.heatmap(
             J,
             annot=True,
@@ -693,7 +706,23 @@ def jacobian_heatmap(
             center=0,
             **heatmap_kwargs,
         )
-        plt.title(name)
+        ax.set_title("Average Jacobian Matrix")
+    else:
+        for i, name in enumerate(cell_names):
+            ind = np.where(adata_.obs_names == name)[0]
+            J = Der[:, :, ind][:, :, 0].T  # dim 0: target; dim 1: source
+            J = pd.DataFrame(J, index=regulators, columns=effectors)
+            ax = plt.subplot(gs[i])
+            sns.heatmap(
+                J,
+                annot=True,
+                ax=ax,
+                cmap=cmap,
+                cbar=False,
+                center=0,
+                **heatmap_kwargs,
+            )
+            ax.title(name)
 
     if save_show_or_return == "save":
         s_kwargs = {

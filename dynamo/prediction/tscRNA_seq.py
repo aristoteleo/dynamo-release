@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import anndata
 from scipy.sparse import csr_matrix
@@ -10,7 +10,7 @@ from .utils import init_r0_pulse
 
 def get_pulse_r0(
     adata: anndata.AnnData,
-    genes: Union[list, str] = "use_for_dynamics",
+    genes: Union[List, str] = "use_for_dynamics",
     tkey: str = "X_total",
     nkey: str = "X_new",
     gamma_k_key: str = "gamma_k",
@@ -21,27 +21,17 @@ def get_pulse_r0(
     """Get the total RNA at the initial time point for a kinetic experiment with the formula:
            :math:`r_0 = \frac{(r - l)}{(1 - k)}`, where :math: `k = 1 - e^{- \gamma t}
 
-    Parameters
-    ----------
-        adata:
-            an Annodata object
-        genes: `list`
-            A list of gene names that are going to be visualized.
-        tkey:
-            the key for normalized total layer in adata.layers.
-        nkey:
-            the key for normalized new layer in adata.layers.
-        gamma_k_key:
-            the key for the parameter k for each gene in adata.var.
-        add_init_r0_key:
-            the key that will be used to store the intial total RNA estimated, in adata.layers.
-        copy:
-            Whether copy the adata object.
+    Args:
+        adata: an Annodata object
+        genes: A list of gene names that are going to be visualized.
+        tkey: the key for normalized total layer in adata.layers.
+        nkey: the key for normalized new layer in adata.layers.
+        gamma_k_key: the key for the parameter k for each gene in adata.var.
+        add_init_r0_key: the key that will be used to store the initial total RNA estimated, in adata.layers.
+        copy: Whether copy the adata object.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An new or updated anndata object, based on copy parameter, that are updated with Size_Factor, normalized
+    Returns:
+        adata: An new or updated anndata object, based on copy parameter, that are updated with Size_Factor, normalized
             expression values, X and reduced dimensions, etc.
     """
 

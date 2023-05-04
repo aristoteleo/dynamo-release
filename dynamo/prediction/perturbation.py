@@ -1,21 +1,20 @@
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 
 import anndata
 import numpy as np
+from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 from ..dynamo_logger import LoggerManager
 from ..tools.cell_velocities import cell_velocities
 from ..vectorfield import SvcVectorField
-from ..vectorfield.scVectorField import vector_field_function_knockout
+from ..vectorfield.scVectorField import KOVectorField, vector_field_function_knockout
 from ..vectorfield.vector_calculus import (
     jacobian,
-    rank_cell_groups,
-    rank_cells,
-    rank_genes,
     vecfld_from_adata,
     vector_transformation,
 )
+from ..vectorfield.rank_vf import rank_cell_groups, rank_cells, rank_genes
 from .utils import expr_to_pca, pca_to_expr, z_score, z_score_inv
 
 
@@ -32,42 +31,28 @@ def KO(
     store_vf_ko: bool = False,
     add_vf_ko_key: Union[str, None] = None,
     return_vector_field_class: bool = True,
-):
+) -> Optional[KOVectorField]:
     """In silico knockout genes (and thus the vector field function) and prediction of cell fate after knockout.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with the vector field function for PCA learned.
-        KO_genes:
-             The gene or list of genes that will be used to perform in-silico knockout.
-        vecfld:
-            The vector field function.
-        vf_key:
-            A key to the vector field functions in adata.uns.
-        basis:
-            The basis in which the vector field function is created.
-        emb_basis:
-            The embedding basis where the perturbed (KO) vector field function will be projected to.
-        velocity_ko_wt_difference:
-            Whether to use the difference from perturbed (KO) vector field to wildtype vector field in embedding space
+    Args:
+        adata: an Anndata object with the vector field function for PCA learned.
+        KO_genes: The gene or list of genes that will be used to perform in-silico knockout.
+        vecfld: The vector field function.
+        vf_key: A key to the vector field functions in adata.uns.
+        basis: The basis in which the vector field function is created.
+        emb_basis: The embedding basis where the perturbed (KO) vector field function will be projected to.
+        velocity_ko_wt_difference: Whether to use the difference from perturbed (KO) vector field to wildtype vector field in embedding space
             instead of raw perturbation (KO) vector field. Using the difference may reveal the perturbation (KO) effects more
             clearly.
-        add_ko_basis_key:
-            The key name for the velocity corresponds to the `basis` name whose associated vector field is perturbed
+        add_ko_basis_key: The key name for the velocity corresponds to the `basis` name whose associated vector field is perturbed
             (KO).
-        add_embedding_key:
-            The key name for the velocity corresponds to the `embedding` name to which the high dimensional perturbed
+        add_embedding_key: The key name for the velocity corresponds to the `embedding` name to which the high dimensional perturbed
             (KO) vector field will be projected to.
-        store_vf_ko:
-            Whether to store the perturbed (KO) vector field function. By default it is False.
-        add_vf_ko_key:
-            The key to store the perturbed (KO) vector field function in adata.uns.
-        return_vector_field_class:
-            Whether to return the perturbed (KO) vector field class. By default it is True.
+        store_vf_ko: Whether to store the perturbed (KO) vector field function. By default it is False.
+        add_vf_ko_key: The key to store the perturbed (KO) vector field function in adata.uns.
+        return_vector_field_class: Whether to return the perturbed (KO) vector field class. By default it is True.
 
-    Returns
-    -------
+    Returns:
         If return_vector_field_class is True, return the perturbed (KO) vector field class and update objected with
         perturbed (KO) vector field in both the PCA and low dimension space. If return_vector_field_class is False,
         return nothing but updates the adata object.
@@ -135,24 +120,24 @@ def perturbation(
     genes: Union[str, list],
     expression: Union[float, list] = 10,
     perturb_mode: str = "raw",
-    cells: Union[list, np.ndarray, None] = None,
+    cells: Optional[Union[list, np.ndarray]] = None,
     zero_perturb_genes_vel: bool = False,
-    pca_key: Union[str, np.ndarray, None] = None,
-    PCs_key: Union[str, np.ndarray, None] = None,
-    pca_mean_key: Union[str, np.ndarray, None] = None,
+    pca_key: Optional[Union[str, np.ndarray]] = None,
+    PCs_key: Optional[Union[str, np.ndarray]] = None,
+    pca_mean_key: Optional[Union[str, np.ndarray]] = None,
     basis: str = "pca",
     emb_basis: str = "umap",
     jac_key: str = "jacobian_pca",
-    X_pca: Union[np.ndarray, None] = None,
-    delta_Y: Union[np.ndarray, None] = None,
+    X_pca: Optional[np.ndarray] = None,
+    delta_Y: Optional[np.ndarray] = None,
     projection_method: str = "fp",
     pertubation_method: str = "j_delta_x",
     J_jv_delta_t: float = 1,
     delta_t: float = 1,
-    add_delta_Y_key: str = None,
-    add_transition_key: str = None,
-    add_velocity_key: str = None,
-    add_embedding_key: str = None,
+    add_delta_Y_key: Optional[str] = None,
+    add_transition_key: Optional[str] = None,
+    add_velocity_key: Optional[str] = None,
+    add_embedding_key: Optional[str] = None,
 ):
     """In silico perturbation of single-cells and prediction of cell fate after perturbation.
 
@@ -171,60 +156,36 @@ def perturbation(
     use X_pca and \\delta_Y as a pair (just like M_s and velocity_S) to project the perturbation vector to low
     dimensional space. The \\delta_Y can be also used to identify the strongest responders of the genetic perturbation.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        genes:
-            The gene or list of genes that will be used to perform in-silico perturbation.
-        expression:
-             The numerical value or list of values that will be used to encode the genetic perturbation. High positive
+    Args:
+        adata: an Annodata object.
+        genes: The gene or list of genes that will be used to perform in-silico perturbation.
+        expression: The numerical value or list of values that will be used to encode the genetic perturbation. High positive
              values indicates up-regulation while low negative value repression.
-        perturb_mode:
-            The mode for perturbing the gene expression vector, either `raw` or `z_score`.
-        cells:
-            The list of the cell indices that we will perform the perturbation.
-        zero_perturb_genes_vel:
-            Whether to set the peturbed genes' perturbation velocity vector values to be zero.
-        pca_key:
-            The key that corresponds to pca embedding. Can also be the actual embedding matrix.
-        PCs_key:
-            The key that corresponds to PC loading embedding. Can also be the actual loading matrix.
-        pca_mean_key:
-            The key that corresponds to means values that used for pca projection. Can also be the actual means matrix.
-        basis:
-            The key that corresponds to the basis from which the vector field is reconstructed.
-        jac_key:
-            The key to the jacobian matrix.
-        X_pca:
-            The pca embedding matrix.
-        delta_Y:
-            The actual perturbation matrix. This argument enables more customized perturbation schemes.
-        projection_method:
-            The approach that will be used to project the high dimensional perturbation effect vector to low dimensional
+        perturb_mode: The mode for perturbing the gene expression vector, either `raw` or `z_score`.
+        cells: The list of the cell indices that we will perform the perturbation.
+        zero_perturb_genes_vel: Whether to set the peturbed genes' perturbation velocity vector values to be zero.
+        pca_key: The key that corresponds to pca embedding. Can also be the actual embedding matrix.
+        PCs_key: The key that corresponds to PC loading embedding. Can also be the actual loading matrix.
+        pca_mean_key: The key that corresponds to means values that used for pca projection. Can also be the actual means matrix.
+        basis: The key that corresponds to the basis from which the vector field is reconstructed.
+        jac_key: The key to the jacobian matrix.
+        X_pca: The pca embedding matrix.
+        delta_Y: The actual perturbation matrix. This argument enables more customized perturbation schemes.
+        projection_method: The approach that will be used to project the high dimensional perturbation effect vector to low dimensional
             space.
-        pertubation_method:
-            The approach that will be used to calculate the perturbation effect vector after in-silico genetic
+        pertubation_method: The approach that will be used to calculate the perturbation effect vector after in-silico genetic
             perturbation. Can only be one of `"j_delta_x", "j_x_prime", "j_jv", "f_x_prime", "f_x_prime_minus_f_x_0"`
-        J_jv_delta_t:
-            If pertubation_method is `j_jv`, this will be used to determine the $\\delta x = jv \\delta t_{jv}$
-        delta_t:
-            This will be used to determine the $\\delta Y = jv \\delta t$
-        add_delta_Y_key:
-            The key that will be used to store the perturbation effect matrix. Both the pca dimension matrix (stored in
+        J_jv_delta_t: If pertubation_method is `j_jv`, this will be used to determine the $\\delta x = jv \\delta t_{jv}$
+        delta_t: This will be used to determine the $\\delta Y = jv \\delta t$
+        add_delta_Y_key: The key that will be used to store the perturbation effect matrix. Both the pca dimension matrix (stored in
             obsm) or the matrix of the original gene expression space (stored in .layers) will use this key. By default
             it is None and is set to be `method + '_perturbation'`.
-        add_transition_key: str or None (default: None)
-            The dictionary key that will be used for storing the transition matrix in .obsp.
-        add_velocity_key: str or None (default: None)
-            The dictionary key that will be used for storing the low dimensional velocity projection matrix in .obsm.
-        add_embedding_key: str or None (default: None)
-            The dictionary key that will be used for storing the low dimensional velocity projection matrix in .obsm.
+        add_transition_key: The dictionary key that will be used for storing the transition matrix in .obsp.
+        add_velocity_key: The dictionary key that will be used for storing the low dimensional velocity projection matrix in .obsm.
+        add_embedding_key: The dictionary key that will be used for storing the low dimensional velocity projection matrix in .obsm.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            Returns an updated :class:`~anndata.AnnData` with perturbation effect matrix, projected perturbation vectors
+    Returns:
+        adata: Returns an updated :class:`~anndata.AnnData` with perturbation effect matrix, projected perturbation vectors
             , and a cell transition matrix based on the perturbation vectors.
 
     """
@@ -384,23 +345,19 @@ def perturbation(
     adata.obsm[embedding_key] = adata.obsm["X_" + emb_basis].copy()
 
 
-def rank_perturbation_genes(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
+def rank_perturbation_genes(
+    adata: AnnData, pkey: str = "j_delta_x_perturbation", prefix_store: str = "rank", **kwargs
+) -> AnnData:
     """Rank genes based on their raw and absolute perturbation effects for each cell group.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the gene-wise perturbation effect vectors.
-        pkey: str (default: 'perturbation_vector')
-            The perturbation key.
-        prefix_store: str (default: 'rank')
-            The prefix added to the key for storing the returned ranking information in adata.
-        kwargs:
-            Keyword arguments passed to `vf.rank_genes`.
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object which has the rank dictionary for perturbation effects in `.uns`.
+    Args:
+        adata: AnnData object that contains the gene-wise perturbation effect vectors.
+        pkey: The perturbation key.
+        prefix_store: The prefix added to the key for storing the returned ranking information in adata.
+        kwargs: Keyword arguments passed to `vf.rank_genes`.
+
+    Returns:
+        adata: AnnData object which has the rank dictionary for perturbation effects in `.uns`.
     """
     rdict = rank_genes(adata, pkey, **kwargs)
     rdict_abs = rank_genes(adata, pkey, abs=True, **kwargs)
@@ -409,23 +366,19 @@ def rank_perturbation_genes(adata, pkey="j_delta_x_perturbation", prefix_store="
     return adata
 
 
-def rank_perturbation_cells(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
+def rank_perturbation_cells(
+    adata: AnnData, pkey: str = "j_delta_x_perturbation", prefix_store: str = "rank", **kwargs
+) -> AnnData:
     """Rank cells based on their raw and absolute perturbation for each cell group.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the gene-wise velocities.
-        pkey: str (default: 'perturbation_vector')
-            The perturbation key.
-        prefix_store: str (default: 'rank')
-            The prefix added to the key for storing the returned in adata.
-        kwargs:
-            Keyword arguments passed to `vf.rank_cells`.
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object which has the rank dictionary for perturbation effects in `.uns`.
+    Args:
+        adata: AnnData object that contains the gene-wise velocities.
+        pkey: The perturbation key.
+        prefix_store: The prefix added to the key for storing the returned in adata.
+        kwargs: Keyword arguments passed to `vf.rank_cells`.
+
+    Returns:
+        adata: AnnData object which has the rank dictionary for perturbation effects in `.uns`.
     """
     rdict = rank_cells(adata, pkey, **kwargs)
     rdict_abs = rank_cells(adata, pkey, abs=True, **kwargs)
@@ -434,23 +387,19 @@ def rank_perturbation_cells(adata, pkey="j_delta_x_perturbation", prefix_store="
     return adata
 
 
-def rank_perturbation_cell_clusters(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
+def rank_perturbation_cell_clusters(
+    adata: AnnData, pkey: str = "j_delta_x_perturbation", prefix_store: str = "rank", **kwargs
+) -> AnnData:
     """Rank cells based on their raw and absolute perturbation for each cell group.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the gene-wise velocities.
-        pkey: str (default: 'perturbation_vector')
-            The perturbation key.
-        prefix_store: str (default: 'rank')
-            The prefix added to the key for storing the returned in adata.
-        kwargs:
-            Keyword arguments passed to `vf.rank_cells`.
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object which has the rank dictionary for perturbation effects in `.uns`.
+    Args:
+        adata: AnnData object that contains the gene-wise velocities.
+        pkey: The perturbation key.
+        prefix_store: The prefix added to the key for storing the returned in adata.
+        kwargs: Keyword arguments passed to `vf.rank_cells`.
+
+    Returns:
+        adata: AnnData object which has the rank dictionary for perturbation effects in `.uns`.
     """
     rdict = rank_cell_groups(adata, pkey, **kwargs)
     rdict_abs = rank_cell_groups(adata, pkey, abs=True, **kwargs)

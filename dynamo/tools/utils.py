@@ -2,11 +2,16 @@ import itertools
 import time
 import warnings
 from inspect import signature
-from typing import Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except:
+    from typing_extensions import Literal
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
-import scipy.sparse as sp
 from anndata._core.anndata import AnnData
 from anndata._core.views import ArrayView
 from scipy import interpolate
@@ -30,13 +35,22 @@ from ..dynamo_logger import (
     main_tqdm,
     main_warning,
 )
-from ..preprocessing.utils import Freeman_Tukey
+from ..preprocessing.utils import _Freeman_Tukey
 from ..utils import areinstance, isarray
 
 
 # ---------------------------------------------------------------------------------------------------
 # others
-def get_mapper(smoothed=True):
+def get_mapper(smoothed: bool = True) -> Dict[str, str]:
+    """Return the mapper for layers depending on whether the data is smoothed.
+
+    Args:
+        smoothed: whether the data is smoothed. Defaults to True.
+
+    Returns:
+        The mapper dictionary for layers.
+    """
+
     mapper = {
         "X_spliced": "M_s" if smoothed else "X_spliced",
         "X_unspliced": "M_u" if smoothed else "X_unspliced",
@@ -53,38 +67,53 @@ def get_mapper(smoothed=True):
     return mapper
 
 
-def get_mapper_inverse(smoothed=True):
+def get_mapper_inverse(smoothed: bool = True) -> Dict[str, str]:
+    """Return the inverse mapper for layers depending on whether the data is smoothed.
+
+    Args:
+        smoothed: whether the data is smoothed. Defaults to True.
+
+    Returns:
+        The inverse mapper dictionary for layers.
+    """
+
     mapper = get_mapper(smoothed)
 
     return dict([(v, k) for k, v in mapper.items()])
 
 
-def get_finite_inds(X, ax=0):
+def get_finite_inds(X: Union[np.ndarray, sp.csr_matrix], ax: int = 0) -> np.ndarray:
+    """Find the indices of finite elements in an array.
+
+    Args:
+        X: the matrix to be inspected.
+        ax: the axis for indexing. Defaults to 0.
+
+    Returns:
+        The indices of finite elements.
+    """
+
     finite_inds = np.isfinite(X.sum(ax).A1) if sp.issparse(X) else np.isfinite(X.sum(ax))
 
     return finite_inds
 
 
-def get_pd_row_column_idx(df, queries, type="column"):
-    """Find the numeric indices of multiple index/column matches with a vectorized solution using np.searchsorted
-    method. adapted from:
+def get_pd_row_column_idx(
+    df: pd.DataFrame, queries: List[str], type: Literal["column", "row"] = "column"
+) -> np.ndarray:
+    """Find the numeric indices of multiple index/column matches with a vectorized solution using np.searchsorted.
+
+    The function is adapted from:
     https://stackoverflow.com/questions/13021654/get-column-index-from-column-name-in-python-pandas
 
-    Parameters
-    ----------
-        df: `pd.DataFrame`
-            Pandas dataframe that will be used for finding indices.
-        queries: `list`
-            List of strings, corresponding to either column names or index of the `df` that will be used for finding
-            indices.
-        type: `{"column", "row:}` (default: "row")
-            The type of the queries / search, either `column` (list of queries are from column names) or "row" (list of
-            queries are from index names).
+    Args:
+        df: the dataframe to be inspected.
+        queries: a list of either column names or index of the dataframe that will be used for finding indices.
+        type: the type of the queries/search, either `column` (list of queries are from column names) or "row" (list of
+            queries are from index names). Defaults to "column".
 
-    Returns
-    -------
-        Indices: `np.ndarray`
-            One dimensional array for the numeric indices that corresponds to the matches of the queries.
+    Returns:
+        An one dimensional array for the numeric indices that corresponds to the matches of the queries.
     """
 
     names = df.columns.values if type == "column" else df.index.values if type == "row" else None
@@ -94,13 +123,34 @@ def get_pd_row_column_idx(df, queries, type="column"):
     return Indices
 
 
-def update_dict(dict1, dict2):
+def update_dict(dict1: dict, dict2: dict) -> dict:
+    """Update the values of dict 1 with the values of dict 2. The keys of dict 1 would not be modified.
+
+    Args:
+        dict1: the dict to be updated.
+        dict2: the dict to provide new values.
+
+    Returns:
+        The updated dict.
+    """
     dict1.update((k, dict2[k]) for k in dict1.keys() & dict2.keys())
 
     return dict1
 
 
-def update_n_merge_dict(dict1, dict2):
+def update_n_merge_dict(dict1: dict, dict2: dict) -> dict:
+    """Merge two dictionaries.
+
+    For overlapping keys, the values in dict 2 would replace values in dict 1.
+
+    Args:
+        dict1: the dict to be merged into and overwritten.
+        dict2: the dict to be merged.
+
+    Returns:
+        The updated dict.
+    """
+
     dict = {
         **dict1,
         **dict2,
@@ -109,18 +159,39 @@ def update_n_merge_dict(dict1, dict2):
     return dict
 
 
-def subset_dict_with_key_list(dict, list):
+def subset_dict_with_key_list(dict: dict, list: list) -> dict:
+    """Subset the dict with keys provided.
+
+    Args:
+        dict: the dict to be subset.
+        list: the keys that should be left in dict.
+
+    Returns:
+        The subset dict.
+    """
+
     return {key: value for key, value in dict.items() if key in list}
 
 
-def nearest_neighbors(coord, coords, k=5):
+def nearest_neighbors(coord: np.ndarray, coords: Union[np.ndarray, sp.csr_matrix], k: int = 5) -> np.ndarray:
+    """Find the nearest neighbors in a given space for a given point.
+
+    Args:
+        coord: the point for which nearest neighbors are searched.
+        coords: the space to search neighbors.
+        k: the number of neighbors to be searched. Defaults to 5.
+
+    Returns:
+        The indices of the nearest neighbors.
+    """
+
     nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(coords)
     _, neighs = nbrs.kneighbors(np.atleast_2d(coord))
     return neighs
 
 
 def k_nearest_neighbors(
-    X,
+    X: np.ndarray,
     k: int,
     exclude_self: bool = True,
     knn_dim: int = 10,
@@ -129,14 +200,29 @@ def k_nearest_neighbors(
     pynn_rand_state: int = 19491001,
     n_jobs: int = -1,
     return_nbrs: bool = False,
-):
-    """Compute k nearest neighbors on X
+) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, NearestNeighbors]]:
+    """Compute k nearest neighbors for a given space.
 
-    Parameters
-    ----------
-    return_nbrs:
-        returns a neighbor object if this arg is true, by default False. A neighbor object is from k_nearest_neighbors and may be from NNDescent (pynndescent) or NearestNeighbors.
+    Args:
+        X: the space to find nearest neighbors on.
+        k: the number of neighbors to be found, excluding the point itself.
+        exclude_self: whether to exclude the point itself from the result. Defaults to True.
+        knn_dim: the lowest threshold of dimensions of data to use `ball_tree` algorithm. If dimensions of the data is
+            smaller than this value, `kd_tree` algorithm would be used. Defaults to 10.
+        pynn_num: the lowest threshold of features to use NNDescent package. If number of features less than/equal to
+            this value, `sklearn` package would be used. Defaults to int(2e5).
+        pynn_dim: the lowest threshold of dimensions to use NNDescent package. If number of features less than/equal to
+            this value, `sklearn` package would be used. Defaults to 2.
+        pynn_rand_state: the random seed for NNDescent calculation. Defaults to 19491001.
+        n_jobs: number of parallel jobs for NNDescent. -1 means all cores would be used. Defaults to -1.
+        return_nbrs: whether to return the fitted nearest neighbor object. Defaults to False.
+
+    Returns:
+        A tuple (nbrs_idx, dists, [nbrs]), where nbrs_idx contains the indices of nearest neighbors found for each
+        point and dists contains the distances between neighbors and the point. nbrs is the fitted nearest neighbor
+        object and it would be returned only if `return_nbrs` is True.
     """
+
     n, d = np.atleast_2d(X).shape
     if n > int(pynn_num) and d > pynn_dim:
         from pynndescent import NNDescent
@@ -163,7 +249,17 @@ def k_nearest_neighbors(
     return nbrs_idx, dists
 
 
-def nbrs_to_dists(X, nbrs_idx):
+def nbrs_to_dists(X: np.ndarray, nbrs_idx: np.ndarray) -> List[np.ndarray]:
+    """Calculate the distances between neighbors of a given space.
+
+    Args:
+        X: the space to find nearest neighbors on.
+        nbrs_idx: the indices of nearest neighbors found for each point.
+
+    Returns:
+        The distances between neighbors and the point.
+    """
+
     dists = []
     n = X.shape[0]
     for i in range(n):
@@ -173,11 +269,17 @@ def nbrs_to_dists(X, nbrs_idx):
     return dists
 
 
-def symmetrize_symmetric_matrix(W):
+def symmetrize_symmetric_matrix(W: Union[np.ndarray, sp.csr_matrix]) -> sp.csr_matrix:
     """
-    symmetrize a supposedly symmetric matrix W, so that W_ij == Wji strictly.
-    returns a csr sparse matrix.
+    Symmetrize a supposedly symmetric matrix W, so that W_ij == Wji strictly.
+
+    Args:
+        W: the matrix supposed to be symmetric.
+
+    Returns:
+        The matrix that is now strictly symmetric.
     """
+
     if not sp.issparse(W):
         W = sp.csr_matrix(W)
 
@@ -193,7 +295,27 @@ def symmetrize_symmetric_matrix(W):
     return W
 
 
-def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
+def create_layer(
+    adata: AnnData,
+    data: np.ndarray,
+    layer_key: Optional[str] = None,
+    genes: Optional[np.ndarray] = None,
+    cells: Optional[np.ndarray] = None,
+    **kwargs,
+) -> Optional[np.ndarray]:
+    """Create a new layer with data supplied.
+
+    Args:
+        adata: an AnnData object to insert the layer into.
+        data: the main data of the new layer.
+        layer_key: the key of the layer when gets inserted into the adata object. If None, the layer would be returned.
+            Defaults to None.
+        genes: the genes for the provided data. If None, genes from the adata object would be used. Defaults to None.
+        cells: the cells for the provided data. If None, cells from the adata object would be used. Defaults to None.
+
+    Returns:
+        If the layer key is provided, nothing would be returned. Otherwise, the layer itself would be returned.
+    """
     all_genes = adata.var.index
     if genes is None:
         genes = all_genes
@@ -218,25 +340,25 @@ def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
         return new
 
 
-def index_gene(adata, arr, genes):
+def index_gene(adata: AnnData, arr: np.ndarray, genes: List[str]) -> np.ndarray:
     """A lightweight method for indexing adata arrays by genes.
-    it is memory efficient especially when `.uns` contains large data.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        arr: :class:`~numpy.ndarray`
-            The array to be indexed.
+    The function is designed to have good memory efficiency especially when `.uns` contains large data.
+
+    Args:
+        adata: an AnnData object.
+        arr: the array to be indexed.
             If 1d, the length of the array has to be equal to `adata.n_vars`.
             If 2d, the second dimension of the array has to be equal to `adata.n_vars`.
-        genes: list
-            A list of gene names or boolean flags for indexing.
+        genes: a list of gene names or boolean flags for indexing.
 
-    Returns
-    -------
-        :class:`~numpy.ndarray`
-            The indexed array.
+    Raises:
+        ValueError: gene in `genes` not found in adata.
+        Exception: the lengths of arr does not match the number of genes.
+        Exception: the dimension of arr does not match the number of genes.
+
+    Returns:
+        The indexed array.
     """
 
     if areinstance(genes, [bool, np.bool_]):
@@ -263,20 +385,20 @@ def index_gene(adata, arr, genes):
             return arr[:, mask]
 
 
-def reserve_minimal_genes_by_gamma_r2(
-    adata: AnnData, var_store_key: str, minimal_gene_num: Union[int, None] = 50
-) -> Union[list, pd.Series, np.array]:
-    """When the sum of `adata.var[var_store_key]` is less than `minimal_gene_num`, select the `minimal_gene_num` genes and save to (update) adata.var[var_store_key].
+def reserve_minimal_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minimal_gene_num: int = 50) -> pd.DataFrame:
+    """Select given number of minimal genes.
 
-    Parameters
-    ----------
-        adata:
-        var_store_key:
-        minimal_gene_num: int, optional
-            by default 50
-    Returns
-    -------
-        The data stored in `adata.var[var_store_key]`.
+    Args:
+        adata: an AnnData object.
+        var_store_key: the key in adata.var for the gene count data.
+        minimal_gene_num: the number of minimal genes to select. Defaults to 50.
+
+    Raises:
+        ValueError: `adata.var[var_store_key]` invalid.
+        ValueError: `adata.var[var_store_key]` does not have enough genes with non-nan values.
+
+    Returns:
+        The minimal gene data.
     """
 
     # already satisfy the requirement
@@ -296,35 +418,41 @@ def reserve_minimal_genes_by_gamma_r2(
     return adata.var[var_store_key]
 
 
-def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format="index"):
-    """
-    Select cells based on `grp_keys` in .obs
+def select_cell(
+    adata: AnnData,
+    grp_keys: Union[str, List[str]],
+    grps: Union[str, List[str]],
+    presel: Optional[np.ndarray] = None,
+    mode: Literal["union", "intersection"] = "union",
+    output_format: Literal["mask", "index"] = "index",
+) -> np.ndarray:
+    """Select cells based on `grep_keys` in .obs.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        grp_keys: str or list
-            The key(s) in `.obs` to be used for selecting cells.
-            If list, each element is a key in .obs that corresponds to an element in `grps`.
-        grps: str or list
-            The value(s) in `.obs[grp_keys]` to be used for selecting cells.
-            If list, each element is a value that corresponds to an element in `grp_keys`.
-        presel: None, list, or :class:`~numpy.ndarray`
-            An array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
-            `grp_keys` and `grps` according to `mode`.
-        mode: str
+    Args:
+        adata: an AnnData object.
+        grp_keys: the key(s) in `.obs` to be used for selecting cells. If a list, each element is a key in .obs that
+            corresponds to an element in `grps`.
+        grps: the value(s) in `.obs[grp_keys]` to be used for selecting cells. If a list, each element is a value that
+            corresponds to an element in `grp_keys`.
+        presel: an array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
+            `grp_keys` and `grps` according to `mode`. Defaults to None.
+        mode: the mode to select cells.
             "union" - the selected cells are the union of the groups specified in `grp_keys` and `grps`;
             "intersection" - the selected cells are the intersection of the groups specified in `grp_keys` and `grps`.
-        output_format: str
+            Defaults to "union".
+        output_format: whether to output a mask of selection or selected items' indices.
             "index" - returns a list of indices of selected cells;
-            "mask" - returns an array of booleans.
+            "mask" - returns an array of booleans. Defaults to "index".
 
-    Returns
-    -------
-        list or :class:`~numpy.ndarray`
-            The cell index or mask array.
+    Raises:
+        NotImplementedError: `mode` is invalid.
+        Exception: `grp_keys` has key that is not in .obs.
+        NotImplementedError: `output_format` is invalid.
+
+    Returns:
+        A mask of selection or selected items' indices.
     """
+
     if type(grp_keys) is str:
         grp_keys = [grp_keys]
     if not isarray(grps):
@@ -373,7 +501,15 @@ def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format=
     return cell_idx
 
 
-def flatten(arr):
+def flatten(arr: Union[pd.Series, sp.csr_matrix, np.ndarray]) -> np.ndarray:
+    """Flatten the given array-like object.
+
+    Args:
+        arr: the array-like object to be flattened.
+
+    Returns:
+        The flatten result.
+    """
     if type(arr) == pd.core.series.Series:
         ret = arr.values.flatten()
     elif sp.issparse(arr):
@@ -383,14 +519,34 @@ def flatten(arr):
     return ret
 
 
-def closest_cell(coord, cells):
+def closest_cell(coord: np.ndarray, cells: np.ndarray) -> int:
+    """Find the closest cell to the specified coord.
+
+    Args:
+        coord: the target coordination.
+        cells: an array containing cells.
+
+    Returns:
+        The column index of the cell that closest to the coordination specified.
+    """
     cells = np.asarray(cells)
     dist_2 = np.sum((cells - coord) ** 2, axis=1)
 
     return np.argmin(dist_2)
 
 
-def elem_prod(X, Y):
+def elem_prod(
+    X: Union[np.ndarray, sp.csr_matrix], Y: Union[np.ndarray, sp.csr_matrix]
+) -> Union[np.ndarray, sp.csr_matrix]:
+    """Calculate element-wise production between 2 arrays.
+
+    Args:
+        X: the first array.
+        Y: the second array.
+
+    Returns:
+        The resulted array.
+    """
     if sp.issparse(X):
         return X.multiply(Y)
     elif sp.issparse(Y):
@@ -399,34 +555,34 @@ def elem_prod(X, Y):
         return np.multiply(X, Y)
 
 
-def norm(x, **kwargs):
-    """calculate the norm of an array or matrix"""
+def norm(x: Union[sp.csr_matrix, np.ndarray], **kwargs) -> np.ndarray:
+    """Calculate the norm of an array or matrix
+
+    Args:
+        x: the array.
+        kwargs: other kwargs passed to `sp.linalg.norm` or `np.linalg.norm`.
+    """
     if sp.issparse(x):
         return sp.linalg.norm(x, **kwargs)
     else:
         return np.linalg.norm(x, **kwargs)
 
 
-def cell_norm(adata, key, prefix_store=None, **norm_kwargs):
-    """Calculate the norm of vector for each cell.
+def cell_norm(adata: AnnData, key: str, prefix_store: Optional[str] = None, **norm_kwargs) -> np.ndarray:
+    """Calculate the norm of vectors of each cell.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        key: str
-            The key of the vectors stored in either .obsm or .layers.
-        prefix_store: str or None (default: None)
-            The prefix used in the key for storing the returned in adata.obs.
-            If None, the returned is not stored.
-        norm_kwargs:
-            Keyword arguments passed to norm functions.
+    Args:
+        adata: an AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        key: the key of the vectors stored in either .obsm or .layers.
+        prefix_store: the prefix used in the key for storing the returned in adata.obs. Defaults to None.
 
-    Returns
-    -------
-        norm: :class:`~numpy.ndarray`
-            Norms of vectors.
+    Raises:
+        ValueError: `key` not found in .obsm or .layers.
+
+    Returns:
+        The norms of the vectors.
     """
+
     if key in adata.obsm.keys():
         X = adata.obsm[key]
     elif key in adata.layers.keys():
@@ -441,9 +597,17 @@ def cell_norm(adata, key, prefix_store=None, **norm_kwargs):
     return ret
 
 
-def einsum_correlation(X, Y_i, type="pearson"):
-    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i
-    for gene i"""
+def einsum_correlation(X: np.ndarray, Y_i: np.ndarray, type: str = "pearson") -> np.ndarray:
+    """Calculate pearson or cosine correlation between gene expression data and the velocity vectors.
+
+    Args:
+        X: the gene expression data (genes x cells).
+        Y_i: the velocity vector.
+        type: the type of correlation to be calculated. Defaults to "pearson".
+
+    Returns:
+        The correlation matrix.
+    """
 
     if type == "pearson":
         X -= X.mean(axis=1)[:, None]
@@ -470,9 +634,15 @@ def einsum_correlation(X, Y_i, type="pearson"):
     return corr
 
 
-def form_triu_matrix(arr):
+def form_triu_matrix(arr: np.ndarray) -> np.ndarray:
     """
     Construct upper triangle matrix from an 1d array.
+
+    Args:
+        arr: the array used to generate the upper triangle matrix.
+
+    Returns:
+        The generated upper triangle matrix.
     """
     n = int(np.ceil((np.sqrt(1 + 8 * len(arr)) - 1) * 0.5))
     M = np.zeros((n, n))
@@ -488,25 +658,19 @@ def form_triu_matrix(arr):
     return M
 
 
-def index_condensed_matrix(n, i, j):
-    """
-    Return the index of an element in a condensed n-by-n square matrix
-    by the row index i and column index j of the square form.
+def index_condensed_matrix(n: int, i: int, j: int) -> int:
+    """Return the index of an element in a condensed n-by-n square matrix by the row index i and column index j of the
+    square form.
 
-    Arguments
-    ---------
-        n: int
-            Size of the squareform.
-        i: int
-            Row index of the element in the squareform.
-        j: int
-            Column index of the element in the the squareform.
+    Args:
+        n: size of the square form.
+        i: row index of the element in the square form.
+        j: column index of the element in the square form.
 
-    Returns
-    -------
-        k: int
-            The index of the element in the condensed matrix.
+    Returns:
+        The index of the element in the condensed matrix.
     """
+
     if i == j:
         main_warning("Diagonal elements (i=j) are not stored in condensed matrices.")
         return None
@@ -515,7 +679,17 @@ def index_condensed_matrix(n, i, j):
     return int(i * (n - (i + 3) * 0.5) + j - 1)
 
 
-def condensed_idx_to_squareform_idx(arr_len, i):
+def condensed_idx_to_squareform_idx(arr_len: int, i: int) -> Tuple[int, int]:
+    """Return the row index i and column index j of the square matrix by giving the index of an element in the matrix's
+    condensed form.
+
+    Args:
+        arr_len: the size of the array in condensed form.
+        i: the index of the element in the condensed array.
+
+    Returns:
+        A tuple (x, y) of the row and column index of the element in sqaure form of the matrix.
+    """
     n = int((1 + np.sqrt(1 + 8 * arr_len)) / 2)
 
     def fr(x):
@@ -547,12 +721,33 @@ def var2m2(var, m1):
     return m2
 
 
-def gaussian_1d(x, mu=0, sigma=1):
+def gaussian_1d(x: npt.ArrayLike, mu: float = 0, sigma: float = 1) -> npt.ArrayLike:
+    """Calculate the probability density at x with given mean and standard deviation.
+
+    Args:
+        x: the x to calculate probability density. If x is an array, the probability density would be calculated
+        element-wisely.
+        mu: the mean of the distribution. Defaults to 0.
+        sigma: the standard deviation of the distribution. Defaults to 1.
+
+    Returns:
+        The probability density of the distribution at x.
+    """
+
     y = (x - mu) / sigma
     return np.exp(-y * y / 2) / np.sqrt(2 * np.pi) / sigma
 
 
-def timeit(method):
+def timeit(method: Callable) -> Callable:
+    """Wrap a Callable that if its kwargs contains "timeit" = True, measures how much time the function takes to finish.
+
+    Args:
+        method: the Callable to be measured.
+
+    Returns:
+        The wrapped Callable.
+    """
+
     def timed(*args, **kw):
         ti = kw.pop("timeit", False)
         if ti:
@@ -629,7 +824,17 @@ def velocity_on_grid(
     return X_grid, V_grid
 
 
-def argsort_mat(mat, order=1):
+def argsort_mat(mat: np.ndarray, order: Literal[-1, 1] = 1) -> List[Tuple[int, int]]:
+    """Sort a 2D array and return the index of sorted elements.
+
+    Args:
+        mat: the 2D array to be sort.
+        order: sort the array ascending if set to 1 and descending if set to -1. Defaults to 1.
+
+    Returns:
+        A list containing 2D index of sorted elements.
+    """
+
     isort = np.argsort(mat, axis=None)[::order]
     index = np.zeros((len(isort), 2), dtype=int)
     index[:, 0] = isort // mat.shape[1]
@@ -637,7 +842,28 @@ def argsort_mat(mat, order=1):
     return [(index[i, 0], index[i, 1]) for i in range(len(isort))]
 
 
-def list_top_genes(arr, gene_names, n_top_genes=30, order=-1, return_sorted_array=False):
+def list_top_genes(
+    arr: np.ndarray,
+    gene_names: np.ndarray,
+    n_top_genes: int = 30,
+    order: Literal[1, -1] = -1,
+    return_sorted_array: bool = False,
+) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
+    """List top genes in a set gene data.
+
+    Args:
+        arr: an 1D array containing expression value of a set of genes.
+        gene_names: the gene name corresponding to each value in `arr`.
+        n_top_genes: the number of top genes to be selected. Defaults to 30.
+        order: coule be 1 or -1. If set to 1, most expressed genes are selected; otherwise, least expressed genes are
+            selected. Defaults to -1.
+        return_sorted_array: whether to return the sorted expression array together with sorted gene names. Defaults to
+            False.
+
+    Returns:
+        The names of the sorted genes in the specified order. If `return_sorted_array` is set to True, the sorted
+        expression array would also be returned.
+    """
     imax = np.argsort(arr)[::order]
     if return_sorted_array:
         return gene_names[imax][:n_top_genes], arr[imax][:n_top_genes]
@@ -645,7 +871,21 @@ def list_top_genes(arr, gene_names, n_top_genes=30, order=-1, return_sorted_arra
         return gene_names[imax][:n_top_genes]
 
 
-def list_top_interactions(mat, row_names, column_names, order=-1):
+def list_top_interactions(
+    mat: np.ndarray, row_names: np.ndarray, column_names: np.ndarray, order: Literal[1, -1] = -1
+) -> Tuple[List[List[str]], np.ndarray]:
+    """Sort a 2D array with raw and column names in specified order.
+
+    Args:
+        mat: the array to be sorted.
+        row_names: the name for each row of `mat`.
+        column_names: the name for each column of `mat`.
+        order: coule be 1 or -1. If set to 1, sort ascending. Otherwise, sort descending. Defaults to -1.
+
+    Returns:
+        A tuple (ints, sorted_mat) where `ints` is a sorted list whose elements are pairs of row name and column name
+        corresponding to the element in the mat. `sorted_mat` is a list containing the sorted values of the mat.
+    """
     imax = argsort_mat(mat, order=order)
     ints = []
     sorted_mat = []
@@ -655,7 +895,26 @@ def list_top_interactions(mat, row_names, column_names, order=-1):
     return ints, np.array(sorted_mat)
 
 
-def table_top_genes(arrs, item_names, gene_names, return_df=True, output_values=False, **kwargs):
+def table_top_genes(
+    arrs: np.ndarray,
+    item_names: str,
+    gene_names: np.ndarray,
+    return_df: bool = True,
+    output_values: bool = False,
+    **kwargs,
+) -> Union[pd.DataFrame, dict]:
+    """Sort gene expressions for multiple items (cells) and save the result in a dict or a DataFrame.
+
+    Args:
+        arrs: a 2D array with each row corresponding to an item and each column corresponding to a gene.
+        item_names: the names of items corresponding to the rows of `arrs`.
+        gene_names: the names of genes corresponding to the columns of `arrs`.
+        return_df: whether to return the result in DataFrame or dict. Defaults to True.
+        output_values: whether to return the genes expression value together with sorted gene names. Defaults to False.
+
+    Returns:
+        A DataFrame or a dict containing sorted genes for each item.
+    """
     table = {}
     for i, item in enumerate(item_names):
         if output_values:
@@ -670,28 +929,23 @@ def table_top_genes(arrs, item_names, gene_names, return_df=True, output_values=
         return table
 
 
-def table_rank_dict(rank_dict, n_top_genes=30, order=1, output_values=False):
-    """
-    Generate a pandas.Dataframe from a rank dictionary. A rank dictionary is a
-    dictionary of gene names and values, based on which the genes are sorted,
-    for each group of cells.
+def table_rank_dict(
+    rank_dict: dict, n_top_genes: int = 30, order: int = 1, output_values: bool = False
+) -> pd.DataFrame:
+    """Generate a pandas.Dataframe from a rank dictionary. A rank dictionary is a dictionary of gene names and values,
+    based on which the genes are sorted, for each group of cells.
 
-    Arguments
-    ---------
-        rank_dict: dict
-            The rank dictionary.
-        n_top_genes: int (default 30)
-            The number of top genes put into the Dataframe.
-        order: int (default 1)
-            The order of picking the top genes from the rank dictionary.
-            1: ascending, -1: descending.
-        output_values: bool (default False)
-            Whether or not output the values along with gene names.
-    Returns
-    -------
-        :class:'~pandas.DataFrame'
-            The table of top genes of each group.
+    Args:
+        rank_dict: the rank dictionary.
+        n_top_genes: the number of top genes put into the Dataframe. Defaults to 30.
+        order: the order of picking the top genes from the rank dictionary.
+            1: ascending, -1: descending. Defaults to 1.
+        output_values: whether output the values along with gene names. Defaults to False.
+
+    Returns:
+        The table of top genes of each group.
     """
+
     data = {}
     for g, r in rank_dict.items():
         d = [k for k in r.keys()][::order]
@@ -704,7 +958,16 @@ def table_rank_dict(rank_dict, n_top_genes=30, order=1, output_values=False):
 
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
-def log1p_(adata, X_data):
+def log1p_(adata: AnnData, X_data: np.ndarray) -> np.ndarray:
+    """Perform log(1+x) X_data if adata.uns["pp"]["norm_method"] is None.
+
+    Args:
+        adata: the AnnData that has been preprocessed.
+        X_data: the data to perform log1p on.
+
+    Returns:
+        The log1p result data if "norm_method" in adata is None; otherwise, X_data would be returned unchanged.
+    """
     if "norm_method" not in adata.uns["pp"].keys():
         return X_data
     else:
@@ -717,7 +980,17 @@ def log1p_(adata, X_data):
         return X_data
 
 
-def inverse_norm(adata, layer_x):
+def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> np.ndarray:
+    """Perform inverse normalization on the given data. The normalization method is stored in adata after preprocessing.
+
+    Args:
+        adata: an AnnData object that has been preprocessed.
+        layer_x: the data to perform inverse normalization on.
+
+    Returns:
+        The inverse normalized data.
+    """
+
     if sp.issparse(layer_x):
         layer_x.data = (
             np.expm1(layer_x.data)
@@ -726,7 +999,7 @@ def inverse_norm(adata, layer_x):
             if adata.uns["pp"]["norm_method"] == "log2"
             else np.exp(layer_x.data) - 1
             if adata.uns["pp"]["norm_method"] == "log"
-            else Freeman_Tukey(layer_x.data + 1, inverse=True)
+            else _Freeman_Tukey(layer_x.data + 1, inverse=True)
             if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
             else layer_x.data
         )
@@ -738,7 +1011,7 @@ def inverse_norm(adata, layer_x):
             if adata.uns["pp"]["norm_method"] == "log2"
             else np.exp(layer_x) - 1
             if adata.uns["pp"]["norm_method"] == "log"
-            else Freeman_Tukey(layer_x, inverse=True)
+            else _Freeman_Tukey(layer_x, inverse=True)
             if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
             else layer_x
         )
@@ -797,25 +1070,54 @@ def compute_velocity_labeling_B(B, alpha, R):
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
-def remove_2nd_moments(adata):
+def remove_2nd_moments(adata: AnnData) -> None:
+    """Delete layers of 2nd moments.
+
+    Args:
+        adata: the AnnData object from which 2nd moment layers are deleted.
+    """
     layers = list(adata.layers.keys())
     for layer in layers:
         if layer.startswith("M_") and len(layer) == 4:
             del adata.layers[layer]
 
 
-def get_valid_bools(adata, filter_gene_mode):
+def get_valid_bools(adata: AnnData, filter_gene_mode: Literal["final", "basic", "no"]) -> np.ndarray:
+    """Get a boolean array showing the gene passing the filter specified.
+
+    Args:
+        adata: an AnnData object.
+        filter_gene_mode: the gene filter. Could be one of "final", "basic", and "no".
+
+    Raises:
+        NotImplementedError: invalid `filter_gene_mode`.
+
+    Returns:
+        A boolean array showing the gene passing the filter specified.
+    """
     if filter_gene_mode == "final":
         valid_ind = adata.var.use_for_pca.values
     elif filter_gene_mode == "basic":
         valid_ind = adata.var.pass_basic_filter.values
     elif filter_gene_mode == "no":
         valid_ind = np.repeat([True], adata.shape[1])
-
+    else:
+        raise NotImplementedError("Invalid filter_gene_mode. ")
     return valid_ind
 
 
-def log_unnormalized_data(raw, log_unnormalized):
+def log_unnormalized_data(
+    raw: Union[np.ndarray, sp.csr_matrix], log_unnormalized: bool
+) -> Union[np.ndarray, sp.csr_matrix]:
+    """Perform log1p on unnormalized data.
+
+    Args:
+        raw: the matrix to be operated on.
+        log_unnormalized: whether the matrix is unnormalized and log1p should be performed.
+
+    Returns:
+        Updated matrix with log1p if it is unormalized; otherwise, return original `raw`.
+    """
     if sp.issparse(raw):
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
     else:
@@ -1461,26 +1763,54 @@ def fetch_X_data(adata, genes, layer, basis=None):
 
 
 class AnnDataPredicate(object):
-    def __init__(self, key, value, op="=="):
-        """
-        Predicate class for item selection for anndata
+    """The predicate class for item selection for anndata.
 
-        Parameters
-        ----------
-            key: str
-                The key in the dictionary (specified as `data` in `.check()`) that will be used for selection.
-            value: any
-                The value that will be used based on `op` to select items.
-            op: str
-                operators for selection:
+    Attributes:
+        key: The key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
+        value: The value that will be used based on `op` to select items.
+        op: operators for selection.
+    """
+
+    def __init__(
+        self,
+        key: str,
+        value: Any,
+        op: Literal[
+            "==",
+            "!=",
+            ">",
+            "<",
+            ">=",
+            "<=",
+        ] = "==",
+    ) -> None:
+        """Initialize an AnnDataPredicate object.
+
+        Args:
+            key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
+            value: the value that will be used based on `op` to select items.
+            op: operators for selection:
                 '==' - equal to `value`; '!=' - unequal to; '>' - greater than; '<' - smaller than;
-                '>=' - greater than or equal to; '<=' - less than or equal to.
+                '>=' - greater than or equal to; '<=' - less than or equal to. Defaults to "==".
         """
+
         self.key = key
         self.value = value
         self.op = op
 
-    def check(self, data):
+    def check(self, data: AnnData) -> np.ndarray:
+        """Filter out the elements in data[AnnDataPredicate.key] that fullfill the requirement specified as
+        AnnDataPredicate's `value` and `op` attr.
+
+        Args:
+            data: the AnnData object to be tested.
+
+        Raises:
+            NotImplementedError: invalid `op`.
+
+        Returns:
+            A boolean array with `True` at positions where the element pass the check.
+        """
         if self.op == "==":
             return data[self.key] == self.value
         elif self.op == "!=":
@@ -1497,12 +1827,38 @@ class AnnDataPredicate(object):
             raise NotImplementedError(f"Unidentified operator {self.op}!")
 
     def __or__(self, other):
+        """Combine requirement from another AnnDataPredicate object and return an AnnDataPredicates that set True on
+        elements that pass at least one requirement from the AnnDataPredicate objects.
+
+        Args:
+            other (AnnDataPredicate): another AnnDataPredicate object containing requirement for "or" test.
+
+        Returns:
+            PredicateUnion: the updated Predicates object.
+        """
         return PredicateUnion(self, other)
 
     def __and__(self, other):
+        """Combine requirement from another AnnDataPredicate object and return an AnnDataPredicates that set True on
+        elements that pass all requirements from the AnnDataPredicate objects.
+
+        Args:
+            other (AnnDataPredicate): another AnnDataPredicate object containing requirement for "and" test.
+
+        Returns:
+            PredicateIntersection: the updated Predicates object.
+        """
         return PredicateIntersection(self, other)
 
     def __invert__(self):
+        """Inverse the current requirement.
+
+        Raises:
+            NotImplementedError: invalid `op`.
+
+        Returns:
+            AnnDataPredicate: the updated Predicate object.
+        """
         if self.op == "==":
             op = "!="
         elif self.op == "!=":
@@ -1522,34 +1878,107 @@ class AnnDataPredicate(object):
 
 
 class AlwaysTrue(AnnDataPredicate):
-    def __init__(self, key=None):
+    """A class inherited from AnnDataPredicate. Will return true for all elements under any requirement.
+
+    Attributes:
+        key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
+    """
+
+    def __init__(self, key: Optional[str] = None) -> None:
+        """Initialize an AlwaysTrue object.
+
+        Args:
+            key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection. If
+                None, the first layer of the AnnData for comparison would be used. Defaults to None.
+        """
         self.key = key
 
-    def check(self, data):
+    def check(self, data: AnnData) -> np.ndarray:
+        """Return an all-true boolean array with the shape of the layer.
+
+        Args:
+            data: the AnnData object to be tested.
+
+        Returns:
+            An all-true boolean array with the shape of the layer.
+        """
         key = self.key if self.key is not None else data.keys()[0]
         return np.ones(len(data[key]), dtype=bool)
 
     def __invert__(self):
+        """Inverse the AlwaysTrue object to AlwaysFalse object.
+
+        Returns:
+            An AlwaysFalse object.
+        """
         return AlwaysFalse(key=self.key)
 
 
 class AlwaysFalse(AnnDataPredicate):
+    """A class inherited from AnnDataPredicate. Will return false for all elements under any requirement.
+
+    Attributes:
+        key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
+    """
+
     def __init__(self, key=None):
+        """Initialize an AlwaysTrue object.
+
+        Args:
+            key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection. If
+                None, the first layer of the AnnData for comparison would be used. Defaults to None.
+        """
         self.key = key
 
     def check(self, data):
+        """Return an all-false boolean array with the shape of the layer.
+
+        Args:
+            data: the AnnData object to be tested.
+
+        Returns:
+            An all-false boolean array with the shape of the layer.
+        """
         key = self.key if self.key is not None else data.keys()[0]
         return np.zeros(len(data[key]), dtype=bool)
 
     def __invert__(self):
+        """Inverse the AlwaysTrue object to AlwaysTrue object.
+
+        Returns:
+            An AlwaysTrue object.
+        """
         return AlwaysTrue(key=self.key)
 
 
 class AnnDataPredicates(object):
-    def __init__(self, *predicates):
+    """A set of multiple AnnDataPredicate objects.
+
+    Attributions:
+        predicates (List[AnnDataPredicate]): a tuple containing multiple AnnDataPredicate objects.
+    """
+
+    def __init__(self, *predicates) -> None:
+        """Initialize an AnnDataPredicates object.
+
+        Args:
+            *predicates: one or more AnnDataPredicate objects.
+        """
         self.predicates = predicates
 
     def binop(self, other, op):
+        """Bind two Predicate(s) objects together with given operation type.
+
+        Args:
+            other: another Predicate(s) object to bind with.
+            op: how to bind the requirement of Predicates (Union or Intersection).
+
+        Raises:
+            NotImplementedError: `other` is not an Predcate(s) instance.
+
+        Returns:
+            AnnDataPredicates: a new Predicates object with requirement binded.
+        """
         if isinstance(other, AnnDataPredicate):
             return op(*self.predicates, other)
         elif isinstance(other, AnnDataPredicates):
@@ -1559,34 +1988,103 @@ class AnnDataPredicates(object):
 
 
 class PredicateUnion(AnnDataPredicates):
-    def check(self, data):
+    """Inherited from AnnDataPredicates. If at least 1 requirement from all predicates is fulfilled, the data would pass
+    the check.
+    """
+
+    def check(self, data: AnnData) -> np.ndarray:
+        """Check whether the data could fulfill at least 1 requirement by all Predicates.
+
+        Args:
+            data (AnnData): an AnnData object.
+
+        Returns:
+            np.ndarray: A boolean array with `True` at positions where the element can pass at least one check.
+        """
         ret = None
         for pred in self.predicates:
             ret = np.logical_or(ret, pred.check(data)) if ret is not None else pred.check(data)
         return ret
 
     def __or__(self, other):
+        """Bind with other Predicate(s) with union.
+
+        Args:
+            other: another Predicate(s) object to bind with.
+
+        Returns:
+            PredicateUnion: the binded predicates.
+        """
         return self.binop(other, PredicateUnion)
 
     def __and__(self, other):
+        """Bind with other Predicate(s) with intersection.
+
+        Args:
+            other: another Predicate(s) object to bind with.
+
+        Returns:
+            PredicateIntersection: the binded predicates.
+        """
         return self.binop(other, PredicateIntersection)
 
 
 class PredicateIntersection(AnnDataPredicates):
+    """Inherited from AnnDataPredicates. If all requirements from all predicates are fulfilled, the data would pass
+    the check.
+    """
+
     def check(self, data):
+        """Check whether the data could fulfill all requirements by all Predicates.
+
+        Args:
+            data (AnnData): an AnnData object.
+
+        Returns:
+            np.ndarray: A boolean array with `True` at positions where the element can pass all checks.
+        """
         ret = None
         for pred in self.predicates:
             ret = np.logical_and(ret, pred.check(data)) if ret is not None else pred.check(data)
         return ret
 
     def __or__(self, other):
+        """Bind with other Predicate(s) with union.
+
+        Args:
+            other: another Predicate(s) object to bind with.
+
+        Returns:
+            PredicateUnion: the binded predicates.
+        """
         return self.binop(other, PredicateUnion)
 
     def __and__(self, other):
+        """Bind with other Predicate(s) with intersection.
+
+        Args:
+            other: another Predicate(s) object to bind with.
+
+        Returns:
+            PredicateIntersection: the binded predicates.
+        """
         return self.binop(other, PredicateIntersection)
 
 
-def select(array, pred=AlwaysTrue(), output_format="mask"):
+def select(
+    array: np.ndarray, pred: AnnDataPredicate = AlwaysTrue(), output_format: Literal["mask", "index"] = "mask"
+) -> np.ndarray:
+    """Select part of the array based on the condition provided by the used.
+
+    Args:
+        array: the original data to be selected from.
+        pred: the condition provided by the user. Defaults to AlwaysTrue().
+        output_format: whether to output a mask of selection or selected items' indices. Defaults to "mask".
+
+    Returns:
+        A mask of selection or selected items' indices.
+    """
+
     ret = pred.check(array)
     if output_format == "mask":
         pass
@@ -1962,7 +2460,9 @@ def get_ekey_vkey_from_adata(adata):
 # ---------------------------------------------------------------------------------------------------
 # cell velocities related
 def get_neighbor_indices(adjacency_list, source_idx, n_order_neighbors=2, max_neighbors_num=None):
-    """returns a list (np.array) of `n_order_neighbors` neighbor indices of source_idx. If `max_neighbors_num` is set and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list of neighbors will be randomly chosen and returned."""
+    """returns a list (np.array) of `n_order_neighbors` neighbor indices of source_idx. If `max_neighbors_num` is set
+    and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list of neighbors will be randomly
+    chosen and returned."""
     _indices = [source_idx]
     for _ in range(n_order_neighbors):
         _indices = np.append(_indices, adjacency_list[_indices])
@@ -2030,33 +2530,26 @@ def split_velocity_graph(G, neg_cells_trick=True):
 #  https://gist.github.com/aldro61/5889795
 
 
-def linear_least_squares(a, b, residuals=False):
+def linear_least_squares(
+    a: npt.ArrayLike, b: npt.ArrayLike, residuals: bool = False
+) -> Union[np.ndarray, Tuple[np.ndarray, float]]:
+    """Return the least-squares solution to a linear matrix equation.
+
+    Solves the equation `a x = b` by computing a vector `x` that minimizes the Euclidean 2-norm `|| b - a x ||^2`.
+    The equation may be under-, well-, or over- determined (i.e., the number of linearly independent rows of `a` can be
+    less than, equal to, or greater than its number of linearly independent columns).  If `a` is square and of full
+    rank, then `x` (but for round-off error) is the "exact" solution of the equation.
+
+    Args:
+        a: the coefficient matrix.
+        b: the ordinate or "dependent variable" values.
+        residuals: whether to compute the residuals associated with the least-squares solution. Defaults to False.
+
+    Returns:
+        The least-squares solution. If `residuals` is True, the sum of residuals (squared Euclidean 2-norm for each
+        column in ``b - a*x``) would also be returned.
     """
-    Return the least-squares solution to a linear matrix equation.
-    Solves the equation `a x = b` by computing a vector `x` that
-    minimizes the Euclidean 2-norm `|| b - a x ||^2`.  The equation may
-    be under-, well-, or over- determined (i.e., the number of
-    linearly independent rows of `a` can be less than, equal to, or
-    greater than its number of linearly independent columns).  If `a`
-    is square and of full rank, then `x` (but for round-off error) is
-    the "exact" solution of the equation.
-    Parameters
-    ----------
-    a : (M, N) array_like
-        "Coefficient" matrix.
-    b : (M,) array_like
-        Ordinate or "dependent variable" values.
-    residuals : bool
-        Compute the residuals associated with the least-squares solution
-    Returns
-    -------
-    x : (M,) ndarray
-        Least-squares solution. The shape of `x` depends on the shape of
-        `b`.
-    residuals : int (Optional)
-        Sums of residuals; squared Euclidean 2-norm for each column in
-        ``b - a*x``.
-    """
+
     if type(a) != np.ndarray or not a.flags["C_CONTIGUOUS"]:
         main_warning(
             "Matrix a is not a C-contiguous numpy array. The solver will create a copy, which will result"
@@ -2236,26 +2729,26 @@ def getTseq(init_states, t_end, step_size=None):
 
 # ---------------------------------------------------------------------------------------------------
 # spatial related
-def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None, use_unique_coords=True) -> float:
-    """Compute and return smallest distance. A wrapper for sklearn API
+def compute_smallest_distance(
+    coords: np.ndarray, leaf_size: int = 40, sample_num: Optional[int] = None, use_unique_coords: bool = True
+) -> float:
+    """Compute and return smallest distance.
 
-    Parameters
-    ----------
-        coords:
-            NxM matrix. N is the number of data points and M is the dimension of each point's feature.
-        leaf_size : int, optional
-            Leaf size parameter for building Kd-tree, by default 40.
-        sample_num:
-            The number of cells to be sampled.
-        use_unique_coords:
-            Whether to remove duplicate coordinates
+    This function is a wrapper for sklearn API.
 
-    Returns
-    -------
-        min_dist: float
-            the minimum distance between points
+    Args:
+        coords: NxM matrix. N is the number of data points and M is the dimension of each point's feature.
+        leaf_size: the leaf size parameter for building Kd-tree. Defaults to 40.
+        sample_num: the number of cells to be sampled. Defaults to None.
+        use_unique_coords: whether to remove duplicate coordinates. Defaults to True.
 
+    Raises:
+        ValueError: the dimension of coords is not 2x2
+
+    Returns:
+        The minimum distance between points.
     """
+
     if len(coords.shape) != 2:
         raise ValueError("Coordinates should be a NxM array.")
     if use_unique_coords:
@@ -2293,36 +2786,32 @@ def apply_args_and_kwargs(fn, args, kwargs):
 # ---------------------------------------------------------------------------------------------------
 # ranking related
 def get_rank_array(
-    adata,
-    arr_key,
-    genes=None,
-    abs=False,
-    dtype=None,
-):
-    """Get the data array that will be used for gene-wise or cell-wise ranking
+    adata: AnnData,
+    arr_key: Union[str, np.ndarray],
+    genes: Optional[List[str]] = None,
+    abs: bool = False,
+    dtype: Optional[np.dtype] = None,
+) -> Tuple[List[str], np.ndarray]:
+    """Get the data array that will be used for gene-wise or cell-wise ranking.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the array to be sorted in `.var` or `.layer`.
-        arr_key: str or :class:`~numpy.ndarray`
-            The key of the to-be-ranked array stored in `.var` or or `.layer`.
-            If the array is found in `.var`, the `groups` argument will be ignored.
-            If a numpy array is passed, it is used as the array to be ranked and must
+    Args:
+        adata: annData object that contains the array to be sorted in `.var` or `.layer`.
+        arr_key: the key of the to-be-ranked array stored in `.var` or or `.layer`. If the array is found in `.var`, the
+            `groups` argument will be ignored. If a numpy array is passed, it is used as the array to be ranked and must
             be either an 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
-        groups: str or None (default: None)
-            Cell groups used to group the array.
-        genes: list or None (default: None)
-            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
-        abs: bool (default: False)
-            When pooling the values in the array (see below), whether to take the absolute values.
-        fcn_pool: callable (default: numpy.mean(x, axis=0))
-            The function used to pool values in the to-be-ranked array if the array is 2d.
+        genes: the gene list that speed will be ranked. If provided, they must overlap the dynamics genes. Defaults to
+            None.
+        abs: when pooling the values in the array (see below), whether to take the absolute values. Defaults to False.
+        dtype: the dtype the the result array would be formated into. Defaults to None.
 
-    Returns
-    -------
-        arr: `~numpy.ndarray`
-            An array that stores information required for gene/cell-wise ranking.
+    Raises:
+        TypeError: invalid `arr_key`.
+        ValueError: invalid `genes`.
+        Exception: invalid `arr_key`.
+
+    Returns:
+        A tuple (genes, arr) where `genes` is a list containing genes be ranked and `arr` is an array that stores
+        information required for gene/cell-wise ranking.
     """
 
     dynamics_genes = (
@@ -2374,7 +2863,9 @@ def get_rank_array(
 
 # ---------------------------------------------------------------------------------------------------
 # projection related
-def projection_with_transition_matrix(T, X_embedding, correct_density=True, norm_dist=True):
+def projection_with_transition_matrix(
+    T: Union[np.ndarray, sp.csr_matrix], X_embedding: np.ndarray, correct_density: bool = True, norm_dist: bool = True
+) -> np.ndarray:
     n = T.shape[0]
     delta_X = np.zeros((n, X_embedding.shape[1]))
 

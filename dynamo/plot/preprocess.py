@@ -17,7 +17,7 @@ from scipy.sparse import csr_matrix, issparse
 from ..configuration import DynamoAdataKeyManager
 from ..dynamo_logger import main_warning
 from ..preprocessing import preprocess as pp
-from ..preprocessing.preprocess_monocle_utils import top_table
+from ..preprocessing.gene_selection import get_prediction_by_svr
 from ..preprocessing.utils import detect_experiment_datatype
 from ..tools.utils import get_mapper, update_dict
 from .utils import save_fig
@@ -646,19 +646,10 @@ def feature_genes(
     """
 
     mode = adata.uns["feature_selection"] if mode is None else mode
-
     layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, include_protein=False)[0]
-
     uns_store_key = None
-    if mode == "dispersion":
-        uns_store_key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
 
-        table = top_table(adata, layer)
-        x_min, x_max = (
-            np.nanmin(table["mean_expression"]),
-            np.nanmax(table["mean_expression"]),
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:  # "cv_dispersion", "fano_dispersion"
         prefix = "" if layer == "X" else layer + "_"
         uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
 
@@ -678,11 +669,12 @@ def feature_genes(
     ordering_genes = adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
-    fit = (
-        adata.uns[uns_store_key]["disp_func"](mu_linspace)
-        if mode == "dispersion"
-        else adata.uns[uns_store_key]["SVR"](mu_linspace.reshape(-1, 1))
-    )
+    if "_dispersion" in mode:
+        mean = adata.uns[uns_store_key]["mean"]
+        cv = adata.uns[uns_store_key]["cv"]
+        svr_gamma = adata.uns[uns_store_key]["svr_gamma"]
+        fit, _ = get_prediction_by_svr(mean, cv, svr_gamma)
+        fit = fit(mu_linspace.reshape(-1, 1))
 
     plt.figure(figsize=figsize)
     plt.plot(mu_linspace, fit, alpha=0.4, color="r")
@@ -693,15 +685,7 @@ def feature_genes(
     )
 
     valid_disp_table = table.iloc[valid_ind, :]
-    if mode == "dispersion":
-        ax = plt.scatter(
-            valid_disp_table["mean_expression"],
-            valid_disp_table["dispersion_empirical"],
-            s=3,
-            alpha=1,
-            color="xkcd:red",
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:
         ax = plt.scatter(
             valid_disp_table[prefix + "log_m"],
             valid_disp_table[prefix + "log_cv"],
@@ -712,15 +696,7 @@ def feature_genes(
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
-    if mode == "dispersion":
-        ax = plt.scatter(
-            neg_disp_table["mean_expression"],
-            neg_disp_table["dispersion_empirical"],
-            s=3,
-            alpha=0.5,
-            color="xkcd:grey",
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:
         ax = plt.scatter(
             neg_disp_table[prefix + "log_m"],
             neg_disp_table[prefix + "log_cv"],
@@ -729,9 +705,6 @@ def feature_genes(
             color="xkcd:grey",
         )
 
-    # plt.xlim((0, 100))
-    if mode == "dispersion":
-        plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Mean (log)")
     plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
@@ -1036,7 +1009,7 @@ def highest_frac_genes(
 
         else:
             main_warning(
-                "%s not in adata.var, ignoring the gene annotation key when plotting",
+                "%s not in adata.var, ignoring the gene annotation key when plotting" % gene_annotation_key,
                 indent_level=2,
             )
 

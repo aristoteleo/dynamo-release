@@ -1,7 +1,7 @@
 import itertools
 import warnings
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -27,8 +27,8 @@ def fate(
     init_states: Optional[np.ndarray] = None,
     basis: Optional[None] = None,
     layer: str = "X",
-    dims: Union[tuple([list, None] + list(np.ScalarType))] = None,
-    genes: Union[list, None] = None,
+    dims: Optional[Union[int, List[int], Tuple[int], np.ndarray]] = None,
+    genes: Optional[List] = None,
     t_end: Optional[float] = None,
     direction: str = "both",
     interpolation_num: int = 250,
@@ -40,76 +40,55 @@ def fate(
     scale: float = 1,
     cores: int = 1,
     **kwargs: dict,
-):
+) -> AnnData:
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
 
      This is achieved by integrating the reconstructed vector field function from one or a set of initial cell state(s).
      Note that this function is designed so that there is only one trajectory (based on averaged cell states if multiple
      initial states are provided) will be returned. `dyn.tl._fate` can be used to calculate multiple cell states.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        init_cells: `list`
-            Cell name or indices of the initial cell states for the historical or future cell state prediction with
+    Args:
+        adata: AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        init_cells: Cell name or indices of the initial cell states for the historical or future cell state prediction with
             numerical integration. If the names in init_cells not found in the adata.obs_name, it will be treated as
             cell indices and must be integers.
-        init_states: `numpy.ndarray` or None (default: None)
-            Initial cell states for the historical or future cell state prediction with numerical integration.
-        basis: `str` or None (default: `None`)
-            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
+        init_states: Initial cell states for the historical or future cell state prediction with numerical integration.
+        basis: The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
             trajectory will be projected back to high dimensional space via the `inverse_transform` function.
-        layer: `str` or None (default: 'X')
-            Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
+        layer: Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
             The layer once provided, will override the `basis` argument and then predicting cell fate in high
             dimensional space.
-        dims: `scalar`, `list` or None (default: `None')
-            The dimensions that will be selected for fate prediction.
-        genes: `list` or None (default: None)
-            The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to
+        dims: The dimensions that will be selected for fate prediction.
+        genes: The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to
             None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field
             reconstruction. Note that the genes to be used need to have velocity calculated and corresponds to those
             used in the `dyn.tl.VectorField` function.
-        t_end: `float` (default None)
-            The length of the time period from which to predict cell state forward or backward over time. This is used
+        t_end: The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
-        direction: `string` (default: both)
-            The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
-        interpolation_num: `int` (default: 100)
-            The number of uniformly interpolated time points.
-        average: `str` or `bool` (default: `False`) {'origin', 'trajectory'}
-            The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If
+        direction: The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
+        interpolation_num: The number of uniformly interpolated time points.
+        average: The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction
             is based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be
             applied.
-        sampling: `str` (default: `arc_length`)
-            Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
+        sampling: Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
             If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
             of all time points from all cell states' fate prediction will be used and then evenly sampled up to
             `interpolation_num` time points. If `arc_length`, we will sample the integration path with uniform arc
             length.
-        VecFld_true: `function`
-            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when
+        VecFld_true: The true ODE function, useful when the data is generated through simulation. Replace VecFld argument when
             this has been set.
-        inverse_transform: `bool` (default: `False`)
-            Whether to inverse transform the low dimensional vector field prediction back to high dimensional space.
-        Qkey: str (default: 'PCs')
-            The key of the PCA loading matrix in `.uns`.
-        scale: `float` (default: `1`)
-            The value that will be used to scale the predicted velocity value from the reconstructed vector field
+        inverse_transform: Whether to inverse transform the low dimensional vector field prediction back to high dimensional space.
+        Qkey: The key of the PCA loading matrix in `.uns`.
+        scale: The value that will be used to scale the predicted velocity value from the reconstructed vector field
             function.
-        cores: `int` (default: 1):
-            Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
+        cores: Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
             multiprocessing will be used to parallel the fate prediction.
-        kwargs:
-            Additional parameters that will be passed into the fate function.
+        kwargs: Additional parameters that will be passed into the fate function.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns
+    Returns:
+        adata: AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns
             attribute.
     """
 
@@ -224,60 +203,43 @@ def fate(
 
 
 def _fate(
-    VecFld,
-    init_states,
-    t_end=None,
-    step_size=None,
-    direction="both",
-    interpolation_num=250,
-    average=True,
-    sampling="arc_length",
-    cores=1,
-):
+    VecFld: Callable,
+    init_states: np.ndarray,
+    t_end: Optional[float] = None,
+    step_size: Optional[float] = None,
+    direction: str = "both",
+    interpolation_num: int = 250,
+    average: bool = True,
+    sampling: str = "arc_length",
+    cores:int = 1,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector
     field functions from one or a set of initial cell state(s).
 
-    Arguments
-    ---------
-        VecFld: `function`
-            Functional form of the vector field reconstructed from sparse single cell samples. It is applicable to the
+    Args:
+        VecFld: Functional form of the vector field reconstructed from sparse single cell samples. It is applicable to the
             entire transcriptomic space.
-        init_states: `numpy.ndarray`
-            Initial cell states for the historical or future cell state prediction with numerical integration.
-        t_end: `float` (default None)
-            The length of the time period from which to predict cell state forward or backward over time. This is used
+        init_states: Initial cell states for the historical or future cell state prediction with numerical integration.
+        t_end: The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
-        step_size: `float` or None (default None)
-            Step size for integrating the future or history cell state, used by the odeint function. By default it is
+        step_size: Step size for integrating the future or history cell state, used by the odeint function. By default it is
             None, and the step_size will be automatically calculated to ensure 250 total integration time-steps will be
             used.
-        direction: `string` (default: both)
-            The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
-        interpolation_num: `int` (default: 100)
-            The number of uniformly interpolated time points.
-        average: `bool` (default: True)
-            A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each
+        direction: The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
+        interpolation_num: The number of uniformly interpolated time points.
+        average: A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each
             time step.
-        sampling: `str` (default: `logspace`)
-            Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
+        sampling: Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
             If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
             of all time points from all cell states' fate prediction will be used and then evenly sampled up to
             `interpolation_num` time points. If `arc_length`, we will sample the integration path with uniform arc
             length.
-        cores: `int` (default: 1):
-            Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
+        cores: Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
             multiprocessing will be used to parallel the fate prediction.
 
-    Returns
-    -------
-    t: `numpy.ndarray`
-        The time at which the cell state are predicted.
-    prediction: `numpy.ndarray`
-        Predicted cells states at different time points. Row order corresponds to the element order in t. If init_states
-        corresponds to multiple cells, the expression dynamics over time for each cell is concatenated by rows. That is,
-        the final dimension of prediction is (len(t) * n_cells, n_features). n_cells: number of cells; n_features:
-        number of genes or number of low dimensional embeddings. Of note, if the average is set to be True, the average
-        cell state at each time point is calculated for all cells.
+    Returns:
+        t: The time at which the cell state are predicted.
+        prediction: Predicted cells states at different time points. Row order corresponds to the element order in t. If init_states corresponds to multiple cells, the expression dynamics over time for each cell is concatenated by rows. That is, the final dimension of prediction is (len(t) * n_cells, n_features). n_cells: number of cells; n_features: number of genes or number of low dimensional embeddings. Of note, if the average is set to be True, the average cell state at each time point is calculated for all cells.
     """
 
     t_linspace = getTseq(init_states, t_end, step_size)
@@ -331,7 +293,7 @@ def _fate(
 
 def fate_bias(
     adata: AnnData,
-    group,
+    group: str,
     basis: str = "umap",
     inds: Union[list, None] = None,
     use_sink_percentage: bool = True,
@@ -344,7 +306,7 @@ def fate_bias(
     cores: int = 1,
     seed: int = 19491001,
     **kwargs,
-):
+) -> pd.DataFrame:
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
 
     Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory whose
@@ -370,61 +332,44 @@ def fate_bias(
     `median_dist` is median distance of their 1-st nearest cell distance of all observed cells. `walk_back_steps` is the
     steps walked backward along the integration path until all currently visited integration points's 0-th nearest
     points to the observed cells satisfy the distance threshold. `indices` are the time indices of integration points
-    that is regarded as the regions with `small velocity` (note when walking backward, those corresponding points are
+    that is regarded as the regions with `small velocity` (note when walking backward, those corresponding points do
     not necessarily have small velocity anymore).
 
-    Arguments
-    ---------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the predicted fate trajectories in the `uns` attribute.
-        group: `str`
-            The column key that corresponds to the cell type or other group information for quantifying the bias of cell
+    Args:
+        adata: AnnData object that contains the predicted fate trajectories in the `uns` attribute.
+        group: The column key that corresponds to the cell type or other group information for quantifying the bias of cell
             state.
-        basis: `str` or None (default: `None`)
-            The embedding data space where cell fates were predicted and cell fates bias will be quantified.
-        inds:
-            The indices of the time steps that will be used for calculating fate bias.
+        basis: The embedding data space where cell fates were predicted and cell fates bias will be quantified.
+        inds: The indices of the time steps that will be used for calculating fate bias.
             Otherwise inds need to be a list of integers of the time steps.
-        use_sink_percentage:
-            If inds is None and use_sink is True, sink calculation will be applied to calculate
+        use_sink_percentage: If inds is None and use_sink is True, sink calculation will be applied to calculate
             indices used for fate bias calculation
-        step_used_percentage:
-            If inds is None and step_used_percentage is not None,
+        step_used_percentage: If inds is None and step_used_percentage is not None,
             step_used_percentage will be regarded as a percentage,
             and the LAST step_used_percentage of steps will be used for fate bias calculation.
-        speed_percentile: `float` (default: `5`)
-            The percentile of speed that will be used to determine the terminal cells (or sink region on the prediction
+        speed_percentile: The percentile of speed that will be used to determine the terminal cells (or sink region on the prediction
             path where speed is smaller than this speed percentile).
-        dist_threshold: `float` or `None` (default: `None`)
-            A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
+        dist_threshold: A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
             sampled domain of cells. If the mean distance of identified "terminal cells" is above this number, we will
             look backward along the trajectory (by minimize all indices by 1) until it finds cells satisfy this
             threshold. By default it is set to be 1 to ensure only considering points that are very close to observed
             data points.
-        source_groups: `list` or `None` (default: `None`)
-            The groups that corresponds to progenitor groups. They has to have at least one intersection with the groups
+        source_groups: The groups that corresponds to progenitor groups. They need to have at least one intersection with the groups
             from the `group` column. If group is not `None`, any identified "source_groups" cells that happen to be in
             those groups will be ignored and the probability of cell fate of those cells will be reassigned to the group
             that has the highest fate probability among other non source_groups group cells.
-        metric: `str` or callable, default='euclidean'
-            The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
+        metric: The distance metric to use for the tree.  The default metric with p=2 is equivalent to the standard
             Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If
             metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
             :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
-        metric_kwds : dict, default=None
-            Additional keyword arguments for the metric function.
-        cores: `int` (default: 1)
-            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a
+        metric_kwds : Additional keyword arguments for the metric function.
+        cores: The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a
             :obj:`joblib.parallel_backend` context. ``-1`` means using all processors.
-        seed: `int` (default `19491001`)
-            Random seed to ensure the reproducibility of each run.
-        kwargs:
-            Additional arguments that will be passed to each nearest neighbor search algorithm.
+        seed: Random seed to ensure the reproducibility of each run.
+        kwargs: Additional arguments that will be passed to each nearest neighbor search algorithm.
 
-    Returns
-    -------
-        fate_bias: `pandas.DataFrame`
-            A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
+    Returns:
+        fate_bias: A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
     """
 
     if dist_threshold is None:
@@ -593,7 +538,7 @@ def fate_bias(
 
 def andecestor(
     adata: AnnData,
-    init_cells: list,
+    init_cells: List,
     init_states: Optional[np.ndarray] = None,
     cores: int = 1,
     t_end: int = 50,
@@ -609,43 +554,29 @@ def andecestor(
 ) -> None:
     """Predict the ancestors or descendants of a group of initial cells (states) with the given vector field function.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        init_cells: `list`
-            Cell name or indices of the initial cell states for the historical or future cell state prediction with
+    Args:
+        adata: AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        init_cells: Cell name or indices of the initial cell states for the historical or future cell state prediction with
             numerical integration. If the names in init_cells not found in the adata.obs_name, it will be treated as
             cell indices and must be integers.
-        init_states: `numpy.ndarray` or None (default: None)
-            Initial cell states for the historical or future cell state prediction with numerical integration.
-        basis: `str` or None (default: `None`)
-            The embedding data to use for predicting cell fate.
-        cores: `int` (default: 1):
-            Number of cores to calculate nearest neighbor graph.
-        t_end: `float` (default None)
-            The length of the time period from which to predict cell state forward or backward over time. This is used
+        init_states: Initial cell states for the historical or future cell state prediction with numerical integration.
+        basis: The key in `adata.obsm` that points to the embedding data to use for predicting cell fate.
+        cores: Number of cores to calculate nearest neighbor graph.
+        t_end: The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
-        n_neighbors:
-            Number of nearest neighbos.
-        direction: `string` (default: both)
-            The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
-        interpolation_num: `int` (default: 100)
-            The number of uniformly interpolated time points.
-        metric: `str` or callable, default='euclidean'
-            The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
-            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If
-            metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
-            :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
-        metric_kwds : dict, default=None
-            Additional keyword arguments for the metric function.
-        seed: `int` (default `19491001`)
-            Random seed to ensure the reproducibility of each run.
-        kwargs:
-            Additional arguments that will be passed to each nearest neighbor search algorithm.
+        n_neighbors: Number of nearest neighbors.
+        direction: The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
+        interpolation_num: The number of uniformly interpolated time points.
+        metric: The distance metric to use for the tree.  The default metric is 'euclidean', and with p=2 is
+            equivalent to the standard Euclidean metric. See the documentation of :class:`DistanceMetric` for
+            a list of available metrics. If metric is "precomputed", X is assumed to be a distance matrix and
+            must be square during fit. X may be a :term:`sparse graph`, in which case only "nonzero" elements
+            may be considered neighbors.
+        metric_kwds : Additional keyword arguments for the metric function.
+        seed: Random seed to ensure the reproducibility of each run.
+        kwargs: Additional arguments that will be passed to each nearest neighbor search algorithm.
 
-    Returns
-    -------
+    Returns:
         Nothing but update the adata object with a new column in `.obs` that stores predicted ancestors or descendants.
     """
 

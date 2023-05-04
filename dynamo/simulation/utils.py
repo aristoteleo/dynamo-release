@@ -1,4 +1,4 @@
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -13,34 +13,31 @@ from ..dynamo_logger import (
 )
 
 
-def directMethod(prop_fcn: Callable, update_fcn: Callable, tspan, C0, record_skip_steps=0, record_max_length=1e5):
+def directMethod(
+    prop_fcn: Callable,
+    update_fcn: Callable,
+    tspan: List,
+    C0: np.ndarray,
+    record_skip_steps: int = 0,
+    record_max_length: int = 1e5,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Gillespie direct method.
 
-    Parameters
-    ----------
-        prop_fcn: Callable
-            a function that calculates the propensity for each reaction.
+    Args:
+        prop_fcn: a function that calculates the propensity for each reaction.
             input: an array of copy numbers of all species;
             output: an array of propensities of all reactions.
-        update_fcn: Callable
-            a function that determines how the copy number of each species increases or decreases after each reaction.
+        update_fcn: a function that determines how the copy number of each species increases or decreases after each reaction.
             input: (1) an array of current copy numbers of all species; (2) the index of the occurred reaction.
             output: an array of updated of copy numbers of all species.
-        tspan: list
-            a list of starting and end simulation time, e.g. [0, 100].
-        C0: :class:`~numpy.ndarray`
-            A 1d array of initial conditions.
-        record_skip_steps: int
-            The number of reaction steps skipped when recording the trajectories.
-        record_max_length: int
-            The maximum length for recording the trajectories.
+        tspan: a list of starting and end simulation time, e.g. [0, 100].
+        C0: A 1d array of initial conditions.
+        record_skip_steps: The number of reaction steps skipped when recording the trajectories.
+        record_max_length: The maximum length for recording the trajectories.
 
-    Returns
-    -------
-        retT: :class:`~numpy.ndarray`
-            a 1d numpy array of time points.
-        retC: :class:`~numpy.ndarray`
-            a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
+    Returns:
+        retT: a 1d numpy array of time points.
+        retC: a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
     """
     retC = np.zeros((len(C0), int(record_max_length)), np.float64)
     retT = np.zeros(int(record_max_length), np.float64)
@@ -351,7 +348,7 @@ class CellularSpecies:
     def get_species_names(self):
         return self.species_dict.keys()
 
-    def register_species(self, species_name: str, is_gene_species=True):
+    def register_species(self, species_name: str, is_gene_species: bool = True):
         if self.get_n_genes() == 0 and is_gene_species:
             raise Exception("There is no gene and therefore cannot register gene species.")
         if species_name in self.species_dict:
@@ -367,7 +364,7 @@ class CellularSpecies:
                 self.species_dict[species_name] = [i + self.num_species for i in range(self.get_n_genes())]
                 self.num_species += self.get_n_genes()
 
-    def get_index(self, species, gene=None):
+    def get_index(self, species: str, gene: Optional[Union[int, str]] = None):
         if not species in self.species_dict.keys():
             raise Exception(f"Unregistered species `{species}`")
         idx = self.species_dict[species]
