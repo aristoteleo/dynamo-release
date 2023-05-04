@@ -1,16 +1,26 @@
+from typing import Any, Dict, Tuple
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import numpy as np
+from anndata import AnnData
 
 from ..tools.utils import update_dict
 from .utils import save_fig
 
 
 def plot_direct_graph(
-    adata,
-    layout=None,
-    figsize=[6, 4],
-    save_show_or_return="show",
-    save_kwargs={},
-):
+    adata: AnnData,
+    layout: None = None,
+    figsize: Tuple[float, float] = (6, 4),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> None:
+    """Not implemented."""
+
     df_mat = adata.uns["df_mat"]
 
     import matplotlib.pyplot as plt
