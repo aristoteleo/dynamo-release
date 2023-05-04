@@ -2,7 +2,8 @@ version: 2
 formats: []
 
 build:
-    image: latest
+  os: ubuntu-22.04
+  image: latest
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
