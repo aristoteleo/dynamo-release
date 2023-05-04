@@ -4,73 +4,69 @@
 # module to deal with reaction/diffusion/advection.
 # code was loosely based on PBA, WOT and PRESCIENT.
 
+from typing import Any, Callable, Dict, List, Optional, Union
+
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
+from anndata import AnnData
 from scipy.sparse import issparse
 from sklearn.neighbors import NearestNeighbors
 
 
 def score_cells(
-    adata,
-    genes=None,
-    layer=None,
-    basis=None,
-    n_neighbors=30,
-    beta=0.1,
-    iteration=5,
-    metric="euclidean",
-    metric_kwds=None,
-    cores=1,
-    seed=19491001,
-    return_score=True,
+    adata: AnnData,
+    genes: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    basis: Optional[str] = None,
+    n_neighbors: int = 30,
+    beta: float = 0.1,
+    iteration: int = 5,
+    metric: Union[str, Callable] = "euclidean",
+    metric_kwds: Optional[Dict[str, Any]] = None,
+    cores: int = 1,
+    seed: int = 19491001,
+    return_score: bool = True,
     **kwargs,
-):
+) -> Optional[np.ndarray]:
     """Score cells based on a set of genes.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        genes: `list` or None (default: None)
-            The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to
-            None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field
-            reconstruction. Note that the genes to be used need to have velocity calculated and corresponds to those used
-            in the `dyn.tl.VectorField` function.
-        layer: `str` or None (default: 'X')
-            Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
-            The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional
-            space.
-        basis: `str` or None (default: `None`)
-            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
-            trajectory will be projected back to high dimensional space via the `inverse_transform` function.
-        n_neighbors: `int` (default: `30`)
-            Number of nearest neighbors.
-        beta: `float` (default: `0.1`)
-            The weight that will apply to the current query cell.
-        iteration: `int` (default: `0.5`)
-            Number of smooth iterations.
-        metric: `str` or callable, default='euclidean'
-            The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
-            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If metric
-            is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
-            :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
-        metric_kwds : dict, default=None
-            Additional keyword arguments for the metric function.
-        cores: `int` (default: 1)
-            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
-            ``-1`` means using all processors.
-        seed: `int` (default `19491001`)
-            Random seed to ensure the reproducibility of each run.
-        return_score: `bool` (default: `False`)
-            Whether to return the score. If False, save the smoothed score to `cell_scores` column in the `.obs`
-            attribute and also to the dictionary corresponding to the `score_cells` key in the .uns attribute.
-        kwargs:
-            Additional arguments that will be passed to each nearest neighbor search algorithm.
+    Args:
+        adata: an AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        genes: the gene names whose gene expression will be used for predicting cell fate. By default (when genes is set
+            to None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field
+            reconstruction. Note that the genes to be used need to have velocity calculated and corresponds to those
+            used in the `dyn.tl.VectorField` function. Defaults to None.
+        layer: which layer of the data will be used for predicting cell fate with the reconstructed vector field
+            function. The layer once provided, will override the `basis` argument and then predicting cell fate in high
+            dimensional space. Defaults to None.
+        basis: the embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
+            reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
+            function. Defaults to None.
+        n_neighbors: number of nearest neighbors. Defaults to 30.
+        beta: the weight that will apply to the current query cell. Defaults to 0.1.
+        iteration: number of smooth iterations. Defaults to 5.
+        metric: the distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the
+            standard Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics.
+            If metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
+            `sparse graph`, in which case only "nonzero" elements may be considered neighbors. Defaults to "euclidean".
+        metric_kwds: additional keyword arguments for the metric function. Defaults to None.
+        cores: the number of parallel jobs to run for neighbors search. `None` means 1 unless in a
+            `joblib.parallel_backend` context. `-1` means using all processors. Defaults to 1.
+        seed: random seed to ensure the reproducibility of each run. Defaults to 19491001.
+        return_score: whether to return the score. If False, save the smoothed score to `cell_scores` column in the
+            `.obs` attribute and also to the dictionary corresponding to the `score_cells` key in the .uns attribute.
+            Defaults to True.
 
-    Returns
-    -------
-        Depending on return_score, it either return the cell scores or an updated adata object that contains the cell
-        score information.
+    Raises:
+        ValueError: X_pca unavailable in .obsm.
+        ValueError: basis not available in .obsm.
+        ValueError: genes not provided and no "use_for_pca" in .obs.
+        ValueError: input genes have no overlap with genes in the AnnData object.
+
+    Returns:
+        The calculated cell scores if `return` score is true, otherwise the scores would be updated as annotations of
+        the AnnData object inplace.
     """
 
     if basis is None and "X_pca" not in adata.obsm.keys():
@@ -141,55 +137,44 @@ def score_cells(
 
 
 def cell_growth_rate(
-    adata,
-    group,
-    source,
-    target,
-    L0=0.3,
-    L=1.2,
-    k=1e-3,
-    birth_genes=None,
-    death_genes=None,
-    clone_column=None,
+    adata: AnnData,
+    group: Optional[str],
+    source: Optional[str],
+    target: Optional[str],
+    L0: float = 0.3,
+    L: float = 1.2,
+    k: float = 1e-3,
+    birth_genes: Optional[List[str]] = None,
+    death_genes: Optional[List[str]] = None,
+    clone_column: Optional[str] = None,
     **kwargs,
-):
+) -> AnnData:
     """Estimate the growth rate via clone information or logistic equation of population dynamics.
 
-    Growth rate is calculated as 1) number_of_cell_at_source_time_in_the_clone / number_of_cell_at_end_time_in_the_clone
-    when there is clone information (`[clone_column, time_column, source_time, target_time]` are all not None); 2)
-    estimate via logistic equation of population growth and death.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        group: str or None (default: `None`)
-            The column key in .obs points to the collection time of each cell, required for calculating growth rate with
-            clone information.
-        source: str or None (default: `None`)
-            The column key in .obs points to the starting point from collection time of each cell, required for
+    Args:
+        adata: an AnnData object.
+        group: The column key in .obs points to the collection time of each cell, required for calculating growth rate
+            with clone information.
+        source: The column key in .obs points to the starting point from collection time of each cell, required for
             calculating growth rate with clone information.
-        target: str or None (default: `None`)
-            The column key in .obs points to the end point from collection time of each cell, required for
+        target: The column key in .obs points to the end point from collection time of each cell, required for
             calculating growth rate with clone information.
-        L0: float (default: `0.3`)
-            The base growth/death rate.
-        L: float (default: `1.2`)
-            The maximum growth/death rate.
-        k: float (default: `0.001)
-            The steepness of the curve.
-        birth_genes: list or None (default: `None`)
-            The gene list associated with the cell cycle process. If None, GSEA's KEGG_CELL_CYCLE will be used.
-        death_genes: list or None (default: `None`)
-            The gene list associated with the cell cycle process. If None, GSEA's KEGG_APOPTOSIS will be used.
-        clone_column: str or None (default: `None`)
-            The column key in .obs points to the clone id if there is any. If a cell doesn't belong to any clone, the
-            clone id of that cell should be assigned as `np.nan`
-        kwargs
-            Additional arguments that will be passed to score_cells function.
+        L0: The base growth/death rate. Defaults to 0.3.
+        L: The maximum growth/death rate. Defaults to 1.2.
+        k: The steepness of the curve. Defaults to 1e-3.
+        birth_genes: The gene list associated with the cell cycle process. If None, GSEA's KEGG_CELL_CYCLE will be used.
+            Defaults to None.
+        death_genes: The gene list associated with the cell cycle process. If None, GSEA's KEGG_APOPTOSIS will be used.
+            Defaults to None.
+        clone_column: The column key in .obs points to the clone id if there is any. If a cell doesn't belong to any
+            clone, the clone id of that cell should be assigned as `np.nan`. Defaults to None.
+        kwargs: Additional arguments that will be passed to score_cells function.
 
-    Returns
-    -------
+    Raises:
+        ValueError: `clone_name` or `group` not in .obs.
+        ValueError: `source` or `target` not in .obs.
+
+    Returns:
         An updated adata object that includes `growth_rate` column or `growth_rate, birth_score, death_score` in its
         `.obs` attribute when the clone based or purely expression based growth rate was calculated.
     """
@@ -266,9 +251,28 @@ def cell_growth_rate(
     return adata
 
 
-def n_descentants(birth, death, dt):
+def n_descentants(birth: npt.ArrayLike, death: npt.ArrayLike, dt: npt.ArrayLike) -> npt.ArrayLike:
+    """Calculate the number of descentants for a given cell after some given time.
+
+    Args:
+        birth: logged birth number per unit time.
+        death: logged death number per unit time.
+        dt: total time.
+
+    Returns:
+        The number of descentants for a given cell after some given time.
+    """
     return np.exp(dt * (birth - death))
 
 
-def growth_rate(n, dt):
+def growth_rate(n: npt.ArrayLike, dt: npt.ArrayLike) -> npt.ArrayLike:
+    """Calculate the logged growth rate.
+
+    Args:
+        n: increased cell number.
+        dt: time interval
+
+    Returns:
+        The growth rate.
+    """
     return np.log(n) / dt

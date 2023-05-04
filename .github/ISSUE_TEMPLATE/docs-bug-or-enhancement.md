@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 - [ ] I am sure this issue is not simply a general python programming problem
-      (if so, please use google, chatGTP or Bing Chat find the answers).
+      (if so, please use google, chatGTP or Bing Chat to find the answers).
 - [ ] I have searched github issues and confirm this issue has not reported previously.
 - [ ] I have confirmed the problem or enhancement is about the latest docs of dynamo rather than dynamo itself (if so, please use Bug report template).
 

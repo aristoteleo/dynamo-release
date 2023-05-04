@@ -1,7 +1,14 @@
 from numbers import Number
+from typing import Any, Dict, List, Optional, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 from pandas.api.types import is_categorical_dtype
 
 from ..configuration import _themes
@@ -10,21 +17,21 @@ from .utils import _to_hex, is_cell_anno_column, is_gene_name
 
 
 def plot_3d_streamtube(
-    adata,
-    color,
-    layer,
-    group,
-    init_group,
-    basis="umap",
-    dims=[0, 1, 2],
-    theme=None,
-    background=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    html_fname=None,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    color: str,
+    layer: str,
+    group: str,
+    init_group: str,
+    basis: str = "umap",
+    dims: List[int] = [0, 1, 2],
+    theme: Optional[str] = None,
+    background: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
+    color_key_cmap: Optional[str] = None,
+    html_fname: Optional[str] = None,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
 ):
     """Plot a interative 3d streamtube plot via plotly.
 
@@ -32,35 +39,36 @@ def plot_3d_streamtube(
     streamtube plot (3D quiver plot) and can provide insight into flow data from natural systems. The color of tubes is
     determined by their local norm, and the diameter of the field by the local divergence of the vector field.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            An Annodata object, must have vector field reconstructed for the input `basis` whose dimension should at
+    Args:
+        adata: an Annodata object, must have vector field reconstructed for the input `basis` whose dimension should at
             least 3D.
-        color: `string` (default: `ntr`)
-            Any column names or gene expression, etc. that will be used for coloring cells.
-        group: `str`
-            The column names of adata.obs that will be used to search for cells, together with `init_group` to set the
-            initial state of the streamtube.
-        init_group: `str`
-            The group name among all names in `group` that will be used to set the initial states of the stream tube.
-        basis: `str`
-            The reduced dimension.
-        html_fname: `str` or None
-            html file name that will be use to save the streamtube interactive plot.
-        dims: `list` (default: `[0, 1, 2]`)
-            The number of dimensions that will be used to construct the vector field for streamtube plot.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+        color: any column names or gene expression, etc. that will be used for coloring cells.
+        layer: the layer key of the expression data.
+        group: the column names of adata.obs that will be used to search for cells, together with `init_group` to set
+            the initial state of the streamtube.
+        init_group: the group name among all names in `group` that will be used to set the initial states of the stream
+            tube.
+        basis: the reduced dimension. Defaults to "umap".
+        dims: the number of dimensions that will be used to construct the vector field for streamtube plot. Defaults to
+            [0, 1, 2].
+        theme: the theme of the plot. Defaults to None.
+        background: the background color of the plot. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring the plots. Defaults to None.
+        color_key: the method to assign colors to categoricals. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. Defaults to None.
+        html_fname: html file name that will be used to save the streamtube interactive plot. Defaults to None.
+        save_show_or_return: whether to save, show, or return the figures. Defaults to "show".
+        save_kwargs:  A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        Nothing but render an interactive streamtube plot. If html_fname is not None, the plot will save to a html file.
+    Raises:
+        ImportError: plotly is not installed.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the generated plotly figure
+        would be returned.
     """
 
     try:
@@ -144,7 +152,7 @@ def plot_3d_streamtube(
         n_neighbors=grid_kwargs_dict["n_neighbors"],
     )
 
-    from .vectorfield.utils import vecfld_from_adata
+    from ..vectorfield.utils import vecfld_from_adata
 
     VecFld, func = vecfld_from_adata(adata, basis="umap")
 
@@ -188,12 +196,12 @@ def plot_3d_streamtube(
         marker=dict(size=2, color=colors.values),
     )
 
-    if save_show_or_return == "save" or html_fname is not None:
+    if (save_show_or_return in ["save", "both", "all"]) or html_fname is not None:
         html_fname = "streamtube_" + color + "_" + group + "_" + init_group if html_fname is None else html_fname
         save_kwargs_ = {"file": html_fname, "auto_open": True}
         save_kwargs_.update(save_kwargs)
         fig.write_html(**save_kwargs_)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         fig.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return fig

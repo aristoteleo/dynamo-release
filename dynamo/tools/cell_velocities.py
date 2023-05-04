@@ -1,10 +1,14 @@
-from typing import Union
+from typing import Dict, List, Optional, Tuple, Union
 
-import anndata
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import numpy as np
 import scipy
-import scipy as scp
 import scipy.sparse as sp
+from anndata import AnnData
 from numba import jit
 from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
@@ -34,16 +38,16 @@ from .utils import (
 
 
 def cell_velocities(
-    adata: anndata.AnnData,
+    adata: AnnData,
     ekey: Union[str, None] = None,
     vkey: Union[str, None] = None,
-    X: Union[np.array, scipy.sparse.csr_matrix, None] = None,
-    V: Union[np.array, scipy.sparse.csr_matrix, None] = None,
-    X_embedding: Union[str, None] = None,
-    transition_matrix: Union[np.array, scipy.sparse.csr_matrix, None] = None,
+    X: Union[np.array, sp.csr_matrix, None] = None,
+    V: Union[np.array, sp.csr_matrix, None] = None,
+    X_embedding: Union[np.ndarray, None] = None,
+    transition_matrix: Union[np.ndarray, sp.csr_matrix, None] = None,
     use_mnn: bool = False,
     n_pca_components: Union[int, None] = None,
-    transition_genes: Union[str, list, None] = None,
+    transition_genes: Union[str, List[str], List[bool], None] = None,
     min_r2: Union[float, None] = None,
     min_alpha: Union[float, None] = None,
     min_gamma: Union[float, None] = None,
@@ -54,10 +58,10 @@ def cell_velocities(
     add_transition_key: str = None,
     add_velocity_key: str = None,
     n_neighbors: int = 30,
-    method: str = "pearson",
+    method: Literal["kmc", "fp", "cosine", "pearson", "transform"] = "pearson",
     neg_cells_trick: bool = True,
     calc_rnd_vel: bool = False,
-    xy_grid_nums: tuple = (50, 50),
+    xy_grid_nums: Tuple[int] = (50, 50),
     correct_density: bool = True,
     scale: bool = True,
     sample_fraction: Union[float, None] = None,
@@ -65,121 +69,101 @@ def cell_velocities(
     enforce: bool = False,
     preserve_len: bool = False,
     **kernel_kwargs,
-) -> anndata.AnnData:
-    """Project high dimensional velocity vectors onto given low dimensional embeddings,
-    and/or compute cell transition probabilities.
+) -> AnnData:
+    """Project high dimensional velocity vectors onto given low dimensional embeddings, and/or compute cell transition
+        probabilities.
 
-    When method='kmc', the Itô kernel is used which not only considers the correlation between the vector from any cell
-    to its nearest neighbors and its velocity vector but also the corresponding distances. We expect this new kernel
-    will enable us to visualize more intricate vector flow or steady states in low dimension. We also expect it will
-    improve the calculation of the stationary distribution or source states of sampled cells. The original
-    "correlation/cosine" velocity projection method is also supported. Kernels based on the reconstructed velocity field
-    is also possible.
-
-    With the `key` argument, `cell_velocities` can be called by `cell_accelerations` or `cell_curvature` to calculate
-    RNA acceleration/curvature vector for each cell.
-
-    Arguments
-    ---------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        ekey: str or None (optional, default None)
-            The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey
-            will be automatically detected from the adata object.
-        vkey: str or None (optional, default None)
-            The dictionary key that corresponds to the estimated velocity values in the layers attribute.
-        X: :class:`~numpy.ndarray` or :class:`~scipy.sparse.csr_matrix` or None (optional, default `None`)
-            The expression states of single cells (or expression states in reduced dimension, like pca, of single cells)
-        V: :class:`~numpy.ndarray` or :class:`~scipy.sparse.csr_matrix` or None (optional, default `None`)
-            The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
-            cells). Note that X, V need to have the exact dimensionalities.
-        X_embedding: str or None (optional, default None)
-            The low expression reduced space (pca, umap, tsne, etc.) of single cells that RNA velocity will be projected
-            onto. Note X_embedding, X and V has to have the same cell/sample dimension and X_embedding should have
-            less feature dimension comparing that of X or V.
-        use_mnn: bool (optional, default False)
-            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we
-            don't use the mutual nearest neighbors. Mutual nearest neighbors are calculated from nearest neighbors
-            across different layers, which which accounts for cases where, for example, the cells from spliced
+    Args:
+        adata: an AnnData object.
+        ekey: the dictionary key that corresponds to the gene expression in the layer attribute. If set to be None, ekey
+            will be automatically detected from the adata object. Defaults to None.
+        vkey: the dictionary key that corresponds to the estimated velocity values in the layers attribute. If set to be
+            None, vkey will be automatically detected from the adata object. Defaults to None.
+        X: the expression states of single cells (or expression states in reduced dimension, like pca, of single cells).
+            Defaults to None.
+        V: the RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+            cells). Note that X, V need to have the exact dimensionalities. Defaults to None.
+        X_embedding: the low expression reduced space (pca, umap, tsne, etc.) of single cells that RNA velocity will be
+            projected onto. Note X_embedding, X and V has to have the same cell/sample dimension and X_embedding should
+            have less feature dimension comparing that of X or V. Defaults to None.
+        transition_matrix: the set of genes used for projection of hign dimensional velocity vectors. If None,
+            transition genes are determined based on the R2 of linear regression on phase planes. The argument can be
+            either a dictionary key of .var, a list of gene names, or a list of booleans of length .n_vars. Defaults to
+            None.
+        use_mnn: whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By
+            default, we don't use the mutual nearest neighbors. Mutual nearest neighbors are calculated from nearest
+            neighbors across different layers, which accounts for cases where, for example, the cells from spliced
             expression may be nearest neighbors but far from nearest neighbors on unspliced data. Using mnn assumes your
-            data from different layers are reliable (otherwise it will destroy real signals).
-        n_pca_components: int (optional, default None)
-            The number of pca components to project the high dimensional X, V before calculating transition matrix for
-            velocity visualization. By default it is None and if method is `kmc`, n_pca_components will be reset to 30;
-            otherwise use all high dimensional data for velocity projection.
-        transition_genes: str, list, or None (optional, default None)
-            The set of genes used for projection of hign dimensional velocity vectors.
-            If None, transition genes are determined based on the R2 of linear regression on phase planes.
-            The argument can be either a dictionary key of .var, a list of gene names, or a list of booleans
-            of length .n_vars.
-        min_r2: float or None (optional, default None)
-            The minimal value of r-squared of the parameter fits for selecting transition genes.
-        min_alpha: float or None (optional, default None)
-            The minimal value of alpha kinetic parameter for selecting transition genes.
-        min_gamma: float or None (optional, default None)
-            The minimal value of gamma kinetic parameter for selecting transition genes.
-        min_delta: float or None (optional, default None)
-            The minimal value of delta kinetic parameter for selecting transition genes.
-        basis: str (optional, default `umap`)
-            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
-            or `X_total_umap`, etc.
-        neighbor_key_prefix: str (optional, default `neighbors`)
-            The dictionary key prefix in .uns. Connectivity and distance matrix keys are also generate with this prefix in adata.obsp.
-        adj_key: str (optional, default `distances`)
-            The dictionary key for the adjacency matrix of the nearest neighbor graph in .obsp.
-        add_transition_key: str or None (default: None)
-            The dictionary key that will be used for storing the transition matrix in .obsp.
-        add_velocity_key: str or None (default: None)
-            The dictionary key that will be used for storing the low dimensional velocity projection matrix in .obsm.
-        method: str (optional, default `pearson`)
-            The method to calculate the transition matrix and project high dimensional vector to low dimension, either
-            `kmc`, `fp`, `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition matrix
-            via diffusion approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the original RNA
-            velocity paper or the scvelo paper (Note that scVelo implementation actually centers both dX and V, so its
-            cosine kernel is equivalent to pearson correlation kernel but we also provide the raw cosine kernel). "kmc"
-            option is arguable better than "correlation" or "cosine" as it not only considers the correlation but also
-            the distance of the nearest neighbors to the high dimensional velocity vector. Finally, the "transform"
-            method uses umap's transform method to transform new data points to the UMAP space. "transform" method is
-            NOT recommended. Kernels that are based on the reconstructed vector field in high dimension is also
-            possible.
-        neg_cells_trick: bool (optional, default True)
-            Whether we should handle cells having negative correlations in gene expression difference with high
-            dimensional velocity vector separately. This option was borrowed from scVelo package
+            data from different layers are reliable (otherwise it will destroy real signals). Defaults to False.
+        n_pca_components: the number of pca components to project the high dimensional X, V before calculating
+            transition matrix for velocity visualization. By default it is None and if method is `kmc`, n_pca_components
+            will be reset to 30; otherwise use all high dimensional data for velocity projection. Defaults to None.
+        transition_genes: the set of genes used for projection of hign dimensional velocity vectors. If None, transition
+            genes are determined based on the R2 of linear regression on phase planes. The argument can be either a
+            dictionary key of .var, a list of gene names, or a list of booleans of length .n_vars. Defaults to None.
+        min_r2: the minimal value of r-squared of the parameter fits for selecting transition genes. Defaults to None.
+        min_alpha: the minimal value of alpha kinetic parameter for selecting transition genes. Defaults to None.
+        min_gamma: the minimal value of gamma kinetic parameter for selecting transition genes. Defaults to None.
+        min_delta: the minimal value of delta kinetic parameter for selecting transition genes. Defaults to None.
+        basis: the dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
+            `X_spliced_umap` or `X_total_umap`, etc. Defaults to "umap".
+        neighbor_key_prefix: the dictionary key prefix in .uns. Connectivity and distance matrix keys are also generate
+            with this prefix in adata.obsp. Defaults to "".
+        adj_key: the dictionary key for the adjacency matrix of the nearest neighbor graph in .obsp. Defaults to
+            "distances".
+        add_transition_key: the dictionary key that will be used for storing the transition matrix in .obsp. Defaults to
+            None.
+        add_velocity_key: the dictionary key that will be used for storing the low dimensional velocity projection
+            matrix in .obsm. Defaults to None.
+        n_neighbors: the number of neighbors to be used to calculate velocity projection. Defaults to 30.
+        method: the method to calculate the transition matrix and project high dimensional vector to low dimension,
+            either `kmc`, `fp`, `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition
+            matrix via diffusion approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the
+            original RNA velocity paper or the scvelo paper (Note that scVelo implementation actually centers both dX
+            and V, so its cosine kernel is equivalent to pearson correlation kernel but we also provide the raw cosine
+            kernel). "kmc" option is arguable better than "correlation" or "cosine" as it not only considers the
+            correlation but also the distance of the nearest neighbors to the high dimensional velocity vector. Finally,
+            the "transform" method uses umap's transform method to transform new data points to the UMAP space.
+            "transform" method is NOT recommended. Kernels that are based on the reconstructed vector field in high
+            dimension is also possible. Defaults to "pearson".
+        neg_cells_trick: whether to handle cells having negative correlations in gene expression difference with
+            high dimensional velocity vector separately. This option was borrowed from scVelo package
             (https://github.com/theislab/scvelo) and use in conjunction with "pearson" and "cosine" kernel. Not required
-            if method is set to be "kmc".
-        calc_rnd_vel: bool (default: False)
-            A logic flag to determine whether we will calculate the random velocity vectors which can be plotted
-            downstream as a negative control and used to adjust the quiver scale of the velocity field.
-        xy_grid_nums: tuple (default: (50, 50)).
-            A tuple of number of grids on each dimension.
-        correct_density: bool (default: True)
-            Whether to correct density when calculating the markov transition matrix.
-        scale: bool (default: False)
-            Whether to scale velocity when calculating the markov transition matrix, applicable to the `kmc` kernel.
-        sample_fraction: None or float (default: None)
-            The downsampled fraction of kNN for the purpose of acceleration, applicable to the `kmc` kernel.
-        random_seed: int (default: 19491001)
-            The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a
-            special day for those who care.
-        key: str or None (default: None)
-            The prefix key that will be prefixed to the keys for storing calculated transition matrix, projection
-            vectors, etc.
-        preserve_len: bool (default: False)
-            Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
-            dimension projected vector will be proportionally scaled to that of the high dimensional vector.
-        enforce: bool (default: False)
-            Whether to enforce 1) redefining use_for_transition column in obs attribute; However this is NOT executed if
-                                    the argument 'transition_genes' is not None.
-                               2) recalculation of the transition matrix.
-        kernel_kwargs: dict
-            A dictionary of paramters that will be passed to the kernel for constructing the transition matrix.
+            if method is set to be "kmc". Defaults to True.
+        calc_rnd_vel: whether to calculate the random velocity vectors which can be plotted downstream as a negative
+            control and used to adjust the quiver scale of the velocity field. Defaults to False.
+        xy_grid_nums: a tuple of number of grids on each dimension. Defaults to (50, 50).
+        correct_density: whether to correct density when calculating the markov transition matrix. Defaults to True.
+        scale: whether to scale velocity when calculating the markov transition matrix, applicable to the `kmc` kernel.
+            Defaults to True.
+        sample_fraction: the downsampled fraction of kNN for the purpose of acceleration, applicable to the `kmc`
+            kernel. Defaults to None.
+        random_seed: the random seed for numba to ensure consistency of the random velocity vectors. Default value
+            19491001 is a special day for those who care. Defaults to 19491001.
+        enforce: Whether to enforce
+            1) redefining use_for_transition column in obs attribute; However this is NOT executed if the argument
+                'transition_genes' is not None.
+            2) recalculation of the transition matrix. Defaults to False.
+        preserve_len: whether to preserve the length of high dimension vector length. When set to be True, the length of
+            low dimension projected vector will be proportionally scaled to that of the high dimensional vector.
+            Defaults to False.
+        kernel_kwargs: kwargs that would be passed to the kernel for constructing the transition matrix.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            Returns an updated :class:`~anndata.AnnData` with projected velocity vectors, and a cell transition matrix
-            calculated using either the Itô kernel method or similar methods from (La Manno et al. 2018).
+    Raises:
+        Exception: neighborhood info is invalid.
+        TypeError: transition gene list is invalid.
+        ValueError: provided transition genes do not have velocity data.
+        Exception: `X` and `V` have different dimensions.
+        Exception: `X` and `X_embedding` has different number of samples.
+        Exception: Number of dimension of `X` is smaller than the one of `X_embedding`.
+        Exception: Most calculated velocity is theoretically invalid.
+        NotImplementedError: the mode provided in kernel_kwargs is invalid.
+
+    Returns:
+        an updated AnnData object with projected velocity vectors, and a cell transition matrix calculated using either
+        the Itô kernel method or similar methods from (La Manno et al. 2018).
     """
+
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_key_prefix)
     mapper_r = get_mapper_inverse()
     layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
@@ -541,9 +525,9 @@ def cell_velocities(
 
         if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
             CM = adata.X[:, adata.var.use_for_dynamics.values]
-            from ..preprocessing.utils import pca_monocle
+            from ..preprocessing.utils import pca
 
-            adata, pca_fit, X_pca = pca_monocle(adata, CM, n_pca_components, "X", return_all=True)
+            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X", return_all=True)
             adata.uns["pca_fit"] = pca_fit
 
         X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
@@ -615,55 +599,49 @@ def cell_velocities(
 
 
 def confident_cell_velocities(
-    adata,
-    group,
-    lineage_dict,
-    ekey="M_s",
-    vkey="velocity_S",
-    basis="umap",
-    confidence_threshold=0.85,
-    only_transition_genes=False,
-):
-    """Confidently compute transition probability and project high dimension velocity vector to existing low dimension
+    adata: AnnData,
+    group: str,
+    lineage_dict: Dict[str, Union[List[str], str]],
+    ekey: Optional[str] = "M_s",
+    vkey: Optional[str] = "velocity_S",
+    basis: str = "umap",
+    confidence_threshold: float = 0.85,
+    only_transition_genes: bool = False,
+) -> AnnData:
+    """Compute transition probability and perform velocity projection
+
+    Confidently compute transition probability and project high dimension velocity vector to existing low dimension
     embeddings using progenitors and mature cell groups priors.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        group: str
-            The column key/name that identifies the cell state grouping information of cells. This will be used for
+    Args:
+        adata: an AnnData object.
+        group: the column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
-        lineage_dict: dict
-            A dictionary describes lineage priors. Keys correspond to the group name from `group` that corresponding
-            to the state of one progenitor type while values correspond to the group names from `group` of one or
-            multiple terminal cell states. The best practice for determining terminal cell states are those fully
+        lineage_dict: a dictionary describes lineage priors. Keys correspond to the group name from `group` that
+            corresponding to the state of one progenitor type while values correspond to the group names from `group` of
+            one or multiple terminal cell states. The best practice for determining terminal cell states are those fully
             functional cells instead of intermediate cell states. Note that in python a dictionary key cannot be a list,
             so if you have two progenitor types converge into one terminal cell state, you need to create two records
             each with the same terminal cell as value but different progenitor as the key. Value can be either a string
             for one cell group or a list of string for multiple cell groups.
-        ekey: str or None (default: `M_s`)
-            The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
-            each cell state. If `None`, .X is used.
-        vkey: str or None (default: `velocity_S`)
-            The layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
-            `velocity_S` is used.
-        basis: str (optional, default `umap`)
-            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
-        confidence_threshold: float (optional, default 0.85)
-            The minimal threshold of the mean of the average progenitors and the average mature cells prior based
-            gene-wise velocity confidence score. Only genes with score larger than this will be considered as confident
-            transition genes for velocity projection.
-        only_transition_genes: bool (optional, default False)
-            Whether only use previous identified transition genes for confident gene selection, followed by velocity
-            projection.
+        ekey: the layer that will be used to retrieve data for identifying the gene is in induction or repression phase
+            at each cell state. If `None`, .X is used. Defaults to "M_s".
+        vkey: the layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
+            `velocity_S` is used. Defaults to "velocity_S".
+        basis: the dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Defaults to "umap".
+        confidence_threshold: the minimal threshold of the mean of the average progenitors and the average mature cells
+            prior based gene-wise velocity confidence score. Only genes with score larger than this will be considered
+            as confident transition genes for velocity projection. Defaults to 0.85.
+        only_transition_genes: whether only use previous identified transition genes for confident gene selection,
+            followed by velocity projection. Defaults to False.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with only confident genes based transition_matrix and projected
-            embedding of high dimension velocity vectors in the existing embeddings of current cell state, calculated
-            using either the cosine kernel method from (La Manno et al. 2018) or the Itô kernel for the FP method, etc.
+    Raises:
+        Exception: RNA velocity not evaluated.
+
+    Returns:
+        An updated `~anndata.AnnData` with only confident genes based transition_matrix and projected embedding of high
+        dimension velocity vectors in the existing embeddings of current cell state, calculated using either the cosine
+        kernel method from (La Manno et al. 2018) or the Itô kernel for the FP method, etc.
     """
 
     if not any([i.startswith("velocity") for i in adata.layers.keys()]):
@@ -717,25 +695,24 @@ def confident_cell_velocities(
     return adata
 
 
-def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True):
+def stationary_distribution(
+    adata: AnnData,
+    method: str = "kmc",
+    direction: Literal["both", "forward", "backward"] = "both",
+    calc_rnd: bool = True,
+) -> None:
     """Compute stationary distribution of cells using the transition matrix.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        method: str (default: `kmc`)
-            The method to calculate the stationary distribution.
-        direction: str (default: `both`)
-            The direction of diffusion for calculating the stationary distribution, can be one of `both`, `forward`,
-            `backward`.
-        calc_rnd: bool (default: True)
-            Whether to also calculate the stationary distribution from the control randomized transition matrix.
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with source, sink stationary distributions and the randomized results,
-            depending on the direction and calc_rnd arguments.
+    Update the AnnData object with source, sink stationary distributions and the randomized results, depending on the
+    `direction` and `calc_rnd` arguments.
+
+    Args:
+        adata: an AnnData object.
+        method: the method to calculate the stationary distribution. Defaults to "kmc".
+        direction: the direction of diffusion for calculating the stationary distribution, can be one of `both`,
+            `forward`, `backward`. Defaults to "both".
+        calc_rnd: whether to also calculate the stationary distribution from the control randomized transition matrix.
+            Defaults to True.
     """
 
     # row is the source and columns are targets
@@ -793,20 +770,14 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
                 adata.obs["source_steady_state_distribution_rnd"] = diffusion(T_rnd, backward=True)
 
 
-def generalized_diffusion_map(adata, **kwargs):
+def generalized_diffusion_map(adata: AnnData, **kwargs) -> None:
     """Apply the diffusion map algorithm on the transition matrix build from Itô kernel.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the constructed transition matrix.
-        kwargs:
-            Additional parameters that will be passed to the diffusion_map_embedding function.
+    Update the AnnData object with X_diffusion_map embedded in obsm attribute.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that updated with X_diffusion_map embedding in obsm attribute.
+    Args:
+        adata: an AnnData object with the constructed transition matrix.
+        kwargs: additional kwargs that will be passed to `diffusion_map_embedding function`.
     """
 
     kmc = KernelMarkovChain()
@@ -818,24 +789,19 @@ def generalized_diffusion_map(adata, **kwargs):
     adata.obsm["X_diffusion_map"] = dm
 
 
-def diffusion(M, P0=None, steps=None, backward=False):
+def diffusion(
+    M: np.ndarray, P0: Optional[np.ndarray] = None, steps: Optional[int] = None, backward: bool = False
+) -> np.ndarray:
     """Find the state distribution of a Markov process.
 
-    Parameters
-    ----------
-        M: :class:`~numpy.ndarray` (dimension n x n, where n is the cell number)
-            The transition matrix.
-        P0: :class:`~numpy.ndarray` (default None; dimension is n, )
-            The initial cell state.
-        steps: int (default None)
-            The random walk steps on the Markov transitioin matrix.
-        backward: bool (default False)
-            Whether the backward transition will be considered.
+    Args:
+        M: the transition matrix with dimension of n x n, where n is the cell number.
+        P0: The initial cell state with dimension of n. Defaults to None.
+        steps: the random walk steps on the Markov transition matrix. Defaults to None.
+        backward: whether the backward transition will be considered. Defaults to False.
 
-    Returns
-    -------
-        Mu: :class:`~numpy.ndarray`
-            The state distribution of the Markov process.
+    Returns:
+        The state distribution of the Markov process.
     """
 
     if backward is True:
@@ -845,7 +811,7 @@ def diffusion(M, P0=None, steps=None, backward=False):
     if steps is None:
         # code inspired from  https://github.com/prob140/prob140/blob/master/prob140/markov_chains.py#L284
 
-        eigenvalue, eigen = scp.linalg.eig(
+        eigenvalue, eigen = scipy.linalg.eig(
             M, left=True, right=False
         )  # if not sp.issparse(M) else eigs(M) # source is on the row
 
@@ -867,22 +833,17 @@ def diffusion(M, P0=None, steps=None, backward=False):
     return mu
 
 
-def expected_return_time(M, backward=False):
+def expected_return_time(M: np.ndarray, backward=False) -> np.ndarray:
     """Find the expected returning time.
 
-    Parameters
-    ----------
-        M: :class:`~numpy.ndarray` (dimension n x n, where n is the cell number)
-            The transition matrix.
-        backward: bool (default False)
-            Whether the backward transition will be considered.
+    Args:
+        M: the transition matrix.
+        backward: whether the backward transition will be considered. Defaults to False.
 
-    Returns
-    -------
-        T: :class:`~numpy.ndarray`
-            The expected return time (1 / steady_state_probability).
-
+    Returns:
+        The expected return time (1 / steady_state_probability).
     """
+
     steady_state = diffusion(M, P0=None, steps=None, backward=backward)
 
     T = 1 / steady_state
@@ -890,21 +851,52 @@ def expected_return_time(M, backward=False):
 
 
 def kernels_from_velocyto_scvelo(
-    X,
-    X_embedding,
-    V,
-    adj_mat,
-    neg_cells_trick,
-    xy_grid_nums,
-    kernel="pearson",
-    n_recurse_neighbors=2,
-    max_neighs=None,
-    transform="sqrt",
-    use_neg_vals=True,
-    correct_density=True,
-):
-    """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
-    pearson correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019)."""
+    X: np.ndarray,
+    X_embedding: np.ndarray,
+    V: np.ndarray,
+    adj_mat: np.ndarray,
+    neg_cells_trick: bool,
+    xy_grid_nums: Tuple[int],
+    kernel: Literal["pearson", "cosine"] = "pearson",
+    n_recurse_neighbors: int = 2,
+    max_neighs: Optional[int] = None,
+    transform: Literal["log", "logratio", "linear", "sqrt"] = "sqrt",
+    use_neg_vals: bool = True,
+    correct_density: bool = True,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Utility function for calculating the transition matrix and low dimensional velocity.
+
+    Two kernels, the original
+    pearson correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019) are
+    available for calculation.
+
+    Args:
+        X: the expression state of single cells.
+        X_embedding: the low expression reduced space (pca, umap, tsne, etc.) of single cells that RNA velocity will be
+            projected onto. Note X_embedding, X and V has to have the same cell/sample dimension and X_embedding should
+            have less feature dimension comparing that of X or V.
+        V: the RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+            cells). Note that X, V need to have the exact dimensionalities.
+        adj_mat: the neighbor indices.
+        neg_cells_trick: whether to handle cells having negative correlations in gene expression difference with high
+            dimensional velocity vector separately.
+        xy_grid_nums: a tuple of number of grids on each dimension.
+        kernel: the method to calculate correlation between X and velocity vector Y_i for gene i.  Defaults to
+            "pearson".
+        n_recurse_neighbors: the order of neighbors to be used to calculate velocity graph. Defaults to 2.
+        max_neighs: the max number of neighbors to be used to calculate velocity graph. If the number of neighbors
+            within the order of n_recurse_neighbors is larger than this value, a random subset will be chosen. Defaults
+            to None.
+        transform: the method to transform the original velocity matrix. Defaults to "sqrt".
+        use_neg_vals: whether to use negative values during handle cells having negative correlations. Defaults to True.
+        correct_density: whether to correct density when calculating the markov transition matrix. Defaults to True.
+
+    Returns:
+        A tuple (T, delta_X, X_grid, V_grid, D) where T is the transition matrix, delta_X is the low dimensional
+        velocity, X_grid is a grid for plotting velocities and V_grid is the velocities on the grid. D is the diffusion
+        matrix.
+    """
+
     n = X.shape[0]
     if adj_mat is not None:
         rows = []
@@ -988,85 +980,27 @@ def kernels_from_velocyto_scvelo(
 
 # utility functions for calculating the random cell velocities
 @jit(nopython=True)
-def numba_random_seed(seed):
+def numba_random_seed(seed: int) -> None:
     """Same as np.random.seed but for numba. Function adapated from velocyto.
 
-    Parameters
-    ----------
-        seed: int
-            Random seed value
-
+    Args:
+        seed: the random seed value
     """
+
     np.random.seed(seed)
 
 
 @jit(nopython=True)
-def permute_rows_nsign(A):
-    """Permute in place the entries and randomly switch the sign for each row of a matrix independently. Function
-    adapted from velocyto
+def permute_rows_nsign(A: np.ndarray) -> None:
+    """Permute in place the entries and randomly switch the sign for each row of a matrix independently.
 
-    Parameters
-    ----------
-        A: :class:`~numpy.ndarray`
-            A numpy array that will be permuted.
+    The function is adapted from velocyto.
+
+    Args:
+        A: a numpy array that will be permuted.
     """
 
     plmi = np.array([+1, -1])
     for i in range(A.shape[1]):
         np.random.shuffle(A[:, i])
         A[:, i] = A[:, i] * np.random.choice(plmi, size=A.shape[0])
-
-
-"""This function can be removed now
-def embed_velocity(
-    adata,
-    x_basis,
-    v_basis="velocity",
-    emb_basis="X",
-    velocity_gene_tag="transition_genes",
-    num_pca=100,
-    n_recurse_neighbors=2,
-    M_diff=0.25,
-    adaptive_local_kernel=True,
-    normalize_velocity=True,
-    return_kmc=False,
-    **kmc_kwargs,
-):
-    if velocity_gene_tag is not None:
-        X = adata.layers[x_basis][:, adata.var[velocity_gene_tag]]
-        V = adata.layers[v_basis][:, adata.var[velocity_gene_tag]]
-    else:
-        X = adata.layers[x_basis]
-        V = adata.layers[v_basis]
-
-    X = log1p_(adata, X)
-
-    X_emb = adata.obsm[emb_basis]
-    Idx = adata.uns["neighbors"]["indices"]
-
-    if num_pca is not None:
-        pca = PCA()
-        pca.fit(X)
-        X_pca = pca.transform(X)
-        Y_pca = pca.transform(X + V)
-        V_pca = Y_pca - X_pca
-    else:
-        X_pca = X
-        V_pca = V
-
-    kmc = KernelMarkovChain()
-    kmc.fit(
-        X_pca[:, :num_pca],
-        V_pca[:, :num_pca],
-        neighbor_idx=Idx,
-        n_recurse_neighbors=n_recurse_neighbors,
-        M_diff=M_diff,
-        adaptive_local_kernel=adaptive_local_kernel,
-        **kmc_kwargs,
-    )
-
-    Uc = kmc.compute_density_corrected_drift(X_emb, normalize_vector=normalize_velocity)
-    if return_kmc:
-        return Uc, kmc
-    else:
-        return Uc"""

@@ -1,7 +1,17 @@
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import matplotlib.pyplot as plt
 import numpy as np
+from anndata import AnnData
 from matplotlib import cm
+from matplotlib.axes import Axes
 from matplotlib.colors import ListedColormap
+from matplotlib.figure import Figure
 
 from ..tools.utils import flatten, index_gene, velocity_on_grid
 from ..utils import areinstance, isarray
@@ -22,16 +32,32 @@ SchemeDivergeBWR = {
 
 
 def plot_X(
-    X,
-    dim1=0,
-    dim2=1,
-    dim3=None,
-    dims=None,
-    create_figure=False,
-    figsize=(6, 6),
-    sort_by_c="raw",
+    X: np.ndarray,
+    dim1: int = 0,
+    dim2: int = 1,
+    dim3: Optional[int] = None,
+    dims: Optional[List[int]] = None,
+    create_figure: bool = False,
+    figsize: Tuple[float, float] = (6, 6),
+    sort_by_c: Literal["neg", "abs", "raw"] = "raw",
     **kwargs,
-):
+) -> None:
+    """Plot scatter graph of the specified dimensions in an array.
+
+    Args:
+        X: the array with data to be plotted.
+        dim1: the index corresponding to the 1st dimension to be plotted in X. Defaults to 0.
+        dim2: the index corresponding to the 2nd dimension to be plotted in X. Defaults to 1.
+        dim3: the index corresponding to the 3rd dimension to be plotted in X. Defaults to None.
+        dims: a list of indices of the dimensions. Would override dim1/2/3 specified above. Defaults to None.
+        create_figure: whether to create a new figure for the plot. Defaults to False.
+        figsize: the size of the figure. Defaults to (6, 6).
+        sort_by_c: how the colors and corresponding points would be sorted. Can be one of "raw", "neg", and "abs" and
+            the data and color would be sorted based on the color scalar's original value, negative value, and absolute
+            value, respectively. Defaults to "raw".
+        **kwargs: any other kwargs to be passed to `plt.scatter`.
+    """
+
     if create_figure:
         plt.figure(figsize=figsize)
 
@@ -65,7 +91,29 @@ def plot_X(
         plt.gca().scatter(x, y, z, c=c, **kwargs)
 
 
-def plot_V(X, V, dim1=0, dim2=1, dims=None, create_figure=False, figsize=(6, 6), **kwargs):
+def plot_V(
+    X: np.ndarray,
+    V: np.ndarray,
+    dim1: int = 0,
+    dim2: int = 1,
+    dims: Optional[List[int]] = None,
+    create_figure: bool = False,
+    figsize: Tuple[float, float] = (6, 6),
+    **kwargs,
+) -> None:
+    """Plot quiver graph (vector arrow graph) with given vectors.
+
+    Args:
+        X: the array containing the origins of the vectors.
+        V: the array containing the vectors.
+        dim1: the column index of the array that would be plotted as X-coordinates. Defaults to 0.
+        dim2: the column index of the array that would be plotted as X-coordinates. Defaults to 1.
+        dims: a two-item list containing dim1 and dim2. This argument would override dim1 and dim2. Defaults to None.
+        create_figure: whether to create a new figure. Defaults to False.
+        figsize: the size of the figure. Defaults to (6, 6).
+        **kwargs: any other kwargs that would be passed to `plt.quiver`.
+    """
+
     if create_figure:
         plt.figure(figsize=figsize)
     if dims is not None:
@@ -75,20 +123,41 @@ def plot_V(X, V, dim1=0, dim2=1, dims=None, create_figure=False, figsize=(6, 6),
 
 
 def zscatter(
-    adata,
-    basis="umap",
-    layer="X",
-    dim1=0,
-    dim2=1,
-    dim3=None,
-    color=None,
-    c_layer=None,
-    cbar=True,
-    cbar_shrink=0.4,
-    sym_c=False,
-    axis_off=True,
+    adata: AnnData,
+    basis: str = "umap",
+    layer: Optional[str] = "X",
+    dim1: int = 0,
+    dim2: int = 1,
+    dim3: Optional[int] = None,
+    color: Union[np.ndarray, str, None] = None,
+    c_layer: Optional[str] = None,
+    cbar: bool = True,
+    cbar_shrink: float = 0.4,
+    sym_c: bool = False,
+    axis_off: bool = True,
     **kwargs,
-):
+) -> None:
+    """Plot scatter graph for a given AnnData object.
+
+    Args:
+        adata: an AnnData object.
+        basis: the basis used for dimension reduction. It would be used to construct the key to find data in adata.obsm.
+            Defaults to "umap".
+        layer: the layer key the dimensional-reduced data is related with. It would be used to construct the key to find
+            data in adata.obsm. Defaults to "X".
+        dim1: the index of the array corresponding to the 1st dimension to be plotted. Defaults to 0.
+        dim2: the index of the array corresponding to the 2nd dimension to be plotted. Defaults to 1.
+        dim3: the index corresponding to the 3rd dimension to be plottedX. Defaults to None.
+        color: specifying how to color the points. If it is a string, it would be considered as a key of adata.var and
+            its corresponding value would be used to color the cells. If it is an array, it would be used to color the
+            cells directly. If it is None, the color would be determined automatically. Defaults to None.
+        c_layer: the layer of the AnnData object to be plotted. If None, adata.X would be used. Defaults to None.
+        cbar: whether to show the color bar. Defaults to True.
+        cbar_shrink: size factor of the color bar. Defaults to 0.4.
+        sym_c: whether to make the color bar symmetric to 0. Defaults to False.
+        axis_off: whether to turn of the axis in the graph. Defaults to True.
+    """
+
     if layer is None or len(layer) == 0:
         emb = basis
     else:
@@ -171,27 +240,61 @@ def zscatter(
 
 
 def zstreamline(
-    adata,
-    basis="umap",
-    v_basis=None,
-    x_layer="X",
-    v_layer="velocity",
-    dim1=0,
-    dim2=1,
-    dims=None,
-    color="k",
-    create_figure=False,
-    figsize=(6, 4),
-    grid_num=50,
-    smoothness=1,
-    min_vel_mag=None,
-    cutoff=1.5,
-    return_grid=False,
-    linewidth=1,
-    constant_lw=False,
-    density=1,
+    adata: AnnData,
+    basis: str = "umap",
+    v_basis: Optional[str] = None,
+    x_layer: str = "X",
+    v_layer: str = "velocity",
+    dim1: int = 0,
+    dim2: int = 1,
+    dims: Optional[List[int]] = None,
+    color: Union[List[str], str, None] = "k",
+    create_figure: bool = False,
+    figsize: Tuple[float, float] = (6, 4),
+    grid_num: int = 50,
+    smoothness: float = 1,
+    min_vel_mag: Optional[np.ndarray] = None,
+    cutoff: float = 1.5,
+    return_grid: bool = False,
+    linewidth: float = 1,
+    constant_lw: bool = False,
+    density: float = 1,
     **streamline_kwargs,
-):
+) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """Plot streamline graph with given AnnData object.
+
+    Args:
+        adata: an AnnData object.
+        basis: the basis used for dimension reduction. It would be used to construct the key to find data in adata.obsm.
+            Defaults to "umap".
+        v_basis: the basis used for dimension reduction of velocity data if it is different from `basis`. Defaults to
+            None.
+        x_layer: the layer key the dimensional-reduced data is related with. It would be used to construct the key to
+            find data in adata.obsm. Defaults to "X".
+        v_layer: the layer key the dimensional-reduced velocity data is related with. It would be used to construct the
+            key to find data in adata.obsm. Defaults to "velocity".
+        dim1: the index of the array corresponding to the 1st dimension to be plotted. Defaults to 0.
+        dim2: the index of the array corresponding to the 2nd dimension to be plotted. Defaults to 1.
+        dims: a list containing dim1 and dim2. It would override dim1 and dim2 specified beforehand. Defaults to None.
+        color: the color of the streamline. If it is a string, it would be treated as a matplotlib color. If it is an
+            array, it should be a series of matplotlib colors corresponding to each grid. If it is None, the color would
+            be determined automatically. Defaults to "k".
+        create_figure: whether to create a new figure. Defaults to False.
+        figsize: the size of the figure. Defaults to (6, 4).
+        grid_num: the number of grids. Defaults to 50.
+        smoothness: the factor to smooth the streamline. Defaults to 1.
+        min_vel_mag: the minimum velocity to be shown in the graph. Defaults to None.
+        cutoff: cutoff coefficient for project velocities to grids. Defaults to 1.5.
+        return_grid: whether to return the X and V grids. Defaults to False.
+        linewidth: the base width of the streamlines. Defaults to 1.
+        constant_lw: whether to keep the streamlines having same width or to make the width vary corresponding to local
+            velocity. Defaults to False.
+        density: density of the stream plot. Refer to `pyplot.streamplot` for more details. Defaults to 1.
+        **streamline_kwargs: any other kwargs to be passed to `pyplot.streamplot`.
+    Returns:
+        None would be returned in default. if `return_grid` is set to be True, the grids of X and V would be returned.
+    """
+
     if x_layer is None or len(x_layer) == 0:
         emb = basis
     else:
@@ -256,7 +359,34 @@ def zstreamline(
         return X_grid.T, V_grid.T
 
 
-def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)):
+def multiplot(
+    plot_func: Callable,
+    arr: Iterable[Any],
+    n_row: Optional[int] = None,
+    n_col: int = 3,
+    fig: Figure = None,
+    subplot_size: Tuple[float, float] = (6, 4),
+) -> List[Axes]:
+    """Plot multiple graphs with same plotting function but different inputs.
+
+    Args:
+        plot_func: the function to be used to plot.
+        arr: the input for the plotting function. If `arr` is a dict, the key should be the names of the arguments and
+            the value should be an iterable object and its items would be passed to the function. If each item of it is
+            an array, each item would be destructed and passed to the plotting function. Otherwise, each item would be
+            directly passed to the function.
+        n_row: the number of rows of the subplots. Defaults to None.
+        n_col: the number of columns of the subplots. If both `n_row` and `n_col` are None, `n_col` would be set to 3
+            and `n_row` would be calculated automatically. If either `n_row` or `n_col` is specified, the other
+            parameter would be calculated so that all subplots can be shown. If both are specified, only first
+            `n_col x n_row` subplots would be shown. Defaults to 3.
+        fig: the figure to plot on. If None, a new figure would be created. Defaults to None.
+        subplot_size: the size of each subplot. Defaults to (6, 4).
+
+    Returns:
+        The axes of the subplots.
+    """
+
     if n_col is None and n_row is None:
         n_col = 3
     n = len(arr[list(arr.keys())[0]]) if type(arr) is dict else len(arr)
@@ -285,13 +415,24 @@ def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)
 
 
 def plot_jacobian_gene(
-    adata,
-    jkey="jacobian",
-    basis="pca",
-    regulators=None,
-    effectors=None,
+    adata: AnnData,
+    jkey: str = "jacobian",
+    basis: str = "pca",
+    regulators: Optional[Iterable[str]] = None,
+    effectors: Optional[Iterable[str]] = None,
     **kwargs,
-):
+) -> None:
+    """Plot scatter graphs for gene's jacobians to show relationship between the regulators and effectors.
+
+    Args:
+        adata: an AnnData object.
+        jkey: the key for jacobian data stored in adata.uns. Defaults to "jacobian".
+        basis: the basis of dimension reduction. It would be used to construct the key to find data in adata.uns.
+            Defaults to "pca".
+        regulators: the regulator genes to be considered. Defaults to None.
+        effectors: the effector genes to be considered. Defaults to None.
+    """
+
     jkey = f"{jkey}_{basis}" if basis is not None else jkey
     J_dict = adata.uns[jkey]
     c_arr = []
