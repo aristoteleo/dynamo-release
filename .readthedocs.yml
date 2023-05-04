@@ -3,7 +3,7 @@ formats: []
 
 build:
   os: ubuntu-22.04
-  image: latest
+  # image: latest
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
