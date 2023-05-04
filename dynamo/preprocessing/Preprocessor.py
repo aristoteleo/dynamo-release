@@ -21,14 +21,11 @@ from ..external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
-
-from .cell_cycle import cell_cycle_scores
-from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from ..tools.connectivity import neighbors as default_neighbors
 from ..tools.utils import update_dict
+from .cell_cycle import cell_cycle_scores
+from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca
-from .preprocessor_utils import _infer_labeling_experiment_type
-
 from .preprocessor_utils import (
     Freeman_Tukey,
     _infer_labeling_experiment_type,
@@ -36,16 +33,11 @@ from .preprocessor_utils import (
 )
 from .preprocessor_utils import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
-    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
 )
 from .preprocessor_utils import (
-    is_log1p_transformed_adata,
-    log1p_adata,
-    normalize_cell_expr_by_size_factors,
-    regress_out_parallel,
-    select_genes_by_dispersion_general,
+    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
 )
-from .preprocessor_utils import log, log1p, log2, normalize
+from .preprocessor_utils import log, log1p, log2, normalize, regress_out_parallel
 from .utils import (
     basic_stats,
     collapse_species_adata,
@@ -495,7 +487,7 @@ class Preprocessor:
         self.normalize_selected_genes = None
         self.normalize_by_cells = normalize
         self.norm_method = log1p
-        
+
         self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
 
         self.pca = pca
@@ -593,7 +585,7 @@ class Preprocessor:
         self._calc_size_factor(adata)
         self._normalize_by_cells(adata)
         self._select_genes(adata)
-        
+
         # append/delete/force selected gene list required by users.
         self._append_gene_list(adata)
         self._exclude_gene_list(adata)
@@ -651,8 +643,10 @@ class Preprocessor:
         self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
 
-        main_warning("Sctransform recipe will subset the data first with default gene selection function for "
-                     "efficiency. If you want to disable this, please perform sctransform without recipe.")
+        main_warning(
+            "Sctransform recipe will subset the data first with default gene selection function for "
+            "efficiency. If you want to disable this, please perform sctransform without recipe."
+        )
         self._select_genes(adata)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])

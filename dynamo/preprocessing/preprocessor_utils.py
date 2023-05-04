@@ -1056,9 +1056,6 @@ def normalize(
             main_info_insert_adata_layer("X_" + layer)
             adata.layers["X_" + layer] = CM
 
-        main_info_insert_adata_uns("pp.norm_method")
-        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
-
     return adata
 
 

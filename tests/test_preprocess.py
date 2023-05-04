@@ -3,9 +3,7 @@ import timeit
 import anndata
 import numpy as np
 import pandas as pd
-import scipy
-import scipy.sparse
-from scipy.sparse.csr import csr_matrix
+from scipy.sparse import csr_matrix
 from sklearn.decomposition import PCA
 
 # from utils import *
@@ -19,6 +17,7 @@ from dynamo.preprocessing.preprocessor_utils import (
     is_nonnegative,
     is_nonnegative_integer_arr,
     log1p,
+    normalize,
 )
 from dynamo.preprocessing.utils import convert_layers2csr
 
@@ -160,7 +159,7 @@ def test_layers2csr_matrix():
 def test_compute_gene_exp_fraction():
     # TODO fix compute_gene_exp_fraction: discuss with Xiaojie
     # df = pd.DataFrame([[1, 2], [1, 1]]) # input cannot be dataframe
-    df = scipy.sparse.csr_matrix([[1, 2], [1, 1]])
+    df = csr_matrix([[1, 2], [1, 1]])
     frac, indices = dyn.preprocessing.compute_gene_exp_fraction(df)
     print("frac:", list(frac))
     assert np.all(np.isclose(frac.flatten(), [2 / 5, 3 / 5]))
@@ -282,7 +281,7 @@ def test_gene_selection_method():
     print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
 
 
-def test_normalize_cell_expr_by_size_factors():
+def test_normalize():
     # Set up test data
     X = np.array([[1, 2], [3, 4], [5, 6]])
     layers = {
@@ -303,9 +302,9 @@ def test_normalize_cell_expr_by_size_factors():
     adata.uns["pp"] = dict()
 
     # Call the function
-    normalized = normalize_cell_expr_by_size_factors(
+    normalized = normalize(
         adata=adata,
-        norm_method=np.log1p,
+        # norm_method=np.log1p,
     )
 
     # Assert that the output is a valid AnnData object
@@ -316,10 +315,8 @@ def test_normalize_cell_expr_by_size_factors():
     assert normalized.layers["X_spliced"].shape == (3, 2)
 
     # Assert that the normalization was applied correctly
-    assert np.allclose(normalized.X, np.log1p(X / adata.obs["Size_Factor"].values[:, None]))
-    assert np.allclose(
-        normalized.layers["X_spliced"].toarray(), np.log1p(X / adata.obs["spliced_Size_Factor"].values[:, None])
-    )
+    assert np.allclose(normalized.X, (X / adata.obs["Size_Factor"].values[:, None]))
+    assert np.allclose(normalized.layers["X_spliced"].toarray(), (X / adata.obs["spliced_Size_Factor"].values[:, None]))
 
 
 def test_regress_out():
@@ -361,6 +358,6 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
     # test_gene_selection_method()
-    # test_normalize_cell_expr_by_size_factors()
+    test_normalize()
     # test_regress_out()
     pass
