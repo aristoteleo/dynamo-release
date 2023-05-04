@@ -1,95 +1,29 @@
 # use for convert list of list to a list (https://stackoverflow.com/questions/952914/how-to-make-a-flat-list-out-of-list-of-lists)
 import functools
 import operator
+from typing import List, Optional, Tuple
 
 import numpy as np
-import numpy.matlib as matlib
 import scipy.sparse
 import scipy.spatial as ss
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigs
 
+from .DDRTree_py import repmat
+
 # from scikits.sparse.cholmod import cholesky
 
 
+def diag_mat(values: List[int]):
+    """Returns a diagonal matrix with the given values on the diagonal.
 
-def sqdist(a, b):
-    """calculate the square distance between a, b	
-    Arguments	
-    ---------	
-        a: 'np.ndarray'	
-            A matrix with :math:`D \times N` dimension	
-        b: 'np.ndarray'	
-            A matrix with :math:`D \times N` dimension	
-    Returns	
-    -------	
-    dist: 'np.ndarray'	
-        A numeric value for the different between a and b	
+    Args:
+        values: a list of values to place on the diagonal of the matrix.
+
+    Returns:
+        A diagonal matrix with the given values on the diagonal.
     """
-    aa = np.sum(a ** 2, axis=0)
-    bb = np.sum(b ** 2, axis=0)
-    ab = a.T.dot(b)
 
-    aa_repmat = matlib.repmat(aa[:, None], 1, b.shape[1])
-    bb_repmat = matlib.repmat(bb[None, :], a.shape[1], 1)
-
-    dist = abs(aa_repmat + bb_repmat - 2 * ab)
-
-    return dist
-
-
-def repmat(X, m, n):
-    """This function returns an array containing m (n) copies of A in the row (column) dimensions. The size of B is	
-    size(A)*n when A is a matrix.For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix.	
-    Arguments	
-    ---------	
-        X: 'np.ndarray'	
-            An array like matrix.	
-        m: 'int'	
-            Number of copies on row dimension	
-        n: 'int'	
-            Number of copies on column dimension	
-    Returns	
-    -------	
-    xy_rep: 'np.ndarray'	
-        A matrix of repmat	
-    """
-    xy_rep = matlib.repmat(X, m, n)
-
-    return xy_rep
-
-
-def eye(m, n):
-    """Equivalent of eye (matlab)	
-    Arguments	
-    ---------	
-        m: 'int'	
-            Number of rows	
-        n: 'int'	
-            Number of columns	
-    Returns	
-    -------	
-    mat: 'np.ndarray'	
-        A matrix of eye	
-    """
-    mat = np.eye(m, n)
-    return mat
-
-
-def diag_mat(values):
-    """Equivalent of diag (matlab)	
-    Arguments	
-    ---------	
-        values: 'int'	
-            dim of the matrix	
-    Returns	
-    -------	
-        mat: 'np.ndarray'	
-            A diag_matrix	
-    """
-    # mat = np.zeros((len(values),len(values)))
-    # for i in range(len(values)):
-    #     mat[i][i] = values[i]
     mat = np.zeros((len(values), len(values)))
     np.fill_diagonal(mat, values)
 
@@ -97,41 +31,39 @@ def diag_mat(values):
 
 
 def psl(
-        Y, sG=None, dist=None, K=10, C=1e3, param_gamma=1e-3, d=2, maxIter=10, verbose=False
-):
+    Y: np.ndarray,
+    sG: Optional[csr_matrix] = None,
+    dist: Optional[np.ndarray] = None,
+    K: int = 10,
+    C: int = 1e3,
+    param_gamma: float = 1e-3,
+    d: int = 2,
+    maxIter: int = 10,
+    verbose: bool = False
+) -> Tuple[csr_matrix, np.ndarray]:
     """This function is a pure Python implementation of the PSL algorithm.
 
-    Reference: Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019	
+    Reference: 
+    Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019
 
-    Arguments
-    ---------	
-        Y: 'numpy.ndarray'	
-            data list	
-        sG: 'scipy.sparse.csr_matrix'	
-            a prior kNN graph passed to the algorithm	
-        dist: 'numpy.ndarray'	
-            a dense distance matrix between all vertices. If no distance matrix passed, we will use the kNN based algorithm,	
-            otherwise we will use the original algorithm reported in the manuscript.	
-        K: 'int'	
-            number of nearest neighbors used to build the neighborhood graph. Large k can obtain less sparse structures.	
-            Ignored if sG is used.	
-        C: 'int'	
-            The penalty parameter for loss term. It controls the preservation of distances. The larger it is, the distance	
-            is more strictly preserve. If the structure is very clear, a larger C  is preferred.	
-        param_gamma: 'int'	
-            param_gamma is trying to make a matrix A nonsingular, it is like a round-off parameter. 1e-4 or 1e-5 is good.	
-            It corresponds to the variance of prior embedding.	
-        d: 'int'	
-            embedding dimension	
-        maxIter: 'int'	
-            Number of maximum iterations	
-        verbose: 'bool'	
-            Whether to print running information	
+    Args:
+        Y: the data list. 
+        sG: a prior kNN graph passed to the algorithm. Defaults to None.
+        dist: a dense distance matrix between all vertices. If no distance matrix passed, we will use the kNN based 
+            algorithm, otherwise we will use the original algorithm reported in the manuscript. Defaults to None.
+        K: number of nearest neighbors used to build the neighborhood graph. Large k can obtain less sparse structures. 
+            Ignored if sG is used. Defaults to 10.
+        C: the penalty parameter for loss term. It controls the preservation of distances. The larger it is, the 
+            distance is more strictly preserve. If the structure is very clear, a larger C is preferred. Defaults to 
+            1e3.
+        param_gamma: param_gamma is trying to make a matrix A non-singular, it is like a round-off parameter. 1e-4 or
+            1e-5 is good. It corresponds to the variance of prior embedding. Defaults to 1e-3.
+        d: the embedding dimension. Defaults to 2.
+        maxIter: number of maximum iterations. Defaults to 10.
+        verbose: whether to print running information. Defaults to False.
 
-    Returns
-    -------	
-        (S,Z): 'tuple'	
-            a tuple of the adjacency matrix and the reduced low dimension embedding.	
+    Returns:
+        A tuple (S, Z), where S is the adjacency matrix and Z is the reduced low dimension embedding.
     """
 
     if sG is None:
@@ -270,13 +202,18 @@ def psl(
     return (S, Z)
 
 
-def logdet(A):
-    """ Here, A should be a square matrix of double or single class.	
-    If A is singular, it will returns -inf.	
-    Theoretically, this function should be functionally	
-    equivalent to log(det(A)). However, it avoids the	
-    overflow/underflow problems that are likely to	
-    happen when applying det to large matrices.	
+def logdet(A: np.ndarray) -> float:
+    """Calculate log(det(A)). 
+
+    Compared with calculating log(det(A)) directly, this function avoid the overflow/underflow problems that are likely 
+    to happen when applying det to large matrices.	
+
+    Args:
+        A: an square matrix.
+
+    Returns:
+        log(det(A)).
     """
+
     v = 2 * sum(np.log(np.diag(np.linalg.cholesky(A))))
     return v

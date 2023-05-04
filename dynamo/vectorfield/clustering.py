@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ from scipy.stats import mode
 from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import main_info
-from ..preprocessing.utils import pca_monocle
+from ..preprocessing.utils import pca
 from ..tools.clustering import hdbscan, infomap, leiden, louvain
 from ..tools.Markov import (
     grid_velocity_filter,
@@ -21,18 +21,18 @@ from .utils import vecfld_from_adata
 
 
 def cluster_field(
-    adata,
-    basis="pca",
-    features=["speed", "potential", "divergence", "acceleration", "curvature", "curl"],
-    add_embedding_basis=True,
-    embedding_basis=None,
-    normalize=False,
-    method="leiden",
-    cores=1,
-    copy=False,
-    resolution=1.0,
+    adata: AnnData,
+    basis: str = "pca",
+    features: List = ["speed", "potential", "divergence", "acceleration", "curvature", "curl"],
+    add_embedding_basis: bool = True,
+    embedding_basis: Optional[str] = None,
+    normalize: bool = False,
+    method: str = "leiden",
+    cores: int = 1,
+    copy: bool = False,
+    resolution: float = 1.0,
     **kwargs,
-):
+) -> Optional[AnnData]:
     """Cluster cells based on vector field features.
 
     We would like to see whether the vector field can be used to better define cell state/types. This can be accessed
@@ -48,37 +48,29 @@ def cluster_field(
     by the classical dynamic system methods, we can use some machine learning approaches that are based on extracting
     geometric features of streamline to "cluster vector field space" for define cell states/type. This requires
     calculating, potential (ordered pseudotime), speed, curliness, divergence, acceleration, curvature, etc. Thanks to
-    the fact that we can analytically calculate Jacobian matrix matrix, those quantities of the vector field function
+    the fact that we can analytically calculate the Jacobian matrix, those quantities of the vector field function
     can be conveniently and efficiently calculated.
 
-    Parameters
-    ----------
-    adata: :class:`~anndata.AnnData`.
-        adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
-        the object should include both unspliced and spliced gene expression of cells.
-    basis: `str` or None (default: `None`)
-        The space that will be used for calculating vector field features. Valid names includes, for example, `pca`,
-        `umap`, etc.
-    embedding_basis: `str` or None (default: `None`)
-        The embedding basis that will be combined with the vector field feature space for clustering.
-    normalize: `bool` (default: `False`)
-        Whether to mean center and scale the feature across all cells.
-    method: `str` (default: `leiden`)
-        The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
-        or `leiden` used, you need to have `cdlib` installed.
-    cores: `int` (default: 1)
-        The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a
-        :obj:`joblib.parallel_backend` context.
-        ``-1`` means using all processors.
-    copy:
-        Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
-    resolution:
-        Clustering resolution, higher values yield more fine-grained clusters.
-    kwargs:
-        Any additional arguments that will be passed to either kmeans, hdbscan, louvain or leiden clustering algorithms.
+    Args:
+        adata: adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
+            the object should include both unspliced and spliced gene expression of cells.
+        basis: The space that will be used for calculating vector field features. Valid names includes, for example, `pca`,
+            `umap`, etc.
+        features: features have to be selected from ['speed', 'potential', 'divergence', 'acceleration', 'curvature', 'curl']
+        add_embedding_basis: Whether to add the embedding basis to the feature space for clustering.
+        embedding_basis: The embedding basis that will be combined with the vector field feature space for clustering.
+        normalize: Whether to mean center and scale the feature across all cells.
+        method: The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
+            or `leiden` used, you need to have `cdlib` installed.
+        cores: The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a
+            :obj:`joblib.parallel_backend` context.
+            ``-1`` means using all processors.
+        copy: Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
+        resolution: Clustering resolution, higher values yield more fine-grained clusters.
+        kwargs: Any additional arguments that will be passed to either kmeans, hdbscan, louvain or leiden clustering algorithms.
 
-    Returns
-    -------
+    Returns:
+        Either updates `adata` or directly returns a new `adata` object if `copy` is `True`.
 
     """
 
@@ -91,7 +83,7 @@ def cluster_field(
     )
     if len(features) < 1:
         raise ValueError(
-            "features has to be selected from ['speed', 'potential', 'divergence', 'acceleration', "
+            "features have to be selected from ['speed', 'potential', 'divergence', 'acceleration', "
             f"'curvature', 'curl']. your feature is {features}"
         )
 
@@ -209,24 +201,43 @@ def streamline_clusters(
     assign_fixedpoints: bool = False,
     reversed_fixedpoints: bool = False,
     **kwargs,
-):
-    """
+) -> None:
+    """Cluster 2D streamlines based on vector field features. Initialize a grid over the state space and compute the
+    flow of data through the grid using plt.streamplot with a given density. For each point individual streamline,
+    computes the vector field 'features' of interest and stores the data via histograms. Add fixed points and
+    "reversed fixed points" (sources of the streamlines) to the feature data dataframe based on the
+    'assigned_fixedpoints' and 'reversed_fixedpoints' args. Finally, then cluster the streamlines based on these
+    features using the given 'clustering_method'.
 
-    Parameters
-    ----------
-    adata
-    basis
-    features
-    method
-    xy_grid_nums
-    density
-    curvature_method
-    feature_bins
-    clustering_method
+    Args:
+        adata: An AnnData object representing the network to be analyzed.
+        basis: The basis to use for creating the vector field, either "umap" or "tsne". Defaults to "umap".
+        features: A list of features to calculate for each point in the vector field. Defaults to ["speed", "divergence", "acceleration", "curvature", "curl"].
+        method: The method to use for calculating the flow of data through the grid, either "sparsevfc" or "gaussian". Defaults to "sparsevfc".
+        xy_grid_nums: The number of points to use in the x and y dimensions of the grid. Defaults to [50, 50].
+        density: The density of the grid. Defaults to 5.
+        curvature_method: The method to use for calculating curvature. Defaults to 1.
+        feature_bins: The number of bins to use for discretizing the data. Defaults to 10.
+        clustering_method: The method to use for clustering the data into modules, either "louvain" or "leiden". Defaults to "leiden".
+        assign_fixedpoints: A boolean indicating whether to assign fixed points to the data. Defaults to False.
+        reversed_fixedpoints: A boolean indicating whether to reverse the fixed points assignment. Defaults to False.
 
-    Returns
-    -------
+    Raises:
+        ImportError: If the "cdlib" package is not installed and the "louvain" or "leiden" clustering method is specified.
+        ValueError: If an invalid method is specified for calculating the flow of data through the grid.
+        ValueError: If an invalid method is specified for clustering the data into modules.
 
+    Returns:
+        None, but updates the `adata` object with the following fields of the `adata.uns["streamline_clusters_" + basis]`
+            -  "feature_df"
+            - "segments"
+            - "X_pca"
+            - "clustering_method"
+            - "distances"
+            - "connectivities"
+            - "clusters"
+            - "fixed_point"
+            - "rev_fixed_point"
     """
 
     import matplotlib.pyplot as plt
@@ -338,7 +349,7 @@ def streamline_clusters(
         line_len.append(values.shape[0])
         tmp = None
         if has_acc:
-            acceleration_val, acceleration_vec = vector_field_class.compute_acceleration(values)
+            acceleration_val, _ = vector_field_class.compute_acceleration(values)
             acc_dict[key] = acceleration_val
 
             _, acc_hist = np.histogram(acceleration_val, bins=(bins - 1), density=True)
@@ -390,7 +401,7 @@ def streamline_clusters(
 
     # clustering
     feature_adata = AnnData(feature_df)
-    pca_monocle(feature_adata, X_data=feature_df, pca_key="X_pca")
+    pca(feature_adata, X_data=feature_df, pca_key="X_pca")
     if clustering_method == "louvain":
         louvain(feature_adata, obsm_key="X_pca")
     elif clustering_method == "leiden":
