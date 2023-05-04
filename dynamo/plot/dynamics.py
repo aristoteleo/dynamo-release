@@ -1,9 +1,15 @@
 import sys
 import warnings
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import pandas as pd
 from anndata import AnnData
+from matplotlib.figure import Figure
 
 from ..configuration import _themes
 from ..dynamo_logger import main_warning
@@ -28,7 +34,7 @@ from .utils_dynamics import *
 
 def phase_portraits(
     adata: AnnData,
-    genes: list,
+    genes: List[str],
     x: int = 0,
     y: int = 1,
     pointsize: Optional[float] = None,
@@ -41,9 +47,9 @@ def phase_portraits(
     highlights: Optional[list] = None,
     discrete_continous_div_themes: Optional[list] = None,
     discrete_continous_div_cmap: Optional[list] = None,
-    discrete_continous_div_color_key: Optional[list] = [None, None, None],
+    discrete_continous_div_color_key: list = [None, None, None],
     discrete_continous_div_color_key_cmap: Optional[list] = None,
-    figsize: tuple = (6, 4),
+    figsize: Tuple[float, float] = (6, 4),
     ncols: Optional[int] = None,
     legend: str = "upper left",
     background: Optional[str] = None,
@@ -54,57 +60,46 @@ def phase_portraits(
     frontier: bool = True,
     q_kwargs_dict: dict = {},
     show_arrowed_spines: Optional[bool] = None,
-    save_show_or_return: str = "show",
+    save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: dict = {},
     **kwargs,
-):
-    """Draw the phase portrait, expression values , velocity on the low dimensional embedding.
-    Note that this function allows to manually set the theme, cmap, color_key and color_key_cmap
-    for the phase portrait, expression and velocity subplots. When the background is 'black',
-    the default themes for each of those subplots are  ["glasbey_dark", "inferno", "div_blue_black_red"],
-    respectively. When the background is 'black', the default themes are  "glasbey_white", "viridis",
-    "div_blue_red".
+) -> Optional[Figure]:
+    """Draw the phase portrait, expression values, velocity on the low dimensional embedding.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        genes: `list`
-            A list of gene names that are going to be visualized.
-        x: `int` (default: `0`)
-                The column index of the low dimensional embedding for the x-axis
-        y: `int` (default: `1`)
-                The column index of the low dimensional embedding for the y-axis
-        pointsize: `None` or `float` (default: None)
-                The scale of the point size. Actual point cell size is calculated as `2500.0 / np.sqrt(adata.shape[0]) *
-                pointsize`
-        vkey: `string` or None (default: None)
-            Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot
-            or the keys in the obsm slot.
-        ekey: `str` or None (default: `None`)
-            The layer of data to represent the gene expression level.
-        basis: `string` (default: umap)
-            Which low dimensional embedding will be used to visualize the cell.
-        log1p: `bool` (default: `True`)
-            Whether to log1p transform the expression so that visualization can be robust to extreme values.
-        color: `string` (default: 'cell_cycle_phase')
-            Which group will be used to color cells, only used for the phase portrait because the other two plots are
-            colored by the velocity magnitude or the gene expression value, respectively.
-        use_smoothed: `bool` (default: `True`)
-            Whether to use smoothed 1/2-nd moments as gene expression for the first and third columns. This is useful
-            for checking the confidence of transition genes. For example, you may see a very nice linear pattern for
-            some genes with the smoothed expression but this could just be an artificially generated when the number of
-            expressed cells is very low. This raises red flags for the quality of the velocity values we learned for
+    Note that this function allows to manually set the theme, cmap, color_key and color_key_cmap for the phase portrait,
+    expression and velocity subplots. When the background is 'black', the default themes for each of those subplots are
+    ["glasbey_dark", "inferno", "div_blue_black_red"], respectively. When the background is 'black', the default themes
+    are "glasbey_white", "viridis", "div_blue_red".
+
+    Args:
+        adata: an AnnData object.
+        genes: a list of gene names that are going to be visualized.
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `2500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        vkey: the velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot
+            or the keys in the obsm slot. Defaults to None.
+        ekey: the layer of data to represent the gene expression level. Defaults to None.
+        basis: the key of the low dimensional embedding will be used to visualize the cell. Defaults to "umap".
+        log1p: whether to log1p transform the expression so that visualization can be robust to extreme values. Defaults
+            to True.
+        color: the group to be used to color cells. It would only be used for the phase portrait because the other two
+            plots are colored by the velocity magnitude or the gene expression value respectively. Defaults to
+            "cell_cycle_phase".
+        use_smoothed: Whether to use smoothed 1/2-nd moments as gene expression for the first and third columns. This is
+            useful for checking the confidence of transition genes. For example, you may see a very nice linear pattern
+            for some genes with the smoothed expression but this could just be an artificially generated when the number
+            of expressed cells is very low. This raises red flags for the quality of the velocity values we learned for
             those genes. And we recommend to set the higher values (for example, 10% of all cells) for `min_cell_s`,
             `min_cell_u` or `shared_count` of the `fg_kwargs` argument of the dyn.pl.receipe_monocle. Note that this is
             often related to the small single cell datasets (like plate-based scRNA-seq or scSLAM-seq/NASC-seq, etc).
-        highlights: `list` (default: None)
-            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color
-            element.
-        discrete_continous_div_themes: `list[str, str, str]` (optional, default None)
-            The discrete, continous and divergent color themes to use for plotting. The description for each element in
-            the list is as following.
-            A small set of predefined themes are provided which have relatively good aesthetics. Available themes are:
+            Defaults to True.
+        highlights: the color group to be highlighted. If highligts is a list of lists, each list is relate to each
+            color element. Defaults to None.
+        discrete_continous_div_themes: the discrete, continous and divergent color themes to use for plotting,
+            respectively. The description for each element in the list is as following. A small set of predefined themes
+            are provided which have relatively good aesthetics. Available themes are:
                * 'blue'
                * 'red'
                * 'green'
@@ -113,74 +108,81 @@ def phase_portraits(
                * 'viridis'
                * 'darkblue'
                * 'darkred'
-               * 'darkgreen'
-        discrete_continous_div_cmap: `list[str, str, str]`  (optional, default 'Blues')
-            The names of  discrete, continous and divergent matplotlib colormap to use for coloring
-            or shading points. The description for each element in the list is as following. If no labels or values are
-            passed this will be used for shading points according to density (largely only of relevance for very large
-            datasets). If values are passed this will be used for shading according the value. Note that if theme is
-            passed then this value will be overridden by the corresponding option of the theme.
-        discrete_continous_div_color_key: `list[dict or array,, dict or array,, dict or array,]` (default [None, None,
-            None]).
-            The description for each element in the list is as following. The shape (n_categories) (optional, default
-            None). A list to assign discrete, continous and divergent colors to categoricals. This can either be an
-            explicit dict mapping labels to colors (as strings of form '#RRGGBB'), or an array like object providing one
-            color for each distinct category being provided in ``labels``. Either way this mapping will be used to color
-            points according to the label. Note that if theme is passed then this value will be overridden by the
-            corresponding option of the theme.
-        discrete_continous_div_color_key_cmap: `list[str, str, str]`, (optional, default 'Spectral')
-            The names of discrete, continous and divergent matplotlib colormap to use for categorical coloring.
-            The description for each element in the list is as following. If an explicit ``color_key`` is not given a
-            color mapping for categories can be generated from the label list and selecting a matching list of colors
-            from the given colormap. Note that if theme is passed then this value will be overridden by the corresponding
-            option of the theme.
-        figsize: `None` or `[float, float]` (default: None)
-                The width and height of each panel in the figure.
-        ncols: `None` or `int` (default: None)
-        ncol: `None` or `int` (default: None)
-                Number of columns in each facet grid.
-        legend: `str` (default: `on data`)
-                Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables
-                will be represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
-        background:
-            background color
-        show_quiver: `bool` (default: False)
-            Whether to show the quiver plot. If velocity for x component (corresponds to either spliced, total RNA,
-            protein, etc) or y component (corresponds to either unspliced, new RNA, protein, etc) are both calculated,
-            quiver represents velocity for both components otherwise the uncalculated component (usually y component)
-            will be set to be 0.
-        quiver_size: `float` or None (default: None)
-            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to
-            calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
+               * 'darkgreen'.
+            Defaults to None.
+        discrete_continous_div_cmap: the names of discrete, continous and divergent matplotlib colormap to use for
+            coloring or shading points. The description for each element in the list is as following. If no labels or
+            values are passed this will be used for shading points according to density (largely only of relevance for
+            very large datasets). If values are passed this will be used for shading according the value. Note that if
+            theme is passed then this value will be overridden by the corresponding option of the theme. Defaults to
+            None.
+        discrete_continous_div_color_key: A list to assign discrete, continous and divergent colors to categoricals.
+            This can either be an explicit dict mapping labels to colors (as strings of form '#RRGGBB'), or an array
+            like object providing one color for each distinct category being provided in `labels`. Either way this
+            mapping will be used to color points according to the label. Note that if theme is passed then this value
+            will be overridden by the corresponding option of the theme. Defaults to [None, None, None].
+        discrete_continous_div_color_key_cmap: the names of discrete, continous and divergent matplotlib colormap to use
+            for categorical coloring. If an explicit `color_key` is not given a color mapping for categories can be
+            generated from the label list and selecting a matching list of colors from the given colormap. Note that if
+            theme is passed then this value will be overridden by the corresponding option of the theme. Defaults to
+            None.
+        figsize: the width and height of each panel in the figure. Defaults to (6, 4).
+        ncols: number of columns in each facet grid. Defaults to None.
+        legend: the position to draw the legend. Legend is drawn by seaborn with “brief” mode, numeric hue and size v
+            ariables will be represented with a sample of evenly spaced values. By default, legend is drawn on top of
+            cells. Defaults to "upper left".
+        background: the background color. If set to None the face color of the figure would be used. Defaults to None.
+        show_quiver: Whether to show the quiver plot. If velocity for x component (corresponds to either spliced, total
+            RNA, protein, etc.) or y component (corresponds to either unspliced, new RNA, protein, etc.) are both
+            calculated, quiver represents velocity for both components otherwise the uncalculated component (usually y
+            component) will be set to be 0. Defaults to False.
+        quiver_size: the size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is
+            used to calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
             quiver_size) of the quiver. This is done via the `default_quiver_args` function which also calculate the
-            scale of the quiver (1 / quiver_length).
-        quiver_length: `float` or None (default: None)
-            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe
-            applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
-            of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
-            scale parameter makes the arrow longer.
-        no_vel_u: `bool` (default: True)
-            Wheter to not show velocity U (velocity of unpsliced RNAs).
-        q_kwargs_dict: `dict` (default: {})
-            The dictionary of the quiver arguments. The default setting of quiver argument is identical to that used in
-            the cell_wise_velocity and grid_velocity.
-        show_arrowed_spines: bool or None (optional, default None)
-            Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using. If None,
-            only the first panel in the expression / velocity plot will have the arrowed spine.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-            function will use the {"path": None, "prefix": 'phase_portraits', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
-            modify those keys according to your needs.
-        **kwargs:
-            Additional parameters that will be passed to plt.scatter function
+            scale of the quiver (1 / quiver_length). Defaults to None.
+        quiver_length: the length of quiver. The quiver length which will be used to calculate scale of quiver. Note
+            that before applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler
+            function. Scale of quiver indicates the number of data units per arrow length unit, e.g., m/s per plot
+            width; a smaller scale parameter makes the arrow longer. Defaults to None.
+        no_vel_u: whether to not show velocity U (velocity of unspliced RNAs). Defaults to True.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to True.
+        q_kwargs_dict: the dictionary of the quiver arguments. The default setting of quiver argument is identical to
+            that used in the cell_wise_velocity and grid_velocity. Defaults to {}.
+        show_arrowed_spines: whether to show a pair of arrowed spines represeenting the basis of the scatter is
+            currently using. If None, only the first panel in the expression / velocity plot will have the arrowed
+            spine. Defaults to None.
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the
+                {
+                    "path": None,
+                    "prefix": 'phase_portraits',
+                    "dpi": None,
+                    "ext": 'pdf',
+                    "transparent": True,
+                    "close": True,
+                    "verbose": True
+                }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
+            your needs. Defaults to {}.
+        **kwargs: additional parameters that will be passed to `plt.scatter` function.
 
-    Returns
-    -------
-        A matplotlib plot that shows 1) the phase portrait of each category used in velocity embedding, cells' low
-        dimensional embedding, colored either by 2) the gene expression level or 3) the velocity magnitude values.
+    Raises:
+        ValueError: missing velocity data in the AnnData object.
+        ValueError: cannot find layer with given `v_key`.
+        ValueError: missing velocity_gamma column in the AnnData object.
+        ValueError: missing velocity_gamma column in the AnnData object.
+        ValueError: corrupted AnnData object missing basic labeled/unlabeled or spliced/unspliced data.
+        NotImplementedError: invalid `save_show_or_return`.
+
+    Returns:
+        None would be returned in default and the plotted figure would be shown directly. The matplotlib plot would show
+        1) the phase portrait of each category used in velocity embedding, cells' low dimensional embedding, colored
+        either by 2) the gene expression level or 3) the velocity magnitude values. If set
+        `save_show_or_return='return'` as a kwarg, the axes of the plot would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -233,7 +235,7 @@ def phase_portraits(
     # idx = [adata.var.index.to_list().index(i) for i in genes]
 
     if len(genes) == 0:
-        raise Exception(
+        raise ValueError(
             "adata has no genes listed in your input gene vector or "
             "velocity estimation for those genes are not performed. "
             "Please try to run dyn.tl.dynamics(adata, filter_gene_mode='no')"
@@ -326,7 +328,7 @@ def phase_portraits(
             if "velocity_P" in adata.obsm.keys():
                 P_vec = index_gene(adata, adata.layers["velocity_P"], genes)
         else:
-            raise Exception("adata has no vkey {} in either the layers or the obsm slot".format(vkey))
+            raise ValueError("adata has no vkey {} in either the layers or the obsm slot".format(vkey))
 
     E_vec, V_vec = (
         E_vec.A if issparse(E_vec) else E_vec,
@@ -345,7 +347,7 @@ def phase_portraits(
             velocity_offset[~np.isfinite(list(velocity_offset))],
         ) = (0, 0)
     else:
-        raise Exception(
+        raise ValueError(
             "adata does not seem to have velocity_gamma column. Velocity estimation is required before "
             "running this function."
         )
@@ -439,7 +441,7 @@ def phase_portraits(
                     else adata.var.delta_b[genes].values
                 )
             else:
-                raise Exception(
+                raise ValueError(
                     "adata does not seem to have velocity_gamma column. Velocity estimation is required before "
                     "running this function."
                 )
@@ -499,7 +501,7 @@ def phase_portraits(
                 index=range(n_cells * n_genes),
             )
     else:
-        raise Exception(
+        raise ValueError(
             "Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, "
             "spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode"
         )
@@ -1062,7 +1064,7 @@ def phase_portraits(
                 despline_all(ax6)
                 deaxis_all(ax6)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "phase_portraits",
@@ -1074,27 +1076,32 @@ def phase_portraits(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
 
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
+    else:
+        raise NotImplementedError("Unsupported save_show_or_return")
 
 
 def dynamics(
     adata: AnnData,
-    genes: Union[list],
+    genes: List[str],
     unit: str = "hours",
     log_unnormalized: bool = True,
     y_log_scale: bool = False,
     ci: Optional[str] = None,
     ncols: Optional[int] = None,
-    figsize: Union[list, tuple, None] = None,
+    figsize: Union[List[float], Tuple[float, float], None] = None,
     dpi: Optional[float] = None,
     boxwidth: Optional[float] = None,
     barwidth: Optional[float] = None,
@@ -1102,62 +1109,58 @@ def dynamics(
     show_moms_fit: bool = False,
     show_variance: bool = True,
     show_kin_parameters: bool = True,
-    gene_order: str = "column",
+    gene_order: Literal["column", "row"] = "column",
     font_size_scale: float = 1,
-    save_show_or_return: str = "show",
+    save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: dict = {},
-):
+) -> Optional[Figure]:
     """Plot the data and fitting of different metabolic labeling experiments.
-    Note that if non-smoothed data was used for kinetic fitting, you often won't see boxplot
-    but only the triangles for the mean values. This is because the raw data has a lot of dropouts,
-    thus the median is outside of the whiskers of the boxplot and the boxplot is then not drawn
-    by default.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        genes: list of `str`
-            key for variable or gene names.
-        unit: `str` (default: `hour`)
-            The unit of the labeling time, for example, `hours` or `minutes`.
-        y_log_scale: `bool` (default: `True`)
-            Whether or not to use log scale for y-axis.
-        ci: `str` (for example: "95%") or None (default: `None`)
-            The confidence interval to be drawed for the parameter fitting. Currently not used.
-        ncols: `int` or None (default: `None`)
-            The number of columns in the plot.
-        figsize: `[float, float]` or `(float, float)` or None
-            The size of the each panel in the figure.
-        dpi: `float` or None
-            Figure resolution.
-        boxwidth: `float`
-            The width of the box of the boxplot.
-        barwidth: `float`
-            The width of the bar of the barplot.
-        true_param_prefix: `str`
-            The prefix for the column names of true parameters in the .var attributes. Useful for the simulation data.
-        show_moms_fit: `bool` (default: `True`)
-            Whether to show fitting curves associated with the stochastic models, only works for non-deterministic models.
-        show_variance: `bool` (default: `True`)
-            Whether to add a boxplot to show the variance at each time point.
-        show_kin_parameters: `bool` (default: `True`)
-            Whether to include the estimated kinetic parameter values on the plot.
-        gene_order: `str` (default: `column`)
-            The order of genes to present on the figure, either row-major or column major.
-        font_size_scale: `float` (default: `1`)
-            A value that will be used for scaling
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'dynamics', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+    Note that if non-smoothed data was used for kinetic fitting, you often won't see boxplot but only the triangles for
+    the mean values. This is because the raw data has a lot of dropouts, thus the median is outside of the whiskers of
+    the boxplot and the boxplot is then not drawn by default.
 
-    Returns
-    -------
-        Nothing but plot the figure of the metabolic fitting.
+    Args:
+        adata: an Annodata object.
+        genes: the key for variable or gene names.
+        unit: the unit of the labeling time, for example, `hours` or `minutes`. Defaults to "hours".
+        log_unnormalized: whether the data has logged value. Defaults to True.
+        y_log_scale: whether to use log scale for y-axis. Defaults to False.
+        ci: the confidence interval to be drawn for the parameter fitting. Currently not used. Defaults to None.
+        ncols: the number of columns in the plot. Defaults to None.
+        figsize: the size of the each panel in the figure. Defaults to None.
+        dpi: the resolution of the figure. Defaults to None.
+        boxwidth: the width of the box of the boxplot. Defaults to None.
+        barwidth: the width of the bar of the barplot. Defaults to None.
+        true_param_prefix: the prefix for the column names of true parameters in the .var attributes. Useful for the
+            simulation data. Defaults to None.
+        show_moms_fit: whether to show fitting curves associated with the stochastic models, only works for
+            non-deterministic models. Defaults to False.
+        show_variance: whether to add a boxplot to show the variance at each time point. Defaults to True.
+        show_kin_parameters: whether to include the estimated kinetic parameter values on the plot. Defaults to True.
+        gene_order: the order of genes to present on the figure, either row-major or column major. Defaults to "column".
+        font_size_scale: the scale factor of fonts. Defaults to 1.
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the
+            {
+                "path": None,
+                "prefix": 'dynamics',
+                "dpi": None,
+                "ext": 'pdf',
+                "transparent": True,
+                "close": True,
+                "verbose": True
+            }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to your
+            needs. Defaults to {}.
+
+    Raises:
+        ValueError: the gene specified does not have fitted kinetic parameters.
+
+    Returns:
+        None would be returned in default and the plotted metabolic fitting figure would be shown directly. If set
+        `save_show_or_return='return'` as a kwarg, the axes of the plot would be returned.
     """
 
     import matplotlib
@@ -1181,9 +1184,7 @@ def dynamics(
     show_kin_parameters = True if true_param_prefix else show_kin_parameters
 
     uns_keys = np.array(adata.uns_keys())
-    tmp = np.array([i.split("_dynamics")[0] if i.endswith("_dynamics") else None for i in uns_keys])
-    tmp1 = [False if i is None else True for i in tmp]
-    group = tmp[tmp1][0] if sum(tmp1) > 0 else None
+    group = next((i.split("_dynamics")[0] for i in uns_keys if i.endswith("_dynamics")), None)
 
     if group is not None:
         uns_key = group + "_dynamics"
@@ -2729,7 +2730,7 @@ def dynamics(
                 elif experiment_type == "coassay":
                     pass  # show protein velocity (steady state and the Gamma distribution model)
     # g.autofmt_xdate(rotation=-30, ha='right')
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "dynamics",
@@ -2740,11 +2741,15 @@ def dynamics(
             "verbose": True,
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 

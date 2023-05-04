@@ -1,4 +1,13 @@
+from typing import Any, Dict, Optional, Tuple
+
 import numpy as np
+from anndata import AnnData
+from matplotlib.axes import Axes
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 from ..prediction.utils import (
     interp_curvature,
@@ -13,41 +22,37 @@ from .utils import map2color
 
 
 def least_action(
-    adata, x=0, y=1, basis="pca", color="ntr", ax=None, save_show_or_return="show", save_kwargs={}, **kwargs
-):
+    adata: AnnData,
+    x: int = 0,
+    y: int = 1,
+    basis: str = "pca",
+    color: str = "ntr",
+    ax: Optional[Axes] = None,
+    save_show_or_return: Literal["save", "show", "return", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    **kwargs,
+) -> Optional[Axes]:
     """Draw the least action paths on the low-dimensional embedding.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        basis: `str`
-            The reduced dimension.
-        x: `int` (default: `0`)
-            The column index of the low dimensional embedding for the x-axis.
-        y: `int` (default: `1`)
-            The column index of the low dimensional embedding for the y-axis.
-        color: `string` (default: `ntr`)
-            Any column names or gene expression, etc. that will be used for coloring cells.
-        ax: `matplotlib.Axis` (optional, default `None`)
-            The matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
-            "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
-        kwargs:
-            Additional arguments passed to pl.scatters or plt.scatters.
+    Args:
+        adata: an AnnData object.
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        basis: the basis used for dimension reduction. Defaults to "pca".
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        ax: the matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
+            If None, new axis would be created. Defaults to None.
+        save_show_or_return: whether the figure should be saved, show, or return. Can be one of "save", "show",
+            "return", "both", "all". "both" means that the figure would be shown and saved but not returned. Defaults to
+            "show".
+        save_kwargs:a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary and
+            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        result:
-            Either None or a matplotlib axis with the relevant plot displayed.
-            If you are using a notbooks and have ``%matplotlib inline`` set
-            then this will simply display inline.
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be `"return"` or `"all"`, the matplotlib
+        axis of the generated figure would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -73,28 +78,53 @@ def least_action(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
-        # TODO: least_action_path.py:74: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-        # plt.tight_layout()
+    if save_show_or_return in ["show", "both", "all"]:
+        plt.tight_layout()
         plt.show()
-    elif save_show_or_return in ["return", "all"]:
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
 def lap_min_time(
-    adata,
-    basis="pca",
-    show_paths=False,
-    show_elbow=True,
-    show_elbow_func=False,
-    color="ntr",
-    figsize=(6, 4),
-    n_col=3,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    basis: str = "pca",
+    show_paths: bool = False,
+    show_elbow: bool = True,
+    show_elbow_func: bool = False,
+    color: str = "ntr",
+    figsize: Tuple[float, float] = (6, 4),
+    n_col: int = 3,
+    save_show_or_return: Literal["save", "show", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
+) -> None:
+    """Plot minimum time of the least action paths.
+
+    Args:
+        adata: an AnnData object.
+        basis: the basis used for dimension reduction. Defaults to "pca".
+        show_paths: whether to plot the path together with the time. Defaults to False.
+        show_elbow: whether to mark the elbow point on time-action curve. Defaults to True.
+        show_elbow_func: whether to show the time-action curve that elbow is on. Defaults to False.
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        figsize: the size of the figure. Defaults to (6, 4).
+        n_col: the number of subplot columns. Defaults to 3.
+        save_show_or_return: whether to save or show the figure. Can be one of "save", "show", "both" or "all". "both"
+            and "all" have the same effect. The axis of the plot cannot be returned here. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide
+            a dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **kwargs: not used here.
+
+    Raises:
+        NotImplementedError: unsupported method to find the elbow.
+    """
 
     import matplotlib.pyplot as plt
 
@@ -167,9 +197,14 @@ def lap_min_time(
                 "close": True,
                 "verbose": True,
             }
+
+            # prevent the plot from being closed if the plot need to be shown or returned.
+            if save_show_or_return == "both":
+                s_kwargs["close"] = False
+
             s_kwargs = update_dict(s_kwargs, save_kwargs)
 
             save_fig(**s_kwargs)
-        elif save_show_or_return in ["show", "both", "all"]:
+        if save_show_or_return in ["show", "both"]:
             plt.tight_layout()
             plt.show()

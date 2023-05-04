@@ -1,11 +1,18 @@
 """plotting utilities that are used to visualize the curl, divergence."""
 
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import anndata
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from matplotlib.axes import Axes
+from matplotlib.gridspec import GridSpec
 
 from ..tools.utils import flatten, update_dict
 from ..vectorfield.utils import intersect_sources_targets
@@ -29,53 +36,43 @@ docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "front
 def speed(
     adata: AnnData,
     basis: str = "pca",
-    color: Union[str, list, None] = None,
+    color: Union[str, List[str], None] = None,
     frontier: bool = True,
     *args,
     **kwargs,
-):
-    """\
-    Scatter plot with cells colored by the estimated velocity speed (and other information if provided).
+) -> Union[
+    Axes,
+    List[Axes],
+    Tuple[Axes, List[str], Literal["white", "black"]],
+    Tuple[List[Axes], List[str], Literal["white", "black"]],
+    None,
+]:
+    """Scatter plot with cells colored by the estimated velocity speed (and other information if provided).
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with speed estimated.
-        basis: `str` or None (default: `pca`)
-            The embedding data in which the vector field was reconstructed and RNA speed was estimated.
-        color: `str`, `list` or None:
-            Any column names or gene names, etc. in addition to the `curl` to be used for coloring cells.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
-        %(scatters.parameters.no_adata|color|cmap|frontier)s
+    Args:
+        adata: an Annodata object with speed estimated.
+        basis: the embedding data in which the vector field was reconstructed and RNA speed was estimated. Defaults to
+            "pca".
+        color: any column names or gene names, etc. in addition to the `curl` to be used for coloring cells. Defaults to
+            None.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to True.
 
-    Returns
-    -------
-    Nothing but plots scatterplots with cells colored by the estimated speed (and other information if provided).
+    Raises:
+        Exception: speed information is not found in `adata`.
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.reduceDimension(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='pca')
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> dyn.vf.speed(adata)
-    >>> dyn.pl.speed(adata)
-
-    See also:: :func:`..external.ddhodge.curl` for calculating curl with a diffusion graph built from reconstructed vector
-    field.
+    Returns:
+        None would be returned by default. If in kwargs `save_show_or_return` is set to be 'return' or 'all', the
+        matplotlib axes object of the generated plots would be returned. If `return_all` is set to be true, the list of
+        colors used and the font color would also be returned. See docs of `dynamo.pl.scatters` for more information.
     """
 
     speed_key = "speed" if basis is None else "speed_" + basis
     color_ = [speed_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(f"{speed_key} is not existed in .obs, try run dyn.tl.speed(adata, basis='{basis}') first.")
+        raise ValueError(f"{speed_key} is not existed in .obs, try run dyn.tl.speed(adata, basis='{basis}') first.")
 
     if color is not None:
         color = [color] if type(color) == str else color
@@ -88,62 +85,55 @@ def speed(
 def curl(
     adata: AnnData,
     basis: str = "umap",
-    color: Union[str, list, None] = None,
+    color: Union[str, List[str], None] = None,
     cmap: str = "bwr",
     frontier: bool = True,
     sym_c: bool = True,
     *args,
     **kwargs,
-):
-    """\
-    Scatter plot with cells colored by the estimated curl (and other information if provided).
+) -> Union[
+    Axes,
+    List[Axes],
+    Tuple[Axes, List[str], Literal["white", "black"]],
+    Tuple[List[Axes], List[str], Literal["white", "black"]],
+    None,
+]:
+    """Scatter plot with cells colored by the estimated curl (and other information if provided).
 
     Cells with negative or positive curl correspond to cells with clock-wise rotation vectors or counter-clock-wise
     ration vectors. Currently only support for 2D vector field. But in principal could be generated to high dimension
     space.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with curl estimated.
-        basis: `str` or None (default: `umap`)
-            The embedding data in which the vector field was reconstructed and RNA curl was estimated.
-        color: `str`, `list` or None:
-            Any column names or gene names, etc. in addition to the `curl` to be used for coloring cells.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
-        sym_c: `bool` (default: `False`)
-            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
-            plotting velocity, curl, divergence or other types of data with both positive or negative values.
-        %(scatters.parameters.no_adata|color|cmap|frontier|sym_c)s
+    Args:
+        adata: an Annodata object with curl estimated.
+        basis: the embedding data in which the vector field was reconstructed and RNA curl was estimated. Defaults to
+            "umap".
+        color: any column names or gene names, etc. in addition to the `curl` to be used for coloring cells. Defaults to
+            None.
+        cmap: the color map used for the plot. Defaults to "bwr".
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to True.
+        sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
+            for plotting velocity, curl, divergence or other types of data with both positive or negative values.
+            Defaults to True.
+        *args: any other positional arguments to be passed to `dynamo.pl.scatters`.
+        **kwargs: any other kwargs to be passed to `dynamo.pl.scatters`.
 
-    Returns
-    -------
-    Nothing but plots scatterplots with cells colored by the estimated curl (and other information if provided).
+    Raises:
+        ValueError: curl information not found in `adata`.
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.reduceDimension(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='umap')
-    >>> dyn.vf.VectorField(adata, basis='umap')
-    >>> dyn.vf.curl(adata, basis='umap')
-    >>> dyn.pl.curl(adata, basis='umap')
-
-    See also:: :func:`..external.ddhodge.curl` for calculating curl with a diffusion graph built from reconstructed vector
-    field.
+    Returns:
+        None would be returned by default. If in kwargs `save_show_or_return` is set to be 'return' or 'all', the
+        matplotlib axes object of the generated plots would be returned. If `return_all` is set to be true, the list of
+        colors used and the font color would also be returned. See docs of `dynamo.pl.scatters` for more information.
     """
 
     curl_key = "curl" if basis is None else "curl_" + basis
     color_ = [curl_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(f"{curl_key} is not existed in .obs, try run dyn.tl.curl(adata, basis='{basis}') first.")
+        raise ValueError(f"{curl_key} is not existed in .obs, try run dyn.tl.curl(adata, basis='{basis}') first.")
 
     if color is not None:
         color = [color] if type(color) == str else color
@@ -167,60 +157,46 @@ def curl(
 def divergence(
     adata: AnnData,
     basis: str = "pca",
-    color: Union[str, list, None] = None,
+    color: Union[str, List[str], None] = None,
     cmap: str = "bwr",
     frontier: bool = True,
     sym_c: bool = True,
     *args,
     **kwargs,
 ):
-    """\
-    Scatter plot with cells colored by the estimated divergence (and other information if provided).
+    """Scatter plot with cells colored by the estimated divergence (and other information if provided).
 
     Cells with negative or positive divergence correspond to possible sink (stable cell types) or possible source
-    (unstable metastable states or progenitors)
+    (unstable metastable states or progenitors).
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with divergence estimated.
-        basis: `str` or None (default: `pca`)
-            The embedding data in which the vector field was reconstructed and RNA divergence was estimated.
-        color: `str`, `list` or None:
-            Any column names or gene names, etc. in addition to the `divergence` to be used for coloring cells.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
-        sym_c: `bool` (default: `False`)
-            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
-            plotting velocity, divergence or other types of data with both positive or negative values.
-        %(scatters.parameters.no_adata|color|cmap|frontier|sym_c)s
+    Args:
+        adata: an Annodata object with divergence estimated.
+        basis: the embedding data in which the vector field was reconstructed and RNA divergence was estimated. Defaults
+            to "pca".
+        color: any column names or gene names, etc. in addition to the `divergence` to be used for coloring cells.
+            Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. Defaults to "bwr".
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to True.
+        sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
+            for plotting velocity, curl, divergence or other types of data with both positive or negative values.
+            Defaults to True.
 
-    Returns
-    -------
-    Nothing but plots scatterplots with cells colored by the estimated divergence (and other information if provided).
+    Raises:
+        ValueError: divergence information not found in `adata`.
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='pca')
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> dyn.vf.divergence(adata)
-    >>> dyn.pl.divergence(adata)
-
-    See also:: :func:`..external.ddhodge.divergence` for calculating divergence with a diffusion graph built from reconstructed
-    vector field.
+    Returns:
+        None would be returned by default. If in kwargs `save_show_or_return` is set to be 'return' or 'all', the
+        matplotlib axes object of the generated plots would be returned. If `return_all` is set to be true, the list of
+        colors used and the font color would also be returned. See docs of `dynamo.pl.scatters` for more information.
     """
 
     div_key = "divergence" if basis is None else "divergence_" + basis
     color_ = [div_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(f"{div_key} is not existed in .obs, try run dyn.tl.divergence(adata, basis='{basis}') first.")
+        raise ValueError(f"{div_key} is not existed in .obs, try run dyn.tl.divergence(adata, basis='{basis}') first.")
 
     # adata.obs[div_key] = adata.obs[div_key].astype('float')
     # adata_ = adata[~ adata.obs[div_key].isna(), :]
@@ -244,49 +220,45 @@ def divergence(
 def acceleration(
     adata: AnnData,
     basis: str = "pca",
-    color: Union[str, list, None] = None,
+    color: Union[str, List[str], None] = None,
     frontier: bool = True,
     *args,
     **kwargs,
-):
-    """\
-    Scatter plot with cells colored by the estimated acceleration (and other information if provided).
+) -> Union[
+    Axes,
+    List[Axes],
+    Tuple[Axes, List[str], Literal["white", "black"]],
+    Tuple[List[Axes], List[str], Literal["white", "black"]],
+    None,
+]:
+    """Scatter plot with cells colored by the estimated acceleration (and other information if provided).
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with curvature estimated.
-        basis: `str` or None (default: `pca`)
-            The embedding data in which the vector field was reconstructed and RNA curvature was estimated.
-        color: `str`, `list` or None:
-            Any column names or gene names, etc. in addition to the `acceleration` to be used for coloring cells.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
-        %(scatters.parameters.no_adata|color|cmap|frontier)s
+    Args:
+        adata: an Annodata object with curvature estimated.
+        basis: the embedding data in which the vector field was reconstructed and RNA curvature was estimated. Defaults
+            to "pca".
+        color: any column names or gene names, etc. in addition to the `acceleration` to be used for coloring cells.
+            Defaults to None.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to True.
+        *args: any other positional arguments to be passed to `dynamo.pl.scatters`.
+        **kwargs: any other kwargs to be passed to `dynamo.pl.scatters`.
 
-    Returns
-    -------
-    Nothing but plots scatterplots with cells colored by the estimated curvature (and other information if provided).
+    Raises:
+        ValueError: acceleration estimation information is not found in `adata`.
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='pca')
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> dyn.vf.acceleration(adata)
-    >>> dyn.pl.acceleration(adata)
+    Returns:
+        None would be returned by default. If in kwargs `save_show_or_return` is set to be 'return' or 'all', the
+        matplotlib axes object of the generated plots would be returned. If `return_all` is set to be true, the list of
+        colors used and the font color would also be returned. See docs of `dynamo.pl.scatters` for more information.
     """
 
     acc_key = "acceleration" if basis is None else "acceleration_" + basis
     color_ = [acc_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(
+        raise ValueError(
             f"{acc_key} is not existed in .obs, try run dyn.tl.acceleration(adata, basis='{acc_key}') first."
         )
 
@@ -304,49 +276,45 @@ def acceleration(
 def curvature(
     adata: AnnData,
     basis: str = "pca",
-    color: Union[str, list, None] = None,
+    color: Union[str, List[str], None] = None,
     frontier: bool = True,
     *args,
     **kwargs,
-):
-    """\
-    Scatter plot with cells colored by the estimated curvature (and other information if provided).
+) -> Union[
+    Axes,
+    List[Axes],
+    Tuple[Axes, List[str], Literal["white", "black"]],
+    Tuple[List[Axes], List[str], Literal["white", "black"]],
+    None,
+]:
+    """Scatter plot with cells colored by the estimated curvature (and other information if provided).
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with curvature estimated.
-        basis: `str` or None (default: `pca`)
-            The embedding data in which the vector field was reconstructed and RNA curvature was estimated.
-        color: `str`, `list` or None:
-            Any column names or gene names, etc. in addition to the `curvature` to be used for coloring cells.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
-        %(scatters.parameters.no_adata|color|cmap|frontier)s
+    Args:
+        adata: an Annodata object with curvature estimated.
+        basis: the embedding data in which the vector field was reconstructed and RNA curvature was estimated. Defaults
+            to "pca".
+        color: any column names or gene names, etc. in addition to the `curvature` to be used for coloring cells.
+            Defaults to None.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to True.
+        *args: any other positional arguments to be passed to `dynamo.pl.scatters`.
+        **kwargs: any other kwargs to be passed to `dynamo.pl.scatters`.
 
-    Returns
-    -------
-    Nothing but plots scatterplots with cells colored by the estimated curvature (and other information if provided).
+    Raises:
+        ValueError: curvature information is not found in `adata`.
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='pca')
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> dyn.vf.curvature(adata)
-    >>> dyn.pl.curvature(adata)
+    Returns:
+        None would be returned by default. If in kwargs `save_show_or_return` is set to be 'return' or 'all', the
+        matplotlib axes object of the generated plots would be returned. If `return_all` is set to be true, the list of
+        colors used and the font color would also be returned. See docs of `dynamo.pl.scatters` for more information.
     """
 
     curv_key = "curvature" if basis is None else "curvature_" + basis
     color_ = [curv_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(
+        raise ValueError(
             f"{curv_key} is not existed in .obs, try run dyn.tl.curvature(adata, basis='{curv_key}') first."
         )
 
@@ -363,117 +331,91 @@ def curvature(
 @docstrings.with_indent(4)
 def jacobian(
     adata: AnnData,
-    regulators: Optional[List] = None,
-    effectors: Optional[List] = None,
+    regulators: Optional[List[str]] = None,
+    effectors: Optional[List[str]] = None,
     basis: str = "umap",
     jkey: str = "jacobian",
     j_basis: str = "pca",
     x: int = 0,
     y: int = 1,
     layer: str = "M_s",
-    highlights: list = None,
+    highlights: Optional[list] = None,
     cmap: str = "bwr",
     background: Optional[str] = None,
-    pointsize: Union[None, float] = None,
-    figsize: tuple = (6, 4),
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float, float] = (6, 4),
     show_legend: bool = True,
     frontier: bool = True,
     sym_c: bool = True,
-    sort: str = "abs",
+    sort: Literal["raw", "abs", "neg"] = "abs",
     show_arrowed_spines: bool = False,
     stacked_fraction: bool = False,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
-    """\
-    Scatter plot of Jacobian values across cells.
+) -> Optional[GridSpec]:
+    """Scatter plot of Jacobian values across cells.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with Jacobian matrix estimated.
-        regulators: `list` or `None` (default: `None`)
-            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        effectors: `List` or `None` (default: `None`)
-            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        basis: `str` (default: `umap`)
-            The reduced dimension basis.
-        jkey: `str` (default: `jacobian`)
-            The key to the jacobian dictionary in .uns.
-        j_basis: `str` (default: `pca`)
-            The reduced dimension space that will be used to calculate the jacobian matrix.
-        x: `int` (default: `0`)
-            The column index of the low dimensional embedding for the x-axis.
-        y: `int` (default: `1`)
-            The column index of the low dimensional embedding for the y-axis.
-        highlights: `list` (default: None)
-            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color element.
-        cmap: string (optional, default 'Blues')
-            The name of a matplotlib colormap to use for coloring
-            or shading points. If no labels or values are passed
-            this will be used for shading points according to
-            density (largely only of relevance for very large
-            datasets). If values are passed this will be used for
-            shading according the value. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        background: string or None (optional, default 'None`)
-            The color of the background. Usually this will be either
-            'white' or 'black', but any color name will work. Ideally
-            one wants to match this appropriately to the colors being
-            used for points etc. This is one of the things that themes
-            handle for you. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        figsize: `None` or `[float, float]` (default: (6, 4))
-                The width and height of each panel in the figure.
-        show_legend: bool (optional, default True)
-            Whether to display a legend of the labels
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
-        sym_c: `bool` (default: `True`)
-            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
-            plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
-        sort: `str` (optional, default `abs`)
-            The method to reorder data so that high values points will be on top of background points. Can be one of
-            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values.
-        show_arrowed_spines: bool (optional, default False)
-            Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
-        stacked_fraction: bool (default: False)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
-            style is used.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-            function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True,
-            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
-            modify those keys according to your needs.
-        kwargs:
-            Additional arguments passed to plt._matplotlib_points.
+    Args:
+        adata: an Annodata object with Jacobian matrix estimated.
+        regulators: the list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        effectors: the list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        basis: the reduced dimension basis. Defaults to "umap".
+        jkey: the key to the jacobian dictionary in .uns. Defaults to "jacobian".
+        j_basis: the reduced dimension space that will be used to calculate the jacobian matrix. Defaults to "pca".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        layer: the layer key with jacobian data. Defaults to "M_s".
+        highlights: which color group will be highlighted. if highligts is a list of lists - each list is relate to each
+            color element. Defaults to None.
+        cmap: the name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to "bwr".
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        pointsize: the size of plotted points. Defaults to None.
+        figsize: the size of the figure. Defaults to (6, 4).
+        show_legend: whether to display a legend of the labels. Defaults to True.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to True.
+        sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
+            for plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative
+            values. Defaults to True.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "abs".
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        stacked_fraction: whether the jacobian will be represented as a stacked fraction in the title or a linear
+            fraction style will be used. Defaults to False.
+        save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs.. Defaults to {}.
+        **kwargs: any other kwargs that would be passed to `plt._matplotlib_points`.
 
-    Returns
-    -------
-    Nothing but plots the n_source x n_targets scatter plots of low dimensional embedding of the adata object, each
-    corresponds to one element in the Jacobian matrix for all sampled cells.
-
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='pca')
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
-    >>> dyn.pl.jacobian(adata)
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
+        the figure would be returned.
+        
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.cell_velocities(adata, basis='pca')
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.jacobian(adata)
     """
 
     regulators, effectors = (
@@ -637,7 +579,7 @@ def jacobian(
                 despline_all(ax)
                 deaxis_all(ax)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": jkey,
@@ -649,84 +591,76 @@ def jacobian(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
 def jacobian_heatmap(
     adata: AnnData,
-    cell_idx: Union[int, List],
+    cell_idx: Union[int, List[int]],
     average: bool = False,
     jkey: str = "jacobian",
     basis: str = "umap",
-    regulators: Optional[List] = None,
-    effectors: Optional[List] = None,
-    figsize: tuple = (7, 5),
+    regulators: Optional[List[str]] = None,
+    effectors: Optional[List[str]] = None,
+    figsize: Tuple[float, float] = (7, 5),
     ncols: int = 1,
     cmap: str = "bwr",
-    save_show_or_return: str = "show",
+    save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: dict = {},
     **kwargs,
-):
-    """\
-    Plot the Jacobian matrix for each cell or the average Jacobian matrix of the cells from input indices as a heatmap.
+) -> Optional[GridSpec]:
+    """Plot the Jacobian matrix for each cell or the average Jacobian matrix of the cells from input indices as a heatmap.
 
     Note that Jacobian matrix can be understood as a regulatory activity matrix between genes directly computed from the
     reconstructed vector fields.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with Jacobian matrix estimated.
-        cell_idx: `int` or `list`
-            The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
-        average: `bool`, optional (default: `False`)
-            Whether to average the Jacobian matrix of the cells from the input indices.
-        jkey: `str` (default: `jacobian`)
-            The key to the jacobian dictionary in .uns.
-        basis: `str`
-            The reduced dimension basis.
-        regulators: `list` or `None` (default: `None`)
-            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        effectors: `List` or `None` (default: `None`)
-            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        figsize: `None` or `[float, float]` (default: None)
-                The width and height of each panel in the figure.
-        ncols: `int` (default: `1`)
-            The number of columns for drawing the heatmaps.
-        cmap: `str` (default: `bwr`)
-            The mapping from data values to color space. If not provided, the default will depend on whether center is set.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
-        kwargs:
-            Additional arguments passed to sns.heatmap.
+    Args:
+        adata: an Annodata object with Jacobian matrix estimated.
+        cell_idx: the numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory
+            activity.
+        average: whether to average the Jacobian matrix of the cells from the input indices.
+        jkey: the key to the jacobian dictionary in .uns. Defaults to "jacobian".
+        basis: the reduced dimension basis. Defaults to "umap".
+        regulators: the list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        effectors: the list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        figsize: the size of the subplots. Defaults to (7, 5).
+        ncols: the number of columns for drawing the heatmaps. Defaults to 1.
+        cmap: the mapping from data values to color space. If not provided, the default will depend on whether center is
+            set. Defaults to "bwr".
+        save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **kwargs: any other kwargs passed to `sns.heatmap`.
 
-    Returns
-    -------
-        Nothing but plots the n_cell_idx heatmaps of the corresponding Jacobian matrix for each selected cell.
+    Raises:
+        ValueError: jacobian information is not found in `adata`
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='pca')
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
-    >>> dyn.pl.jacobian_heatmap(adata)
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
+        the figure would be returned.
+
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.cell_velocities(adata, basis='pca')
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.jacobian_heatmap(adata)
     """
 
     regulators, effectors = (
@@ -804,7 +738,7 @@ def jacobian_heatmap(
             )
             ax.title(name)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": jkey + "_heatmap",
@@ -816,128 +750,104 @@ def jacobian_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
 @docstrings.with_indent(4)
 def sensitivity(
-    adata,
-    regulators=None,
-    effectors=None,
-    basis="umap",
-    skey="sensitivity",
-    s_basis="pca",
-    x=0,
-    y=1,
-    layer="M_s",
-    highlights=None,
-    cmap="bwr",
-    background=None,
-    pointsize=None,
-    figsize=(6, 4),
-    show_legend=True,
-    frontier=True,
-    sym_c=True,
-    sort="abs",
-    show_arrowed_spines=False,
-    stacked_fraction=False,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    regulators: Optional[List[str]] = None,
+    effectors: Optional[List[str]] = None,
+    basis: str = "umap",
+    skey: str = "sensitivity",
+    s_basis: str = "pca",
+    x: int = 0,
+    y: int = 1,
+    layer: str = "M_s",
+    highlights: Optional[list] = None,
+    cmap: str = "bwr",
+    background: Optional[str] = None,
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float, float] = (6, 4),
+    show_legend: bool = True,
+    frontier: bool = True,
+    sym_c: bool = True,
+    sort: Literal["abs", "neg", "raw"] = "abs",
+    show_arrowed_spines: bool = False,
+    stacked_fraction: bool = False,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
-    """\
-    Scatter plot of Sensitivity value across cells.
+) -> Optional[GridSpec]:
+    """Scatter plot of Sensitivity value across cells.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with Jacobian matrix estimated.
-        regulators: `list` or `None` (default: `None`)
-            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        effectors: `List` or `None` (default: `None`)
-            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        basis: `str` (default: `umap`)
-            The reduced dimension basis.
-        skey: `str` (default: `sensitivity`)
-            The key to the sensitivity dictionary in .uns.
-        s_basis: `str` (default: `pca`)
-            The reduced dimension space that will be used to calculate the jacobian matrix.
-        x: `int` (default: `0`)
-            The column index of the low dimensional embedding for the x-axis.
-        y: `int` (default: `1`)
-            The column index of the low dimensional embedding for the y-axis.
-        highlights: `list` (default: None)
-            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color element.
-        cmap: string (optional, default 'Blues')
-            The name of a matplotlib colormap to use for coloring
-            or shading points. If no labels or values are passed
-            this will be used for shading points according to
-            density (largely only of relevance for very large
-            datasets). If values are passed this will be used for
-            shading according the value. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        background: string or None (optional, default 'None`)
-            The color of the background. Usually this will be either
-            'white' or 'black', but any color name will work. Ideally
-            one wants to match this appropriately to the colors being
-            used for points etc. This is one of the things that themes
-            handle for you. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        figsize: `None` or `[float, float]` (default: (6, 4))
-                The width and height of each panel in the figure.
-        show_legend: bool (optional, default True)
-            Whether to display a legend of the labels
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
-        sym_c: `bool` (default: `True`)
-            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
-            plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
-        sort: `str` (optional, default `abs`)
-            The method to reorder data so that high values points will be on top of background points. Can be one of
-            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values.
-        show_arrowed_spines: bool (optional, default False)
-            Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
-        stacked_fraction: bool (default: False)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
-            style is used.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-            function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True,
-            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
-            modify those keys according to your needs.
-        kwargs:
-            Additional arguments passed to plt._matplotlib_points.
+    Args:
+        adata: an Annodata object with Jacobian matrix estimated.
+        regulators: the list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        effectors: the list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        basis: the reduced dimension basis. Defaults to "umap".
+        skey: the key to the sensitivity dictionary in .uns. Defaults to "sensitivity".
+        s_basis: the reduced dimension space that will be used to calculate the jacobian matrix. Defaults to "pca".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        layer: _description_. Defaults to "M_s".
+        highlights: the layer key for the data. Defaults to None.
+        cmap: the name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to "bwr".
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        pointsize: the size of the plotted points. Defaults to None.
+        figsize: the size of each subplot. Defaults to (6, 4).
+        show_legend: whether to display a legend of the labels. Defaults to True.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to True.
+        sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
+            for plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative
+            values. Defaults to True.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "abs".
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        stacked_fraction: whether to represent the jacobianas a stacked fraction in the title or a linear fraction style
+            will be used. Defaults to False.
+        save_show_or_return: whether to save, show, or return the fugure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **kwargs: any other kwargs passed to `plt._matplotlib_points`.
 
-    Returns
-    -------
-    Nothing but plots the n_source x n_targets scatter plots of low dimensional embedding of the adata object, each
-    corresponds to one element in the Jacobian matrix for all sampled cells.
-
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='pca')
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
-    >>> dyn.pl.sensitivity(adata)
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
+        the figure would be returned.
+    
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.cell_velocities(adata, basis='pca')
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.sensitivity(adata)
     """
 
     regulators, effectors = (
@@ -1098,7 +1008,7 @@ def sensitivity(
                 despline_all(ax)
                 deaxis_all(ax)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": skey,
@@ -1110,82 +1020,75 @@ def sensitivity(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
 
 
 def sensitivity_heatmap(
-    adata,
-    cell_idx,
-    skey="sensitivity",
-    basis="pca",
-    regulators=None,
-    effectors=None,
-    figsize=(7, 5),
-    ncols=1,
-    cmap="bwr",
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    cell_idx: Union[List[int], int],
+    skey: str = "sensitivity",
+    basis: str = "pca",
+    regulators: Optional[List[str]] = None,
+    effectors: Optional[List[str]] = None,
+    figsize: Tuple[float, float] = (7, 5),
+    ncols: int = 1,
+    cmap: str = "bwr",
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
-    """\
-    Plot the Jacobian matrix for each cell as a heatmap.
+) -> Optional[GridSpec]:
+    """Plot the Jacobian matrix for each cell as a heatmap.
 
     Note that Jacobian matrix can be understood as a regulatory activity matrix between genes directly computed from the
     reconstructed vector fields.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with Jacobian matrix estimated.
-        cell_idx: `int` or `list`
-            The numeric indices of the cells that you want to draw the sensitivity matrix to reveal the regulatory activity.
-        skey: `str` (default: `sensitivity`)
-            The key to the sensitivity dictionary in .uns.
-        basis: `str`
-            The reduced dimension basis.
-        regulators: `list` or `None` (default: `None`)
-            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        effectors: `List` or `None` (default: `None`)
-            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        figsize: `None` or `[float, float]` (default: None)
-                The width and height of each panel in the figure.
-        ncols: `int` (default: `1`)
-            The number of columns for drawing the heatmaps.
-        cmap: `str` (default: `bwr`)
-            The mapping from data values to color space. If not provided, the default will depend on whether center is set.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
-        kwargs:
-            Additional arguments passed to sns.heatmap.
+    Args:
+        adata: an Annodata object with Jacobian matrix estimated.
+        cell_idx: the numeric indices of the cells that you want to draw the sensitivity matrix to reveal the regulatory
+            activity.
+        skey: the key to the sensitivity dictionary in .uns. Defaults to "sensitivity".
+        basis: the reduced dimension basis. Defaults to "pca".
+        regulators: the list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        effectors: the list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        figsize: the size of the subplots. Defaults to (7, 5).
+        ncols: the number of columns for drawing the heatmaps. Defaults to 1.
+        cmap: the mapping from data values to color space. If not provided, the default will depend on whether center is
+            set. Defaults to "bwr".
+        save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs.. Defaults to {}.
+        **kwargs: any other kwargs passed to `sns.heatmap`.
 
-    Returns
-    -------
-        Nothing but plots the n_cell_idx heatmaps of the corresponding Jacobian matrix for each selected cell.
+    Raises:
+        ValueError: sensitivity data is not found in `adata`.
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.reduceDimension(adata)
-    >>> dyn.tl.cell_velocities(adata, basis='pca')
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
-    >>> dyn.pl.sensitivity_heatmap(adata)
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
+        the figure would be returned.
+    
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.tl.reduceDimension(adata)
+        >>> dyn.tl.cell_velocities(adata, basis='pca')
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.sensitivity_heatmap(adata)
     """
 
     regulators, effectors = (
@@ -1248,7 +1151,7 @@ def sensitivity_heatmap(
         )
         plt.title(name)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": skey + "_heatmap",
@@ -1260,9 +1163,12 @@ def sensitivity_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return gs
