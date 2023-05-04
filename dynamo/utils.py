@@ -1,8 +1,8 @@
 """General utility functions
 """
+import anndata
 import numpy as np
 import scipy.sparse as sp
-from anndata import AnnData
 
 from .dynamo_logger import LoggerManager
 
@@ -38,7 +38,7 @@ def areinstance(arr, dtype, logic_func=all):
     return logic_func(ret)
 
 
-def copy_adata(adata: AnnData, logger=None) -> AnnData:
+def copy_adata(adata: anndata.AnnData, logger=None) -> anndata.AnnData:
     """wrapper for deep copy adata and log copy operation since it is memory intensive.
 
     Parameters

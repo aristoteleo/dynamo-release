@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Iterable
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -10,15 +10,16 @@ except ImportError:
 import anndata
 import numpy as np
 import pandas as pd
+import scipy
 from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
-from sklearn.utils import sparsefuncs
 
 from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
     LoggerManager,
     main_critical,
+    main_debug,
     main_info,
     main_info_insert_adata_obsm,
     main_info_insert_adata_uns,
@@ -26,18 +27,17 @@ from ..dynamo_logger import (
 )
 from ..tools.utils import update_dict
 from ..utils import copy_adata
+from ._deprecated import _top_table
 from .cell_cycle import cell_cycle_scores
-from .preprocess_monocle_utils import top_table
+from .gene_selection import calc_dispersion_by_svr
 from .preprocessor_utils import (
-    SVRs,
     _infer_labeling_experiment_type,
     filter_cells_by_outliers,
     filter_genes_by_outliers,
-    normalize_cell_expr_by_size_factors,
-    select_genes_monocle,
+    normalize,
 )
 from .utils import (
-    Freeman_Tukey,
+    _Freeman_Tukey,
     add_noise_to_duplicates,
     basic_stats,
     calc_new_to_total_ratio,
@@ -53,7 +53,7 @@ from .utils import (
     get_sz_exprs,
     merge_adata_attrs,
     normalize_mat_monocle,
-    pca_monocle,
+    pca,
     sz_util,
     unique_var_obs_adata,
 )
@@ -271,7 +271,7 @@ def normalize_cell_expr_by_size_factors_legacy(
 
         if norm_method is None and layer == "X":
             CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
-        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
+        elif norm_method in [np.log1p, np.log, np.log2, _Freeman_Tukey, None] and layer != "protein":
             CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, norm_method)
         elif layer == "protein":  # norm_method == 'clr':
             if norm_method != "clr":
@@ -308,146 +308,6 @@ def normalize_cell_expr_by_size_factors_legacy(
         adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
 
     return adata
-
-
-def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all") -> anndata.AnnData:
-    """Calculate the Gini coefficient of a numpy array. https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
-
-    Args:
-        adata: an AnnData object
-        layers: the layer(s) to be normalized. Defaults to "all".
-
-    Returns:
-        An updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
-    """
-
-    # From: https://github.com/oliviaguest/gini
-    # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
-    # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
-
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
-
-    for layer in layers:
-        if layer == "raw":
-            CM = adata.raw.X
-        elif layer == "X":
-            CM = adata.X
-        elif layer == "protein":
-            if "protein" in adata.obsm_keys():
-                CM = adata.obsm[layer]
-            else:
-                continue
-        else:
-            CM = adata.layers[layer]
-
-        n_features = adata.shape[1]
-        gini = np.zeros(n_features)
-
-        for i in np.arange(n_features):
-            # all values are treated equally, arrays must be 1d
-            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]
-            if np.amin(CM) < 0:
-                cur_cm -= np.amin(cur_cm)  # values cannot be negative
-            cur_cm += 0.0000001  # np.min(array[array!=0]) #values cannot be 0
-            cur_cm = np.sort(cur_cm)  # values must be sorted
-            # index per array element
-            index = np.arange(1, cur_cm.shape[0] + 1)
-            n = cur_cm.shape[0]  # number of array elements
-            gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (n * np.sum(cur_cm))  # Gini coefficient
-
-        if layer in ["raw", "X"]:
-            adata.var["gini"] = gini
-        else:
-            adata.var[layer + "_gini"] = gini
-
-    return adata
-
-
-def disp_calc_helper_NB(
-    adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
-) -> Tuple[List[str], List[pd.DataFrame]]:
-    """Calculate the dispersion parameter of the negative binomial distribution.
-
-    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Args:
-        adata: an adata object
-        layers: the layer of data used for dispersion fitting. Defaults to "X".
-        min_cells_detected: the minimal required number of cells with expression for selecting gene for dispersion
-            fitting. Defaults to 1.
-
-    Returns:
-        A tuple (layers, res_list), where layers is a list of layers available and res_list is a list of pd.DataFrame's
-        with mu, dispersion for each gene that passes filters.
-    """
-
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
-
-    res_list = []
-    for layer in layers:
-        if layer == "raw":
-            CM = adata.raw.X
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
-        elif layer == "X":
-            CM = adata.X
-            szfactors = adata.obs["Size_Factor"][:, None]
-        else:
-            CM = adata.layers[layer]
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
-
-        if issparse(CM):
-            CM.data = np.round(CM.data, 0)
-            rounded = CM
-        else:
-            rounded = CM.round().astype("int")
-
-        lowerDetectedLimit = adata.uns["lowerDetectedLimit"] if "lowerDetectedLimit" in adata.uns.keys() else 1
-        nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
-        nzGenes = nzGenes > min_cells_detected
-
-        nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
-        if layer.startswith("X_"):
-            x = rounded[:, nzGenes]
-        else:
-            x = (
-                rounded[:, nzGenes].multiply(csr_matrix(1 / szfactors))
-                if issparse(rounded)
-                else rounded[:, nzGenes] / szfactors
-            )
-
-        xim = np.mean(1 / szfactors) if szfactors is not None else 1
-
-        f_expression_mean = x.mean(axis=0)
-
-        # For NB: Var(Y) = mu * (1 + mu / k)
-        # x.A.var(axis=0, ddof=1)
-        f_expression_var = (
-            (x.multiply(x).mean(0).A1 - f_expression_mean.A1**2) * x.shape[0] / (x.shape[0] - 1)
-            if issparse(x)
-            else x.var(axis=0, ddof=0) ** 2
-        )  # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
-        # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
-        disp_guess_meth_moments = f_expression_var - xim * f_expression_mean  # variance - mu
-
-        disp_guess_meth_moments = disp_guess_meth_moments / np.power(
-            f_expression_mean, 2
-        )  # this is dispersion parameter (1/k)
-
-        res = pd.DataFrame(
-            {
-                "mu": np.array(f_expression_mean).flatten(),
-                "disp": np.array(disp_guess_meth_moments).flatten(),
-            }
-        )
-        res.loc[res["mu"] == 0, "mu"] = None
-        res.loc[res["mu"] == 0, "disp"] = None
-        res.loc[res["disp"] < 0, "disp"] = 0
-
-        res["gene_id"] = adata.var_names[nzGenes]
-
-        res_list.append(res)
-
-    return layers, res_list
 
 
 def vstExprs(
@@ -868,6 +728,7 @@ def recipe_monocle(
         X and reduced dimensions, etc., are updated. Otherwise, return None.
     """
 
+    main_warning(__name__ + " is deprecated.")
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
@@ -893,7 +754,7 @@ def recipe_monocle(
     # we should create all following data after convert2symbol (gene names)
     adata.uns["pp"] = {}
     if norm_method == "Freeman_Tukey":
-        norm_method = Freeman_Tukey
+        norm_method = _Freeman_Tukey
 
     basic_stats(adata)
     (
@@ -1285,7 +1146,7 @@ def recipe_monocle(
     logger.info("applying %s ..." % (method.upper()))
 
     if method == "pca":
-        adata = pca_monocle(adata, pca_input, num_dim, "X_" + method.lower())
+        adata = pca(adata, pca_input, num_dim, "X_" + method.lower())
         # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
@@ -1398,7 +1259,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool]
 
-    adata = SVRs(
+    adata = calc_dispersion_by_svr(
         adata,
         layers=["spliced"],
         min_expr_cells=2,
@@ -1438,7 +1299,7 @@ def recipe_velocyto(
     CM = CM[:, valid_ind]
 
     if method == "pca":
-        adata, fit, _ = pca_monocle(adata, CM, num_dim, "X_" + method.lower(), return_all=True)
+        adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower(), return_all=True)
         # adata.obsm['X_' + method.lower()] = reduce_dim
 
     elif method == "ica":
@@ -1505,7 +1366,7 @@ def highest_frac_genes(
     not_all_zero = cell_expression_sum != 0
     filtered_adata = adata[not_all_zero, :]
     cell_expression_sum = cell_expression_sum[not_all_zero]
-    main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
+    main_debug("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
 
     valid_gene_set = set()
     prefix_to_genes = {}
@@ -1615,7 +1476,7 @@ def select_genes_monocle_legacy(
         filter_bool = np.ones(adata.shape[1], dtype=bool)
     else:
         if sort_by == "dispersion":
-            table = top_table(adata, layer, mode="dispersion")
+            table = _top_table(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
             valid_table = valid_table.loc[
                 set(adata.var.index[filter_bool]).intersection(valid_table.index),
@@ -1625,7 +1486,7 @@ def select_genes_monocle_legacy(
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
         elif sort_by == "gini":
-            table = top_table(adata, layer, mode="gini")
+            table = _top_table(adata, layer, mode="gini")
             valid_table = table.loc[filter_bool, :]
             gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
             gene_id = valid_table.index[gene_id]
@@ -1641,7 +1502,8 @@ def select_genes_monocle_legacy(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = SVRs(
+
+            adata = calc_dispersion_by_svr(
                 adata,
                 layers=[layer],
                 total_szfactor=total_szfactor,
@@ -1650,6 +1512,9 @@ def select_genes_monocle_legacy(
             )
 
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
+            print(filter_bool)
+            condition = filter_bool == True
+            print(np.where(condition)[0])
 
     # filter genes by gene expression fraction as well
     adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)

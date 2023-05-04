@@ -1,55 +1,45 @@
+from typing import List, Optional
+
 import numpy as np
+from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 from ..tools.utils import log1p_
-from .utils import vecfld_from_adata, vector_field_function
+from .utils import VecFldDict, vecfld_from_adata, vector_field_function
 
 
 def diffusionMatrix(
-    adata,
-    X_data=None,
-    V_data=None,
-    genes=None,
-    layer=None,
-    basis="umap",
-    dims=None,
-    n=30,
-    VecFld=None,
-    residual="vector_field",
-):
+    adata: AnnData,
+    X_data: Optional[np.ndarray] = None,
+    V_data: Optional[np.ndarray] = None,
+    genes: Optional[List] = None,
+    layer: Optional[str] = None,
+    basis: str = "umap",
+    dims: Optional[List] = None,
+    n: int = 30,
+    VecFld: Optional[VecFldDict] = None,
+    residual: str = "vector_field",
+) -> AnnData:
     """Calculate the diffusion matrix from the estimated velocity vector and the reconstructed vector field.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        X_data: `np.ndarray` (default: `None`)
-            The user supplied expression (embedding) data that will be used for calculating diffusion matrix directly.
-        V_data: `np.ndarray` (default: `None`)
-            The user supplied velocity data that will be used for calculating diffusion matrix directly.
-        genes: `list` or None (default: `None`)
-            The list of genes that will be used to subset the data. If `None`, all genes will be used.
-        layer: `str` or None (default: None)
-            Which layer of the data will be used for diffusion matrix calculation.
-        basis: `str` (default: `umap`)
-            Which basis of the data will be used for diffusion matrix calculation.
-        dims: `list` or None (default: `None`)
-            The list of dimensions that will be selected for diffusion matrix calculation. If `None`, all dimensions will be used.
-        n: `int` (default: `10`)
-            Number of nearest neighbors when the nearest neighbor graph is not included.
-        VecFld: `dictionary` or None (default: None)
-            The reconstructed vector field function.
-        residual: `str` or None (default: `vector_field`)
-            Method to calculate residual velocity vectors for diffusion matrix calculation. If `average`, all velocity
+    Args:
+        adata: an Annodata object.
+        X_data: The user supplied expression (embedding) data that will be used for calculating diffusion matrix directly.
+        V_data: The user supplied velocity data that will be used for calculating diffusion matrix directly.
+        genes: The list of genes that will be used to subset the data. If `None`, all genes will be used.
+        layer: Which layer of the data will be used for diffusion matrix calculation.
+        basis: Which basis of the data will be used for diffusion matrix calculation.
+        dims: The list of dimensions that will be selected for diffusion matrix calculation. If `None`, all dimensions will be used.
+        n: Number of nearest neighbors when the nearest neighbor graph is not included.
+        VecFld: The reconstructed vector field function.
+        residual: Method to calculate residual velocity vectors for diffusion matrix calculation. If `average`, all velocity
             of the nearest neighbor cells will be minused by its average velocity; if `vector_field`, all velocity will be
             minused by the predicted velocity from the reconstructed deterministic velocity vector field.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            `AnnData` object that is updated with the `diffusion_matrix` key in the `uns` attribute which is a list of
+    Returns:
+        adata: `AnnData` object that is updated with the `diffusion_matrix` key in the `uns` attribute which is a list of
             the diffusion matrix for each cell. A column `diffusion` corresponds to the square root of the sum of all
             elements for each cell's diffusion matrix will also be added.
     """
@@ -200,18 +190,15 @@ def diffusionMatrix(
     adata.uns["diffusion_matrix"] = dmatrix
 
 
-def diffusionMatrix2D(V_mat):
+def diffusionMatrix2D(V_mat: np.ndarray) -> np.ndarray:
     """Function to calculate cell-specific diffusion matrix for based on velocity vectors of neighbors.
 
     This function works for two dimension. See :func:`diffusionMatrix` for generalization to arbitrary dimensions.
 
-    Parameters
-    ----------
-        V_mat: `np.ndarray`
-            velocity vectors of neighbors
+    Args:
+        V_mat: velocity vectors of neighbors
 
-    Returns
-    -------
+    Returns:
         Return the cell-specific diffusion matrix
 
     See also:: :func:`diffusionMatrix`

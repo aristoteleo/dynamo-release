@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -13,7 +13,6 @@ import scipy.sparse
 from anndata import AnnData
 from scipy.sparse import csr_matrix, spmatrix
 from scipy.sparse.base import issparse
-from sklearn.svm import SVR
 from sklearn.utils import sparsefuncs
 
 from ..configuration import DKM, DynamoAdataKeyManager
@@ -22,36 +21,30 @@ from ..dynamo_logger import (
     main_finish_progress,
     main_info,
     main_info_insert_adata,
+    main_info_insert_adata_layer,
     main_info_insert_adata_obs,
     main_info_insert_adata_obsm,
     main_info_insert_adata_uns,
-    main_info_insert_adata_var,
     main_log_time,
     main_warning,
 )
 from ..tools.utils import update_dict
 from ..utils import copy_adata
-from .preprocess_monocle_utils import top_table
 from .utils import (
-    Freeman_Tukey,
+    _Freeman_Tukey,
     add_noise_to_duplicates,
     basic_stats,
     calc_new_to_total_ratio,
     clusters_stats,
     collapse_species_adata,
     compute_gene_exp_fraction,
-    convert2symbol,
-    convert_layers2csr,
-    cook_dist,
-    detect_experiment_datatype,
     get_inrange_shared_counts_mask,
     get_svr_filter,
     get_sz_exprs,
     merge_adata_attrs,
-    normalize_mat_monocle,
-    pca_monocle,
+    pca,
+    size_factor_normalize,
     sz_util,
-    unique_var_obs_adata,
 )
 
 
@@ -65,7 +58,7 @@ def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
         A flag shows whether the adata object is log transformed.
     """
 
-    chosen_gene_indices = np.random.choice(adata.n_obs, 10)
+    chosen_gene_indices = np.random.choice(adata.n_vars, 10)
     _has_log1p_transformed = not np.allclose(
         np.array(adata.X[:, chosen_gene_indices].sum(1)),
         np.array(adata.layers["spliced"][:, chosen_gene_indices].sum(1)),
@@ -102,10 +95,9 @@ def _infer_labeling_experiment_type(adata: anndata.AnnData, tkey: str) -> Litera
 
         # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
         experiment_type = "kin" if k > 0 else "deg"
-    main_info(
-        f"\nDynamo detects your labeling data is from a {experiment_type} experiment. If experiment type is not corrent, please correct "
-        f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
-        f"needed."
+    main_debug(
+        f"\nDynamo has detected that your labeling data is from a kin experiment. \nIf the experiment type is incorrect, "
+        f"please provide the correct experiment_type (one-shot, kin, or deg)."
     )
     return experiment_type
 
@@ -253,598 +245,6 @@ def seurat_get_mean_var(
     return mean, var
 
 
-def select_genes_by_dispersion_general(
-    adata: AnnData,
-    layer: str = DKM.X_LAYER,
-    nan_replace_val: Union[float, None] = None,
-    n_top_genes: int = 2000,
-    recipe: Literal["monocle", "svr", "seurat"] = "monocle",
-    seurat_min_disp: Union[float, None] = None,
-    seurat_max_disp: Union[float, None] = None,
-    seurat_min_mean: Union[float, None] = None,
-    seurat_max_mean: Union[float, None] = None,
-    monocle_kwargs: dict = {},
-    gene_names: Union[List[str], None] = None,
-    var_filter_key: str = "pass_basic_filter",
-    inplace: bool = False,
-) -> None:
-    """A general function for feature genes selection.
-
-    Preprocess adata and dispatch to different filtering methods, and eventually set keys in anndata to denote which
-    genes are wanted in downstream analysis.
-
-    Args:
-        adata: an AnnData object.
-        layer: the key of a sparse matrix in adata. Defaults to DKM.X_LAYER.
-        nan_replace_val: your choice of value to replace values in layer. Defaults to None.
-        n_top_genes: number of genes to select as highly variable genes. Defaults to 2000.
-        recipe: a recipe for selecting genes; must be one of "monocle", "svr", or "seurat". Defaults to "monocle".
-        seurat_min_disp: seurat dispersion min cutoff. Defaults to None.
-        seurat_max_disp: seurat dispersion max cutoff. Defaults to None.
-        seurat_min_mean: seurat mean min cutoff. Defaults to None.
-        seurat_max_mean: seurat mean max cutoff. Defaults to None.
-        monocle_kwargs: kwargs for `select_genes_monocle`. Defaults to {}.
-        gene_names: name of genes to be selected. Defaults to None.
-        var_filter_key: filter gene names based on the key defined in adata.var before gene selection. Defaults to
-            "pass_basic_filter".
-        inplace: when inplace is True, subset adata according to selected genes. Defaults to False.
-
-    Raises:
-        NotImplementedError: the recipe is invalid/unsupported.
-    """
-
-    main_info("filtering genes by dispersion...")
-    main_log_time()
-
-    pass_filter_genes = adata.var_names
-    if gene_names:
-        main_info("select genes on gene names from arguments <gene_names>")
-        pass_filter_genes = gene_names
-    elif var_filter_key:
-        main_info("select genes on var key: %s" % (var_filter_key))
-        pass_filter_genes = adata.var_names[adata.var[var_filter_key]]
-
-    if len(pass_filter_genes) != len(set(pass_filter_genes)):
-        main_warning("gene names are not unique, please check your preprocessing procedure.")
-    subset_adata = adata[:, pass_filter_genes]
-    if n_top_genes is None:
-        main_info("n_top_genes is None, reserve all genes and add filter gene information")
-        n_top_genes = adata.n_vars
-    layer_mat = DKM.select_layer_data(subset_adata, layer)
-    if nan_replace_val:
-        main_info("replacing nan values with: %s" % (nan_replace_val))
-        _mask = get_nan_or_inf_data_bool_mask(layer_mat)
-        layer_mat[_mask] = nan_replace_val
-
-    main_info("select genes by recipe: " + recipe)
-    if recipe == "svr":
-        mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_dispersion_svr(
-            subset_adata, layer_mat, n_top_genes
-        )
-    elif recipe == "seurat":
-        mean, variance, highly_variable_mask, highly_variable_scores = select_genes_by_seurat_recipe(
-            subset_adata,
-            layer_mat,
-            min_disp=seurat_min_disp,
-            max_disp=seurat_max_disp,
-            min_mean=seurat_min_mean,
-            max_mean=seurat_max_mean,
-            n_top_genes=n_top_genes,
-        )
-    elif recipe == "monocle":
-        # TODO refactor dynamo monocle selection genes part code and make it modular (same as the two functions above)
-        # the logics here for dynamo recipe is different from the above recipes
-        # Note we do not need to pass subset_adata here because monocle takes care of everything regarding dynamo
-        # convention
-        select_genes_monocle(adata, **monocle_kwargs)
-        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[DKM.VAR_USE_FOR_PCA]
-        return
-    else:
-        raise NotImplementedError("Selected gene seletion recipe not supported.")
-
-    main_info_insert_adata_var(DKM.VAR_GENE_MEAN_KEY)
-    main_info_insert_adata_var(DKM.VAR_GENE_VAR_KEY)
-    main_info_insert_adata_var(DKM.VAR_GENE_HIGHLY_VARIABLE_KEY)
-    main_debug("type of variance:" + str(type(variance)))
-    main_debug("shape of variance:" + str(variance.shape))
-    adata.var[DKM.VAR_GENE_MEAN_KEY] = np.nan
-    adata.var[DKM.VAR_GENE_VAR_KEY] = np.nan
-    adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = False
-    adata.var[DKM.VAR_USE_FOR_PCA] = False
-
-    adata.var[DKM.VAR_GENE_MEAN_KEY][pass_filter_genes] = mean.flatten()
-    adata.var[DKM.VAR_GENE_VAR_KEY][pass_filter_genes] = variance
-    adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY][pass_filter_genes] = highly_variable_mask
-    adata.var[DKM.VAR_USE_FOR_PCA][pass_filter_genes] = highly_variable_mask
-
-    main_info("number of selected highly variable genes: " + str(adata.var[DKM.VAR_USE_FOR_PCA].sum()))
-    if recipe == "svr":
-        # SVR can give highly_variable_scores
-        main_info_insert_adata_var(DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES)
-        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES] = np.nan
-        adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_SCORES][pass_filter_genes] = highly_variable_scores.flatten()
-
-    if inplace:
-        main_info("inplace is True, subset adata according to selected genes.")
-        adata = adata[:, adata.var[DKM.VAR_USE_FOR_PCA]]
-    main_finish_progress("filter genes by dispersion")
-
-
-def select_genes_by_seurat_recipe(
-    adata: AnnData,
-    sparse_layer_mat: csr_matrix,
-    n_bins: int = 20,
-    log_mean_and_dispersion: bool = True,
-    min_disp: float = None,
-    max_disp: float = None,
-    min_mean: float = None,
-    max_mean: float = None,
-    n_top_genes: Union[int, None] = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, None]:
-    """Apply seurat's gene selection recipe by cutoffs.
-
-    Args:
-        adata: an AnnData object
-        sparse_layer_mat: the sparse matrix used for gene selection.
-        n_bins: the number of bins for normalization. Defaults to 20.
-        log_mean_and_dispersion: whether log the gene expression values before calculating the dispersion values.
-            Defaults to True.
-        min_disp: seurat dispersion min cutoff. Defaults to None.
-        max_disp: seurat dispersion max cutoff. Defaults to None.
-        min_mean: seurat mean min cutoff. Defaults to None.
-        max_mean: seurat mean max cutoff. Defaults to None.
-        n_top_genes: number of top genes to be evaluated. If set to be None, genes are filtered by mean and dispersion
-            norm threshold. Defaults to None.
-
-    Returns:
-        A tuple (mean, variance, highly_variable_mask, highly_variable_scores), where mean is the mean of the provided
-        sparse matrix, variance is the variance of the provided sparse matrix, highly_variable_mask is a bool array
-        indicating whether an element (a gene) is highly variable in the matrix. highly_variable_scores is always none
-        since the scores are not applicable to Seurat recipe.
-    """
-
-    # default values from Seurat
-    if min_disp is None:
-        min_disp = 0.5
-    if max_disp is None:
-        max_disp = np.inf
-    if min_mean is None:
-        min_mean = 0.0125
-    if max_mean is None:
-        max_mean = 3
-
-    mean, variance, dispersion = calc_mean_var_dispersion_sparse(sparse_layer_mat)
-    sc_mean, sc_var = seurat_get_mean_var(sparse_layer_mat)
-    mean, variance = sc_mean, sc_var
-    dispersion = variance / mean
-
-    if log_mean_and_dispersion:
-        mean = np.log1p(mean)
-        dispersion[np.equal(dispersion, 0)] = np.nan
-        dispersion = np.log(dispersion)
-
-    temp_df = pd.DataFrame()
-    temp_df["mean"], temp_df["dispersion"] = mean, dispersion
-
-    temp_df["mean_bin"] = pd.cut(temp_df["mean"], bins=n_bins)
-    disp_grouped = temp_df.groupby("mean_bin")["dispersion"]
-    disp_mean_bin = disp_grouped.mean()
-    disp_std_bin = disp_grouped.std(ddof=1)
-
-    # handle nan std
-    one_gene_per_bin = disp_std_bin.isnull()
-
-    disp_std_bin[one_gene_per_bin] = disp_mean_bin[one_gene_per_bin].values
-    disp_mean_bin[one_gene_per_bin] = 0
-
-    # normalized dispersion
-    mean = disp_mean_bin[temp_df["mean_bin"].values].values
-    std = disp_std_bin[temp_df["mean_bin"].values].values
-    variance = std**2
-    temp_df["dispersion_norm"] = ((temp_df["dispersion"] - mean) / std).fillna(0)
-    dispersion_norm = temp_df["dispersion_norm"].values
-
-    highly_variable_mask = None
-    if n_top_genes is not None:
-        main_info("choose %d top genes" % (n_top_genes), indent_level=2)
-        threshold = temp_df["dispersion_norm"].nlargest(n_top_genes).values[-1]
-        highly_variable_mask = temp_df["dispersion_norm"].values >= threshold
-    else:
-        main_info("choose genes by mean and dispersion norm threshold", indent_level=2)
-        highly_variable_mask = np.logical_and.reduce(
-            (
-                mean > min_mean,
-                mean < max_mean,
-                dispersion_norm > min_disp,
-                dispersion_norm < max_disp,
-            )
-        )
-    return mean, variance, highly_variable_mask, None
-
-
-def select_genes_by_dispersion_svr(
-    adata: AnnData, layer_mat: Union[np.array, csr_matrix], n_top_genes: int
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Filters adata's genes according to layer_mat, and set adata's preprocess keys for downstream analysis
-
-    Args:
-        adata: an AnnData object.
-        layer_mat: the matrix used for select genes with shape of #cells X #genes.
-        n_top_genes: the number of genes to use.
-
-    Returns:
-        A tuple (mean, variance, highly_variable_mask, highly_variable_scores), where mean is the mean of the provided
-        sparse matrix, variance is the variance of the provided sparse matrix, highly_variable_mask is a bool array
-        indicating whether an element (a gene) is highly variable in the matrix, and highly_variable_scores is an array
-        storing the dispersion score for each gene.
-    """
-
-    main_debug("type of layer_mat:" + str(type(layer_mat)))
-    if issparse(layer_mat):
-        main_info("layer_mat is sparse, dispatch to sparse calc function...")
-        mean, variance, dispersion = calc_mean_var_dispersion_sparse(layer_mat)
-    else:
-        main_info("layer_mat is np, dispatch to sparse calc function...")
-        mean, variance, dispersion = calc_mean_var_dispersion_ndarray(layer_mat)
-
-    highly_variable_mask, highly_variable_scores = get_highly_variable_mask_by_dispersion_svr(
-        mean, variance, n_top_genes
-    )
-    variance = np.array(variance).flatten()
-
-    return mean.flatten(), variance, highly_variable_mask, highly_variable_scores
-
-
-def SVRs(
-    adata_ori: anndata.AnnData,
-    filter_bool: Union[np.ndarray, None] = None,
-    layers: str = "X",
-    relative_expr: bool = True,
-    total_szfactor: str = "total_Size_Factor",
-    min_expr_cells: int = 0,
-    min_expr_avg: int = 0,
-    max_expr_avg: int = np.inf,
-    svr_gamma: Union[float, None] = None,
-    winsorize: bool = False,
-    winsor_perc: Tuple[float, float] = (1, 99.5),
-    sort_inverse: bool = False,
-    use_all_genes_cells: bool = False,
-) -> anndata.AnnData:
-    """Support Vector Regression to identify highly variable genes.
-
-    This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
-
-    Args:
-        adata_ori: an AnnData object
-        filter_bool: A boolean array from the user to select genes for downstream analysis. Defaults to None.
-        layers: The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Defaults
-            to "X".
-        relative_expr: A logic flag to determine whether we need to divide gene expression values first by size factor
-            before run SVR. Defaults to True.
-        total_szfactor: The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-            Defaults to "total_Size_Factor".
-        min_expr_cells: minimum number of cells that express the gene for it to be considered in the fit. Defaults to 0.
-        min_expr_avg: The minimum average of genes across cells required for gene to be selected for SVR analyses.
-            Defaults to 0.
-        max_expr_avg: The maximum average of genes across cells required for gene to be selected for SVR analyses. Genes
-            with average gene expression larger than this value will be treated as house-keeping/outlier genes. Defaults
-            to np.inf.
-        svr_gamma: the gamma hyper-parameter of the SVR. Defaults to None.
-        winsorize: Wether to winsorize the data for the cv vs mean model. Defaults to False.
-        winsor_perc: the up and lower bound of the winsorization. Defaults to (1, 99.5).
-        sort_inverse: whether to sort genes from less noisy to more noisy (to use for size estimation not for feature
-            selection). Defaults to False.
-        use_all_genes_cells: A logic flag to determine whether all cells and genes should be used for the size factor
-            calculation. Defaults to False.
-
-    Returns:
-        An updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns attribute
-        as a new key.
-    """
-
-    layers = DKM.get_available_layer_keys(adata_ori, layers)
-
-    if use_all_genes_cells:
-        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
-    else:
-        cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
-        filter_list = ["use_for_pca", "pass_basic_filter"]
-        filter_checker = [i in adata_ori.var.columns for i in filter_list]
-        which_filter = np.where(filter_checker)[0]
-
-        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
-
-        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            adata = adata_ori[cell_inds, gene_inds].copy()
-        filter_bool = filter_bool[gene_inds]
-
-    for layer in layers:
-        if layer == "raw":
-            CM = adata.X.copy() if adata.raw is None else adata.raw
-            szfactors = (
-                adata.obs[layer + "_Size_Factor"].values[:, None]
-                if adata.raw.X is not None
-                else adata.obs["Size_Factor"].values[:, None]
-            )
-        elif layer == "X":
-            CM = adata.X.copy()
-            szfactors = adata.obs["Size_Factor"].values[:, None]
-        elif layer == "protein":
-            if "protein" in adata.obsm_keys():
-                CM = adata.obsm["protein"].copy()
-                szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
-            else:
-                continue
-        else:
-            CM = adata.layers[layer].copy()
-            szfactors = (
-                adata.obs[layer + "_Size_Factor"].values[:, None]
-                if layer + "_Size_Factor" in adata.obs.columns
-                else None
-            )
-
-        if total_szfactor is not None and total_szfactor in adata.obs.keys():
-            szfactors = adata.obs[total_szfactor].values[:, None] if total_szfactor in adata.obs.columns else None
-
-        if szfactors is not None and relative_expr:
-            if issparse(CM):
-                sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
-            else:
-                CM /= szfactors
-
-        if winsorize:
-            if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
-                min_expr_cells = int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
-
-        detected_bool = np.array(
-            ((CM > 0).sum(0) >= min_expr_cells) & (CM.mean(0) <= max_expr_avg) & (CM.mean(0) >= min_expr_avg)
-        ).flatten()
-
-        valid_CM = CM[:, detected_bool]
-        if winsorize:
-            down, up = (
-                np.percentile(valid_CM.A, winsor_perc, 0)
-                if issparse(valid_CM)
-                else np.percentile(valid_CM, winsor_perc, 0)
-            )
-            Sfw = (
-                np.clip(valid_CM.A, down[None, :], up[None, :])
-                if issparse(valid_CM)
-                else np.percentile(valid_CM, winsor_perc, 0)
-            )
-            mu = Sfw.mean(0)
-            sigma = Sfw.std(0, ddof=1)
-        else:
-            mu = np.array(valid_CM.mean(0)).flatten()
-            sigma = (
-                np.array(
-                    np.sqrt(
-                        (valid_CM.multiply(valid_CM).mean(0).A1 - (mu) ** 2)
-                        # * (adata.n_obs)
-                        # / (adata.n_obs - 1)
-                    )
-                )
-                if issparse(valid_CM)
-                else valid_CM.std(0, ddof=1)
-            )
-
-        cv = sigma / mu
-        log_m = np.array(np.log2(mu)).flatten()
-        log_cv = np.array(np.log2(cv)).flatten()
-        log_m[mu == 0], log_cv[mu == 0] = 0, 0
-
-        if svr_gamma is None:
-            svr_gamma = 150.0 / len(mu)
-        # Fit the Support Vector Regression
-        clf = SVR(gamma=svr_gamma)
-        clf.fit(log_m[:, None], log_cv)
-        fitted_fun = clf.predict
-        ff = fitted_fun(log_m[:, None])
-        score = log_cv - ff
-        if sort_inverse:
-            score = -score
-
-        prefix = "" if layer == "X" else layer + "_"
-        (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
-            np.nan,
-            np.nan,
-            -np.inf,
-        )
-        (
-            adata.var.loc[detected_bool, prefix + "log_m"],
-            adata.var.loc[detected_bool, prefix + "log_cv"],
-            adata.var.loc[detected_bool, prefix + "score"],
-        ) = (
-            np.array(log_m).flatten(),
-            np.array(log_cv).flatten(),
-            np.array(score).flatten(),
-        )
-
-        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
-        adata_ori.uns[key] = {"SVR": fitted_fun}
-
-    adata_ori = merge_adata_attrs(adata_ori, adata, attr="var")
-
-    return adata_ori
-
-
-def select_genes_monocle(
-    adata: anndata.AnnData,
-    layer: str = "X",
-    total_szfactor: str = "total_Size_Factor",
-    keep_filtered: bool = True,
-    sort_by: Literal["SVR", "gini", "dispersion"] = "SVR",
-    n_top_genes: int = 2000,
-    SVRs_kwargs: dict = {},
-    only_bools: bool = False,
-    exprs_frac_for_gene_exclusion: float = 1,
-    genes_to_exclude: Union[List[str], None] = None,
-) -> Union[anndata.AnnData, np.ndarray]:
-    """Select genes based on monocle recipe.
-
-    This version is here for modularization of preprocessing, so that users may try combinations of different
-    preprocessing procesudres in Preprocessor.
-
-    Args:
-        adata: an AnnData object.
-        layer: The data from a particular layer (include X) used for feature selection. Defaults to "X".
-        total_szfactor: The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-            Defaults to "total_Size_Factor".
-        keep_filtered: Whether to keep genes that don't pass the filtering in the adata object. Defaults to True.
-        sort_by: the sorting methods, either SVR, dispersion or Gini index, to be used to select genes. Defaults to
-            "SVR".
-        n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
-            genes. Defaults to 2000.
-        SVRs_kwargs: kwargs for `SVRs`. Defaults to {}.
-        only_bools: Only return a vector of bool values. Defaults to False.
-        exprs_frac_for_gene_exclusion: threshold of fractions for high fraction genes. Defaults to 1.
-        genes_to_exclude: genes that are excluded from evaluation. Defaults to None.
-
-    Returns:
-        The adata object with genes updated if `only_bools` is false. Otherwise, the bool array representing selected
-        genes.
-    """
-
-    # The following size factor calculation is now a prerequisite for monocle recipe preprocess in preprocessor.
-    adata = calc_sz_factor(
-        adata,
-        total_layers=adata.uns["pp"]["experiment_total_layers"],
-        scale_to=None,
-        splicing_total_layers=False,
-        X_total_layers=False,
-        layers=adata.uns["pp"]["experiment_layers"],
-        genes_use_for_norm=None,
-    )
-
-    filter_bool = (
-        adata.var["pass_basic_filter"]
-        if "pass_basic_filter" in adata.var.columns
-        else np.ones(adata.shape[1], dtype=bool)
-    )
-
-    if adata.shape[1] <= n_top_genes:
-        filter_bool = np.ones(adata.shape[1], dtype=bool)
-    else:
-        if sort_by == "dispersion":
-            table = top_table(adata, layer, mode="dispersion")
-            valid_table = table.query("dispersion_empirical > dispersion_fit")
-            valid_table = valid_table.loc[
-                set(adata.var.index[filter_bool]).intersection(valid_table.index),
-                :,
-            ]
-            gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[:n_top_genes]
-            gene_id = valid_table.iloc[gene_id, :].index
-            filter_bool = adata.var.index.isin(gene_id)
-        elif sort_by == "gini":
-            table = top_table(adata, layer, mode="gini")
-            valid_table = table.loc[filter_bool, :]
-            gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
-            gene_id = valid_table.index[gene_id]
-            filter_bool = gene_id.isin(adata.var.index)
-        elif sort_by == "SVR":
-            SVRs_args = {
-                "min_expr_cells": 0,
-                "min_expr_avg": 0,
-                "max_expr_avg": np.inf,
-                "svr_gamma": None,
-                "winsorize": False,
-                "winsor_perc": (1, 99.5),
-                "sort_inverse": False,
-            }
-            SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = SVRs(
-                adata,
-                layers=[layer],
-                total_szfactor=total_szfactor,
-                filter_bool=filter_bool,
-                **SVRs_args,
-            )
-
-            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
-
-    # filter genes by gene expression fraction as well
-    adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
-    genes_to_exclude = (
-        list(adata.var_names[invalid_ids])
-        if genes_to_exclude is None
-        else genes_to_exclude + list(adata.var_names[invalid_ids])
-    )
-    if genes_to_exclude is not None and len(genes_to_exclude) > 0:
-        adata_exclude_genes = adata.var.index.intersection(genes_to_exclude)
-        adata.var.loc[adata_exclude_genes, "use_for_pca"] = False
-
-    if keep_filtered:
-        adata.var["use_for_pca"] = filter_bool
-    else:
-        adata._inplace_subset_var(filter_bool)
-        adata.var["use_for_pca"] = True
-
-    return filter_bool if only_bools else adata
-
-
-def get_highly_variable_mask_by_dispersion_svr(
-    mean: np.ndarray,
-    var: np.ndarray,
-    n_top_genes: int,
-    svr_gamma: Union[float, None] = None,
-    return_scores: bool = True,
-) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
-    """Returns the mask with shape same as mean and var.
-
-    The mask indicates whether each index is highly variable or not. Each index should represent a gene.
-
-    Args:
-        mean: mean of the genes.
-        var: variance of the genes.
-        n_top_genes: the number of top genes to be inspected.
-        svr_gamma: coefficient for support vector regression. Defaults to None.
-        return_scores: whether returen the dispersion scores. Defaults to True.
-
-    Returns:
-        A tuple (highly_variable_mask, scores) where highly_variable_mask is a bool array indicating whether an element
-        (a gene) is highly variable in the matrix and scores is an array recording variable score for each gene. scores
-        would only be returned when `return_scores` is True.
-    """
-
-    # normally, select svr_gamma based on #features
-    if svr_gamma is None:
-        svr_gamma = 150.0 / len(mean)
-    from sklearn.svm import SVR
-
-    mean_log = np.log2(mean)
-    cv_log = np.log2(np.sqrt(var) / mean)
-    classifier = SVR(gamma=svr_gamma)
-    # fit&preidction will complain about nan values if not take cared here
-    is_nan_indices = np.logical_or(np.isnan(mean_log), np.isnan(cv_log))
-    if np.sum(is_nan_indices) > 0:
-        main_warning(
-            (
-                "mean and cv_log contain NAN values. We exclude them in SVR training. Please use related gene filtering "
-                "methods to filter genes with zero means."
-            )
-        )
-
-    classifier.fit(mean_log[~is_nan_indices, np.newaxis], cv_log.reshape([-1, 1])[~is_nan_indices])
-    scores = np.repeat(np.nan, len(mean_log))
-    # TODO handle nan values during prediction here
-    scores[~is_nan_indices] = cv_log[~is_nan_indices] - classifier.predict(mean_log[~is_nan_indices, np.newaxis])
-    scores = scores.reshape([-1, 1])  # shape should be #genes x 1
-
-    # score threshold based on n top genes
-    n_top_genes = min(n_top_genes, len(mean))  # maybe not enough genes there
-    score_threshold = np.sort(-scores)[n_top_genes - 1]
-    highly_variable_mask = scores >= score_threshold
-    highly_variable_mask = np.array(highly_variable_mask).flatten()
-    if return_scores:
-        return highly_variable_mask, scores
-    return highly_variable_mask
-
-
 def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
     """Calculate log1p of adata's specific layer.
 
@@ -864,7 +264,64 @@ def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = Fal
     return _adata
 
 
-def log1p_adata(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
+def log2_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate log2 of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    log2_inplace(_adata, layer=layer)
+    return _adata
+
+
+def log_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate log of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    log_inplace(_adata, layer=layer)
+    return _adata
+
+
+def Freeman_Tukey_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate Freeman_Tukey of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    Freeman_Tukey_inplace(_adata, layer=layer)
+    return _adata
+
+
+def log1p(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
     """Perform log1p transform on selected adata layers
 
     Args:
@@ -880,9 +337,87 @@ def log1p_adata(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False
     if copy:
         _adata = copy_adata(adata)
 
-    main_info("log1p transform applied to layers: %s" % (str(layers)))
+    main_debug("[log1p] transform applied to layers: %s" % (str(layers)))
     for layer in layers:
         log1p_adata_layer(_adata, layer=layer)
+
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = "log1p"
+    return _adata
+
+
+def log2(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
+    """Perform log2 transform on selected adata layers
+
+    Args:
+        adata: an AnnData object.
+        layers: the layers to operate on. Defaults to [DKM.X_LAYER].
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+
+    main_debug("[log2] transform applied to layers: %s" % (str(layers)))
+    for layer in layers:
+        log2_adata_layer(_adata, layer=layer)
+
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = "log2"
+    return _adata
+
+
+def log(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
+    """Perform log transform on selected adata layers
+
+    Args:
+        adata: an AnnData object.
+        layers: the layers to operate on. Defaults to [DKM.X_LAYER].
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+
+    main_debug("[log] transform applied to layers: %s" % (str(layers)))
+    for layer in layers:
+        log_adata_layer(_adata, layer=layer)
+
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = "log"
+    return _adata
+
+
+def Freeman_Tukey(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
+    """Perform Freeman_Tukey transform on selected adata layers
+
+    Args:
+        adata: an AnnData object.
+        layers: the layers to operate on. Defaults to [DKM.X_LAYER].
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+
+    main_debug("[Freeman_Tukey] transform applied to layers: %s" % (str(layers)))
+    for layer in layers:
+        Freeman_Tukey_adata_layer(_adata, layer=layer)
+
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = "Freeman_Tukey"
     return _adata
 
 
@@ -897,6 +432,32 @@ def _log1p_inplace(data: np.ndarray) -> np.ndarray:
     """
 
     return np.log1p(data, out=data)
+
+
+def _log2_inplace(data: np.ndarray) -> np.ndarray:
+    """Calculate Base-2 logarithm of `x` of an array and update the array inplace.
+
+    Args:
+        data: the array for calculation.
+
+    Returns:
+        The updated array.
+    """
+
+    return np.log2(data + 1, out=data)
+
+
+def _log_inplace(data: np.ndarray) -> np.ndarray:
+    """Calculate the natural logarithm `log(exp(x)) = x` of an array and update the array inplace.
+
+    Args:
+        data: the array for calculation.
+
+    Returns:
+        The updated array.
+    """
+
+    return np.log(data + 1, out=data)
 
 
 def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
@@ -916,6 +477,65 @@ def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
     else:
         mat = mat.astype(np.float)
         _log1p_inplace(mat)
+
+
+def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
+    """Calculate Base-2 logarithm of `x` for a layer of an AnnData object inplace.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+    """
+
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        _log2_inplace(mat.data)
+    else:
+        mat = mat.astype(np.float)
+        _log2_inplace(mat)
+
+
+def log_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
+    """Calculate the natural logarithm `log(exp(x)) = x` for a layer of an AnnData object inplace.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+    """
+
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        _log_inplace(mat.data)
+    else:
+        mat = mat.astype(np.float)
+        _log_inplace(mat)
+
+
+def Freeman_Tukey_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
+    """Calculate Freeman-Tukey transform for a layer of an AnnData object inplace.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+    """
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        _Freeman_Tukey(mat.data)
+    else:
+        mat = mat.astype(np.float)
+        _Freeman_Tukey(mat)
+
+    mat.data -= 1
+    DKM.set_layer_data(adata, layer, mat)
 
 
 def filter_genes_by_outliers(
@@ -1027,6 +647,7 @@ def filter_genes_by_outliers(
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
+    main_info("filtered out %d outlier genes" % (adata.n_vars - sum(filter_bool)), indent_level=2)
 
     if inplace:
         adata._inplace_subset_var(adata.var["pass_basic_filter"])
@@ -1057,7 +678,7 @@ def get_sum_in_range_mask(
 
 
 def filter_cells_by_outliers(
-    adata: anndata.AnnData,
+    adata: AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
     keep_filtered: bool = False,
@@ -1067,12 +688,13 @@ def filter_cells_by_outliers(
     max_expr_genes_s: float = np.inf,
     max_expr_genes_u: float = np.inf,
     max_expr_genes_p: float = np.inf,
-    shared_count: Union[int, None] = None,
+    max_pmito_s: Optional[float] = None,
+    shared_count: Optional[int] = None,
     spliced_key="spliced",
     unspliced_key="unspliced",
     protein_key="protein",
     obs_store_key="pass_basic_filter",
-) -> anndata.AnnData:
+) -> AnnData:
     """Select valid cells based on a collection of filters including spliced, unspliced and protein min/max vals.
 
     Args:
@@ -1092,6 +714,7 @@ def filter_cells_by_outliers(
             Defaults to np.inf.
         max_expr_genes_p: maximal number of protein with expression for a cell in the data from the protein layer.
             Defaults to np.inf.
+        max_pmito_s: maximal percentage of mitochondrial genes for a cell in the data from the spliced layer.
         shared_count: the minimal shared number of counts for each cell across genes between layers. Defaults to None.
         spliced_key: name of the layer storing spliced data. Defaults to "spliced".
         unspliced_key: name of the layer storing unspliced data. Defaults to "unspliced".
@@ -1130,19 +753,24 @@ def filter_cells_by_outliers(
         adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
     )
 
-    if filter_bool is None:
-        filter_bool = detected_bool
-    else:
-        filter_bool = np.array(filter_bool) & detected_bool
+    if max_pmito_s is not None:
+        detected_bool = detected_bool & (adata.obs["pMito"] < max_pmito_s)
+        main_info(
+            "filtered out %d cells by %f%% of mitochondrial genes for a cell."
+            % (adata.n_obs - (adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s),
+            indent_level=2,
+        )
 
+    filter_bool = detected_bool if filter_bool is None else np.array(filter_bool) & detected_bool
+
+    main_info("filtered out %d outlier cells" % (adata.n_obs - sum(filter_bool)), indent_level=2)
     main_info_insert_adata_obs(obs_store_key)
-    if keep_filtered:
-        main_info("keep filtered cell", indent_level=2)
-        adata.obs[obs_store_key] = filter_bool
-    else:
-        main_info("inplace subsetting adata by filtered cells", indent_level=2)
+
+    adata.obs[obs_store_key] = filter_bool
+
+    if not keep_filtered:
+        main_debug("inplace subsetting adata by filtered cells", indent_level=2)
         adata._inplace_subset_obs(filter_bool)
-        adata.obs[obs_store_key] = True
 
     return adata
 
@@ -1172,23 +800,23 @@ def get_filter_mask_cells_by_outliers(
 
     for i, layer in enumerate(layers):
         if layer not in layer2range:
-            main_info(
+            main_debug(
                 "skip filtering cells by layer: %s as it is not in the layer2range mapping passed in:" % layer,
                 indent_level=2,
             )
             continue
         if not DKM.check_if_layer_exist(adata, layer):
-            main_info("skip filtering by layer:%s as it is not in adata." % layer)
+            main_debug("skip filtering by layer:%s as it is not in adata." % layer)
             continue
 
-        main_info("filtering cells by layer:%s" % layer, indent_level=2)
+        main_debug("filtering cells by layer:%s" % layer, indent_level=2)
         layer_data = DKM.select_layer_data(adata, layer)
         detected_mask = detected_mask & get_sum_in_range_mask(
             layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, data_min_val_threshold=0
         )
 
     if shared_count is not None:
-        main_info("filtering cells by shared counts from all layers", indent_level=2)
+        main_debug("filtering cells by shared counts from all layers", indent_level=2)
         layers = DKM.get_available_layer_keys(adata, layers, False)
         detected_mask = detected_mask & get_inrange_shared_counts_mask(adata, layers, shared_count, "cell")
 
@@ -1210,7 +838,8 @@ def calc_sz_factor(
     use_all_genes_cells: bool = True,
     genes_use_for_norm: Union[List[str], None] = None,
 ) -> anndata.AnnData:
-    """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
+    """Calculate the size factor of each cell using geometric mean or median of total UMI across cells for a AnnData
+    object.
 
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -1218,7 +847,7 @@ def calc_sz_factor(
         adata_ori: an AnnData object.
         layers: the layer(s) to be normalized. Defaults to "all", including RNA (X, raw) or spliced, unspliced, protein,
             etc.
-        total_layers: the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"],
+        total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Defaults to False.
@@ -1226,8 +855,10 @@ def calc_sz_factor(
         locfunc: the function to normalize the data. Defaults to np.nanmean.
         round_exprs: whether the gene expression should be rounded into integers. Defaults to False.
         method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`. Defaults to "median".
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
         use_all_genes_cells: whether all cells and genes should be used for the size factor calculation. Defaults to
             True.
@@ -1263,24 +894,20 @@ def calc_sz_factor(
                 _adata = _adata[:, _adata.var_names.intersection(genes_use_for_norm)]
 
     if total_layers is not None:
-        if not isinstance(total_layers, list):
-            total_layers = [total_layers]
-        if len(set(total_layers).difference(_adata.layers.keys())) == 0:
-            total = None
-            for t_key in total_layers:
-                total = _adata.layers[t_key] if total is None else total + _adata.layers[t_key]
-            _adata.layers["_total_"] = total
-            layers.extend(["_total_"])
+        total_layers, layers = DKM.aggregate_layers_into_total(
+            _adata,
+            layers=layers,
+            total_layers=total_layers,
+        )
 
     layers = DKM.get_available_layer_keys(_adata, layers)
     if "raw" in layers and _adata.raw is None:
         _adata.raw = _adata.copy()
 
-    excluded_layers = []
-    if not X_total_layers:
-        excluded_layers.extend(["X"])
-    if not splicing_total_layers:
-        excluded_layers.extend(["spliced", "unspliced"])
+    excluded_layers = DKM.get_excluded_layers(
+        X_total_layers=X_total_layers,
+        splicing_total_layers=splicing_total_layers,
+    )
 
     for layer in layers:
         if layer in excluded_layers:
@@ -1326,20 +953,16 @@ def calc_sz_factor(
 
 
 # TODO refactor the function below
-def normalize_cell_expr_by_size_factors(
+def normalize(
     adata: anndata.AnnData,
     layers: str = "all",
     total_szfactor: str = "total_Size_Factor",
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
-    norm_method: Union[Callable, None] = None,
-    pseudo_expr: int = 1,
-    relative_expr: bool = True,
     keep_filtered: bool = True,
     recalc_sz: bool = False,
     sz_method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
-    skip_log: bool = False,
 ) -> anndata.AnnData:
     """Normalize the gene expression value for the AnnData object.
 
@@ -1354,21 +977,16 @@ def normalize_cell_expr_by_size_factors(
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Defaults to False.
         X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
-        norm_method: the method used to normalize data. Can be either function `np.log1p`, `np.log2` or any other
-            functions or string `clr`. By default, only .X will be size normalized and log1p transformed while data in
-            other layers will only be size normalized. Defaults to None.
-        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization. Defaults to 1.
-        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
-            Defaults to True.
         keep_filtered: whether we will only store feature genes in the adata object. If it is False, size factor will be
             recalculated only for the selected feature genes. Defaults to True.
         recalc_sz: whether we need to recalculate size factor based on selected genes before normalization. Defaults to
             False.
         sz_method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`. Defaults to "median".
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
-        skip_log: whether skip log transformation. Defaults to False.
 
     Returns:
         An updated anndata object that are updated with normalized expression values for different layers.
@@ -1384,55 +1002,32 @@ def normalize_cell_expr_by_size_factors(
 
     layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
     layer_sz_column_names.extend(["Size_Factor"])
-    # layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
     layers_to_sz = list(set(layer_sz_column_names))
-    if len(layers_to_sz) > 0:
-        layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
-        if "Size_Factor" in layers:
-            layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
-        calc_sz_factor(
-            adata,
-            layers=layers,
-            locfunc=np.nanmean,
-            round_exprs=True,
-            method=sz_method,
-            scale_to=scale_to,
-        )
 
-    excluded_layers = []
-    if not X_total_layers:
-        excluded_layers.extend(["X"])
-    if not splicing_total_layers:
-        excluded_layers.extend(["spliced", "unspliced"])
+    layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
+    layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
+    calc_sz_factor(
+        adata,
+        layers=layers,
+        locfunc=np.nanmean,
+        round_exprs=True,
+        method=sz_method,
+        scale_to=scale_to,
+    )
 
-    main_info("size factor normalize following layers: " + str(layers))
+    excluded_layers = DKM.get_excluded_layers(
+        X_total_layers=X_total_layers,
+        splicing_total_layers=splicing_total_layers,
+    )
+
+    main_debug("size factor normalize following layers: " + str(layers))
     for layer in layers:
         if layer in excluded_layers:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
         else:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
-        # log transforms
-
-        # special default norm case for adata.X in monocle logics
-        if norm_method is None and layer == "X":
-            _norm_method = np.log1p
-        else:
-            _norm_method = norm_method
-
-        if skip_log:
-            main_info("skipping log transformation as input requires...")
-            _norm_method = None
-
-        if _norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
-            main_info("applying %s to layer<%s>" % (_norm_method, layer))
-            CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, _norm_method)
-
-        elif layer == "protein":  # norm_method == 'clr':
-            if _norm_method != "clr":
-                main_warning(
-                    "For protein data, log transformation is not recommended. Using clr normalization by default."
-                )
+        if layer == "protein":
             """This normalization implements the centered log-ratio (CLR) normalization from Seurat which is computed
             for each gene (M Stoeckius, 2017).
             """
@@ -1449,20 +1044,17 @@ def normalize_cell_expr_by_size_factors(
 
             CM = CM.T
         else:
-            main_warning(_norm_method + " is not implemented yet")
+            CM = size_factor_normalize(CM, szfactors)
 
         if layer in ["raw", "X"]:
-            main_info("set adata <X> to normalized data.")
+            main_debug("set adata <X> to normalized data.")
             adata.X = CM
         elif layer == "protein" and "protein" in adata.obsm_keys():
             main_info_insert_adata_obsm("X_protein")
             adata.obsm["X_protein"] = CM
         else:
-            main_info_insert_adata_obsm("X_" + layer)
+            main_info_insert_adata_layer("X_" + layer)
             adata.layers["X_" + layer] = CM
-
-        main_info_insert_adata_uns("pp.norm_method")
-        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
 
     return adata
 
@@ -1528,7 +1120,7 @@ def is_nonnegative_integer_arr(mat: Union[np.ndarray, spmatrix, list]) -> bool:
 def pca_selected_genes_wrapper(
     adata: AnnData, pca_input: Union[np.ndarray, None] = None, n_pca_components: int = 30, key: str = "X_pca"
 ):
-    """A wrapper for pca_monocle function to reduce dimensions of the Adata with PCA.
+    """A wrapper for pca function to reduce dimensions of the Adata with PCA.
 
     Args:
         adata: an AnnData object.
@@ -1537,4 +1129,124 @@ def pca_selected_genes_wrapper(
         key: the key to store the calculation result. Defaults to "X_pca".
     """
 
-    adata = pca_monocle(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
+    adata = pca(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
+
+
+def regress_out_parallel(
+    adata: AnnData,
+    layer: str = DKM.X_LAYER,
+    obs_keys: Optional[List[str]] = None,
+    gene_selection_key: Optional[str] = None,
+    n_cores: Optional[int] = None,
+):
+    """Perform linear regression to remove the effects of given variables from a target variable.
+
+    Args:
+        adata: an AnnData object. Feature matrix of shape (n_samples, n_features).
+        layer: the layer to regress out. Defaults to "X".
+        obs_keys: List of observation keys to be removed.
+        gene_selection_key: the key in adata.var that contains boolean for showing genes` filtering results.
+            For example, "use_for_pca" is selected then it will regress out only for the genes that are True
+            for "use_for_pca". This input will decrease processing time of regressing out data.
+        n_cores: Change this to the number of cores on your system for parallel computing. Default to be None.
+        obsm_store_key: the key to store the regress out result. Defaults to "X_regress_out".
+    """
+    main_debug("regress out %s by multiprocessing..." % obs_keys)
+    main_log_time()
+
+    if len(obs_keys) < 1:
+        main_warning("No variable to regress out")
+        return
+
+    if gene_selection_key is None:
+        regressor = DKM.select_layer_data(adata, layer)
+    else:
+        if gene_selection_key not in adata.var.keys():
+            raise ValueError(str(gene_selection_key) + " is not a key in adata.var")
+
+        if not (adata.var[gene_selection_key].dtype == bool):
+            raise ValueError(str(gene_selection_key) + " is not a boolean")
+
+        subset_adata = adata[:, adata.var.loc[:, gene_selection_key]]
+        regressor = DKM.select_layer_data(subset_adata, layer)
+
+    import itertools
+
+    if issparse(regressor):
+        regressor = regressor.toarray()
+
+    if n_cores is None:
+        n_cores = 1  # Use no parallel computing as default
+
+    # Split the input data into chunks for parallel processing
+    chunk_size = min(1000, regressor.shape[1] // n_cores + 1)
+    chunk_len = regressor.shape[1] // chunk_size
+    regressor_chunks = np.array_split(regressor, chunk_len, axis=1)
+
+    # Select the variables to remove
+    remove = adata.obs[obs_keys].to_numpy()
+
+    res = _parallel_wrapper(regress_out_chunk_helper, zip(itertools.repeat(remove), regressor_chunks), n_cores)
+
+    # Remove the effects of the variables from the target variable
+    residuals = regressor - np.hstack(res)
+
+    DKM.set_layer_data(adata, layer, residuals)
+    main_finish_progress("regress out")
+
+
+def regress_out_chunk_helper(args):
+    """A helper function for each regressout chunk.
+
+    Args:
+        args: list of arguments that is used in _regress_out_chunk.
+
+    Returns:
+        numpy array: predicted the effects of the variables calculated by _regress_out_chunk.
+    """
+    obs_feature, gene_expr = args
+    return _regress_out_chunk(obs_feature, gene_expr)
+
+
+def _regress_out_chunk(
+    obs_feature: Union[np.ndarray, spmatrix, list], gene_expr: Union[np.ndarray, spmatrix, list]
+) -> Union[np.ndarray, spmatrix, list]:
+    """Perform a linear regression to remove the effects of cell features (percentage of mitochondria, etc.)
+
+    Args:
+        obs_feature: list of observation keys used to regress out their effect to gene expression.
+        gene_expr : the current gene expression values of the target variables.
+
+    Returns:
+        numpy array: the residuals that are predicted the effects of the variables.
+    """
+    from sklearn.linear_model import LinearRegression
+
+    # Fit a linear regression model to the variables to remove
+    reg = LinearRegression().fit(obs_feature, gene_expr)
+
+    # Predict the effects of the variables to remove
+    return reg.predict(obs_feature)
+
+
+def _parallel_wrapper(func: Callable, args_list, n_cores: Optional[int] = None):
+    """A wrapper for parallel operation to regress out of the input variables.
+
+    Args:
+        func: The function to be conducted the multiprocessing.
+        args_list: The iterable of arguments to be passed to the function.
+        n_cores: The number of CPU cores to be used for parallel processing. Default to be None.
+
+    Returns:
+        results: The list of results returned by the function for each element of the iterable.
+    """
+    import multiprocessing as mp
+
+    ctx = mp.get_context("fork")
+
+    with ctx.Pool(n_cores) as pool:
+        results = pool.map(func, args_list)
+        pool.close()
+        pool.join()
+
+    return results

@@ -1,5 +1,5 @@
 import anndata
-import numpy as np
+import pandas as pd
 
 # 1. concatenate RNA/protein data
 # 2. filter gene/protein for velocity
@@ -7,24 +7,17 @@ import numpy as np
 # 4. use the PRL paper to estimate the parameters
 
 
-def AddAssay(adata, data, key, slot="obsm"):
-    """Add a new data as a key to the specified slot
+def AddAssay(adata: anndata.AnnData, data: pd.DataFrame, key: str, slot: str = "obsm") -> anndata.AnnData:
+    """Add a new data as a key to the specified slot.
 
-    Parameters
-    ----------
-        adata: :AnnData
-            AnnData object
-        data: `pd.DataFrame`
-            The data (in pandas DataFrame format) that will be added to adata.
-        key: `str`
-            The key name to be used for the new data.
-        slot: `str`
-            The slot of adata to store the new data.
+    Args:
+        adata: an AnnData object.
+        data: the data (in pandas DataFrame format) that will be added to adata.
+        key: the key name to be used for the new data.
+        slot: the slot of adata to store the new data. Defaults to "obsm".
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An updated anndata object that are updated with a new data as a key to the specified slot.
+    Returns:
+        An updated anndata object that are updated with a new data as a key to the specified slot.
     """
 
     if slot == "uns":
@@ -35,22 +28,16 @@ def AddAssay(adata, data, key, slot="obsm"):
     return adata
 
 
-def getAssay(adata, key, slot="obsm"):
-    """Retrieve a key named data from the specified slot
+def getAssay(adata: anndata.AnnData, key: str, slot: str = "obsm") -> pd.DataFrame:
+    """Retrieve a key named data from the specified slot.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        key: `str`
-            The key name to be used for the new data.
-        slot: `str`
-            The slot of adata to store the new data.
+    Args:
+        adata: an AnnData object.
+        key: the key name of the data to be retrieved. .
+        slot: the slot of adata to be retrieved from. Defaults to "obsm".
 
-    Returns
-    -------
-        data: `pd.DataFrame`
-            The data (in pandas DataFrame format) that will be retrieved from adata.
+    Returns:
+        The data (in pd.DataFrame) that will be retrieved from adata.
     """
 
     if slot == "uns":
