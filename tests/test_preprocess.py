@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import scipy
 import scipy.sparse
-from scipy import sparse
 from scipy.sparse.csr import csr_matrix
 from sklearn.decomposition import PCA
 
@@ -172,14 +171,16 @@ def test_pca():
     preprocessor = Preprocessor()
     preprocessor.preprocess_adata_seurat_wo_pca(adata)
     adata = dyn.pp.pca(adata, n_pca_components=30)
-    assert adata.obsm["X"].shape[1] == 30
+
+    assert adata.obsm["X_pca"].shape[1] == 30
     assert adata.uns["PCs"].shape[1] == 30
     assert adata.uns["explained_variance_ratio_"].shape[0] == 30
 
     X_filterd = adata.X[:, adata.var.use_for_pca.values].copy()
     pca = PCA(n_components=30, random_state=0)
     X_pca_sklearn = pca.fit_transform(X_filterd.toarray())
-    assert np.linalg.norm(X_pca_sklearn[:, :10] - adata.obsm["X"][:, :10]) < 1e-1
+
+    assert np.linalg.norm(X_pca_sklearn[:, :10] - adata.obsm["X_pca"][:, :10]) < 1e-1
     assert np.linalg.norm(pca.components_.T[:, :10] - adata.uns["PCs"][:, :10]) < 1e-1
     assert np.linalg.norm(pca.explained_variance_ratio_[:10] - adata.uns["explained_variance_ratio_"][:10]) < 1e-1
 
@@ -281,19 +282,65 @@ def test_gene_selection_method():
     print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
 
 
+def test_normalize_cell_expr_by_size_factors():
+    # Set up test data
+    X = np.array([[1, 2], [3, 4], [5, 6]])
+    layers = {
+        "spliced": csr_matrix(X),
+        "unspliced": csr_matrix(X),
+    }
+    adata = anndata.AnnData(
+        X=X,
+        obs=pd.DataFrame(
+            {
+                "batch": ["batch1", "batch2", "batch2"],
+                "use_for_pca": [True, True, True],
+            }
+        ),
+        var=pd.DataFrame(index=["gene1", "gene2"]),
+        layers=layers,
+    )
+    adata.uns["pp"] = dict()
+
+    # Call the function
+    normalized = normalize_cell_expr_by_size_factors(
+        adata=adata,
+        norm_method=np.log1p,
+    )
+
+    # Assert that the output is a valid AnnData object
+    assert isinstance(normalized, anndata.AnnData)
+
+    # Assert that the shape of the expression matrix is the same
+    assert normalized.X.shape == (3, 2)
+    assert normalized.layers["X_spliced"].shape == (3, 2)
+
+    # Assert that the normalization was applied correctly
+    assert np.allclose(normalized.X, np.log1p(X / adata.obs["Size_Factor"].values[:, None]))
+    assert np.allclose(
+        normalized.layers["X_spliced"].toarray(), np.log1p(X / adata.obs["spliced_Size_Factor"].values[:, None])
+    )
+
+
 def test_regress_out():
-    adata = dyn.sample_data.hematopoiesis_raw()
+    starttime = timeit.default_timer()
+    celltype_key = "Cell_type"
+    figsize = (10, 10)
+    adata = dyn.read("./data/zebrafish.h5ad")  # dyn.sample_data.hematopoiesis_raw()
     dyn.pl.basic_stats(adata)
     dyn.pl.highest_frac_genes(adata)
 
-    preprocessor = Preprocessor()
+    preprocessor = Preprocessor(regress_out_kwargs={"obs_keys": ["nCounts", "pMito"]})
 
-    starttime = timeit.default_timer()
-    preprocessor.preprocess_adata(adata, recipe="monocle", regress_out=["nCounts", "Dummy", "Test", "pMito"])
+    preprocessor.preprocess_adata(adata, recipe="monocle")
+    dyn.tl.reduceDimension(adata, basis="pca")
+
+    dyn.pl.umap(adata, color=celltype_key, figsize=figsize)
     print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
 
 
 if __name__ == "__main__":
+    dyn.dynamo_logger.main_set_level("DEBUG")
     # test_is_nonnegative()
 
     # test_calc_dispersion_sparse()
@@ -313,5 +360,7 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot(adata.copy())
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
-    test_gene_selection_method()
+    # test_gene_selection_method()
+    # test_normalize_cell_expr_by_size_factors()
+    # test_regress_out()
     pass

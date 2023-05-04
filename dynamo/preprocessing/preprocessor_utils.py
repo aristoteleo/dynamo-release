@@ -38,10 +38,6 @@ from .utils import (
     clusters_stats,
     collapse_species_adata,
     compute_gene_exp_fraction,
-    convert2symbol,
-    convert_layers2csr,
-    cook_dist,
-    detect_experiment_datatype,
     get_inrange_shared_counts_mask,
     get_svr_filter,
     get_sz_exprs,
@@ -49,7 +45,6 @@ from .utils import (
     pca,
     size_factor_normalize,
     sz_util,
-    unique_var_obs_adata,
 )
 
 
@@ -683,7 +678,7 @@ def get_sum_in_range_mask(
 
 
 def filter_cells_by_outliers(
-    adata: anndata.AnnData,
+    adata: AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
     keep_filtered: bool = False,
@@ -693,12 +688,13 @@ def filter_cells_by_outliers(
     max_expr_genes_s: float = np.inf,
     max_expr_genes_u: float = np.inf,
     max_expr_genes_p: float = np.inf,
-    shared_count: Union[int, None] = None,
+    max_pmito_s: Optional[float] = None,
+    shared_count: Optional[int] = None,
     spliced_key="spliced",
     unspliced_key="unspliced",
     protein_key="protein",
     obs_store_key="pass_basic_filter",
-) -> anndata.AnnData:
+) -> AnnData:
     """Select valid cells based on a collection of filters including spliced, unspliced and protein min/max vals.
 
     Args:
@@ -718,6 +714,7 @@ def filter_cells_by_outliers(
             Defaults to np.inf.
         max_expr_genes_p: maximal number of protein with expression for a cell in the data from the protein layer.
             Defaults to np.inf.
+        max_pmito_s: maximal percentage of mitochondrial genes for a cell in the data from the spliced layer.
         shared_count: the minimal shared number of counts for each cell across genes between layers. Defaults to None.
         spliced_key: name of the layer storing spliced data. Defaults to "spliced".
         unspliced_key: name of the layer storing unspliced data. Defaults to "unspliced".
@@ -756,20 +753,24 @@ def filter_cells_by_outliers(
         adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
     )
 
-    if filter_bool is None:
-        filter_bool = detected_bool
-    else:
-        filter_bool = np.array(filter_bool) & detected_bool
+    if max_pmito_s is not None:
+        detected_bool = detected_bool & (adata.obs["pMito"] < max_pmito_s)
+        main_info(
+            "filtered out %d cells by %f%% of mitochondrial genes for a cell."
+            % (adata.n_obs - (adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s),
+            indent_level=2,
+        )
+
+    filter_bool = detected_bool if filter_bool is None else np.array(filter_bool) & detected_bool
 
     main_info("filtered out %d outlier cells" % (adata.n_obs - sum(filter_bool)), indent_level=2)
     main_info_insert_adata_obs(obs_store_key)
-    if keep_filtered:
-        main_debug("keep filtered cell", indent_level=2)
-        adata.obs[obs_store_key] = filter_bool
-    else:
+
+    adata.obs[obs_store_key] = filter_bool
+
+    if not keep_filtered:
         main_debug("inplace subsetting adata by filtered cells", indent_level=2)
         adata._inplace_subset_obs(filter_bool)
-        adata.obs[obs_store_key] = True
 
     return adata
 
@@ -837,7 +838,8 @@ def calc_sz_factor(
     use_all_genes_cells: bool = True,
     genes_use_for_norm: Union[List[str], None] = None,
 ) -> anndata.AnnData:
-    """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
+    """Calculate the size factor of each cell using geometric mean or median of total UMI across cells for a AnnData
+    object.
 
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -845,7 +847,7 @@ def calc_sz_factor(
         adata_ori: an AnnData object.
         layers: the layer(s) to be normalized. Defaults to "all", including RNA (X, raw) or spliced, unspliced, protein,
             etc.
-        total_layers: the layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"],
+        total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Defaults to False.
@@ -853,8 +855,10 @@ def calc_sz_factor(
         locfunc: the function to normalize the data. Defaults to np.nanmean.
         round_exprs: whether the gene expression should be rounded into integers. Defaults to False.
         method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`. Defaults to "median".
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
         use_all_genes_cells: whether all cells and genes should be used for the size factor calculation. Defaults to
             True.
@@ -890,24 +894,20 @@ def calc_sz_factor(
                 _adata = _adata[:, _adata.var_names.intersection(genes_use_for_norm)]
 
     if total_layers is not None:
-        if not isinstance(total_layers, list):
-            total_layers = [total_layers]
-        if len(set(total_layers).difference(_adata.layers.keys())) == 0:
-            total = None
-            for t_key in total_layers:
-                total = _adata.layers[t_key] if total is None else total + _adata.layers[t_key]
-            _adata.layers["_total_"] = total
-            layers.extend(["_total_"])
+        total_layers, layers = DKM.aggregate_layers_into_total(
+            _adata,
+            layers=layers,
+            total_layers=total_layers,
+        )
 
     layers = DKM.get_available_layer_keys(_adata, layers)
     if "raw" in layers and _adata.raw is None:
         _adata.raw = _adata.copy()
 
-    excluded_layers = []
-    if not X_total_layers:
-        excluded_layers.extend(["X"])
-    if not splicing_total_layers:
-        excluded_layers.extend(["spliced", "unspliced"])
+    excluded_layers = DKM.get_excluded_layers(
+        X_total_layers=X_total_layers,
+        splicing_total_layers=splicing_total_layers,
+    )
 
     for layer in layers:
         if layer in excluded_layers:
@@ -982,8 +982,10 @@ def normalize(
         recalc_sz: whether we need to recalculate size factor based on selected genes before normalization. Defaults to
             False.
         sz_method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`. Defaults to "median".
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
 
     Returns:
@@ -1002,24 +1004,21 @@ def normalize(
     layer_sz_column_names.extend(["Size_Factor"])
     layers_to_sz = list(set(layer_sz_column_names))
 
-    if not all(key in adata.obs.keys() for key in layers_to_sz):
-        calc_sz_factor(
-            adata,
-            layers=layers,
-            locfunc=np.nanmean,
-            round_exprs=True,
-            method=sz_method,
-            scale_to=scale_to,
-        )
-
     layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
     layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
+    calc_sz_factor(
+        adata,
+        layers=layers,
+        locfunc=np.nanmean,
+        round_exprs=True,
+        method=sz_method,
+        scale_to=scale_to,
+    )
 
-    excluded_layers = []
-    if not X_total_layers:
-        excluded_layers.extend(["X"])
-    if not splicing_total_layers:
-        excluded_layers.extend(["spliced", "unspliced"])
+    excluded_layers = DKM.get_excluded_layers(
+        X_total_layers=X_total_layers,
+        splicing_total_layers=splicing_total_layers,
+    )
 
     main_debug("size factor normalize following layers: " + str(layers))
     for layer in layers:
@@ -1056,6 +1055,9 @@ def normalize(
         else:
             main_info_insert_adata_layer("X_" + layer)
             adata.layers["X_" + layer] = CM
+
+        main_info_insert_adata_uns("pp.norm_method")
+        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
 
     return adata
 
@@ -1131,3 +1133,123 @@ def pca_selected_genes_wrapper(
     """
 
     adata = pca(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)
+
+
+def regress_out_parallel(
+    adata: AnnData,
+    layer: str = DKM.X_LAYER,
+    obs_keys: Optional[List[str]] = None,
+    gene_selection_key: Optional[str] = None,
+    n_cores: Optional[int] = None,
+):
+    """Perform linear regression to remove the effects of given variables from a target variable.
+
+    Args:
+        adata: an AnnData object. Feature matrix of shape (n_samples, n_features).
+        layer: the layer to regress out. Defaults to "X".
+        obs_keys: List of observation keys to be removed.
+        gene_selection_key: the key in adata.var that contains boolean for showing genes` filtering results.
+            For example, "use_for_pca" is selected then it will regress out only for the genes that are True
+            for "use_for_pca". This input will decrease processing time of regressing out data.
+        n_cores: Change this to the number of cores on your system for parallel computing. Default to be None.
+        obsm_store_key: the key to store the regress out result. Defaults to "X_regress_out".
+    """
+    main_debug("regress out %s by multiprocessing..." % obs_keys)
+    main_log_time()
+
+    if len(obs_keys) < 1:
+        main_warning("No variable to regress out")
+        return
+
+    if gene_selection_key is None:
+        regressor = DKM.select_layer_data(adata, layer)
+    else:
+        if gene_selection_key not in adata.var.keys():
+            raise ValueError(str(gene_selection_key) + " is not a key in adata.var")
+
+        if not (adata.var[gene_selection_key].dtype == bool):
+            raise ValueError(str(gene_selection_key) + " is not a boolean")
+
+        subset_adata = adata[:, adata.var.loc[:, gene_selection_key]]
+        regressor = DKM.select_layer_data(subset_adata, layer)
+
+    import itertools
+
+    if issparse(regressor):
+        regressor = regressor.toarray()
+
+    if n_cores is None:
+        n_cores = 1  # Use no parallel computing as default
+
+    # Split the input data into chunks for parallel processing
+    chunk_size = min(1000, regressor.shape[1] // n_cores + 1)
+    chunk_len = regressor.shape[1] // chunk_size
+    regressor_chunks = np.array_split(regressor, chunk_len, axis=1)
+
+    # Select the variables to remove
+    remove = adata.obs[obs_keys].to_numpy()
+
+    res = _parallel_wrapper(regress_out_chunk_helper, zip(itertools.repeat(remove), regressor_chunks), n_cores)
+
+    # Remove the effects of the variables from the target variable
+    residuals = regressor - np.hstack(res)
+
+    DKM.set_layer_data(adata, layer, residuals)
+    main_finish_progress("regress out")
+
+
+def regress_out_chunk_helper(args):
+    """A helper function for each regressout chunk.
+
+    Args:
+        args: list of arguments that is used in _regress_out_chunk.
+
+    Returns:
+        numpy array: predicted the effects of the variables calculated by _regress_out_chunk.
+    """
+    obs_feature, gene_expr = args
+    return _regress_out_chunk(obs_feature, gene_expr)
+
+
+def _regress_out_chunk(
+    obs_feature: Union[np.ndarray, spmatrix, list], gene_expr: Union[np.ndarray, spmatrix, list]
+) -> Union[np.ndarray, spmatrix, list]:
+    """Perform a linear regression to remove the effects of cell features (percentage of mitochondria, etc.)
+
+    Args:
+        obs_feature: list of observation keys used to regress out their effect to gene expression.
+        gene_expr : the current gene expression values of the target variables.
+
+    Returns:
+        numpy array: the residuals that are predicted the effects of the variables.
+    """
+    from sklearn.linear_model import LinearRegression
+
+    # Fit a linear regression model to the variables to remove
+    reg = LinearRegression().fit(obs_feature, gene_expr)
+
+    # Predict the effects of the variables to remove
+    return reg.predict(obs_feature)
+
+
+def _parallel_wrapper(func: Callable, args_list, n_cores: Optional[int] = None):
+    """A wrapper for parallel operation to regress out of the input variables.
+
+    Args:
+        func: The function to be conducted the multiprocessing.
+        args_list: The iterable of arguments to be passed to the function.
+        n_cores: The number of CPU cores to be used for parallel processing. Default to be None.
+
+    Returns:
+        results: The list of results returned by the function for each element of the iterable.
+    """
+    import multiprocessing as mp
+
+    ctx = mp.get_context("fork")
+
+    with ctx.Pool(n_cores) as pool:
+        results = pool.map(func, args_list)
+        pool.close()
+        pool.join()
+
+    return results

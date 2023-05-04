@@ -1,35 +1,32 @@
+from typing import Dict, List, Optional, Union
+
+import networkx as nx
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 
 from ..dynamo_logger import main_debug, main_info, main_tqdm
-from .vector_calculus import rank_jacobian_genes
+from .rank_vf import rank_jacobian_genes
 
 
 def get_interaction_in_cluster(
-    rank_df_dict,
-    group,
-    genes,
-    n_top_genes=100,
-    rank_regulators=False,
-    negative_values=False,
-):
+    rank_df_dict: Dict[str, pd.DataFrame],
+    group: str,
+    genes: List,
+    n_top_genes: int = 100,
+    rank_regulators: bool = False,
+    negative_values: bool = False,
+) -> pd.DataFrame:
     """Retrieve interactions among input genes given the ranking dataframe.
 
-    Parameters
-    ----------
-        rank_df_dict: `dict` of `pandas.DataFrame`
-            The dictionary of pandas data frame storing the gene ranking information for each cluster.
-        group: `str`
-            The group name that points to the key for the rank_df.
-        genes: `list`
-            The list of input genes, from which the network will be constructed.
-        n_top_genes: `int`
-            Number of top genes that will be selected from to build the network.
-        rank_regulators
-            Whether the input dictionary is about ranking top regulators of each gene per cluster.
+    Args:
+        rank_df_dict: The dictionary of pandas data frame storing the gene ranking information for each cluster.
+        group: The group name that points to the key for the rank_df.
+        genes: The list of input genes, from which the network will be constructed.
+        n_top_genes: Number of top genes that will be selected from to build the network.
+        rank_regulators: Whether the input dictionary is about ranking top regulators of each gene per cluster.
 
-    Returns
-    -------
+    Returns:
         A dataframe of interactions between input genes for the specified group of cells based on ranking information
         of Jacobian analysis. It has `regulator`, `target` and `weight` three columns.
 
@@ -78,41 +75,32 @@ def get_interaction_in_cluster(
 
 
 def build_network_per_cluster(
-    adata,
-    cluster,
-    cluster_names=None,
-    full_reg_rank=None,
-    full_eff_rank=None,
-    genes=None,
-    n_top_genes=100,
-    abs=False,
-):
+    adata: AnnData,
+    cluster: str,
+    cluster_names: Optional[str] = None,
+    full_reg_rank: Optional[Dict] = None,
+    full_eff_rank: Optional[Dict] = None,
+    genes: Optional[List] = None,
+    n_top_genes: int = 100,
+    abs: bool = False,
+) -> Dict[str, pd.DataFrame]:
     """Build a cluster specific network between input genes based on ranking information of Jacobian analysis.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`.
-            AnnData object, must at least have gene-wise Jacobian matrix calculated for each or selected cell.
-        cluster: `str`
-            The group key that points to the columns of `adata.obs`.
-        cluster_names: `str` or `list` (default: `None`)
-            The groups whose networks will be constructed, must overlap with names in adata.obs and / or keys from the
+    Args:
+        adata: AnnData object, must at least have gene-wise Jacobian matrix calculated for each or selected cell.
+        cluster: The group key that points to the columns of `adata.obs`.
+        cluster_names: The groups whose networks will be constructed, must overlap with names in adata.obs and / or keys from the
             ranking dictionaries.
-        full_reg_rank: `dict` (default: `None`)
-            The dictionary stores the regulator ranking information per cluster based on cell-wise Jacobian matrix. If
+        full_reg_rank: The dictionary stores the regulator ranking information per cluster based on cell-wise Jacobian matrix. If
             None, we will call `rank_jacobian_genes(adata, groups=cluster, mode='full reg', abs=True,
             output_values=True)` to first obtain this dictionary.
-        full_eff_rank (default: `None`)
-            The dictionary stores the effector ranking information per cluster based on cell-wise Jacobian matrix. If
+        full_eff_rank: The dictionary stores the effector ranking information per cluster based on cell-wise Jacobian matrix. If
             None, we will call `rank_jacobian_genes(adata, , groups=cluster, mode='full eff', abs=True,
             output_values=True)` to first obtain this dictionary.
-        genes: `list` (default: `None`)
-            The list of input genes, from which the network will be constructed.
-        n_top_genes: `int` (default: `100`)
-            Number of top genes that will be selected from to build the network.
+        genes: The list of input genes, from which the network will be constructed.
+        n_top_genes: Number of top genes that will be selected from to build the network.
 
-    Returns
-    -------
+    Returns:
         A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
         information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
     """
@@ -182,23 +170,19 @@ def build_network_per_cluster(
     return edges_list
 
 
-def adj_list_to_matrix(adj_list, only_one_edge=False, clr=False, graph=False):
+def adj_list_to_matrix(
+    adj_list: pd.DataFrame, only_one_edge: bool = False, clr: bool = False, graph: bool = False
+) -> Union[pd.DataFrame, nx.Graph]:
     """Convert a pandas adjacency list (with regulator, target, weight columns) to a processed adjacency matrix (or
     network).
 
-    Parameters
-    ----------
-    adj_list: `pandas.DataFrae`
-        A pandas adjacency dataframe with regulator, target, weight columns for representing a network graph.
-    only_one_edge: `bool`
-        Whether or not to only keep the edges with higher weight for any two gene pair.
-    clr: `bool`
-        Whether to post-process the direct network via the context likelihood relatedness.
-    graph: `bool`
-        Whether a direct, weighted graph based on networkx should be returned.
+    Args:
+        adj_list: A pandas adjacency dataframe with regulator, target, weight columns for representing a network graph.
+        only_one_edge: Whether or not to only keep the edges with higher weight for any two gene pair.
+        clr: Whether to post-process the direct network via the context likelihood relatedness.
+        graph: Whether a direct, weighted graph based on networkx should be returned.
 
-    Returns
-    -------
+    Returns:
         A pandas adjacency matrix or a direct, weighted graph constructed via networkx.
     """
 

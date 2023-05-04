@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Iterable
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -10,6 +10,7 @@ except ImportError:
 import anndata
 import numpy as np
 import pandas as pd
+import scipy
 from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
@@ -1501,6 +1502,7 @@ def select_genes_monocle_legacy(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
+
             adata = calc_dispersion_by_svr(
                 adata,
                 layers=[layer],
