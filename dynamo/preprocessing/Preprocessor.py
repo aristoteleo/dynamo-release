@@ -522,7 +522,7 @@ class Preprocessor:
         self._normalize_selected_genes(adata)
         self._normalize_by_cells(adata)
 
-        self._log1p(adata)  # Always done in normalization process. Do we need this process explictly?
+        self._log1p(adata)
 
         if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)

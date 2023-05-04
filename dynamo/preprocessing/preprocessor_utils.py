@@ -1539,7 +1539,6 @@ def regress_out_parallel(
     obs_keys: Optional[List[str]] = None,
     gene_selection_key: Optional[str] = None,
     n_cores: Optional[int] = None,
-    obsm_store_key: str = "X_regress_out",
 ):
     """Perform linear regression to remove the effects of given variables from a target variable.
 
@@ -1573,13 +1572,12 @@ def regress_out_parallel(
         regressor = DKM.select_layer_data(subset_adata, layer)
 
     import itertools
-    import os
 
     if issparse(regressor):
         regressor = regressor.toarray()
 
     if n_cores is None:
-        n_cores = os.cpu_count() // 2  # Use half of available cores as the default.
+        n_cores = 1  # Use no parallel computing as default
 
     # Split the input data into chunks for parallel processing
     chunk_size = min(1000, regressor.shape[1] // n_cores + 1)
