@@ -1,5 +1,10 @@
 import re
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import List, Tuple
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 import pandas as pd
@@ -8,7 +13,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DKM
-from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning
+from ..dynamo_logger import LoggerManager, main_debug, main_warning
 from .utils import cook_dist
 
 
@@ -206,7 +211,7 @@ def _estimate_dispersion(
 
             CD = cook_dist(fit, 1 / good["mu"][:, None], good)
             cooksCutoff = 4 / good.shape[0]
-            main_info("Removing " + str(len(CD[CD > cooksCutoff])) + " outliers")
+            main_debug("Removing " + str(len(CD[CD > cooksCutoff])) + " outliers")
             outliers = CD > cooksCutoff
             # use CD.index.values? remove genes that lost when doing parameter fitting
             lost_gene = set(good.index.values).difference(set(range(len(CD))))
