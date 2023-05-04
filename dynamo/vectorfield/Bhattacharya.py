@@ -1,53 +1,46 @@
+from typing import Callable, Tuple, Union
+
 import numpy as np
 
 # from scipy.integrate import odeint
 from scipy.interpolate import griddata
 
 
-def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTimeSteps=1400):
+def path_integral(
+    VecFnc: Callable,
+    x_lim: np.ndarray,
+    y_lim: np.ndarray,
+    xyGridSpacing: Union[int, float],
+    dt: float = 1e-2,
+    tol: float = 1e-2,
+    numTimeSteps: int = 1400,
+) -> Tuple[
+    int, np.ndarray, np.ndarray, np.ndarray, int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+]:
     """A deterministic map of Waddington’s epigenetic landscape for cell fate specification
     Sudin Bhattacharya, Qiang Zhang and Melvin E. Andersen
 
-    Parameters
-    ----------
-    VecFnc
-    x_lim: `list`
-        Lower or upper limit of x-axis.
-    y_lim: `list`
-        Lower or upper limit of y-axis
-    xyGridSpacing: `float`
-        Grid spacing for "starting points" for each "path" on the pot. surface
-    dt: `float`
-        Time step for the path integral.
-    tol: `float` (default: 1.0e-2)
-        Tolerance to test for convergence.
-    numTimeSteps: `int`
-        A high-enough number for convergence with given dt.
+    Args:
+        VecFnc: The function of vector field that takes in x, y and returns the velocity at that point.
+        x_lim: Lower or upper limit of x-axis.
+        y_lim: Lower or upper limit of y-axis
+        xyGridSpacing: Grid spacing for "starting points" for each "path" on the potential surface
+        dt: Time step for the path integral.
+        tol: Tolerance to test for convergence.
+        numTimeSteps: A high-enough number for convergence with given dt.
 
-    Returns
-    -------
-    numAttractors: `int`
-        Number of attractors identified by the path integral approach.
-    attractors_num_X_Y: `numpy.ndarray`
-        Attractor number and the corresponding x, y coordinates.
-    sepx_old_new_pathNum: `numpy.ndarray`
-        The IDs of the two attractors for each separaxis per row.
-    numPaths_att `numpy.ndarray`
-        Number of paths per attractor
-    numPaths: `int`
-        Total Number of paths for defined grid spacing.
-    numTimeSteps: `int`
-        A high-enough number for convergence with given dt.
-    pot_path: `numpy.ndarray` (dimension: numPaths x numTimeSteps)
-        Potential along the path.
-    path_tag: `numpy.ndarray` (dimension: numPaths x 1)
-        Tag for given path (to denote basin of attraction).
-    attractors_pot: `numpy.ndarray`
-        Potential value of each identified attractors by the path integral approach.
-    x_path: `numpy.ndarray`
-        x-coord. along path.
-    y_path: `numpy.ndarray`
-        y-coord. along path.
+    Returns:
+        numAttractors: Number of attractors identified by the path integral approach.
+        attractors_num_X_Y: Attractor number and the corresponding x, y coordinates.
+        sepx_old_new_pathNum: The IDs of the two attractors for each separaxis per row.
+        numPaths_att: Number of paths per attractor
+        numPaths: Total Number of paths for defined grid spacing.
+        numTimeSteps: A high-enough number for convergence with given dt.
+        pot_path: Potential along the path. (dimension: numPaths x numTimeSteps)
+        path_tag: Tag for given path (to denote basin of attraction). (dimension: numPaths x 1)
+        attractors_pot: Potential value of each identified attractors by the path integral approach.
+        x_path: x-coord along path.
+        y_path: y-coord along path.
     """
 
     # -- First, generate potential surface from deterministic rate equations –
@@ -279,7 +272,7 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                     numPaths_att[tag - 1] = numPaths_att[tag - 1] + 1
 
             # increment "path counter"
-            path_counter = path_counter + 1
+            path_counter += 1
 
     return (
         attractors_num_X_Y,
@@ -297,68 +290,54 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 
 
 def alignment(
-    numPaths,
-    numTimeSteps,
-    pot_path,
-    path_tag,
-    attractors_pot,
-    x_path,
-    y_path,
-    grid=100,
-    interpolation_method="linear",
+    numPaths: int,
+    numTimeSteps: int,
+    pot_path: np.ndarray,
+    path_tag: np.ndarray,
+    attractors_pot: np.ndarray,
+    x_path: np.ndarray,
+    y_path: np.ndarray,
+    grid: int = 100,
+    interpolation_method: str = "linear",
 ):
     """Align potential values so all path-potentials end up at same global min and then generate potential surface with
     interpolation on a grid.
 
-    Parameters
-    ----------
-    numPaths: `int`
-        Total Number of paths for defined grid spacing.
-    numTimeSteps: `int`
-        A high-enough number for convergence with given dt.
-    pot_path: `numpy.ndarray` (dimension: numPaths x numTimeSteps)
-        Potential along the path.
-    path_tag: `numpy.ndarray` (dimension: numPaths x 1)
-        Tag for given path (to denote basin of attraction).
-    attractors_pot: `numpy.ndarray`
-        Potential value of each identified attractors by the path integral approach.
-    x_path: `numpy.ndarray`
-        x-coord. along path.
-    y_path: `numpy.ndarray`
-        y-coord. along path.
-    grid: `int`
-        No. of grid lines in x- and y- directions
-    interpolation_method: `string`
-        Method of interpolation in griddata function. One of
+    Args:
+        numPaths: Total Number of paths for defined grid spacing.
+        numTimeSteps: A high-enough number for convergence with given dt.
+        pot_path: Potential along the path. (dimension: numPaths x numTimeSteps)
+        path_tag: Tag for given path (to denote basin of attraction). (dimension: numPaths x 1)
+        attractors_pot: Potential value of each identified attractors by the path integral approach.
+        x_path: x-coord. along path.
+        y_path: y-coord. along path.
+        grid: No. of grid lines in x- and y- directions
+        interpolation_method: Method of interpolation in griddata function. One of
 
-        ``nearest``
-          return the value at the data point closest to
-          the point of interpolation.  See `NearestNDInterpolator` for
-          more details.
+            ``nearest``
+            return the value at the data point closest to
+            the point of interpolation.  See `NearestNDInterpolator` for
+            more details.
 
-        ``linear``
-          tessellate the input point set to n-dimensional
-          simplices, and interpolate linearly on each simplex.  See
-          `LinearNDInterpolator` for more details.
+            ``linear``
+            tessellate the input point set to n-dimensional
+            simplices, and interpolate linearly on each simplex.  See
+            `LinearNDInterpolator` for more details.
 
-        ``cubic`` (1-D)
-          return the value determined from a cubic
-          spline.
+            ``cubic`` (1-D)
+            return the value determined from a cubic
+            spline.
 
-        ``cubic`` (2-D)
-          return the value determined from a
-          piecewise cubic, continuously differentiable (C1), and
-          approximately curvature-minimizing polynomial surface. See
-          `CloughTocher2DInterpolator` for more details.
+            ``cubic`` (2-D)
+            return the value determined from a
+            piecewise cubic, continuously differentiable (C1), and
+            approximately curvature-minimizing polynomial surface. See
+            `CloughTocher2DInterpolator` for more details.
 
-    Returns
-    -------
-    Xgrid: `numpy.ndarray`
-        x-coordinates of the Grid produced from the meshgrid function.
-    Ygrid: `numpy.ndarray`
-            y-coordinates of the Grid produced from the meshgrid function.
-    Zgrid: `numpy.ndarray`
-            z-coordinates or potential at each of the x/y coordinate.
+    Returns:
+        Xgrid: x-coordinates of the Grid produced from the meshgrid function.
+        Ygrid: y-coordinates of the Grid produced from the meshgrid function.
+        Zgrid: z-coordinates or potential at each of the x/y coordinate.
     """
 
     # -- need 1-D "lists" (vectors) to plot all x,y, Pot values along paths --
@@ -410,3 +389,6 @@ def alignment(
     # print('Ran surface grid-interpolation okay!\n')
 
     return Xgrid, Ygrid, Zgrid
+
+
+# %%

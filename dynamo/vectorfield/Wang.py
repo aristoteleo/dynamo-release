@@ -1,29 +1,24 @@
+from typing import Callable, Tuple
+
 import numpy as np
 from scipy import optimize
+from scipy.optimize import OptimizeResult
 
 
-def Wang_action(X_input, F, D, dim, N, lamada_=1):
+def Wang_action(X_input: np.ndarray, F: Callable, D: float, dim: int, N: int, lamada_: float = 1) -> float:
     """Calculate action by path integral by Wang's method.
     Quantifying the Waddington landscape and biological paths for development and differentiation. Jin Wang, Kun Zhang,
     Li Xu, and Erkang Wang, PNAS, 2011
 
-    Parameters
-    ----------
-        X_input: `numpy.ndarray`
-            The initial guess of the least action path. Default is a straight line connecting the starting and end path.
-        F: `Function`
-            The reconstructed vector field function. This is assumed to be time-independent.
-        D: `float`
-            The diffusion constant. Note that this can be a space-dependent matrix.
-        dim: `int`
-            The feature numbers of the input data.
-        N: `int`
-            Number of waypoints along the least action path.
-        lamada_: `float`
-            Regularization parameter
+    Args:
+        X_input: The initial guess of the least action path. Default is a straight line connecting the starting and end path.
+        F: The reconstructed vector field function. This is assumed to be time-independent.
+        D: The diffusion constant. Note that this can be a space-dependent matrix.
+        dim: The feature numbers of the input data.
+        N: Number of waypoints along the least action path.
+        lamada_: Regularization parameter
 
-    Returns
-    -------
+    Returns:
         The action function calculated by the Hamilton-Jacobian method.
     """
 
@@ -56,11 +51,10 @@ def V_jacobina(F, X):
     return V_jacobina(X)
 
 
-def V(F, D, X):
+def V(F: Callable, D: float, X: np.ndarray) -> np.ndarray:
     """Calculate V
 
-    Parameters
-    ----------
+    Args:
         F: `Function`
             The reconstructed vector field function
         D: `float`
@@ -68,8 +62,7 @@ def V(F, D, X):
         X: `nummpy.ndarray`
             The input coordinates corresponding to the cell states.
 
-    Returns
-    -------
+    Returns:
         Returns V
     """
 
@@ -78,17 +71,8 @@ def V(F, D, X):
     return V
 
 
-def delta_delta_l(X_input):
-    """Calculate delta_L
-
-    Parameters
-    ----------
-    X_input: `numpy.ndarray`
-
-    Returns
-    -------
-    Return delta_L
-    """
+def delta_delta_l(X_input) -> Tuple[np.ndarray, float]:
+    """Calculate delta_L"""
 
     delta = np.diff(X_input, 1, 1)
     delta_l = np.sqrt(np.sum(delta**2, 0))
@@ -96,26 +80,20 @@ def delta_delta_l(X_input):
     return delta, delta_l
 
 
-def Wang_LAP(F, n_points, point_start, point_end, D=0.1, lambda_=1):
+def Wang_LAP(
+    F: Callable, n_points: int, point_start: np.ndarray, point_end: np.ndarray, D: float = 0.1, lambda_: float = 1
+) -> OptimizeResult:
     """Calculating least action path based methods from Jin Wang and colleagues (http://www.pnas.org/cgi/doi/10.1073/pnas.1017017108)
 
-    Parameters
-    ----------
-        F: `Function`
-            The reconstructed vector field function
-        n_points: 'int'
-            The number of points along the least action path.
-        point_start: 'np.ndarray'
-            The matrix for storing the coordinates (gene expression configuration) of the start point (initial cell state).
-        point_end: 'np.ndarray'
-            The matrix for storing the coordinates (gene expression configuration) of the end point (terminal cell state).
-        D: `float`
-            The diffusion constant. Note that this can be a space-dependent matrix.
-        lamada_: `float`
-            Regularization parameter
+    Args:
+        F: The reconstructed vector field function
+        n_points: The number of points along the least action path.
+        point_start: The matrix for storing the coordinates (gene expression configuration) of the start point (initial cell state).
+        point_end: The matrix for storing the coordinates (gene expression configuration) of the end point (terminal cell state).
+        D: The diffusion constant. Note that this can be a space-dependent matrix.
+        lamada_: Regularization parameter
 
-    Returns
-    -------
+    Returns:
         The least action path and the action way of the inferred path.
     """
     initpath = point_start.dot(np.ones((1, n_points + 1))) + (point_end - point_start).dot(
@@ -133,7 +111,7 @@ def Wang_LAP(F, n_points, point_start, point_end, D=0.1, lambda_=1):
     return res
 
 
-def transition_rate(X_input, F, D=0.1, lambda_=1):
+def transition_rate(X_input: np.ndarray, F: Callable, D: float = 0.1, lambda_: float = 1) -> np.ndarray:
     """Calculate the rate to convert from one cell state to another cell state by taking the optimal path.
 
      In the small noise limit (D -> 0) the Wentzell-Freidlin theory states that the transition rate from one basin to
@@ -145,19 +123,13 @@ def transition_rate(X_input, F, D=0.1, lambda_=1):
      reference [15]), which is expected to be on the order of 1 [12]. (Reference: Epigenetic state network approach for
      describing cell phenotypic transitions. Ping Wang, Chaoming Song, Hang Zhang, Zhanghan Wu, Xiao-Jun Tian and Jianhua Xing)
 
-    Parameters
-    ----------
-        X_input: `numpy.ndarray`
-            The initial guess of the least action path. Default is a straight line connecting the starting and end path.
-        F: `Function`
-            The reconstructed vector field function
-        D: `float`
-            The diffusion constant. Note that this can be a space-dependent matrix.
-        lamada_: `float`
-            Regularization parameter
+    Args:
+        X_input: The initial guess of the least action path. Default is a straight line connecting the starting and end path.
+        F: The reconstructed vector field function
+        D: The diffusion constant. Note that this can be a space-dependent matrix.
+        lamada_: Regularization parameter
 
-    Returns
-    -------
+    Returns:
         The transition to convert from one cell state to another.
     """
 
@@ -167,7 +139,7 @@ def transition_rate(X_input, F, D=0.1, lambda_=1):
     return r
 
 
-def MFPT(X_input, F, D=0.1, lambda_=1):
+def MFPT(X_input: np.ndarray, F: Callable, D: float = 0.1, lambda_: float = 1) -> float:
     """Calculate the MFPT (mean first passage time) to convert from one cell state to another cell state by taking the optimal path.
 
      The mean first-passage time (MFPT) defines an average timescale for a stochastic event to first occur. The MFPT maps
@@ -175,19 +147,13 @@ def MFPT(X_input, F, D=0.1, lambda_=1):
      state. The inverse of the MFPT is an effective rate of the overall reaction. (reference: Mean First-Passage Times in Biology
      Nicholas F. Polizzi,a Michael J. Therien,b and David N. Beratan)
 
-    Parameters
-    ----------
-        X_input: `numpy.ndarray`
-            The initial guess of the least action path. Default is a straight line connecting the starting and end path.
-        F: `Function`
-            The reconstructed vector field function
-        D: `float`
-            The diffusion constant. Note that this can be a space-dependent matrix.
-        lamada_: `float`
-            Regularization parameter
+    Args:
+        X_input: The initial guess of the least action path. Default is a straight line connecting the starting and end path.
+        F: The reconstructed vector field function
+        D: The diffusion constant. Note that this can be a space-dependent matrix.
+        lamada_: Regularization parameter
 
-    Returns
-    -------
+    Returns:
         The transition to convert from one cell state to another.
     """
 

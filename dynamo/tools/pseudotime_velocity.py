@@ -1,3 +1,10 @@
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
+from typing import Union
+
 import anndata
 import numpy as np
 from scipy.sparse import csr_matrix, diags, issparse
@@ -8,7 +15,17 @@ from .graph_operators import build_graph, gradop
 from .utils import projection_with_transition_matrix
 
 
-def gradient(E, f, tol=1e-5):
+def gradient(E: Union[csr_matrix, np.ndarray], f: np.ndarray, tol: float = 1e-5) -> csr_matrix:
+    """Calculate the graph's gradient.
+
+    Args:
+        E: the adjacency matrix of the graph.
+        f: the pseudotime matrix.
+        tol: the tolerance of considering a value to be non-zero. Defaults to 1e-5.
+
+    Returns:
+        The gradient of the graph.
+    """
     if issparse(E):
         row, col = E.nonzero()
         val = E.data
@@ -30,7 +47,20 @@ def gradient(E, f, tol=1e-5):
     return G
 
 
-def laplacian(E, convention="graph"):
+def laplacian(E: Union[csr_matrix, np.ndarray], convention: Literal["graph", "diffusion"] = "graph") -> csr_matrix:
+    """Calculate the laplacian of the given graph (here the adjacency matrix).
+
+    Args:
+        E: the adjacency matrix.
+        convention: the convention of results. Could be either "graph" or "diffusion". If "diffusion" is specified, the
+            negative of graph laplacian would be returned. Defaults to "graph".
+
+    Returns:
+        The laplacian matrix.
+
+    Raises:
+        NotImplementedError: invalid `convention`.
+    """
     if issparse(E):
         A = E.copy()
         A.data = np.ones_like(A.data)
@@ -38,15 +68,30 @@ def laplacian(E, convention="graph"):
     else:
         A = np.sign(E)
         L = np.diag(np.sum(A, 0)) - A
-    if convention == "diffusion":
+    if convention == "graph":
+        pass
+    elif convention == "diffusion":
         L = -L
+    else:
+        raise NotImplementedError("The convention is not implemented. ")
 
     L = csr_matrix(L)
 
     return L
 
 
-def pseudotime_transition(E, pseudotime, laplace_weight=10):
+def pseudotime_transition(E: np.ndarray, pseudotime: np.ndarray, laplace_weight: float = 10) -> csr_matrix:
+    """Calculate the transition graph with pseudotime gradient.
+
+    Args:
+        E: the adjacency matrix.
+        pseudotime: the pseudo time value matrix.
+        laplace_weight: the weight of adding laplacian to gradient during calculation of transition graph. Defaults to
+            10.
+
+    Returns:
+        The pseudo-based transition matrix.
+    """
     grad = gradient(E, pseudotime)
     lap = laplacian(E, convention="diffusion")
     T = grad + laplace_weight * lap
@@ -62,11 +107,14 @@ def pseudotime_velocity(
     vkey: str = "velocity_S",
     add_tkey: str = "pseudotime_transition_matrix",
     add_ukey: str = "M_u_pseudo",
-    method: str = "hodge",
+    method: Literal["hodge", "naive", "gradient"] = "hodge",
     dynamics_info: bool = False,
     unspliced_RNA: bool = False,
-):
+) -> None:
     """Embrace RNA velocity and velocity vector field analysis for pseudotime.
+
+    The AnnData object will be updated, inplace, with low-dimensional velocity, pseudotime based transition matrix as
+    well as the pseudotime based RNA velocity.
 
     When you don't have unspliced/spliced RNA but still want to utilize the velocity/vector field and downstream
     differential geometry analysis, we can use `pseudotime_velocity` to convert pseudotime to RNA velocity. Essentially
@@ -74,43 +122,32 @@ def pseudotime_velocity(
     graph) between each cell and use that to learn either the velocity on low dimensional embedding as well as the
     gene-wise RNA velocity.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-                an Annodata object.
-        pseudotime: str (default, `pseudotime`)
-            The key in the adata.obs that corresponds to the pseudotime values.
-        basis: str (optional, default `umap`)
-            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
-            or `X_total_umap`, etc.
-        adj_key: str (default, `distances`)
-            The dictionary key that corresponds to the adjacency matrix in `.obsp` attribute. If method is `gradient`,
-            the weight will be ignored; while it is `exponent` the weight will be used.
-        ekey: str or None (optional, default `M_s`)
-            The dictionary key that corresponds to the gene expression in the layer attribute. This will be used to
-            calculate RNA velocity.
-        vkey: str or None (optional, default `velocity_S`)
-            The dictionary key that will be used to save the estimated velocity values in the layers attribute.
-        add_tkey: str (default: `pseudotime_transition_matrix`)
-            The dictionary key that will be used to keep the pseudotime-based transition matrix.
-        add_ukey: str (default: `M_u_pseudo`)
-            The dictionary key that will be used to save the estimated "unspliced mRNA". Since we assume gamma is 0, we
-            thus have M_u_pseudo essentially the estimated high dimensional velocity vector.
-        method: str (default: `hodge`)
-            Which pseudotime to vector field method to be used. There are three different methods, `hodge`, `naive`,
-            `gradient`. By default the `hodge` method will be used.
-        dynamics_info: bool (default: `False`)
-            Whether to add dynamics info (a dictionary (with `dynamics` key to the .uns) to your adata object
-            which is required for downstream velocity and vector field analysis.
-        unspliced_RNA: bool (default: `False`)
-            Whether to add a unspliced layer to your adata object which is required for downstream velocity and
-            vector field analysis.
+    Args:
+        adata: an AnnData object.
+        pseudotime: the key in the adata.obs that corresponds to the pseudotime values. Defaults to "pseudotime".
+        basis: the dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
+            `X_spliced_umap` or `X_total_umap`, etc. Defaults to "umap".
+        adj_key: the dictionary key that corresponds to the adjacency matrix in `.obsp` attribute. If method is
+            `gradient`, the weight will be ignored; while it is `exponent` the weight will be used. Defaults to
+            "distances".
+        ekey: the dictionary key that corresponds to the gene expression in the layer attribute. This will be used to
+            calculate RNA velocity. Defaults to "M_s".
+        vkey: the dictionary key that will be used to save the estimated velocity values in the layers attribute.
+            Defaults to "velocity_S".
+        add_tkey: the dictionary key that will be used to keep the pseudotime-based transition matrix. Defaults to
+            "pseudotime_transition_matrix".
+        add_ukey: the dictionary key that will be used to save the estimated "unspliced mRNA". Since we assume gamma is
+            0, we thus have M_u_pseudo essentially the estimated high dimensional velocity vector. Defaults to
+            "M_u_pseudo".
+        method: which pseudotime to vector field method to be used. There are three different methods, `hodge`, `naive`,
+            `gradient`. By default the `hodge` method will be used. Defaults to "hodge".
+        dynamics_info: whether to add dynamics info (a dictionary (with `dynamics` key to the .uns) to your adata object
+            which is required for downstream velocity and vector field analysis. Defaults to False.
+        unspliced_RNA: whether to add a unspliced layer to your adata object which is required for downstream velocity
+            and vector field analysis. Defaults to False.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            An new or updated anndata object, based on copy parameter, that are updated with low-dimensional velocity,
-            pseudotime based transition matrix as well as the pseudotime based RNA velocity.
+    Raises:
+        Exception: `method` is invalid.
     """
 
     logger = LoggerManager.get_main_logger()

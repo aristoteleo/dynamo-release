@@ -1,0 +1,45 @@
+package:
+  name: "dynamo-release"
+  version: "1.2.0"
+
+source:
+  git_rev: v1.2.0
+  git_url: https://github.com/aristoteleo/dynamo-release
+
+requirements:
+  host:
+    - python
+    - setuptools
+  build:
+    - python
+  run:
+    - python
+    - numpy
+    - pandas
+    - scipy
+    - scikit-learn
+    - matplotlib
+    - PATSY
+    - statsmodels
+    - numba
+    - seaborn
+    - colorcet
+    - tqdm
+    - pynndescent
+    - pre-commit
+    - networkx
+    - openpyxl
+    - typing-extensions
+
+
+about:
+  home: https://github.com/aristoteleo/dynamo-release
+  license: MIT
+  license_familY: MIT
+  license_file: LICENSE
+  summary: "Inclusive model of expression dynamics with conventional or metabolic labeling based scRNA-seq / multiomics,
+   vector field reconstruction and differential geometry analyses"
+
+extra:
+  recipe-maintainers:
+    - Xiaojieqiu
