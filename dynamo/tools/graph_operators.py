@@ -11,7 +11,7 @@ from scipy.linalg import qr
 from scipy.sparse import csr_matrix
 
 
-def gradop(g):
+def gradop(g: csr_matrix):
     e = np.array(g.get_edgelist())
     ne = g.ecount()
     i, j, x = np.tile(range(ne), 2), e.T.flatten(), np.repeat([-1, 1], ne)
