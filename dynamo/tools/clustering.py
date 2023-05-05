@@ -12,8 +12,8 @@ from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DKM
 from ..dynamo_logger import main_info
-from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
 from ..preprocessing.preprocessor_utils import log1p, normalize
+from ..preprocessing.QC import filter_genes_by_outliers as filter_genes
 from ..preprocessing.utils import pca
 from ..utils import LoggerManager, copy_adata
 from .connectivity import _gen_neighbor_keys, neighbors

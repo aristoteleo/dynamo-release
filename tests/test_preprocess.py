@@ -246,7 +246,7 @@ def test_filter_genes_by_clusters_():
     adata.obs['clusters'] = clusters
 
     # Filter genes by cluster
-    clu_avg_selected = dyn.pp.filter_genes_by_clusters_(adata, 'clusters')
+    clu_avg_selected = dyn.pp.filter_genes_by_clusters(adata, 'clusters')
 
     # Check that the output is a numpy array
     assert type(clu_avg_selected) == np.ndarray

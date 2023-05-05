@@ -31,15 +31,15 @@ from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     calc_sz_factor,
 )
-from .preprocessor_utils import (
+from .preprocessor_utils import log, log1p, log2, normalize, regress_out_parallel
+from .QC import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
 )
-from .preprocessor_utils import (
+from .QC import (
     filter_genes_by_outliers as monocle_filter_genes_by_outliers,
 )
-from .preprocessor_utils import log, log1p, log2, normalize, regress_out_parallel
+from .QC import basic_stats
 from .utils import (
-    basic_stats,
     collapse_species_adata,
     convert2symbol,
     convert_layers2csr,

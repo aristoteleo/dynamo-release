@@ -25,7 +25,6 @@ from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import (
     LoggerManager,
     main_debug,
-    main_exception,
     main_info,
     main_info_insert_adata_var,
     main_warning,
@@ -277,76 +276,6 @@ def cook_dist(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarr
 
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
-def filter_genes_by_pattern(
-    adata: anndata.AnnData,
-    patterns: Tuple[str] = ("MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"),
-    drop_genes: bool = False,
-) -> Union[List[bool], None]:
-    """Utility function to filter mitochondria, ribsome protein and ERCC spike-in genes, etc.
-
-    Args:
-        adata: an AnnData object.
-        patterns: the patterns used to filter genes. Defaults to ("MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-").
-        drop_genes: whether inplace drop the genes from the AnnData object. Defaults to False.
-
-    Returns:
-        A list of indices of matched genes if `drop_genes` is False. Otherwise, returns none.
-    """
-
-    logger = LoggerManager.gen_logger("dynamo-utils")
-
-    matched_genes = pd.Series(adata.var_names).str.startswith(patterns).to_list()
-    logger.info(
-        "total matched genes is " + str(sum(matched_genes)),
-        indent_level=1,
-    )
-    if sum(matched_genes) > 0:
-        if drop_genes:
-            gene_bools = np.ones(adata.n_vars, dtype=bool)
-            gene_bools[matched_genes] = False
-            logger.info(
-                "inplace subset matched genes ... ",
-                indent_level=1,
-            )
-            # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-
-                adata._inplace_subset_var(gene_bools)
-
-            logger.finish_progress(progress_name="filter_genes_by_pattern")
-            return None
-        else:
-            logger.finish_progress(progress_name="filter_genes_by_pattern")
-            return matched_genes
-
-
-def basic_stats(adata: anndata.AnnData) -> None:
-    """Generate basic stats of the adata, including number of genes, number of cells, and number of mitochondria genes.
-
-    Args:
-        adata: an AnnData object.
-    """
-
-    adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
-    adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
-    if adata.var_names.inferred_type == "bytes":
-        adata.var_names = adata.var_names.astype("str")
-    mito_genes = adata.var_names.str.upper().str.startswith("MT-")
-
-    if sum(mito_genes) > 0:
-        try:
-            adata.obs["pMito"] = np.array(adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1)))
-        except:  # noqa E722
-            main_exception(
-                "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
-                "include nan values). If you don't believe so, please report to us on github or "
-                "via xqiu@wi.mit.edu"
-            )
-    else:
-        adata.obs["pMito"] = 0
-
-
 def unique_var_obs_adata(adata: anndata.AnnData) -> anndata.AnnData:
     """Function to make the obs and var attribute's index unique
 
@@ -490,42 +419,6 @@ def get_inrange_shared_counts_mask(
         if issparse(adata.layers[layers[0]])
         else np.array(_sum.sum(sum_dim_index) >= min_shared_count)
     )
-
-
-def clusters_stats(
-    U: pd.DataFrame, S: pd.DataFrame, clusters_uid: np.ndarray, cluster_ix: np.ndarray, size_limit: int = 40
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Calculate the averages per cluster for unspliced and spliced data.
-
-    Args:
-        U: the unspliced DataFrame.
-        S: the spliced DataFrame.
-        clusters_uid: the uid of the clusters.
-        cluster_ix: the indices of the clusters in adata.obs.
-        size_limit: the max number of members to be considered in a cluster during calculation. Defaults to 40.
-
-    Returns:
-        U_avgs: the average of clusters for unspliced data.
-        S_avgs: the average of clusters for spliced data.
-    """
-
-    U_avgs = np.zeros((S.shape[1], len(clusters_uid)))
-    S_avgs = np.zeros((S.shape[1], len(clusters_uid)))
-    # avgU_div_avgS = np.zeros((S.shape[1], len(clusters_uid)))
-    # slopes_by_clust = np.zeros((S.shape[1], len(clusters_uid)))
-
-    for i, uid in enumerate(clusters_uid):
-        cluster_filter = cluster_ix == i
-        n_cells = np.sum(cluster_filter)
-        if n_cells > size_limit:
-            U_avgs[:, i], S_avgs[:, i] = (
-                U[cluster_filter, :].mean(0),
-                S[cluster_filter, :].mean(0),
-            )
-        else:
-            U_avgs[:, i], S_avgs[:, i] = U.mean(0), S.mean(0)
-
-    return U_avgs, S_avgs
 
 
 def get_gene_selection_filter(

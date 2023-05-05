@@ -32,16 +32,18 @@ from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
+    normalize,
+)
+from .QC import (
+    basic_stats,
+    filter_genes_by_clusters,
     filter_cells_by_outliers,
     filter_genes_by_outliers,
-    normalize,
 )
 from .utils import (
     _Freeman_Tukey,
     add_noise_to_duplicates,
-    basic_stats,
     calc_new_to_total_ratio,
-    clusters_stats,
     collapse_species_adata,
     compute_gene_exp_fraction,
     convert2symbol,
@@ -438,42 +440,6 @@ def filter_cells_legacy(
         adata.obs["pass_basic_filter"] = True
 
     return adata
-
-
-def filter_genes_by_clusters_(
-    adata: anndata.AnnData,
-    cluster: str,
-    min_avg_U: float = 0.02,
-    min_avg_S: float = 0.08,
-    size_limit: int = 40,
-) -> np.ndarray:
-    """Prepare filtering genes on the basis of cluster-wise expression threshold.
-
-    This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
-
-    Args:
-        adata: an Anndata object.
-        cluster: a column name in the adata.obs attribute which will be used for cluster specific expression filtering.
-        min_avg_U: include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters.
-            Defaults to 0.02.
-        min_avg_S: include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters.
-            Defaults to 0.08.
-        size_limit: the max number of members to be considered in a cluster during calculation. Defaults to 40.
-
-    Returns:
-        A boolean array corresponding to genes selected.
-    """
-    U, S, cluster_uid = (
-        adata.layers["unspliced"],
-        adata.layers["spliced"],
-        adata.obs[cluster],
-    )
-    cluster_uid, cluster_ix = np.unique(cluster_uid, return_inverse=True)
-
-    U_avgs, S_avgs = clusters_stats(U, S, cluster_uid, cluster_ix, size_limit=size_limit)
-    clu_avg_selected = (U_avgs.max(1) > min_avg_U) & (S_avgs.max(1) > min_avg_S)
-
-    return clu_avg_selected
 
 
 def filter_genes_by_outliers_legacy(
@@ -1278,7 +1244,7 @@ def recipe_velocyto(
         min_cell_u=20,
         shared_count=None,
     )
-    filter_bool_cluster = filter_genes_by_clusters_(adata, min_avg_S=0.08, min_avg_U=0.01, cluster=cluster)
+    filter_bool_cluster = filter_genes_by_clusters(adata, min_avg_S=0.08, min_avg_U=0.01, cluster=cluster)
 
     adata = adata[:, filter_bool_gene & filter_bool_cluster]
 

@@ -12,10 +12,7 @@ from .external import (
 )
 from .preprocess import (
     calc_sz_factor_legacy,
-    filter_cells_by_outliers,
     filter_cells_legacy,
-    filter_genes_by_clusters_,
-    filter_genes_by_outliers,
     get_svr_filter,
     highest_frac_genes,
     normalize_cell_expr_by_size_factors_legacy,
@@ -23,13 +20,18 @@ from .preprocess import (
     recipe_velocyto,
 )
 from .preprocessor_utils import *
-from .utils import (
+from .QC import (
     basic_stats,
+    filter_genes_by_clusters,
+    filter_cells_by_outliers,
+    filter_genes_by_outliers,
+    filter_genes_by_pattern,
+)
+from .utils import (
     compute_gene_exp_fraction,
     convert2symbol,
     cook_dist,
     decode,
-    filter_genes_by_pattern,
     pca,
     relative2abs,
     scale,
@@ -62,7 +64,7 @@ __all__ = [
     "select_genes_by_pearson_residuals",
     "filter_genes",
     "filter_genes_by_outliers",
-    "filter_genes_by_clusters_",
+    "filter_genes_by_clusters",
     "calc_dispersion_by_svr",
     "get_svr_filter",
     "highest_frac_genes",
