@@ -34,6 +34,7 @@ from .preprocessor_utils import (
     _infer_labeling_experiment_type,
     normalize,
 )
+from .pca import pca
 from .QC import (
     basic_stats,
     filter_genes_by_clusters,
@@ -55,7 +56,6 @@ from .utils import (
     get_sz_exprs,
     merge_adata_attrs,
     normalize_mat_monocle,
-    pca,
     sz_util,
     unique_var_obs_adata,
 )

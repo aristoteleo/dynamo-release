@@ -30,6 +30,7 @@ from ..dynamo_logger import (
 )
 from ..tools.utils import update_dict
 from ..utils import copy_adata
+from .pca import pca
 from .utils import (
     _Freeman_Tukey,
     add_noise_to_duplicates,
@@ -40,7 +41,6 @@ from .utils import (
     get_svr_filter,
     get_sz_exprs,
     merge_adata_attrs,
-    pca,
     size_factor_normalize,
     sz_util,
 )

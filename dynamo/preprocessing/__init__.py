@@ -27,15 +27,14 @@ from .QC import (
     filter_genes_by_outliers,
     filter_genes_by_pattern,
 )
+from .pca import pca, top_pca_genes
 from .utils import (
     compute_gene_exp_fraction,
     convert2symbol,
     cook_dist,
     decode,
-    pca,
     relative2abs,
     scale,
-    top_pca_genes,
 )
 
 filter_cells = filter_cells_by_outliers
