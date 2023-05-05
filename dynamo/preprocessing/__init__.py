@@ -11,13 +11,8 @@ from .external import (
     select_genes_by_pearson_residuals,
 )
 from .preprocess import (
-    calc_sz_factor_legacy,
-    filter_cells_legacy,
     get_svr_filter,
     highest_frac_genes,
-    normalize_cell_expr_by_size_factors_legacy,
-    recipe_monocle,
-    recipe_velocyto,
 )
 from .preprocessor_utils import *
 from .QC import (
@@ -31,10 +26,17 @@ from .pca import pca, top_pca_genes
 from .utils import (
     compute_gene_exp_fraction,
     convert2symbol,
-    cook_dist,
     decode,
     relative2abs,
     scale,
+)
+from .deprecated import (
+    cook_dist,
+    calc_sz_factor_legacy,
+    normalize_cell_expr_by_size_factors_legacy,
+    filter_cells_legacy,
+    recipe_monocle,
+    recipe_velocyto,
 )
 
 filter_cells = filter_cells_by_outliers

@@ -101,7 +101,7 @@ def moments(
             else:
                 if "X" not in adata.obsm.keys():
                     if not any([i.startswith("X_") for i in adata.layers.keys()]):
-                        from ..preprocessing.preprocess import recipe_monocle
+                        from ..preprocessing.deprecated import recipe_monocle
 
                         genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
                         recipe_monocle(

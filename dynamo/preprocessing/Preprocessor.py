@@ -26,7 +26,6 @@ from ..tools.utils import update_dict
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .pca import pca
-from .preprocess import normalize_cell_expr_by_size_factors_legacy
 from .preprocessor_utils import (
     Freeman_Tukey,
     _infer_labeling_experiment_type,
