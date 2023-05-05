@@ -28,7 +28,6 @@ from ..dynamo_logger import (
 )
 from ..tools.utils import update_dict
 from ..utils import copy_adata
-from .deprecated import _top_table
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
 from .pca import pca
