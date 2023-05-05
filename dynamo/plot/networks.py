@@ -7,7 +7,6 @@ except ImportError:
 
 import networkx as nx
 import numpy as np
-import nxviz as nv
 import pandas as pd
 
 from anndata import AnnData
@@ -30,7 +29,7 @@ def nxvizPlot(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> Union[nv.ArcPlot, nv.CircosPlot, None]:
+) -> Optional[Any]:
     """Arc or circos plot of gene regulatory network for a particular cell cluster.
 
     Args:
@@ -218,7 +217,7 @@ def arcPlot(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> Optional[nv.ArcPlot]:
+) -> Optional[Any]:
     """Arc plot of gene regulatory network for a particular cell cluster.
 
     Args:
@@ -366,6 +365,11 @@ def circosPlot(
     Returns:
         the Matplotlib Axes on which the Circos plot is drawn.
     """
+    try:
+        import nxviz as nv
+    except ImportError:
+        raise ImportError("install nxviz via `pip install nxviz`.")
+
     ax = nv.circos(
         network,
         group_by=node_label_key,
@@ -401,7 +405,7 @@ def circosPlotDeprecated(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> nv.CircosPlot:
+) -> Optional[Any]:
 
     """Deprecated.
 
