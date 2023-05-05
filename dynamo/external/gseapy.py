@@ -70,7 +70,6 @@ def enrichr(
         gene_sets=gene_sets,  # GO_Biological_Process_2018
         organism=organism,  # don't forget to set organism to the one you desired! e.g. Yeast
         background=background,
-        description=description,
         outdir=outdir,
         no_plot=no_plot,
         cutoff=cutoff,  # test dataset, use lower value from range(0,1)
