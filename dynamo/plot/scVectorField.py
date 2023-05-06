@@ -1,6 +1,10 @@
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import matplotlib
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -51,22 +55,22 @@ def cell_wise_vectors_3d(
     x: int = 0,
     y: int = 1,
     z: int = 2,
-    ekey: str = None,
+    ekey: Optional[str] = None,
     vkey: str = "velocity_S",
-    X: Union[np.array, spmatrix] = None,
-    V: Union[np.array, spmatrix] = None,
+    X: Union[np.ndarray, spmatrix] = None,
+    V: Union[np.ndarray, spmatrix] = None,
     color: Union[str, List[str]] = None,
     layer: str = "X",
     background: Optional[str] = "white",
     ncols: int = 4,
-    figsize: tuple = (6, 4),
+    figsize: Tuple[float] = (6, 4),
     ax: Optional[Axes] = None,
-    inverse: True = False,
+    inverse: bool = False,
     cell_inds: str = "all",
     vector: str = "velocity",
     save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    quiver_3d_kwargs: dict = {
+    save_kwargs: Dict[str, Any] = {},
+    quiver_3d_kwargs: Dict[str, Any] = {
         "zorder": 3,
         "length": 2,
         "linewidth": 5,
@@ -76,58 +80,65 @@ def cell_wise_vectors_3d(
     },
     grid_color: Optional[str] = None,
     axis_label_prefix: Optional[str] = None,
-    axis_labels: Optional[list] = None,
-    elev: float = None,
-    azim: float = None,
+    axis_labels: Optional[List[str]] = None,
+    elev: Optional[float] = None,
+    azim: Optional[float] = None,
     alpha: Optional[float] = None,
-    show_magnitude=False,
-    titles: list = None,
+    show_magnitude: bool = False,
+    titles: Optional[List[str]] = None,
     **cell_wise_kwargs,
-):
+) -> np.ndarray:
     """Plot the velocity or acceleration vector of each cell.
 
-    Parameters
-    ----------
-        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
-        ekey: `str` (default: "M_s")
-            The expression key
-        vkey: `str` (default: "velocity_S")
-            The velocity key
-        inverse: `bool` (default: False)
-            Whether to inverse the direction of the velocity vectors.
-        cell_inds: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell indices) or str
-            (Cell names).
-        quiver_size: `float` or None (default: None)
-            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to
-            calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
-            quiver_size) of the quiver. This is done via the `default_quiver_args` function which also calculate the
-            scale of the quiver (1 / quiver_length).
-        quiver_length: `float` or None (default: None)
-            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe
-            applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
-            of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
-            scale parameter makes the arrow longer.
-        vector: `str` (default: `velocity`)
-            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
-            acceleration field will be plotted.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
-            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
-            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
-            paper: https://science.sciencemag.org/content/367/6482/1151.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        s_kwargs_dict: `dict` (default: {})
-            The dictionary of the scatter arguments.
-        cell_wise_kwargs:
-            Additional parameters that will be passed to plt.quiver function
-    Returns
-    -------
-        Nothing but a cell wise quiver plot.
+    Args:
+        adata: an AnnData object.
+        basis: the reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following
+            priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters`
+            is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`.
+            Defaults to "umap".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        z: the column index of the low dimensional embedding for the z-axis. Defaults to 2.
+        ekey: the expression key. Defaults to None.
+        vkey: the velocity key. Defaults to "velocity_S".
+        X: the expression array. If None, the array would be determined by `ekey` provided. Defaults to None.
+        V: the velocity array. If None, the array would be determined by `vkey` provided. Defaults to None.
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        layer: the layer of data to use for the scatter plot. Defaults to "X".
+        background: the background color of the figure. Defaults to "white".
+        ncols: the number of sub-plot columns. Defaults to 4.
+        figsize: the size of each sub-plot panel. Defaults to (6, 4).
+        ax: the axes to plot on. Only work when there is one graph to plot. If None, new axes would be created. Defaults
+            to None.
+        inverse: whether to inverse the direction of the velocity vectors. Defaults to False.
+        cell_inds: the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell indices)
+            or str (Cell names). Defaults to "all".
+        vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
+            field or acceleration field will be plotted. Defaults to "velocity".
+        save_show_or_return: whether to save, show or return the generated figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            an the save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
+        quiver_3d_kwargs: any other kwargs to be passed to `pyplot.quiver`. Defaults to { "zorder": 3, "length": 2,
+            "linewidth": 5, "arrow_length_ratio": 5, "norm": cm.colors.Normalize(), "cmap": cm.PRGn, }.
+        grid_color: the color of the grid lines. Defaults to None.
+        axis_label_prefix: the prefix of the axis labels. Defaults to None.
+        axis_labels: the axis labels. Defaults to None.
+        elev: the elevation angle in degrees rotates the camera above the plane pierced by the vertical axis, with a
+            positive angle corresponding to a location above that plane. Defaults to None.
+        azim: the azimuthal angle in degrees rotates the camera about the vertical axis, with a positive angle
+            corresponding to a right-handed rotation. Defaults to None.
+        alpha: the transparency of the colors. Defaults to None.
+        show_magnitude: whether to show original values or normalize the data. Defaults to False.
+        titles: the titles of the subplots. Defaults to None.
+
+    Raises:
+        ValueError: invalid `x`, `y`, or `z`.
+
+    Returns:
+        None will be returned by default. If `save_show_or_return` is set to 'return', an array of axes of the subplots
+        would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -276,7 +287,7 @@ def cell_wise_vectors_3d(
         ax.set_facecolor(background)
         add_axis_label(ax, axis_labels)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "cell_wise_vectors_3d",
@@ -287,10 +298,14 @@ def cell_wise_vectors_3d(
             "verbose": True,
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes
 
 
@@ -352,20 +367,20 @@ def line_integral_conv(
     basis: str = "umap",
     U_grid: Optional[np.ndarray] = None,
     V_grid: Optional[np.ndarray] = None,
-    xy_grid_nums: Union[tuple, list] = [50, 50],
-    method: str = "yt",
+    xy_grid_nums: Union[Tuple[int], List[int]] = [50, 50],
+    method: Literal["yt", "lic"] = "yt",
     cmap: str = "viridis",
     normalize: bool = False,
     density: float = 1,
-    lim=(0, 1),
+    lim: Tuple[float, float] = (0, 1),
     const_alpha: bool = False,
     kernellen: float = 100,
     V_threshold: Optional[float] = None,
     vector: str = "velocity",
-    file=None,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    g_kwargs_dict: dict = {},
+    file: Optional[str] = None,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    g_kwargs_dict: Dict[str, Any] = {},
 ):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a
      grid from the associated data. A white noise background will be used for texture as default. Adjust the bounds of
@@ -373,53 +388,42 @@ def line_integral_conv(
      enhance the visibility of plots. When const_alpha=False, alpha will be weighted spatially by the values of line
      integral convolution; otherwise a constant value of the given alpha is used.
 
-    Arguments
-    ---------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains U_grid and V_grid data
-        basis: `str` (default: trimap)
-            The dimension reduction method to use.
-        U_grid: 'np.ndarray' (default: None)
-            Original velocity on the first dimension of a 2 d grid.
-        V_grid: 'np.ndarray' (default: None)
-            Original velocity on the second dimension of a 2 d grid.
-        xy_grid_nums: `tuple` (default: (50, 50))
-            the number of grids in either x or y axis. The number of grids has to be the same on both dimensions.
-        method: 'float'
-            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
-        cmap: 'float'
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
-        normalize: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
-            outlier's variation space is a.
-        density: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
-            outlier's variation space is a.
-        lim: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
-            outlier's variation space is a.
-        const_alpha: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
-            outlier's variation space is a.
-        kernellen: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
-            outlier's variation space is a.
-        V_threshold: `float` or `None` (default: None)
-            The threshold of velocity value for visualization
-        vector: `str` (default: `velocity`)
-            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
-            acceleration field will be plotted.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
+    Args:
+        adata: an AnnData object that contains U_grid and V_grid data.
+        basis: the dimension reduction method to use. Defaults to "umap".
+        U_grid: original velocity on the first dimension of a 2 d grid. Defaults to None.
+        V_grid: original velocity on the second dimension of a 2 d grid. Defaults to None.
+        xy_grid_nums: the number of grids in either x or y axis. The number of grids has to be the same on both
+            dimensions. Defaults to [50, 50].
+        method: the method to visualize the data. Defaults to "yt".
+        cmap: the colormap used to plot the figure. Defaults to "viridis".
+        normalize: whether to normalize the original data. Defaults to False.
+        density: density of the streamlines. Defaults to 1.
+        lim: the value of line integral convolution will be clipped to the range of lim, which applies upper and lower
+            bounds to the values of line integral convolution and enhance the visibility of plots. Each element should
+            be in the range of [0,1].. Defaults to (0, 1).
+        const_alpha: whether to prevent the alpha from being weighted spatially by the values of line integral
+            convolution; otherwise a constant value of the given alpha is used. Defaults to False.
+        kernellen: the lens of kernel for convolution, which is the length over which the convolution will be performed.
+            For longer kernellen, longer streamline structure will appear. Defaults to 100.
+        V_threshold: the threshold of velocity value for visualization. Defaults to None.
+        vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
+            field or acceleration field will be plotted. Defaults to "velocity".
+        file: the path to save the slice figure. Defaults to None.
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
+        g_kwargs_dict: any other kwargs that would be passed to `dynamo.tl.grid_velocity_filter`. Defaults to {}.
 
-    Returns
-    -------
-        Nothing, but plot the vector field with quiver, streamline and line integral convolution (LIC).
+    Raises:
+        Exception: _description_
+        Exception: _description_
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be True, the generated `yt.SlicePlot` will
+        be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -534,7 +538,7 @@ def line_integral_conv(
         # plot_LIC_gray(velocyto_tex)
         pass
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "line_integral_conv",
@@ -546,11 +550,14 @@ def line_integral_conv(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return slc
 
 
@@ -568,75 +575,134 @@ def cell_wise_vectors(
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
     values: Optional[list] = None,
-    theme: Optional[str] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
     cmap: Optional[str] = None,
-    color_key: Union[dict, list] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
     color_key_cmap: Optional[str] = None,
     background: Optional[str] = "white",
     ncols: int = 4,
-    pointsize: Union[None, float] = None,
-    figsize: tuple = (6, 4),
-    show_legend="on data",
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float, float] = (6, 4),
+    show_legend: str = "on data",
     use_smoothed: bool = True,
     ax: Optional[Axes] = None,
-    sort: str = "raw",
+    sort: Literal["raw", "abs", "neg"] = "raw",
     aggregate: Optional[str] = None,
     show_arrowed_spines: bool = False,
-    inverse: True = False,
+    inverse: bool = False,
     cell_inds: str = "all",
     quiver_size: Optional[float] = 1,
     quiver_length: Optional[float] = None,
     vector: str = "velocity",
     frontier: bool = False,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    s_kwargs_dict: dict = {},
-    projection: str = "2d",
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    s_kwargs_dict: Dict[str, Any] = {},
+    projection: Literal["2d", "3d"] = "2d",
     **cell_wise_kwargs,
-):
+) -> Optional[List[Axes]]:
     """Plot the velocity or acceleration vector of each cell.
-    Parameters
-    ----------
-        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
-        ekey: `str` (default: "M_s")
-            The expression key
-        vkey: `str` (default: "velocity_S")
-            The velocity key
-        inverse: `bool` (default: False)
-            Whether to inverse the direction of the velocity vectors.
-        cell_inds: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell indices) or str
-            (Cell names).
-        quiver_size: `float` or None (default: None)
-            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to
-            calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
+
+    Args:
+        adata: an AnnData object.
+        basis: the reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following
+            priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters`
+            is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`.
+            Defaults to "umap".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        z: the column index of the low dimensional embedding for the z-axis. Defaults to 2.
+        ekey: the expression key. Defaults to "M_s".
+        vkey: the velocity key. Defaults to "velocity_S".
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        layer: the layer of data to use for the scatter plot. Defaults to "X".
+        highlights: the color group that will be highlighted. If highligts is a list of lists, each list is relate to
+            each color element. Defaults to None.
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Available themes are: {'blue', 'red', 'green', 'inferno', 'fire', 'viridis', 'darkblue',
+            'darkred', 'darkgreen'}. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        ncols: the number of columns for the figure. Defaults to 4.
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        figsize: the width and height of a figure. Defaults to (6, 4).
+        show_legend: whether to display a legend of the labels. Defaults to "on data".
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        ax: the matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
+            Defaults to None.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw".
+        aggregate: the column in adata.obs that will be used to aggregate data points. Defaults to None.
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        inverse: whether to inverse the direction of the velocity vectors. Defaults to False.
+        cell_inds: the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell indices)
+            or str (Cell names). Defaults to "all".
+        quiver_size: the size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is
+            used to calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
             quiver_size) of the quiver. This is done via the `default_quiver_args` function which also calculate the
-            scale of the quiver (1 / quiver_length).
-        quiver_length: `float` or None (default: None)
-            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe
-            applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
-            of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
-            scale parameter makes the arrow longer.
-        vector: `str` (default: `velocity`)
-            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
-            acceleration field will be plotted.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
-            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
-            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
-            paper: https://science.sciencemag.org/content/367/6482/1151.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        s_kwargs_dict: `dict` (default: {})
-            The dictionary of the scatter arguments.
-        cell_wise_kwargs:
-            Additional parameters that will be passed to plt.quiver function
-    Returns
-    -------
-        Nothing but a cell wise quiver plot.
+            scale of the quiver (1 / quiver_length). Defaults to 1.
+        quiver_length: the length of quiver. The quiver length which will be used to calculate scale of quiver. Note
+            that befoe applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler
+            function. Scale of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot
+            width; a smaller scale parameter makes the arrow longer. Defaults to None.
+        vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
+            field or acceleration field will be plotted. Defaults to "velocity".
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
+        save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
+        s_kwargs_dict: any other kwargs that will be passed to `dynamo.pl.scatters`. Defaults to {}.
+        projection: the projection property of the matplotlib.Axes. Defaults to "2d".
+
+    Raises:
+        ValueError: invalid `x` or `y`.
+        NotImplementedError: Invalid `projection`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be `return`, the matplotlib axes of the
+        generated subplots would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -647,6 +713,9 @@ def cell_wise_vectors(
         projection_dim_indexer = [x, y]
     elif projection == "3d":
         projection_dim_indexer = [x, y, z]
+    else:
+        projection_dim_indexer = [x, y]
+
     if type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
@@ -686,7 +755,7 @@ def cell_wise_vectors(
     elif projection == "3d":
         df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
     else:
-        raise NotImplementedError
+        raise NotImplementedError("Projection method %s is not implemented" % projection)
 
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
@@ -800,7 +869,7 @@ def cell_wise_vectors(
             )
         ax.set_facecolor(background)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "cell_wise_vector",
@@ -812,283 +881,15 @@ def cell_wise_vectors(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if projection != "3d":
             plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
-        return axes_list
-
-
-@docstrings.with_indent(4)
-def cell_wise_vectors(
-    adata: AnnData,
-    basis: str = "umap",
-    x: int = 0,
-    y: int = 1,
-    z: int = 2,
-    ekey: str = "M_s",
-    vkey: str = "velocity_S",
-    color: Union[str, List[str]] = "ntr",
-    layer: str = "X",
-    highlights: Optional[list] = None,
-    labels: Optional[list] = None,
-    values: Optional[list] = None,
-    theme: Optional[str] = None,
-    cmap: Optional[str] = None,
-    color_key: Union[dict, list] = None,
-    color_key_cmap: Optional[str] = None,
-    background: Optional[str] = "white",
-    ncols: int = 4,
-    pointsize: Union[None, float] = None,
-    figsize: tuple = (6, 4),
-    show_legend="on data",
-    use_smoothed: bool = True,
-    ax: Optional[Axes] = None,
-    sort: str = "raw",
-    aggregate: Optional[str] = None,
-    show_arrowed_spines: bool = False,
-    inverse: True = False,
-    cell_inds: str = "all",
-    quiver_size: Optional[float] = 1,
-    quiver_length: Optional[float] = None,
-    vector: str = "velocity",
-    frontier: bool = False,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    s_kwargs_dict: dict = {},
-    projection: str = "2d",
-    **cell_wise_kwargs,
-):
-    """Plot the velocity or acceleration vector of each cell.
-
-    Parameters
-    ----------
-        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
-        ekey: `str` (default: "M_s")
-            The expression key
-        vkey: `str` (default: "velocity_S")
-            The velocity key
-        inverse: `bool` (default: False)
-            Whether to inverse the direction of the velocity vectors.
-        cell_inds: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell indices) or str
-            (Cell names).
-        quiver_size: `float` or None (default: None)
-            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to
-            calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
-            quiver_size) of the quiver. This is done via the `default_quiver_args` function which also calculate the
-            scale of the quiver (1 / quiver_length).
-        quiver_length: `float` or None (default: None)
-            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe
-            applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
-            of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
-            scale parameter makes the arrow longer.
-        vector: `str` (default: `velocity`)
-            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
-            acceleration field will be plotted.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
-            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
-            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
-            paper: https://science.sciencemag.org/content/367/6482/1151.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        s_kwargs_dict: `dict` (default: {})
-            The dictionary of the scatter arguments.
-        cell_wise_kwargs:
-            Additional parameters that will be passed to plt.quiver function
-    Returns
-    -------
-        Nothing but a cell wise quiver plot.
-    """
-
-    import matplotlib.pyplot as plt
-    from matplotlib import rcParams
-    from matplotlib.colors import to_hex
-
-    if projection == "2d":
-        projection_dim_indexer = [x, y]
-    elif projection == "3d":
-        projection_dim_indexer = [x, y, z]
-    else:
-        projection_dim_indexer = [x, y]
-
-    if type(x) == str and type(y) == str:
-        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
-            raise ValueError(
-                "If you want to plot the vector flow of two genes, please make sure those two genes "
-                "belongs to dynamics genes or .var.use_for_dynamics is True."
-            )
-        X = adata[:, projection_dim_indexer].layers[ekey].A
-        V = adata[:, projection_dim_indexer].layers[vkey].A
-        layer = ekey
-    else:
-        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
-            X = adata.obsm["X_" + basis][:, projection_dim_indexer]
-            V = adata.obsm[vector + "_" + basis][:, projection_dim_indexer]
-        else:
-            if "X_" + basis not in adata.obsm.keys():
-                layer, basis = basis.split("_")
-                reduceDimension(adata, layer=layer, reduction_method=basis)
-            if "kmc" not in adata.uns_keys():
-                cell_velocities(adata, vkey="velocity_S", basis=basis)
-                X = adata.obsm["X_" + basis][:, projection_dim_indexer]
-                V = adata.obsm[vector + "_" + basis][:, projection_dim_indexer]
-            else:
-                kmc = adata.uns["kmc"]
-                X = adata.obsm["X_" + basis][:, projection_dim_indexer]
-                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-                adata.obsm[vector + "_" + basis] = V
-
-    X, V = X.copy(), V.copy()
-
-    V /= 3 * quiver_autoscaler(X, V)
-    if inverse:
-        V = -V
-    df = None
-    main_info("X shape: " + str(X.shape) + " V shape: " + str(V.shape))
-    if projection == "2d":
-        df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
-    elif projection == "3d":
-        df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
-    else:
-        raise NotImplementedError
-
-    if cell_inds == "all":
-        ix_choice = np.arange(adata.shape[0])
-    elif cell_inds == "random":
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
-    elif type(cell_inds) is int:
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
-    elif type(cell_inds) is list:
-        if type(cell_inds[0]) is str:
-            cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
-        ix_choice = cell_inds
-
-    df = df.iloc[ix_choice, :]
-
-    if background is None:
-        _background = rcParams.get("figure.facecolor")
-        background = to_hex(_background) if type(_background) is tuple else _background
-
-    if quiver_size is None:
-        quiver_size = 1
-    if background == "black":
-        edgecolors = "white"
-    else:
-        edgecolors = "black"
-
-    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
-    quiver_kwargs = {
-        "angles": "xy",
-        "scale": scale,
-        "scale_units": "xy",
-        "width": 0.0005,
-        "headwidth": head_w,
-        "headlength": head_l,
-        "headaxislength": ax_l,
-        "minshaft": 1,
-        "minlength": 1,
-        "pivot": "tail",
-        "linewidth": 0.1,
-        "edgecolors": edgecolors,
-        "alpha": 1,
-        "zorder": 10,
-    }
-    quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
-    quiver_3d_kwargs = {"arrow_length_ratio": scale}
-
-    axes_list, color_list, _ = scatters(
-        adata=adata,
-        basis=basis,
-        x=x,
-        y=y,
-        z=z,
-        color=color,
-        layer=layer,
-        highlights=highlights,
-        labels=labels,
-        values=values,
-        theme=theme,
-        cmap=cmap,
-        color_key=color_key,
-        color_key_cmap=color_key_cmap,
-        background=background,
-        ncols=ncols,
-        pointsize=pointsize,
-        figsize=figsize,
-        show_legend=show_legend,
-        use_smoothed=use_smoothed,
-        aggregate=aggregate,
-        show_arrowed_spines=show_arrowed_spines,
-        ax=ax,
-        sort=sort,
-        save_show_or_return="return",
-        frontier=frontier,
-        projection=projection,
-        **s_kwargs_dict,
-        return_all=True,
-    )
-
-    # single axis output
-    if type(axes_list) != list:
-        axes_list = [axes_list]
-    x0, x1 = df.iloc[:, 0], df.iloc[:, 1]
-    v0, v1 = df.iloc[:, 2], df.iloc[:, 3]
-
-    if projection == "3d":
-        x0, x1, x2 = df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2]
-        v0, v1, v2 = df.iloc[:, 3], df.iloc[:, 4], df.iloc[:, 5]
-
-    for i in range(len(axes_list)):
-        ax = axes_list[i]
-        if projection == "2d":
-            ax.quiver(
-                x0,
-                x1,
-                v0,
-                v1,
-                color=color_list[i],
-                facecolors=color_list[i],
-                **quiver_kwargs,
-            )
-        elif projection == "3d":
-            ax.quiver(
-                x0,
-                x1,
-                x2,
-                v0,
-                v1,
-                v2,
-                # color=color_list[i],
-                # facecolors=color_list[i],
-                **quiver_3d_kwargs,
-            )
-        ax.set_facecolor(background)
-
-    if save_show_or_return == "save":
-        s_kwargs = {
-            "path": None,
-            "prefix": "cell_wise_vector",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
-        if projection != "3d":
-            plt.tight_layout()
-        plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list
 
 
@@ -1105,90 +906,142 @@ def grid_vectors(
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
     values: Optional[list] = None,
-    theme: Optional[str] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
     cmap: Optional[str] = None,
-    color_key: Union[dict, list] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
     color_key_cmap: Optional[str] = None,
     background: Optional[str] = "white",
     ncols: int = 4,
-    pointsize: Union[None, float] = None,
-    figsize: tuple = (6, 4),
-    show_legend="on data",
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float] = (6, 4),
+    show_legend: str = "on data",
     use_smoothed: bool = True,
     ax: Optional[Axes] = None,
-    sort: str = "raw",
+    sort: Literal["raw", "abs", "neg"] = "raw",
     aggregate: Optional[str] = None,
     show_arrowed_spines: bool = False,
     inverse: bool = False,
     cell_inds: Union[str, list] = "all",
-    method: str = "gaussian",
-    xy_grid_nums: list = [50, 50],
+    method: Literal["SparseVFC", "gaussian"] = "gaussian",
+    xy_grid_nums: Tuple[int, int] = (50, 50),
     cut_off_velocity: bool = True,
     quiver_size: Optional[float] = None,
     quiver_length: Optional[float] = None,
     vector: str = "velocity",
     frontier: bool = False,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    s_kwargs_dict: dict = {},
-    q_kwargs_dict: dict = {},
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    s_kwargs_dict: Dict[str, Any] = {},
+    q_kwargs_dict: Dict[str, Any] = {},
     **grid_kwargs,
-):
+) -> Union[List[Axes], Axes, None]:
     """Plot the velocity or acceleration vector of each cell on a grid.
 
-    Parameters
-    ----------
-        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
-        ekey: `str` (default: "M_s")
-            The expression key
-        vkey: `str` (default: "velocity_S")
-            The velocity key
-        inverse: `bool` (default: False)
-            Whether to inverse the direction of the velocity vectors.
-        cell_inds: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer
-            indices)  or str (Cell names).
-        method: `str` (default: `SparseVFC`)
-            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical
-            method Gaussian kernel method from RNA velocity (Gaussian).
-        xy_grid_nums: `tuple` (default: (50, 50))
-            the number of grids in either x or y axis.
-        cut_off_velocity: `bool` (default: True)
-            Whether to remove small velocity vectors from the recovered the vector field grid, either through the simple
-            Gaussian kernel (applicable to 2D) or the powerful sparseVFC approach.
-        quiver_size: `float` or None (default: None)
-            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to
-            calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
+    Args:
+        adata: an AnnData object.
+        basis: the reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following
+            priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters`
+            is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`.
+            Defaults to "umap".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        ekey: the expression key. Defaults to "M_s".
+        vkey: the velocity key. Defaults to "velocity_S".
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        layer: the layer of data to use for the scatter plot. Defaults to "X".
+        highlights: the color group that will be highlighted. If highligts is a list of lists, each list is relate to
+            each color element. Defaults to None.
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Available themes are: {'blue', 'red', 'green', 'inferno', 'fire', 'viridis', 'darkblue',
+            'darkred', 'darkgreen'}. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        ncols: the number of columns for the figure. Defaults to 4.
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        figsize: the width and height of a figure. Defaults to (6, 4).
+        show_legend: whether to display a legend of the labels. Defaults to "on data".
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        ax: the matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
+            Defaults to None.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw".
+        aggregate: the column in adata.obs that will be used to aggregate data points. Defaults to None.
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        inverse: whether to inverse the direction of the velocity vectors. Defaults to False.
+        cell_inds: the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer
+            indices) or str (Cell names). Defaults to "all".
+        method: method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the
+            empirical method Gaussian kernel method from RNA velocity (Gaussian). Defaults to "gaussian".
+        xy_grid_nums: the number of grids in either x or y axis. Defaults to (50, 50).
+        cut_off_velocity: whether to remove small velocity vectors from the recovered the vector field grid, either
+            through the simple Gaussian kernel (applicable to 2D) or the powerful sparseVFC approach. Defaults to True.
+        quiver_size: the size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is
+            used to calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
             quiver_size) of the quiver. This is done via the `default_quiver_args` function which also calculate the
-            scale of the quiver (1 / quiver_length).
-        quiver_length: `float` or None (default: None)
-            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe
-            applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
-            of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
-            scale parameter makes the arrow longer.
-        vector: `str` (default: `velocity`)
-            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
-            acceleration field will be plotted.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
-            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
-            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
-            paper: https://science.sciencemag.org/content/367/6482/1151.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        s_kwargs_dict: `dict` (default: {})
-            The dictionary of the scatter arguments.
-        q_kwargs_dict: `dict` (default: {})
-            The dictionary of the quiver arguments.
-        grid_kwargs:
-            Additional parameters that will be passed to velocity_on_grid function.
+            scale of the quiver (1 / quiver_length). Defaults to None.
+        quiver_length: the length of quiver. The quiver length which will be used to calculate scale of quiver. Note
+            that befoe applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler
+            function. Scale of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot
+            width; a smaller scale parameter makes the arrow longer. Defaults to None.
+        vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
+            field or acceleration field will be plotted. Defaults to "velocity".
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
+        save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs.. Defaults to {}.
+        s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {}.
+        q_kwargs_dict: any other kwargs that would be passed to `pyplot.quiver`. Defaults to {}.
+        **grid_kwargs: any other kwargs that would be passed to `dynamo.tl.grid_velocity_filter`.
 
-    Returns
-    -------
-        Nothing but a quiver plot on the grid.
+    Raises:
+        ValueError: invalid `x` or `y`.
+        NotImplementedError: invalid `method`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be `return`, the matplotlib axes of the
+        generated subplots would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -1300,7 +1153,7 @@ def grid_vectors(
             adata.uns["grid_velocity_" + basis]["VecFld"]["D"],
         )
     else:
-        raise Exception(
+        raise NotImplementedError(
             "Vector field learning method {} is not supported or the grid velocity is collected for "
             "the current adata object.".format(method)
         )
@@ -1381,7 +1234,7 @@ def grid_vectors(
         axes_list.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
         axes_list.set_facecolor(background)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "grid_velocity",
@@ -1393,11 +1246,14 @@ def grid_vectors(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list
 
 
@@ -1414,83 +1270,136 @@ def streamline_plot(
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
     values: Optional[list] = None,
-    theme: Optional[str] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
     cmap: Optional[str] = None,
-    color_key: Union[dict, list] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
     color_key_cmap: Optional[str] = None,
     background: Optional[str] = "white",
     ncols: int = 4,
-    pointsize: Union[None, float] = None,
-    figsize: tuple = (6, 4),
-    show_legend="on data",
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float, float] = (6, 4),
+    show_legend: str = "on data",
     use_smoothed: bool = True,
     ax: Optional[Axes] = None,
-    sort: str = "raw",
+    sort: Literal["raw", "abs", "neg"] = "raw",
     aggregate: Optional[str] = None,
     show_arrowed_spines: bool = False,
     inverse: bool = False,
     cell_inds: Union[str, list] = "all",
-    method: str = "gaussian",
-    xy_grid_nums: list = [50, 50],
+    method: Literal["gaussian", "SparseVFC"] = "gaussian",
+    xy_grid_nums: Tuple[int, int] = (50, 50),
     cut_off_velocity: bool = True,
     density: float = 1,
     linewidth: float = 1,
     streamline_alpha: float = 1,
     vector: str = "velocity",
     frontier: bool = False,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    s_kwargs_dict: dict = {},
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    s_kwargs_dict: Dict[str, Any] = {},
     **streamline_kwargs,
-):
+) -> List[Axes]:
     """Plot the velocity vector of each cell.
 
-    Parameters
-    ----------
-        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
-        ekey: `str` (default: "M_s")
-            The expression key
-        vkey: `str` (default: "velocity_S")
-            The velocity key
-        inverse: `bool` (default: False)
-            Whether to inverse the direction of the velocity vectors.
-        cell_inds: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer
-            indices) or str (Cell names).
-        method: `str` (default: `SparseVFC`)
-            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical
-            method Gaussian kernel method from RNA velocity (Gaussian).
-        xy_grid_nums: `tuple` (default: (50, 50))
-            the number of grids in either x or y axis.
-        cut_off_velocity: `bool` (default: True)
-            Whether to remove small velocity vectors from the recovered the vector field grid, either through the simple
-            Gaussian kernel (applicable only to 2D) or the powerful sparseVFC approach.
-        density: `float` or None (default: 1)
-            density of the plt.streamplot function.
-        linewidth: `float` or None (default: 1)
-            multiplier of automatically calculated linewidth passed to the plt.streamplot function.
-        streamline_alpha: `float` or None (default: 1)
-            The alpha value applied to the vector field stream lines.
-        vector: `str` (default: `velocity`)
-            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
-            acceleration field will be plotted.
-        frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
-            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
-            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
-            paper: https://science.sciencemag.org/content/367/6482/1151.
-       save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        s_kwargs_dict: `dict` (default: {})
-            The dictionary of the scatter arguments.
-        streamline_kwargs:
-            Additional parameters that will be passed to plt.streamplot function
-    Returns
-    -------
-        Nothing but a streamline plot that integrates paths in the vector field.
+    Args:
+        adata: an AnnData object.
+        basis: the reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following
+            priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters`
+            is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`.
+            Defaults to "umap".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        ekey: the expression key. Defaults to "M_s".
+        vkey: the velocity key. Defaults to "velocity_S".
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        layer: the layer of data to use for the scatter plot. Defaults to "X".
+        highlights: the color group that will be highlighted. If highligts is a list of lists, each list is relate to
+            each color element. Defaults to None.
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Available themes are: {'blue', 'red', 'green', 'inferno', 'fire', 'viridis', 'darkblue',
+            'darkred', 'darkgreen'}. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        ncols: the number of columns for the figure. Defaults to 4.
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        figsize: the width and height of a figure. Defaults to (6, 4).
+        show_legend: whether to display a legend of the labels. Defaults to "on data".
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        ax: the matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
+            Defaults to None.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw".
+        aggregate: the column in adata.obs that will be used to aggregate data points. Defaults to None.
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        inverse: whether to inverse the direction of the velocity vectors. Defaults to False.
+        cell_inds: the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer
+            indices) or str (Cell names). Defaults to "all".
+        method: the method to reconstruct the vector field. Currently, it supports either SparseVFC (default) or the
+            empirical method Gaussian kernel method from RNA velocity (Gaussian). Defaults to "gaussian".
+        xy_grid_nums: the number of grids in either x or y axis. Defaults to (50, 50).
+        cut_off_velocity: whether to remove small velocity vectors from the recovered the vector field grid, either
+            through the simple Gaussian kernel (applicable only to 2D) or the powerful sparseVFC approach. Defaults to True.
+        density: density of the `plt.streamplot` function. Defaults to 1.
+        linewidth: multiplier of automatically calculated linewidth passed to the `plt.streamplot function`. Defaults
+            to 1.
+        streamline_alpha: the alpha value applied to the vector field streamlines. Defaults to 1.
+        vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
+            field or acceleration field will be plotted. Defaults to "velocity".
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
+        save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'streamline_plot', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs.. Defaults to {}.
+        s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {}.
+
+    Raises:
+        ValueError: invalid `x` or `y`.
+        NotImplementedError: invalid `method`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to 'return', the matplotlib Axes objects of
+        the subplots would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -1602,7 +1511,7 @@ def streamline_plot(
             adata.uns["grid_velocity_" + basis]["VecFld"]["D"],
         )
     else:
-        raise Exception(
+        raise NotImplementedError(
             "Vector field learning method {} is not supported or the grid velocity is collected for "
             "the current adata object.".format(method)
         )
@@ -1691,7 +1600,7 @@ def streamline_plot(
             ax = axes_list[i]
             streamplot_2d(ax)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "streamline_plot",
@@ -1703,12 +1612,14 @@ def streamline_plot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
-        # TODO: fix bug: the following line causing plotting issue
-        # plt.tight_layout()
+    if save_show_or_return in ["show", "both", "all"]:
+        plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list
 
 
@@ -1719,39 +1630,35 @@ def plot_energy(
     adata: AnnData,
     basis: Optional[str] = None,
     vecfld_dict: Optional[dict] = None,
-    figsize: Optional[tuple] = None,
+    figsize: Optional[Tuple[float, float]] = None,
     fig: Optional[Figure] = None,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[Figure]:
     """Plot the energy and energy change rate over each optimization iteration.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object with vector field function reconstructed.
-        basis: `str` or None (default: `None`)
-            The reduced dimension embedding (pca or umap, for example) of cells from which vector field function was
+    Args:
+        adata: an Annodata object with vector field function reconstructed.
+        basis: the reduced dimension embedding (pca or umap, for example) of cells from which vector field function was
             reconstructed. When basis is None, the velocity vector field function building from the full gene expression
-            space is used.
-        vecfld_dict: `str` or None (default: `None`)
-            The dictionary storing the information for the reconstructed velocity vector field function. If None, the
-            corresponding dictionary stored in the adata object will be used.
-        figsize: `[float, float]` or `None` (default: None)
-            The width and height of the resulting figure when fig is set to be None.
-        fig: `matplotlib.figure.Figure` or None
-            The figure object where panels of the energy or energy change rate over iteration plots will be appended to.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
+            space is used. Defaults to None.
+        vecfld_dict: the dictionary storing the information for the reconstructed velocity vector field function. If
+            None, the corresponding dictionary stored in the adata object will be used. Defaults to None.
+        figsize: the width and height of the resulting figure when fig is set to be None. Defaults to None.
+        fig: the figure object where panels of the energy or energy change rate over iteration plots will be appended
+            to. Defaults to None.
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs.. Defaults to {}.
 
-    Returns
-    -------
-        Nothing, but plot the  energy or energy change rate each optimization iteration.
+    Raises:
+        ValueError: invalid `basis`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to 'return', the matplotlib Figure object
+        of the graph would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -1788,7 +1695,7 @@ def plot_energy(
         plt.xlabel("Iteration")
         plt.ylabel("Energy change rate")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "energy",
@@ -1800,9 +1707,12 @@ def plot_energy(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return fig

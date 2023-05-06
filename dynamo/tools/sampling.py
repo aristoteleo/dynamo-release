@@ -1,4 +1,9 @@
-from typing import Callable, Union
+from typing import List, Optional, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 from scipy.cluster.vq import kmeans2
@@ -9,20 +14,47 @@ from .utils import nearest_neighbors, timeit
 
 
 class TRNET:
-    def __init__(self, n_nodes, X, seed=19491001):
+    """Class for topology representing network sampling.
+
+    Attributes:
+        n_nodes: the number of nodes in the graph.
+        n_dim: the dimensions of the array to be sub-sampled.
+        X: coordinates associated to each element in original array to be sub-sampled.
+        seed: the randomization seed.
+        W: the sample graph.
+    """
+
+    def __init__(self, n_nodes: int, X: np.ndarray, seed: int = 19491001) -> None:
+        """Initialize the TRNET object.
+
+        Args:
+            n_nodes: the number of nodes in the graph.
+            X: coordinates associated to each element in original array to be sub-sampled.
+            seed: the randomization seed. Defaults to 19491001.
+        """
+
         self.n_nodes = n_nodes
         self.n_dims = X.shape[1]
         self.X = X
         self.seed = seed
         self.W = self.draw_sample(self.n_nodes)  # initialize the positions of nodes
 
-    def draw_sample(self, n_samples):
+    def draw_sample(self, n_samples: int) -> np.ndarray:
+        """Initialize the positions of nodes.
+
+        Args:
+            n_samples: the number of nodes.
+
+        Returns:
+            The initial positions of nodes.
+        """
+
         np.random.seed(self.seed)
 
         idx = np.random.randint(0, self.X.shape[0], n_samples)
         return self.X[idx]
 
-    def runOnce(self, p, l, ep, c):
+    def runOnce(self, p: np.ndarray, l: float, ep: float, c: float) -> None:
         # calc the squared distances ||w - p||^2
         D = p - self.W
         sD = np.zeros(self.n_nodes)
@@ -44,7 +76,9 @@ class TRNET:
             K = K[:, None]
             self.W[idx, :] += ep * np.exp(-K[idx] / l) * D[idx, :]
 
-    def run(self, tmax=200, li=0.2, lf=0.01, ei=0.3, ef=0.05, c=0):
+    def run(
+        self, tmax: int = 200, li: float = 0.2, lf: float = 0.01, ei: float = 0.3, ef: float = 0.05, c: float = 0
+    ) -> None:
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
@@ -56,7 +90,17 @@ class TRNET:
             # run once
             self.runOnce(P[t - 1], l, ep, c)
 
-    def run_n_pause(self, k0, k, tmax=200, li=0.2, lf=0.01, ei=0.3, ef=0.05, c=0):
+    def run_n_pause(
+        self,
+        k0: int,
+        k: int,
+        tmax: float = 200,
+        li: float = 0.2,
+        lf: float = 0.01,
+        ei: float = 0.3,
+        ef: float = 0.05,
+        c: int = 0,
+    ) -> None:
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
@@ -73,7 +117,19 @@ class TRNET:
 
 
 @timeit
-def trn(X, n, return_index=True, seed=19491001, **kwargs):
+def trn(X: np.ndarray, n: int, return_index: bool = True, seed: int = 19491001, **kwargs) -> np.ndarray:
+    """Sample method based on topology representing network.
+
+    Args:
+        X: coordinates associated to each element in original array to be sub-sampled.
+        n: the number of samples.
+        return_index: whether to return the indices of the sub-sampled array or the sample graph. Defaults to
+            True.
+        seed: the randomization seed. Defaults to 19491001.
+
+    Returns:
+        The sample graph or the indices of the sub-sampled array.
+    """
     trnet = TRNET(n, X, seed)
     trnet.run(**kwargs)
     if not return_index:
@@ -98,7 +154,17 @@ def trn(X, n, return_index=True, seed=19491001, **kwargs):
         return idx[:, 0]
 
 
-def sample_by_velocity(V, n, seed=19491001):
+def sample_by_velocity(V: np.ndarray, n: int, seed: int = 19491001) -> np.ndarray:
+    """Sample method based on velocity.
+
+    Args:
+        V: Velocity associated with each element in the sample array.
+        n: the number of samples.
+        seed: the randomization seed. Defaults to 19491001.
+
+    Returns:
+        The sample data array.
+    """
     np.random.seed(seed)
     tmp_V = np.linalg.norm(V, axis=1)
     p = tmp_V / np.sum(tmp_V)
@@ -106,7 +172,17 @@ def sample_by_velocity(V, n, seed=19491001):
     return idx
 
 
-def sample_by_kmeans(X, n, return_index=False):
+def sample_by_kmeans(X: np.ndarray, n: int, return_index: bool = False) -> Optional[np.ndarray]:
+    """Sample method based on kmeans.
+
+    Args:
+        X: coordinates associated to each element in `arr`.
+        n: the number of samples.
+        return_index: whether to return the sample indices. Defaults to False.
+
+    Returns:
+        The sample index array if `return_index` is True.
+    """
     C, _ = kmeans2(X, n)
     nbrs = nearest_neighbors(C, X, k=1).flatten()
 
@@ -116,26 +192,20 @@ def sample_by_kmeans(X, n, return_index=False):
         X[nbrs]
 
 
-def lhsclassic(n_samples: int, n_dim: int, bounds=None, seed=19491001):
-    """
-    Latin Hypercube Sampling method implemented from PyDOE.
+def lhsclassic(
+    n_samples: int, n_dim: int, bounds: Union[np.ndarray, List[List[float]]] = None, seed: int = 19491001
+) -> np.ndarray:
+    """Latin Hypercube Sampling method implemented from PyDOE.
 
-    Parameters
-    ----------
-        n_samples: int
-            Number of samples to be generated.
-        n_dim: int
-            Number of data dimensions.
-        bounds: None, list, or :class:`~numpy.ndarray`
-            n_dim-by-2 matrix where each row specifies the lower and upper bound for the corresponding dimension.
-            If None, it is assumed to be (0, 1) for every dimension.
-        seed: int
-            Randomization seed.
+    Args:
+        n_samples: the number of samples to be generated.
+        n_dim: the number of data dimensions.
+        bounds: n_dim-by-2 matrix where each row specifies the lower and upper bound for the corresponding dimension. If
+            None, it is assumed to be (0, 1) for every dimension. Defaults to None.
+        seed: the randomization seed. Defaults to 19491001.
 
-    Returns
-    -------
-        H: :class:`~numpy.ndarray`
-            The sampled data array (n_samples-by-n_dim).
+    Returns:
+        The sampled data array.
     """
 
     # Generate the intervals
@@ -167,39 +237,34 @@ def lhsclassic(n_samples: int, n_dim: int, bounds=None, seed=19491001):
 def sample(
     arr: Union[list, np.ndarray],
     n: int,
-    method: str = "random",
-    X: Union[np.ndarray, None] = None,
-    V: Union[np.ndarray, None] = None,
+    method: Literal["random", "velocity", "trn", "kmeans"] = "random",
+    X: Optional[np.ndarray] = None,
+    V: Optional[np.ndarray] = None,
     seed: int = 19491001,
     **kwargs,
-):
-    """
-    A collection of various sampling methods.
+) -> np.ndarray:
+    """A collection of various sampling methods.
 
-    Parameters
-    ----------
-        arr: list or :class:`~numpy.ndarray`
-            The array to be subsampled.
-        n: int
-            The number of samples.
-        method: str
-            Sampling method:
+    Args:
+        arr: the array to be sub-sampled.
+        n: the number of samples.
+        method: the method to be used.
             "random": randomly choosing `n` elements from `arr`;
             "velocity": Higher the velocity, higher the chance to be sampled;
             "trn": Topology Representing Network based sampling;
             "kmeans": `n` points that are closest to the kmeans centroids on `X` are chosen.
-        X: None or :class:`~numpy.ndarray`
-            Coordinates associated to each element in `arr`
-        V: None or :class:`~numpy.ndarray`
-            Velocity associated to each element in `arr`
-        seed: int
-            randomization seed
+            Defaults to "random".
+        X: coordinates associated to each element in `arr`. Defaults to None.
+        V: velocity associated to each element in `arr`. Defaults to None.
+        seed: the randomization seed. Defaults to 19491001.
 
-    Returns
-    -------
-        sub_arr: :class:`~numpy.ndarray`
-            The sampled data array.
+    Raises:
+        NotImplementedError: `method` is invalid.
+
+    Returns:
+        The sampled data array.
     """
+
     if method == "random":
         np.random.seed(seed)
         sub_arr = np.random.choice(arr, size=n, replace=False)

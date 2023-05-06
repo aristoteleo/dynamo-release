@@ -4,6 +4,7 @@ import os
 
 # import matplotlib.tri as tri
 import warnings
+from typing import Optional
 from warnings import warn
 
 import matplotlib
@@ -1258,18 +1259,14 @@ def arrowed_spines(ax, columns, background="white"):
 # vector field plot related utilities
 
 
-def quiver_autoscaler(X_emb, V_emb):
+def quiver_autoscaler(X_emb: np.ndarray, V_emb: np.ndarray) -> float:
     """Function to automatically calculate the value for the scale parameter of quiver plot, adapted from scVelo
 
-    Parameters
-    ----------
-        X_emb: `np.ndarray`
-            X, Y-axis coordinates
-        V_emb:  `np.ndarray`
-            Velocity (U, V) values on the X, Y-axis
+    Args:
+        X_emb: X, Y-axis coordinates
+        V_emb: Velocity (U, V) values on the X, Y-axis
 
-    Returns
-    -------
+    Returns:
         The scale for quiver plot
     """
 
@@ -1361,41 +1358,33 @@ def set_stream_line_alpha(s=None, alpha=1):
 
 
 def save_fig(
-    path=None,
-    prefix=None,
-    dpi=None,
-    ext="pdf",
-    transparent=True,
-    close=True,
-    verbose=True,
-):
+    path: Optional[str] = None,
+    prefix: Optional[str] = None,
+    dpi: Optional[int] = None,
+    ext: str = "pdf",
+    transparent: bool = True,
+    close: bool = True,
+    verbose: bool = True,
+) -> None:
     """Save a figure from pyplot.
-    code adapated from http://www.jesshamrick.com/2012/09/03/saving-figures-from-pyplot/
 
-    Parameters
-    ----------
-         path: `string`
-            The path (and filename, without the extension) to save_fig the
-            figure to.
-        prefix: `str` or `None`
-            The prefix added to the figure name. This will be automatically set
-            accordingly to the plotting function used.
-        dpi: [ None | scalar > 0 | 'figure' ]
-            The resolution in dots per inch. If None, defaults to rcParams["savefig.dpi"].
-            If 'figure', uses the figure's dpi value.
-        ext: `string` (default='pdf')
-            The file extension. This must be supported by the active
-            matplotlib backend (see matplotlib.backends module).  Most
-            backends support 'png', 'pdf', 'ps', 'eps', and 'svg'.
-        close: `boolean` (default=True)
-            Whether to close the figure after saving.  If you want to save_fig
-            the figure multiple times (e.g., to multiple formats), you
-            should NOT close it in between saves or you will have to
-            re-plot it.
-        verbose: boolean (default=True)
-            Whether to print information about when and where the image
-            has been saved.
+    Code adapated from http://www.jesshamrick.com/2012/09/03/saving-figures-from-pyplot/
+
+    Args:
+        path: the path (and filename, without the extension) to save_fig the figure to. Defaults to None.
+        prefix: the prefix added to the figure name. This will be automatically set accordingly to the plotting function
+            used. Defaults to None.
+        dpi: the resolution in dots per inch. If None, defaults to rcParams["savefig.dpi"]. If 'figure', uses the
+            figure's dpi value. Defaults to None.
+        ext: the file extension. This must be supported by the active matplotlib backend (see matplotlib.backends
+            module).  Most backends support 'png', 'pdf', 'ps', 'eps', and 'svg'. Defaults to "pdf".
+        transparent: whether to save the figure with axes patches and background transparent. Defaults to True.
+        close: whether to close the figure after saving.  If you want to save_fig the figure multiple times (e.g., to
+        multiple formats), you should NOT close it in between saves or you will have to re-plot it. Defaults to True.
+        verbose: whether to print information about when and where the image
+            has been saved. Defaults to True.
     """
+
     import matplotlib.pyplot as plt
 
     prefix = os.path.normpath(prefix)

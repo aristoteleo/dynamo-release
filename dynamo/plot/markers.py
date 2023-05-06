@@ -1,7 +1,17 @@
 import warnings
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
+from anndata import AnnData
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from scipy.sparse import issparse
 
 from ..configuration import _themes, reset_rcParams, set_figure_params
@@ -10,56 +20,51 @@ from .utils import save_fig
 
 
 def bubble(
-    adata,
-    genes,
-    group,
-    gene_order=None,
-    group_order=None,
-    layer=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="white",
-    pointsize=None,
-    vmin=0,
-    vmax=100,
-    sym_c=False,
-    alpha=0.8,
-    edgecolor=None,
-    linewidth=0,
-    type="violin",
-    sort="diagnoal",
-    transpose=False,
-    rotate_xlabel="horizontal",
-    rotate_ylabel="horizontal",
-    figsize=None,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    genes: List[str],
+    group: str,
+    gene_order: Optional[List[str]] = None,
+    group_order: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    theme: Optional[
+        Literal["blue", "red", "green", "inferno", "fire", "viridis", "darkblue", "darkred", "darkgreen"]
+    ] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[dict, npt.ArrayLike] = None,
+    color_key_cmap: Optional[str] = "Spectral",
+    background: Optional[str] = "white",
+    pointsize: Optional[float] = None,
+    vmin: float = 0,
+    vmax: float = 100,
+    sym_c: bool = False,
+    alpha: float = 0.8,
+    edgecolor: Optional[str] = None,
+    linewidth: float = 0,
+    type: Literal["violin", "dot"] = "violin",
+    sort: str = "diagnoal",
+    transpose: bool = False,
+    rotate_xlabel: Union[float, Literal["vertical", "horizontal"]] = "horizontal",
+    rotate_ylabel: Union[float, Literal["vertical", "horizontal"]] = "horizontal",
+    figsize: Optional[Tuple[float, float]] = None,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
+) -> Optional[Tuple[Figure, List[Axes]]]:
     """Bubble plots generalized to velocity, acceleration, curvature.
+
     It supports either the `dot` or `violin` plot mode. This function is loosely based on
     https://github.com/QuKunLab/COVID-19/blob/master/step3_plot_umap_and_marker_gene_expression.ipynb
 
-    # add sorting
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        genes: `list`
-            The gene list, i.e. marker gene or top acceleration, curvature genes, etc.
-        group: `str`
-            The column key in `adata.obs` that will be used to group cells.
-        gene_order: `None` or `list` (default: `None`)
-            The gene groups order that will show up in the resulting bubble plot.
-        group_order: `None` or `list` (default: `None`)
-            The cells groups order that will show up in the resulting bubble plot.
-        layer: `None` or `str` (default: `None`)
-            The layer of data to use for the bubble plot.
-        theme: string (optional, default None)
-            A color theme to use for plotting. A small set of
-            predefined themes are provided which have relatively
+    Args:
+        adata: an AnnData object.
+        genes: the gene list, i.e. marker gene or top acceleration, curvature genes, etc.
+        group: the column key in `adata.obs` that will be used to group cells.
+        gene_order: the gene groups order that will show up in the resulting bubble plot. If None, the order of `genes`
+            would be used. Defaults to None.
+        group_order: the cells groups order that will show up in the resulting bubble plot. If None,
+            `adata.obs['group']` would be used. Defaults to None.
+        layer: the layer of data to use for the bubble plot. Defaults to None.
+        theme: a color theme to use for plotting. A small set of predefined themes are provided which have relatively
             good aesthetics. Available themes are:
                * 'blue'
                * 'red'
@@ -69,86 +74,60 @@ def bubble(
                * 'viridis'
                * 'darkblue'
                * 'darkred'
-               * 'darkgreen'
-        cmap: string (optional, default 'Blues')
-            The name of a matplotlib colormap to use for coloring
-            or shading points. If no labels or values are passed
-            this will be used for shading points according to
-            density (largely only of relevance for very large
-            datasets). If values are passed this will be used for
-            shading according the value. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        color_key: dict or array, shape (n_categories) (optional, default None)
-            A way to assign colors to categoricals. This can either be
-            an explicit dict mapping labels to colors (as strings of form
-            '#RRGGBB'), or an array like object providing one color for
-            each distinct category being provided in ``labels``. Either
-            way this mapping will be used to color points according to
-            the label. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        color_key_cmap: string (optional, default 'Spectral')
-            The name of a matplotlib colormap to use for categorical coloring.
-            If an explicit ``color_key`` is not given a color mapping for
-            categories can be generated from the label list and selecting
-            a matching list of colors from the given colormap. Note
-            that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        background: string or None (optional, default 'None`)
-            The color of the background. Usually this will be either
-            'white' or 'black', but any color name will work. Ideally
-            one wants to match this appropriately to the colors being
-            used for points etc. This is one of the things that themes
-            handle for you. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        pointsize: `None` or `float` (default: None)
-            The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) *
-            pointsize`
-        vmin: `float` (default: `0`)
-            The percentage of minimal value to consider.
-        vmax: `float` (default: `100`)
-            The percentage of maximal value to consider.
-        sym_c: `bool` (default: `False`)
-            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
-            plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
-        alpha: `float` (default: `0.8`)
-            alpha value of the plot
-        edgecolor: `str` or `None` (default: `None`)
-            The color of the edge of the dots when type is to be `dot`.
-        linewidth: `str` or `None` (default: `None`)
-            The width of the edge of the dots when type is to be `dot`.
-        type: `str` (default: `violin`)
-            The type of the bubble plot, one of `{'violin', 'dot'}`.
-        figsize: `None` or `[float, float]` (default: None)
-            The width and height of a figure.
-        sort: `str` (default: `diagnol`)
-            The method for sorting genes. Not implemented. Need to implement in 2021.
-        transpose: `bool` (default: `False`)
-            Whether to transpose the row/column of the resulting bubble plot. Gene and cell types are on x/y-axis by
-            default.
-        rotate_xlabel: `float` (default: `horizontal`)
-            The angel to rotate the x-label.
-        rotate_ylabel: `float` (default: `horizontal`)
-            The angel to rotate the y-label.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
-        kwargs:
-            Additional arguments passed to plt.scatters or sns.violinplot.
+               * 'darkgreen'.
+            Defaults to None.
+        cmap: the name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        color_key: a way to assign colors to categoricals. This can either be an explicit dict mapping labels to colors
+            (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct category being
+            provided in `labels`. Either way this mapping will be used to color points according to the label. Note that
+            if theme is passed then this value will be overridden by the corresponding option of the theme. Defaults to
+            None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to "Spectral".
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to "white".
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        vmin: the percentage of minimal value to consider. Defaults to 0.
+        vmax: the percentage of maximal value to consider. Defaults to 100.
+        sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
+            for plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative
+            values. Defaults to False.
+        alpha: alpha value of the plot. Defaults to 0.8.
+        edgecolor: the color of the edge of the dots when type is to be `dot`. Defaults to None.
+        linewidth: the width of the edge of the dots when type is to be `dot`. Defaults to 0.
+        type: the type of the bubble plot, one of "violin" or "dot". Defaults to "violin".
+        sort: the method for sorting genes. Not implemented. Defaults to "diagnoal".
+        transpose: whether to transpose the row/column of the resulting bubble plot. Gene and cell types are on x/y-axis
+            by default. Defaults to False.
+        rotate_xlabel: the angel to rotate the x-label or "horizontal" or "vertical". Defaults to "horizontal".
+        rotate_ylabel: the angel to rotate the y-label or "horizontal" or "vertical".. Defaults to "horizontal".
+        figsize: the size of the figure. Defaults to None.
+        save_show_or_return: whether to save, show or return the figure. Can be one of "save", "show", or "return".
+            Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide
+            a dictionary that properly modify those keys according to your needs.. Defaults to {}.
 
+    Raises:
+        ValueError: `group` is not a column name of `adata.obs`
+        ValueError: gene name in `genes` is not found in `adata.vars`.
+        ValueError: `group_order` is not a subset of `adata.obs[group]`.
+        ValueError: `gene_order` is not a subset of `adata.var_names.intersection(set(genes)).to_list()`.
 
-    Returns
-    -------
-        Nothing but plot the bubble plots.
-
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be `return`, the matplotlib figure and
+        axes would be returned.
     """
+
     import matplotlib
     import matplotlib.pyplot as plt
     import seaborn as sns
@@ -337,7 +316,7 @@ def bubble(
                 )
         axes[igene].set_xlabel("") if transpose else axes[igene].set_ylabel("")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "violin",
@@ -349,10 +328,13 @@ def bubble(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
         if background is not None:
             reset_rcParams()
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
@@ -360,7 +342,7 @@ def bubble(
         plt.show()
         if background is not None:
             reset_rcParams()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         if background is not None:
             reset_rcParams()
 

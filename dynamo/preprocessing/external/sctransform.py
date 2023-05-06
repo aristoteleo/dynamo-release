@@ -8,7 +8,7 @@
 # =================================================================
 
 import os
-from multiprocessing import Manager, Pool
+from typing import Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -20,13 +20,32 @@ from anndata import AnnData
 from KDEpy import FFTKDE
 from scipy import stats
 
-from ..configuration import DKM
-from ..dynamo_logger import main_info, main_info_insert_adata_layer
+from ...configuration import DKM
+from ...dynamo_logger import main_info, main_info_insert_adata_layer
+from ..utils import get_gene_selection_filter
 
 _EPS = np.finfo(float).eps
 
 
-def robust_scale_binned(y, x, breaks):
+def robust_scale_binned(
+    y: np.ndarray,
+    x: np.ndarray,
+    breaks: np.ndarray,
+) -> np.ndarray:
+    """Scale the values of y based on their medians and absolute deviations in each bin defined by the breaks of x.
+
+    The scaling factor for each bin is determined by the median absolute deviation (MAD) of the residuals, which are
+    defined as the differences between the y values and their median in each bin, divided by a constant factor of
+    1.4826. This scaling is robust to the presence of outliers in each bin.
+
+    Args:
+        y: the array of values to be scaled. Must have the same length as x.
+        x: the array of values to define the bins for scaling. Must have the same length as y.
+        breaks: the sequence of break points for binning the x values. Must be sorted in increasing order.
+
+    Returns:
+        An array of the same shape as y, with the scaled values.
+   """
     bins = np.digitize(x, breaks)
     binsu = np.unique(bins)
     res = np.zeros(bins.size)
@@ -37,7 +56,21 @@ def robust_scale_binned(y, x, breaks):
     return res
 
 
-def is_outlier(y, x, th=10):
+def is_outlier(
+    y: np.ndarray,
+    x: np.ndarray,
+    th: Union[int, float] = 10,
+) -> np.ndarray:
+    """Identify outliers in a dataset using robust scaling and a FFTKDE density estimate.
+
+    Args:
+       y: the array of values to test for outliers.
+       x: an array of values corresponding to the locations of `y`.
+       th: threshold value for outlier detection.
+
+    Returns:
+       Boolean array indicating whether each value in `y` is an outlier (`True`) or not (`False`).
+   """
     z = FFTKDE(kernel="gaussian", bw="ISJ").fit(x)
     z.evaluate()
     bin_width = (max(x) - min(x)) * z.bw / 2
@@ -50,7 +83,14 @@ def is_outlier(y, x, th=10):
     return np.abs(np.vstack((score1, score2))).min(0) > th
 
 
-def _parallel_init(igenes_bin_regress, iumi_bin, ign, imm, ips):
+def _parallel_init(
+    igenes_bin_regress: np.ndarray,
+    iumi_bin: np.ndarray,
+    ign: np.ndarray,
+    imm: np.ndarray,
+    ips: Dict,
+) -> None:
+    """Initialize global variables used in parallel processing."""
     global genes_bin_regress
     global umi_bin
     global gn
@@ -63,7 +103,8 @@ def _parallel_init(igenes_bin_regress, iumi_bin, ign, imm, ips):
     ps = ips
 
 
-def _parallel_wrapper(j):
+def _parallel_wrapper(j: int) -> None:
+    """Helper function to fit Poisson regression to UMI counts."""
     name = gn[genes_bin_regress[j]]
     y = umi_bin[:, j].A.flatten()
     pr = statsmodels.discrete.discrete_model.Poisson(y, mm)
@@ -73,7 +114,24 @@ def _parallel_wrapper(j):
     ps[name] = np.append(res.params, theta)
 
 
-def gmean(X: scipy.sparse.spmatrix, axis=0, eps=1):
+def gmean(
+    X: scipy.sparse.spmatrix,
+    axis: int = 0,
+    eps: Union[int, float] = 1,
+) -> np.ndarray:
+    """Compute the geometric mean of the non-zero elements in each column (or row) of a sparse matrix.
+
+    Args:
+        X: the sparse matrix of shape (n_samples, n_features) whose columns (or rows) are to be averaged.
+        axis: the axis along which to average the columns (or rows). By default, the function averages over columns
+            (axis=0).
+        eps: A small positive number added to the elements of the sparse matrix before taking the logarithm. This is
+            necessary to avoid taking the logarithm of zero.
+
+    Returns:
+        An array of shape (n_features,) containing the geometric means of the non-zero elements in each column (or row)
+        of the input sparse matrix X.
+    """
     X = X.copy()
     X = X.asfptype()
     assert np.all(X.sum(0) > 0)
@@ -85,7 +143,19 @@ def gmean(X: scipy.sparse.spmatrix, axis=0, eps=1):
     return res
 
 
-def theta_ml(y, mu):
+def theta_ml(y: np.ndarray, mu: np.ndarray) -> float:
+    """Compute the maximum likelihood estimator of theta parameter.
+
+    This function uses an iterative algorithm to optimize the log-likelihood of the Poisson distribution with respect to
+    the theta parameter. The algorithm stops when the change in theta estimate is smaller than a threshold value.
+
+    Args:
+        y: the observed count data.
+        mu: the mean of the Poisson distribution.
+
+    Returns:
+        The maximum likelihood estimate of the theta parameter.
+    """
     n = y.size
     weights = np.ones(n)
     limit = 10
@@ -115,19 +185,36 @@ def theta_ml(y, mu):
 
 
 def sctransform_core(
-    adata,
-    layer=DKM.X_LAYER,
-    min_cells=5,
-    gmean_eps=1,
-    n_genes=2000,
-    n_cells=None,
-    bin_size=500,
-    bw_adjust=3,
-    inplace=True,
-):
+    adata: AnnData,
+    layer: Optional[str] = DKM.X_LAYER,
+    min_cells: int = 5,
+    gmean_eps: Union[int, float] = 1,
+    n_genes: int = 2000,
+    n_cells: Optional[int] = None,
+    bin_size: int = 500,
+    bw_adjust: int = 3,
+    inplace: bool = True,
+) -> Optional[AnnData]:
+    """A re-implementation of SCTransform from the Satija lab.
+
+    Args:
+        adata: an Annotated data matrix.
+        layer: the name of the layer to perform sctransform
+        min_cells: minimum number of cells expressing a gene to be included in sctransform.
+        gmean_eps: epsilon value to add to the geometric mean to avoid log(0) when calculating the log of geometric
+            mean.
+        n_genes: number of genes to be used for sctransform.
+        n_cells: number of cells to be used for sctransform. If None, use all cells.
+        bin_size: size of bins in which to group genes during sctransform.
+        bw_adjust: bandwidth adjustment factor for kernel density estimation.
+        inplace: whether to perform the sctransform in-place or return a copy of the original data matrix.
+
+    Returns:
+        If inplace=True, adata is updated with results in layer `layer`.
+        If inplace=False, a new AnnData object with results will be returned.
     """
-    A re-implementation of SCTransform from the Satija lab.
-    """
+    import multiprocessing
+
     main_info("sctransform adata on layer: %s" % (layer))
     X = DKM.select_layer_data(adata, layer).copy()
     X = sp.sparse.csr_matrix(X)
@@ -139,10 +226,8 @@ def sctransform_core(
     genes_ix = genes.copy()
 
     X = X[:, genes]
-    Xraw = X.copy()
     gene_names = gene_names[genes]
     genes = np.arange(X.shape[1])
-    genes_cell_count = X.sum(0).A.flatten()
 
     genes_log_gmean = np.log10(gmean(X, axis=0, eps=gmean_eps))
 
@@ -188,7 +273,10 @@ def sctransform_core(
     bin_ind = np.ceil(np.arange(1, genes_step1.size + 1) / bin_size)
     max_bin = max(bin_ind)
 
-    ps = Manager().dict()
+    ps = multiprocessing.Manager().dict()
+
+    # create a process context of fork that copy a Python process from an existing process.
+    ctx = multiprocessing.get_context("fork")
 
     for i in range(1, int(max_bin) + 1):
         genes_bin_regress = genes_step1[bin_ind == i]
@@ -197,7 +285,9 @@ def sctransform_core(
         mm = np.vstack((np.ones(data_step1.shape[0]), data_step1["log_umi"].values.flatten())).T
 
         pc_chunksize = umi_bin.shape[1] // os.cpu_count() + 1
-        pool = Pool(os.cpu_count(), _parallel_init, [genes_bin_regress, umi_bin, gene_names, mm, ps])
+
+        pool = ctx.Pool(os.cpu_count(), _parallel_init, [genes_bin_regress, umi_bin, gene_names, mm, ps])
+
         try:
             pool.map(_parallel_wrapper, range(umi_bin.shape[1]), chunksize=pc_chunksize)
         finally:
@@ -253,10 +343,6 @@ def sctransform_core(
     theta = 10**genes_log_gmean / (10 ** full_model_pars["dispersion"].values - 1)
     full_model_pars["theta"] = theta
     del full_model_pars["dispersion"]
-
-    model_pars_outliers = outliers
-
-    regressor_data = np.vstack((np.ones(cell_attrs.shape[0]), cell_attrs["log_umi"].values)).T
 
     d = X.data
     x, y = X.nonzero()
@@ -327,7 +413,19 @@ def sctransform_core(
         return adata_new
 
 
-def sctransform(adata: AnnData, layers: str = [DKM.X_LAYER], output_layer: str = None, n_top_genes=2000, **kwargs):
-    """a wrapper calls sctransform_core and set dynamo style keys in adata"""
+def sctransform(
+    adata: AnnData,
+    layers: str = [DKM.X_LAYER],
+    output_layer: str = None,
+    n_top_genes=2000,
+    **kwargs
+)-> Optional[AnnData]:
+    """A wrapper calls sctransform_core and set dynamo style keys in adata"""
     for layer in layers:
         sctransform_core(adata, layer=layer, n_genes=n_top_genes, **kwargs)
+    if adata.X.shape[1] > n_top_genes:
+        X_squared = adata.X.copy()
+        X_squared.data **= 2
+        variance = X_squared.mean(0) - np.square(adata.X.mean(0))
+        adata.var["sct_score"] = variance.A1
+        adata.var["use_for_pca"] = get_gene_selection_filter(adata.var["sct_score"], n_top_genes=n_top_genes)

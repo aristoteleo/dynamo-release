@@ -1,8 +1,21 @@
+from typing import Callable, Optional, Tuple
+
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import OptimizeResult, minimize
 
 
-def action(path, vf_func, D=1, dt=1):
+def action(path: np.ndarray, vf_func: Callable, D=1, dt=1) -> float:
+    """Compute the action of a path by taking the sum of the squared distance between the path and the vector field and dividing by twice the diffusion constant. Conceptually, the action represents deviations from the streamline of the vector field. Reference Box 3 in the publication for more information.
+
+    Args:
+        path: sequence of points in the state space collectively representing the path of interest
+        vf_func: function that takes a point in the state space and returns the vector field at that point
+        D: Diffusion constant, Defaults to 1.
+        dt: Time step for moving from one state to another within the path, Defaults to 1.
+
+    Returns:
+        the action of the path
+    """
     # centers
     x = (path[:-1] + path[1:]) * 0.5
     v = np.diff(path, axis=0) / dt
@@ -18,7 +31,19 @@ def action_aux(path_flatten, vf_func, dim, start=None, end=None, **kwargs):
     return action(path, vf_func, **kwargs)
 
 
-def action_grad(path, vf_func, jac_func, D=1, dt=1):
+def action_grad(path: np.ndarray, vf_func: Callable, jac_func: Callable, D: float = 1, dt: float = 1) -> np.ndarray:
+    """Compute the gradient of the action with respect to each component of each point in the path using the analytical Jacobian.
+
+    Args:
+        path: sequence of points in the state space collectively representing the path of interest
+        vf_func: function that takes a point in the state space and returns the vector field at that point
+        jac_func: function for computing Jacobian given cell state
+        D: Diffusion constant, Defaults to 1.
+        dt: Time step for moving from one state to another within the path, Defaults to 1.
+
+    Returns:
+        gradient of the action with respect to each component of each point in the path
+    """
     x = (path[:-1] + path[1:]) * 0.5
     v = np.diff(path, axis=0) / dt
 
@@ -45,7 +70,30 @@ def reshape_path(path_flatten, dim, start=None, end=None):
     return path
 
 
-def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1):
+def least_action_path(
+    start: np.ndarray,
+    end: np.ndarray,
+    vf_func: Callable,
+    jac_func: Callable,
+    n_points: int = 20,
+    init_path: Optional[np.ndarray] = None,
+    D: int = 1,
+) -> Tuple[np.ndarray, OptimizeResult]:
+    """Compute the least action path between two points using gradient descent optimization.
+
+    Args:
+        start: The starting point for the path
+        end: The ending point for the path
+        vf_func: A function that returns the vector field of the system at a given point.
+        jac_func: A function that returns the Jacobian at a given point.
+        n_points: The number of intermediate points to use when initializing the path. Defaults to 20.
+        init_path: An optional initial path to use instead of the default initialization. Defaults to None.
+        D: The diffusion constant. Defaults to 1.
+
+    Returns:
+        A tuple containing the optimized least action path and the optimization result. The least action path is a numpy array of shape (n_points + 2, D), where n_points is the number of intermediate points used in the initialization and D is the dimension of start and end. The optimization result is a scipy.optimize.OptimizeResult object containing information about the optimization process.
+    """
+
     dim = len(start)
     if init_path is None:
         path_0 = (
