@@ -8,6 +8,7 @@ except ImportError:
     from typing_extensions import Literal
 
 import anndata
+import functools
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -58,6 +59,19 @@ from .utils import (
 
 from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_debug, main_warning
+
+
+def deprecated(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        warnings.warn(
+            f"{func.__name__} is deprecated and will be removed in a future release. "
+            f"Please update your code to use the new replacement function.",
+            category=DeprecationWarning,
+            stacklevel=2
+        )
+        return func(*args, **kwargs)
+    return wrapper
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -123,7 +137,12 @@ def _hat_matrix(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     return np.dot(WsqrtX, np.dot(XtWX_inv, XtWsqrt))
 
 
-def cook_dist(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarray:
+@deprecated
+def cook_dist(*args, **kwargs):
+    _cook_dist(*args, **kwargs)
+
+
+def _cook_dist(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarray:
     """calculate Cook's distance
 
     Args:
@@ -504,7 +523,12 @@ def calc_mean_var_dispersion_sparse(sparse_mat: csr_matrix, axis: int = 0) -> Tu
     return np.array(mean).flatten(), np.array(var).flatten(), np.array(dispersion).flatten()
 
 
-def calc_sz_factor_legacy(
+@deprecated
+def calc_sz_factor_legacy(*args, **kwargs):
+    _calc_sz_factor_legacy(*args, **kwargs)
+
+
+def _calc_sz_factor_legacy(
     adata_ori: anndata.AnnData,
     layers: Union[str, list] = "all",
     total_layers: Union[list, None] = None,
@@ -634,7 +658,12 @@ def calc_sz_factor_legacy(
     return adata_ori
 
 
-def normalize_cell_expr_by_size_factors_legacy(
+@deprecated
+def normalize_cell_expr_by_size_factors_legacy(*args, **kwargs):
+    _normalize_cell_expr_by_size_factors_legacy(*args, **kwargs)
+
+
+def _normalize_cell_expr_by_size_factors_legacy(
     adata: anndata.AnnData,
     layers: str = "all",
     total_szfactor: str = "total_Size_Factor",
@@ -755,7 +784,12 @@ def normalize_cell_expr_by_size_factors_legacy(
     return adata
 
 
-def filter_cells_legacy(
+@deprecated
+def filter_cells_legacy(*args, **kwargs):
+    _filter_cells_legacy(*args, **kwargs)
+
+
+def _filter_cells_legacy(
     adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
@@ -951,7 +985,12 @@ def filter_genes_by_outliers_legacy(
     return adata
 
 
-def recipe_monocle(
+@deprecated
+def recipe_monocle(*args, **kwargs):
+    _recipe_monocle(*args, **kwargs)
+
+
+def _recipe_monocle(
     adata: anndata.AnnData,
     reset_X: bool = False,
     tkey: Union[str, None] = None,
@@ -1303,7 +1342,7 @@ def recipe_monocle(
 
     logger.info("filtering cells...")
     logger.info_insert_adata("pass_basic_filter", "obs")
-    adata = filter_cells_legacy(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
+    adata = _filter_cells_legacy(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
     logger.info(f"{adata.obs.pass_basic_filter.sum()} cells passed basic filters.")
 
     filter_genes_kwargs = {
@@ -1345,7 +1384,7 @@ def recipe_monocle(
     # calculate sz factor
     logger.info("calculating size factor...")
     if not _has_szFactor_normalized or "Size_Factor" not in adata.obs_keys():
-        adata = calc_sz_factor_legacy(
+        adata = _calc_sz_factor_legacy(
             adata,
             total_layers=total_layers,
             scale_to=scale_to,
@@ -1452,7 +1491,7 @@ def recipe_monocle(
     if not _has_log1p_transformed:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
         logger.info("size factor normalizing the data, followed by log1p transformation.")
-        adata = normalize_cell_expr_by_size_factors_legacy(
+        adata = _normalize_cell_expr_by_size_factors_legacy(
             adata,
             layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
@@ -1569,7 +1608,12 @@ def recipe_monocle(
     return None
 
 
-def recipe_velocyto(
+@deprecated
+def recipe_velocyto(*args, **kwargs):
+    _recipe_velocyto(*args, **kwargs)
+
+
+def _recipe_velocyto(
     adata: anndata.AnnData,
     total_layers: Union[List[str], None] = None,
     method: str = "pca",
