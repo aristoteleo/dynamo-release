@@ -1147,8 +1147,6 @@ def recipe_monocle(
 
     if method == "pca":
         adata = pca(adata, pca_input, num_dim, "X_" + method.lower())
-        # TODO remove adata.obsm["X"] in future, use adata.obsm.X_pca instead
-        adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
     elif method == "ica":
         fit = FastICA(
@@ -1159,9 +1157,7 @@ def recipe_monocle(
             max_iter=1000,
         )
         reduce_dim = fit.fit_transform(pca_input.toarray())
-
         adata.obsm["X_" + method.lower()] = reduce_dim
-        adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
     logger.info_insert_adata(method + "_fit", "uns")
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = (

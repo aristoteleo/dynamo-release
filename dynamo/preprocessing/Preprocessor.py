@@ -16,14 +16,14 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_warning,
 )
+from ..tools.connectivity import neighbors as default_neighbors
+from ..tools.utils import update_dict
+from .cell_cycle import cell_cycle_scores
 from .external import (
     normalize_layers_pearson_residuals,
     sctransform,
     select_genes_by_pearson_residuals,
 )
-from ..tools.connectivity import neighbors as default_neighbors
-from ..tools.utils import update_dict
-from .cell_cycle import cell_cycle_scores
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca
 from .preprocessor_utils import (
@@ -115,7 +115,7 @@ class Preprocessor:
         self.basic_stats = basic_stats
         self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
-        self.norm_method = log1p
+        self.norm_method = norm_method
         self.norm_method_kwargs = norm_method_kwargs
         self.sctransform = sctransform
 
@@ -130,7 +130,6 @@ class Preprocessor:
         self.pca_kwargs = pca_kwargs
         self.cell_cycle_score = cell_cycle_scores
 
-        # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
         self.collapse_species_adata = collapse_species_adata_function
         self.gene_append_list = gene_append_list
@@ -443,7 +442,7 @@ class Preprocessor:
 
         temp_logger.finish_progress(progress_name="preprocess by seurat wo pca recipe")
 
-    def config_monocle_recipe(self, adata: AnnData, n_top_genes: int = 2000) -> None:
+    def config_monocle_recipe(self, adata: AnnData) -> None:
         """Automatically configure the preprocessor for monocle recipe.
 
         Args:
@@ -483,15 +482,15 @@ class Preprocessor:
             "shared_count": 30,
         }
         self.select_genes = select_genes_monocle
-        self.select_genes_kwargs = {"n_top_genes": n_top_genes, "SVRs_kwargs": {"relative_expr": False}}
+        self.select_genes_kwargs.update({"SVRs_kwargs": {"relative_expr": False}})
         self.normalize_selected_genes = None
         self.normalize_by_cells = normalize
         self.norm_method = log1p
 
-        self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
+        self.regress_out_kwargs.update({"obs_keys": []})
 
         self.pca = pca
-        self.pca_kwargs = {"pca_key": "X_pca"}
+        self.pca_kwargs.update({"pca_key": "X_pca"})
 
         self.cell_cycle_score_kwargs = {
             "layer": None,

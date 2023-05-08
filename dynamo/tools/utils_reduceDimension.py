@@ -296,14 +296,9 @@ def run_reduce_dim(
             # "distances": "distances",
             "indices": knn_indices,
         }
-
-        # CHECK! UMAP is not hdf5 serializable, so convert to pd DataFrame. Need to convert back to UMAP when loading if needed.
-        # layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
-        # neighbor_result_prefix = "" if layer is None else layer
-        # conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
-        umap_df = pd.DataFrame(mapper.embedding_, columns=["UMAP1", "UMAP2"])
-        adata.uns["umap_fit"] = {
-            "fit": umap_df,
+        adata.uns["umap"] = {
+            "X_data": X_data,
+            "umap_kwargs": umap_kwargs,
             "n_pca_components": n_pca_components,
         }
     elif reduction_method == "psl":
