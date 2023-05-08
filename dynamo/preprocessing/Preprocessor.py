@@ -16,14 +16,14 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_warning,
 )
+from ..tools.connectivity import neighbors as default_neighbors
+from ..tools.utils import update_dict
+from .cell_cycle import cell_cycle_scores
 from .external import (
     normalize_layers_pearson_residuals,
     sctransform,
     select_genes_by_pearson_residuals,
 )
-from ..tools.connectivity import neighbors as default_neighbors
-from ..tools.utils import update_dict
-from .cell_cycle import cell_cycle_scores
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca
 from .preprocessor_utils import (
@@ -128,7 +128,6 @@ class Preprocessor:
         self.regress_out = regress_out_parallel
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
-        self.cell_cycle_score = cell_cycle_scores
 
         # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
@@ -493,6 +492,7 @@ class Preprocessor:
         self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
 
+        self.cell_cycle_score = None  # optional: cell_cycle_scores
         self.cell_cycle_score_kwargs = {
             "layer": None,
             "gene_list": None,

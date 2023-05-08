@@ -118,7 +118,6 @@ def basic_stats(
             s_kwargs["close"] = False
         save_fig(**s_kwargs)
     if save_show_or_return in ["show", "both", "all"]:
-        import matplotlib.pyplot as plt
         plt.tight_layout()
         plt.show()
     if save_show_or_return in ["return", "all"]:
@@ -435,7 +434,6 @@ def biplot(
     figsize: Tuple[float, float] = (6, 4),
     scale_pca_embedding: bool = False,
     draw_pca_embedding: bool = False,
-
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     ax: Optional[Axes] = None,
