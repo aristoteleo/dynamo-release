@@ -154,8 +154,8 @@ class Logger:
 
     def info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs):
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
-        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
-        return self.logger.error(message, *args, **kwargs)
+        message = format_logging_message(message, logging.DEBUG, indent_level=indent_level)
+        return self.logger.debug(message, *args, **kwargs)
 
     def info_insert_adata_var(self, key, indent_level=1, *args, **kwargs):
         return self.info_insert_adata(self, key, adata_attr="var", indent_level=1, *args, **kwargs)
@@ -189,18 +189,17 @@ class Logger:
 
     def finish_progress(self, progress_name="", time_unit="s", indent_level=1):
         self.log_time()
-        self.report_progress(percent=100, progress_name=progress_name)
+        # self.report_progress(percent=100, progress_name=progress_name)
 
         saved_terminator = self.logger_stream_handler.terminator
         self.logger_stream_handler.terminator = ""
-        self.logger.info("\n")
         self.logger_stream_handler.flush()
         self.logger_stream_handler.terminator = saved_terminator
 
         if time_unit == "s":
-            self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed), indent_level=indent_level)
+            self.info("[%s] completed [%.4fs]" % (progress_name, self.time_passed), indent_level=indent_level)
         elif time_unit == "ms":
-            self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3), indent_level=indent_level)
+            self.info("[%s] completed [%.4fms]" % (progress_name, self.time_passed * 1e3), indent_level=indent_level)
         else:
             raise NotImplementedError
         # self.logger.info("|")

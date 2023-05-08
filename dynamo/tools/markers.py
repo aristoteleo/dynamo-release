@@ -29,7 +29,7 @@ from ..dynamo_logger import (
     main_tqdm,
     main_warning,
 )
-from ..preprocessing.utils import Freeman_Tukey
+from ..preprocessing.utils import _Freeman_Tukey
 from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 from .utils import fetch_X_data
 from .utils_markers import fdr, specificity
@@ -674,7 +674,7 @@ def glm_degs(
                 if adata.uns["pp"]["norm_method"] == "log2"
                 else np.exp(X_data.data) - 1
                 if adata.uns["pp"]["norm_method"] == "log"
-                else Freeman_Tukey(X_data.data + 1, inverse=True)
+                else _Freeman_Tukey(X_data.data + 1, inverse=True)
                 if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
                 else X_data.data
             )
@@ -684,7 +684,7 @@ def glm_degs(
                 if adata.uns["pp"]["norm_method"] == "log2"
                 else np.exp(X_data) - 1
                 if adata.uns["pp"]["norm_method"] == "log"
-                else Freeman_Tukey(X_data, inverse=True)
+                else _Freeman_Tukey(X_data, inverse=True)
                 if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
                 else X_data
             )

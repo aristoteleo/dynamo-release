@@ -1,15 +1,23 @@
-from typing import Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Tuple
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from anndata import AnnData
 from matplotlib.axes import Axes
+from matplotlib.collections import PathCollection
 from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DynamoAdataKeyManager
 from ..dynamo_logger import main_warning
 from ..preprocessing import preprocess as pp
-from ..preprocessing.preprocess_monocle_utils import top_table
+from ..preprocessing.gene_selection import get_prediction_by_svr
 from ..preprocessing.utils import detect_experiment_datatype
 from ..tools.utils import get_mapper, update_dict
 from .utils import save_fig
@@ -18,35 +26,28 @@ from .utils import save_fig
 def basic_stats(
     adata: AnnData,
     group: Optional[str] = None,
-    figsize: tuple = (4, 3),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    figsize: Tuple[float, float] = (4, 3),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[sns.FacetGrid]:
     """Plot the basic statics (nGenes, nCounts and pMito) of each category of adata.
 
-    Parameters
-    ----------
-    adata: :class:`~anndata.AnnData`
-        an Annodata object
-    group: `string` (default: None)
-        Which group to facets the data into subplots. Default is None, or no faceting will be used.
-    figsize:
-        Figure size of each facet.
-    save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-        Whether to save, show or return the figure.
-    save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-        function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf', "transparent": True,
-        "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify
-        those keys according to your needs.
+    Args:
+        adata: an AnnData object.
+        group: the column key of `adata.obs` to facet the data into subplots. If None, no faceting will be used.
+            Defaults to None.
+        figsize: the size of each panel in the figure. Defaults to (4, 3).
+        save_show_or_return: whether to save, show, or return the plots. Could be one of 'save', 'show', or 'return'.
+            Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        A violin plot that shows the fraction of each category, produced by seaborn.
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to 'return', the generated figure
+        (seaborn.FacetGrid) would be returned.
     """
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     if len(adata.obs.columns.intersection(["nGenes", "nCounts", "pMito"])) != 3:
         from ..preprocessing.utils import basic_stats
@@ -102,7 +103,7 @@ def basic_stats(
     g.set_ylabels("")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "basic_stats",
@@ -113,57 +114,54 @@ def basic_stats(
             "verbose": True,
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         import matplotlib.pyplot as plt
-
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
 def show_fraction(
     adata: AnnData,
-    genes: Optional[list] = None,
+    genes: Optional[List[str]] = None,
     group: Optional[str] = None,
-    figsize: tuple = (4, 3),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    figsize: Tuple[float, float] = (4, 3),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[sns.FacetGrid]:
     """Plot the fraction of each category of data used in the velocity estimation.
 
-    Parameters
-    ----------
-    adata: :class:`~anndata.AnnData`
-        an Annodata object
-    genes: `list` like:
-        The list of gene names from which the fraction will be calculated.
-    group: `string` (default: None)
-        Which group to facets the data into subplots. Default is None, or no faceting will be used.
-    figsize: `string` (default: (4, 3))
-        Figure size of each facet.
-    save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-        Whether to save, show or return the figure.
-    save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-        function will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True,
-        "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify
-        those keys according to your needs.
+    Args:
+        adata: an AnnData object.
+        genes: the list of gene names from which the fraction will be calculated. Defaults to None.
+        group: the column key of `adata.obs` to facet the data into subplots. If None, no faceting will be used.
+            Defaults to None.
+        figsize: the size of each panel in the figure. Defaults to (4, 3).
+        save_show_or_return: whether to save, show, or return the plots. Could be one of 'save', 'show', or 'return'.
+            Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        A violin plot that shows the fraction of each category, produced by seaborn.
+    Raises:
+        ValueError: `genes` does not contain any genes from the adata object.
+        ValueError: `adata` does not have proper splicing or labeling data.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to 'return', the generated figure
+        (seaborn.FacetGrid) would be returned.
     """
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     if genes is not None:
         genes = list(adata.var_names.intersection(genes))
 
         if len(genes) == 0:
-            raise Exception("The gene list you provided doesn't much any genes from the adata object.")
+            raise ValueError("The gene list you provided doesn't much any genes from the adata object.")
 
     mode = None
     if pd.Series(["spliced", "unspliced"]).isin(adata.layers.keys()).all():
@@ -174,7 +172,7 @@ def show_fraction(
         mode = "full"
 
     if not (mode in ["labelling", "splicing", "full"]):
-        raise Exception("your data doesn't seem to have either splicing or labeling or both information")
+        raise ValueError("your data doesn't seem to have either splicing or labeling or both information")
 
     if mode == "labelling":
         new_mat, total_mat = (
@@ -342,7 +340,7 @@ def show_fraction(
     g.set_ylabels("Fraction")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "show_fraction",
@@ -354,11 +352,14 @@ def show_fraction(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -366,37 +367,31 @@ def variance_explained(
     adata: AnnData,
     threshold: float = 0.002,
     n_pcs: Optional[int] = None,
-    figsize: tuple = (4, 3),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    figsize: Tuple[float, float] = (4, 3),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Axes:
     """Plot the accumulative variance explained by the principal components.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-        threshold: `float` (default: `0.002`)
-            The threshold for the second derivative of the cumulative sum of the variance for each principal component.
-            This threshold is used to determine the number of principal component used for downstream non-linear
-            dimension reduction.
-        n_pcs: `int` (default: `None`)
-            Number of principal components.
-        figsize: `string` (default: (4, 3))
-            Figure size of each facet.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
+    Args:
+        adata: an AnnDate object.
+        threshold: the threshold for the second derivative of the cumulative sum of the variance for each principal
+            component. This threshold is used to determine the number of principle components used for downstream non-
+            linear dimension reduction. Defaults to 0.002.
+        n_pcs: the number of principal components. If None, the number of components would be inferred automatically.
+            Defaults to None.
+        figsize: the size of each panel of the figure. Defaults to (4, 3).
+        save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
+            'return'. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        Nothing but make a matplotlib based plot for showing the cumulative variance explained by each PC.
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib Axes of the
+        figure would be returned.
     """
-
-    import matplotlib.pyplot as plt
 
     var_ = adata.uns["explained_variance_ratio_"]
     _, ax = plt.subplots(figsize=figsize)
@@ -409,7 +404,7 @@ def variance_explained(
     ax.set_xticks(list(ax.get_xticks()) + [n_comps])
     ax.set_xlim(0, len(var_))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "variance_explained",
@@ -421,30 +416,35 @@ def variance_explained(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
 def biplot(
     adata: AnnData,
-    pca_components: Sequence[int] = [0, 1],
+    pca_components: Tuple[int, int] = [0, 1],
     pca_key: str = "X_pca",
     loading_key: str = "PCs",
-    figsize: tuple = (6, 4),
+    figsize: Tuple[float, float] = (6, 4),
     scale_pca_embedding: bool = False,
     draw_pca_embedding: bool = False,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
+
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     ax: Optional[Axes] = None,
-):
-    """A biplot overlays a score plot and a loadings plot in a single graph. In such a plot, points are the projected
-    observations; vectors are the projected variables. If the data are well-approximated by the first two principal
-    components, a biplot enables you to visualize high-dimensional data by using a two-dimensional graph. See more at:
-    https://blogs.sas.com/content/iml/2019/11/06/what-are-biplots.html
+) -> Axes:
+    """A biplot overlays a score plot and a loadings plot in a single graph.
+
+    In such a plot, points are the projected observations; vectors are the projected variables. If the data are well-
+    approximated by the first two principal components, a biplot enables you to visualize high-dimensional data by using
+    a two-dimensional graph. See more at: https://blogs.sas.com/content/iml/2019/11/06/what-are-biplots.html
 
     In general, the score plot and the loadings plot will have different scales. Consequently, you need to rescale the
     vectors or observations (or both) when you overlay the score and loadings plots. There are four common choices of
@@ -453,46 +453,37 @@ def biplot(
     geometry behind two-dimensional biplots and shows how biplots enable you to understand relationships in multivariate
     data.
 
-    Parameters
-    ----------
-        adata:
-            An Annodata object that has pca and loading information prepared.
-        pca_components:
-            The pca components that will be used to draw the biplot.
-        pca_key:
-            A key to the pca embedding matrix, in `.obsm`.
-        loading_key:
-            A key to the pca loading matrix, in either `.uns` or `.obsm`.
-        figsize:
-            The figure size.
-        scale_pca_embedding:
-            Whether to scale the pca embedding.
-        draw_pca_embedding:
-            Whether to draw the pca embedding.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        ax
-            An ax where the biplot will be appended to.
+    Args:
+        adata: an AnnData object that has pca and loading information prepared.
+        pca_components: the index of the pca components in loading matrix. Defaults to [0, 1].
+        pca_key: the key to the pca embedding matrix in `adata.obsm`. Defaults to "X_pca".
+        loading_key: the key to the pca loading matrix in either `adata.uns` or `adata.varm`. Defaults to "PCs".
+        figsize: the size of each subplot. Defaults to (6, 4).
+        scale_pca_embedding: whether to scale the pca embedding. Defaults to False.
+        draw_pca_embedding: whether to draw the pca embedding. Defaults to False.
+        save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
+            'return'. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        If save_show_or_return is not `return`, return nothing but plot or save the biplot; otherwise return an axes
-        with the biplot in it.
+        ax: the axes object on which the graph would be plotted. If None, a new axis would be created. Defaults to None.
+
+    Raises:
+        ValueError: invalid `loading_key`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib Axes of the
+        figure would be returned.
     """
-
-    import matplotlib.pyplot as plt
 
     if loading_key in adata.uns.keys():
         PCs = adata.uns[loading_key]
     elif loading_key in adata.varm.keys():
         PCs = adata.varm[loading_key]
     else:
-        raise Exception(f"No PC matrix {loading_key} found in neither .uns nor .varm.")
+        raise ValueError(f"No PC matrix {loading_key} found in neither .uns nor .varm.")
 
     # rotation matrix
     xvector = PCs[:, pca_components[0]]
@@ -526,7 +517,7 @@ def biplot(
             ax.plot(xs[i] * scalex, ys[i] * scaley, "b", alpha=0.1)
             ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "biplot",
@@ -538,11 +529,14 @@ def biplot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    else:
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -552,50 +546,42 @@ def loading(
     loading_key: str = "PCs",
     n_top_genes: int = 10,
     ncol: int = 5,
-    figsize: tuple = (6, 4),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    figsize: Tuple[float] = (6, 4),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> List[List[Axes]]:
     """Plot the top absolute pca loading genes.
 
     Red text are positive loading genes while black negative loading genes.
 
-    Parameters
-    ----------
-        adata:
-            An Annodata object that has pca and loading information prepared.
-        n_pcs:
-            Number of pca.
-        loading_key:
-            A key to the pca loading matrix, in either `.uns` or `.obsm`.
-        n_top_genes:
-            Number of top genes with highest absolute loading score.
-        ncol:
-            Number of panels on the resultant figure.
-        figsize:
-            Figure size.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
+    Args:
+        adata: an AnnData object that has pca and loading information prepared.
+        n_pcs: the number of pca components. Defaults to 10.
+        loading_key: the key to the pca loading matrix. Defaults to "PCs".
+        n_top_genes: the number of top genes with the highest absolute loading score. Defaults to 10.
+        ncol: the number of columns of the subplots. Defaults to 5.
+        figsize: the size of each panel of the figure. Defaults to (6, 4).
+        save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
+            'return'. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        If save_show_or_return is not `return`, return nothing but plot or save the biplot; otherwise return an axes
-        with the loading plot in it.
+    Raises:
+        ValueError: invalid `loading_key`
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib Axes of the
+        figure would be returned.
     """
-
-    import matplotlib.pyplot as plt
 
     if loading_key in adata.uns.keys():
         PCs = adata.uns[loading_key]
     elif loading_key in adata.varm.keys():
         PCs = adata.varm[loading_key]
     else:
-        raise Exception(f"No PC matrix {loading_key} found in neither .uns nor .varm.")
+        raise ValueError(f"No PC matrix {loading_key} found in neither .uns nor .varm.")
 
     if n_pcs is None:
         n_pcs = PCs.shape[1]
@@ -621,7 +607,7 @@ def loading(
 
         axes[cur_row, cur_col].set_title("PC " + str(i))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "loading",
@@ -633,68 +619,57 @@ def loading(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    else:
+    if save_show_or_return in ["return", "all"]:
         return axes
 
 
 def feature_genes(
     adata: AnnData,
     layer: str = "X",
-    mode: Union[None, str] = None,
+    mode: Optional[Literal["dispersion", "gini", "SVR"]] = None,
     figsize: tuple = (4, 3),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[PathCollection]:
     """Plot selected feature genes on top of the mean vs. dispersion scatterplot.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        layer: `str` (default: `X`)
-            The data from a particular layer (include X) used for making the feature gene plot.
-        mode: None or `str` (default: `None`)
-            The method to select the feature genes (can be either `dispersion`, `gini` or `SVR`).
-        figsize: `string` (default: (4, 3))
-            Figure size of each facet.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
+    Args:
+        adata: an AnnData object.
+        layer: the data from a particular layer (include X) used for making the feature gene plot. Defaults to "X".
+        mode: the method to select the feature genes (can be either `dispersion`, `gini` or `SVR`). Defaults to None.
+        figsize: the size of each panel of the figure. Defaults to (4, 3).
+        save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
+            'return'. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        Nothing but plots the selected feature genes via the mean, CV plot.
+    Raises:
+        ValueError: vector machine regression result not available in the AnnData object.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the `PathCollection`
+        generated with `pyplot.scatter` would be returned.
     """
 
-    import matplotlib.pyplot as plt
-
     mode = adata.uns["feature_selection"] if mode is None else mode
-
     layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, include_protein=False)[0]
-
     uns_store_key = None
-    if mode == "dispersion":
-        uns_store_key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
 
-        table = top_table(adata, layer)
-        x_min, x_max = (
-            np.nanmin(table["mean_expression"]),
-            np.nanmax(table["mean_expression"]),
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:  # "cv_dispersion", "fano_dispersion"
         prefix = "" if layer == "X" else layer + "_"
         uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
 
         if not np.all(pd.Series([prefix + "log_m", prefix + "score"]).isin(adata.var.columns)):
-            raise Exception("Looks like you have not run support vector machine regression yet, try run SVRs first.")
+            raise ValueError("Looks like you have not run support vector machine regression yet, try run SVRs first.")
         else:
             table = adata.var.loc[:, [prefix + "log_m", prefix + "log_cv", prefix + "score"]]
             table = table.loc[
@@ -709,11 +684,12 @@ def feature_genes(
     ordering_genes = adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
-    fit = (
-        adata.uns[uns_store_key]["disp_func"](mu_linspace)
-        if mode == "dispersion"
-        else adata.uns[uns_store_key]["SVR"](mu_linspace.reshape(-1, 1))
-    )
+    if "_dispersion" in mode:
+        mean = adata.uns[uns_store_key]["mean"]
+        cv = adata.uns[uns_store_key]["cv"]
+        svr_gamma = adata.uns[uns_store_key]["svr_gamma"]
+        fit, _ = get_prediction_by_svr(mean, cv, svr_gamma)
+        fit = fit(mu_linspace.reshape(-1, 1))
 
     plt.figure(figsize=figsize)
     plt.plot(mu_linspace, fit, alpha=0.4, color="r")
@@ -724,15 +700,7 @@ def feature_genes(
     )
 
     valid_disp_table = table.iloc[valid_ind, :]
-    if mode == "dispersion":
-        ax = plt.scatter(
-            valid_disp_table["mean_expression"],
-            valid_disp_table["dispersion_empirical"],
-            s=3,
-            alpha=1,
-            color="xkcd:red",
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:
         ax = plt.scatter(
             valid_disp_table[prefix + "log_m"],
             valid_disp_table[prefix + "log_cv"],
@@ -743,15 +711,7 @@ def feature_genes(
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
-    if mode == "dispersion":
-        ax = plt.scatter(
-            neg_disp_table["mean_expression"],
-            neg_disp_table["dispersion_empirical"],
-            s=3,
-            alpha=0.5,
-            color="xkcd:grey",
-        )
-    elif mode == "SVR":
+    if "_dispersion" in mode:
         ax = plt.scatter(
             neg_disp_table[prefix + "log_m"],
             neg_disp_table[prefix + "log_cv"],
@@ -760,14 +720,11 @@ def feature_genes(
             color="xkcd:grey",
         )
 
-    # plt.xlim((0, 100))
-    if mode == "dispersion":
-        plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Mean (log)")
     plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "feature_genes",
@@ -779,17 +736,20 @@ def feature_genes(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
 def exp_by_groups(
     adata: AnnData,
-    genes: list,
+    genes: List[str],
     layer: Optional[str] = None,
     group: Optional[str] = None,
     use_ratio: bool = False,
@@ -797,53 +757,44 @@ def exp_by_groups(
     log: bool = True,
     angle: int = 0,
     re_order: bool = True,
-    figsize: tuple = (4, 3),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-):
+    figsize: Tuple[float] = (4, 3),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[sns.FacetGrid]:
     """Plot the (labeled) expression values of genes across different groups (time points).
 
-    This function can be used as a sanity check about the labeled species to see whether they increase or decrease
-    across time for a kinetic or degradation experiment, etc.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object
-        genes: `list`
-            The list of genes that you want to plot the gene expression.
-        group: `string` (default: None)
-            Which group information to plot aganist (as elements on x-axis). Default is None, or no groups will be used.
-            Normally you should supply the column that indicates the time related to the labeling experiment. For
+    Args:
+        adata: an AnnData object,
+        genes: the list of genes that you want to plot the gene expression.
+        layer: the layer key containing the expression data. If None, the layer used would be inferred automatically.
+            Defaults to None.
+        group: the key of group information in `adata.obs` that will be plotted against to. If None, no groups will be
+            used. Normally you should supply the column that indicates the time related to the labeling experiment. For
             example, it can be either the labeling time for a kinetic experiment or the chase time for a degradation
-            experiment.
-        use_ratio: `bool` (default: False)
-            Whether to plot the fraction of expression (for example NTR, new to total ratio) over groups.
-        use_smoothed: `bool` (default: 'True')
-            Whether to use the smoothed data as gene expression.
-        log: `bool` (default: `True`)
-            Whether to log1p transform the expression data.
-        angle: `float` (default: `0`)
-            The angle to rotate the xtick labels for the purpose of avoiding overlapping between text.
-        re_order: `bool` (default: `True`)
-            Whether to reorder categories before drawing groups on the x-axis.
-        figsize: `string` (default: (4, 3))
-            Figure size of each facet.
-        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
+            experiment. Defaults to None.
+        use_ratio: whether to plot the fraction of expression (for example NTR, new to total ratio) over groups.
+            Defaults to False.
+        use_smoothed: whether to use the smoothed data as gene expression. Defaults to True.
+        log: whether to log1p transform the expression data. Defaults to True.
+        angle: the angle to rotate the xtick labels for the purpose of avoiding overlapping between text. Defaults to 0.
+        re_order: whether to reorder categories before drawing groups on the x-axis. Defaults to True.
+        figsize: the size of each panel of the figure. Defaults to (4, 3).
+        save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
+            'return'. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        A violin plot that shows each gene's expression (row) across different groups (time), produced by seaborn.
+    Raises:
+        ValueError: invalid `genes`.
+        ValueError: invalid `group`.
+        ValueError: invalid `layer`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the `FacetGrid` with violin
+        plot generated with seaborn would be returned.
     """
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     valid_genes = adata.var_names.intersection(genes)
     if len(valid_genes) == 0:
@@ -957,7 +908,7 @@ def exp_by_groups(
     g.set_xlabels("")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "exp_by_groups",
@@ -969,66 +920,65 @@ def exp_by_groups(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
 def highest_frac_genes(
     adata: AnnData,
     n_top: int = 30,
-    gene_prefix_list: list = None,
+    gene_prefix_list: Optional[List[str]] = None,
     gene_prefix_only: bool = True,
-    show: Optional[bool] = True,
+    show: bool = True,
     save_path: str = None,
     ax: Optional[Axes] = None,
-    gene_annotations: Optional[list] = None,
+    gene_annotations: Optional[List[str]] = None,
     gene_annotation_key: str = "use_for_pca",
     log: bool = False,
     store_key: str = "highest_frac_genes",
-    orient: str = "v",
-    figsize: Union[list, None] = None,
-    layer: Union[str, None] = None,
-    title: Union[str, None] = None,
+    orient: Literal["v", "h"] = "v",
+    figsize: Optional[Tuple[float]] = None,
+    layer: Optional[str] = None,
+    title: Optional[str] = None,
     v_rotation: float = 35,
     **kwargs,
-):
-    """Plot top genes
+) -> Axes:
+    """Plot the top genes.
 
-    Parameters
-    ----------
-    adata:
-        adata input
-    n_top : int, optional
-        #top genes to show, by default 30
-    gene_prefix_list : list, optional
-        A list of gene name prefix, by default None
-    gene_prefix_only: bool, optional
-        whether to show prefix of genes only. It only takes effect if gene prefix list is provided, by default True
-    show :
-        whether to show the results, by default True
-    save_path : str, optional
-        path to save the figure, by default None
-    ax :
-        use an existing ax, by default None
-    gene_annotations : Optional[list], optional
-        Annotations for genes, or annotations for gene prefix subsets, by default None
-    gene_annotation_key : str, optional
-        gene annotations key in adata.var, by default "use_for_pca".
-        This option is not available for gene_prefix_list and thus users should
-        pass gene_annotations argument for the prefix list.
-    log : bool, optional
-        whether to use log scale, by default False
-    store_key : str, optional
-        key for storing expression percent results, by default "highest_frac_genes"
-    v_rotation:
-        rotation of text sticks when the direction is vertical
+    Args:
+        adata: an AnnData object.
+        n_top: the number of top genes to show. Defaults to 30.
+        gene_prefix_list: a list of gene name prefix. Defaults to None.
+        gene_prefix_only: whether to show prefix of genes only. It only takes effect if gene prefix is provided.
+            Defaults to True.
+        show: whether to show the plots. Defaults to True.
+        save_path: the path to save the figure. Defaults to None.
+        ax: the axis on which the graph will be plotted. If None, a new axis would be created. Defaults to None.
+        gene_annotations: annotations for genes, or annotations for gene prefix subsets. Defaults to None.
+        gene_annotation_key:  gene annotations key in adata.var. Defaults to "use_for_pca".
+        log: whether to use log scale. Defaults to False.
+        store_key: the key for storing expression percent results. Defaults to "highest_frac_genes".
+        orient: the orientation of the graph. Can be one of 'v' or 'h'. 'v' for genes in x-axis and 'h' for genes on
+            y-axis. Defaults to "v".
+        figsize: the size of each panel of the figure. Defaults to None.
+        layer: layer on which the gene percents will be computed. Defaults to None.
+        title: the title of the figure. Defaults to None.
+        v_rotation: rotation of text sticks when the direction is vertica. Defaults to 35.
+
+    Raises:
+        ValueError: invalid AnnData object.
+        NotImplementedError: invalid `orient`.
+
+    Returns:
+        The matplotlib Axes of the figure.
     """
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     if ax is None:
         length = n_top * 0.4
@@ -1052,7 +1002,7 @@ def highest_frac_genes(
     )
     if adata is None:
         # something wrong with user input or compute_top_genes_df
-        return
+        raise ValueError("Invalid adata. ")
     top_genes_df, selected_indices = (
         adata.uns[store_key]["top_genes_df"],
         adata.uns[store_key]["selected_indices"],
@@ -1080,7 +1030,7 @@ def highest_frac_genes(
 
         else:
             main_warning(
-                "%s not in adata.var, ignoring the gene annotation key when plotting",
+                "%s not in adata.var, ignoring the gene annotation key when plotting" % gene_annotation_key,
                 indent_level=2,
             )
 
@@ -1107,7 +1057,7 @@ def highest_frac_genes(
             ax2.set_yticklabels(gene_annotations)
             ax2.set_ylabel(gene_annotation_key)
     else:
-        raise NotImplementedError()
+        raise NotImplementedError("Invalid orient option")
 
     if title is None:
         if layer is None:

@@ -1,8 +1,14 @@
+from typing import Any, Dict, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import networkx as nx
 import numpy as np
-import nxviz as nv
-import nxviz.annotate
 import pandas as pd
+from anndata import AnnData
 from matplotlib.axes import Axes
 
 from ..tools.utils import flatten, index_gene, update_dict
@@ -11,57 +17,48 @@ from .utils_graph import ArcPlot
 
 
 def nxvizPlot(
-    adata,
-    cluster,
-    cluster_name,
-    edges_list,
-    plot="arcplot",
-    network=None,
-    weight_scale=5e3,
-    weight_threshold=1e-4,
-    figsize=(6, 6),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    cluster: str,
+    cluster_name: str,
+    edges_list: Dict[str, pd.DataFrame],
+    plot: Literal["arcplot", "circosplot"] = "arcplot",
+    network: Optional[nx.classes.digraph.DiGraph] = None,
+    weight_scale: float = 5e3,
+    weight_threshold: float = 1e-4,
+    figsize: Tuple[float, float] = (6, 6),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
+) -> Optional[Any]:
     """Arc or circos plot of gene regulatory network for a particular cell cluster.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`.
-            AnnData object.
-        cluster: `str`
-            The group key that points to the columns of `adata.obs`.
-        cluster_name: `str` (default: `None`)
-            The group whose network and arcplot will be constructed and created.
-        edges_list: `dict` of `pandas.DataFrame`
-            A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
-            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three
-            columns.
-        plot: `str` (default: `arcplot`)
-            Which nxviz plot to use, one of {'arcplot', 'circosplot'}.
-        network: class:`~networkx.classes.digraph.DiGraph`
-            A direct network for this cluster constructed based on Jacobian analysis.
-        weight_scale: `float` (default: `1e3`)
-            Because values in Jacobian matrix is often small, the value will be multiplied by the weight_scale so that
-            the edge will have proper width in display.
-        weight_threshold: `float` (default: `weight_threshold`)
-            The threshold of weight that will be used to trim the edges for network reconstruction.
-        figsize: `None` or `[float, float]` (default: (6, 6)
-            The width and height of each panel in the figure.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
-        **kwargs:
-            Additional parameters that will pass to ArcPlot or CircosPlot
+    Args:
+        adata: an AnnData object.
+        cluster: the group key that points to the column of `adata.obs`
+        cluster_name: the group whose network and arcplot would be constructed and created.
+        edges_list: a dictionary of dataframe of interactions between input genes for each group of cells based on
+            ranking information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight`
+            three columns.
+        plot: which nxviz plot to use, one of 'arcplot' or 'circosplot'. Defaults to "arcplot".
+        network: a direct network for this cluster constructed based on Jacobian analysis. Defaults to None.
+        weight_scale: the factor by which the Jacobian matrix values are multiplied so that the edge could be displayer
+            with proper width. Defaults to 5e3.
+        weight_threshold: the threshold of weight that will be used to trim the edges for network reconstruction. Defaults to 1e-4.
+        figsize: the size of each panel of the figure. Defaults to (6, 6).
+        save_show_or_return: whether to save, show, or return the plotted figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide
+            a dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **kwargs: any other kwargs that would be passed to Arcplot or CircosPlot.
 
-    Returns
-    -------
-        Nothing but plot an ArcPlot of the input direct network.
+    Raises:
+        ImportError: nxviz or networkx is not installed.
+        ValueError: `weight_threshold` too high that no edge pass it.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the generated `nxviz` plot
+        object would be returned.
     """
 
     _, has_labeling = (
@@ -175,7 +172,7 @@ def nxvizPlot(
     for e in network.edges():
         network.edges[e]["weight"] /= weight_scale
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
@@ -190,87 +187,71 @@ def nxvizPlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
         # Display the plot
         plt.show()
         # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return nv_ax
 
 
 def arcPlot(
-    adata,
-    cluster,
-    cluster_name,
-    edges_list=None,
-    network=None,
-    color=None,
-    cmap="viridis",
-    node_size=100,
-    cbar=True,
-    cbar_title=None,
-    figsize=(6, 6),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    cluster: str,
+    cluster_name: str,
+    edges_list: Optional[Dict[str, pd.DataFrame]] = None,
+    network: Optional[nx.classes.DiGraph] = None,
+    color: Optional[str] = None,
+    cmap: "str" = "viridis",
+    node_size: int = 100,
+    cbar: bool = True,
+    cbar_title: Optional[str] = None,
+    figsize: Tuple[str, str] = (6, 6),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
+) -> Optional[Any]:
     """Arc plot of gene regulatory network for a particular cell cluster.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`.
-            AnnData object.
-        cluster: `str`
-            The group key that points to the columns of `adata.obs`.
-        cluster_name: `str` (default: `None`)
-            The group whose network and arcplot will be constructed and created.
-        edges_list: `dict` of `pandas.DataFrame`
-            A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
-            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three
-            columns.
-        network: class:`~networkx.classes.digraph.DiGraph`
-            A direct network for this cluster constructed based on Jacobian analysis.
-        color: `str` or None (default: `None`)
-            The layer key that will be used to retrieve average expression to color the node of each gene.
-        node_size: `float` (default: `100`)
-            The size of the node, a constant.
-        cbar: `bool` (default: `True`)
-            Whether or not to display colorbar when `color` is not None.
-        cbar_title: `float` (default: `weight_threshold`)
-            The title of the color bar when displayed.
-        figsize: `None` or `[float, float]` (default: (6, 6)
-            The width and height of each panel in the figure.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
-        **kwargs:
-            Additional parameters that will eventually pass to ArcPlot.
+    Args:
+        adata: an AnnData object.
+        cluster: the group key that points to the column of `adata.obs`.
+        cluster_name: the group whose network and arcplot will be constructed and created.
+        edges_list: a dictionary of dataframe of interactions between input genes for each group of cells based on
+            ranking information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight`
+            three columns. If None, the network should be provided directly. Defaults to None.
+        network: a direct network for this cluster constructed based on Jacobian analysis. If None, `edges_list` must be
+            provided to construct the network. Defaults to None.
+        color: the layer key that will be used to retrieve average expression to color the node of each gene. If None,
+            the nodes would not be colored. Defaults to None.
+        cmap: the color map used for the ArcPlot. Defaults to "viridis".
+        node_size: the size of the node, a constant. Defaults to 100.
+        cbar: whether to display the colorbar when `color` is not None. Defaults to True.
+        cbar_title: the titke of the colorbar when displayed. Defaults to None.
+        figsize: the size of each panel of the figure. Defaults to (6, 6).
+        save_show_or_return: whether to save, show, or return the plotted ArcPlot. Could be one of 'save', 'show', or
+            'return'. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **kwargs: any other kwargs that would be passed to ArcPlot.
 
-    Returns
-    -------
-        Nothing but plot an ArcPlot of the input direct network.
+    Raises:
+        ImportError: `networkx` not installed.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to 'return', the generated ArcPlot object
+        would be return.
     """
 
-    """nxvizPlot(adata,
-            cluster,
-            cluster_name,
-            edges_list,
-            plot='arcplot',
-            network=network,
-            weight_scale=weight_scale,
-            figsize=figsize,
-            save_show_or_return=save_show_or_return,
-            save_kwargs=save_kwargs,
-            **kwargs,
-            )"""
     import matplotlib
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
@@ -333,7 +314,7 @@ def arcPlot(
         cb.locator = MaxNLocator(nbins=3, integer=True)
         cb.update_ticks()
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         # Draw a to the screen
         plt.autoscale()
         s_kwargs = {
@@ -347,45 +328,48 @@ def arcPlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         # Draw a to the screen
         plt.autoscale()
         # Display the plot
         plt.show()
         # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ap
 
 
 def circosPlot(
     network: nx.Graph,
-    node_label_key: str = None,
+    node_label_key: Optional[str] = None,
     circos_label_layout: str = "rotate",
-    node_color_key: str = None,
-    show_colorbar=True,
+    node_color_key: Optional[str] = None,
+    show_colorbar: bool = True,
     edge_lw_scale: float = 0.5,
     edge_alpha_scale: float = 0.5,
 ) -> Axes:
     """wrapper for drawing circos plot via nxviz >= 0.7.3
 
-    Parameters
-    ----------
-    network : nx.Graph
-        a network graph instance
-    node_label_key : str, optional
-        node label (attribute) in network for grouping nodes, by default None
-    circos_label_layout : str, optional
-        layout of circos plot (see nxviz docs for details), by default "rotate"
-    node_color_key : str, optional
-        node attribute in network, corresponding to color values of nodes, by default None
-    show_colorbar : bool, optional
-        whether to show colorbar, by default True
-    edge_lw_scale : float
-        the line width scale of edges drawn in in plot
-    edge_alpha_scale : float
-        the alpha (opacity, transparency) scale of edges, the value shoud be in [0, 1.0]
+    Args:
+        network : a network graph instance
+        node_label_key : node label (attribute) in network for grouping nodes, by default None
+        circos_label_layout : layout of circos plot (see nxviz docs for details), by default "rotate"
+        node_color_key : node attribute in network, corresponding to color values of nodes, by default None
+        show_colorbar : whether to show colorbar, by default True
+        edge_lw_scale : the line width scale of edges drawn in plot
+        edge_alpha_scale : the alpha (opacity, transparency) scale of edges, the value should be in [0, 1.0]
+
+    Returns:
+        the Matplotlib Axes on which the Circos plot is drawn.
     """
+    try:
+        import nxviz as nv
+    except ImportError:
+        raise ImportError("install nxviz via `pip install nxviz`.")
+
     ax = nv.circos(
         network,
         group_by=node_label_key,
@@ -410,57 +394,28 @@ def circosPlot(
 
 
 def circosPlotDeprecated(
-    adata,
-    cluster,
-    cluster_name,
-    edges_list,
-    network=None,
-    weight_scale=5e3,
-    weight_threshold=1e-4,
-    figsize=(12, 6),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    cluster: str,
+    cluster_name: str,
+    edges_list: Dict[str, pd.DataFrame],
+    network: nx.classes.digraph.DiGraph = None,
+    weight_scale: float = 5e3,
+    weight_threshold: float = 1e-4,
+    figsize: Tuple[float, float] = (12, 6),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
-    """Note: this function is written with nxviz old version (<=0.3.x, or higher) API
-    for the latest nxviz version compatibility, please refer to `dyn.pl.circos_plot`.
-    Circos plot of gene regulatory network for a particular cell cluster.
+) -> Optional[Any]:
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`.
-            AnnData object.
-        cluster: `str`
-            The group key that points to the columns of `adata.obs`.
-        cluster_name: `str` (default: `None`)
-            The group whose network and arcplot will be constructed and created.
-        edges_list: `dict` of `pandas.DataFrame`
-            A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
-            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three
-            columns.
-        network: class:`~networkx.classes.digraph.DiGraph`
-            A direct network for this cluster constructed based on Jacobian analysis.
-        weight_scale: `float` (default: `1e3`)
-            Because values in Jacobian matrix is often small, the value will be multiplied by the weight_scale so that
-            the edge will have proper width in display.
-        weight_threshold: `float` (default: `weight_threshold`)
-            The threshold of weight that will be used to trim the edges for network reconstruction.
-        figsize: `None` or `[float, float]` (default: (12, 6)
-            The width and height of each panel in the figure.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
-        **kwargs:
-            Additional parameters that will eventually pass to CircosPlot.
+    """Deprecated.
 
-    Returns
-    -------
-        Nothing but plot an CircosPlot of the input direct network.
+    A wrapper of `dynamo.pl.networks.nxvizPlot` to plot Circos graph. See the `nxvizPlot` for more information.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the generated `nxviz` plot
+        object would be returned.
     """
+
     nxvizPlot(
         adata,
         cluster,
@@ -478,44 +433,43 @@ def circosPlotDeprecated(
 
 
 def hivePlot(
-    adata,
-    edges_list,
-    cluster,
-    cluster_names=None,
-    weight_threshold=1e-4,
-    figsize=(6, 6),
-    save_show_or_return="show",
-    save_kwargs={},
-):
+    adata: AnnData,
+    edges_list: Dict[str, pd.DataFrame],
+    cluster: str,
+    cluster_names: Optional[str] = None,
+    weight_threshold: float = 1e-4,
+    figsize: Tuple[float, float] = (6, 6),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Axes:
     """Hive plot of cell cluster specific gene regulatory networks.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`.
-            AnnData object.
-        edges_list: `dict` of `pandas.DataFrame`
-            A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
-            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three
-            columns.
-        cluster: `str`
-            The group key that points to the columns of `adata.obs`.
-        cluster_names: `str` (default: `None`)
-            The group whose network and arcplot will be constructed and created.
-        weight_threshold: `float` (default: `weight_threshold`)
-            The threshold of weight that will be used to trim the edges for network reconstruction.
-        figsize: `None` or `[float, float]` (default: (6, 6)
-            The width and height of each panel in the figure.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'hiveplot', "dpi": None, "ext": 'pdf',
-            "transparent": True,  "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
+    Args:
+        adata: an AnnData object.
+        edges_list: a dictionary of dataframe of interactions between input genes for each group of cells based on
+            ranking information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight`
+            three columns.
+        cluster: the group key that points to the columns of `adata.obs`.
+        cluster_names: the group whose network and arcplot will be constructed and created. Defaults to None.
+        weight_threshold: the threshold of weight that will be used to trim the edges for network reconstruction.
+            Defaults to 1e-4.
+        figsize: the size of each panel of the figure. Defaults to (6, 6).
+        save_show_or_return: whether to save, show, or return the figure. Could be one of "save", "show", or "return".
+            Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'hiveplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        Nothing but plot a hive plot of the input cell cluster specific direct network.
+    Raises:
+        ImportError: `networkx` or `hiveplotlib` not installed
+        ValueError: invalid `edge_keys`
+        ValueError: invalid `cluster_names`
+        ValueError: `weight_threshold` too high to have any edge to pass it.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to `return`, the matplotlib axes of the
+        figure would be returned.
     """
 
     # _, has_labeling = (
@@ -628,7 +582,7 @@ def hivePlot(
     # ax.legend(custom_lines, reg_groups, loc='upper left', bbox_to_anchor=(0.37, 0.35),
     #           title="Regulatory network based on Jacobian analysis")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "hiveplot",
@@ -640,9 +594,12 @@ def hivePlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax

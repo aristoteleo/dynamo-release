@@ -1,13 +1,23 @@
 import functools
 import itertools
+import sys
 import warnings
+from abc import abstractmethod
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
+
+import matplotlib
 import numpy as np
 import numpy.matlib
 import scipy.sparse as sp
+from anndata import AnnData
 from numpy import format_float_scientific as scinot
+from pynndescent import NNDescent
 from scipy.linalg import lstsq
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
@@ -32,6 +42,8 @@ from .utils import (
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
     Laplacian,
+    NormDict,
+    VecFldDict,
     compute_acceleration,
     compute_curl,
     compute_curvature,
@@ -51,8 +63,7 @@ from .utils import (
 def norm(
     X: np.ndarray, V: np.ndarray, T: Optional[np.ndarray] = None, fix_velocity: bool = True
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
-    """
-    Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
+    """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
     We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
 
     Args:
@@ -64,9 +75,8 @@ def norm(
         fix_velocity: Whether to fix velocity and don't transform it. Default is True.
 
     Returns:
-        Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, Dict[str, numpy.ndarray]]:
-            updated X, V, T and norm_dict which includes the mean and scale values for original X, V data used
-            in normalization.
+        A tuple of updated X, V, T and norm_dict which includes the mean and scale values for original X, V data used
+        in normalization.
     """
     Y = X + V
 
@@ -85,12 +95,21 @@ def norm(
     return X, V, T, norm_dict
 
 
-def bandwidth_rule_of_thumb(X, return_sigma=False):
+def bandwidth_rule_of_thumb(X: np.ndarray, return_sigma: Optional[bool] = False) -> Union[Tuple[float, float], float]:
     """
     This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
     https://en.wikipedia.org/wiki/Kernel_density_estimation#A_rule-of-thumb_bandwidth_estimator
+
+    The bandwidth is a free parameter that controls the level of smoothing in the estimated distribution.
+
+    Args:
+        X: Current state. This corresponds to, for example, the spliced transcriptomic state.
+        return_sigma: Determines whether the standard deviation will be returned in addition to the bandwidth parameter
+
+    Returns:
+        Either a tuple with the bandwith and standard deviation or just the bandwidth
     """
-    sig = sig = np.sqrt(np.mean(np.diag(np.cov(X.T))))
+    sig = np.sqrt(np.mean(np.diag(np.cov(X.T))))
     h = 1.06 * sig / (len(X) ** (-1 / 5))
     if return_sigma:
         return h, sig
@@ -98,7 +117,7 @@ def bandwidth_rule_of_thumb(X, return_sigma=False):
         return h
 
 
-def bandwidth_selector(X):
+def bandwidth_selector(X: np.ndarray) -> float:
     """
     This function computes an empirical bandwidth for a Gaussian kernel.
     """
@@ -122,7 +141,6 @@ def bandwidth_selector(X):
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
 
-
 def denorm(
     VecFld: Dict[str, Union[np.ndarray, None]],
     X_old: np.ndarray,
@@ -139,8 +157,7 @@ def denorm(
             data.
 
     Returns:
-        return VecFld_denorm: An updated VecFld dictionary that includes denormalized X, Y, X_ctrl, grid, grid_V, V,
-            and the norm_dict key.
+        An updated VecFld dictionary that includes denormalized X, Y, X_ctrl, grid, grid_V, V, and the norm_dict key.
     """
     Y_old = X_old + V_old
     xm, ym = norm_dict["xm"], norm_dict["ym"]
@@ -183,32 +200,22 @@ def lstsq_solver(lhs, rhs, method="drouin"):
     return C
 
 
-def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
+def get_P(
+    Y: np.ndarray, V: np.ndarray, sigma2: float, gamma: float, a: float, div_cur_free_kernels: Optional[bool] = False
+) -> Tuple[np.ndarray, np.ndarray]:
     """GET_P estimates the posterior probability and part of the energy.
 
-    Arguments
-    ---------
-        Y: 'np.ndarray'
-            Velocities from the data.
-        V: 'np.ndarray'
-            The estimated velocity: V=f(X), f being the vector field function.
-        sigma2: 'float'
-            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
-        gamma: 'float'
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
-        a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+    Args:
+        Y: Velocities from the data.
+        V: The estimated velocity: V=f(X), f being the vector field function.
+        sigma2: sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
+        gamma: Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
+        a: Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
             outlier's variation space is a.
-        div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
-            vector field.
+        div_cur_free_kernels: A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector field.
 
-    Returns
-    -------
-    P: 'np.ndarray'
-        Posterior probability, related to equation 27.
-    E: `np.ndarray'
-        Energy, related to equation 26.
+    Returns:
+        Tuple of (posterior probability, energy) related to equations 27 and 26 in the SparseVFC paper.
 
     """
 
@@ -228,22 +235,20 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
 
 @timeit
 def graphize_vecfld(
-    func,
-    X,
+    func: Callable,
+    X: np.ndarray,
     nbrs_idx=None,
     dist=None,
-    k=30,
-    distance_free=True,
-    n_int_steps=20,
-    cores=1,
-):
+    k: int = 30,
+    distance_free: bool = True,
+    n_int_steps: int = 20,
+    cores: int = 1,
+) -> Tuple[np.ndarray, Union[NNDescent, NearestNeighbors]]:
     n, d = X.shape
 
     nbrs = None
     if nbrs_idx is None:
         if X.shape[0] > 200000 and X.shape[1] > 2:
-            from pynndescent import NNDescent
-
             nbrs = NNDescent(
                 X,
                 metric="euclidean",
@@ -334,64 +339,44 @@ def SparseVFC(
     velocity_based_sampling: bool = True,
     sigma: float = 0.8,
     eta: float = 0.5,
-    seed=0,
+    seed: Union[int, np.ndarray] = 0,
     lstsq_method: str = "drouin",
     verbose: int = 1,
-) -> dict:
+) -> VecFldDict:
     """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field from random
     samples with outlier on the entire space robustly and efficiently. (Ma, Jiayi, etc. al, Pattern Recognition, 2013)
 
-    Arguments
-    ---------
-        X: 'np.ndarray'
-            Current state. This corresponds to, for example, the spliced transcriptomic state.
-        Y: 'np.ndarray'
-            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
+    Args:
+        X: Current state. This corresponds to, for example, the spliced transcriptomic state.
+        Y: Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
             velocity or total RNA velocity based on metabolic labeling data estimated calculated by dynamo.
-        Grid: 'np.ndarray'
-            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
+        Grid: Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state or total RNA state.
-        M: 'int' (default: 100)
-            The number of basis functions to approximate the vector field.
-        a: 'float' (default: 10)
-            Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+        M: The number of basis functions to approximate the vector field.
+        a: Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
             outlier's variation space is `a`.
-        beta: 'float' (default: 0.1)
-            Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
+        beta: Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
             If None, a rule-of-thumb bandwidth will be computed automatically.
-        ecr: 'float' (default: 1e-5)
-            The minimum limitation of energy change rate in the iteration process.
-        gamma: 'float' (default: 0.9)
-            Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
-        lambda_: 'float' (default: 3)
-            Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more
+        ecr: The minimum limitation of energy change rate in the iteration process.
+        gamma: Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
+        lambda_: Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more
             weights on regularization.
-        minP: 'float' (default: 1e-5)
-            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
+        minP: The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
             minP.
-        MaxIter: 'int' (default: 500)
-            Maximum iteration times.
-        theta: 'float' (default: 0.75)
-            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
+        MaxIter: Maximum iteration times.
+        theta: Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
             then it is regarded as an inlier.
-        div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
+        div_cur_free_kernels: A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
             vector field.
-        sigma: 'int' (default: `0.8`)
-            Bandwidth parameter.
-        eta: 'int' (default: `0.5`)
-            Combination coefficient for the divergence-free or the curl-free kernels.
-        seed : int or 1-d array_like, optional (default: `0`)
+        sigma: Bandwidth parameter.
+        eta: Combination coefficient for the divergence-free or the curl-free kernels.
+        seed: int or 1-d array_like, optional (default: `0`)
             Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
             Default is to be 0 for ensure consistency between different runs.
-        lstsq_method: 'str' (default: `drouin`)
-           The name of the linear least square solver, can be either 'scipy` or `douin`.
-        verbose: `int` (default: `1`)
-            The level of printing running information.
+        lstsq_method: The name of the linear least square solver, can be either 'scipy` or `douin`.
+        verbose: The level of printing running information.
 
-    Returns
-    -------
-    VecFld: 'dict'
+    Returns:
         A dictionary which contains:
             X: Current state.
             valid_ind: The indices of cells that have finite velocity values.
@@ -407,7 +392,7 @@ def SparseVFC(
             grid: Grid of current state.
             grid_V: Prediction of velocity of the grid.
             iteration: Number of the last iteration.
-            tecr_vec: Vector of relative energy changes rate comparing to previous step.
+            tecr_traj: Vector of relative energy changes rate comparing to previous step.
             E_traj: Vector of energy at each iteration,
         where V = f(X), P is the posterior probability and VFCIndex is the indexes of inliers found by sparseVFC.
         Note that V = `con_K(Grid, X_ctrl, beta).dot(C)` gives the prediction of velocity on Grid (but can also be any
@@ -570,11 +555,20 @@ def SparseVFC(
 
 
 class BaseVectorField:
+    """The BaseVectorField class is a base class for storing and manipulating vector fields. A vector field is a function that associates a vector to each point in a certain space.
+
+    The BaseVectorField class has a number of methods that allow you to work with vector fields. The __init__ method initializes the object, taking in a number of optional arguments such as X, V, and Grid, which correspond to the coordinates of the points in the vector field, the vector values at those points, and a grid used for evaluating the vector field, respectively.
+
+    The construct_graph method takes in a set of coordinates X and returns a tuple consisting of a matrix of pairwise distances between the points in X and an object for performing nearest neighbor searches. The from_adata method takes in an AnnData object and a basis string, and extracts the coordinates and vector values of the vector field stored in the AnnData object.
+
+    The get_X, get_V, and get_data methods return the coordinates, vector values, and both the coordinates and vector values of the vector field, respectively. The find_fixed_points method searches for fixed points of the vector field function, which are points where the velocity of the vector field is zero. The get_fixed_points method returns the fixed points and their types (stable or unstable). The plot method generates a plot of the vector field.
+    """
+
     def __init__(
         self,
-        X=None,
-        V=None,
-        Grid=None,
+        X: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        Grid: Optional[np.ndarray] = None,
         *args,
         **kwargs,
     ):
@@ -584,36 +578,52 @@ class BaseVectorField:
         self.fixed_points = kwargs.pop("fixed_points", None)
         super().__init__(**kwargs)
 
-    def construct_graph(self, X=None, **kwargs):
+    def construct_graph(
+        self,
+        X: Optional[np.ndarray] = None,
+        **kwargs,
+    ) -> Tuple[np.ndarray, Union[NNDescent, NearestNeighbors]]:
         X = self.data["X"] if X is None else X
         return graphize_vecfld(self.func, X, **kwargs)
 
-    def from_adata(self, adata, basis="", vf_key="VecFld"):
+    def from_adata(self, adata: AnnData, basis: str = "", vf_key: str = "VecFld"):
         vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
         self.data["X"] = vf_dict["X"]
         self.data["V"] = vf_dict["Y"]  # use the raw velocity
         self.vf_dict = vf_dict
         self.func = func
 
-    def get_X(self, idx=None):
+    def get_X(self, idx: Optional[int] = None) -> np.ndarray:
         if idx is None:
             return self.data["X"]
         else:
             return self.data["X"][idx]
 
-    def get_V(self, idx=None):
+    def get_V(self, idx: Optional[int] = None) -> np.ndarray:
         if idx is None:
             return self.data["V"]
         else:
             return self.data["V"][idx]
 
-    def get_data(self):
+    def get_data(self) -> Tuple[np.ndarray, np.ndarray]:
         return self.data["X"], self.data["V"]
 
-    def find_fixed_points(self, n_x0=100, X0=None, domain=None, sampling_method="random", **kwargs):
+    def find_fixed_points(
+        self,
+        n_x0: int = 100,
+        X0: Optional[np.ndarray] = None,
+        domain=None,
+        sampling_method=Literal["random", "velocity", "trn", "kmeans"],
+        **kwargs,
+    ):
         """
         Search for fixed points of the vector field function.
 
+        Args:
+            n_x0: Number of sampling points
+            X0: An array of shape (n_samples, n_dim)
+            domain: Domain in which to search for fixed points
+            sampling_method:
         """
         if domain is not None:
             domain = np.atleast_2d(domain)
@@ -638,19 +648,17 @@ class BaseVectorField:
         X, J, _ = find_fixed_points(X0, self.func, domain=domain, **kwargs)
         self.fixed_points = FixedPoints(X, J)
 
-    def get_fixed_points(self, **kwargs):
+    def get_fixed_points(self, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get fixed points of the vector field function.
 
-        Returns
-        -------
-            Xss: :class:`~numpy.ndarray`
-                Coordinates of the fixed points.
-            ftype: :class:`~numpy.ndarray`
-                Types of the fixed points:
-                -1 -- stable,
-                 0 -- saddle,
-                 1 -- unstable
+        Returns:
+            Tuple storing the coordinates of the fixed points and the types of the fixed points.
+
+            Types of the fixed points:
+            -1 -- stable,
+                0 -- saddle,
+                1 -- unstable
         """
         if self.fixed_points is None:
             self.find_fixed_points(**kwargs)
@@ -659,8 +667,18 @@ class BaseVectorField:
         ftype = self.fixed_points.get_fixed_point_types()
         return Xss, ftype
 
-    def assign_fixed_points(self, domain=None, cores=1, **kwargs):
-        """assign each cell to the associated fixed points"""
+    def assign_fixed_points(
+        self, domain: Optional[np.ndarray] = None, cores: int = 1, **kwargs
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """assign each cell to the associated fixed points
+
+        Args:
+            domain: Array of shape (n_dim, 2), which stores the domain for each dimension
+            cores: Defaults to 1.
+
+        Returns:
+            Tuple of fixed points, type assignments, and assignment IDs
+        """
         if domain is None and self.data is not None:
             domain = np.vstack((np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))).T
 
@@ -714,8 +732,8 @@ class BaseVectorField:
 
     def integrate(
         self,
-        init_states,
-        dims=None,
+        init_states: np.ndarray,
+        dims: Optional[Union[int, list, np.ndarray]] = None,
         scale=1,
         t_end=None,
         step_size=None,
@@ -726,7 +744,26 @@ class BaseVectorField:
         sampling="arc_length",
         verbose=False,
         disable=False,
-    ):
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Integrate along a path through the vector field field function to predict the state after a certain amount of time t has elapsed.
+
+        Args:
+            init_states: Initial state provided to scipy's ivp_solver with shape (num_cells, num_dim)
+            dims: Dimensions of state to be used
+            scale: Scale the vector field function by this factor. Defaults to 1.
+            t_end: Integrates up till when t=t_end, Defaults to None.
+            step_size: Defaults to None.
+            args: Additional arguments provided to scipy's ivp_solver Defaults to ().
+            integration_direction: Defaults to "forward".
+            interpolation_num: Defaults to 250.
+            average: Defaults to True.
+            sampling: Defaults to "arc_length".
+            verbose: Defaults to False.
+            disable: Defaults to False.
+
+        Returns:
+            Tuple storing times and predictions
+        """
 
         from ..prediction.utils import integrate_vf_ivp
         from ..tools.utils import getTend, getTseq
@@ -760,16 +797,45 @@ class BaseVectorField:
 
 
 class DifferentiableVectorField(BaseVectorField):
+    @abstractmethod
     def get_Jacobian(self, method=None):
-        # subclasses must implement this function.
-        pass
+        raise NotImplementedError
 
-    def compute_divergence(self, X=None, method="analytical", **kwargs):
+    def compute_divergence(self, X: Optional[np.ndarray] = None, method: str = "analytical", **kwargs) -> np.ndarray:
+        """Takes the trace of the jacobian matrix to calculate the divergence.
+
+        Args:
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
+
+        Returns:
+            The divergence of the Jacobian matrix.
+        """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_divergence(f_jac, X, **kwargs)
 
-    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
+    def compute_curl(
+        self,
+        X: Optional[np.ndarray] = None,
+        method: str = "analytical",
+        dim1: int = 0,
+        dim2: int = 1,
+        dim3: int = 2,
+        **kwargs,
+    ) -> np.ndarray:
+        """Curl computation for many samples for 2/3 D systems.
+
+        Args:
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
+            dim1: index of first dimension
+            dim2: index of second dimension
+            dim3: index of third dimension
+
+        Returns:
+            np.ndarray storing curl
+        """
         X = self.data["X"] if X is None else X
         if dim3 is None or X.shape[1] < 3:
             X = X[:, [dim1, dim2]]
@@ -778,75 +844,134 @@ class DifferentiableVectorField(BaseVectorField):
         f_jac = self.get_Jacobian(method=method, **kwargs)
         return compute_curl(f_jac, X, **kwargs)
 
-    def compute_acceleration(self, X=None, method="analytical", **kwargs):
+    def compute_acceleration(self, X: Optional[np.ndarray] = None, method: str = "analytical", **kwargs) -> np.ndarray:
+        """Calculate acceleration for many samples via
+
+        .. math::
+        a = || J \cdot v ||.
+
+        Args:
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
+
+        Returns:
+            np.ndarray storing the vector norm of acceleration (across all genes) for each cell
+        """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_acceleration(self.func, f_jac, X, **kwargs)
 
-    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
+    def compute_curvature(
+        self, X: Optional[np.ndarray] = None, method: str = "analytical", formula: int = 2, **kwargs
+    ) -> np.ndarray:
+        """Calculate curvature for many samples via
+
+        Formula 1:
+        .. math::
+        \kappa = \frac{||\mathbf{v} \times \mathbf{a}||}{||\mathbf{V}||^3}
+
+        Formula 2:
+        .. math::
+        \kappa = \frac{||\mathbf{Jv} (\mathbf{v} \cdot \mathbf{v}) -  ||\mathbf{v} (\mathbf{v} \cdot \mathbf{Jv})}{||\mathbf{V}||^4}
+
+        Args:
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
+            formula: Choose between formulas 1 and 2 to compute the curvature. Defaults to 2.
+
+        Returns:
+            np.ndarray storing the vector norm of curvature (across all genes) for each cell
+        """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
 
-    def compute_torsion(self, X=None, method="analytical", **kwargs):
+    def compute_torsion(self, X: Optional[np.ndarray] = None, method: str = "analytical", **kwargs) -> np.ndarray:
+        """Calculate torsion for many samples via
+
+        .. math::
+        \tau = \frac{(\mathbf{v} \times \mathbf{a}) \cdot (\mathbf{J} \cdot \mathbf{a})}{||\mathbf{V} \times \mathbf{a}||^2}
+
+        Args:
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel
+
+        Returns:
+            np.ndarray storing torsion for each sample
+        """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_torsion(self.func, f_jac, X, **kwargs)
 
-    def compute_sensitivity(self, X=None, method="analytical", **kwargs):
+    def compute_sensitivity(self, X: Optional[np.ndarray] = None, method: str = "analytical", **kwargs) -> np.ndarray:
+        """Calculate sensitivity for many samples via
+
+        .. math::
+        S = (I - J)^{-1} D(\frac{1}{{I-J}^{-1}})
+
+        Args:
+            X: Current state. Defaults to None, initialized from self.data
+            method: Method for calculating the Jacobian, one of numerical, analytical, parallel Defaults to "analytical".
+
+        Returns:
+            np.ndarray storing sensitivity matrix
+        """
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_sensitivity(f_jac, X, **kwargs)
 
 
 class SvcVectorField(DifferentiableVectorField):
-    def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
+    def __init__(
+        self,
+        X: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        Grid: Optional[np.ndarray] = None,
+        *args,
+        **kwargs,
+    ):
         """Initialize the VectorField class.
 
-        Parameters
-        ----------
-        X: :class:`~numpy.ndarray` (dimension: n_obs x n_features)
-                Original data.
-        V: :class:`~numpy.ndarray` (dimension: n_obs x n_features)
-                Velocities of cells in the same order and dimension of X.
-        Grid: :class:`~numpy.ndarray`
-                The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-        M: `int` (default: None)
-            The number of basis functions to approximate the vector field. By default it is calculated as
-            `min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100))))`. So that any datasets with less
-            than  about 900 data points (cells) will use full data for vector field reconstruction while any dataset
-            larger than that will at most use 1500 data points.
-        a: `float` (default 5)
-            Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
-            outlier's variation space is a.
-        beta: `float` (default: None)
-             Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
-             If None, a rule-of-thumb bandwidth will be computed automatically.
-        ecr: `float` (default: 1e-5)
-            The minimum limitation of energy change rate in the iteration process.
-        gamma: `float` (default:  0.9)
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
-            Default value is 0.9.
-        lambda_: `float` (default: 3)
-            Represents the trade-off between the goodness of data fit and regularization.
-        minP: `float` (default: 1e-5)
-            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
-            minP.
-        MaxIter: `int` (default: 500)
-            Maximum iteration times.
-        theta: `float` (default 0.75)
-            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
-            then it is regarded as an inlier.
-        div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
-            vector field.
-        sigma: `int`
-            Bandwidth parameter.
-        eta: `int`
-            Combination coefficient for the divergence-free or the curl-free kernels.
-        seed : int or 1-d array_like, optional (default: `0`)
-            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
-            Default is to be 0 for ensure consistency between different runs.
+        Args:
+            X: (dimension: n_obs x n_features), Original data.
+            V: (dimension: n_obs x n_features), Velocities of cells in the same order and dimension of X.
+            Grid: The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+            M: `int` (default: None)
+                The number of basis functions to approximate the vector field. By default it is calculated as
+                `min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100))))`. So that any datasets with less
+                than  about 900 data points (cells) will use full data for vector field reconstruction while any dataset
+                larger than that will at most use 1500 data points.
+            a: `float` (default 5)
+                Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+                outlier's variation space is a.
+            beta: `float` (default: None)
+                Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
+                If None, a rule-of-thumb bandwidth will be computed automatically.
+            ecr: `float` (default: 1e-5)
+                The minimum limitation of energy change rate in the iteration process.
+            gamma: `float` (default:  0.9)
+                Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
+                Default value is 0.9.
+            lambda_: `float` (default: 3)
+                Represents the trade-off between the goodness of data fit and regularization.
+            minP: `float` (default: 1e-5)
+                The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
+                minP.
+            MaxIter: `int` (default: 500)
+                Maximum iteration times.
+            theta: `float` (default 0.75)
+                Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
+                then it is regarded as an inlier.
+            div_cur_free_kernels: `bool` (default: False)
+                A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
+                vector field.
+            sigma: `int`
+                Bandwidth parameter.
+            eta: `int`
+                Combination coefficient for the divergence-free or the curl-free kernels.
+            seed : int or 1-d array_like, optional (default: `0`)
+                Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
+                Default is to be 0 for ensure consistency between different runs.
         """
 
         super().__init__(X, V, Grid)
@@ -875,27 +1000,20 @@ class SvcVectorField(DifferentiableVectorField):
 
         self.norm_dict = {}
 
-    def train(self, normalize=False, **kwargs):
+    def train(self, normalize: bool = False, **kwargs) -> VecFldDict:
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al,
         Pattern Recognition
 
-        Arguments
-        ---------
-            normalize: 'bool' (default: False)
-                Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is
+        Args:
+            normalize: Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is
                 often required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension).
                 But it is normally not required for low dimensional embeddings by PCA or other non-linear dimension
                 reduction methods.
-            method: 'string'
-                Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but
-                other improved approaches are under development.
 
-        Returns
-        -------
-            VecFld: `dict'
-                A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior
-                probability and VFCIndex is the indexes of inliers which found by VFC.
+        Returns:
+            A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior
+            probability and VFCIndex is the indexes of inliers which found by VFC.
         """
 
         if normalize:
@@ -933,12 +1051,14 @@ class SvcVectorField(DifferentiableVectorField):
 
         return self.vf_dict
 
-    def plot_energy(self, figsize=None, fig=None):
+    def plot_energy(
+        self, figsize: Optional[Tuple[float, float]] = None, fig: Optional[matplotlib.figure.Figure] = None
+    ):
         from ..plot.scVectorField import plot_energy
 
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
-    def get_Jacobian(self, method="analytical", input_vector_convention="row", **kwargs):
+    def get_Jacobian(self, method: str = "analytical", input_vector_convention: str = "row", **kwargs) -> np.ndarray:
         """
         Get the Jacobian of the vector field function.
         If method is 'analytical':
@@ -973,7 +1093,7 @@ class SvcVectorField(DifferentiableVectorField):
                 f"supports 'analytical', 'numerical', and 'parallel'."
             )
 
-    def get_Hessian(self, method="analytical", **kwargs):
+    def get_Hessian(self, method: str = "analytical", **kwargs) -> np.ndarray:
         """
         Get the Hessian of the vector field function.
         If method is 'analytical':
@@ -997,7 +1117,7 @@ class SvcVectorField(DifferentiableVectorField):
         else:
             raise NotImplementedError(f"The method {method} is not implemented. Currently only supports 'analytical'.")
 
-    def get_Laplacian(self, method="analytical", **kwargs):
+    def get_Laplacian(self, method: str = "analytical", **kwargs) -> np.ndarray:
         """
         Get the Laplacian of the vector field. Laplacian is defined as the sum of the diagonal of the Hessian matrix.
         Because Hessian is originally defined for scalar function and here we extend it to vector functions. We will
@@ -1017,22 +1137,16 @@ class SvcVectorField(DifferentiableVectorField):
         else:
             raise NotImplementedError(f"The method {method} is not implemented. Currently only supports 'analytical'.")
 
-    def evaluate(self, CorrectIndex, VFCIndex, siz):
+    def evaluate(self, CorrectIndex: List, VFCIndex: List, siz: int) -> Tuple[float, float, float]:
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
 
-        Arguments
-        ---------
-            CorrectIndex: 'List'
-                Ground truth indexes of the correct vector field samples.
-            VFCIndex: 'List'
-                Indexes of the correct vector field samples learned by VFC.
-            siz: 'int'
-                Number of initial matches.
+        Args:
+            CorrectIndex: Ground truth indexes of the correct vector field samples.
+            VFCIndex: Indexes of the correct vector field samples learned by VFC.
+            siz: Number of initial matches.
 
-        Returns
-        -------
-        A tuple of precision, recall, corrRate:
-        Precision, recall, corrRate: Precision and recall of VFC, percentage of initial correct matches.
+        Returns:
+            A tuple of precision, recall, corrRate, where Precision, recall, corrRate are Precision and recall of VFC, percentage of initial correct matches, respectively.
 
         See also:: :func:`sparseVFC`.
         """
@@ -1058,8 +1172,30 @@ class SvcVectorField(DifferentiableVectorField):
 
 class KOVectorField(DifferentiableVectorField):
     def __init__(
-        self, X=None, V=None, Grid=None, K=None, func_base=None, fjac_base=None, PCs=None, mean=None, *args, **kwargs
+        self,
+        X: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        Grid=None,
+        K=None,
+        func_base: Optional[Callable] = None,
+        fjac_base: Optional[Callable] = None,
+        PCs: Optional[np.ndarray] = None,
+        mean: float = None,
+        *args,
+        **kwargs,
     ):
+        """_summary_
+
+        Args:
+            X: (dimension: n_obs x n_features), Original data. Defaults to None.
+            V: (dimension: n_obs x n_features), Velocities of cells in the same order and dimension of X. Defaults to None.
+            Grid: Grid of the current state. Defaults to None.
+            K: _description_. Defaults to None.
+            func_base: _description_. Defaults to None.
+            fjac_base: Callable passed to `Jacobian_kovf` to generate the Jacobian. Defaults to None.
+            PCs: The PCA loading matrix of dimensions d x k, where d is the number of dimensions of the original space. Defaults to None.
+            mean: _description_. Defaults to None.
+        """
         super().__init__(X, V, Grid=Grid, *args, **kwargs)
 
         if K.ndim == 2:
@@ -1074,6 +1210,10 @@ class KOVectorField(DifferentiableVectorField):
             self.setup_perturbed_func()
 
     def setup_perturbed_func(self):
+        """
+        Reference "In silico perturbation to predict gene-wise perturbation effects and cell fate diversions" in the methods section
+        """
+
         def vf_func_perturb(x):
             x_gene = np.abs(x @ self.PCs.T + self.mean)
             v_gene = vector_transformation(self.func_base(x), self.PCs)
@@ -1251,7 +1391,15 @@ def vector_field_function_knockout(
 
 
 class BifurcationTwoGenesVectorField(DifferentiableVectorField):
-    def __init__(self, param_dict, X=None, V=None, Grid=None, *args, **kwargs):
+    def __init__(
+        self,
+        param_dict,
+        X: Optional[np.ndarray] = None,
+        V: Optional[np.ndarray] = None,
+        Grid: Optional[np.ndarray] = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(X, V, Grid, *args, **kwargs)
         param_dict_ = param_dict.copy()
         for k in param_dict_.keys():
@@ -1264,7 +1412,7 @@ class BifurcationTwoGenesVectorField(DifferentiableVectorField):
     def get_Jacobian(self, method=None):
         return lambda x: jacobian_bifur2genes(x, **self.vf_dict["params"])
 
-    def find_fixed_points(self, n_x0=10, **kwargs):
+    def find_fixed_points(self, n_x0: int = 10, **kwargs):
         a = self.vf_dict["params"]["a"]
         b = self.vf_dict["params"]["b"]
         gamma = self.vf_dict["params"]["gamma"]

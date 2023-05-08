@@ -1,10 +1,17 @@
 # include pseudotime and predict cell trajectory
-from typing import Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 from anndata import AnnData
 from scipy.interpolate import interp1d
 from scipy.sparse import issparse
+from seaborn import FacetGrid
+from seaborn.matrix import ClusterGrid
 
 from ..docrep import DocstringProcessor
 from ..external.hodge import ddhodge
@@ -18,7 +25,7 @@ docstrings = DocstringProcessor()
 @docstrings.get_sectionsf("kin_curves")
 def kinetic_curves(
     adata: AnnData,
-    genes: list,
+    genes: List[str],
     mode: str = "vector_field",
     basis: Optional[str] = None,
     layer: str = "X",
@@ -33,68 +40,55 @@ def kinetic_curves(
     log: bool = True,
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
-):
+) -> Optional[FacetGrid]:
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
     Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
     used as the measure of pseudotime.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        genes: `list`
-            The gene names whose gene expression will be faceted.
-        mode: `str` (default: `vector_field`)
-            Which data mode will be used, either vector_field, lap or pseudotime. if mode is vector_field, the
+    Args:
+        adata: an Annodata object.
+        genes: the gene names whose gene expression will be faceted.
+        mode: which data mode will be used, either vector_field, lap or pseudotime. if mode is vector_field, the
             trajectory predicted by vector field function will be used; if mode is lap, the trajectory predicted by
             least action path will be used otherwise pseudotime trajectory (defined by time argument) will be used.
-            By default `potential` estimated with the diffusion graph built from reconstructed vector field will be used
-            as pseudotime when mode is pseudotime.
-        basis: `str` or None (default: `None`)
-            The embedding data used for drawing the kinetic gene expression curves, only used when mode is
-            `vector_field`.
-        layer: `str` (default: X)
-            Which layer of expression value will be used. Not used if mode is `vector_field`.
-        project_back_to_high_dim: `bool` (default: `False`)
-            Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression
-            curves, only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca'
-            and 'umap'.
-        color: `list` or None (default: 'ntr')
-            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
-        tkey: `str` (default: `potential`)
-            The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
-        dist_threshold: `float` (default: 1e-10)
-            The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below
-            this threshold, we assume steady state is achieved and those data points will not be considered. This
-            argument is ignored when mode is `pseudotime`.
-        ncol: `int` (default: 4)
-            Number of columns in each facet grid.
-        c_palette: Name of color_palette supported in seaborn color_palette function (default: None)
-            The color map function to use.
-        standard_scale: `int` (default: 1)
-            Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or
-            column, subtract the minimum and divide each by its maximum.
-        traj_ind: `int` (default: 0)
-            If the element from the dictionary is a list (obtained from a list of trajectories), the index of trajectory
-            that will be selected for visualization.
-        log: `bool` (default: True)
-            Whether to log1p transform your data before data visualization. If expression data is from adata object,
+            Defaults to "vector_field".
+        basis: the embedding data used for drawing the kinetic gene expression curves, only used when mode is
+            `vector_field`. Defaults to None.
+        layer: the key to the layer of expression value will be used. Not used if mode is `vector_field`. Defaults
+            to "X".
+        project_back_to_high_dim: whether to map the coordinates in low dimension back to high dimension to visualize
+            the gene expression curves, only used when mode is `vector_field` and basis is not `X`. Currently only works
+            when basis is 'pca' and 'umap'. Defaults to True.
+        tkey: the .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
+            Defaults to "potential".
+        dist_threshold: the threshold for the distance between two points in the gene expression state, i.e, x(t),
+            x(t+1). If below this threshold, we assume steady state is achieved and those data points will not be
+            considered. This argument is ignored when mode is `pseudotime`. Defaults to 1e-10.
+        ncol: the number of columns in each facet grid. Defaults to 4.
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        c_palette: the color map function to use. Defaults to "Set2".
+        standard_scale: either 0 (rows) or 1 (columns). Whether to standardize that dimension, meaning for each
+            row or column, subtract the minimum and divide each by its maximum. Defaults to 0.
+        traj_ind: if the element from the dictionary is a list (obtained from a list of trajectories), the index of
+            trajectory that will be selected for visualization. Defaults to 0.
+        log: whether to log1p transform your data before data visualization. If expression data is from adata object,
             it is generally already log1p transformed. When the data is from predicted either from traj simulation or
             LAP, the data is generally in the original gene expression space and needs to be log1p transformed. Note:
             when predicted data is not inverse transformed back to original expression space, no transformation will be
-            applied.
-        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
-            Whether to save_fig, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
+            applied. Defaults to True.
+        save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
 
-    Returns
-    -------
-        Nothing but plots the kinetic curves that shows the gene expression dynamics over time.
+    Raises:
+        ValueError: invalid `genes`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the generated
+        `seaborn.FacetGrid` would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -146,7 +140,7 @@ def kinetic_curves(
     )
 
     if exprs_df.shape[0] == 0:
-        raise Exception(
+        raise ValueError(
             "No genes you provided are detected. Please make sure the genes provided are from the genes "
             "used for vector field reconstructed when layer is set."
         )
@@ -176,7 +170,7 @@ def kinetic_curves(
             facet_kws={"sharex": True, "sharey": False},
         )
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "kinetic_curves",
@@ -188,11 +182,14 @@ def kinetic_curves(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -202,7 +199,7 @@ docstrings.delete_params("kin_curves.parameters", "ncol", "color", "c_palette")
 @docstrings.with_indent(4)
 def kinetic_heatmap(
     adata: AnnData,
-    genes: list,
+    genes: List[str],
     mode: str = "vector_field",
     basis: Optional[str] = None,
     layer: str = "X",
@@ -210,102 +207,102 @@ def kinetic_heatmap(
     tkey: str = "potential",
     dist_threshold: float = 1e-10,
     color_map: int = "BrBG",
-    gene_order_method: str = "maximum",
+    gene_order_method: Literal["maximum", "half_max_ordering", "raw"] = "maximum",
     show_colorbar: bool = False,
-    cluster_row_col: list = [False, False],
-    figsize: tuple = (11.5, 6),
+    cluster_row_col: Tuple[bool, bool] = (False, False),
+    figsize: Tuple[float, float] = (11.5, 6),
     standard_scale: int = 1,
     n_convolve: int = 30,
     spaced_num: int = 100,
     traj_ind: int = 0,
     log: bool = True,
-    gene_group: Union[None, list] = None,
-    gene_group_cmap: Union[None, list] = None,
-    cell_group: Union[None, list] = None,
-    cell_group_cmap: Union[None, list] = None,
+    gene_group: Optional[List[str]] = None,
+    gene_group_cmap: Optional[List[str]] = None,
+    cell_group: Optional[List[str]] = None,
+    cell_group_cmap: Optional[List[str]] = None,
     enforce: bool = False,
-    hline_rows: Union[None, list] = None,
-    hlines_kwargs: dict = {},
-    vline_cols: Union[None, list] = None,
-    vlines_kwargs: dict = {},
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
+    hline_rows: Optional[List[int]] = None,
+    hlines_kwargs: Dict[str, Any] = {},
+    vline_cols: Optional[List[int]] = None,
+    vlines_kwargs: Dict[str, Any] = {},
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     transpose: bool = False,
     **kwargs,
-):
+) -> Optional[ClusterGrid]:
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
     used as the measure of pseudotime.
 
-    Parameters
-    ----------
-        %(kin_curves.parameters.no_ncol|color|c_palette)s
-        color_map: `str` (default: `BrBG`)
-            Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
-            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
-        gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`, `raw`]
-            Supports three different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
-            `maximum` or `raw`. For `half_max_ordering`, it will order genes into up, down and transit groups by the
-            half max ordering algorithm (HA Pliner, et. al, Molecular cell 71 (5), 858-871. e8). While for `maximum`,
-            it will order by the position of the highest gene expression. `raw` means just use the original order from
-            the input gene list.
-        show_colorbar: `bool` (default: `False`)
-            Whether to show the color bar.
-        cluster_row_col: `[bool, bool]` (default: `[False, False]`)
-            Whether to cluster the row or columns.
-        figsize: `str` (default: `(11.5, 6)`
-            Size of figure
-        standard_scale: `int` (default: 1)
-            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each
-            row or column, subtract the minimum and divide each by its maximum.
-        n_convolve: `int` (default: 30)
-            Number of cells for convolution.
-        traj_ind: `int` (default: 0)
-            If the element from the dictionary is a list (obtained from a list of trajectories), the index of trajectory
-            that will be selected for visualization.
-        log: `bool` (default: True)
-            Whether to log1p transform your data before data visualization. If expression data is from adata object,
+    Args:
+        adata: an Annodata object.
+        genes: the gene names whose gene expression will be faceted.
+        mode: which data mode will be used, either vector_field, lap or pseudotime. if mode is vector_field, the
+            trajectory predicted by vector field function will be used; if mode is lap, the trajectory predicted by
+            least action path will be used otherwise pseudotime trajectory (defined by time argument) will be used.
+            Defaults to "vector_field".
+        basis: the embedding data used for drawing the kinetic gene expression curves, only used when mode is
+            `vector_field`. Defaults to None.
+        layer: the key to the layer of expression value will be used. Not used if mode is `vector_field`. Defaults
+            to "X".
+        project_back_to_high_dim: whether to map the coordinates in low dimension back to high dimension to visualize
+            the gene expression curves, only used when mode is `vector_field` and basis is not `X`. Currently only works
+            when basis is 'pca' and 'umap'. Defaults to True.
+        tkey: the .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
+            Defaults to "potential".
+        dist_threshold: the threshold for the distance between two points in the gene expression state, i.e, x(t),
+            x(t+1). If below this threshold, we assume steady state is achieved and those data points will not be
+            considered. This argument is ignored when mode is `pseudotime`. Defaults to 1e-10.
+        color_map: the color map that will be used to color the gene expression. If `half_max_ordering` is True, the
+            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc. Defaults to
+            "BrBG".
+        gene_order_method: supports three different methods for ordering genes when plotting the heatmap: either
+            `half_max_ordering`, `maximum` or `raw`. For `half_max_ordering`, it will order genes into up, down and
+            transit groups by the half max ordering algorithm (HA Pliner, et al., Molecular cell 71 (5), 858-871. e8).
+            While for `maximum`, it will order by the position of the highest gene expression. `raw` means just use the
+            original order from the input gene list. Defaults to "maximum".
+        show_colorbar: whether to show the color bar. Defaults to False.
+        cluster_row_col: whether to cluster the row or columns. Defaults to (False, False).
+        figsize: size of figure. Defaults to (11.5, 6).
+        standard_scale: either 0 (rows, cells) or 1 (columns, genes). Whether to standardize that dimension,
+            meaning for each row or column, subtract the minimum and divide each by its maximum. Defaults to 1.
+        n_convolve: the number of cells for convolution. Defaults to 30.
+        spaced_num: the number of points on the loess fitting curve. Defaults to 100.
+        traj_ind: if the element from the dictionary is a list (obtained from a list of trajectories), the index of
+            trajectory that will be selected for visualization.. Defaults to 0.
+        log: whether to log1p transform your data before data visualization. If expression data is from adata object,
             it is generally already log1p transformed. When the data is from predicted either from traj simulation or
             LAP, the data is generally in the original gene expression space and needs to be log1p transformed. Note:
             when predicted data is not inverse transformed back to original expression space, no transformation will be
-            applied.
-        gene_group:
-            The key of the gene groups in .var.
-        gene_group_cmap:
-            The str of the colormap for gene groups.
-        cell_group:
-             The key of the cell groups in .obs.
-        cell_group_cmap:
-            The str of the colormap for cell groups.
-        enforce:
-            Whether to recalculate the dataframe that will be used to create the kinetic heatmap. If this is set to be
-            False and the the .uns['kinetic_heatmap'] is in the adata object, we will use data from
-            `.uns['kinetic_heatmap']` directly.
-        hline_rows:
-            The indices of rows that we can place a line on the heatmap.
-        hlines_kwargs:
-            The dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.hlines.
-        vline_cols:
-            The indices of column that we can place a line on the heatmap.
-        vlines_kwargs:
-            The dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.vlines.
-        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
-            Whether to save_fig, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        transpose:
-            Whether to transpose the dataframe and swap X-Y in heatmap. In single cell case, `transpose=True` results in gene on the x-axis.
-        kwargs:
-            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is
-            passed to heatmap() by default.
+            applied. Defaults to True.
+        gene_group: the key of the gene groups in .var. Defaults to None.
+        gene_group_cmap: the str of the colormap for gene groups. Defaults to None.
+        cell_group: the key of the cell groups in .obs. Defaults to None.
+        cell_group_cmap: the str of the colormap for cell groups. Defaults to None.
+        enforce: whether to recalculate the dataframe that will be used to create the kinetic heatmap. If this is set to
+            be False and the .uns['kinetic_heatmap'] is in the adata object, we will use data from
+            `.uns['kinetic_heatmap']` directly.. Defaults to False.
+        hline_rows: the indices of rows that we can place a line on the heatmap. Defaults to None.
+        hlines_kwargs: a dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.hlines. Defaults to {}.
+        vline_cols: the indices of column that we can place a line on the heatmap. Defaults to None.
+        vlines_kwargs: a dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.vlines. Defaults to {}.
+        save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
+            "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
+            provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
+        transpose: whether to transpose the dataframe and swap X-Y in heatmap. In single cell case, `transpose=True`
+            results in gene on the x-axis. Defaults to False.
+        **kwargs: any other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'`
+            is passed to heatmap() by default.
 
-    Returns
-    -------
-        Nothing but plots a heatmap that shows the gene expression dynamics over time.
+    Raises:
+        NotImplementedError: invalid `order_method`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
+        ClusterGrid would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -377,7 +374,7 @@ def kinetic_heatmap(
             else:
                 df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
         else:
-            raise Exception("gene order_method can only be either half_max_ordering or maximum")
+            raise NotImplementedError("gene order_method can only be either raw, half_max_ordering or maximum")
 
         adata.uns["kinetics_heatmap"] = df
     else:
@@ -469,7 +466,7 @@ def kinetic_heatmap(
         vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
         sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "kinetic_heatmap",
@@ -481,13 +478,16 @@ def kinetic_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap
 
 
@@ -652,88 +652,78 @@ def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
 def jacobian_kinetics(
     adata: AnnData,
     basis: str = "umap",
-    regulators: Optional[list] = None,
-    effectors: Optional[list] = None,
+    regulators: Optional[List[str]] = None,
+    effectors: Optional[List[str]] = None,
     mode: str = "pseudotime",
     tkey: str = "potential",
     color_map: str = "bwr",
-    gene_order_method: str = "raw",
+    gene_order_method: Literal["raw", "half_max_ordering", "maximum"] = "raw",
     show_colorbar: bool = False,
-    cluster_row_col: list = [False, True],
-    figsize: tuple = (11.5, 6),
+    cluster_row_col: Tuple[bool, bool] = [False, True],
+    figsize: Tuple[float, float] = (11.5, 6),
     standard_scale: int = 1,
     n_convolve: int = 30,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
+) -> Optional[ClusterGrid]:
     """Plot the Jacobian dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
     used as the measure of pseudotime.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        basis: `str`
-            The reduced dimension basis.
-        regulators: `list` or `None` (default: `None`)
-            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        effectors: `List` or `None` (default: `None`)
-            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        mode: `str` (default: `vector_field`)
-            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory
+    Args:
+        adata: an Annodata object.
+        basis: the reduced dimension basis. Defaults to "umap".
+        regulators: the list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        effectors: the list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        mode: which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory
             predicted by vector field function will be used, otherwise pseudotime trajectory (defined by time argument)
-            will be used. By default `potential` estimated with the diffusion graph built reconstructed vector field
-            will be used as pseudotime.
-        tkey: `str` (default: `potential`)
-            The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
-        color_map: `str` (default: `BrBG`)
-            Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
-            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
-        gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`]
-            Supports two different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
-            or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit groups by the half
-            max ordering algorithm (HA Pliner, et. al, Molecular cell 71 (5), 858-871. e8). While for `maximum`,
-            it will order by the position of the highest gene expression.
-        show_colorbar: `bool` (default: `False`)
-            Whether to show the color bar.
-        cluster_row_col: `[bool, bool]` (default: `[False, False]`)
-            Whether to cluster the row or columns.
-        figsize: `str` (default: `(11.5, 6)`
-            Size of figure
-        standard_scale: `int` (default: 1)
-            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each
-            row or column, subtract the minimum and divide each by its maximum.
-        n_convolve: `int` (default: 30)
-            Number of cells for convolution.
-        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
-            Whether to save_fig, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        kwargs:
-            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is
-            passed to heatmap() by default.
-    Returns
-    -------
-        Nothing but plots a heatmap that shows the element of Jacobian matrix dynamics over time (potential decreasing).
+            will be used. By default, `potential` estimated with the diffusion graph built reconstructed vector field
+            will be used as pseudotime. Defaults to "pseudotime".
+        tkey: the .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
+            Defaults to "potential".
+        color_map: color map that will be used to color the gene expression. If `half_max_ordering` is True, the
+            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc. Defaults to
+            "bwr".
+        gene_order_method: supports two different methods for ordering genes when plotting the heatmap: either
+            `half_max_ordering`, or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit
+            groups by the half max ordering algorithm (HA Pliner, et al., Molecular cell 71 (5), 858-871. e8). While for
+            `maximum`, it will order by the position of the highest gene expression. Or, use `raw` to prevent any
+            ordering. Defaults to "raw".
+        show_colorbar: whether to show the color bar. Defaults to False.
+        cluster_row_col: whether to cluster the row or columns. Defaults to [False, True].
+        figsize: the size of the figures. Defaults to (11.5, 6).
+        standard_scale: can be either 0 (rows, cells) or 1 (columns, genes). Whether to standardize that
+            dimension, meaning for each row or column, subtract the minimum and divide each by its maximum. Defaults
+            to 1.
+        n_convolve: the number of cells for convolution. Defaults to 30.
+        save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs.. Defaults to {}.
+        **kwargs: any other kwargs that would be passed to `seaborn.clustermap`.
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
-    >>> dyn.pl.jacobian_kinetics(adata)
+    Raises:
+        ValueError: invalid `regulators` or `effectors`.
+        NotImplementedError: invalid `gene_order_method`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
+        ClusterGrid would be returned.
+    
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> adata = dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.jacobian_kinetics(adata)
     """
 
     import matplotlib.pyplot as plt
@@ -823,7 +813,7 @@ def jacobian_kinetics(
             columns=adata.obs_names,
         )
     else:
-        raise Exception("gene order_method can only be either half_max_ordering or maximum")
+        raise NotImplementedError("gene order_method can only be either raw, half_max_ordering or maximum")
 
     heatmap_kwargs = dict(
         xticklabels=False,
@@ -852,7 +842,7 @@ def jacobian_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return == "save_fig":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "jacobian_kinetics",
@@ -864,102 +854,95 @@ def jacobian_kinetics(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap
 
 
 @docstrings.with_indent(4)
 def sensitivity_kinetics(
-    adata,
-    basis="umap",
-    regulators=None,
-    effectors=None,
-    mode="pseudotime",
-    tkey="potential",
-    color_map="bwr",
-    gene_order_method="raw",
-    show_colorbar=False,
-    cluster_row_col=[False, True],
-    figsize=(11.5, 6),
-    standard_scale=1,
-    n_convolve=30,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    basis: str = "umap",
+    regulators: Optional[List[str]] = None,
+    effectors: Optional[List[str]] = None,
+    mode: Literal["pseudotime", "vector_field"] = "pseudotime",
+    tkey: str = "potential",
+    color_map: str = "bwr",
+    gene_order_method: Literal["raw", "maximum", "half_max_ordering"] = "raw",
+    show_colorbar: bool = False,
+    cluster_row_col: Tuple[bool, bool] = (False, True),
+    figsize: Tuple[float, float] = (11.5, 6),
+    standard_scale: int = 1,
+    n_convolve: int = 30,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **kwargs,
-):
+) -> Optional[ClusterGrid]:
     """Plot the Sensitivity dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
     used as the measure of pseudotime.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        basis: `str`
-            The reduced dimension basis.
-        regulators: `list` or `None` (default: `None`)
-            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        effectors: `List` or `None` (default: `None`)
-            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
-            that have already performed Jacobian analysis.
-        mode: `str` (default: `vector_field`)
-            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory
-            predicted byvector field function will be used, otherwise pseudotime trajectory (defined by time argument)
-            will be used. By default `potential` estimated with the diffusion graph built reconstructed vector field
-            will be used as pseudotime.
-        tkey: `str` (default: `potential`)
-            The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
-        color_map: `str` (default: `BrBG`)
-            Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
-            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
-        gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`]
-            Supports two different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
-            or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit groups by the half
-            max ordering algorithm (HA Pliner, et. al, Molecular cell 71 (5), 858-871. e8). While for `maximum`,
-            it will order by the position of the highest gene expression.
-        show_colorbar: `bool` (default: `False`)
-            Whether to show the color bar.
-        cluster_row_col: `[bool, bool]` (default: `[False, False]`)
-            Whether to cluster the row or columns.
-        figsize: `str` (default: `(11.5, 6)`
-            Size of figure
-        standard_scale: `int` (default: 1)
-            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each
-            row or column, subtract the minimum and divide each by its maximum.
-        n_convolve: `int` (default: 30)
-            Number of cells for convolution.
-        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
-            Whether to save_fig, show or return the figure.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        kwargs:
-            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is
-            passed to heatmap() by default.
-    Returns
-    -------
-        Nothing but plots a heatmap that shows the element of Jacobian matrix dynamics over time (potential decreasing).
+    Args:
+        adata: an AnnData object.
+        basis: the reduced dimension basis. Defaults to "umap".
+        regulators: the list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        effectors: the list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to
+            genes that have already performed Jacobian analysis. Defaults to None.
+        mode: which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory
+            predicted by vector field function will be used, otherwise pseudotime trajectory (defined by time argument)
+            will be used. By default, `potential` estimated with the diffusion graph built reconstructed vector field
+            will be used as pseudotime. Defaults to "pseudotime".
+        tkey: the .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
+            Defaults to "potential".
+        color_map: color map that will be used to color the gene expression. If `half_max_ordering` is True, the
+            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc. Defaults to
+            "bwr".
+        gene_order_method: supports two different methods for ordering genes when plotting the heatmap: either
+            `half_max_ordering`, or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit
+            groups by the half max ordering algorithm (HA Pliner, et al., Molecular cell 71 (5), 858-871. e8). While for
+            `maximum`, it will order by the position of the highest gene expression. Or, use `raw` to prevent any
+            ordering. Defaults to "raw".
+        show_colorbar: whether to show the color bar. Defaults to False.
+        cluster_row_col: whether to cluster the row or columns. Defaults to (False, True).
+        figsize: the size of the figure. Defaults to (11.5, 6).
+        standard_scale: either 0 (rows, cells) or 1 (columns, genes). Whether to standardize that dimension,
+            meaning for each row or column, subtract the minimum and divide each by its maximum. Defaults to 1.
+        n_convolve: the number of cells for convolution. Defaults to 30.
+        save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **kwargs: any other kwargs that would be passed to `heatmap(). Currently `xticklabels=False, yticklabels='auto'`
+            is passed to heatmap() by default.`
 
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> adata = dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.vf.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
-    >>> dyn.pl.sensitivity_kinetics(adata)
+    Raises:
+        ValueError: invalid `regulators` or `effectors`.
+        NotImplementedError: invalid `gene_order_method`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
+        ClusterGrid would be returned.
+        
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> adata = dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.sensitivity_kinetics(adata)
     """
 
     import matplotlib.pyplot as plt
@@ -1049,7 +1032,7 @@ def sensitivity_kinetics(
             columns=adata.obs_names,
         )
     else:
-        raise Exception("gene order_method can only be either half_max_ordering or maximum")
+        raise NotImplementedError("gene order_method can only be either half_max_ordering or maximum")
 
     heatmap_kwargs = dict(
         xticklabels=False,
@@ -1078,7 +1061,7 @@ def sensitivity_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return == "save_fig":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "sensitivity_kinetics",
@@ -1090,11 +1073,14 @@ def sensitivity_kinetics(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap
