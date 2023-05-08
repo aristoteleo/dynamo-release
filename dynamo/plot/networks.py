@@ -8,9 +8,9 @@ except ImportError:
 import networkx as nx
 import numpy as np
 import pandas as pd
+
 from anndata import AnnData
 from matplotlib.axes import Axes
-
 from ..tools.utils import flatten, index_gene, update_dict
 from .utils import save_fig, set_colorbar
 from .utils_graph import ArcPlot

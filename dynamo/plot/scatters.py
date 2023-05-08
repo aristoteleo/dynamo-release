@@ -795,7 +795,8 @@ def scatters(
                     if deaxis:
                         deaxis_all(ax)
 
-                ax.set_title(cur_title)
+                ax.set_title(cur_title, color=font_color)
+                ax.tick_params(axis="both", colors=font_color)
 
                 axes_list.append(ax)
                 color_list.append(color_out)

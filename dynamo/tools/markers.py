@@ -292,7 +292,13 @@ def find_group_markers(
     de_table = pd.concat(de_tables).reset_index().drop(columns=["index"])
     de_table["log2_fc"] = de_table["log2_fc"].astype("float")
 
-    adata.uns["cluster_markers"] = {"deg_table": de_table, "de_genes": de_genes}
+    # Dict with list is not convertable to str, hdf5 serializable, so convert to pandas DataFrame.
+    max_len = max(len(v) for v in de_genes.values())
+    de_genes_list = [v + [""] * (max_len - len(v)) for v in de_genes.values()]
+    de_genes_df = pd.DataFrame(de_genes_list, columns=[f"gene_{i + 1}" for i in range(max_len)])
+    de_genes_df["group"] = list(de_genes.keys())
+
+    adata.uns["cluster_markers"] = {"deg_table": de_table, "de_genes": de_genes_df}
 
     return adata
 
@@ -430,7 +436,8 @@ def two_groups_degs(
                 log_fc = test_vals.mean() - control_vals.mean()  # for curvature, acceleration, log fc is meaningless
 
             try:
-                u, mw_p = mannwhitneyu(test_vals, control_vals)
+                # array(maybe bug...) is not hdf5 serializable, so convert to float.
+                u, mw_p = map(float, mannwhitneyu(test_vals, control_vals))
             except ValueError:
                 pass
             else:

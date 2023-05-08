@@ -137,8 +137,10 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
         merge_df = adata.var.merge(official_gene_df, left_on="query", right_on="query", how="left").set_index(
             adata.var.index
         )
-        adata.var = merge_df
+
         valid_ind = np.where(merge_df["notfound"] != True)[0]  # noqa: E712
+        merge_df.pop("notfound")
+        adata.var = merge_df
 
         if subset is True:
             adata._inplace_subset_var(valid_ind)
@@ -535,13 +537,13 @@ def get_gene_selection_filter(
 ) -> np.ndarray:
     """Generate the mask by sorting given table of scores.
 
-        Args:
-            valid_table: the scores used to sort the highly variable genes.
-            n_top_genes: number of top genes to be filtered. Defaults to 2000.
-            basic_filter: the filter to remove outliers. For example, the `adata.var["pass_basic_filter"]`.
+    Args:
+        valid_table: the scores used to sort the highly variable genes.
+        n_top_genes: number of top genes to be filtered. Defaults to 2000.
+        basic_filter: the filter to remove outliers. For example, the `adata.var["pass_basic_filter"]`.
 
-        Returns:
-            The filter mask as a bool array.
+    Returns:
+        The filter mask as a bool array.
     """
     if basic_filter is None:
         basic_filter = pd.Series(True, index=valid_table.index)

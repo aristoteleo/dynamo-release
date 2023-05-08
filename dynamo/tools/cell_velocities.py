@@ -13,7 +13,9 @@ from numba import jit
 from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
 
+from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..tools.connectivity import get_mapper_umap
 from ..utils import areinstance
 from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
 from .dimension_reduction import reduceDimension
@@ -518,27 +520,46 @@ def cell_velocities(
             adata.obsp["discrete_vector_field"] = E
 
     elif method == "transform":
-        umap_trans, n_pca_components = (
-            adata.uns["umap_fit"]["fit"],
-            adata.uns["umap_fit"]["n_pca_components"],
+        if "X_data" not in adata.uns["umap"].keys():
+            raise Exception(
+                f"Parameter info of UMAP is missing in the provided anndata object. "
+                "Run `dyn.tl.reduceDimension` before doing this."
+            )
+
+        params = adata.uns["umap"]
+        mapper = get_mapper_umap(
+            params["X_data"],
+            n_components=params["umap_kwargs"]["n_components"],
+            metric=params["umap_kwargs"]["metric"],
+            min_dist=params["umap_kwargs"]["min_dist"],
+            spread=params["umap_kwargs"]["spread"],
+            max_iter=params["umap_kwargs"]["max_iter"],
+            alpha=params["umap_kwargs"]["alpha"],
+            gamma=params["umap_kwargs"]["gamma"],
+            negative_sample_rate=params["umap_kwargs"]["negative_sample_rate"],
+            init_pos=params["umap_kwargs"]["init_pos"],
+            random_state=params["umap_kwargs"]["random_state"],
+            umap_kwargs=params["umap_kwargs"],
         )
 
         if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
             CM = adata.X[:, adata.var.use_for_dynamics.values]
             from ..preprocessing.utils import pca
 
-            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X", return_all=True)
+            adata, pca_fit, X_pca = pca(adata, CM, params["n_pca_components"], "X", return_all=True)
             adata.uns["pca_fit"] = pca_fit
 
-        X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
+        X_pca, pca_fit = adata.obsm[DKM.X_PCA], adata.uns["pca_fit"]
         V = adata[:, adata.var.use_for_dynamics.values].layers[vkey] if vkey in adata.layers.keys() else None
         CM, V = CM.A if sp.issparse(CM) else CM, V.A if sp.issparse(V) else V
         V[np.isnan(V)] = 0
+        V[np.isinf(V)] = 0  ############### NEED TO CHECK!
         Y_pca = pca_fit.transform(CM + V)
 
-        Y = umap_trans.transform(Y_pca)
-
+        Y = mapper.transform(Y_pca)
         delta_X = Y - X_embedding
+
+        T = transition_matrix  ############## NEED TO CHECK!
 
     if method not in ["pearson", "cosine"]:
         X_grid, V_grid, D = velocity_on_grid(X_embedding[:, :2], delta_X[:, :2], xy_grid_nums=xy_grid_nums)

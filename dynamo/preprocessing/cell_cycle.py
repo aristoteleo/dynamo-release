@@ -418,7 +418,7 @@ def get_cell_phase(
     else:
         cell_phase_genes = gene_list
 
-    adata.uns["cell_phase_genes"] = cell_phase_genes
+    adata.uns["cell_phase_genes"] = dict(cell_phase_genes)  # OrderedDict is not hdf5 serializable, so convert to dict.
     # score each cell cycle phase and Z-normalize
     phase_scores = pd.DataFrame(batch_group_score(adata, layer, cell_phase_genes))
     normalized_phase_scores = phase_scores.sub(phase_scores.mean(axis=1), axis=0).div(phase_scores.std(axis=1), axis=0)

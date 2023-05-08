@@ -9,12 +9,14 @@ from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
+from ..configuration import DKM
 from ..dynamo_logger import (
     LoggerManager,
     main_info,
     main_info_insert_adata,
     main_warning,
 )
+from ..tools.connectivity import get_mapper_umap
 from ..tools.utils import fetch_states, getTseq
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vecfld_from_adata, vector_transformation
@@ -163,17 +165,33 @@ def fate(
         # this requires umap 0.4; reverse project to PCA space.
         if prediction.ndim == 1:
             prediction = prediction[None, :]
-        exprs = adata.uns["umap_fit"]["fit"].inverse_transform(prediction)
+
+        params = adata.uns["umap"]
+        mapper = get_mapper_umap(
+            params["X_data"],
+            n_components=params["umap_kwargs"]["n_components"],
+            metric=params["umap_kwargs"]["metric"],
+            min_dist=params["umap_kwargs"]["min_dist"],
+            spread=params["umap_kwargs"]["spread"],
+            max_iter=params["umap_kwargs"]["max_iter"],
+            alpha=params["umap_kwargs"]["alpha"],
+            gamma=params["umap_kwargs"]["gamma"],
+            negative_sample_rate=params["umap_kwargs"]["negative_sample_rate"],
+            init_pos=params["umap_kwargs"]["init_pos"],
+            random_state=params["umap_kwargs"]["random_state"],
+            umap_kwargs=params["umap_kwargs"],
+        )
+        exprs = mapper.inverse_transform(prediction)
 
         # further reverse project back to raw expression space
         PCs = adata.uns["PCs"].T
         if PCs.shape[0] == exprs.shape[1]:
             exprs = np.expm1(exprs @ PCs + adata.uns["pca_mean"])
 
-        ndim = adata.uns["umap_fit"]["fit"]._raw_data.shape[1]
+        ndim = mapper._raw_data.shape[1]
 
         if "X" in adata.obsm_keys():
-            if ndim == adata.obsm["X"].shape[1]:  # lift the dimension up again
+            if ndim == adata.obsm[DKM.X_PCA].shape[1]:  # lift the dimension up again
                 exprs = adata.uns["pca_fit"].inverse_transform(prediction)
 
         if adata.var.use_for_dynamics.sum() == exprs.shape[1]:
@@ -211,7 +229,7 @@ def _fate(
     interpolation_num: int = 250,
     average: bool = True,
     sampling: str = "arc_length",
-    cores:int = 1,
+    cores: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector
     field functions from one or a set of initial cell state(s).
