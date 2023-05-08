@@ -49,6 +49,7 @@ def basic_stats(
         (seaborn.FacetGrid) would be returned.
     """
 
+    import matplotlib.pyplot as plt
     if len(adata.obs.columns.intersection(["nGenes", "nCounts", "pMito"])) != 3:
         from ..preprocessing.utils import basic_stats
 
@@ -118,7 +119,6 @@ def basic_stats(
             s_kwargs["close"] = False
         save_fig(**s_kwargs)
     if save_show_or_return in ["show", "both", "all"]:
-        import matplotlib.pyplot as plt
         plt.tight_layout()
         plt.show()
     if save_show_or_return in ["return", "all"]:

@@ -1359,7 +1359,7 @@ def highest_frac_genes(
 
     gene_mat = adata.X
     if layer is not None:
-        gene_mat = DKM.select_layer_data(layer)
+        gene_mat = DKM.select_layer_data(adata, layer)
     # compute gene percents at each cell row
     cell_expression_sum = gene_mat.sum(axis=1).flatten()
     # get rid of cells that have all zero counts
