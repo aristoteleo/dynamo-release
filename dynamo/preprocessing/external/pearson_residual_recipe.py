@@ -24,7 +24,7 @@ from ...dynamo_logger import (
     main_warning,
 )
 from ..QC import filter_genes_by_outliers
-from ...preprocessing.preprocessor_utils import (
+from ...preprocessing.utils import (
     is_nonnegative_integer_arr,
     seurat_get_mean_var,
 )

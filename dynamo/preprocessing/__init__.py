@@ -11,11 +11,6 @@ from .external import (
     select_genes_by_pearson_residuals,
 )
 from .normalization import normalize
-from .preprocess import (
-    get_svr_filter,
-    highest_frac_genes,
-)
-from .preprocessor_utils import *
 from .QC import (
     basic_stats,
     filter_genes_by_clusters,
@@ -29,6 +24,7 @@ from .utils import (
     compute_gene_exp_fraction,
     convert2symbol,
     decode,
+    get_svr_filter,
     relative2abs,
     scale,
 )
@@ -47,7 +43,7 @@ log1p = log1p
 normalize_cells = normalize
 
 from .CnmfPreprocessor import CnmfPreprocessor
-from .gene_selection import calc_Gini, calc_dispersion_by_svr, select_genes_monocle
+from .gene_selection import calc_Gini, calc_dispersion_by_svr, highest_frac_genes, select_genes_monocle
 from .Preprocessor import Preprocessor
 
 __all__ = [

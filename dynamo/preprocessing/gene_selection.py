@@ -8,6 +8,7 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+import anndata
 import numpy as np
 import pandas as pd
 import scipy.sparse
@@ -17,17 +18,22 @@ from scipy.sparse import csr_matrix, issparse
 from ..configuration import DKM
 from ..dynamo_logger import (
     LoggerManager,
+    main_critical,
     main_debug,
     main_info,
+    main_info_insert_adata_uns,
     main_info_insert_adata_var,
     main_warning,
 )
-from .preprocessor_utils import (
+from .pca import pca
+from .utils import (
+    compute_gene_exp_fraction,
+    get_gene_selection_filter,
     get_nan_or_inf_data_bool_mask,
     get_svr_filter,
+    merge_adata_attrs,
     seurat_get_mean_var,
 )
-from .utils import compute_gene_exp_fraction, get_gene_selection_filter, merge_adata_attrs
 
 
 def calc_Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> AnnData:
@@ -759,3 +765,118 @@ def get_highly_variable_mask_by_dispersion_svr(
     if return_scores:
         return highly_variable_mask, scores
     return highly_variable_mask
+
+
+def highest_frac_genes(
+    adata: AnnData,
+    store_key: str = "highest_frac_genes",
+    n_top: int = 30,
+    gene_prefix_list: List[str] = None,
+    gene_prefix_only: bool = False,
+    layer: Union[str, None] = None,
+) -> anndata.AnnData:
+    """Compute top genes df and store results in `adata.uns`
+
+    Args:
+        adata: an AnnData object
+        store_key: key for storing expression percent results. Defaults to "highest_frac_genes".
+        n_top: number of top genes to show. Defaults to 30.
+        gene_prefix_list: a list of gene name prefixes used for gathering/calculating expression percents from genes
+            with these prefixes. Defaults to None.
+        gene_prefix_only: whether to calculate percentages for gene groups with the specified prefixes only. It only
+            takes effect if gene prefix list is provided. Defaults to False.
+        layer: layer on which the gene percents will be computed. Defaults to None.
+
+    Returns:
+        An updated adata with top genes df stored in `adata.uns`
+    """
+
+    gene_mat = adata.X
+    if layer is not None:
+        gene_mat = DKM.select_layer_data(layer)
+    # compute gene percents at each cell row
+    cell_expression_sum = gene_mat.sum(axis=1).flatten()
+    # get rid of cells that have all zero counts
+    not_all_zero = cell_expression_sum != 0
+    filtered_adata = adata[not_all_zero, :]
+    cell_expression_sum = cell_expression_sum[not_all_zero]
+    main_debug("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
+
+    valid_gene_set = set()
+    prefix_to_genes = {}
+    _adata = filtered_adata
+    if gene_prefix_list is not None:
+        prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
+        for name in _adata.var_names:
+            for prefix in gene_prefix_list:
+                length = len(prefix)
+                if name[:length] == prefix:
+                    valid_gene_set.add(name)
+                    prefix_to_genes[prefix].append(name)
+                    break
+        if len(valid_gene_set) == 0:
+            main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
+            return None
+        if gene_prefix_only:
+            # gathering gene prefix set data
+            df = pd.DataFrame(index=_adata.obs.index)
+            for prefix in prefix_to_genes:
+                if len(prefix_to_genes[prefix]) == 0:
+                    main_info("There is no %s gene prefix in adata." % prefix)
+                    continue
+                df[prefix] = _adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
+            # adata = adata[:, list(valid_gene_set)]
+
+            _adata = AnnData(X=df)
+            gene_mat = _adata.X
+
+    # compute gene's total percents in the dataset
+    gene_percents = np.array(gene_mat.sum(axis=0))
+    gene_percents = (gene_percents / gene_mat.shape[1]).flatten()
+    # obtain top genes
+    sorted_indices = np.argsort(-gene_percents)
+    selected_indices = sorted_indices[:n_top]
+    gene_names = _adata.var_names[selected_indices]
+
+    gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
+
+    # assemble a dataframe
+    selected_gene_X_percents = np.array(gene_X_percents)[:, selected_indices]
+    selected_gene_X_percents = np.squeeze(selected_gene_X_percents)
+
+    top_genes_df = pd.DataFrame(
+        selected_gene_X_percents,
+        index=adata.obs_names,
+        columns=gene_names,
+    )
+    gene_percents_df = pd.DataFrame(
+        gene_percents, index=_adata.var_names, columns=["percent"]
+    )  # Series is not appropriate for h5ad format.
+
+    main_info_insert_adata_uns(store_key)
+    adata.uns[store_key] = {
+        "top_genes_df": top_genes_df,
+        "gene_mat": gene_mat,
+        "layer": layer,
+        "selected_indices": selected_indices,
+        "gene_prefix_list": gene_prefix_list,
+        "show_individual_prefix_gene": gene_prefix_only,
+        "gene_percents": gene_percents_df,
+    }
+
+    return adata
+
+
+def pca_selected_genes_wrapper(
+    adata: AnnData, pca_input: Union[np.ndarray, None] = None, n_pca_components: int = 30, key: str = "X_pca"
+):
+    """A wrapper for pca function to reduce dimensions of the Adata with PCA.
+
+    Args:
+        adata: an AnnData object.
+        pca_input: an array for nearest neighbor search directly. Defaults to None.
+        n_pca_components: number of PCA components. Defaults to 30.
+        key: the key to store the calculation result. Defaults to "X_pca".
+    """
+
+    adata = pca(adata, pca_input, n_pca_components=n_pca_components, pca_key=key)

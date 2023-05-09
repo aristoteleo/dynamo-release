@@ -27,9 +27,6 @@ from .cell_cycle import cell_cycle_scores
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .normalization import calc_sz_factor, normalize
 from .pca import pca
-from .preprocessor_utils import (
-    _infer_labeling_experiment_type,
-)
 from .QC import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
     regress_out_parallel,
@@ -40,6 +37,7 @@ from .QC import (
 from .QC import basic_stats
 from .transform import Freeman_Tukey, log, log1p, log2
 from .utils import (
+    _infer_labeling_experiment_type,
     collapse_species_adata,
     convert2symbol,
     convert_layers2csr,

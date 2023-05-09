@@ -1,4 +1,5 @@
 import warnings
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -16,7 +17,7 @@ from ..dynamo_logger import (
     main_info_insert_adata_uns,
 )
 from ..utils import copy_adata
-from .preprocessor_utils import is_integer_arr
+from .utils import is_integer_arr
 
 
 def _Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
@@ -348,3 +349,47 @@ def log2(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> An
     main_info_insert_adata_uns("pp.norm_method")
     adata.uns["pp"]["norm_method"] = "log2"
     return _adata
+
+
+def vstExprs(
+    adata: anndata.AnnData,
+    expr_matrix: Union[np.ndarray, None] = None,
+    round_vals: bool = True,
+) -> np.ndarray:
+    """Variance stabilization transformation of the gene expression.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Args:
+        adata: an AnnData object.
+        expr_matrix: an matrix of values to transform. Must be normalized (e.g. by size factors) already. Defaults to
+            None.
+        round_vals: whether to round expression values to the nearest integer before applying the transformation.
+            Defaults to True.
+
+    Returns:
+        A numpy array of the gene expression after VST.
+    """
+
+    fitInfo = adata.uns["dispFitInfo"]
+
+    coefs = fitInfo["coefs"]
+    if expr_matrix is None:
+        ncounts = adata.X
+        if round_vals:
+            if issparse(ncounts):
+                ncounts.data = np.round(ncounts.data, 0)
+            else:
+                ncounts = ncounts.round().astype("int")
+    else:
+        ncounts = expr_matrix
+
+    def vst(q):  # c( "asymptDisp", "extraPois" )
+        return np.log(
+            (1 + coefs[1] + 2 * coefs[0] * q + 2 * np.sqrt(coefs[0] * q * (1 + coefs[1] + coefs[0] * q)))
+            / (4 * coefs[0])
+        ) / np.log(2)
+
+    res = vst(ncounts.toarray()) if issparse(ncounts) else vst(ncounts)
+
+    return res

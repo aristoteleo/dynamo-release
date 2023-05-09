@@ -33,7 +33,6 @@ from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
 from .normalization import get_sz_exprs, normalize_mat_monocle, sz_util
 from .pca import pca
-from .preprocessor_utils import _infer_labeling_experiment_type, get_nan_or_inf_data_bool_mask
 from .QC import (
     basic_stats,
     filter_genes_by_clusters,
@@ -42,6 +41,7 @@ from .QC import (
 )
 from .transform import _Freeman_Tukey
 from .utils import (
+    _infer_labeling_experiment_type,
     add_noise_to_duplicates,
     calc_new_to_total_ratio,
     collapse_species_adata,
@@ -51,6 +51,7 @@ from .utils import (
     detect_experiment_datatype,
     get_inrange_shared_counts_mask,
     get_svr_filter,
+    get_nan_or_inf_data_bool_mask,
     merge_adata_attrs,
     unique_var_obs_adata,
 )
