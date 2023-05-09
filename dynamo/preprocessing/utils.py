@@ -14,8 +14,8 @@ import scipy
 import scipy.sparse
 import statsmodels.api as sm
 from anndata import AnnData
-from scipy.sparse.linalg import LinearOperator, svds
 from scipy.sparse import csc_matrix, csr_matrix, issparse
+from scipy.sparse.linalg import LinearOperator, svds
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import svd_flip
@@ -402,7 +402,7 @@ def merge_adata_attrs(adata_ori: AnnData, adata: AnnData, attr: Literal["var", "
             The merged DataFrame.
         """
 
-        _columns = set(diff_df.columns).difference(origin_df.columns)
+        _columns = list(set(diff_df.columns).difference(origin_df.columns))
         new_df = origin_df.merge(diff_df[_columns], how="left", left_index=True, right_index=True)
         return new_df.loc[origin_df.index, :]
 
@@ -528,6 +528,28 @@ def clusters_stats(
     return U_avgs, S_avgs
 
 
+def get_gene_selection_filter(
+    valid_table: pd.Series,
+    n_top_genes: int = 2000,
+    basic_filter: Optional[pd.Series] = None,
+) -> np.ndarray:
+    """Generate the mask by sorting given table of scores.
+
+        Args:
+            valid_table: the scores used to sort the highly variable genes.
+            n_top_genes: number of top genes to be filtered. Defaults to 2000.
+            basic_filter: the filter to remove outliers. For example, the `adata.var["pass_basic_filter"]`.
+
+        Returns:
+            The filter mask as a bool array.
+    """
+    if basic_filter is None:
+        basic_filter = pd.Series(True, index=valid_table.index)
+    feature_gene_idx = np.argsort(-valid_table)[:n_top_genes]
+    feature_gene_idx = valid_table.index[feature_gene_idx]
+    return basic_filter.index.isin(feature_gene_idx)
+
+
 def get_svr_filter(
     adata: anndata.AnnData, layer: str = "spliced", n_top_genes: int = 3000, return_adata: bool = False
 ) -> Union[anndata.AnnData, np.ndarray]:
@@ -582,8 +604,10 @@ def sz_util(
         layer: the layer to operate on.
         round_exprs: whether the gene expression should be rounded into integers.
         method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`.
+            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
+            used, size factors will be calculated using the geometric mean with given mean function. When `median` is
+            used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
+            `np.nanmean`. Defaults to "median".
         locfunc: the function to normalize the data.
         total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
@@ -601,28 +625,18 @@ def sz_util(
 
     if layer == "_total_" and "_total_" not in adata.layers.keys():
         if total_layers is not None:
-            if not isinstance(total_layers, list):
-                total_layers = [total_layers]
-            if len(set(total_layers).difference(adata.layers.keys())) == 0:
-                total = None
-                for t_key in total_layers:
-                    total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
-                adata.layers["_total_"] = total
+            total_layers, _ = DKM.aggregate_layers_into_total(
+                adata,
+                total_layers=total_layers,
+                extend_layers=False,
+            )
 
-    if layer == "raw":
-        CM = adata.raw.X if CM is None else CM
-    elif layer == "X":
-        CM = adata.X if CM is None else CM
-    elif layer == "protein":
-        if "protein" in adata.obsm_keys():
-            CM = adata.obsm["protein"] if CM is None else CM
-        else:
-            return None, None
-    else:
-        CM = adata.layers[layer] if CM is None else CM
+    CM = DKM.select_layer_data(adata, layer) if CM is None else CM
+    if CM is None:
+        return None, None
 
     if round_exprs:
-        main_info("rounding expression data of layer: %s during size factor calculation" % (layer))
+        main_debug("rounding expression data of layer: %s during size factor calculation" % (layer))
         if issparse(CM):
             CM.data = np.round(CM.data, 0)
         else:
@@ -684,15 +698,21 @@ def get_sz_exprs(
 
 
 def normalize_mat_monocle(
-    mat: np.ndarray, szfactors: np.ndarray, relative_expr: bool, pseudo_expr: int, norm_method: Callable = np.log1p
+    mat: np.ndarray,
+    szfactors: np.ndarray,
+    relative_expr: bool,
+    pseudo_expr: int,
+    norm_method: Callable = np.log1p,
 ) -> np.ndarray:
     """Normalize the given array for monocle recipe.
 
     Args:
         mat: the array to operate on.
         szfactors: the size factors corresponding to the array.
-        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
-        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization.
+        relative_expr: whether we need to divide gene expression values first by
+            size factor before normalization.
+        pseudo_expr: a pseudocount added to the gene expression value before
+            log/log2 normalization.
         norm_method: the method used to normalize data. Defaults to np.log1p.
 
     Returns:
@@ -717,7 +737,20 @@ def normalize_mat_monocle(
     return mat
 
 
-def Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
+def size_factor_normalize(mat: np.ndarray, szfactors: np.ndarray) -> np.ndarray:
+    """perform size factor normalization on the given array.
+
+    Args:
+        mat: the array to operate on.
+        szfactors: the size factors corresponding to the array.
+
+    Returns:
+        The normalized array divided by size factor
+    """
+    return mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
+
+
+def _Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
     """perform Freeman-Tukey transform or inverse transform on the given array.
 
     Args:
@@ -777,6 +810,7 @@ def decode(adata: anndata.AnnData) -> None:
 
 # ---------------------------------------------------------------------------------------------------
 # pca
+
 
 def _truncatedSVD_with_center(
     X: Union[csc_matrix, csr_matrix],
@@ -844,7 +878,7 @@ def _truncatedSVD_with_center(
     )
 
     # Solve SVD without calculating individuals entries in LinearOperator.
-    U, Sigma, VT = svds(X_centered, solver='arpack', k=n_components, v0=v0)
+    U, Sigma, VT = svds(X_centered, solver="arpack", k=n_components, v0=v0)
     Sigma = Sigma[::-1]
     U, VT = svd_flip(U[:, ::-1], VT[::-1])
     X_transformed = U * Sigma
@@ -864,11 +898,12 @@ def _truncatedSVD_with_center(
         random_state=random_state,
     )
     X_pca = result_dict["X_pca"]
+    fit.mean_ = mean.A1.flatten()
     fit.components_ = result_dict["components_"]
-    fit.explained_variance_ratio_ = result_dict[
-        "explained_variance_ratio_"]
+    fit.explained_variance_ratio_ = result_dict["explained_variance_ratio_"]
 
     return fit, X_pca
+
 
 def _pca_fit(
     X: np.ndarray,
@@ -893,7 +928,7 @@ def _pca_fit(
         A tuple containing two elements:
             - The fitted PCA object, which has a 'fit' and 'transform' method.
             - The transformed array X_pca of shape (n_samples, n_components).
-        """
+    """
     fit = pca_func(
         n_components=min(n_components, X.shape[1] - 1),
         **kwargs,
@@ -906,7 +941,7 @@ def pca(
     adata: AnnData,
     X_data: np.ndarray = None,
     n_pca_components: int = 30,
-    pca_key: str = "X",
+    pca_key: str = "X_pca",
     pcs_key: str = "PCs",
     genes_to_append: Union[List[str], None] = None,
     layer: Union[List[str], str, None] = None,
@@ -1001,6 +1036,7 @@ def pca(
 
     if use_incremental_PCA:
         from sklearn.decomposition import IncrementalPCA
+
         fit, X_pca = _pca_fit(
             X_data,
             pca_func=IncrementalPCA,
@@ -1028,10 +1064,7 @@ def pca(
             # data. It only performs SVD decomposition, which is the second part
             # in our _truncatedSVD_with_center function.
             fit, X_pca = _pca_fit(
-                X_data,
-                pca_func=TruncatedSVD,
-                n_components=n_pca_components + 1,
-                random_state=random_state
+                X_data, pca_func=TruncatedSVD, n_components=n_pca_components + 1, random_state=random_state
             )
             # first columns is related to the total UMI (or library size)
             X_pca = X_pca[:, 1:]
@@ -1039,14 +1072,13 @@ def pca(
     adata.obsm[pca_key] = X_pca
     if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
         adata.uns[pcs_key] = fit.components_.T
-        adata.uns[
-            "explained_variance_ratio_"] = fit.explained_variance_ratio_
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
         # first columns is related to the total UMI (or library size)
         adata.uns[pcs_key] = fit.components_.T[:, 1:]
-        adata.uns[
-            "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+
+    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else np.zeros(X_data.shape[1])
 
     if return_all:
         return adata, fit, X_pca
@@ -1299,10 +1331,10 @@ def calc_new_to_total_ratio(adata: anndata.AnnData) -> Union[Tuple[np.ndarray, n
 
 
 def scale(
-    adata: anndata.AnnData,
+    adata: AnnData,
     layers: Union[List[str], str, None] = None,
-    scale_to_layer: Union[str, None] = None,
-    scale_to: float = 1e6,
+    scale_to_layer: Optional[str] = None,
+    scale_to: float = 1e4,
 ) -> anndata.AnnData:
     """Scale layers to a particular total expression value, similar to `normalize_expr_data` function.
 
@@ -1317,8 +1349,9 @@ def scale(
         The scaled AnnData object.
     """
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
-    has_splicing, has_labeling, _ = detect_experiment_datatype(adata)
+    if layers is None:
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers="all")
+    has_splicing, has_labeling = detect_experiment_datatype(adata)[:2]
 
     if scale_to_layer is None:
         scale_to_layer = "total" if has_labeling else None
@@ -1327,9 +1360,8 @@ def scale(
         scale = None
 
     for layer in layers:
-        if scale is None:
-            scale = scale_to / adata.layers[layer].sum(1)
-
+        # if scale is None:
+        scale = scale_to / adata.layers[layer].sum(1)
         adata.layers[layer] = csr_matrix(adata.layers[layer].multiply(scale))
 
     return adata

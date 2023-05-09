@@ -1,8 +1,10 @@
 from warnings import warn
 
+from anndata._core.anndata import AnnData
 import numpy as np
 import scipy as sp
 import scipy.optimize
+from typing import Callable, List, Optional, Tuple, Union
 
 from ..tools.sampling import lhsclassic
 from .Ao import Ao_pot_map
@@ -19,17 +21,37 @@ from .Wang import Wang_action, Wang_LAP
 
 
 def search_fixed_points(
-    func,
-    domain,
-    x0,
-    x0_method="lhs",
-    reverse=False,
-    return_x0=False,
-    fval_tol=1e-8,
-    remove_outliers=True,
-    ignore_fsolve_err=False,
+    func: Callable,
+    domain: np.ndarray,
+    x0: np.ndarray,
+    x0_method: str = "lhs",
+    reverse: bool = False,
+    return_x0: bool = False,
+    fval_tol: float = 1e-8,
+    remove_outliers: bool = True,
+    ignore_fsolve_err: bool = False,
     **fsolve_kwargs
-):
+) -> Union[FixedPoints, Tuple[FixedPoints, np.ndarray]]:
+    """Search the fixed points of (learned) vector field function in a given domain.
+
+    The initial points are sampled by given methods. Then the function uses the fsolve function
+    from SciPy to find the fixed points and Numdifftools to compute the Jacobian matrix of the function.
+
+    Args:
+        func: The function of the (learned) vector field function that are required to fixed points for.
+        domain: The domain to search in.
+        x0: The initial point to start with.
+        x0_method: The method to sample initial points.
+        reverse: Whether to reverse the sign (direction) of vector field (VF).
+        return_x0: Whether to return the initial points used in the search.
+        fval_tol: The tolerance for the function value at the fixed points.
+        remove_outliers: Whether to remove the outliers.
+        ignore_fsolve_err: Whether to ignore the fsolve error.
+
+    Returns:
+        The fixed points found with their Jacobian matrix of the function. The sampled initial points
+        will be returned as well if return_x0 == True.
+    """
     import numdifftools as nda
 
     func_ = (lambda x: -func(x)) if reverse else func
@@ -86,44 +108,33 @@ def search_fixed_points(
 
 
 def gen_fixed_points(
-    func,
-    auto_func,
-    dim_range,
-    RandNum,
-    EqNum,
-    reverse=False,
-    grid_num=50,
-    x_ini=None,
-):
+    func: Callable,
+    auto_func: Optional[np.ndarray],
+    dim_range: List,
+    RandNum: int,
+    EqNum: int,
+    reverse: bool = False,
+    grid_num: int = 50,
+    x_ini: Optional[np.ndarray] = None,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Calculate the fixed points of (learned) vector field function . Classify the fixed points into classes of stable and saddle points
     based on the eigenvalue of the Jacobian on the point.
 
-    Arguments
-    ---------
-        func: 'function'
-            The function of the (learned) vector field function that are required to fixed points for
-        auto_func: 'np.ndarray' (not used)
-            The function that is written with autograd of the same ODE equations that is used to calculate the Jacobian matrix.
-            If auto_func is set to be None, Jacobian is calculated through the fjac, r returned from fsolve.
-        dim_range: 'list'
-            The range of variables in the ODE equations
-        RandNum: 'int'
-            The number of random initial points to sample
-        EqNum: 'int'
-            The number of equations (dimension) of the system
-        reverse: `bool`
-            Whether to reverse the sign (direction) of vector field (VF).
-        grid_num: `int` (default: 50)
-            The number of grids on each dimension, only used when the EqNum is 2 and x_ini is None.
-        x_ini: 'np.ndarray'
-            The user provided initial points that is used to find the fixed points
+    Args:
+        func: The function of the (learned) vector field function that are required to fixed points for
+        auto_func: The function that is written with autograd of the same ODE equations
+            that is used to calculate the Jacobian matrix. If auto_func is set to be None,
+            Jacobian is calculated through the fjac, r returned from fsolve.
+        dim_range: The range of variables in the ODE equations.
+        RandNum: The number of random initial points to sample.
+        EqNum: The number of equations (dimension) of the system.
+        reverse: Whether to reverse the sign (direction) of vector field (VF).
+        grid_num: The number of grids on each dimension, only used when the EqNum is 2 and x_ini is None.
+        x_ini: The user provided initial points that is used to find the fixed points
 
-    Returns
-    -------
-    stable: 'np.ndarray'
-        A matrix consists of the coordinates of the stable steady state
-    saddle: 'np.ndarray'
-        A matrix consists of the coordinates of the unstable steady state
+    Returns:
+        stable: A matrix consists of the coordinates of the stable steady state
+        saddle: A matrix consists of the coordinates of the unstable steady state
 
     """
     import numdifftools as nda
@@ -232,26 +243,23 @@ def gen_fixed_points(
     return stable, saddle
 
 
-def gen_gradient(dim, N, Function, DiffusionMatrix):
+def gen_gradient(
+    dim: int,
+    N: int,
+    Function: Callable,
+    DiffusionMatrix: Callable,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Calculate the gradient of the (learned) vector field function for the least action path (LAP) symbolically
 
-    Arguments
-    ---------
-        dim: 'int'
-            The number of dimension of the system
-        N: 'int'
-            The number of the points on the discretized path of the LAP
-        Function: 'function'
-            The function of the (learned) vector field function that is needed to calculate the Jacobian matrix
-        DiffusionMatrix: Python function
-            The function that returns the diffusion matrix which can be variable (for example, gene) dependent
+    Args:
+        dim: The number of dimension of the system.
+        N: The number of the points on the discretized path of the LAP.
+        Function: The function of the (learned) vector field function that is needed to calculate the Jacobian matrix.
+        DiffusionMatrix: The function that returns the diffusion matrix which can be variable (e.g. gene) dependent
 
-    Returns
-    -------
-    ret: 'np.ndarray'
-        The symbolic function that calculates the gradient of the LAP based on the Jacobian of the vector field function
-    V: 'np.ndarray'
-        A matrix consists of the coordinates of the unstable steady state
+    Returns:
+        ret: The symbolic function that calculates the gradient of the LAP based on the Jacobian of the vector field function.
+        V: A matrix consists of the coordinates of the unstable steady state.
     """
 
     from StringFunction import StringFunction
@@ -307,24 +315,22 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
 ##################################################
 
 
-def IntGrad(points, Function, DiffusionMatrix, dt):
+def IntGrad(
+    points: np.ndarray,
+    Function: Callable,
+    DiffusionMatrix: Callable,
+    dt: float,
+) -> np.ndarray:
     """Calculate the action of the path based on the (reconstructed) vector field function and diffusion matrix (Eq. 18)
 
-    Arguments
-    ---------
-        points: :class:`~numpy.ndarray`
-            The sampled points in the state space used to calculate the action.
-        Function: function
-            The (learned) vector field function.
-        DiffusionMatrix: function
-            The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-        dt: 'float'
-            The time interval used in calculating action
+    Arg:
+        points: The sampled points in the state space used to calculate the action.
+        Function: The (learned) vector field function.
+        DiffusionMatrix: The function that returns diffusion matrix which can be dependent on the variables (for example, genes).
+        dt: The time interval used in calculating action.
 
-    Returns
-    -------
-    integral: 'np.ndarray'
-        The action calculated based on the input path, the vector field function and the diffusion matrix.
+    Returns:
+        integral: The action calculated based on the input path, the vector field function and the diffusion matrix.
     """
 
     integral = 0
@@ -338,18 +344,14 @@ def IntGrad(points, Function, DiffusionMatrix, dt):
     return integral[0, 0]
 
 
-def DiffusionMatrix(x):
+def DiffusionMatrix(x: np.ndarray) -> np.ndarray:
     """Diffusion matrix can be variable dependent
 
-    Arguments
-    ---------
-        x: :class:`~numpy.ndarray`
-            The matrix of sampled points (cells) in the (gene expression) state space. A
+    Args:
+        x: The matrix of sampled points (cells) in the (gene expression) state space. A
 
-    Returns
-    -------
-    out: 'np.ndarray'
-        The diffusion matrix. By default, it is a diagonal matrix.
+    Returns:
+        out: The diffusion matrix. By default, it is a diagonal matrix.
     """
     out = np.zeros((x.shape[0], x.shape[0]))
     np.fill_diagonal(out, 1)
@@ -357,33 +359,30 @@ def DiffusionMatrix(x):
     return out
 
 
-def action(n_points, tmax, point_start, point_end, boundary, Function, DiffusionMatrix):
+def action(
+    n_points: int,
+    tmax: int,
+    point_start: np.ndarray,
+    point_end: np.ndarray,
+    boundary: np.ndarray,
+    Function: Callable,
+    DiffusionMatrix: Callable,
+) -> Tuple[np.ndarray, np.ndarray]:
     """It calculates the minimized action value given an initial path, ODE, and diffusion matrix. The minimization is
     realized by scipy.optimize.Bounds function in python (without using the gradient of the action function).
 
-    Arguments
-    ---------
-        n_points: 'int'
-            The number of points along the least action path.
-        tmax: 'int'
-            The value at maximum t.
-        point_start: :class:`~numpy.ndarray`
-            The matrix for storing the coordinates (gene expression configuration) of the start point (initial cell state).
-        point_end: :class:`~numpy.ndarray`
-            The matrix for storing the coordinates (gene expression configuration) of the end point (terminal cell state).
-        boundary: :class:`~numpy.ndarray`
-            Not used.
-        Function: function
-            The (reconstructed) vector field function.
-        DiffusionMatrix: function
-            The function that returns the diffusion matrix which can variable (for example, gene) dependent.
+    Args:
+        n_points: The number of points along the least action path.
+        tmax: The value at maximum t.
+        point_start: The matrix for storing the coordinates (gene expression configuration) of the start point (initial cell state).
+        point_end: The matrix for storing the coordinates (gene expression configuration) of the end point (terminal cell state).
+        boundary: Not used.
+        Function: The (reconstructed) vector field function.
+        DiffusionMatrix: The function that returns the diffusion matrix which can variable (for example, gene) dependent.
 
-    Returns
-    -------
-    fval: :class:`~numpy.ndarray`
-        The action value for the learned least action path.
-    output_path: :class:`~numpy.ndarray`
-        The least action path learned
+    Returns:
+        fval: The action value for the learned least action path.
+        output_path: The least action path learned.
     """
 
     dim = point_end.shape[0]  # genes x cells
@@ -419,7 +418,12 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
     return fval, output_path
 
 
-def Potential(adata, DiffMat=None, method="Ao", **kwargs):
+def Potential(
+    adata: AnnData,
+    DiffMat: Optional[Callable] = None,
+    method: str = "Ao",
+    **kwargs
+) -> AnnData:
     """Function to map out the pseudo-potential landscape.
 
     Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
@@ -437,15 +441,13 @@ def Potential(adata, DiffMat=None, method="Ao", **kwargs):
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains embedding and velocity data
-        method: `str` (default: `Ao`)
-            Method to map the potential landscape.
+        adata: AnnData object that contains embedding and velocity data.
+        DiffMat: The function which returns the diffusion matrix which can variable (for example, gene) dependent.
+        method: Method to map the potential landscape.
 
     Returns
     -------
-        adata: :class:`~anndata.AnnData`
-            `AnnData` object that is updated with the `Pot` dictionary in the `uns` attribute.
+        adata: `AnnData` object that is updated with the `Pot` dictionary in the `uns` attribute.
 
     """
 
@@ -460,41 +462,35 @@ def Potential(adata, DiffMat=None, method="Ao", **kwargs):
 class Pot:
     def __init__(
         self,
-        Function=None,
-        DiffMat=None,
-        boundary=None,
-        n_points=25,
-        fixed_point_only=False,
-        find_fixed_points=False,
-        refpoint=None,
-        stable=None,
-        saddle=None,
+        Function: Callable = None,
+        DiffMat: Callable = None,
+        boundary: List = None,
+        n_points: int = 25,
+        fixed_point_only: bool = False,
+        find_fixed_points: bool = False,
+        refpoint: Optional[np.ndarray] = None,
+        stable: Optional[np.ndarray] = None,
+        saddle: Optional[np.ndarray] = None,
     ):
         """It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
         differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
         on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
         large noise. Y Tang, R Yuan, G Wang, X Zhu, P Ao - Scientific reports, 2017
 
-        Arguments
-        ---------
-            Function: 'function'
-                The (reconstructed) vector field function.
-            DiffMat: 'function'
-                The function that returns the diffusion matrix which can variable (for example, gene) dependent.
-            boundary: 'list'
-                The range of variables (genes).
-            n_points: 'int'
-                The number of points along the least action path.
-            fixed_point_only: 'bool'
-                The logic flag to determine whether only the potential for fixed point or entire space should be mapped.
-            find_fixed_points: 'bool'
-                The logic flag to determine whether only the gen_fixed_points function should be run to identify fixed points.
-            refpoint: 'np.ndarray'
-                The reference point to define the potential.
-            stable: 'np.ndarray'
-                The matrix for storing the coordinates (gene expression configuration) of the stable fixed point (characteristic state of a particular cell type).
-            saddle: 'np.ndarray'
-                The matrix for storing the coordinates (gene expression configuration) of the unstable fixed point (characteristic state of cells prime to bifurcation).
+        Args:
+            Function: The (reconstructed) vector field function.
+            DiffMat: The function that returns the diffusion matrix which can variable (for example, gene) dependent.
+            boundary: The range of variables (genes).
+            n_points: The number of points along the least action path.
+            fixed_point_only: The logic flag to determine whether only the potential
+                for fixed point or entire space should be mapped.
+            find_fixed_points: The logic flag to determine whether only the gen_fixed_points function
+                should be run to identify fixed points.
+            refpoint: The reference point to define the potential.
+            stable: The matrix for storing the coordinates (gene expression configuration)
+                of the stable fixed point (characteristic state of a particular cell type).
+            saddle: The matrix for storing the coordinates (gene expression configuration)
+                of the unstable fixed point (characteristic state of cells prime to bifurcation).
         """
 
         self.VecFld = {
@@ -514,16 +510,16 @@ class Pot:
 
     def fit(
         self,
-        adata,
-        x_lim,
-        y_lim,
-        basis="umap",
-        method="Ao",
-        xyGridSpacing=2,
-        dt=1e-2,
-        tol=1e-2,
-        numTimeSteps=1400,
-    ):
+        adata: AnnData,
+        x_lim: List,
+        y_lim: List,
+        basis: str = "umap",
+        method: str = "Ao",
+        xyGridSpacing: int = 2,
+        dt: float = 1e-2,
+        tol: float= 1e-2,
+        numTimeSteps: int =1400,
+    ) -> AnnData:
         """Function to map out the pseudo-potential landscape.
 
         Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
@@ -539,36 +535,29 @@ class Pot:
 
         This function implements the Ao, Bhattacharya method and Ying method and will also support other methods shortly.
 
-        Arguments
-        ---------
-            adata: :class:`~anndata.AnnData`
-                AnnData object that contains U_grid and V_grid data
-            x_lim: `list`
-                Lower or upper limit of x-axis.
-            y_lim: `list`
-                Lower or upper limit of y-axis
-            basis: `str` (default: umap)
-                The dimension reduction method to use.
-            method: 'string' (default: Bhattacharya)
-                Method used to map the pseudo-potential landscape. By default, it is Bhattacharya (A deterministic map of
+        Args:
+            adata: AnnData object that contains U_grid and V_grid data.
+            x_lim: Lower or upper limit of x-axis.
+            y_lim: Lower or upper limit of y-axis.
+            basis: The dimension reduction method to use.
+            method: Method used to map the pseudo-potential landscape. By default, it is Bhattacharya (A deterministic map of
                 Waddington’s epigenetic landscape for cell fate specification. Sudin Bhattacharya, Qiang Zhang and Melvin
                 E. Andersen). Other methods will be supported include: Tang (), Ping (), Wang (), Zhou ().
+            xyGridSpacing: Grid spacing for "starting points" for each "path" on the potential surface
+            dt: Time step for the path integral.
+            tol: Tolerance to test for convergence.
+            numTimeSteps: A high-enough number for convergence with given dt.
 
-        Returns
-        -------
-        if Bhattacharya is used:
-            Xgrid: 'np.ndarray'
-                The X grid to visualize "potential surface"
-            Ygrid: 'np.ndarray'
-                The Y grid to visualize "potential surface"
-            Zgrid: 'np.ndarray'
-                The interpolate potential corresponding to the X,Y grids.
+        Returns:
+            The AnnData object updated with the following values:
+                if Bhattacharya is used:
+                    Xgrid: The X grid to visualize "potential surface"
+                    Ygrid: The Y grid to visualize "potential surface"
+                    Zgrid: The interpolate potential corresponding to the X,Y grids.
 
-        if Tang method is used:
-        retmat: 'np.ndarray'
-            The action value for the learned least action path.
-        LAP: 'np.ndarray'
-            The least action path learned
+                if Tang method is used:
+                    retmat: The action value for the learned least action path.
+                    LAP: The least action path learned
         """
 
         if method == "Ao":

@@ -1,4 +1,9 @@
-from typing import Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 import pandas as pd
@@ -99,7 +104,7 @@ def state_graph(
     transition_threshold: float = 0.001,
     keep_only_one_direction: bool = True,
     edge_scale: float = 1,
-    state_graph: Union[None, np.ndarray] = None,
+    state_graph: Optional[np.ndarray] = None,
     edgecolor: Union[None, np.ndarray, pd.DataFrame] = None,
     facecolor: Union[None, np.ndarray, pd.DataFrame] = None,
     graph_alpha: Union[None, np.ndarray, pd.DataFrame] = None,
@@ -111,60 +116,125 @@ def state_graph(
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
     values: Optional[list] = None,
-    theme: Optional[str] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
     cmap: Optional[str] = None,
-    color_key: Union[dict, list] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
     color_key_cmap: Optional[str] = None,
     background: Optional[str] = None,
     ncols: int = 4,
-    pointsize: Union[None, float] = None,
-    figsize: tuple = (6, 4),
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float, float] = (6, 4),
     show_legend: bool = True,
     use_smoothed: bool = True,
     show_arrowed_spines: bool = False,
     ax: Optional[Axes] = None,
-    sort: str = "raw",
+    sort: Literal["raw", "abs", "neg"] = "raw",
     frontier: bool = False,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    s_kwargs_dict: dict = {"alpha": 1},
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    s_kwargs_dict: Dict[str, Any] = {"alpha": 1},
     **kwargs
-):
-    """Plot a summarized cell type (state) transition graph. This function tries to create a model that summarizes
-    the possible cell type transitions based on the reconstructed vector field function.
+) -> Union[
+    Tuple[Axes, List[str], Literal["white", "black"]],
+    Tuple[List[Axes], List[str], Literal["white", "black"]],
+    None,
+]:
+    """Plot a summarized cell type (state) transition graph. This function tries to create a model that summarizes the
+    possible cell type transitions based on the reconstructed vector field function.
 
-    Parameters
-    ----------
-        group: `str` or `None` (default: `None`)
-            The column in adata.obs that will be used to aggregate data points for the purpose of creating a cell type
-            transition model.
-        transition_threshold: `float` (default: 0.001)
-            The threshold of cell fate transition. Transition will be ignored if below this threshold.
-        keep_only_one_direction: `bool` (default: True)
-            Whether to only keep the higher transition between two cell type. That is if the transition rate from A to B
-            is higher than B to A, only edge from A to B will be plotted.
-        edge_scale: `float` (default: 1)
-            The scaler that can be used to scale the edge width of drawn transition graph.
-        state_graph: `np.ndarray`, `pd.DataFrame` or `None` (default: None)
-            The lumped transition graph between cell states (e.g. cell clusters or types).
-        edgecolor: `np.ndarray`, `pd.DataFrame` or `None` (default: None)
-            The edge color of the arcs that corresponds to the lumped transition graph between cell states.
-        facecolor: `np.ndarray`, `pd.DataFrame` or `None` (default: None)
-            The edge color of the arcs that corresponds to the lumped transition graph between cell states.
-        graph_alpha: `np.ndarray`, `pd.DataFrame` or `None` (default: None)
-            The alpha of the arcs that corresponds to the lumped transition graph between cell states.
-        %(scatters.parameters.no_aggregate|kwargs|save_kwargs)s
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs.
-        s_kwargs_dict: `dict` (default: {"alpha": 1})
-            The dictionary of the scatter arguments.
-    Returns
-    -------
-        Plot the a model of cell fate transition that summarizes the possible lineage commitments between different cell
-        types.
+    Args:
+        adata: an AnnData object.
+        group: the column in adata.obs that will be used to aggregate data points for the purpose of creating a cell
+            type transition model. Defaults to None.
+        transition_threshold: the threshold of cell fate transition. Transition will be ignored if below this threshold.
+            Defaults to 0.001.
+        keep_only_one_direction: whether to only keep the higher transition between two cell type. That is if the
+            transition rate from A to B is higher than B to A, only edge from A to B will be plotted. Defaults to True.
+        edge_scale: the scaler that can be used to scale the edge width of drawn transition graph. Defaults to 1.
+        state_graph: the lumped transition graph between cell states (e.g. cell clusters or types). Defaults to None.
+        edgecolor: the edge color of the arcs that corresponds to the lumped transition graph between cell states.
+            Defaults to None.
+        facecolor: the edge color of the arcs that corresponds to the lumped transition graph between cell states.
+            Defaults to None.
+        graph_alpha: the alpha of the arcs that corresponds to the lumped transition graph between cell states. Defaults
+            to None.
+        basis: the reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following
+            priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters`
+            is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`.
+            Defaults to "umap".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        layer: the layer of data to use for the scatter plot. Defaults to "X".
+        highlights: the color group that will be highlighted. If highligts is a list of lists, each list is relate to
+            each color element. Defaults to None.
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Available themes are: {'blue', 'red', 'green', 'inferno', 'fire', 'viridis', 'darkblue',
+            'darkred', 'darkgreen'}. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        ncols: the number of columns for the figure. Defaults to 4.
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        figsize: the width and height of a figure. Defaults to (6, 4).
+        show_legend: whether to display a legend of the labels. Defaults to "on data".
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        ax: the matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
+            Defaults to None.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw".
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. If `contour` is set  to be True,
+            `frontier` will be ignored as `contour` also add an outlier for data points. Defaults to False.
+        save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {"alpha": 1}.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be `return`, the matplotlib axes
+        object of the generated plots, the list of colors used and the font color would be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -253,7 +323,7 @@ def state_graph(
 
     plt.axis("off")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "state_graph",
@@ -265,11 +335,14 @@ def state_graph(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_legend:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return axes_list, color_list, font_color
