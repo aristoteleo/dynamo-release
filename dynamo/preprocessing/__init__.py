@@ -10,6 +10,7 @@ from .external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
+from .normalization import normalize
 from .preprocess import (
     get_svr_filter,
     highest_frac_genes,

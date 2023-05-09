@@ -32,7 +32,6 @@ from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
-    normalize,
 )
 from .pca import pca
 from .QC import (
@@ -52,10 +51,7 @@ from .utils import (
     detect_experiment_datatype,
     get_inrange_shared_counts_mask,
     get_svr_filter,
-    get_sz_exprs,
     merge_adata_attrs,
-    normalize_mat_monocle,
-    sz_util,
     unique_var_obs_adata,
 )
 

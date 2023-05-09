@@ -25,13 +25,13 @@ from ..tools.connectivity import neighbors as default_neighbors
 from ..tools.utils import update_dict
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
+from .normalization import calc_sz_factor, normalize
 from .pca import pca
 from .preprocessor_utils import (
     Freeman_Tukey,
     _infer_labeling_experiment_type,
-    calc_sz_factor,
 )
-from .preprocessor_utils import log, log1p, log2, normalize, regress_out_parallel
+from .preprocessor_utils import log, log1p, log2, regress_out_parallel
 from .QC import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
 )

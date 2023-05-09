@@ -31,6 +31,7 @@ from ..tools.utils import update_dict
 from ..utils import copy_adata
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
+from .normalization import get_sz_exprs, normalize_mat_monocle, sz_util
 from .pca import pca
 from .preprocessor_utils import _infer_labeling_experiment_type, get_nan_or_inf_data_bool_mask
 from .QC import (
@@ -50,10 +51,7 @@ from .utils import (
     detect_experiment_datatype,
     get_inrange_shared_counts_mask,
     get_svr_filter,
-    get_sz_exprs,
     merge_adata_attrs,
-    normalize_mat_monocle,
-    sz_util,
     unique_var_obs_adata,
 )
 
