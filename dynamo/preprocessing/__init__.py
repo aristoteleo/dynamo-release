@@ -24,6 +24,7 @@ from .QC import (
     filter_genes_by_pattern,
 )
 from .pca import pca, top_pca_genes
+from .transform import log1p, log1p_adata_layer
 from .utils import (
     compute_gene_exp_fraction,
     convert2symbol,

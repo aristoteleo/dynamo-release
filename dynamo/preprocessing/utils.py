@@ -383,25 +383,6 @@ def get_svr_filter(
     return res
 
 
-def _Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
-    """perform Freeman-Tukey transform or inverse transform on the given array.
-
-    Args:
-        X: a matrix.
-        inverse: whether to perform inverse Freeman-Tukey transform. Defaults to False.
-
-    Returns:
-        The transformed array.
-    """
-
-    if inverse:
-        res = np.sqrt(X) + np.sqrt((X + 1))
-    else:
-        res = (X**2 - 1) ** 2 / (4 * X**2)
-
-    return res
-
-
 def anndata_bytestring_decode(adata_item: pd.DataFrame) -> None:
     """Decode contents of an annotation of an AnnData object inplace.
 

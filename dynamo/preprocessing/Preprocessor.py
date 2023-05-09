@@ -28,10 +28,9 @@ from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .normalization import calc_sz_factor, normalize
 from .pca import pca
 from .preprocessor_utils import (
-    Freeman_Tukey,
     _infer_labeling_experiment_type,
 )
-from .preprocessor_utils import log, log1p, log2, regress_out_parallel
+from .preprocessor_utils import regress_out_parallel
 from .QC import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
 )
@@ -39,6 +38,7 @@ from .QC import (
     filter_genes_by_outliers as monocle_filter_genes_by_outliers,
 )
 from .QC import basic_stats
+from .transform import Freeman_Tukey, log, log1p, log2
 from .utils import (
     collapse_species_adata,
     convert2symbol,

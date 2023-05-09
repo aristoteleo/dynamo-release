@@ -41,7 +41,6 @@ from .QC import (
     filter_genes_by_outliers,
 )
 from .utils import (
-    _Freeman_Tukey,
     add_noise_to_duplicates,
     calc_new_to_total_ratio,
     collapse_species_adata,

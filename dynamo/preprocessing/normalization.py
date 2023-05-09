@@ -33,7 +33,6 @@ from ..tools.utils import update_dict
 from ..utils import copy_adata
 from .pca import pca
 from .utils import (
-    _Freeman_Tukey,
     add_noise_to_duplicates,
     calc_new_to_total_ratio,
     collapse_species_adata,
