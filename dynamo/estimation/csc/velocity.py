@@ -503,6 +503,7 @@ class ss_estimation:
 
             if self.model.lower() == "deterministic":
                 gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL = _parallel_wrapper(
+                    cores,
                     _fit_gamma_steady_state_helper,
                     zip(
                         U,
@@ -531,6 +532,7 @@ class ss_estimation:
                 )
 
                 gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL, bs, bf = _parallel_wrapper(
+                    cores,
                     _fit_gamma_stochastic_helper,
                     zip(
                         itertools.repeat(self.est_method),
@@ -569,6 +571,7 @@ class ss_estimation:
                         uu_m, uu_v, _ = calc_12_mom_labeling(self.data["uu"], self.t)
 
                         alpha, uu0, r2 = _parallel_wrapper(
+                            cores,
                             fit_alpha_degradation,
                             zip(
                                 itertools.repeat(t_uniq),
@@ -596,6 +599,7 @@ class ss_estimation:
                         uu_m, uu_v, _ = calc_12_mom_labeling(self.data["uu"], self.t)
 
                         alpha, alpha_b, alpha_r2 = _parallel_wrapper(
+                            cores,
                             fit_alpha_degradation,
                             zip(
                                 itertools.repeat(t_uniq),
@@ -627,6 +631,7 @@ class ss_estimation:
 
                     # let us only assume one alpha for each gene in all cells
                     alpha = _parallel_wrapper(
+                        cores,
                         fit_alpha_synthesis,
                         zip(
                             itertools.repeat(t_uniq),
@@ -651,6 +656,7 @@ class ss_estimation:
                     ul_m, ul_v, _ = calc_12_mom_labeling(self.data["ul"], self.t)
 
                     alpha = _parallel_wrapper(
+                        cores,
                         fit_alpha_synthesis,
                         zip(
                             itertools.repeat(t_uniq),
@@ -709,6 +715,7 @@ class ss_estimation:
 
                             # let us only assume one alpha for each gene in all cells
                             alpha = _parallel_wrapper(
+                                cores,
                                 fit_alpha_synthesis,
                                 zip(
                                     itertools.repeat(t_uniq),
@@ -740,6 +747,7 @@ class ss_estimation:
                                 ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
                                 # let us only assume one alpha for each gene in all cells
                                 alpha = _parallel_wrapper(
+                                    cores,
                                     fit_alpha_synthesis,
                                     zip(
                                         itertools.repeat(t_uniq),
@@ -767,6 +775,7 @@ class ss_estimation:
                                 S = self.data["uu"] + self.data["ul"]
 
                                 gamma_k, gamma_intercept, _, gamma_r2, _, gamma_logLL = _parallel_wrapper(
+                                    cores,
                                     _fit_gamma_steady_state_helper,
                                     zip(
                                         U,
@@ -777,6 +786,7 @@ class ss_estimation:
                                     ),
                                 )
                                 gamma, alpha = _parallel_wrapper(
+                                    cores,
                                     one_shot_gamma_alpha,
                                     zip(gamma_k, itertools.repeat(t_uniq), U),
                                 )
@@ -813,6 +823,7 @@ class ss_estimation:
                         )
 
                         k, k_intercept, _, k_r2, _, k_logLL, bs, bf = _parallel_wrapper(
+                            cores,
                             _fit_gamma_stochastic_helper,
                             zip(
                                 itertools.repeat(self.est_method),
@@ -852,6 +863,7 @@ class ss_estimation:
                         )
 
                         k, k_intercept, _, k_r2, _, k_logLL, bs, bf = _parallel_wrapper(
+                            cores,
                             _fit_gamma_stochastic_helper,
                             zip(
                                 itertools.repeat(self.est_method),
@@ -900,6 +912,7 @@ class ss_estimation:
                         )
 
                         k, k_intercept, _, k_r2, _, k_logLL, bs, bf = _parallel_wrapper(
+                            cores,
                             _fit_gamma_stochastic_helper,
                             zip(
                                 itertools.repeat(self.est_method),
@@ -1022,6 +1035,7 @@ class ss_estimation:
                 )
 
                 delta, delta_intercept, _, delta_r2, _, delta_logLL = _parallel_wrapper(
+                    cores,
                     _fit_gamma_steady_state_helper,
                     zip(
                         s,
@@ -1422,11 +1436,9 @@ def _fit_gamma_stochastic(
     return (k, 0, r2, all_r2, logLL, all_logLL, bs, bf)
 
 
-def _parallel_wrapper(func, args_list):
+def _parallel_wrapper(cores, func, args_list):
     import multiprocessing as mp
-    import os
 
-    cores = os.cpu_count()
     ctx = mp.get_context("fork")
 
     with ctx.Pool(cores) as pool:

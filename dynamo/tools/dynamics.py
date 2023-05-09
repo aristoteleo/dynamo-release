@@ -454,7 +454,7 @@ def dynamics(
             assumption_mRNA = "ss"
         elif experiment_type.lower() in ["mix_pulse_chase", "deg", "kin"]:
             assumption_mRNA = "kinetic"
-        assumption_mRNA = "ss"  #######
+
         if model.lower() == "stochastic" and experiment_type.lower() not in [
             "conventional",
             "kinetics",
