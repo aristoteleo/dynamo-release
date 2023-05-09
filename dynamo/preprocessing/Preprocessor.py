@@ -30,9 +30,9 @@ from .pca import pca
 from .preprocessor_utils import (
     _infer_labeling_experiment_type,
 )
-from .preprocessor_utils import regress_out_parallel
 from .QC import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
+    regress_out_parallel,
 )
 from .QC import (
     filter_genes_by_outliers as monocle_filter_genes_by_outliers,
