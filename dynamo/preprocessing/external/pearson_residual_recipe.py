@@ -23,11 +23,12 @@ from ...dynamo_logger import (
     main_info_insert_adata_layer,
     main_warning,
 )
-from ..QC import filter_genes_by_outliers
-from ...preprocessing.utils import (
+from ...preprocessing.preprocessor_utils import (
+    filter_genes_by_outliers,
     is_nonnegative_integer_arr,
     seurat_get_mean_var,
 )
+from ...preprocessing.utils import pca
 
 main_logger = LoggerManager.main_logger
 

@@ -8,8 +8,7 @@ from tqdm import tqdm
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
-from ..preprocessing.normalization import normalize_mat_monocle, sz_util
-from ..preprocessing.pca import pca
+from ..preprocessing.utils import pca, normalize_mat_monocle, sz_util
 from ..utils import copy_adata
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from .utils import elem_prod, get_mapper, inverse_norm
@@ -101,7 +100,7 @@ def moments(
             else:
                 if "X" not in adata.obsm.keys():
                     if not any([i.startswith("X_") for i in adata.layers.keys()]):
-                        from ..preprocessing.deprecated import recipe_monocle
+                        from ..preprocessing.preprocess import recipe_monocle
 
                         genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
                         recipe_monocle(
@@ -687,7 +686,7 @@ def prepare_data_no_splicing(
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
 
-    from ..preprocessing.normalization import normalize_mat_monocle, sz_util
+    from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -806,7 +805,7 @@ def prepare_data_mix_has_splicing(
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
 
-    from ..preprocessing.normalization import normalize_mat_monocle, sz_util
+    from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -959,7 +958,7 @@ def prepare_data_mix_no_splicing(
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
 
-    from ..preprocessing.normalization import normalize_mat_monocle, sz_util
+    from ..preprocessing.utils import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)

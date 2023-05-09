@@ -35,7 +35,7 @@ from ..dynamo_logger import (
     main_tqdm,
     main_warning,
 )
-from ..preprocessing.transform import _Freeman_Tukey
+from ..preprocessing.utils import _Freeman_Tukey
 from ..utils import areinstance, isarray
 
 

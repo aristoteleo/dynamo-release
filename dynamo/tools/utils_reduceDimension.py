@@ -11,7 +11,7 @@ except:
 from anndata import AnnData
 
 from ..configuration import DKM
-from ..preprocessing.pca import pca
+from ..preprocessing.utils import pca
 from .connectivity import (
     _gen_neighbor_keys,
     knn_to_adj,

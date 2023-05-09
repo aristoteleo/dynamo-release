@@ -29,7 +29,7 @@ from ..dynamo_logger import (
     main_tqdm,
     main_warning,
 )
-from ..preprocessing.transform import _Freeman_Tukey
+from ..preprocessing.utils import _Freeman_Tukey
 from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 from .utils import fetch_X_data
 from .utils_markers import fdr, specificity
