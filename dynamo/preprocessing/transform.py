@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Union
 
 try:
     from typing import Literal

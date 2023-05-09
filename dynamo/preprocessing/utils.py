@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -14,19 +14,13 @@ import scipy
 import scipy.sparse
 import statsmodels.api as sm
 from anndata import AnnData
-from scipy.sparse import csc_matrix, csr_matrix, issparse, spmatrix
-from scipy.sparse.linalg import LinearOperator, svds
-from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.utils import check_random_state
-from sklearn.utils.extmath import svd_flip
-from sklearn.utils.sparsefuncs import mean_variance_axis
+from scipy.sparse import csr_matrix, issparse, spmatrix
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import (
     LoggerManager,
     main_debug,
     main_info,
-    main_info_insert_adata_var,
     main_warning,
 )
 from ..utils import areinstance

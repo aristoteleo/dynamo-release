@@ -17,15 +17,10 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
 
-from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
+from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
-    LoggerManager,
-    main_critical,
-    main_debug,
     main_info,
     main_info_insert_adata_obsm,
-    main_info_insert_adata_uns,
-    main_warning,
 )
 from ..tools.utils import update_dict
 from ..utils import copy_adata
@@ -36,7 +31,6 @@ from .pca import pca
 from .QC import (
     basic_stats,
     filter_genes_by_clusters,
-    filter_cells_by_outliers,
     filter_genes_by_outliers,
 )
 from .transform import _Freeman_Tukey

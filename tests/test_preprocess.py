@@ -10,17 +10,16 @@ from sklearn.decomposition import PCA
 import dynamo as dyn
 from dynamo.preprocessing import Preprocessor
 from dynamo.preprocessing.cell_cycle import get_cell_phase
-from dynamo.preprocessing.preprocessor_utils import (
-    calc_mean_var_dispersion_sparse,
+from dynamo.preprocessing.deprecated import calc_mean_var_dispersion_sparse
+from dynamo.preprocessing.normalization import normalize
+from dynamo.preprocessing.transform import log1p, is_log1p_transformed_adata
+from dynamo.preprocessing.utils import (
+    convert_layers2csr,
     is_float_integer_arr,
     is_integer_arr,
-    is_log1p_transformed_adata,
     is_nonnegative,
     is_nonnegative_integer_arr,
-    log1p,
-    normalize,
 )
-from dynamo.preprocessing.utils import convert_layers2csr
 
 SHOW_FIG = False
 
@@ -127,7 +126,7 @@ def test_calc_dispersion_sparse():
     assert np.all(np.isclose(dispersion, expected_dispersion))
 
     # TODO adapt to seurat_get_mean_var test
-    # sc_mean, sc_var = dyn.preprocessing.preprocessor_utils.seurat_get_mean_var(sparse_mat)
+    # sc_mean, sc_var = dyn.preprocessing.utils.seurat_get_mean_var(sparse_mat)
     # print("sc_mean:", sc_mean)
     # print("expected mean:", sc_mean)
     # print("sc_var:", sc_var)

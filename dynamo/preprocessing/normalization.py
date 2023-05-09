@@ -10,35 +10,17 @@ import anndata
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import scipy.sparse
-from anndata import AnnData
-from scipy.sparse import csr_matrix, spmatrix
+from scipy.sparse import csr_matrix
 from scipy.sparse.base import issparse
-from sklearn.utils import sparsefuncs
 
-from ..configuration import DKM, DynamoAdataKeyManager
+from ..configuration import DKM
 from ..dynamo_logger import (
     main_debug,
-    main_finish_progress,
-    main_info,
-    main_info_insert_adata,
     main_info_insert_adata_layer,
-    main_info_insert_adata_obs,
     main_info_insert_adata_obsm,
-    main_info_insert_adata_uns,
-    main_log_time,
     main_warning,
 )
-from ..tools.utils import update_dict
-from ..utils import copy_adata
-from .pca import pca
 from .utils import (
-    add_noise_to_duplicates,
-    calc_new_to_total_ratio,
-    collapse_species_adata,
-    compute_gene_exp_fraction,
-    get_inrange_shared_counts_mask,
-    get_svr_filter,
     merge_adata_attrs,
 )
 
