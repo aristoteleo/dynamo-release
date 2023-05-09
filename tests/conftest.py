@@ -59,6 +59,10 @@ class TestUtils:
         top_pca_genes = adata.var.index[adata.var.top_pca_genes]
         dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
         dyn.cleanup(adata)
+        adata.uns.pop("cell_phase_genes")
+        adata.var = adata.var.drop(columns=['beta', 'gamma', 'half_life', 'alpha_b', 'alpha_r2', 'gamma_b', 'gamma_r2',
+                                            'gamma_logLL', 'delta_b', 'delta_r2', 'bs', 'bf', 'uu0', 'ul0', 'su0',
+                                            'sl0', 'U0', 'S0', 'total0'], axis=1)
         TestUtils.mkdirs_wrapper(test_data_dir, abort=False)
         adata.write_h5ad(test_zebrafish_data_path)
 
