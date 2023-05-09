@@ -117,6 +117,139 @@ def log_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
         _log_inplace(mat)
 
 
+def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
+    """Calculate log1p (log(1+x)) for a layer of an AnnData object inplace.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+    """
+
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        _log1p_inplace(mat.data)
+    else:
+        mat = mat.astype(np.float)
+        _log1p_inplace(mat)
+
+
+def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
+    """Calculate Base-2 logarithm of `x` for a layer of an AnnData object inplace.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+    """
+
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+            DKM.set_layer_data(adata, layer, mat)
+        _log2_inplace(mat.data)
+    else:
+        mat = mat.astype(np.float)
+        _log2_inplace(mat)
+
+
+def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
+    """check if adata data is log transformed by checking a small subset of adata observations.
+
+    Args:
+        adata: an AnnData object
+
+    Returns:
+        A flag shows whether the adata object is log transformed.
+    """
+
+    chosen_gene_indices = np.random.choice(adata.n_vars, 10)
+    _has_log1p_transformed = not np.allclose(
+        np.array(adata.X[:, chosen_gene_indices].sum(1)),
+        np.array(adata.layers["spliced"][:, chosen_gene_indices].sum(1)),
+        atol=1e-4,
+    )
+    return _has_log1p_transformed
+
+
+def Freeman_Tukey_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate Freeman_Tukey of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    Freeman_Tukey_inplace(_adata, layer=layer)
+    return _adata
+
+
+def log_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate log of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    log_inplace(_adata, layer=layer)
+    return _adata
+
+
+def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate log1p of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    log1p_inplace(_adata, layer=layer)
+    return _adata
+
+
+def log2_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
+    """Calculate log2 of adata's specific layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    log2_inplace(_adata, layer=layer)
+    return _adata
+
+
 def Freeman_Tukey(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> AnnData:
     """Perform Freeman_Tukey transform on selected adata layers
 
@@ -215,136 +348,3 @@ def log2(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> An
     main_info_insert_adata_uns("pp.norm_method")
     adata.uns["pp"]["norm_method"] = "log2"
     return _adata
-
-
-def Freeman_Tukey_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
-    """Calculate Freeman_Tukey of adata's specific layer.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer to operate on. Defaults to DKM.X_LAYER.
-        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
-
-    Returns:
-        The updated AnnData object.
-    """
-
-    _adata = adata
-    if copy:
-        _adata = copy_adata(adata)
-    Freeman_Tukey_inplace(_adata, layer=layer)
-    return _adata
-
-
-def log_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
-    """Calculate log of adata's specific layer.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer to operate on. Defaults to DKM.X_LAYER.
-        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
-
-    Returns:
-        The updated AnnData object.
-    """
-
-    _adata = adata
-    if copy:
-        _adata = copy_adata(adata)
-    log_inplace(_adata, layer=layer)
-    return _adata
-
-
-def log1p_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
-    """Calculate log1p of adata's specific layer.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer to operate on. Defaults to DKM.X_LAYER.
-        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
-
-    Returns:
-        The updated AnnData object.
-    """
-
-    _adata = adata
-    if copy:
-        _adata = copy_adata(adata)
-    log1p_inplace(_adata, layer=layer)
-    return _adata
-
-
-def log2_adata_layer(adata: AnnData, layer: str = DKM.X_LAYER, copy: bool = False) -> AnnData:
-    """Calculate log2 of adata's specific layer.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer to operate on. Defaults to DKM.X_LAYER.
-        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
-
-    Returns:
-        The updated AnnData object.
-    """
-
-    _adata = adata
-    if copy:
-        _adata = copy_adata(adata)
-    log2_inplace(_adata, layer=layer)
-    return _adata
-
-
-def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
-    """Calculate log1p (log(1+x)) for a layer of an AnnData object inplace.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer to operate on. Defaults to DKM.X_LAYER.
-    """
-
-    mat = DKM.select_layer_data(adata, layer, copy=False)
-    if issparse(mat):
-        if is_integer_arr(mat.data):
-            mat = mat.asfptype()
-            DKM.set_layer_data(adata, layer, mat)
-        _log1p_inplace(mat.data)
-    else:
-        mat = mat.astype(np.float)
-        _log1p_inplace(mat)
-
-
-def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
-    """Calculate Base-2 logarithm of `x` for a layer of an AnnData object inplace.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer to operate on. Defaults to DKM.X_LAYER.
-    """
-
-    mat = DKM.select_layer_data(adata, layer, copy=False)
-    if issparse(mat):
-        if is_integer_arr(mat.data):
-            mat = mat.asfptype()
-            DKM.set_layer_data(adata, layer, mat)
-        _log2_inplace(mat.data)
-    else:
-        mat = mat.astype(np.float)
-        _log2_inplace(mat)
-
-
-def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
-    """check if adata data is log transformed by checking a small subset of adata observations.
-
-    Args:
-        adata: an AnnData object
-
-    Returns:
-        A flag shows whether the adata object is log transformed.
-    """
-
-    chosen_gene_indices = np.random.choice(adata.n_vars, 10)
-    _has_log1p_transformed = not np.allclose(
-        np.array(adata.X[:, chosen_gene_indices].sum(1)),
-        np.array(adata.layers["spliced"][:, chosen_gene_indices].sum(1)),
-        atol=1e-4,
-    )
-    return _has_log1p_transformed
