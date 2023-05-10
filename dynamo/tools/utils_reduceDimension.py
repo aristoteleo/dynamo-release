@@ -135,7 +135,6 @@ def prepare_dim_reduction(
                     pca_key=pca_key,
                     return_all=True,
                 )
-                adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
                 # valid genes used for dimension reduction calculation
                 adata.uns["pca_valid_ind"] = valid_ind
@@ -159,7 +158,6 @@ def prepare_dim_reduction(
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
             adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
-            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
             # valid genes used for dimension reduction calculation
             adata.uns["pca_valid_ind"] = valid_ind
