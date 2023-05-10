@@ -76,7 +76,7 @@ def deprecated(func):
 
 # https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the-gamma-
 # family
-def _weight_matrix(fitted_model: sm.Poisson) -> np.ndarray:
+def _weight_matrix_legacy(fitted_model: sm.Poisson) -> np.ndarray:
     """Calculates weight matrix in Poisson regression.
 
     Args:
@@ -89,7 +89,7 @@ def _weight_matrix(fitted_model: sm.Poisson) -> np.ndarray:
     return np.diag(fitted_model.fittedvalues)
 
 
-def _hessian(X: np.ndarray, W: np.ndarray) -> np.ndarray:
+def _hessian_legacy(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     """Hessian matrix calculated as -X'*W*X.
 
     Args:
@@ -103,7 +103,7 @@ def _hessian(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     return -np.dot(X.T, np.dot(W, X))
 
 
-def _hat_matrix(X: np.ndarray, W: np.ndarray) -> np.ndarray:
+def _hat_matrix_legacy(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     """Calculate hat matrix = W^(1/2) * X * (X'*W*X)^(-1) * X'*W^(1/2)
 
     Args:
@@ -118,7 +118,7 @@ def _hat_matrix(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     Wsqrt = W ** (0.5)
 
     # (X'*W*X)^(-1)
-    XtWX = -_hessian(X=X, W=W)
+    XtWX = -_hessian_legacy(X=X, W=W)
     XtWX_inv = np.linalg.inv(XtWX)
 
     # W^(1/2)*X
@@ -132,10 +132,10 @@ def _hat_matrix(X: np.ndarray, W: np.ndarray) -> np.ndarray:
 
 @deprecated
 def cook_dist(*args, **kwargs):
-    _cook_dist(*args, **kwargs)
+    _cook_dist_legacy(*args, **kwargs)
 
 
-def _cook_dist(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarray:
+def _cook_dist_legacy(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarray:
     """calculate Cook's distance
 
     Args:
@@ -148,10 +148,10 @@ def _cook_dist(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndar
     """
 
     # Weight matrix
-    W = _weight_matrix(model)
+    W = _weight_matrix_legacy(model)
 
     # Hat matrix
-    H = _hat_matrix(X, W)
+    H = _hat_matrix_legacy(X, W)
     hii = np.diag(H)  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
 
     # Pearson residuals
@@ -169,7 +169,7 @@ def _cook_dist(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndar
     return cooks_d
 
 
-def _disp_calc_helper_NB(
+def _disp_calc_helper_NB_legacy(
     adata: AnnData, layers: str = "X", min_cells_detected: int = 1
 ) -> Tuple[List[str], List[pd.DataFrame]]:
     """Helper function to calculate the dispersion parameter.
@@ -256,7 +256,7 @@ def _disp_calc_helper_NB(
     return layers, res_list
 
 
-def _parametric_dispersion_fit(
+def _parametric_dispersion_fit_legacy(
     disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])
 ) -> Tuple[sm.formula.glm, np.ndarray, pd.DataFrame]:
     """Perform the dispersion parameter fitting with initial guesses of coefficients.
@@ -307,7 +307,7 @@ def _parametric_dispersion_fit(
     return fit, coefs, good
 
 
-def _estimate_dispersion(
+def _estimate_dispersion_legacy(
     adata: AnnData,
     layers: str = "X",
     modelFormulaStr: str = "~ 1",
@@ -337,7 +337,7 @@ def _estimate_dispersion(
 
     cds_pdata = adata.obs  # .loc[:, model_terms]
     cds_pdata["rowname"] = cds_pdata.index.values
-    layers, disp_tables = _disp_calc_helper_NB(adata[:, :], layers, min_cells_detected)
+    layers, disp_tables = _disp_calc_helper_NB_legacy(adata[:, :], layers, min_cells_detected)
     # disp_table['disp'] = np.random.uniform(0, 10, 11)
     # disp_table = cds_pdata.apply(disp_calc_helper_NB(adata[:, :], min_cells_detected))
 
@@ -353,7 +353,7 @@ def _estimate_dispersion(
 
         disp_table = disp_table.loc[np.where(disp_table["mu"] != np.nan)[0], :]
 
-        res = _parametric_dispersion_fit(disp_table)
+        res = _parametric_dispersion_fit_legacy(disp_table)
         fit, coefs, good = res[0], res[1], res[2]
 
         if removeOutliers:
@@ -368,7 +368,7 @@ def _estimate_dispersion(
             # use CD.index.values? remove genes that lost when doing parameter fitting
             lost_gene = set(good.index.values).difference(set(range(len(CD))))
             outliers[lost_gene] = True
-            res = _parametric_dispersion_fit(good.loc[~outliers, :])
+            res = _parametric_dispersion_fit_legacy(good.loc[~outliers, :])
 
             fit, coefs = res[0], res[1]
 
@@ -393,7 +393,7 @@ def _estimate_dispersion(
     return adata
 
 
-def _top_table(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gini"] = "dispersion") -> pd.DataFrame:
+def _top_table_legacy(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gini"] = "dispersion") -> pd.DataFrame:
     """Retrieve a table that contains gene names and other info whose dispersions/gini index are highest.
 
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -423,7 +423,7 @@ def _top_table(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gi
 
     if mode == "dispersion":
         if adata.uns[key] is None:
-            _estimate_dispersion(adata, layers=[layer])
+            _estimate_dispersion_legacy(adata, layers=[layer])
             raise KeyError(
                 "Error: for adata.uns.key=%s, no dispersion model found. Please call estimate_dispersion() before calling this function"
                 % key
@@ -445,7 +445,7 @@ def _top_table(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gi
     return top_df
 
 
-def calc_mean_var_dispersion_general_mat(
+def _calc_mean_var_dispersion_general_mat_legacy(
     data_mat: Union[np.ndarray, csr_matrix], axis: int = 0
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """calculate mean, variance, and dispersion of a matrix.
@@ -460,12 +460,12 @@ def calc_mean_var_dispersion_general_mat(
     """
 
     if not issparse(data_mat):
-        return calc_mean_var_dispersion_ndarray(data_mat, axis)
+        return _calc_mean_var_dispersion_ndarray_legacy(data_mat, axis)
     else:
-        return calc_mean_var_dispersion_sparse(data_mat, axis)
+        return _calc_mean_var_dispersion_sparse_legacy(data_mat, axis)
 
 
-def calc_mean_var_dispersion_ndarray(data_mat: np.ndarray, axis: int = 0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _calc_mean_var_dispersion_ndarray_legacy(data_mat: np.ndarray, axis: int = 0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """calculate mean, variance, and dispersion of a non-sparse matrix.
 
     Args:
@@ -488,7 +488,7 @@ def calc_mean_var_dispersion_ndarray(data_mat: np.ndarray, axis: int = 0) -> Tup
     return mean.flatten(), var.flatten(), dispersion.flatten()
 
 
-def calc_mean_var_dispersion_sparse(sparse_mat: csr_matrix, axis: int = 0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _calc_mean_var_dispersion_sparse_legacy(sparse_mat: csr_matrix, axis: int = 0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """calculate mean, variance, and dispersion of a matrix.
 
     Args:
@@ -868,7 +868,12 @@ def _filter_cells_legacy(
     return adata
 
 
-def filter_genes_by_outliers_legacy(
+@deprecated
+def filter_genes_by_outliers_legacy(*args, **kwargs):
+    _filter_genes_by_outliers_legacy(*args, **kwargs)
+
+
+def _filter_genes_by_outliers_legacy(
     adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
@@ -980,10 +985,10 @@ def filter_genes_by_outliers_legacy(
 
 @deprecated
 def recipe_monocle(*args, **kwargs):
-    _recipe_monocle(*args, **kwargs)
+    _recipe_monocle_legacy(*args, **kwargs)
 
 
-def _recipe_monocle(
+def _recipe_monocle_legacy(
     adata: anndata.AnnData,
     reset_X: bool = False,
     tkey: Union[str, None] = None,
@@ -1359,7 +1364,7 @@ def _recipe_monocle(
     # set pass_basic_filter for genes
     logger.info("filtering gene...")
     logger.info_insert_adata("pass_basic_filter", "var")
-    adata = filter_genes_by_outliers_legacy(
+    adata = _filter_genes_by_outliers_legacy(
         adata,
         **filter_genes_kwargs,
     )
@@ -1411,7 +1416,7 @@ def _recipe_monocle(
                 f"{select_genes_dict}",
             )
         logger.info("selecting genes in layer: %s, sort method: %s..." % (feature_selection_layer, feature_selection))
-        adata = select_genes_monocle_legacy(
+        adata = _select_genes_monocle_legacy(
             adata,
             layer=feature_selection_layer,
             sort_by=feature_selection,
@@ -1465,7 +1470,7 @@ def _recipe_monocle(
             # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                filter_bool = select_genes_monocle_legacy(
+                filter_bool = _select_genes_monocle_legacy(
                     adata[:, valid_ids],
                     sort_by=feature_selection,
                     n_top_genes=extra_n_top_genes,
@@ -1603,10 +1608,10 @@ def _recipe_monocle(
 
 @deprecated
 def recipe_velocyto(*args, **kwargs):
-    _recipe_velocyto(*args, **kwargs)
+    _recipe_velocyto_legacy(*args, **kwargs)
 
 
-def _recipe_velocyto(
+def _recipe_velocyto_legacy(
     adata: anndata.AnnData,
     total_layers: Union[List[str], None] = None,
     method: str = "pca",
@@ -1735,7 +1740,12 @@ def _recipe_velocyto(
     return adata
 
 
-def select_genes_monocle_legacy(
+@deprecated
+def select_genes_monocle_legacy(*args, **kwargs):
+    _select_genes_monocle_legacy(*args, **kwargs)
+
+
+def _select_genes_monocle_legacy(
     adata: anndata.AnnData,
     layer: str = "X",
     total_szfactor: str = "total_Size_Factor",
@@ -1780,7 +1790,7 @@ def select_genes_monocle_legacy(
         filter_bool = np.ones(adata.shape[1], dtype=bool)
     else:
         if sort_by == "dispersion":
-            table = _top_table(adata, layer, mode="dispersion")
+            table = _top_table_legacy(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
             valid_table = valid_table.loc[
                 set(adata.var.index[filter_bool]).intersection(valid_table.index),
@@ -1790,7 +1800,7 @@ def select_genes_monocle_legacy(
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
         elif sort_by == "gini":
-            table = _top_table(adata, layer, mode="gini")
+            table = _top_table_legacy(adata, layer, mode="gini")
             valid_table = table.loc[filter_bool, :]
             gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
             gene_id = valid_table.index[gene_id]
