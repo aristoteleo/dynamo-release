@@ -31,7 +31,7 @@ from .utils import (
 from .deprecated import (
     cook_dist,
     calc_sz_factor_legacy,
-    normalize_cell_expr_by_size_factors_legacy,
+    normalize_cell_expr_by_size_factors,
     filter_cells_legacy,
     recipe_monocle,
     recipe_velocyto,
@@ -85,4 +85,6 @@ __all__ = [
     "log1p_adata_layer",
     "harmony_debatch",
     "integrate",
+    "normalize_cell_expr_by_size_factors",
+    "filter_cells_legacy",
 ]

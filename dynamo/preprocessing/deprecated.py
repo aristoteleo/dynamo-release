@@ -26,7 +26,7 @@ from ..tools.utils import update_dict
 from ..utils import copy_adata
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
-from .normalization import get_sz_exprs, normalize_mat_monocle, sz_util
+from .normalization import calc_sz_factor, get_sz_exprs, normalize_mat_monocle, sz_util
 from .pca import pca
 from .QC import (
     basic_stats,
@@ -652,7 +652,7 @@ def _calc_sz_factor_legacy(
 
 
 @deprecated
-def normalize_cell_expr_by_size_factors_legacy(*args, **kwargs):
+def normalize_cell_expr_by_size_factors(*args, **kwargs):
     _normalize_cell_expr_by_size_factors_legacy(*args, **kwargs)
 
 
@@ -1689,7 +1689,7 @@ def _recipe_velocyto_legacy(
 
     adata = adata[:, filter_bool_gene & filter_bool_cluster]
 
-    adata = normalize_cell_expr_by_size_factors_legacy(
+    adata = normalize_cell_expr_by_size_factors(
         adata,
         total_szfactor=None,
         norm_method=norm_method,
