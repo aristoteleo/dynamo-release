@@ -546,8 +546,9 @@ class VectorField2D:
             domain=[x_range, y_range],
             tol_redundant=tol_redundant,
         )
-        if len(X) > 0:
-            self.Xss.add_fixed_points(X, J, tol_redundant)
+        if X is None:
+            raise ValueError(f"No fixed points found. Try to increase the number of samples n.")
+        self.Xss.add_fixed_points(X, J, tol_redundant)
 
     def find_nearest_fixed_point(
         self, x: np.ndarray, x_range: Tuple[float, float], y_range: Tuple[float, float], tol_redundant: float = 1e-4
