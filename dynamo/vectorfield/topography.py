@@ -735,7 +735,7 @@ def topography(
         Xss,
         ftype,
         fp_ind,
-    ) = util_topology(adata, basis, X, dims, func, VecFld, n=n, *kwargs)
+    ) = util_topology(adata=adata, basis=basis, X=X, dims=dims, func=func, VecFld=VecFld, n=n, *kwargs)
 
     # commented for now, will go back to this later.
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
