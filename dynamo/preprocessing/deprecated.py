@@ -1826,9 +1826,7 @@ def _select_genes_monocle_legacy(
             )
 
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
-            print(filter_bool)
             condition = filter_bool == True
-            print(np.where(condition)[0])
 
     # filter genes by gene expression fraction as well
     adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
