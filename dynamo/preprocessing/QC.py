@@ -7,14 +7,11 @@ except ImportError:
     from typing_extensions import Literal
 
 import anndata
-from anndata import AnnData
 import numpy as np
-from scipy.sparse import issparse, spmatrix
 import pandas as pd
+from anndata import AnnData
+from scipy.sparse import issparse, spmatrix
 
-from .utils import (
-    get_inrange_shared_counts_mask,
-)
 from ..configuration import DKM
 from ..dynamo_logger import (
     LoggerManager,
@@ -26,6 +23,7 @@ from ..dynamo_logger import (
     main_log_time,
     main_warning,
 )
+from .utils import get_inrange_shared_counts_mask
 
 
 def _parallel_wrapper(func: Callable, args_list, n_cores: Optional[int] = None):
@@ -40,8 +38,12 @@ def _parallel_wrapper(func: Callable, args_list, n_cores: Optional[int] = None):
         results: The list of results returned by the function for each element of the iterable.
     """
     import multiprocessing as mp
+    import sys
 
-    ctx = mp.get_context("fork")
+    if sys.platform != "win32":
+        ctx = mp.get_context("fork")  # this fixes loop on MacOS
+    else:
+        ctx = mp.get_context("spawn")
 
     with ctx.Pool(n_cores) as pool:
         results = pool.map(func, args_list)
