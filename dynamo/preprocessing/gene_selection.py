@@ -141,7 +141,8 @@ def select_genes_monocle(
             if layer + "_gini" is not adata.var.keys():
                 calc_Gini(adata)
             filter_bool = get_gene_selection_filter(
-                adata.var[layer + "_gini"][filter_bool], n_top_genes=n_top_genes, basic_filter=filter_bool)
+                adata.var[layer + "_gini"][filter_bool], n_top_genes=n_top_genes, basic_filter=filter_bool
+            )
         elif sort_by == "cv_dispersion" or sort_by == "fano_dispersion":
             if not any("velocyto_SVR" in key for key in adata.uns.keys()):
                 calc_dispersion_by_svr(
@@ -155,6 +156,7 @@ def select_genes_monocle(
         else:
             raise NotImplementedError(f"The algorithm {sort_by} is invalid/unsupported")
 
+    invalid_ids = []
     # filter genes by gene expression fraction as well
     if "frac" not in adata.var.keys():
         adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)
