@@ -10,7 +10,7 @@ from .external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
-from .normalization import normalize
+from .normalization import calc_sz_factor, normalize
 from .QC import (
     basic_stats,
     filter_genes_by_clusters,
@@ -31,7 +31,7 @@ from .utils import (
 from .deprecated import (
     cook_dist,
     calc_sz_factor_legacy,
-    normalize_cell_expr_by_size_factors_legacy,
+    normalize_cell_expr_by_size_factors,
     filter_cells_legacy,
     recipe_monocle,
     recipe_velocyto,
@@ -47,9 +47,9 @@ from .gene_selection import calc_Gini, calc_dispersion_by_svr, highest_frac_gene
 from .Preprocessor import Preprocessor
 
 __all__ = [
+    "calc_sz_factor",
     "filter_cells",
     "filter_genes",
-    "log1p",
     "normalize_cells",
     "lambda_correction",
     "calc_sz_factor_legacy",
@@ -81,8 +81,9 @@ __all__ = [
     "Preprocessor",
     "CnmfPreprocessor",
     "log1p",
-    "log1p",
     "log1p_adata_layer",
     "harmony_debatch",
     "integrate",
+    "normalize_cell_expr_by_size_factors",
+    "filter_cells_legacy",
 ]

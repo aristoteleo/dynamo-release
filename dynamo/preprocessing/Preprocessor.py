@@ -28,13 +28,11 @@ from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .normalization import calc_sz_factor, normalize
 from .pca import pca
 from .QC import (
+    basic_stats,
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
+    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
     regress_out_parallel,
 )
-from .QC import (
-    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
-)
-from .QC import basic_stats
 from .transform import Freeman_Tukey, log, log1p, log2
 from .utils import (
     _infer_labeling_experiment_type,
