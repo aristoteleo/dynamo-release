@@ -49,7 +49,7 @@ def basic_stats(
     """
 
     if len(adata.obs.columns.intersection(["nGenes", "nCounts", "pMito"])) != 3:
-        from ..preprocessing.utils import basic_stats
+        from ..preprocessing.QC import basic_stats
 
         basic_stats(adata)
 
