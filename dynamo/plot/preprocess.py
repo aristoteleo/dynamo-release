@@ -16,7 +16,8 @@ from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DynamoAdataKeyManager
 from ..dynamo_logger import main_warning
-from ..preprocessing.gene_selection import get_prediction_by_svr, highest_frac_genes
+from ..preprocessing import gene_selection
+from ..preprocessing.gene_selection import get_prediction_by_svr
 from ..preprocessing.utils import detect_experiment_datatype
 from ..tools.utils import get_mapper, update_dict
 from .utils import save_fig
@@ -990,7 +991,7 @@ def highest_frac_genes(
     if log:
         ax.set_xscale("log")
 
-    adata = highest_frac_genes(
+    adata = gene_selection.highest_frac_genes(
         adata,
         store_key=store_key,
         n_top=n_top,
