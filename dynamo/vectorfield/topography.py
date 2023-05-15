@@ -546,8 +546,9 @@ class VectorField2D:
             domain=[x_range, y_range],
             tol_redundant=tol_redundant,
         )
-        if len(X) > 0:
-            self.Xss.add_fixed_points(X, J, tol_redundant)
+        if X is None:
+            raise ValueError(f"No fixed points found. Try to increase the number of samples n.")
+        self.Xss.add_fixed_points(X, J, tol_redundant)
 
     def find_nearest_fixed_point(
         self, x: np.ndarray, x_range: Tuple[float, float], y_range: Tuple[float, float], tol_redundant: float = 1e-4
@@ -734,7 +735,7 @@ def topography(
         Xss,
         ftype,
         fp_ind,
-    ) = util_topology(adata, basis, X, dims, func, VecFld, n=n, *kwargs)
+    ) = util_topology(adata=adata, basis=basis, X=X, dims=dims, func=func, VecFld=VecFld, n=n, *kwargs)
 
     # commented for now, will go back to this later.
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
