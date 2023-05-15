@@ -45,7 +45,7 @@ def robust_scale_binned(
 
     Returns:
         An array of the same shape as y, with the scaled values.
-   """
+    """
     bins = np.digitize(x, breaks)
     binsu = np.unique(bins)
     res = np.zeros(bins.size)
@@ -70,7 +70,7 @@ def is_outlier(
 
     Returns:
        Boolean array indicating whether each value in `y` is an outlier (`True`) or not (`False`).
-   """
+    """
     z = FFTKDE(kernel="gaussian", bw="ISJ").fit(x)
     z.evaluate()
     bin_width = (max(x) - min(x)) * z.bw / 2
@@ -214,6 +214,7 @@ def sctransform_core(
         If inplace=False, a new AnnData object with results will be returned.
     """
     import multiprocessing
+    import sys
 
     main_info("sctransform adata on layer: %s" % (layer))
     X = DKM.select_layer_data(adata, layer).copy()
@@ -276,7 +277,10 @@ def sctransform_core(
     ps = multiprocessing.Manager().dict()
 
     # create a process context of fork that copy a Python process from an existing process.
-    ctx = multiprocessing.get_context("fork")
+    if sys.platform != "win32":
+        ctx = multiprocessing.get_context("fork")  # this fixes loop on MacOS
+    else:
+        ctx = multiprocessing.get_context("spawn")
 
     for i in range(1, int(max_bin) + 1):
         genes_bin_regress = genes_step1[bin_ind == i]
@@ -414,12 +418,8 @@ def sctransform_core(
 
 
 def sctransform(
-    adata: AnnData,
-    layers: str = [DKM.X_LAYER],
-    output_layer: str = None,
-    n_top_genes=2000,
-    **kwargs
-)-> Optional[AnnData]:
+    adata: AnnData, layers: str = [DKM.X_LAYER], output_layer: str = None, n_top_genes=2000, **kwargs
+) -> Optional[AnnData]:
     """A wrapper calls sctransform_core and set dynamo style keys in adata"""
     for layer in layers:
         sctransform_core(adata, layer=layer, n_genes=n_top_genes, **kwargs)
