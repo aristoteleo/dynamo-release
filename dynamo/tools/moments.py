@@ -187,10 +187,12 @@ def moments(
         layer_x = adata.layers[layer].copy()
         matched_x_group_indices = np.where([layer in x for x in [only_splicing, only_labeling, splicing_and_labeling]])
         if len(matched_x_group_indices[0]) == 0:
-            logger.warning(f"layer {layer} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping...")
+            logger.warning(
+                f"layer {layer} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping..."
+            )
             continue
         layer_x_group = matched_x_group_indices[0][0]
-        layer_x = inverse_norm(adata, layer_x)
+        # layer_x = inverse_norm(adata, layer_x)
 
         if mapper[layer] not in adata.layers.keys():
             adata.layers[mapper[layer]], conn = (
@@ -199,9 +201,13 @@ def moments(
                 else (conn.dot(layer_x), conn)
             )
         for layer2 in layers[i:]:
-            matched_y_group_indices = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]])
+            matched_y_group_indices = np.where(
+                [layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]]
+            )
             if len(matched_y_group_indices[0]) == 0:
-                logger.warning(f"layer {layer2} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping...")
+                logger.warning(
+                    f"layer {layer2} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping..."
+                )
                 continue
             layer_y = adata.layers[layer2].copy()
 
@@ -211,7 +217,7 @@ def moments(
             # those calculations are model specific
             if (layer_x_group != layer_y_group) or layer_x_group == 2:
                 continue
-            layer_y = inverse_norm(adata, layer_y)
+            # layer_y = inverse_norm(adata, layer_y)
 
             if mapper[layer2] not in adata.layers.keys():
                 adata.layers[mapper[layer2]], conn = (
