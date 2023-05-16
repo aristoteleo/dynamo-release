@@ -119,5 +119,5 @@ if __name__ == "__main__":
     # test_zebrafish()
     # adata = utils.gen_or_read_zebrafish_data()
     # test_save_rank_info(adata)
-    test_save_adata()
+    # test_save_adata()
     pass

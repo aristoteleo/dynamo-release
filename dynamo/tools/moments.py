@@ -187,7 +187,8 @@ def moments(
             )
             continue
         layer_x_group = matched_x_group_indices[0][0]
-        layer_x = inverse_norm(adata, layer_x)
+
+        # layer_x = inverse_norm(adata, layer_x)
 
         if mapper[layer] not in adata.layers.keys():
             adata.layers[mapper[layer]], conn = (
@@ -212,7 +213,7 @@ def moments(
             # those calculations are model specific
             if (layer_x_group != layer_y_group) or layer_x_group == 2:
                 continue
-            layer_y = inverse_norm(adata, layer_y)
+            # layer_y = inverse_norm(adata, layer_y)
 
             if mapper[layer2] not in adata.layers.keys():
                 adata.layers[mapper[layer2]], conn = (
