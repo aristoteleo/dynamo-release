@@ -26,6 +26,7 @@ SHOW_FIG = False
 
 
 def test_highest_frac_genes_plot(adata, is_X_sparse=True):
+    print(adata)
     dyn.pl.highest_frac_genes(
         adata,
         show=SHOW_FIG,
@@ -76,11 +77,16 @@ def test_highest_frac_genes_plot_prefix_list(adata):
     dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=sample_list)
     dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"])
 
-    dyn.pl.highest_frac_genes(
-        adata,
-        gene_prefix_list=["someGenePrefixNotExisting"],
-        show=SHOW_FIG,
-    )
+    try:
+        dyn.pl.highest_frac_genes(
+            adata,
+            gene_prefix_list=["someGenePrefixNotExisting"],
+            show=SHOW_FIG,
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Expected ValueError to be raised")
 
 
 def test_recipe_monocle_feature_selection_layer_simple0():
@@ -138,7 +144,7 @@ def test_calc_dispersion_sparse():
 
 def test_Preprocessor_simple_run(adata):
     preprocess_worker = Preprocessor()
-    preprocess_worker.preprocess_adata_monocle(adata)
+    preprocess_worker.preprocess_adata(adata, recipe="monocle")
 
 
 def test_is_log_transformed():
