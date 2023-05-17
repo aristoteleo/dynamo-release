@@ -23,11 +23,8 @@ from ...dynamo_logger import (
     main_info_insert_adata_layer,
     main_warning,
 )
+from ...preprocessing.utils import is_nonnegative_integer_arr, seurat_get_mean_var
 from ..QC import filter_genes_by_outliers
-from ...preprocessing.utils import (
-    is_nonnegative_integer_arr,
-    seurat_get_mean_var,
-)
 
 main_logger = LoggerManager.main_logger
 
@@ -235,6 +232,7 @@ def _highly_variable_pearson_residuals(
 
         return df
 
+
 # TODO: Move this function to a higher level. Now this function is called by
 # pearson_residual_recipe, but this function aims to support different recipe in
 # the future.
@@ -281,6 +279,7 @@ def compute_highly_variable_genes(
             check_values=check_values,
             inplace=inplace,
         )
+
 
 def compute_pearson_residuals(
     X: np.ndarray,
@@ -344,6 +343,7 @@ def compute_pearson_residuals(
 
     return residuals
 
+
 # TODO: Read pearson residuals if they exist instead of calculating them again.
 def _normalize_single_layer_pearson_residuals(
     adata: AnnData,
@@ -403,17 +403,14 @@ def _normalize_single_layer_pearson_residuals(
     residuals = compute_pearson_residuals(X, theta, clip, check_values, copy=copy)
     pearson_residual_params_dict = dict(theta=theta, clip=clip, layer=layer)
 
-    if not copy:
-        main_logger.info("replacing layer <%s> with pearson residual normalized data." % (layer))
-        DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
-        adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
-    else:
-        results_dict = dict(X=residuals, **pearson_residual_params_dict)
+    DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
+    adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
 
     main_logger.finish_progress(progress_name="pearson residual normalization")
 
     if copy:
         return adata
+
 
 def normalize_layers_pearson_residuals(
     adata: AnnData,
@@ -469,6 +466,7 @@ def normalize_layers_pearson_residuals(
         new_X_key = DKM.gen_layer_X_key(layer)
         main_info_insert_adata_layer(new_X_key, indent_level=2)
         adata.layers[new_X_key] = DKM.select_layer_data(temp_adata, layer)
+
 
 # TODO: Combine this function with compute_highly_variable_genes.
 def select_genes_by_pearson_residuals(
@@ -534,6 +532,7 @@ def select_genes_by_pearson_residuals(
         return None
     else:
         return adata, hvg
+
 
 def pearson_residuals(
     adata: AnnData,

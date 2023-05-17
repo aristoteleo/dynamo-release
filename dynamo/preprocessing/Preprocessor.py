@@ -27,12 +27,10 @@ from .external import (
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .normalization import calc_sz_factor, normalize
 from .pca import pca
-from .QC import (
-    basic_stats,
-    filter_cells_by_outliers as monocle_filter_cells_by_outliers,
-    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
-    regress_out_parallel,
-)
+from .QC import basic_stats
+from .QC import filter_cells_by_outliers as monocle_filter_cells_by_outliers
+from .QC import filter_genes_by_outliers as monocle_filter_genes_by_outliers
+from .QC import regress_out_parallel
 from .transform import Freeman_Tukey, log, log1p, log2
 from .utils import (
     _infer_labeling_experiment_type,
@@ -674,7 +672,7 @@ class Preprocessor:
         self.normalize_selected_genes = normalize_layers_pearson_residuals
         # select layers in adata to be normalized
         normalize_layers = DKM.get_raw_data_layers(adata)
-        self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": False}
+        self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": True}
         self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
@@ -731,7 +729,7 @@ class Preprocessor:
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
-        self.normalize_selected_genes_kwargs = {"layers": ["X"], "copy": False}
+        self.normalize_selected_genes_kwargs = {"layers": ["X"], "copy": True}
         self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
