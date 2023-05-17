@@ -7,7 +7,6 @@ except ImportError:
     from typing_extensions import Literal
 
 import numpy as np
-
 from anndata import AnnData
 from scipy.sparse import csc_matrix, csr_matrix, issparse
 from scipy.sparse.linalg import LinearOperator, svds
@@ -15,10 +14,9 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import svd_flip
 from sklearn.utils.sparsefuncs import mean_variance_axis
+
 from ..configuration import DKM
-from ..dynamo_logger import (
-    main_info_insert_adata_var,
-)
+from ..dynamo_logger import main_info_insert_adata_obsm, main_info_insert_adata_var
 
 
 def _truncatedSVD_with_center(
@@ -278,7 +276,9 @@ def pca(
             # first columns is related to the total UMI (or library size)
             X_pca = X_pca[:, 1:]
 
+    main_info_insert_adata_obsm(pca_key, log_level=20)
     adata.obsm[pca_key] = X_pca
+
     if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
         adata.uns[pcs_key] = fit.components_.T
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
