@@ -94,5 +94,3 @@ def cell_cycle_scores(
         plt.show()
     if save_show_or_return in ["return", "all"]:
         return ax
-    else:
-        raise NotImplementedError("Unavailable save_show_or_return flag: %s" % save_show_or_return)

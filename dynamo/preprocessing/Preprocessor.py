@@ -27,15 +27,14 @@ from .external import (
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .normalization import calc_sz_factor, normalize
 from .pca import pca
-from .QC import (
-    basic_stats,
-    filter_cells_by_outliers as monocle_filter_cells_by_outliers,
-    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
-    regress_out_parallel,
-)
+from .QC import basic_stats
+from .QC import filter_cells_by_outliers as monocle_filter_cells_by_outliers
+from .QC import filter_genes_by_outliers as monocle_filter_genes_by_outliers
+from .QC import regress_out_parallel
 from .transform import Freeman_Tukey, log, log1p, log2
 from .utils import (
     _infer_labeling_experiment_type,
+    calc_new_to_total_ratio,
     collapse_species_adata,
     convert2symbol,
     convert_layers2csr,
@@ -70,6 +69,7 @@ class Preprocessor:
         force_gene_list: Optional[List[str]] = None,
         sctransform_kwargs: Dict[str, Any] = {},
         regress_out_kwargs: Dict[List[str], Any] = {},
+        cell_cycle_score_enable: bool = False,
         cell_cycle_score_kwargs: Dict[str, Any] = {},
     ) -> None:
         """Preprocessor constructor.
@@ -111,7 +111,7 @@ class Preprocessor:
         self.basic_stats = basic_stats
         self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
-        self.norm_method = log1p
+        self.norm_method = norm_method
         self.norm_method_kwargs = norm_method_kwargs
         self.sctransform = sctransform
 
@@ -119,6 +119,7 @@ class Preprocessor:
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
         self.normalize_by_cells = normalize_by_cells_function
         self.calc_size_factor = size_factor_function
+        self.calc_new_to_total_ratio = calc_new_to_total_ratio
         self.select_genes = select_genes_function
         self.normalize_selected_genes = normalize_selected_genes_function
         self.regress_out = regress_out_parallel
@@ -140,6 +141,8 @@ class Preprocessor:
         self.select_genes_kwargs = select_genes_kwargs
         self.sctransform_kwargs = sctransform_kwargs
         self.normalize_selected_genes_kwargs = normalize_selected_genes_kwargs
+        self.cell_cycle_score_enable = cell_cycle_score_enable
+        self.cell_cycle_score = cell_cycle_scores
         self.cell_cycle_score_kwargs = cell_cycle_score_kwargs
         self.regress_out_kwargs = regress_out_kwargs
 
@@ -401,6 +404,20 @@ class Preprocessor:
             main_info("PCA dimension reduction")
             self.pca(adata, **self.pca_kwargs)
 
+    def _calc_ntr(self, adata: AnnData) -> None:
+        """Calculate the size factor of each cell based on method specified as the preprocessor's `calc_size_factor`.
+
+        Args:
+            adata: an AnnData object.
+        """
+
+        if self.calc_new_to_total_ratio:
+            main_debug("ntr calculation...")
+            # calculate NTR for every cell:
+            ntr, var_ntr = self.calc_new_to_total_ratio(adata)
+            adata.obs["ntr"] = ntr
+            adata.var["ntr"] = var_ntr
+
     def _cell_cycle_score(self, adata: AnnData) -> None:
         """Estimate cell cycle stage of each cell based on its gene expression pattern.
 
@@ -408,7 +425,7 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if self.cell_cycle_score:
+        if self.cell_cycle_score_enable:
             main_debug("cell cycle scoring...")
             try:
                 self.cell_cycle_score(adata, **self.cell_cycle_score_kwargs)
@@ -488,7 +505,6 @@ class Preprocessor:
         self.pca = pca
         self.pca_kwargs = {"pca_key": "X_pca"}
 
-        self.cell_cycle_score = None  # optional: cell_cycle_scores
         self.cell_cycle_score_kwargs = {
             "layer": None,
             "gene_list": None,
@@ -534,6 +550,7 @@ class Preprocessor:
             self._regress_out(adata)
 
         self._pca(adata)
+        self._calc_ntr(adata)
         self._cell_cycle_score(adata)
 
         temp_logger.finish_progress(progress_name="Preprocessor-monocle")
