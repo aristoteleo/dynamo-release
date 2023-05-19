@@ -358,6 +358,6 @@ if __name__ == "__main__":
     # test_highest_frac_genes_plot_prefix_list(adata.copy())
     # test_recipe_monocle_feature_selection_layer_simple0()
     # test_gene_selection_method()
-    test_normalize()
+    # test_normalize()
     # test_regress_out()
     pass
