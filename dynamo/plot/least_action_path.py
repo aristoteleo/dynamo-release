@@ -78,12 +78,15 @@ def least_action(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
-        # TODO: least_action_path.py:74: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-        # plt.tight_layout()
+    if save_show_or_return in ["show", "both", "all"]:
+        plt.tight_layout()
         plt.show()
-    elif save_show_or_return in ["return", "all"]:
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -194,9 +197,14 @@ def lap_min_time(
                 "close": True,
                 "verbose": True,
             }
+
+            # prevent the plot from being closed if the plot need to be shown or returned.
+            if save_show_or_return == "both":
+                s_kwargs["close"] = False
+
             s_kwargs = update_dict(s_kwargs, save_kwargs)
 
             save_fig(**s_kwargs)
-        elif save_show_or_return in ["show", "both", "all"]:
+        if save_show_or_return in ["show", "both"]:
             plt.tight_layout()
             plt.show()

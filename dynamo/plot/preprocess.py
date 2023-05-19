@@ -16,7 +16,7 @@ from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DynamoAdataKeyManager
 from ..dynamo_logger import main_warning
-from ..preprocessing import preprocess as pp
+from ..preprocessing import gene_selection
 from ..preprocessing.gene_selection import get_prediction_by_svr
 from ..preprocessing.utils import detect_experiment_datatype
 from ..tools.utils import get_mapper, update_dict
@@ -50,7 +50,7 @@ def basic_stats(
     """
 
     if len(adata.obs.columns.intersection(["nGenes", "nCounts", "pMito"])) != 3:
-        from ..preprocessing.utils import basic_stats
+        from ..preprocessing.QC import basic_stats
 
         basic_stats(adata)
 
@@ -103,7 +103,7 @@ def basic_stats(
     g.set_ylabels("")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "basic_stats",
@@ -114,11 +114,13 @@ def basic_stats(
             "verbose": True,
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -337,7 +339,7 @@ def show_fraction(
     g.set_ylabels("Fraction")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "show_fraction",
@@ -349,11 +351,14 @@ def show_fraction(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -398,7 +403,7 @@ def variance_explained(
     ax.set_xticks(list(ax.get_xticks()) + [n_comps])
     ax.set_xlim(0, len(var_))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "variance_explained",
@@ -410,11 +415,14 @@ def variance_explained(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -426,7 +434,6 @@ def biplot(
     figsize: Tuple[float, float] = (6, 4),
     scale_pca_embedding: bool = False,
     draw_pca_embedding: bool = False,
-
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     ax: Optional[Axes] = None,
@@ -508,7 +515,7 @@ def biplot(
             ax.plot(xs[i] * scalex, ys[i] * scaley, "b", alpha=0.1)
             ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "biplot",
@@ -520,11 +527,14 @@ def biplot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    else:
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -595,7 +605,7 @@ def loading(
 
         axes[cur_row, cur_col].set_title("PC " + str(i))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "loading",
@@ -607,11 +617,14 @@ def loading(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    else:
+    if save_show_or_return in ["return", "all"]:
         return axes
 
 
@@ -709,7 +722,7 @@ def feature_genes(
     plt.xlabel("Mean (log)")
     plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "feature_genes",
@@ -721,11 +734,14 @@ def feature_genes(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
 
 
@@ -890,7 +906,7 @@ def exp_by_groups(
     g.set_xlabels("")
     g.set(ylim=(0, None))
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "exp_by_groups",
@@ -902,11 +918,14 @@ def exp_by_groups(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -971,7 +990,7 @@ def highest_frac_genes(
     if log:
         ax.set_xscale("log")
 
-    adata = pp.highest_frac_genes(
+    adata = gene_selection.highest_frac_genes(
         adata,
         store_key=store_key,
         n_top=n_top,

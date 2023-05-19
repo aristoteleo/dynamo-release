@@ -151,7 +151,7 @@ def scribe(
 
     if normalize:
         # recalculate size factor
-        from ..preprocessing import calc_sz_factor_legacy
+        from ..preprocessing.deprecated import calc_sz_factor_legacy
 
         adata = calc_sz_factor_legacy(
             adata,

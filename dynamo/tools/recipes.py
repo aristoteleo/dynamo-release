@@ -4,7 +4,7 @@ import numpy as np
 from anndata import AnnData
 
 from ..configuration import DynamoAdataConfig
-from ..preprocessing.utils import pca
+from ..preprocessing.pca import pca
 from .cell_velocities import cell_velocities
 from .connectivity import neighbors, normalize_knn_graph
 from .dimension_reduction import reduceDimension
@@ -77,7 +77,8 @@ def recipe_kin_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import detect_experiment_datatype, pca
+    from ..preprocessing.pca import pca
+    from ..preprocessing.utils import detect_experiment_datatype
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -246,7 +247,8 @@ def recipe_deg_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import detect_experiment_datatype, pca
+    from ..preprocessing.pca import pca
+    from ..preprocessing.utils import detect_experiment_datatype
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -420,7 +422,8 @@ def recipe_mix_kin_deg_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import detect_experiment_datatype, pca
+    from ..preprocessing.pca import pca
+    from ..preprocessing.utils import detect_experiment_datatype
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -590,7 +593,8 @@ def recipe_one_shot_data(
     """
 
     from ..preprocessing import recipe_monocle
-    from ..preprocessing.utils import detect_experiment_datatype, pca
+    from ..preprocessing.pca import pca
+    from ..preprocessing.utils import detect_experiment_datatype
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY

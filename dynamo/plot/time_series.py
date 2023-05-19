@@ -170,7 +170,7 @@ def kinetic_curves(
             facet_kws={"sharex": True, "sharey": False},
         )
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "kinetic_curves",
@@ -182,11 +182,14 @@ def kinetic_curves(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
 
 
@@ -463,7 +466,7 @@ def kinetic_heatmap(
         vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
         sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "kinetic_heatmap",
@@ -475,13 +478,16 @@ def kinetic_heatmap(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap
 
 
@@ -708,6 +714,16 @@ def jacobian_kinetics(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
         ClusterGrid would be returned.
+    
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> adata = dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.jacobian_kinetics(adata)
     """
 
     import matplotlib.pyplot as plt
@@ -826,7 +842,7 @@ def jacobian_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return == "save_fig":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "jacobian_kinetics",
@@ -838,13 +854,16 @@ def jacobian_kinetics(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap
 
 
@@ -914,6 +933,16 @@ def sensitivity_kinetics(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
         ClusterGrid would be returned.
+        
+    Examples:
+        >>> import dynamo as dyn
+        >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+        >>> adata = dyn.pp.recipe_monocle(adata)
+        >>> dyn.tl.dynamics(adata)
+        >>> dyn.vf.VectorField(adata, basis='pca')
+        >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+        >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+        >>> dyn.pl.sensitivity_kinetics(adata)
     """
 
     import matplotlib.pyplot as plt
@@ -1032,7 +1061,7 @@ def sensitivity_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return == "save_fig":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "sensitivity_kinetics",
@@ -1044,11 +1073,14 @@ def sensitivity_kinetics(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         if show_colorbar:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return sns_heatmap

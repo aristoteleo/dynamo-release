@@ -7,8 +7,6 @@ except ImportError:
 
 import networkx as nx
 import numpy as np
-import nxviz as nv
-import nxviz.annotate
 import pandas as pd
 from anndata import AnnData
 from matplotlib.axes import Axes
@@ -31,7 +29,7 @@ def nxvizPlot(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> Union[nv.ArcPlot, nv.CircosPlot, None]:
+) -> Optional[Any]:
     """Arc or circos plot of gene regulatory network for a particular cell cluster.
 
     Args:
@@ -174,7 +172,7 @@ def nxvizPlot(
     for e in network.edges():
         network.edges[e]["weight"] /= weight_scale
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
@@ -189,15 +187,18 @@ def nxvizPlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
         # Display the plot
         plt.show()
         # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return nv_ax
 
 
@@ -216,7 +217,7 @@ def arcPlot(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> Optional[nv.ArcPlot]:
+) -> Optional[Any]:
     """Arc plot of gene regulatory network for a particular cell cluster.
 
     Args:
@@ -313,7 +314,7 @@ def arcPlot(
         cb.locator = MaxNLocator(nbins=3, integer=True)
         cb.update_ticks()
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         # Draw a to the screen
         plt.autoscale()
         s_kwargs = {
@@ -327,14 +328,17 @@ def arcPlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         # Draw a to the screen
         plt.autoscale()
         # Display the plot
         plt.show()
         # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ap
 
 
@@ -361,6 +365,11 @@ def circosPlot(
     Returns:
         the Matplotlib Axes on which the Circos plot is drawn.
     """
+    try:
+        import nxviz as nv
+    except ImportError:
+        raise ImportError("install nxviz via `pip install nxviz`.")
+
     ax = nv.circos(
         network,
         group_by=node_label_key,
@@ -396,7 +405,7 @@ def circosPlotDeprecated(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
-) -> nv.CircosPlot:
+) -> Optional[Any]:
 
     """Deprecated.
 
@@ -573,7 +582,7 @@ def hivePlot(
     # ax.legend(custom_lines, reg_groups, loc='upper left', bbox_to_anchor=(0.37, 0.35),
     #           title="Regulatory network based on Jacobian analysis")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "hiveplot",
@@ -585,9 +594,12 @@ def hivePlot(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax

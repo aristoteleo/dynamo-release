@@ -309,7 +309,7 @@ def connectivity_base(
 
     ax.set(xticks=[], yticks=[])
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "connectivity_base",
@@ -321,14 +321,16 @@ def connectivity_base(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
-    else:
-        raise NotImplementedError("Unsupported save_show_or_return")
 
 
 docstrings.delete_params("con_base.parameters", "edge_df", "save_show_or_return", "save_kwargs")
@@ -578,7 +580,7 @@ def nneighbors(
                 ax.set_ylabel(cur_b + "_2")
                 ax.set_title(cur_c)
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "nneighbors",
@@ -590,11 +592,14 @@ def nneighbors(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g
     else:
         raise NotImplementedError('Invalid "save_show_or_return".')

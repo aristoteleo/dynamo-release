@@ -196,12 +196,12 @@ def plot_3d_streamtube(
         marker=dict(size=2, color=colors.values),
     )
 
-    if save_show_or_return == "save" or html_fname is not None:
+    if (save_show_or_return in ["save", "both", "all"]) or html_fname is not None:
         html_fname = "streamtube_" + color + "_" + group + "_" + init_group if html_fname is None else html_fname
         save_kwargs_ = {"file": html_fname, "auto_open": True}
         save_kwargs_.update(save_kwargs)
         fig.write_html(**save_kwargs_)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         fig.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return fig

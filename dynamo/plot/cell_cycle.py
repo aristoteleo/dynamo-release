@@ -72,7 +72,7 @@ def cell_cycle_scores(
     # Heatmap returns an axes obj but you need to get a mappable obj (get_children)
     colorbar(ax.get_children()[0], cax=cax, ticks=[-0.9, 0, 0.9])
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_direct_graph",
@@ -82,13 +82,17 @@ def cell_cycle_scores(
             "close": True,
             "verbose": True,
         }
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return ax
     else:
         raise NotImplementedError("Unavailable save_show_or_return flag: %s" % save_show_or_return)

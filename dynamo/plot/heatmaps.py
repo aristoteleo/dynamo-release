@@ -247,8 +247,8 @@ def response(
         stacked_fraction: If True the jacobian will be represe nted as a stacked fraction in the title, otherwise a
             linear fraction tyle is used. Defaults to False.
         figsize: size of the figure. Defaults to (6, 4).
-        save_show_or_return: whether to show or save the plotted figure or both. `"both"` and `"all"` have the same
-            effect. Defaults to "show".
+        save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
         save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
             and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
@@ -609,7 +609,7 @@ def response(
         axes[i, j].set_yticklabels(ylabels)
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both", "all"]:
+    if save_show_or_return in ["save", "both"]:
         s_kwargs = {
             "path": None,
             "prefix": "scatters",
@@ -621,19 +621,25 @@ def response(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return == "both":
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
 
         plt.show()
 
+    list_for_return = []
+
     if return_data:
         if fit_dict is None:
-            return (flat_res, flat_res_subset, ridge_curve_subset)
+            list_for_return += [flat_res, flat_res_subset, ridge_curve_subset]
         else:
-            return (flat_res, flat_res_subset, ridge_curve_subset, fit_dict)
+            list_for_return += [flat_res, flat_res_subset, ridge_curve_subset, fit_dict]
     else:
         adata.uns["response"] = {
             "flat_res": flat_res,
@@ -642,6 +648,9 @@ def response(
         }
         if fit_dict is not None:
             adata.uns["response"]["fit_curve"] = fit_dict
+
+    if list_for_return:
+        return tuple(list_for_return)
 
 
 def plot_hill_function(
@@ -753,7 +762,7 @@ def plot_hill_function(
             raise NotImplementedError(f"The fit mode `{mode}` is not supported.")
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both", "all"]:
+    if save_show_or_return in ["save", "both"]:
         s_kwargs = {
             "path": None,
             "prefix": "scatters",
@@ -765,8 +774,12 @@ def plot_hill_function(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return == "both":
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
@@ -839,8 +852,8 @@ def causality(
         stacked_fraction: if True the jacobian will be represented as a stacked fraction in the title, otherwise a
             linear fraction style is used. Defaults to False.
         figsize: the size of the figure. Defaults to (6, 4).
-        save_show_or_return: whether to show or save the plotted figure or both. `"both"` and `"all"` have the same
-            effect. Defaults to "show". Defaults to "show".
+        save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
         save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
             and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
@@ -1177,7 +1190,7 @@ def causality(
     # plt.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both", "all"]:
+    if save_show_or_return in ["save", "both"]:
         s_kwargs = {
             "path": None,
             "prefix": "scatters",
@@ -1189,8 +1202,12 @@ def causality(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return == "both":
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
@@ -1273,8 +1290,8 @@ def comb_logic(
         stacked_fraction: if True the jacobian will be represented as a stacked fraction in the title, otherwise a
             linear fraction style is used. Defaults to False.
         figsize: the size of the figure. Defaults to (6, 4).
-        save_show_or_return: whether to show or save the plotted figure or both. `"both"` and `"all"` have the same
-            effect. Defaults to "show". Defaults to "show".
+        save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
         save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
             and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
@@ -1434,8 +1451,8 @@ def hessian(
         stacked_fraction: if True the jacobian will be represented as a stacked fraction in the title, otherwise a
             linear fraction style is used. Defaults to False.
         figsize: the size of the figure. Defaults to (6, 4).
-        save_show_or_return: whether to show or save the plotted figure or both. `"both"` and `"all"` have the same
-            effect. Defaults to "show". Defaults to "show".
+        save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
         save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
          and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a

@@ -35,7 +35,7 @@ from ..dynamo_logger import (
     main_tqdm,
     main_warning,
 )
-from ..preprocessing.utils import _Freeman_Tukey
+from ..preprocessing.transform import _Freeman_Tukey
 from ..utils import areinstance, isarray
 
 
@@ -2120,7 +2120,7 @@ def calc_R2(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)):
 def norm_loglikelihood(x, mu, sig):
     """Calculate log-likelihood for the data."""
     err = (x - mu) / sig
-    ll = -len(err) / 2 * np.log(2 * np.pi) - np.sum(np.log(sig)) - 0.5 * err.dot(err.T)
+    ll = -len(err) / 2 * np.log(2 * np.pi) - 0.5 * len(err) * np.log(sig ** 2) - 0.5 * err.dot(err.T)
     return np.sum(ll, 0)
 
 

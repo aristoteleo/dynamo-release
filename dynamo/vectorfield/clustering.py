@@ -8,7 +8,7 @@ from scipy.stats import mode
 from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import main_info
-from ..preprocessing.utils import pca
+from ..preprocessing.pca import pca
 from ..tools.clustering import hdbscan, infomap, leiden, louvain
 from ..tools.Markov import (
     grid_velocity_filter,
