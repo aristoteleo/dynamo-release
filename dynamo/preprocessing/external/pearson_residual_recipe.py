@@ -376,22 +376,22 @@ def _normalize_single_layer_pearson_residuals(
         the given AnnData object in place and returns None.
     """
 
-    if copy:
-        adata = adata.copy()
-    # view_to_actual(adata)
-
-    # if select_genes_key:
-    #     main_info("normalize selected genes...")
-    #     adata = adata[:, adata.var[select_genes_key]]
+    msg = "applying Pearson residuals to layer <%s>" % layer
+    main_logger.info(msg)
+    main_logger.log_time()
 
     if layer is None:
         layer = DKM.X_LAYER
 
     if layer != DKM.X_LAYER:
         main_warning(
-            f"pearson residual should only be used for adata.X and not applied to {layer}, "
+            f"pearson residual should only be used for adata.X and not applied to {layer} layer, "
             f"so please don't use this residual for velocities and vector field."
         )
+        copy = True  # residuals for spliced/unspliced layers will be saved in X_splice/X_unspliced.
+
+    if copy:
+        adata = adata.copy()
 
     pp_pearson_store_key = DKM.gen_layer_pearson_residual_key(layer)
 
@@ -400,24 +400,16 @@ def _normalize_single_layer_pearson_residuals(
         selected_genes_bools = adata.var[var_select_genes_key]
 
     adata_selected_genes = adata[:, selected_genes_bools]
-
     X = DKM.select_layer_data(adata_selected_genes, layer=layer)
-
-    msg = "applying Pearson residuals to layer <%s>" % (layer)
-    main_logger.info(msg)
-    main_logger.log_time()
 
     residuals = compute_pearson_residuals(X, theta, clip, check_values, copy=copy)
     pearson_residual_params_dict = dict(theta=theta, clip=clip, layer=layer)
 
-    if not copy:
-        main_logger.info("replacing layer <%s> with pearson residual normalized data." % layer)
-        DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
-        adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
-    else:
-        results_dict = dict(X=residuals, **pearson_residual_params_dict)
+    main_logger.info("replacing layer <%s> with pearson residual normalized data." % layer)
+    DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
+    adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
 
-    main_logger.finish_progress(progress_name="pearson residual normalization")
+    main_logger.finish_progress(progress_name=f"pearson residual normalization for {layer}")
 
     if copy:
         return adata
@@ -464,10 +456,6 @@ def normalize_layers_pearson_residuals(
         temp_adata = _normalize_single_layer_pearson_residuals(
             adata, layer=layer, var_select_genes_key=temp_select_genes_key, copy=copy, **normalize_pearson_residual_args
         )
-
-        # copy is False
-        if temp_adata is None:
-            temp_adata = adata
 
         if layer != DKM.X_LAYER:  # update 'X_' layers
             new_X_key = DKM.gen_layer_X_key(layer)
