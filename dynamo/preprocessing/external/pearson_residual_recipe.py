@@ -386,6 +386,13 @@ def _normalize_single_layer_pearson_residuals(
 
     if layer is None:
         layer = DKM.X_LAYER
+
+    if layer != DKM.X_LAYER:
+        main_warning(
+            f"pearson residual should only be used for adata.X and not applied to {layer}, "
+            f"so please don't use this residual for velocities and vector field."
+        )
+
     pp_pearson_store_key = DKM.gen_layer_pearson_residual_key(layer)
 
     selected_genes_bools = np.ones(adata.n_vars, dtype=bool)
@@ -403,8 +410,12 @@ def _normalize_single_layer_pearson_residuals(
     residuals = compute_pearson_residuals(X, theta, clip, check_values, copy=copy)
     pearson_residual_params_dict = dict(theta=theta, clip=clip, layer=layer)
 
-    DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
-    adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
+    if not copy:
+        main_logger.info("replacing layer <%s> with pearson residual normalized data." % layer)
+        DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
+        adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
+    else:
+        results_dict = dict(X=residuals, **pearson_residual_params_dict)
 
     main_logger.finish_progress(progress_name="pearson residual normalization")
 
@@ -458,14 +469,10 @@ def normalize_layers_pearson_residuals(
         if temp_adata is None:
             temp_adata = adata
 
-        if layer == DKM.X_LAYER:
-            # TODO: discuss if we need X set in layers
-            # X layer will only be used for X_pca
-            main_info("skipping set X as layer in adata.layers", indent_level=2)
-            continue
-        new_X_key = DKM.gen_layer_X_key(layer)
-        main_info_insert_adata_layer(new_X_key, indent_level=2)
-        adata.layers[new_X_key] = DKM.select_layer_data(temp_adata, layer)
+        if layer != DKM.X_LAYER:  # update 'X_' layers
+            new_X_key = DKM.gen_layer_X_key(layer)
+            main_info_insert_adata_layer(new_X_key, indent_level=2)
+            adata.layers[new_X_key] = DKM.select_layer_data(temp_adata, layer)
 
 
 # TODO: Combine this function with compute_highly_variable_genes.

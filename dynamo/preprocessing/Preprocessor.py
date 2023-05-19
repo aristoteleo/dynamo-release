@@ -671,8 +671,8 @@ class Preprocessor:
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
         # select layers in adata to be normalized
-        normalize_layers = DKM.get_raw_data_layers(adata)
-        self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": True}
+        normalize_layers = DKM.X_LAYER #DKM.get_raw_data_layers(adata)
+        self.normalize_selected_genes_kwargs = {"layers": normalize_layers, "copy": False}
         self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
@@ -729,7 +729,7 @@ class Preprocessor:
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
         self.normalize_selected_genes = normalize_layers_pearson_residuals
-        self.normalize_selected_genes_kwargs = {"layers": ["X"], "copy": True}
+        self.normalize_selected_genes_kwargs = {"layers": ["X"], "copy": False}
         self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
