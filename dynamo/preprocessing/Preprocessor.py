@@ -520,10 +520,8 @@ class Preprocessor:
 
         Args:
             adata: an AnnData object.
-            tkey: the key for time information (labeling time period for the
-                cells) in .obs. Defaults to None.
-            experiment_type: the experiment type of the data. If not provided,
-                would be inferred from the data. Defaults to None.
+            tkey: the key for time information (labeling time period for the cells) in .obs. Defaults to None.
+            experiment_type: the experiment type of the data. If not provided, would be inferred from the data.
         """
 
         main_info("Running monocle preprocessing pipeline...")
@@ -797,6 +795,7 @@ class Preprocessor:
             "monocle", "seurat", "sctransform", "pearson_residuals", "monocle_pearson_residuals"
         ] = "monocle",
         tkey: Optional[str] = None,
+        experiment_type: Optional[str] = None,
     ) -> None:
         """Preprocess the AnnData object with the recipe specified.
 
@@ -804,6 +803,7 @@ class Preprocessor:
             adata: An AnnData object.
             recipe: The recipe used to preprocess the data. Defaults to "monocle".
             tkey: the key for time information (labeling time period for the cells) in .obs. Defaults to None.
+            experiment_type: the experiment type of the data. If not provided, would be inferred from the data.
 
         Raises:
             NotImplementedError: the recipe is invalid.
@@ -811,18 +811,18 @@ class Preprocessor:
 
         if recipe == "monocle":
             self.config_monocle_recipe(adata)
-            self.preprocess_adata_monocle(adata, tkey=tkey)
+            self.preprocess_adata_monocle(adata, tkey=tkey, experiment_type=experiment_type)
         elif recipe == "seurat":
             self.config_seurat_recipe(adata)
-            self.preprocess_adata_seurat(adata, tkey=tkey)
+            self.preprocess_adata_seurat(adata, tkey=tkey, experiment_type=experiment_type)
         elif recipe == "sctransform":
             self.config_sctransform_recipe(adata)
-            self.preprocess_adata_sctransform(adata, tkey=tkey)
+            self.preprocess_adata_sctransform(adata, tkey=tkey, experiment_type=experiment_type)
         elif recipe == "pearson_residuals":
             self.config_pearson_residuals_recipe(adata)
-            self.preprocess_adata_pearson_residuals(adata, tkey=tkey)
+            self.preprocess_adata_pearson_residuals(adata, tkey=tkey, experiment_type=experiment_type)
         elif recipe == "monocle_pearson_residuals":
             self.config_monocle_pearson_residuals_recipe(adata)
-            self.preprocess_adata_monocle_pearson_residuals(adata, tkey=tkey)
+            self.preprocess_adata_monocle_pearson_residuals(adata, tkey=tkey, experiment_type=experiment_type)
         else:
-            raise NotImplementedError("preprocess recipe chosen not implemented: %s" % (recipe))
+            raise NotImplementedError("preprocess recipe chosen not implemented: %s" % recipe)
