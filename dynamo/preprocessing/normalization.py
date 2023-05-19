@@ -239,12 +239,12 @@ def normalize(
 
     layers = DKM.get_available_layer_keys(adata, layers)
 
-    layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
-    layer_sz_column_names.extend(["Size_Factor"])
-    layers_to_sz = list(set(layer_sz_column_names))
-
-    layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
-    layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
+    # layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
+    # layer_sz_column_names.extend(["Size_Factor"])
+    # layers_to_sz = list(set(layer_sz_column_names))
+    #
+    # layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
+    # layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
     calc_sz_factor(
         adata,
         layers=layers,
