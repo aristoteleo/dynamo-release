@@ -367,6 +367,7 @@ def circosPlot(
     """
     try:
         import nxviz as nv
+        from nxviz import annotate
     except ImportError:
         raise ImportError("install nxviz via `pip install nxviz`.")
 
@@ -382,9 +383,9 @@ def circosPlot(
         },
     )
 
-    nv.annotate.circos_labels(network, group_by=node_label_key, layout=circos_label_layout)
+    annotate.circos_labels(network, group_by=node_label_key, layout=circos_label_layout)
     if node_color_key and show_colorbar:
-        nv.annotate.node_colormapping(
+        annotate.node_colormapping(
             network,
             color_by=node_color_key,
             legend_kwargs={"loc": "upper right", "bbox_to_anchor": (0.0, 1.0)},

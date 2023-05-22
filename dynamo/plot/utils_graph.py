@@ -176,7 +176,7 @@ class ArcPlot:
             raise ImportError(
                 f"You need to install the packages `networkx`." f"install networkx via `pip install networkx`."
             )
-        self.E = nx.to_numpy_matrix(network)
+        self.E = nx.to_numpy_array(network)
         self.node_names = list(network.nodes)
 
     def compute_node_positions(self, node_order=None):
