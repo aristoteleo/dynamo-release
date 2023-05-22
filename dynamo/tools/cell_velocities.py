@@ -13,6 +13,7 @@ from numba import jit
 from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
 
+from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..utils import areinstance
 from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
@@ -530,7 +531,7 @@ def cell_velocities(
             adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X", return_all=True)
             adata.uns["pca_fit"] = pca_fit
 
-        X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
+        X_pca, pca_fit = adata.obsm[DKM.X_PCA], adata.uns["pca_fit"]
         V = adata[:, adata.var.use_for_dynamics.values].layers[vkey] if vkey in adata.layers.keys() else None
         CM, V = CM.A if sp.issparse(CM) else CM, V.A if sp.issparse(V) else V
         V[np.isnan(V)] = 0

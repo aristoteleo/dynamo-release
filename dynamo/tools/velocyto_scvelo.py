@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
 
+from ..configuration import DKM
+
 
 def vlm_to_adata(
     vlm, n_comps: int = 30, basis: str = "umap", trans_mats: Optional[dict] = None, cells_ixs: List[int] = None
@@ -88,7 +90,7 @@ def vlm_to_adata(
 
     # set obsm
     obsm = {}
-    obsm["X"] = vlm.pcs[:, : min(n_comps, vlm.pcs.shape[1])]
+    obsm[DKM.X_PCA] = vlm.pcs[:, : min(n_comps, vlm.pcs.shape[1])]
     # set basis and velocity on the basis
     if basis is not None:
         obsm["X_" + basis] = vlm.ts
