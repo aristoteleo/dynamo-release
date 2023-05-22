@@ -2890,3 +2890,17 @@ def projection_with_transition_matrix(
                 delta_X[i] -= T_i.mean() * diff_emb.sum(0)
 
     return delta_X
+
+def density_corrected_transition_matrix(T):
+    '''
+        Returns the transition matrix with density correction from T
+    '''
+    T = sp.csr_matrix(T, copy=True)
+
+    for i in range(T.shape[0]):
+        idx = T[i].indices
+        T_i = T[i].data
+        T_i -= T_i.mean()
+        T[i, idx] = T_i
+
+    return T
