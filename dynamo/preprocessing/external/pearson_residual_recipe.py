@@ -385,8 +385,10 @@ def _normalize_single_layer_pearson_residuals(
 
     if layer != DKM.X_LAYER:
         main_warning(
-            f"pearson residual should only be used for adata.X and not applied to {layer} layer, "
-            f"so please don't use this residual for velocities and vector field."
+            f"Pearson residual is only recommended for X layer while you are applying on layer: {layer}, "
+            f"This will overwrite existing pearson residual params and create negative values in layers, "
+            f"which will cause error in the velocities calculation. Please run the pearson residual recipe by default "
+            f"if you plan to perform downstream analysis."
         )
         copy = True  # residuals for spliced/unspliced layers will be saved in X_splice/X_unspliced.
 
