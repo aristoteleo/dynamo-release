@@ -361,7 +361,7 @@ def _graphize_velocity_coopt(
                 jac_con = jac_con / (v_ - v).dot(v_ - v)
 
             # cosine similarity
-            if v_norm == 0 or b == 0:
+            if w_norm == 0 or b == 0 or c_norm==0:
                 jac_sim = 0
             else:
                 jac_sim = b / v_norm**2 * (v_norm * D @ u_ - v_.dot(u_) * v_ @ D.T / v_norm)
