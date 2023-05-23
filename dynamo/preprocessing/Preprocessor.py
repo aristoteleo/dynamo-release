@@ -27,12 +27,10 @@ from .external import (
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .normalization import calc_sz_factor, normalize
 from .pca import pca
-from .QC import (
-    basic_stats,
-    filter_cells_by_outliers as monocle_filter_cells_by_outliers,
-    filter_genes_by_outliers as monocle_filter_genes_by_outliers,
-    regress_out_parallel,
-)
+from .QC import basic_stats
+from .QC import filter_cells_by_outliers as monocle_filter_cells_by_outliers
+from .QC import filter_genes_by_outliers as monocle_filter_genes_by_outliers
+from .QC import regress_out_parallel
 from .transform import Freeman_Tukey, log, log1p, log2
 from .utils import (
     _infer_labeling_experiment_type,
@@ -238,7 +236,8 @@ class Preprocessor:
         """
 
         adata.uns["pp"] = {}
-        adata.uns["pp"]["norm_method"] = None
+        adata.uns["pp"]["X_norm_method"] = None
+        adata.uns["pp"]["layers_norm_method"] = None
         self.basic_stats(adata)
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)

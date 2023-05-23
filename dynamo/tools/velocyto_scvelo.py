@@ -124,7 +124,8 @@ def vlm_to_adata(
         "has_protein": False,
         "tkey": None,
         "experiment_type": "conventional",
-        "norm_method": None,
+        "X_norm_method": None,
+        "layers_norm_method": None,
     }
 
     uns["dynamics"] = {

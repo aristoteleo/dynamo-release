@@ -192,7 +192,6 @@ def moments(
             )
             continue
         layer_x_group = matched_x_group_indices[0][0]
-        # layer_x = inverse_norm(adata, layer_x)
 
         if mapper[layer] not in adata.layers.keys():
             adata.layers[mapper[layer]], conn = (
@@ -217,7 +216,6 @@ def moments(
             # those calculations are model specific
             if (layer_x_group != layer_y_group) or layer_x_group == 2:
                 continue
-            # layer_y = inverse_norm(adata, layer_y)
 
             if mapper[layer2] not in adata.layers.keys():
                 adata.layers[mapper[layer2]], conn = (
@@ -379,7 +377,7 @@ def prepare_data_deterministic(
     raw = [None] * len(layers)
     for i, layer in enumerate(layers):
         if layer in ["X_total", "total", "M_t"]:
-            if (layer == "X_total" and adata.uns["pp"]["norm_method"] is None) or layer == "M_t":
+            if (layer == "X_total" and adata.uns["pp"]["layers_norm_method"] is None) or layer == "M_t":
                 x_layer = adata[:, genes].layers[layer]
                 if return_ntr:
                     T_genes = adata[:, genes].layers[get_layer_pair(layer)]
@@ -455,7 +453,7 @@ def prepare_data_deterministic(
                     x_layer = x_layer - y_layer
 
         else:
-            if (layer == ["X_new"] and adata.uns["pp"]["norm_method"] is None) or layer == "M_n":
+            if (layer == ["X_new"] and adata.uns["pp"]["layers_norm_method"] is None) or layer == "M_n":
                 total_layer = "X_total" if layer == ["X_new"] else "M_t"
 
                 if return_ntr:
