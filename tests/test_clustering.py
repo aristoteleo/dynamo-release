@@ -12,28 +12,6 @@ from dynamo import LoggerManager
 
 logger = LoggerManager.get_main_logger()
 
-# refactored gen_zebrafish_test_data() from TestUtils into a Pytest fixture
-@pytest.fixture(scope="module")
-def adata():
-    adata = dyn.sample_data.zebrafish()
-    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
-    dyn.tl.dynamics(adata, model="stochastic", cores=8)
-    dyn.tl.reduceDimension(adata, basis="pca", n_pca_components=30, enforce=True)
-    dyn.tl.cell_velocities(adata, basis="pca")
-    dyn.vf.VectorField(adata, basis="pca", M=100)
-    dyn.vf.curvature(adata, basis="pca")
-    dyn.vf.acceleration(adata, basis="pca")
-
-    dyn.vf.rank_acceleration_genes(adata, groups="Cell_type", akey="acceleration", prefix_store="rank")
-    dyn.vf.rank_curvature_genes(adata, groups="Cell_type", ckey="curvature", prefix_store="rank")
-    dyn.vf.rank_velocity_genes(adata, groups="Cell_type", vkey="velocity_S", prefix_store="rank")
-
-    dyn.pp.top_pca_genes(adata, n_top_genes=100)
-    top_pca_genes = adata.var.index[adata.var.top_pca_genes]
-    dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
-    dyn.cleanup(adata)
-    return adata
-
 
 def test_simple_cluster_community_adata(adata):
     dyn.tl.louvain(adata)
