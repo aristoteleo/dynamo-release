@@ -176,7 +176,7 @@ def filter_cells_by_outliers(
     adata: AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
-    keep_filtered: bool = True,
+    keep_filtered: bool = False,
     min_expr_genes_s: int = 50,
     min_expr_genes_u: int = 25,
     min_expr_genes_p: int = 1,
