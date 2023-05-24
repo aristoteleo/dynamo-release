@@ -964,3 +964,36 @@ def gen_rotation_2d(degree: float) -> np.ndarray:
         [sin(rad), cos(rad)],
     ]
     return np.array(R)
+
+
+def reset_adata_X(adata: AnnData, experiment_type: str, has_labeling: bool, has_splicing: bool):
+    if has_labeling:
+        if experiment_type.lower() in [
+            "one-shot",
+            "kin",
+            "mixture",
+            "mix_std_stm",
+            "kinetics",
+            "mix_pulse_chase",
+            "mix_kin_deg",
+        ]:
+            adata.X = adata.layers["total"].copy()
+        if experiment_type.lower() in ["deg", "degradation"] and has_splicing:
+            adata.X = adata.layers["spliced"].copy()
+        if experiment_type.lower() in ["deg", "degradation"] and not has_splicing:
+            main_warning(
+                "It is not possible to calculate RNA velocity from a degradation experiment which has no "
+                "splicing information."
+            )
+            adata.X = adata.layers["total"].copy()
+        else:
+            adata.X = adata.layers["total"].copy()
+    else:
+        adata.X = adata.layers["spliced"].copy()
+
+
+def del_raw_layers(adata: AnnData):
+    layers = list(adata.layers.keys())
+    for layer in layers:
+        if not layer.startswith("X_"):
+            del adata.layers[layer]
