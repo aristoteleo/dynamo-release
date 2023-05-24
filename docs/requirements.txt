@@ -31,6 +31,7 @@ gseapy
 GitPython
 KDEpy
 importlib-metadata
+importlib_metadata
 docutils
 mock
 pandocfilters
