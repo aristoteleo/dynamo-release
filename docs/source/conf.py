@@ -156,7 +156,6 @@ autodoc_default_flags = [
     "private-members",
     "show-inheritance",
 ]
-autodoc_mock_imports = ["importlib_metadata"]
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
