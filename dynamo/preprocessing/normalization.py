@@ -195,7 +195,7 @@ def get_sz_exprs(
 def normalize(
     adata: anndata.AnnData,
     layers: str = "all",
-    total_szfactor: str = "total_Size_Factor",
+    total_szfactor: str = None,
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
     keep_filtered: bool = True,
@@ -249,7 +249,7 @@ def normalize(
         adata,
         layers=layers,
         locfunc=np.nanmean,
-        round_exprs=True,
+        round_exprs=False,
         method=sz_method,
         scale_to=scale_to,
     )
