@@ -52,65 +52,62 @@ def test_tqdm_style_loops():
 
 
 @pytest.mark.skip(reason="excessive running time")
-def test_vectorField_logger():
-    adata = dyn.sample_data.zebrafish()
-    adata = adata[:500]
-    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
-    dyn.tl.dynamics(adata, model="stochastic", cores=8)
-    dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
-    dyn.tl.cell_velocities(adata, basis="pca")
-    dyn.vf.VectorField(adata, basis="pca", M=100)
-    dyn.vf.VectorField(adata, basis="pca", M=100)
-    dyn.vf.VectorField(adata, basis="pca", M=100)
-    dyn.vf.curvature(adata, basis="pca")
-    dyn.vf.acceleration(adata, basis="pca")
-    dyn.vf.rank_acceleration_genes(adata, groups="Cell_type")
-    dyn.pp.top_pca_genes(adata)
-    top_pca_genes = adata.var.index[adata.var.top_pca_genes]
-    dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
+def test_vectorField_logger(raw_pancreas_adata):
+    raw_pancreas_adata = raw_pancreas_adata[:500]
+    dyn.pp.recipe_monocle(raw_pancreas_adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
+    dyn.tl.dynamics(raw_pancreas_adata, model="stochastic", cores=8)
+    dyn.tl.reduceDimension(raw_pancreas_adata, n_pca_components=5, enforce=True)
+    dyn.tl.cell_velocities(raw_pancreas_adata, basis="pca")
+    dyn.vf.VectorField(raw_pancreas_adata, basis="pca", M=100)
+    dyn.vf.VectorField(raw_pancreas_adata, basis="pca", M=100)
+    dyn.vf.VectorField(raw_pancreas_adata, basis="pca", M=100)
+    dyn.vf.curvature(raw_pancreas_adata, basis="pca")
+    dyn.vf.acceleration(raw_pancreas_adata, basis="pca")
+    dyn.vf.rank_acceleration_genes(raw_pancreas_adata, groups="Cell_type")
+    dyn.pp.top_pca_genes(raw_pancreas_adata)
+    top_pca_genes = raw_pancreas_adata.var.index[raw_pancreas_adata.var.top_pca_genes]
+    dyn.vf.jacobian(raw_pancreas_adata, regulators=top_pca_genes, effectors=top_pca_genes)
 
 
 @pytest.mark.skip(reason="excessive running time")
-def test_sparseVFC_logger():
-    adata = dyn.sample_data.zebrafish()
-    adata = adata[:500]
-    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
-    dyn.tl.dynamics(adata, model="stochastic", cores=8)
-    dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
-    dyn.tl.cell_velocities(adata, basis="pca")
-    dyn.vf.VectorField(adata, basis="pca", M=100, method="SparseVFC", verbose=1)
+def test_sparseVFC_logger(raw_pancreas_adata):
+    raw_pancreas_adata = raw_pancreas_adata[:500]
+    dyn.pp.recipe_monocle(raw_pancreas_adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
+    dyn.tl.dynamics(raw_pancreas_adata, model="stochastic", cores=8)
+    dyn.tl.reduceDimension(raw_pancreas_adata, n_pca_components=5, enforce=True)
+    dyn.tl.cell_velocities(raw_pancreas_adata, basis="pca")
+    dyn.vf.VectorField(raw_pancreas_adata, basis="pca", M=100, method="SparseVFC", verbose=1)
 
 
 @pytest.mark.skip(reason="need refactor: follow latest differential geometry notebook")
 # TODO: refactor
-def test_zebrafish_topography_tutorial_logger():
-    adata = dyn.sample_data.zebrafish()
-    adata = adata[:500]
-    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
-    dyn.tl.dynamics(adata, model="stochastic", cores=8)
-    dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
-    dyn.tl.cell_velocities(adata, basis="pca")
-    dyn.vf.VectorField(adata, basis="pca", M=100)
-    dyn.vf.curvature(adata, basis="pca")
-    dyn.vf.acceleration(adata, basis="pca")
-    dyn.vf.rank_acceleration_genes(adata, groups="Cell_type")
-    dyn.pp.top_pca_genes(adata)
-    top_pca_genes = adata.var.index[adata.var.top_pca_genes]
-    dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
-    dyn.pd.state_graph(adata, group="Cell_type", basis="pca", method="vf")
+def test_zebrafish_topography_tutorial_logger(raw_pancreas_adata):
+    raw_pancreas_adata = raw_pancreas_adata[:500]
+    dyn.pp.recipe_monocle(raw_pancreas_adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
+    dyn.tl.dynamics(raw_pancreas_adata, model="stochastic", cores=8)
+    dyn.tl.reduceDimension(raw_pancreas_adata, n_pca_components=5, enforce=True)
+    dyn.tl.cell_velocities(raw_pancreas_adata, basis="pca")
+    dyn.vf.VectorField(raw_pancreas_adata, basis="pca", M=100)
+    dyn.vf.curvature(raw_pancreas_adata, basis="pca")
+    dyn.vf.acceleration(raw_pancreas_adata, basis="pca")
+    dyn.vf.rank_acceleration_genes(raw_pancreas_adata, groups="Cell_type")
+    dyn.pp.top_pca_genes(raw_pancreas_adata)
+    top_pca_genes = raw_pancreas_adata.var.index[raw_pancreas_adata.var.top_pca_genes]
+    dyn.vf.jacobian(raw_pancreas_adata, regulators=top_pca_genes, effectors=top_pca_genes)
+    dyn.pd.state_graph(raw_pancreas_adata, group="Cell_type", basis="pca", method="vf")
 
 
-def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
-    adata = dyn.sample_data.pancreatic_endocrinogenesis()
-    adata = adata[:1000]
+def test_cell_cycle_score_logger_pancreatic_endocrinogenesis(raw_pancreas_adata):
+    raw_pancreas_adata = dyn.sample_data.pancreatic_endocrinogenesis()
+    raw_pancreas_adata = raw_pancreas_adata[:1000]
     dyn.pp.recipe_monocle(
-        adata,
+        raw_pancreas_adata,
         n_top_genes=1000,
         fg_kwargs={"shared_count": 20},
         # genes_to_append=['Xkr4', 'Gm28672', 'Gm20837'],
         genes_to_exclude=["Sbspon", "Adgrb3", "Eif2s3y"],
     )
-    dyn.pp.cell_cycle_scores(adata)
+    dyn.pp.cell_cycle_scores(raw_pancreas_adata)
 
 
 if __name__ == "__main__":

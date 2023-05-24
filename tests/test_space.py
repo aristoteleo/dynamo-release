@@ -6,8 +6,8 @@ import dynamo as dyn
 from dynamo.pl import space
 
 
-def test_space_plot_simple1(adata, color=["Cell_type"]):
-    adata = adata.copy()
+def test_space_plot_simple1(raw_zebra_adata, color=["Cell_type"]):
+    adata = raw_zebra_adata.copy()
     adata.obsm["spatial"] = adata.obsm["X_umap"]
     adata.obsm["X_spatial"] = adata.obsm["X_umap"]
     space(adata, marker="p", save_show_or_return="show")

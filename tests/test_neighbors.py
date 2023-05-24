@@ -12,19 +12,19 @@ from dynamo.tools.connectivity import (
 )
 
 
-def test_neighbors_subset(adata):
-    dyn.tl.neighbors(adata)
-    assert check_neighbors_completeness(adata)
-    indices = np.random.randint(0, len(adata), size=100)
-    _adata = adata[indices].copy()
+def test_neighbors_subset(processed_zebra_adata):
+    dyn.tl.neighbors(processed_zebra_adata)
+    assert check_neighbors_completeness(processed_zebra_adata)
+    indices = np.random.randint(0, len(processed_zebra_adata), size=100)
+    _adata = processed_zebra_adata[indices].copy()
     assert not check_neighbors_completeness(_adata)
 
     # check obsp keys subsetting by AnnData Obj
     neighbor_result_prefix = ""
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
-    check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
-    expected_conn_mat = adata.obsp[conn_key][indices][:, indices]
-    expected_dist_mat = adata.obsp[dist_key][indices][:, indices]
+    check_and_recompute_neighbors(processed_zebra_adata, result_prefix=neighbor_result_prefix)
+    expected_conn_mat = processed_zebra_adata.obsp[conn_key][indices][:, indices]
+    expected_dist_mat = processed_zebra_adata.obsp[dist_key][indices][:, indices]
 
     print("expected_conn_mat:", expected_conn_mat.shape)
     conn_mat = _adata.obsp[conn_key]
@@ -38,25 +38,24 @@ def test_neighbors_subset(adata):
     assert check_neighbors_completeness(_adata)
 
 
-def test_broken_neighbors_check_recompute(adata):
-    dyn.tl.neighbors(adata)
-    assert check_neighbors_completeness(adata)
-    indices = np.random.randint(0, len(adata), size=100)
-    _adata = adata[indices].copy()
+def test_broken_neighbors_check_recompute(processed_zebra_adata):
+    dyn.tl.neighbors(processed_zebra_adata)
+    assert check_neighbors_completeness(processed_zebra_adata)
+    indices = np.random.randint(0, len(processed_zebra_adata), size=100)
+    _adata = processed_zebra_adata[indices].copy()
     assert not check_neighbors_completeness(_adata)
     check_and_recompute_neighbors(_adata)
     assert check_neighbors_completeness(_adata)
 
 
-def test_neighbors_no_pca_key():
-    adata = dyn.sample_data.zebrafish()
-    dyn.tl.neighbors(adata)
+def test_neighbors_no_pca_key(raw_zebra_adata):
+    dyn.tl.neighbors(raw_zebra_adata)
 
 
 if __name__ == "__main__":
     # generate data if needed
-    # adata = utils.gen_or_read_zebrafish_data()
-    # test_neighbors_subset(adata)
-    # test_broken_neighbors_check_recompute(adata)
+    # processed_zebra_adata = utils.gen_or_read_zebrafish_data()
+    # test_neighbors_subset(processed_zebra_adata)
+    # test_broken_neighbors_check_recompute(processed_zebra_adata)
     # test_neighbors_no_pca_key()
     pass
