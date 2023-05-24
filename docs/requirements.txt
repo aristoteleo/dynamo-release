@@ -30,8 +30,6 @@ pynndescent>=0.5.2
 gseapy
 GitPython
 KDEpy
-importlib-metadata
-importlib_metadata
 docutils
 mock
 pandocfilters
