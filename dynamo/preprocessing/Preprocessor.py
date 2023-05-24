@@ -618,6 +618,7 @@ class Preprocessor:
         """
 
         raw_layers = DKM.get_raw_data_layers(adata)
+        raw_layers = [layer for layer in raw_layers if layer != DKM.X_LAYER]
         self.filter_cells_by_outliers_kwargs = {"keep_filtered": False}
         self.filter_genes_by_outliers_kwargs = {
             "inplace": True,
@@ -627,7 +628,9 @@ class Preprocessor:
             "min_count_u": 1,
         }
         self.select_genes_kwargs = {"n_top_genes": 3000}
-        self.sctransform_kwargs = {"layers": raw_layers, "n_top_genes": 2000}
+        self.sctransform_kwargs = {"n_top_genes": 2000}
+        self.normalize_by_cells_function_kwargs = {"layers": raw_layers}
+        self.normalize_by_cells = normalize
         self.regress_out_kwargs = update_dict({"obs_keys": []}, self.regress_out_kwargs)
         self.pca_kwargs = {"pca_key": "X_pca", "n_pca_components": 50}
 
@@ -658,6 +661,7 @@ class Preprocessor:
             "Sctransform recipe will subset the data first with default gene selection function for "
             "efficiency. If you want to disable this, please perform sctransform without recipe."
         )
+        self._calc_size_factor(adata)
         self._select_genes(adata)
         # TODO: if inplace in select_genes is True, the following subset is unnecessary.
         adata._inplace_subset_var(adata.var["use_for_pca"])
@@ -668,6 +672,7 @@ class Preprocessor:
         self._force_gene_list(adata)
 
         self.sctransform(adata, **self.sctransform_kwargs)
+        self._normalize_by_cells(adata)
         if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
         self._pca(adata)
