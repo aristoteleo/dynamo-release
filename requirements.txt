@@ -20,7 +20,7 @@ cdlib>=0.2.6
 louvain==0.8.0
 pynndescent>=0.5.2
 pre-commit
-networkx
+networkx>=2.6
 nxviz==0.7.3
 get_version>=3.5.4
 # trimap>=1.0.11
