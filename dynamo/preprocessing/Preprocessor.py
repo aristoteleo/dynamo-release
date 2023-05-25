@@ -242,6 +242,10 @@ class Preprocessor:
 
         adata.uns["pp"] = {}
         adata.uns["pp"]["norm_method"] = None
+
+        main_debug("applying convert_gene_name function...")
+        self.convert_gene_name(adata)
+
         self.basic_stats(adata)
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
@@ -249,9 +253,6 @@ class Preprocessor:
 
         self.convert_layers2csr(adata)
         self.collapse_species_adata(adata)
-
-        main_debug("applying convert_gene_name function...")
-        self.convert_gene_name(adata)
 
         main_debug("making adata observation index unique after gene name conversion...")
         self.unique_var_obs_adata(adata)

@@ -81,7 +81,7 @@ def recipe_kin_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
 
-    from ..preprocessing import Preprocessor
+    from ..preprocessing import Preprocessor, recipe_monocle
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -111,7 +111,7 @@ def recipe_kin_data(
         )
 
     # Preprocessing
-    preprocessor = Preprocessor()
+    preprocessor = Preprocessor(cell_cycle_score_enable=True)
     preprocessor.config_monocle_recipe(adata, n_top_genes=n_top_genes)
     preprocessor.size_factor_kwargs.update(
         {
@@ -119,11 +119,12 @@ def recipe_kin_data(
             "splicing_total_layers": splicing_total_layers,
         }
     )
-    preprocessor.normalize_selected_genes_kwargs.update(
+    preprocessor.normalize_by_cells_function_kwargs.update(
         {
             "X_total_layers": X_total_layers,
             "splicing_total_layers": splicing_total_layers,
             "keep_filtered": keep_filtered_genes,
+            "total_szfactor": "total_Size_Factor",
         }
     )
     preprocessor.filter_cells_by_outliers_kwargs["keep_filtered"] = keep_filtered_cells
@@ -160,23 +161,13 @@ def recipe_kin_data(
         moments(adata, conn=conn, layers=["X_spliced", "X_unspliced"])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing
         # data
-        dynamics(
-            adata,
-            model="deterministic",
-            est_method="twostep",
-            del_2nd_moments=del_2nd_moments,
-        )
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
-        dynamics(
-            adata,
-            model="deterministic",
-            est_method="twostep",
-            del_2nd_moments=del_2nd_moments,
-        )
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)
 
