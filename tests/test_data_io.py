@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pandas as pd
 
 import dynamo
 import dynamo as dyn
@@ -10,6 +11,10 @@ import dynamo as dyn
 
 def test_save_rank_info(zebra_adata):
     dyn.export_rank_xlsx(zebra_adata)
+
+
+def test_zebrafish():
+    assert os.path.exists("./data/zebrafish.h5ad")
 
 
 def test_zebrafish():

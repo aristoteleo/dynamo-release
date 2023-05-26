@@ -63,7 +63,7 @@ def test_highest_frac_genes_plot(processed_zebra_adata, is_X_sparse=True):
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
-        layer="M_s",
+        layer="spliced",
     )
 
     if is_X_sparse:

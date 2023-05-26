@@ -49,6 +49,8 @@ def basic_stats(
         (seaborn.FacetGrid) would be returned.
     """
 
+    import matplotlib.pyplot as plt
+
     if len(adata.obs.columns.intersection(["nGenes", "nCounts", "pMito"])) != 3:
         from ..preprocessing.QC import basic_stats
 
