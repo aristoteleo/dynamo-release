@@ -1504,10 +1504,10 @@ def _recipe_monocle_legacy(
         )
     else:
         layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all")
-        for layer in layers:
-            if layer != "X":
-                logger.info_insert_adata("X_" + layer, "layers")
-                adata.layers["X_" + layer] = adata.layers[layer].copy()
+        for tmp_layer in layers:
+            if tmp_layer != "X":
+                logger.info_insert_adata("X_" + tmp_layer, "layers")
+                adata.layers["X_" + tmp_layer] = adata.layers[tmp_layer].copy()
         logger.info_insert_adata("norm_method", "uns['pp']", indent_level=2)
         adata.uns["pp"]["norm_method"] = None
 
