@@ -23,11 +23,8 @@ from ...dynamo_logger import (
     main_info_insert_adata_layer,
     main_warning,
 )
+from ...preprocessing.utils import is_nonnegative_integer_arr, seurat_get_mean_var
 from ..QC import filter_genes_by_outliers
-from ...preprocessing.utils import (
-    is_nonnegative_integer_arr,
-    seurat_get_mean_var,
-)
 
 main_logger = LoggerManager.main_logger
 
@@ -235,6 +232,7 @@ def _highly_variable_pearson_residuals(
 
         return df
 
+
 # TODO: Move this function to a higher level. Now this function is called by
 # pearson_residual_recipe, but this function aims to support different recipe in
 # the future.
@@ -281,6 +279,7 @@ def compute_highly_variable_genes(
             check_values=check_values,
             inplace=inplace,
         )
+
 
 def compute_pearson_residuals(
     X: np.ndarray,
@@ -344,6 +343,7 @@ def compute_pearson_residuals(
 
     return residuals
 
+
 # TODO: Read pearson residuals if they exist instead of calculating them again.
 def _normalize_single_layer_pearson_residuals(
     adata: AnnData,
@@ -376,16 +376,25 @@ def _normalize_single_layer_pearson_residuals(
         the given AnnData object in place and returns None.
     """
 
-    if copy:
-        adata = adata.copy()
-    # view_to_actual(adata)
-
-    # if select_genes_key:
-    #     main_info("normalize selected genes...")
-    #     adata = adata[:, adata.var[select_genes_key]]
+    msg = "applying Pearson residuals to layer <%s>" % layer
+    main_logger.info(msg)
+    main_logger.log_time()
 
     if layer is None:
         layer = DKM.X_LAYER
+
+    if layer != DKM.X_LAYER:
+        main_warning(
+            f"Pearson residual is only recommended for X layer while you are applying on layer: {layer}, "
+            f"This will overwrite existing pearson residual params and create negative values in layers, "
+            f"which will cause error in the velocities calculation. Please run the pearson residual recipe by default "
+            f"if you plan to perform downstream analysis."
+        )
+        copy = True  # residuals for spliced/unspliced layers will be saved in X_splice/X_unspliced.
+
+    if copy:
+        adata = adata.copy()
+
     pp_pearson_store_key = DKM.gen_layer_pearson_residual_key(layer)
 
     selected_genes_bools = np.ones(adata.n_vars, dtype=bool)
@@ -393,27 +402,20 @@ def _normalize_single_layer_pearson_residuals(
         selected_genes_bools = adata.var[var_select_genes_key]
 
     adata_selected_genes = adata[:, selected_genes_bools]
-
     X = DKM.select_layer_data(adata_selected_genes, layer=layer)
-
-    msg = "applying Pearson residuals to layer <%s>" % (layer)
-    main_logger.info(msg)
-    main_logger.log_time()
 
     residuals = compute_pearson_residuals(X, theta, clip, check_values, copy=copy)
     pearson_residual_params_dict = dict(theta=theta, clip=clip, layer=layer)
 
-    if not copy:
-        main_logger.info("replacing layer <%s> with pearson residual normalized data." % (layer))
-        DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
-        adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
-    else:
-        results_dict = dict(X=residuals, **pearson_residual_params_dict)
+    main_logger.info("replacing layer <%s> with pearson residual normalized data." % layer)
+    DKM.set_layer_data(adata, layer, residuals, selected_genes_bools)
+    adata.uns["pp"][pp_pearson_store_key] = pearson_residual_params_dict
 
-    main_logger.finish_progress(progress_name="pearson residual normalization")
+    main_logger.finish_progress(progress_name=f"pearson residual normalization for {layer}")
 
     if copy:
         return adata
+
 
 def normalize_layers_pearson_residuals(
     adata: AnnData,
@@ -457,18 +459,11 @@ def normalize_layers_pearson_residuals(
             adata, layer=layer, var_select_genes_key=temp_select_genes_key, copy=copy, **normalize_pearson_residual_args
         )
 
-        # copy is False
-        if temp_adata is None:
-            temp_adata = adata
+        if layer != DKM.X_LAYER:  # update 'X_' layers
+            new_X_key = DKM.gen_layer_X_key(layer)
+            main_info_insert_adata_layer(new_X_key, indent_level=2)
+            adata.layers[new_X_key] = DKM.select_layer_data(temp_adata, layer)
 
-        if layer == DKM.X_LAYER:
-            # TODO: discuss if we need X set in layers
-            # X layer will only be used for X_pca
-            main_info("skipping set X as layer in adata.layers", indent_level=2)
-            continue
-        new_X_key = DKM.gen_layer_X_key(layer)
-        main_info_insert_adata_layer(new_X_key, indent_level=2)
-        adata.layers[new_X_key] = DKM.select_layer_data(temp_adata, layer)
 
 # TODO: Combine this function with compute_highly_variable_genes.
 def select_genes_by_pearson_residuals(
@@ -534,6 +529,7 @@ def select_genes_by_pearson_residuals(
         return None
     else:
         return adata, hvg
+
 
 def pearson_residuals(
     adata: AnnData,

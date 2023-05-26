@@ -195,7 +195,7 @@ def get_sz_exprs(
 def normalize(
     adata: anndata.AnnData,
     layers: str = "all",
-    total_szfactor: str = "total_Size_Factor",
+    total_szfactor: str = None,
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
     keep_filtered: bool = True,
@@ -239,17 +239,11 @@ def normalize(
 
     layers = DKM.get_available_layer_keys(adata, layers)
 
-    layer_sz_column_names = [i + "_Size_Factor" for i in set(layers).difference("X")]
-    layer_sz_column_names.extend(["Size_Factor"])
-    layers_to_sz = list(set(layer_sz_column_names))
-
-    layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
-    layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
     calc_sz_factor(
         adata,
         layers=layers,
         locfunc=np.nanmean,
-        round_exprs=True,
+        round_exprs=False,
         method=sz_method,
         scale_to=scale_to,
     )

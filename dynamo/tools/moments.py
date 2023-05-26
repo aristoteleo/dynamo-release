@@ -99,17 +99,13 @@ def moments(
             if X_data is not None:
                 X = X_data
             else:
-                if "X" not in adata.obsm.keys():
+                if DKM.X_PCA not in adata.obsm.keys():
                     if not any([i.startswith("X_") for i in adata.layers.keys()]):
-                        from ..preprocessing.deprecated import recipe_monocle
+                        from ..preprocessing import Preprocessor
 
                         genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
-                        recipe_monocle(
-                            adata,
-                            genes_to_use=genes_to_use,
-                            num_dim=n_pca_components,
-                        )
-                        adata.obsm["X"] = adata.obsm["X_pca"]
+                        preprocessor = Preprocessor(force_gene_list=genes_to_use)
+                        preprocessor.preprocess_adata(adata, recipe="monocle")
                     else:
                         CM = adata.X if genes is None else adata[:, genes].X
                         cm_genesums = CM.sum(axis=0)
@@ -125,7 +121,7 @@ def moments(
 
                         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-                X = adata.obsm["X"][:, :n_pca_components]
+                X = adata.obsm[DKM.X_PCA][:, :n_pca_components]
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
