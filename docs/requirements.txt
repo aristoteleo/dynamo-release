@@ -35,5 +35,6 @@ mock
 pandocfilters
 readthedocs-sphinx-ext
 sphinxcontrib-bibtex>=2.3
+sphinxcontrib-pdfembed @ git+https://github.com/SuperKogito/sphinxcontrib-pdfembed@d75fb37
 sphinx-gallery
 typing-extensions
