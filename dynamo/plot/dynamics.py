@@ -1089,8 +1089,6 @@ def phase_portraits(
         plt.show()
     if save_show_or_return in ["return", "all"]:
         return g
-    else:
-        raise NotImplementedError("Unsupported save_show_or_return")
 
 
 def dynamics(

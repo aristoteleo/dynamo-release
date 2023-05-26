@@ -331,8 +331,6 @@ def connectivity_base(
         plt.show()
     if save_show_or_return in ["return", "all"]:
         return ax
-    else:
-        raise NotImplementedError("Unsupported save_show_or_return")
 
 
 docstrings.delete_params("con_base.parameters", "edge_df", "save_show_or_return", "save_kwargs")

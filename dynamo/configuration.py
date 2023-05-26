@@ -36,6 +36,7 @@ class DynamoAdataKeyManager:
     # special key names frequently used in dynamo
     X_LAYER = "X"
     PROTEIN_LAYER = "protein"
+    X_PCA = "X_pca"
 
     def gen_new_layer_key(layer_name, key, sep="_") -> str:
         """utility function for returning a new key name for a specific layer. By convention layer_name should not have the separator as the last character."""
@@ -106,7 +107,7 @@ class DynamoAdataKeyManager:
     def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True):
         """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
         layer_keys = list(adata.layers.keys())
-        if layers is None: # layers=adata.uns["pp"]["experiment_layers"], in calc_sz_factor
+        if layers is None:  # layers=adata.uns["pp"]["experiment_layers"], in calc_sz_factor
             layers = "X"
         if remove_pp_layers:
             layer_keys = [i for i in layer_keys if not i.startswith("X_")]
@@ -143,10 +144,7 @@ class DynamoAdataKeyManager:
     def init_uns_pp_namespace(adata: AnnData):
         adata.uns[DynamoAdataKeyManager.UNS_PP_KEY] = {}
 
-    def get_excluded_layers(
-        X_total_layers: bool = False,
-        splicing_total_layers: bool = False
-    ) -> List:
+    def get_excluded_layers(X_total_layers: bool = False, splicing_total_layers: bool = False) -> List:
         """Get a list of excluded layers based on the provided arguments.
 
         When splicing_total_layers is False, the function normalize spliced and unspliced RNA separately using each
@@ -198,6 +196,7 @@ class DynamoAdataKeyManager:
             if extend_layers:
                 layers.extend(["_total_"])
         return total_layers, layers
+
 
 # TODO discuss alias naming convention
 DKM = DynamoAdataKeyManager

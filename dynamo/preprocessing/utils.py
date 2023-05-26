@@ -17,12 +17,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse, spmatrix
 
 from ..configuration import DKM, DynamoAdataKeyManager
-from ..dynamo_logger import (
-    LoggerManager,
-    main_debug,
-    main_info,
-    main_warning,
-)
+from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning
 from ..utils import areinstance
 
 
@@ -130,8 +125,9 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
         merge_df = adata.var.merge(official_gene_df, left_on="query", right_on="query", how="left").set_index(
             adata.var.index
         )
-        adata.var = merge_df
         valid_ind = np.where(merge_df["notfound"] != True)[0]  # noqa: E712
+        merge_df.pop("notfound")
+        adata.var = merge_df
 
         if subset is True:
             adata._inplace_subset_var(valid_ind)
@@ -380,13 +376,13 @@ def get_gene_selection_filter(
 ) -> np.ndarray:
     """Generate the mask by sorting given table of scores.
 
-        Args:
-            valid_table: the scores used to sort the highly variable genes.
-            n_top_genes: number of top genes to be filtered. Defaults to 2000.
-            basic_filter: the filter to remove outliers. For example, the `adata.var["pass_basic_filter"]`.
+    Args:
+        valid_table: the scores used to sort the highly variable genes.
+        n_top_genes: number of top genes to be filtered. Defaults to 2000.
+        basic_filter: the filter to remove outliers. For example, the `adata.var["pass_basic_filter"]`.
 
-        Returns:
-            The filter mask as a bool array.
+    Returns:
+        The filter mask as a bool array.
     """
     if basic_filter is None:
         basic_filter = pd.Series(True, index=valid_table.index)
@@ -968,3 +964,36 @@ def gen_rotation_2d(degree: float) -> np.ndarray:
         [sin(rad), cos(rad)],
     ]
     return np.array(R)
+
+
+def reset_adata_X(adata: AnnData, experiment_type: str, has_labeling: bool, has_splicing: bool):
+    if has_labeling:
+        if experiment_type.lower() in [
+            "one-shot",
+            "kin",
+            "mixture",
+            "mix_std_stm",
+            "kinetics",
+            "mix_pulse_chase",
+            "mix_kin_deg",
+        ]:
+            adata.X = adata.layers["total"].copy()
+        if experiment_type.lower() in ["deg", "degradation"] and has_splicing:
+            adata.X = adata.layers["spliced"].copy()
+        if experiment_type.lower() in ["deg", "degradation"] and not has_splicing:
+            main_warning(
+                "It is not possible to calculate RNA velocity from a degradation experiment which has no "
+                "splicing information."
+            )
+            adata.X = adata.layers["total"].copy()
+        else:
+            adata.X = adata.layers["total"].copy()
+    else:
+        adata.X = adata.layers["spliced"].copy()
+
+
+def del_raw_layers(adata: AnnData):
+    layers = list(adata.layers.keys())
+    for layer in layers:
+        if not layer.startswith("X_"):
+            del adata.layers[layer]

@@ -5,6 +5,11 @@ from anndata import AnnData
 
 from ..configuration import DynamoAdataConfig
 from ..preprocessing.pca import pca
+from ..preprocessing.utils import (
+    del_raw_layers,
+    detect_experiment_datatype,
+    reset_adata_X,
+)
 from .cell_velocities import cell_velocities
 from .connectivity import neighbors, normalize_knn_graph
 from .dimension_reduction import reduceDimension
@@ -76,9 +81,7 @@ def recipe_kin_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
 
-    from ..preprocessing import recipe_monocle
-    from ..preprocessing.pca import pca
-    from ..preprocessing.utils import detect_experiment_datatype
+    from ..preprocessing import Preprocessor
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -107,23 +110,36 @@ def recipe_kin_data(
             "layers."
         )
 
+    # Preprocessing
+    preprocessor = Preprocessor(cell_cycle_score_enable=True)
+    preprocessor.config_monocle_recipe(adata, n_top_genes=n_top_genes)
+    preprocessor.size_factor_kwargs.update(
+        {
+            "X_total_layers": X_total_layers,
+            "splicing_total_layers": splicing_total_layers,
+        }
+    )
+    preprocessor.normalize_by_cells_function_kwargs.update(
+        {
+            "X_total_layers": X_total_layers,
+            "splicing_total_layers": splicing_total_layers,
+            "keep_filtered": keep_filtered_genes,
+            "total_szfactor": "total_Size_Factor",
+        }
+    )
+    preprocessor.filter_cells_by_outliers_kwargs["keep_filtered"] = keep_filtered_cells
+    preprocessor.select_genes_kwargs["keep_filtered"] = keep_filtered_genes
+
+    if reset_X:
+        reset_adata_X(adata, experiment_type="kin", has_labeling=has_labeling, has_splicing=has_splicing)
+    preprocessor.preprocess_adata_monocle(adata=adata, tkey=tkey, experiment_type="kin")
+    if not keep_raw_layers:
+        del_raw_layers(adata)
+
     if has_splicing and has_labeling:
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
-        recipe_monocle(
-            adata,
-            tkey=tkey,
-            experiment_type="kin",
-            reset_X=reset_X,
-            X_total_layers=X_total_layers,
-            splicing_total_layers=splicing_total_layers,
-            n_top_genes=n_top_genes,
-            total_layers=True,
-            keep_filtered_cells=keep_filtered_cells,
-            keep_filtered_genes=keep_filtered_genes,
-            keep_raw_layers=keep_raw_layers,
-            **rm_kwargs,
-        )
+
         tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
@@ -145,37 +161,13 @@ def recipe_kin_data(
         moments(adata, conn=conn, layers=["X_spliced", "X_unspliced"])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing
         # data
-        dynamics(
-            adata,
-            model="deterministic",
-            est_method="twostep",
-            del_2nd_moments=del_2nd_moments,
-        )
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
-        recipe_monocle(
-            adata,
-            tkey=tkey,
-            experiment_type="kin",
-            reset_X=reset_X,
-            X_total_layers=X_total_layers,
-            splicing_total_layers=splicing_total_layers,
-            n_top_genes=n_top_genes,
-            total_layers=True,
-            keep_filtered_cells=keep_filtered_cells,
-            keep_filtered_genes=keep_filtered_genes,
-            keep_raw_layers=keep_raw_layers,
-            **rm_kwargs,
-        )
-        dynamics(
-            adata,
-            model="deterministic",
-            est_method="twostep",
-            del_2nd_moments=del_2nd_moments,
-        )
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)
 
@@ -246,9 +238,7 @@ def recipe_deg_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
 
-    from ..preprocessing import recipe_monocle
-    from ..preprocessing.pca import pca
-    from ..preprocessing.utils import detect_experiment_datatype
+    from ..preprocessing import Preprocessor
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -274,24 +264,34 @@ def recipe_deg_data(
             "layers."
         )
 
+    preprocessor = Preprocessor()
+    preprocessor.config_monocle_recipe(adata, n_top_genes=n_top_genes)
+    preprocessor.size_factor_kwargs.update(
+        {
+            "X_total_layers": X_total_layers,
+            "splicing_total_layers": splicing_total_layers,
+        }
+    )
+    preprocessor.normalize_by_cells_function_kwargs.update(
+        {
+            "X_total_layers": X_total_layers,
+            "splicing_total_layers": splicing_total_layers,
+            "keep_filtered": keep_filtered_genes,
+            "total_szfactor": "total_Size_Factor",
+        }
+    )
+    preprocessor.filter_cells_by_outliers_kwargs["keep_filtered"] = keep_filtered_cells
+    preprocessor.select_genes_kwargs["keep_filtered"] = keep_filtered_genes
+
+    if reset_X:
+        reset_adata_X(adata, experiment_type="deg", has_labeling=has_labeling, has_splicing=has_splicing)
+    preprocessor.preprocess_adata_monocle(adata=adata, tkey=tkey, experiment_type="deg")
+    if not keep_raw_layers:
+        del_raw_layers(adata)
+
     if has_splicing and has_labeling:
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
-        recipe_monocle(
-            adata,
-            tkey=tkey,
-            experiment_type="deg",
-            reset_X=reset_X,
-            X_total_layers=X_total_layers,
-            splicing_total_layers=splicing_total_layers,
-            n_top_genes=n_top_genes,
-            total_layers=True,
-            keep_filtered_cells=keep_filtered_cells,
-            keep_filtered_genes=keep_filtered_genes,
-            keep_raw_layers=keep_raw_layers,
-            **rm_kwargs,
-        )
-
         tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for spliced related layers using spliced based connectivity graph
         moments(adata, layers=["X_spliced", "X_unspliced"])
@@ -335,26 +335,7 @@ def recipe_deg_data(
             )
 
     else:
-        recipe_monocle(
-            adata,
-            tkey=tkey,
-            experiment_type="deg",
-            reset_X=reset_X,
-            X_total_layers=X_total_layers,
-            splicing_total_layers=splicing_total_layers,
-            n_top_genes=n_top_genes,
-            total_layers=True,
-            keep_filtered_cells=keep_filtered_cells,
-            keep_filtered_genes=keep_filtered_genes,
-            keep_raw_layers=keep_raw_layers,
-            **rm_kwargs,
-        )
-        dynamics(
-            adata,
-            model="deterministic",
-            del_2nd_moments=del_2nd_moments,
-            fraction_for_deg=fraction_for_deg,
-        )
+        dynamics(adata, model="deterministic", del_2nd_moments=del_2nd_moments, fraction_for_deg=fraction_for_deg)
         reduceDimension(adata, reduction_method=basis)
 
     return adata
@@ -421,9 +402,7 @@ def recipe_mix_kin_deg_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
 
-    from ..preprocessing import recipe_monocle
-    from ..preprocessing.pca import pca
-    from ..preprocessing.utils import detect_experiment_datatype
+    from ..preprocessing import Preprocessor
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -452,23 +431,35 @@ def recipe_mix_kin_deg_data(
             "layers."
         )
 
+    # Preprocessing
+    preprocessor = Preprocessor()
+    preprocessor.config_monocle_recipe(adata, n_top_genes=n_top_genes)
+    preprocessor.size_factor_kwargs.update(
+        {
+            "X_total_layers": X_total_layers,
+            "splicing_total_layers": splicing_total_layers,
+        }
+    )
+    preprocessor.normalize_by_cells_function_kwargs.update(
+        {
+            "X_total_layers": X_total_layers,
+            "splicing_total_layers": splicing_total_layers,
+            "keep_filtered": keep_filtered_genes,
+            "total_szfactor": "total_Size_Factor",
+        }
+    )
+    preprocessor.filter_cells_by_outliers_kwargs["keep_filtered"] = keep_filtered_cells
+    preprocessor.select_genes_kwargs["keep_filtered"] = keep_filtered_genes
+
+    if reset_X:
+        reset_adata_X(adata, experiment_type="mix_pulse_chase", has_labeling=has_labeling, has_splicing=has_splicing)
+    preprocessor.preprocess_adata_monocle(adata=adata, tkey=tkey, experiment_type="mix_pulse_chase")
+    if not keep_raw_layers:
+        del_raw_layers(adata)
+
     if has_splicing and has_labeling:
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
-        recipe_monocle(
-            adata,
-            tkey=tkey,
-            experiment_type="mix_pulse_chase",
-            reset_X=reset_X,
-            X_total_layers=X_total_layers,
-            splicing_total_layers=splicing_total_layers,
-            n_top_genes=n_top_genes,
-            total_layers=True,
-            keep_filtered_cells=keep_filtered_cells,
-            keep_filtered_genes=keep_filtered_genes,
-            keep_raw_layers=keep_raw_layers,
-            **rm_kwargs,
-        )
         tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
@@ -501,20 +492,6 @@ def recipe_mix_kin_deg_data(
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
-        recipe_monocle(
-            adata,
-            tkey=tkey,
-            experiment_type="mix_pulse_chase",
-            reset_X=reset_X,
-            X_total_layers=X_total_layers,
-            splicing_total_layers=splicing_total_layers,
-            n_top_genes=n_top_genes,
-            total_layers=True,
-            keep_filtered_cells=keep_filtered_cells,
-            keep_filtered_genes=keep_filtered_genes,
-            keep_raw_layers=keep_raw_layers,
-            **rm_kwargs,
-        )
         dynamics(
             adata,
             model="deterministic",
@@ -592,9 +569,7 @@ def recipe_one_shot_data(
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
 
-    from ..preprocessing import recipe_monocle
-    from ..preprocessing.pca import pca
-    from ..preprocessing.utils import detect_experiment_datatype
+    from ..preprocessing import Preprocessor
 
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
         keep_filtered_cells, DynamoAdataConfig.RECIPE_KEEP_FILTERED_CELLS_KEY
@@ -623,23 +598,35 @@ def recipe_one_shot_data(
             "layers."
         )
 
+    # Preprocessing
+    preprocessor = Preprocessor()
+    preprocessor.config_monocle_recipe(adata, n_top_genes=n_top_genes)
+    preprocessor.size_factor_kwargs.update(
+        {
+            "X_total_layers": X_total_layers,
+            "splicing_total_layers": splicing_total_layers,
+        }
+    )
+    preprocessor.normalize_by_cells_function_kwargs.update(
+        {
+            "X_total_layers": X_total_layers,
+            "splicing_total_layers": splicing_total_layers,
+            "keep_filtered": keep_filtered_genes,
+            "total_szfactor": "total_Size_Factor",
+        }
+    )
+    preprocessor.filter_cells_by_outliers_kwargs["keep_filtered"] = keep_filtered_cells
+    preprocessor.select_genes_kwargs["keep_filtered"] = keep_filtered_genes
+
+    if reset_X:
+        reset_adata_X(adata, experiment_type="one-shot", has_labeling=has_labeling, has_splicing=has_splicing)
+    preprocessor.preprocess_adata_monocle(adata=adata, tkey=tkey, experiment_type="one-shot")
+    if not keep_raw_layers:
+        del_raw_layers(adata)
+
     if has_splicing and has_labeling:
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
-        recipe_monocle(
-            adata,
-            tkey=tkey,
-            experiment_type="one-shot",
-            reset_X=reset_X,
-            X_total_layers=X_total_layers,
-            splicing_total_layers=splicing_total_layers,
-            n_top_genes=n_top_genes,
-            total_layers=True,
-            keep_filtered_cells=keep_filtered_cells,
-            keep_filtered_genes=keep_filtered_genes,
-            keep_raw_layers=keep_raw_layers,
-            **rm_kwargs,
-        )
         tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
@@ -672,20 +659,6 @@ def recipe_one_shot_data(
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
-        recipe_monocle(
-            adata,
-            tkey=tkey,
-            experiment_type="one-shot",
-            reset_X=reset_X,
-            X_total_layers=X_total_layers,
-            splicing_total_layers=splicing_total_layers,
-            n_top_genes=n_top_genes,
-            total_layers=True,
-            keep_filtered_cells=keep_filtered_cells,
-            keep_filtered_genes=keep_filtered_genes,
-            keep_raw_layers=keep_raw_layers,
-            **rm_kwargs,
-        )
         dynamics(
             adata,
             model="deterministic",
