@@ -1,4 +1,5 @@
-# This extension is from https://github.com/SuperKogito/sphinxcontrib-pdfembed/blob/master/sphinxcontrib/pdfembed.py.
+# We would like to acknowledge the contribution of SuperKogito for their valuable code of sphinxcontrib-pdfembed.
+# The original code can be found at https://github.com/SuperKogito/sphinxcontrib-pdfembed/blob/master/sphinxcontrib/pdfembed.py.
 
 from docutils import nodes
 
