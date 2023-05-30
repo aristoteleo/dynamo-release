@@ -991,9 +991,6 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
         The inverse normalized data.
     """
 
-    if layer_x == "X":
-        raise ValueError("The inverse normalization should be performed for layers, rather than for X.")
-
     if sp.issparse(layer_x):
         layer_x.data = (
             np.expm1(layer_x.data)

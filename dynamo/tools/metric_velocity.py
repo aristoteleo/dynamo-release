@@ -71,10 +71,10 @@ def cell_wise_confidence(
             adata.X if X_data is None else X_data,  ##### Check! inverse_norm for adata.X?
             adata.layers[vkey] if V_data is None else V_data,
         )
-        norm_method = adata.uns["pp"]["X_norm_method"].copy()
-        adata.uns["pp"]["X_norm_method"] = "log1p"
+        norm_method = adata.uns["pp"]["layers_norm_method"].copy()
+        adata.uns["pp"]["layers_norm_method"] = "log1p"
         X = inverse_norm(adata, X) if X_data is None else X_data
-        adata.uns["pp"]["X_norm_method"] = norm_method
+        adata.uns["pp"]["layers_norm_method"] = norm_method
     else:
         X, V = (
             adata.layers[ekey] if X_data is None else X_data,
