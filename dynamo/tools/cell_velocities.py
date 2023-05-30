@@ -320,10 +320,10 @@ def cell_velocities(
     V = V.A if sp.issparse(V) else V
     X = X.A if sp.issparse(X) else X
     finite_inds = get_finite_inds(V)
-    X, V = X[:, finite_inds], V[:, finite_inds]
 
-    if sum(finite_inds) != X.shape[0]:
+    if sum(finite_inds) != X.shape[1]:
         main_info(f"{X.shape[1] - sum(finite_inds)} genes are removed because of nan velocity values.")
+        X, V = X[:, finite_inds], V[:, finite_inds]
         if transition_genes is not None:  # if X, V is provided by the user, transition_genes will be None
             adata.var.loc[np.array(transition_genes)[~finite_inds], "use_for_transition"] = False
 

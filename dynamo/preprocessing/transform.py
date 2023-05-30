@@ -12,10 +12,7 @@ from anndata import AnnData
 from scipy.sparse.base import issparse
 
 from ..configuration import DKM
-from ..dynamo_logger import (
-    main_debug,
-    main_info_insert_adata_uns,
-)
+from ..dynamo_logger import main_debug, main_info_insert_adata_uns
 from ..utils import copy_adata
 from .utils import is_integer_arr
 
@@ -271,8 +268,13 @@ def Freeman_Tukey(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = Fal
     for layer in layers:
         Freeman_Tukey_adata_layer(_adata, layer=layer)
 
-    main_info_insert_adata_uns("pp.norm_method")
-    adata.uns["pp"]["norm_method"] = "Freeman_Tukey"
+        if layer == DKM.X_LAYER:
+            main_info_insert_adata_uns("pp.X_norm_method")
+            adata.uns["pp"]["X_norm_method"] = Freeman_Tukey.__name__
+        else:
+            main_info_insert_adata_uns("pp.layers_norm_method")
+            adata.uns["pp"]["layers_norm_method"] = Freeman_Tukey.__name__
+
     return _adata
 
 
@@ -296,8 +298,13 @@ def log(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> Ann
     for layer in layers:
         log_adata_layer(_adata, layer=layer)
 
-    main_info_insert_adata_uns("pp.norm_method")
-    adata.uns["pp"]["norm_method"] = "log"
+        if layer == DKM.X_LAYER:
+            main_info_insert_adata_uns("pp.X_norm_method")
+            adata.uns["pp"]["X_norm_method"] = log.__name__
+        else:
+            main_info_insert_adata_uns("pp.layers_norm_method")
+            adata.uns["pp"]["layers_norm_method"] = log.__name__
+
     return _adata
 
 
@@ -321,8 +328,13 @@ def log1p(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> A
     for layer in layers:
         log1p_adata_layer(_adata, layer=layer)
 
-    main_info_insert_adata_uns("pp.norm_method")
-    adata.uns["pp"]["norm_method"] = "log1p"
+        if layer == DKM.X_LAYER:
+            main_info_insert_adata_uns("pp.X_norm_method")
+            adata.uns["pp"]["X_norm_method"] = log1p.__name__
+        else:
+            main_info_insert_adata_uns("pp.layers_norm_method")
+            adata.uns["pp"]["layers_norm_method"] = log1p.__name__
+
     return _adata
 
 
@@ -346,8 +358,13 @@ def log2(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> An
     for layer in layers:
         log2_adata_layer(_adata, layer=layer)
 
-    main_info_insert_adata_uns("pp.norm_method")
-    adata.uns["pp"]["norm_method"] = "log2"
+        if layer == DKM.X_LAYER:
+            main_info_insert_adata_uns("pp.X_norm_method")
+            adata.uns["pp"]["X_norm_method"] = log2.__name__
+        else:
+            main_info_insert_adata_uns("pp.layers_norm_method")
+            adata.uns["pp"]["layers_norm_method"] = log2.__name__
+
     return _adata
 
 
