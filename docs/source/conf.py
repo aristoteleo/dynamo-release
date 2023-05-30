@@ -20,6 +20,7 @@ module_path = os.path.join(os.path.dirname(__file__), "../..")
 sys.path.insert(0, os.path.abspath(module_path))
 sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("../../"))
+sys.path.append(os.path.abspath("./_ext"))
 
 import dynamo
 from docs.source.utils import _download_docs_dirs
