@@ -41,6 +41,7 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
     * In silico perturbation to predict the gene-wise perturbation effects and cell fate diversion after genetic perturbations
 
 ## News
+* 5/30/2023: dynamo 1.3.0 released!
 * 3/1/2023: We welcome @Sichao25 to join the dynamo develop team!
 * 1/28/2023: We welcome @Ukyeon to join the dynamo develop team! 
 * 15/12/2022: *Thanks for @elfofmaxwell and @MukundhMurthy's contribution*. dynamo 1.2.0 released
