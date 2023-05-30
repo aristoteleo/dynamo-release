@@ -113,7 +113,7 @@ extensions = [
     "sphinxcontrib.bibtex",
     "sphinx_gallery.load_style",
     # pdf embed
-    'sphinxcontrib.pdfembed',
+    '_ext/sphinxcontrib.pdfembed',
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
