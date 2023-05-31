@@ -1069,7 +1069,7 @@ def topography(
                     f"`basis` and `fps_basis` are all {basis}. Will also map topography ...",
                     indent_level=2,
                 )
-                VectorField(adata, basis, map_topography=True)
+                VectorField(adata, basis, map_topography=True, n=n)
             else:
                 VectorField(adata, basis)
     if fps_uns_key not in adata.uns.keys():
@@ -1125,7 +1125,7 @@ def topography(
         )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            _topology(adata, fps_basis, VecFld=None)
+            _topology(adata, fps_basis, VecFld=None, n=n)
     else:
         if fps_vecfld_dict["Xss"].size > 0 and fps_vecfld_dict["Xss"].shape[1] > 2:
             fps_vecfld_dict["X_basis"], fps_vecfld_dict["Xss"] = (

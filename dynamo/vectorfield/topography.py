@@ -796,6 +796,7 @@ def VectorField(
     cores: int = 1,
     result_key: Optional[str] = None,
     copy: bool = False,
+    n: int = 25,
     **kwargs,
 ) -> Union[anndata.AnnData, BaseVectorField]:
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -835,6 +836,7 @@ def VectorField(
             The key that will be used as prefix for the vector field key in .uns
         copy: Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and
             returning `None`.
+        n: Number of samples for calculating the fixed points.
         kwargs: Other additional parameters passed to the vectorfield class.
 
     Returns:
@@ -1161,7 +1163,7 @@ def VectorField(
         adata.uns[vf_key] = vf_dict
 
     if map_topography:
-        tp_kwargs = {"n": 25}
+        tp_kwargs = {"n": n}
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
         logger.info("Mapping topography...")
