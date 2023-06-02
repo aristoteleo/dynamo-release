@@ -112,9 +112,6 @@ class Dynamics:
         self.tkey = adata.uns["pp"]["tkey"] if tkey is None else tkey
         self.est_kwargs = est_kwargs
 
-    def check_model(self, model):
-        pass
-
     def _calc_vel_utils_ss(self, vel, U1, S1, U2, S2):
         if self.has_splicing:
             if self.experiment_type == "kin":
@@ -532,6 +529,46 @@ class Dynamics:
                 f"performed. Try setting re_smooth = True if not sure."
             )
 
+    def sanity_check(self, valid_bools, valid_bools_, gene_num, subset_adata, kin_param_pre):
+        indices_valid_bools = np.where(valid_bools)[0]
+        self.t, L = (
+            self.t.flatten(),
+            (0 if self.Ul is None else self.Ul) + (0 if self.Sl is None else self.Sl),
+        )
+        t_uniq = np.unique(self.t)
+
+        valid_gene_checker = np.zeros(gene_num, dtype=bool)
+        for L_iter, cur_L in tqdm(
+                enumerate(L),
+                desc=f"sanity check of {self.experiment_type} experiment data:",
+        ):
+            cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
+            y = strat_mom(cur_L, self.t, np.nanmean)
+            slope, _ = fit_linreg(t_uniq, y, intercept=True, r2=False)
+            valid_gene_checker[L_iter] = (
+                True
+                if (slope > 0 and self.experiment_type == "kin") or (slope < 0 and self.experiment_type == "deg")
+                else False
+            )
+        valid_bools_[indices_valid_bools[~valid_gene_checker]] = False
+        main_warning(f"filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.")
+
+        if len(valid_bools_) < 5:
+            raise Exception(
+                f"After sanity check, you have less than 5 valid genes. Something is wrong about your "
+                f"metabolic labeling experiment!"
+            )
+
+        self.U, self.Ul, self.S, self.Sl = (
+            (None if self.U is None else self.U[valid_gene_checker, :]),
+            (None if self.Ul is None else self.Ul[valid_gene_checker, :]),
+            (None if self.S is None else self.S[valid_gene_checker, :]),
+            (None if self.Sl is None else self.Sl[valid_gene_checker, :]),
+        )
+        subset_adata = subset_adata[:, valid_gene_checker]
+        self.adata.var[kin_param_pre + "sanity_check"] = valid_bools_
+        return subset_adata, valid_bools_
+
     def estimate(self):
         (self.experiment_type, self.has_splicing, self.has_labeling, self.splicing_labeling, self.has_protein,) = (
             self.adata.uns["pp"]["experiment_type"],
@@ -599,43 +636,8 @@ class Dynamics:
 
             valid_bools_ = valid_bools.copy()
             if self.sanity_check and self.experiment_type.lower() in ["kin", "deg"]:
-                indices_valid_bools = np.where(valid_bools)[0]
-                self.t, L = (
-                    self.t.flatten(),
-                    (0 if self.Ul is None else self.Ul) + (0 if self.Sl is None else self.Sl),
-                )
-                t_uniq = np.unique(self.t)
-
-                valid_gene_checker = np.zeros(gene_num, dtype=bool)
-                for L_iter, cur_L in tqdm(
-                        enumerate(L),
-                        desc=f"sanity check of {self.experiment_type} experiment data:",
-                ):
-                    cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
-                    y = strat_mom(cur_L, self.t, np.nanmean)
-                    slope, _ = fit_linreg(t_uniq, y, intercept=True, r2=False)
-                    valid_gene_checker[L_iter] = (
-                        True
-                        if (slope > 0 and self.experiment_type == "kin") or (slope < 0 and self.experiment_type == "deg")
-                        else False
-                    )
-                valid_bools_[indices_valid_bools[~valid_gene_checker]] = False
-                main_warning(f"filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.")
-
-                if len(valid_bools_) < 5:
-                    raise Exception(
-                        f"After sanity check, you have less than 5 valid genes. Something is wrong about your "
-                        f"metabolic labeling experiment!"
-                    )
-
-                self.U, self.Ul, self.S, self.Sl = (
-                    (None if self.U is None else self.U[valid_gene_checker, :]),
-                    (None if self.Ul is None else self.Ul[valid_gene_checker, :]),
-                    (None if self.S is None else self.S[valid_gene_checker, :]),
-                    (None if self.Sl is None else self.Sl[valid_gene_checker, :]),
-                )
-                subset_adata = subset_adata[:, valid_gene_checker]
-                self.adata.var[kin_param_pre + "sanity_check"] = valid_bools_
+                subset_adata, valid_bools_ = self.sanity_check(
+                    valid_bools, valid_bools_, gene_num, subset_adata, kin_param_pre)
 
             if self.assumption_mRNA.lower() == "auto":
                 self.assumption_mRNA = assump_mRNA
