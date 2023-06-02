@@ -83,7 +83,12 @@ class Dynamics:
         self.use_smoothed = use_smoothed
         self.assumption_mRNA = assumption_mRNA
         self.assumption_protein = assumption_protein
-        self.model = model
+        if model.lower() == "auto":
+            self.model = "stochastic"
+            self.model_was_auto = True
+        else:
+            self.model = model
+            self.model_was_auto = False
         self.est_method = est_method
         self.NTR_vel = NTR_vel
         self.group = group
@@ -235,9 +240,9 @@ class Dynamics:
             vel_U, vel_S, vel_N, vel_T = vel_func(vel=vel, U1=U, S1=S, U2=U_, S2=S_)
         return vel_U, vel_S, vel_N, vel_T
 
-    def calculate_velocity_ss(self):
+    def calculate_velocity_ss(self, subset_adata):
         U, S = get_U_S_for_velocity_estimation(
-            self.subset_adata,
+            subset_adata,
             self.use_smoothed,
             self.has_splicing,
             self.has_labeling,
@@ -253,7 +258,7 @@ class Dynamics:
             "mix_std_stm",
         ]:
             U_, S_ = get_U_S_for_velocity_estimation(
-                self.subset_adata,
+                subset_adata,
                 self.use_smoothed,
                 self.has_splicing,
                 self.has_labeling,
@@ -270,13 +275,13 @@ class Dynamics:
 
         return vel_U, vel_S, vel_N, vel_T, vel_P
 
-    def calculate_velocity_kin(self):
+    def calculate_velocity_kin(self, subset_adata):
         # if alpha = None, set alpha to be U; N - gamma R
         params = {"alpha": self.alpha, "beta": self.beta, "gamma": self.gamma, "t": self.t}
         vel = Velocity(**params)
         # Fix below:
         U, S = get_U_S_for_velocity_estimation(
-            self.subset_adata,
+            subset_adata,
             self.use_smoothed,
             self.has_splicing,
             self.has_labeling,
@@ -285,7 +290,7 @@ class Dynamics:
         )
 
         U_, S_ = get_U_S_for_velocity_estimation(
-            self.subset_adata,
+            subset_adata,
             self.use_smoothed,
             self.has_splicing,
             self.has_labeling,
@@ -363,13 +368,13 @@ class Dynamics:
             valid_bools_,
         )
 
-    def estimate_vel_calc_params_ss(self):
+    def estimate_vel_calc_params_ss(self, subset_adata):
         if self.est_method.lower() == "auto":
             self.est_method = "gmm" if self.model.lower() == "stochastic" else "ols"
 
         if self.experiment_type.lower() == "one-shot":
-            self.beta = self.subset_adata.var.beta if "beta" in self.subset_adata.var.keys() else None
-            self.gamma = self.subset_adata.var.gamma if "gamma" in self.subset_adata.var.keys() else None
+            self.beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
+            self.gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
             ss_estimation_kwargs = {"beta": self.beta, "gamma": self.gamma}
         else:
             ss_estimation_kwargs = {}
@@ -382,7 +387,7 @@ class Dynamics:
             P=self.P.copy() if self.P is not None else None,
             US=self.US.copy() if self.US is not None else None,
             S2=self.S2.copy() if self.S2 is not None else None,
-            conn=self.subset_adata.obsp["moments_con"],
+            conn=subset_adata.obsp["moments_con"],
             t=self.t,
             ind_for_proteins=self.ind_for_proteins,
             model=self.model,
@@ -407,7 +412,7 @@ class Dynamics:
 
         self.alpha, self.beta, self.gamma, self.eta, self.delta = self.est.parameters.values()
 
-    def estimate_vel_calc_params_kin(self, cur_grp_i, cur_grp):
+    def estimate_vel_calc_params_kin(self, cur_grp_i, cur_grp, subset_adata):
         return_ntr = True if self.fraction_for_deg and self.experiment_type.lower() == "deg" else False
 
         if self.model_was_auto and self.experiment_type.lower() == "kin":
@@ -417,7 +422,7 @@ class Dynamics:
         data_type = "smoothed" if self.use_smoothed else "sfs"
 
         (params, half_life, self.cost, self.logLL, param_ranges, cur_X_data, cur_X_fit_data,) = kinetic_model(
-            self.subset_adata,
+            subset_adata,
             self.tkey,
             self.model,
             self.est_method,
@@ -441,13 +446,13 @@ class Dynamics:
         if cur_grp == self._group[0]:
             if len_g != 1:
                 # X_data, X_fit_data = np.zeros((len_g, adata.n_vars, len_t)), np.zeros((len_g, adata.n_vars,len_t))
-                X_data, X_fit_data = [None] * len_g, [None] * len_g
+                self.X_data, self.X_fit_data = [None] * len_g, [None] * len_g
 
         if len(self._group) == 1:
-            X_data, X_fit_data = cur_X_data, cur_X_fit_data
+            self.X_data, self.X_fit_data = cur_X_data, cur_X_fit_data
         else:
             # X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
-            X_data[cur_grp_i], X_fit_data[cur_grp_i] = (
+            self.X_data[cur_grp_i], self.X_fit_data[cur_grp_i] = (
                 cur_X_data,
                 cur_X_fit_data,
             )
@@ -475,26 +480,17 @@ class Dynamics:
         extra_params = params.loc[:, params.columns.difference(all_kinetic_params)]
         return extra_params
 
-    def dynamics_ss(self, cur_grp_i, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre):
-        self.estimate_vel_calc_params_ss()
-        vel_U, vel_S, vel_N, vel_T, vel_P = self.calculate_velocity_ss()
+    def dynamics_ss(self, cur_grp_i, cur_grp, subset_adata, cur_cells_bools, valid_bools_, kin_param_pre):
+        self.estimate_vel_calc_params_ss(subset_adata=subset_adata)
+        vel_U, vel_S, vel_N, vel_T, vel_P = self.calculate_velocity_ss(subset_adata=subset_adata)
         self.set_velocity_ss(vel_U, vel_S, vel_N, vel_T, vel_P, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre)
 
-    def dynamics_kin(self, cur_grp_i, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre):
-        extra_params = self.estimate_vel_calc_params_kin(cur_grp_i=cur_grp_i, cur_grp=cur_grp)
-        vel_U, vel_S, vel_N, vel_T, vel_P = self.calculate_velocity_kin()
+    def dynamics_kin(self, cur_grp_i, cur_grp, subset_adata, cur_cells_bools, valid_bools_, kin_param_pre):
+        extra_params = self.estimate_vel_calc_params_kin(cur_grp_i=cur_grp_i, cur_grp=cur_grp, subset_adata=subset_adata)
+        vel_U, vel_S, vel_N, vel_T, vel_P = self.calculate_velocity_kin(subset_adata=subset_adata)
         self.set_velocity_kin(vel_U, vel_S, vel_N, vel_T, vel_P, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre, extra_params)
 
-    def estimate(self):
-        (self.experiment_type, self.has_splicing, self.has_labeling, self.splicing_labeling, self.has_protein,) = (
-            self.adata.uns["pp"]["experiment_type"],
-            self.adata.uns["pp"]["has_splicing"],
-            self.adata.uns["pp"]["has_labeling"],
-            self.adata.uns["pp"]["splicing_labeling"],
-            self.adata.uns["pp"]["has_protein"],
-        )
-
-        X_data, X_fit_data = None, None
+    def filter(self):
         filter_list, filter_gene_mode_list = (
             [
                 "use_for_pca",
@@ -514,39 +510,42 @@ class Dynamics:
         gene_num = sum(valid_bools)
         if gene_num == 0:
             raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
+        return filter_gene_mode, valid_bools, gene_num
 
-        if self.model.lower() == "auto":
-            self.model = "stochastic"
-            self.model_was_auto = True
-        else:
-            self.model_was_auto = False
+    def smooth(self, valid_bools):
+        M_layers = [i for i in self.adata.layers.keys() if i.startswith("M_")]
 
-        if self.tkey is not None:
-            if self.adata.obs[self.tkey].max() > 60:
-                main_warning(
-                    "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
-                    "we recommend using hour as the time unit."
-                )
+        if len(M_layers) < 2 or self.re_smooth:
+            main_info("removing existing M layers:%s..." % (str(list(M_layers))), indent_level=2)
+            for i in M_layers:
+                del self.adata.layers[i]
+            main_info("making adata smooth...", indent_level=2)
+
+            if self.group is not None and self.group in self.adata.obs.columns:
+                moments(self.adata, genes=valid_bools, group=self.group)
+            else:
+                moments(self.adata, genes=valid_bools, group=self.tkey)
+        elif self.tkey is not None:
+            main_warning(
+                f"You used tkey {self.tkey} (or group {self.group}), but you have calculated local smoothing (1st moment) "
+                f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
+                f"performed. Try setting re_smooth = True if not sure."
+            )
+
+    def estimate(self):
+        (self.experiment_type, self.has_splicing, self.has_labeling, self.splicing_labeling, self.has_protein,) = (
+            self.adata.uns["pp"]["experiment_type"],
+            self.adata.uns["pp"]["has_splicing"],
+            self.adata.uns["pp"]["has_labeling"],
+            self.adata.uns["pp"]["splicing_labeling"],
+            self.adata.uns["pp"]["has_protein"],
+        )
+
+        self.X_data, self.X_fit_data = None, None
+        filter_gene_mode, valid_bools, gene_num = self.filter()
 
         if self.model.lower() == "stochastic" or self.use_smoothed or self.re_smooth:
-            M_layers = [i for i in self.adata.layers.keys() if i.startswith("M_")]
-
-            if len(M_layers) < 2 or self.re_smooth:
-                main_info("removing existing M layers:%s..." % (str(list(M_layers))), indent_level=2)
-                for i in M_layers:
-                    del self.adata.layers[i]
-                main_info("making adata smooth...", indent_level=2)
-
-                if self.group is not None and self.group in self.adata.obs.columns:
-                    moments(self.adata, genes=valid_bools, group=self.group)
-                else:
-                    moments(self.adata, genes=valid_bools, group=self.tkey)
-            elif self.tkey is not None:
-                main_warning(
-                    f"You used tkey {self.tkey} (or group {self.group}), but you have calculated local smoothing (1st moment) "
-                    f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
-                    f"performed. Try setting re_smooth = True if not sure."
-                )
+            self.smooth(valid_bools=valid_bools)
 
         valid_adata = self.adata[:, valid_bools].copy()
         if self.group is not None and self.group in self.adata.obs.columns:
@@ -565,14 +564,14 @@ class Dynamics:
             if cur_grp == "_all_cells":
                 kin_param_pre = ""
                 cur_cells_bools = np.ones(valid_adata.shape[0], dtype=bool)
-                self.subset_adata = valid_adata[cur_cells_bools]
+                subset_adata = valid_adata[cur_cells_bools]
             else:
                 kin_param_pre = str(self.group) + "_" + str(cur_grp) + "_"
                 cur_cells_bools = (valid_adata.obs[self.group] == cur_grp).values
-                self.subset_adata = valid_adata[cur_cells_bools]
+                subset_adata = valid_adata[cur_cells_bools]
 
                 if self.model.lower() == "stochastic" or self.use_smoothed:
-                    moments(self.subset_adata)
+                    moments(subset_adata)
             (
                 self.U,
                 self.Ul,
@@ -587,7 +586,7 @@ class Dynamics:
                 self.ind_for_proteins,
                 assump_mRNA,
             ) = get_data_for_kin_params_estimation(
-                self.subset_adata,
+                subset_adata,
                 self.has_splicing,
                 self.has_labeling,
                 self.model,
@@ -601,11 +600,11 @@ class Dynamics:
             valid_bools_ = valid_bools.copy()
             if self.sanity_check and self.experiment_type.lower() in ["kin", "deg"]:
                 indices_valid_bools = np.where(valid_bools)[0]
-                t, L = (
-                    t.flatten(),
+                self.t, L = (
+                    self.t.flatten(),
                     (0 if self.Ul is None else self.Ul) + (0 if self.Sl is None else self.Sl),
                 )
-                t_uniq = np.unique(t)
+                t_uniq = np.unique(self.t)
 
                 valid_gene_checker = np.zeros(gene_num, dtype=bool)
                 for L_iter, cur_L in tqdm(
@@ -613,7 +612,7 @@ class Dynamics:
                         desc=f"sanity check of {self.experiment_type} experiment data:",
                 ):
                     cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
-                    y = strat_mom(cur_L, t, np.nanmean)
+                    y = strat_mom(cur_L, self.t, np.nanmean)
                     slope, _ = fit_linreg(t_uniq, y, intercept=True, r2=False)
                     valid_gene_checker[L_iter] = (
                         True
@@ -635,7 +634,7 @@ class Dynamics:
                     (None if self.S is None else self.S[valid_gene_checker, :]),
                     (None if self.Sl is None else self.Sl[valid_gene_checker, :]),
                 )
-                self.subset_adata = self.subset_adata[:, valid_gene_checker]
+                subset_adata = subset_adata[:, valid_gene_checker]
                 self.adata.var[kin_param_pre + "sanity_check"] = valid_bools_
 
             if self.assumption_mRNA.lower() == "auto":
@@ -671,6 +670,7 @@ class Dynamics:
                 self.dynamics_ss(
                     cur_grp_i=cur_grp_i,
                     cur_grp=cur_grp,
+                    subset_adata=subset_adata,
                     cur_cells_bools=cur_cells_bools,
                     valid_bools_=valid_bools_,
                     kin_param_pre=kin_param_pre,
@@ -679,6 +679,7 @@ class Dynamics:
                 self.dynamics_kin(
                     cur_grp_i=cur_grp_i,
                     cur_grp=cur_grp,
+                    subset_adata=subset_adata,
                     cur_cells_bools=cur_cells_bools,
                     valid_bools_=valid_bools_,
                     kin_param_pre=kin_param_pre,
@@ -703,8 +704,8 @@ class Dynamics:
             "filter_gene_mode": filter_gene_mode,
             "t": self.t,
             "group": self.group,
-            "X_data": X_data,
-            "X_fit_data": X_fit_data,
+            "X_data": self.X_data,
+            "X_fit_data": self.X_fit_data,
             "asspt_mRNA": self.assumption_mRNA,
             "experiment_type": self.experiment_type,
             "normalized": self.normalized,
