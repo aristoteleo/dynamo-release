@@ -52,6 +52,680 @@ from .utils import (
 warnings.simplefilter("ignore", SparseEfficiencyWarning)
 
 
+class Dynamics:
+    def __init__(
+        self,
+        adata: AnnData,
+        filter_gene_mode: Literal["final", "basic", "no"] = "final",
+        use_smoothed: bool = True,
+        assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
+        assumption_protein: Literal["ss"] = "ss",
+        model: Literal["auto", "deterministic", "stochastic"] = "auto",
+        est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
+        NTR_vel: bool = False,
+        group: Optional[str] = None,
+        protein_names: Optional[List[str]] = None,
+        concat_data: bool = False,
+        log_unnormalized: bool = True,
+        one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
+        fraction_for_deg: bool = False,
+        re_smooth: bool = False,
+        sanity_check: bool = False,
+        del_2nd_moments: Optional[bool] = None,
+        cores: int = 1,
+        tkey: str = None,
+        **est_kwargs,
+    ):
+        if "pp" not in adata.uns_keys():
+            raise ValueError(f"\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
+        self.adata = adata
+        self.filter_gene_mode = filter_gene_mode
+        self.use_smoothed = use_smoothed
+        self.assumption_mRNA = assumption_mRNA
+        self.assumption_protein = assumption_protein
+        self.model = model
+        self.est_method = est_method
+        self.NTR_vel = NTR_vel
+        self.group = group
+        self.protein_names = protein_names
+        self.concat_data = concat_data
+        self.log_unnormalized = log_unnormalized
+        self.one_shot_method = one_shot_method
+        self.fraction_for_deg = fraction_for_deg
+        self.re_smooth = re_smooth
+        self.sanity_check = sanity_check
+        self.del_2nd_moments = DynamoAdataConfig.use_default_var_if_none(
+            del_2nd_moments, DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY
+        )
+        self.cores = cores
+        if tkey is not None:
+            if adata.obs[tkey].max() > 60:
+                main_warning(
+                    "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                    "we recommend using hour as the time unit."
+                )
+        self.tkey = adata.uns["pp"]["tkey"] if tkey is None else tkey
+        self.est_kwargs = est_kwargs
+
+    def check_model(self, model):
+        pass
+
+    def _calc_vel_utils_ss(self, vel, U1, S1, U2, S2):
+        if self.has_splicing:
+            if self.experiment_type == "kin":
+                Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                gamma_ = -(np.log(1 - Kc) / self.t[None, :])  # actual gamma
+
+                vel_U = U2.multiply(csr_matrix(gamma_ / Kc)) - csr_matrix(self.beta).multiply(
+                    U1)  # vel.vel_s(U_)
+                vel_S = vel.vel_s(U1, S1)
+
+                vel_N = (U2 - csr_matrix(Kc).multiply(U2)).multiply(
+                    csr_matrix(gamma_ / Kc))  # vel.vel_u(U)
+                # scale back to true velocity via multiplying "gamma_ / Kc".
+                vel_T = (U2 - csr_matrix(Kc).multiply(S2)).multiply(csr_matrix(gamma_ / Kc))
+            elif self.experiment_type == "mix_std_stm":
+                # steady state RNA: u0, stimulation RNA: u_new;
+                # cell-wise transcription rate under simulation: alpha1
+                u0, u_new, alpha1 = solve_alpha_2p_mat(
+                    t0=np.max(self.t) - self.t,
+                    t1=self.t,
+                    alpha0=self.alpha[0],
+                    beta=self.beta,
+                    u1=U2,
+                )
+                vel_U = alpha1 - csr_matrix(self.beta[:, None]).multiply(U1)
+                vel_S = vel.vel_s(U1, S1)
+
+                vel_N = alpha1 - csr_matrix(self.gamma[:, None]).multiply(u_new)
+                vel_T = alpha1 - csr_matrix(self.beta[:, None]).multiply(S2)
+            else:
+                vel_U = vel.vel_u(U1)
+                vel_S = vel.vel_s(U1, S1)
+                vel_N = vel.vel_u(U2)
+                vel_T = vel.vel_s(U2, S2 - U2)  # need to consider splicing
+        else:
+            if self.experiment_type == "kin":
+                vel_U = np.nan
+                vel_S = np.nan
+
+                Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                gamma_ = -(np.log(1 - Kc) / self.t[None, :])  # actual gamma
+                vel_N = (U2 - csr_matrix(Kc).multiply(U2)).multiply(
+                    csr_matrix(gamma_ / Kc))  # vel.vel_u(U)
+                # scale back to true velocity via multiplying "gamma_ / Kc".
+                vel_T = (U2 - csr_matrix(Kc).multiply(S2)).multiply(csr_matrix(gamma_ / Kc))
+            elif self.experiment_type == "mix_std_stm":
+                vel_U = np.nan
+                vel_S = np.nan
+
+                # steady state RNA: u0, stimulation RNA: u_new;
+                # cell-wise transcription rate under simulation: alpha1
+                u0, u_new, alpha1 = solve_alpha_2p_mat(
+                    t0=np.max(self.t) - self.t,
+                    t1=self.t,
+                    alpha0=self.alpha[0],
+                    beta=self.gamma,
+                    u1=self.U,
+                )
+
+                vel_N = alpha1 - csr_matrix(self.gamma[:, None]).multiply(u_new)
+                vel_T = alpha1 - csr_matrix(self.gamma[:, None]).multiply(S2)
+            else:
+                vel_U = np.nan
+                vel_S = np.nan
+                vel_N = vel.vel_u(U2)
+                vel_T = vel.vel_u(S2)  # don't consider splicing
+        return vel_U, vel_S, vel_N, vel_T
+
+    def _calc_vel_utils_kin(self, vel, U1, S1, U2, S2):
+        if self.has_splicing:
+            if self.experiment_type == "kin":
+                vel_U = vel.vel_u(U1)
+                vel_S = vel.vel_s(U1, S1)
+                vel.parameters["beta"] = self.gamma
+                vel_N = vel.vel_u(U2)
+                vel_T = vel.vel_u(S2)  # no need to consider splicing
+            elif self.experiment_type == "deg":
+                if self.splicing_labeling:
+                    vel_U = np.nan
+                    vel_S = vel.vel_s(U1, S1)
+                    vel_N = np.nan
+                    vel_T = np.nan
+                else:
+                    vel_U = np.nan
+                    vel_S = vel.vel_s(U1, S1)
+                    vel_N = np.nan
+                    vel_T = np.nan
+            elif self.experiment_type in ["mix_kin_deg", "mix_pulse_chase"]:
+                vel_U = vel.vel_u(U1, repeat=True)
+                vel_S = vel.vel_s(U1, S1)
+                vel.parameters["beta"] = self.gamma
+                vel_N = vel.vel_u(U2, repeat=True)
+                vel_T = vel.vel_u(S2, repeat=True)  # no need to consider splicing
+        else:
+            if self.experiment_type == "kin":
+                vel_U = np.nan
+                vel_S = np.nan
+
+                # calculate cell-wise alpha, if est_method is twostep, this can be skipped
+                alpha_ = one_shot_alpha_matrix(U2, self.gamma, self.t)
+
+                vel.parameters["alpha"] = alpha_
+
+                vel_N = vel.vel_u(U2)
+                vel_T = vel.vel_u(S2)  # don't consider splicing
+            elif self.experiment_type == "deg":
+                vel_U = np.nan
+                vel_S = np.nan
+                vel_N = np.nan
+                vel_T = np.nan
+            elif self.experiment_type in ["mix_kin_deg", "mix_pulse_chase"]:
+                vel_U = np.nan
+                vel_S = np.nan
+                vel_N = vel.vel_u(U2, repeat=True)
+                # TODO: figure out whether we need repeat here
+                vel_T = vel.vel_u(S2, repeat=True)  # don't consider splicing
+        return vel_U, vel_S, vel_N, vel_T
+
+    def _calc_vel_utils(self, vel, vel_func, U, S, U_, S_):
+        if self.NTR_vel:
+            vel_U, vel_S, vel_N, vel_T = vel_func(vel=vel, U1=U_, S1=S_, U2=U, S2=S)
+        else:
+            vel_U, vel_S, vel_N, vel_T = vel_func(vel=vel, U1=U, S1=S, U2=U_, S2=S_)
+        return vel_U, vel_S, vel_N, vel_T
+
+    def calculate_velocity_ss(self):
+        U, S = get_U_S_for_velocity_estimation(
+            self.subset_adata,
+            self.use_smoothed,
+            self.has_splicing,
+            self.has_labeling,
+            self.log_unnormalized,
+            self.NTR_vel,
+        )
+        vel = Velocity(estimation=self.est)
+
+        if self.experiment_type.lower() in [
+            "one_shot",
+            "one-shot",
+            "kin",
+            "mix_std_stm",
+        ]:
+            U_, S_ = get_U_S_for_velocity_estimation(
+                self.subset_adata,
+                self.use_smoothed,
+                self.has_splicing,
+                self.has_labeling,
+                self.log_unnormalized,
+                not self.NTR_vel,
+            )
+            vel_U, vel_S, vel_N, vel_T = self._calc_vel_utils(vel=vel, vel_func=self._calc_vel_utils_ss, U=U, S=S, U_=U_, S_=S_)
+        else:
+            vel_U = vel.vel_u(U)
+            vel_S = vel.vel_s(U, S)
+            vel_N, vel_T = np.nan, np.nan
+
+        vel_P = vel.vel_p(S, self.P)
+
+        return vel_U, vel_S, vel_N, vel_T, vel_P
+
+    def calculate_velocity_kin(self):
+        # if alpha = None, set alpha to be U; N - gamma R
+        params = {"alpha": self.alpha, "beta": self.beta, "gamma": self.gamma, "t": self.t}
+        vel = Velocity(**params)
+        # Fix below:
+        U, S = get_U_S_for_velocity_estimation(
+            self.subset_adata,
+            self.use_smoothed,
+            self.has_splicing,
+            self.has_labeling,
+            self.log_unnormalized,
+            self.NTR_vel,
+        )
+
+        U_, S_ = get_U_S_for_velocity_estimation(
+            self.subset_adata,
+            self.use_smoothed,
+            self.has_splicing,
+            self.has_labeling,
+            self.log_unnormalized,
+            not self.NTR_vel,
+        )
+        vel_U, vel_S, vel_N, vel_T = self._calc_vel_utils(vel=vel, vel_func=self._calc_vel_utils_kin, U=U, S=S, U_=U_, S_=S_)
+
+        vel_P = vel.vel_p(S, self.P)
+
+        return vel_U, vel_S, vel_N, vel_T, vel_P
+
+    def set_velocity_ss(self, vel_U, vel_S, vel_N, vel_T, vel_P, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre):
+        self.adata = set_velocity(
+            self.adata,
+            vel_U,
+            vel_S,
+            vel_N,
+            vel_T,
+            vel_P,
+            self._group,
+            cur_grp,
+            cur_cells_bools,
+            valid_bools_,
+            self.ind_for_proteins,
+        )
+
+        self.adata = set_param_ss(
+            self.adata,
+            self.est,
+            self.alpha,
+            self.beta,
+            self.gamma,
+            self.eta,
+            self.delta,
+            self.experiment_type,
+            self._group,
+            cur_grp,
+            kin_param_pre,
+            valid_bools_,
+            self.ind_for_proteins,
+        )
+
+    def set_velocity_kin(self, vel_U, vel_S, vel_N, vel_T, vel_P, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre, extra_params):
+        self.adata = set_velocity(
+            self.adata,
+            vel_U,
+            vel_S,
+            vel_N,
+            vel_T,
+            vel_P,
+            self._group,
+            cur_grp,
+            cur_cells_bools,
+            valid_bools_,
+            self.ind_for_proteins,
+        )
+
+        self.adata = set_param_kinetic(
+            self.adata,
+            self.alpha,
+            self.a,
+            self.b,
+            self.alpha_a,
+            self.alpha_i,
+            self.beta,
+            self.gamma,
+            self.cost,
+            self.logLL,
+            kin_param_pre,
+            extra_params,
+            self._group,
+            cur_grp,
+            cur_cells_bools,
+            valid_bools_,
+        )
+
+    def estimate_vel_calc_params_ss(self):
+        if self.est_method.lower() == "auto":
+            self.est_method = "gmm" if self.model.lower() == "stochastic" else "ols"
+
+        if self.experiment_type.lower() == "one-shot":
+            self.beta = self.subset_adata.var.beta if "beta" in self.subset_adata.var.keys() else None
+            self.gamma = self.subset_adata.var.gamma if "gamma" in self.subset_adata.var.keys() else None
+            ss_estimation_kwargs = {"beta": self.beta, "gamma": self.gamma}
+        else:
+            ss_estimation_kwargs = {}
+
+        self.est = ss_estimation(
+            U=self.U.copy() if self.U is not None else None,
+            Ul=self.Ul.copy() if self.Ul is not None else None,
+            S=self.S.copy() if self.S is not None else None,
+            Sl=self.Sl.copy() if self.Sl is not None else None,
+            P=self.P.copy() if self.P is not None else None,
+            US=self.US.copy() if self.US is not None else None,
+            S2=self.S2.copy() if self.S2 is not None else None,
+            conn=self.subset_adata.obsp["moments_con"],
+            t=self.t,
+            ind_for_proteins=self.ind_for_proteins,
+            model=self.model,
+            est_method=self.est_method,
+            experiment_type=self.experiment_type,
+            assumption_mRNA=self.assumption_mRNA,
+            assumption_protein=self.assumption_protein,
+            concat_data=self.concat_data,
+            cores=self.cores,
+            **ss_estimation_kwargs,
+        )  # U: (unlabeled) unspliced; S: (unlabeled) spliced; U / Ul: old and labeled; U, Ul, S, Sl: uu/ul/su/sl
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            if self.experiment_type.lower() in ["one-shot", "one_shot"]:
+                self.est.fit(one_shot_method=self.one_shot_method, **self.est_kwargs)
+            else:
+                # experiment_type can be `kin` also and by default use
+                # conventional method to estimate k but correct for time
+                self.est.fit(**self.est_kwargs)
+
+        self.alpha, self.beta, self.gamma, self.eta, self.delta = self.est.parameters.values()
+
+    def estimate_vel_calc_params_kin(self, cur_grp_i, cur_grp):
+        return_ntr = True if self.fraction_for_deg and self.experiment_type.lower() == "deg" else False
+
+        if self.model_was_auto and self.experiment_type.lower() == "kin":
+            self.model = "mixture"
+        if self.est_method == "auto":
+            self.est_method = "direct"
+        data_type = "smoothed" if self.use_smoothed else "sfs"
+
+        (params, half_life, self.cost, self.logLL, param_ranges, cur_X_data, cur_X_fit_data,) = kinetic_model(
+            self.subset_adata,
+            self.tkey,
+            self.model,
+            self.est_method,
+            self.experiment_type,
+            self.has_splicing,
+            self.splicing_labeling,
+            has_switch=True,
+            param_rngs={},
+            data_type=data_type,
+            return_ntr=return_ntr,
+            **self.est_kwargs,
+        )
+
+        if type(params) == dict:
+            self.alpha = params.pop("alpha")
+            params = pd.DataFrame(params)
+        else:
+            self.alpha = params.loc[:, "alpha"].values if "alpha" in params.columns else None
+
+        len_t, len_g = len(np.unique(self.t)), len(self._group)
+        if cur_grp == self._group[0]:
+            if len_g != 1:
+                # X_data, X_fit_data = np.zeros((len_g, adata.n_vars, len_t)), np.zeros((len_g, adata.n_vars,len_t))
+                X_data, X_fit_data = [None] * len_g, [None] * len_g
+
+        if len(self._group) == 1:
+            X_data, X_fit_data = cur_X_data, cur_X_fit_data
+        else:
+            # X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
+            X_data[cur_grp_i], X_fit_data[cur_grp_i] = (
+                cur_X_data,
+                cur_X_fit_data,
+            )
+
+        self.a, self.b, self.alpha_a, self.alpha_i, self.beta, self.gamma = (
+            params.loc[:, "a"].values if "a" in params.columns else None,
+            params.loc[:, "b"].values if "b" in params.columns else None,
+            params.loc[:, "alpha_a"].values if "alpha_a" in params.columns else None,
+            params.loc[:, "alpha_i"].values if "alpha_i" in params.columns else None,
+            params.loc[:, "beta"].values if "beta" in params.columns else None,
+            params.loc[:, "gamma"].values if "gamma" in params.columns else None,
+        )
+        if self.alpha is None:
+            self.alpha = fbar(self.a, self.b, self.alpha_a, 0) if self.alpha_i is None else fbar(self.a, self.b, self.alpha_a, self.alpha_i)
+        all_kinetic_params = [
+            "a",
+            "b",
+            "alpha_a",
+            "alpha_i",
+            "alpha",
+            "beta",
+            "gamma",
+        ]
+
+        extra_params = params.loc[:, params.columns.difference(all_kinetic_params)]
+        return extra_params
+
+    def dynamics_ss(self, cur_grp_i, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre):
+        self.estimate_vel_calc_params_ss()
+        vel_U, vel_S, vel_N, vel_T, vel_P = self.calculate_velocity_ss()
+        self.set_velocity_ss(vel_U, vel_S, vel_N, vel_T, vel_P, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre)
+
+    def dynamics_kin(self, cur_grp_i, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre):
+        extra_params = self.estimate_vel_calc_params_kin(cur_grp_i=cur_grp_i, cur_grp=cur_grp)
+        vel_U, vel_S, vel_N, vel_T, vel_P = self.calculate_velocity_kin()
+        self.set_velocity_kin(vel_U, vel_S, vel_N, vel_T, vel_P, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre, extra_params)
+
+    def estimate(self):
+        (self.experiment_type, self.has_splicing, self.has_labeling, self.splicing_labeling, self.has_protein,) = (
+            self.adata.uns["pp"]["experiment_type"],
+            self.adata.uns["pp"]["has_splicing"],
+            self.adata.uns["pp"]["has_labeling"],
+            self.adata.uns["pp"]["splicing_labeling"],
+            self.adata.uns["pp"]["has_protein"],
+        )
+
+        X_data, X_fit_data = None, None
+        filter_list, filter_gene_mode_list = (
+            [
+                "use_for_pca",
+                "pass_basic_filter",
+                "no",
+            ],
+            ["final", "basic", "no"],
+        )
+        filter_checker = [i in self.adata.var.columns for i in filter_list[:2]]
+        filter_checker.append(True)
+        filter_id = filter_gene_mode_list.index(self.filter_gene_mode)
+        which_filter = np.where(filter_checker[filter_id:])[0][0] + filter_id
+
+        filter_gene_mode = filter_gene_mode_list[which_filter]
+
+        valid_bools = get_valid_bools(self.adata, filter_gene_mode)
+        gene_num = sum(valid_bools)
+        if gene_num == 0:
+            raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
+
+        if self.model.lower() == "auto":
+            self.model = "stochastic"
+            self.model_was_auto = True
+        else:
+            self.model_was_auto = False
+
+        if self.tkey is not None:
+            if self.adata.obs[self.tkey].max() > 60:
+                main_warning(
+                    "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                    "we recommend using hour as the time unit."
+                )
+
+        if self.model.lower() == "stochastic" or self.use_smoothed or self.re_smooth:
+            M_layers = [i for i in self.adata.layers.keys() if i.startswith("M_")]
+
+            if len(M_layers) < 2 or self.re_smooth:
+                main_info("removing existing M layers:%s..." % (str(list(M_layers))), indent_level=2)
+                for i in M_layers:
+                    del self.adata.layers[i]
+                main_info("making adata smooth...", indent_level=2)
+
+                if self.group is not None and self.group in self.adata.obs.columns:
+                    moments(self.adata, genes=valid_bools, group=self.group)
+                else:
+                    moments(self.adata, genes=valid_bools, group=self.tkey)
+            elif self.tkey is not None:
+                main_warning(
+                    f"You used tkey {self.tkey} (or group {self.group}), but you have calculated local smoothing (1st moment) "
+                    f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
+                    f"performed. Try setting re_smooth = True if not sure."
+                )
+
+        valid_adata = self.adata[:, valid_bools].copy()
+        if self.group is not None and self.group in self.adata.obs.columns:
+            self._group = self.adata.obs[self.group].unique()
+            if any(self.adata.obs[self.group].value_counts() < 50):
+                main_warning(
+                    f"Note that some groups have less than 50 cells, this may lead to the velocities for some "
+                    f"cells are all NaN values and cause issues for all downstream analysis. Please try to "
+                    f"coarse-grain cell groupings. Cell number for each group are {self.adata.obs[self.group].value_counts()}"
+                )
+
+        else:
+            self._group = ["_all_cells"]
+
+        for cur_grp_i, cur_grp in enumerate(self._group):
+            if cur_grp == "_all_cells":
+                kin_param_pre = ""
+                cur_cells_bools = np.ones(valid_adata.shape[0], dtype=bool)
+                self.subset_adata = valid_adata[cur_cells_bools]
+            else:
+                kin_param_pre = str(self.group) + "_" + str(cur_grp) + "_"
+                cur_cells_bools = (valid_adata.obs[self.group] == cur_grp).values
+                self.subset_adata = valid_adata[cur_cells_bools]
+
+                if self.model.lower() == "stochastic" or self.use_smoothed:
+                    moments(self.subset_adata)
+            (
+                self.U,
+                self.Ul,
+                self.S,
+                self.Sl,
+                self.P,
+                self.US,
+                self.U2,
+                self.S2,
+                self.t,
+                self.normalized,
+                self.ind_for_proteins,
+                assump_mRNA,
+            ) = get_data_for_kin_params_estimation(
+                self.subset_adata,
+                self.has_splicing,
+                self.has_labeling,
+                self.model,
+                self.use_smoothed,
+                self.tkey,
+                self.protein_names,
+                self.log_unnormalized,
+                self.NTR_vel,
+            )
+
+            valid_bools_ = valid_bools.copy()
+            if self.sanity_check and self.experiment_type.lower() in ["kin", "deg"]:
+                indices_valid_bools = np.where(valid_bools)[0]
+                t, L = (
+                    t.flatten(),
+                    (0 if self.Ul is None else self.Ul) + (0 if self.Sl is None else self.Sl),
+                )
+                t_uniq = np.unique(t)
+
+                valid_gene_checker = np.zeros(gene_num, dtype=bool)
+                for L_iter, cur_L in tqdm(
+                        enumerate(L),
+                        desc=f"sanity check of {self.experiment_type} experiment data:",
+                ):
+                    cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
+                    y = strat_mom(cur_L, t, np.nanmean)
+                    slope, _ = fit_linreg(t_uniq, y, intercept=True, r2=False)
+                    valid_gene_checker[L_iter] = (
+                        True
+                        if (slope > 0 and self.experiment_type == "kin") or (slope < 0 and self.experiment_type == "deg")
+                        else False
+                    )
+                valid_bools_[indices_valid_bools[~valid_gene_checker]] = False
+                main_warning(f"filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.")
+
+                if len(valid_bools_) < 5:
+                    raise Exception(
+                        f"After sanity check, you have less than 5 valid genes. Something is wrong about your "
+                        f"metabolic labeling experiment!"
+                    )
+
+                self.U, self.Ul, self.S, self.Sl = (
+                    (None if self.U is None else self.U[valid_gene_checker, :]),
+                    (None if self.Ul is None else self.Ul[valid_gene_checker, :]),
+                    (None if self.S is None else self.S[valid_gene_checker, :]),
+                    (None if self.Sl is None else self.Sl[valid_gene_checker, :]),
+                )
+                self.subset_adata = self.subset_adata[:, valid_gene_checker]
+                self.adata.var[kin_param_pre + "sanity_check"] = valid_bools_
+
+            if self.assumption_mRNA.lower() == "auto":
+                self.assumption_mRNA = assump_mRNA
+            if self.experiment_type.lower() == "conventional":
+                self.assumption_mRNA = "ss"
+            elif self.experiment_type.lower() in ["mix_pulse_chase", "deg", "kin"]:
+                self.assumption_mRNA = "kinetic"
+
+            if self.model.lower() == "stochastic" and self.experiment_type.lower() not in [
+                "conventional",
+                "kinetics",
+                "degradation",
+                "kin",
+                "deg",
+                "one-shot",
+            ]:
+                """
+                # temporially convert to deterministic model as moment model for mix_std_stm
+                 and other types of labeling experiment is ongoing."""
+
+                self.model = "deterministic"
+
+            if self.model_was_auto and self.experiment_type.lower() in [
+                "kinetic",
+                "kin",
+                "degradation",
+                "deg",
+            ]:
+                self.model = "deterministic"
+
+            if self.assumption_mRNA.lower() == "ss" or (self.experiment_type.lower() in ["one-shot", "mix_std_stm"]):
+                self.dynamics_ss(
+                    cur_grp_i=cur_grp_i,
+                    cur_grp=cur_grp,
+                    cur_cells_bools=cur_cells_bools,
+                    valid_bools_=valid_bools_,
+                    kin_param_pre=kin_param_pre,
+                )
+            elif self.assumption_mRNA.lower() == "kinetic":
+                self.dynamics_kin(
+                    cur_grp_i=cur_grp_i,
+                    cur_grp=cur_grp,
+                    cur_cells_bools=cur_cells_bools,
+                    valid_bools_=valid_bools_,
+                    kin_param_pre=kin_param_pre,
+                )
+                # add protein related parameters in the moment model below:
+            elif self.model.lower() == "model_selection":
+                main_warning("Not implemented yet.")
+
+        if self.group is not None and self.group in self.adata.obs[self.group]:
+            uns_key = self.group + "_dynamics"
+        else:
+            uns_key = "dynamics"
+
+        if self.sanity_check and self.experiment_type in ["kin", "deg"]:
+            sanity_check_cols = self.adata.var.columns.str.endswith("sanity_check")
+            self.adata.var["use_for_dynamics"] = self.adata.var.loc[:, sanity_check_cols].sum(1).astype(bool)
+        else:
+            self.adata.var["use_for_dynamics"] = False
+            self.adata.var.loc[valid_bools, "use_for_dynamics"] = True
+
+        self.adata.uns[uns_key] = {
+            "filter_gene_mode": filter_gene_mode,
+            "t": self.t,
+            "group": self.group,
+            "X_data": X_data,
+            "X_fit_data": X_fit_data,
+            "asspt_mRNA": self.assumption_mRNA,
+            "experiment_type": self.experiment_type,
+            "normalized": self.normalized,
+            "model": self.model,
+            "est_method": self.est_method,
+            "has_splicing": self.has_splicing,
+            "has_labeling": self.has_labeling,
+            "splicing_labeling": self.splicing_labeling,
+            "has_protein": self.has_protein,
+            "use_smoothed": self.use_smoothed,
+            "NTR_vel": self.NTR_vel,
+            "log_unnormalized": self.log_unnormalized,
+            "fraction_for_deg": self.fraction_for_deg,
+        }
+
+        if self.del_2nd_moments:
+            remove_2nd_moments(self.adata)
+
+        return self.adata
+
+
 # incorporate the model selection code soon
 def dynamics(
     adata: AnnData,
