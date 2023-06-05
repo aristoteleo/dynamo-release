@@ -21,7 +21,7 @@ requirements:
     - pip
   build:
     - python
-  runs:
+  run:
     - python
     - setuptools
     - numpy 1.23.*
@@ -39,13 +39,18 @@ requirements:
     - colorcet>=2.0.1
     - tqdm
     - python-igraph>=0.7.1
-    - cdlib>=0.2.6
     - louvain==0.8.0
     - pynndescent>=0.5.2
     - pre-commit
     - networkx
     - typing-extensions
     - openpyxl
+
+test:
+  # Some packages might need a `test/commands` key to check CLI.
+  # List all the packages/modules that `run_test.py` imports.
+  imports:
+    - dynamo
 
 about:
   home: https://github.com/aristoteleo/dynamo-release
