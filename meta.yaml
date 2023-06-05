@@ -32,6 +32,8 @@ requirements:
     - matplotlib>=3.5.3
     - nxviz==0.7.3
     - get_version>=3.5.4
+    - numdifftools>=0.9.39
+    - umap-learn>=0.5.1
     - PATSY
     - statsmodels
     - numba>=0.54.0
