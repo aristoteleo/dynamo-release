@@ -112,20 +112,20 @@ class Dynamics:
         self.tkey = adata.uns["pp"]["tkey"] if tkey is None else tkey
         self.est_kwargs = est_kwargs
 
-    def _calc_vel_utils_ss(self, vel, U1, S1, U2, S2):
+    def _calc_vel_utils_ss(self, vel, U, S, N, T):
         if self.has_splicing:
             if self.experiment_type == "kin":
                 Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
                 gamma_ = -(np.log(1 - Kc) / self.t[None, :])  # actual gamma
 
-                vel_U = U2.multiply(csr_matrix(gamma_ / Kc)) - csr_matrix(self.beta).multiply(
-                    U1)  # vel.vel_s(U_)
-                vel_S = vel.vel_s(U1, S1)
+                vel_U = N.multiply(csr_matrix(gamma_ / Kc)) - csr_matrix(self.beta).multiply(
+                    U)  # vel.vel_s(U_)
+                vel_S = vel.vel_s(U, S)
 
-                vel_N = (U2 - csr_matrix(Kc).multiply(U2)).multiply(
+                vel_N = (N - csr_matrix(Kc).multiply(N)).multiply(
                     csr_matrix(gamma_ / Kc))  # vel.vel_u(U)
                 # scale back to true velocity via multiplying "gamma_ / Kc".
-                vel_T = (U2 - csr_matrix(Kc).multiply(S2)).multiply(csr_matrix(gamma_ / Kc))
+                vel_T = (N - csr_matrix(Kc).multiply(T)).multiply(csr_matrix(gamma_ / Kc))
             elif self.experiment_type == "mix_std_stm":
                 # steady state RNA: u0, stimulation RNA: u_new;
                 # cell-wise transcription rate under simulation: alpha1
@@ -134,18 +134,18 @@ class Dynamics:
                     t1=self.t,
                     alpha0=self.alpha[0],
                     beta=self.beta,
-                    u1=U2,
+                    u1=N,
                 )
-                vel_U = alpha1 - csr_matrix(self.beta[:, None]).multiply(U1)
-                vel_S = vel.vel_s(U1, S1)
+                vel_U = alpha1 - csr_matrix(self.beta[:, None]).multiply(U)
+                vel_S = vel.vel_s(U, S)
 
                 vel_N = alpha1 - csr_matrix(self.gamma[:, None]).multiply(u_new)
-                vel_T = alpha1 - csr_matrix(self.beta[:, None]).multiply(S2)
+                vel_T = alpha1 - csr_matrix(self.beta[:, None]).multiply(T)
             else:
-                vel_U = vel.vel_u(U1)
-                vel_S = vel.vel_s(U1, S1)
-                vel_N = vel.vel_u(U2)
-                vel_T = vel.vel_s(U2, S2 - U2)  # need to consider splicing
+                vel_U = vel.vel_u(U)
+                vel_S = vel.vel_s(U, S)
+                vel_N = vel.vel_u(N)
+                vel_T = vel.vel_s(N, T - N)  # need to consider splicing
         else:
             if self.experiment_type == "kin":
                 vel_U = np.nan
@@ -153,10 +153,10 @@ class Dynamics:
 
                 Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
                 gamma_ = -(np.log(1 - Kc) / self.t[None, :])  # actual gamma
-                vel_N = (U2 - csr_matrix(Kc).multiply(U2)).multiply(
+                vel_N = (N - csr_matrix(Kc).multiply(N)).multiply(
                     csr_matrix(gamma_ / Kc))  # vel.vel_u(U)
                 # scale back to true velocity via multiplying "gamma_ / Kc".
-                vel_T = (U2 - csr_matrix(Kc).multiply(S2)).multiply(csr_matrix(gamma_ / Kc))
+                vel_T = (N - csr_matrix(Kc).multiply(T)).multiply(csr_matrix(gamma_ / Kc))
             elif self.experiment_type == "mix_std_stm":
                 vel_U = np.nan
                 vel_S = np.nan
@@ -172,51 +172,51 @@ class Dynamics:
                 )
 
                 vel_N = alpha1 - csr_matrix(self.gamma[:, None]).multiply(u_new)
-                vel_T = alpha1 - csr_matrix(self.gamma[:, None]).multiply(S2)
+                vel_T = alpha1 - csr_matrix(self.gamma[:, None]).multiply(T)
             else:
                 vel_U = np.nan
                 vel_S = np.nan
-                vel_N = vel.vel_u(U2)
-                vel_T = vel.vel_u(S2)  # don't consider splicing
+                vel_N = vel.vel_u(N)
+                vel_T = vel.vel_u(T)  # don't consider splicing
         return vel_U, vel_S, vel_N, vel_T
 
-    def _calc_vel_utils_kin(self, vel, U1, S1, U2, S2):
+    def _calc_vel_utils_kin(self, vel, U, S, N, T):
         if self.has_splicing:
             if self.experiment_type == "kin":
-                vel_U = vel.vel_u(U1)
-                vel_S = vel.vel_s(U1, S1)
+                vel_U = vel.vel_u(U)
+                vel_S = vel.vel_s(U, S)
                 vel.parameters["beta"] = self.gamma
-                vel_N = vel.vel_u(U2)
-                vel_T = vel.vel_u(S2)  # no need to consider splicing
+                vel_N = vel.vel_u(N)
+                vel_T = vel.vel_u(T)  # no need to consider splicing
             elif self.experiment_type == "deg":
                 if self.splicing_labeling:
                     vel_U = np.nan
-                    vel_S = vel.vel_s(U1, S1)
+                    vel_S = vel.vel_s(U, S)
                     vel_N = np.nan
                     vel_T = np.nan
                 else:
                     vel_U = np.nan
-                    vel_S = vel.vel_s(U1, S1)
+                    vel_S = vel.vel_s(U, S)
                     vel_N = np.nan
                     vel_T = np.nan
             elif self.experiment_type in ["mix_kin_deg", "mix_pulse_chase"]:
-                vel_U = vel.vel_u(U1, repeat=True)
-                vel_S = vel.vel_s(U1, S1)
+                vel_U = vel.vel_u(U, repeat=True)
+                vel_S = vel.vel_s(U, S)
                 vel.parameters["beta"] = self.gamma
-                vel_N = vel.vel_u(U2, repeat=True)
-                vel_T = vel.vel_u(S2, repeat=True)  # no need to consider splicing
+                vel_N = vel.vel_u(N, repeat=True)
+                vel_T = vel.vel_u(T, repeat=True)  # no need to consider splicing
         else:
             if self.experiment_type == "kin":
                 vel_U = np.nan
                 vel_S = np.nan
 
                 # calculate cell-wise alpha, if est_method is twostep, this can be skipped
-                alpha_ = one_shot_alpha_matrix(U2, self.gamma, self.t)
+                alpha_ = one_shot_alpha_matrix(N, self.gamma, self.t)
 
                 vel.parameters["alpha"] = alpha_
 
-                vel_N = vel.vel_u(U2)
-                vel_T = vel.vel_u(S2)  # don't consider splicing
+                vel_N = vel.vel_u(N)
+                vel_T = vel.vel_u(T)  # don't consider splicing
             elif self.experiment_type == "deg":
                 vel_U = np.nan
                 vel_S = np.nan
@@ -225,16 +225,9 @@ class Dynamics:
             elif self.experiment_type in ["mix_kin_deg", "mix_pulse_chase"]:
                 vel_U = np.nan
                 vel_S = np.nan
-                vel_N = vel.vel_u(U2, repeat=True)
+                vel_N = vel.vel_u(N, repeat=True)
                 # TODO: figure out whether we need repeat here
-                vel_T = vel.vel_u(S2, repeat=True)  # don't consider splicing
-        return vel_U, vel_S, vel_N, vel_T
-
-    def _calc_vel_utils(self, vel, vel_func, U, S, U_, S_):
-        if self.NTR_vel:
-            vel_U, vel_S, vel_N, vel_T = vel_func(vel=vel, U1=U_, S1=S_, U2=U, S2=S)
-        else:
-            vel_U, vel_S, vel_N, vel_T = vel_func(vel=vel, U1=U, S1=S, U2=U_, S2=S_)
+                vel_T = vel.vel_u(T, repeat=True)  # don't consider splicing
         return vel_U, vel_S, vel_N, vel_T
 
     def calculate_velocity_ss(self, subset_adata):
@@ -244,7 +237,15 @@ class Dynamics:
             self.has_splicing,
             self.has_labeling,
             self.log_unnormalized,
-            self.NTR_vel,
+            False,
+        )
+        N, T = get_U_S_for_velocity_estimation(
+            subset_adata,
+            self.use_smoothed,
+            self.has_splicing,
+            self.has_labeling,
+            self.log_unnormalized,
+            True,
         )
         vel = Velocity(estimation=self.est)
 
@@ -254,21 +255,17 @@ class Dynamics:
             "kin",
             "mix_std_stm",
         ]:
-            U_, S_ = get_U_S_for_velocity_estimation(
-                subset_adata,
-                self.use_smoothed,
-                self.has_splicing,
-                self.has_labeling,
-                self.log_unnormalized,
-                not self.NTR_vel,
-            )
-            vel_U, vel_S, vel_N, vel_T = self._calc_vel_utils(vel=vel, vel_func=self._calc_vel_utils_ss, U=U, S=S, U_=U_, S_=S_)
+            vel_U, vel_S, vel_N, vel_T = self._calc_vel_utils_ss(vel=vel, U=U, S=S, N=N, T=T)
         else:
-            vel_U = vel.vel_u(U)
-            vel_S = vel.vel_s(U, S)
+            if self.NTR_vel:
+                vel_U = vel.vel_u(N)
+                vel_S = vel.vel_s(N, T)
+            else:
+                vel_U = vel.vel_u(U)
+                vel_S = vel.vel_s(U, S)
             vel_N, vel_T = np.nan, np.nan
 
-        vel_P = vel.vel_p(S, self.P)
+        vel_P = vel.vel_p(T, self.P) if self.NTR_vel else vel.vel_p(S, self.P)
 
         return vel_U, vel_S, vel_N, vel_T, vel_P
 
@@ -276,27 +273,25 @@ class Dynamics:
         # if alpha = None, set alpha to be U; N - gamma R
         params = {"alpha": self.alpha, "beta": self.beta, "gamma": self.gamma, "t": self.t}
         vel = Velocity(**params)
-        # Fix below:
         U, S = get_U_S_for_velocity_estimation(
             subset_adata,
             self.use_smoothed,
             self.has_splicing,
             self.has_labeling,
             self.log_unnormalized,
-            self.NTR_vel,
+            False,
         )
-
-        U_, S_ = get_U_S_for_velocity_estimation(
+        N, T = get_U_S_for_velocity_estimation(
             subset_adata,
             self.use_smoothed,
             self.has_splicing,
             self.has_labeling,
             self.log_unnormalized,
-            not self.NTR_vel,
+            True,
         )
-        vel_U, vel_S, vel_N, vel_T = self._calc_vel_utils(vel=vel, vel_func=self._calc_vel_utils_kin, U=U, S=S, U_=U_, S_=S_)
+        vel_U, vel_S, vel_N, vel_T = self._calc_vel_utils_kin(vel=vel, U=U, S=S, N=N, T=T)
 
-        vel_P = vel.vel_p(S, self.P)
+        vel_P = vel.vel_p(T, self.P) if self.NTR_vel else vel.vel_p(S, self.P)
 
         return vel_U, vel_S, vel_N, vel_T, vel_P
 
