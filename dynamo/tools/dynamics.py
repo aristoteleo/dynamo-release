@@ -434,14 +434,6 @@ class BaseDynamics:
         return subset_adata, valid_bools_
 
     def estimate(self):
-        (self.experiment_type, self.has_splicing, self.has_labeling, self.splicing_labeling, self.has_protein,) = (
-            self.adata.uns["pp"]["experiment_type"],
-            self.adata.uns["pp"]["has_splicing"],
-            self.adata.uns["pp"]["has_labeling"],
-            self.adata.uns["pp"]["splicing_labeling"],
-            self.adata.uns["pp"]["has_protein"],
-        )
-
         self.X_data, self.X_fit_data = None, None
         filter_gene_mode, valid_bools, gene_num = self.filter()
 
@@ -502,35 +494,6 @@ class BaseDynamics:
             if self.sanity_check and self.experiment_type.lower() in ["kin", "deg"]:
                 subset_adata, valid_bools_ = self.sanity_check(
                     valid_bools, valid_bools_, gene_num, subset_adata, kin_param_pre)
-
-            if self.assumption_mRNA.lower() == "auto":
-                self.assumption_mRNA = assump_mRNA
-            if self.experiment_type.lower() == "conventional":
-                self.assumption_mRNA = "ss"
-            elif self.experiment_type.lower() in ["mix_pulse_chase", "deg", "kin"]:
-                self.assumption_mRNA = "kinetic"
-
-            if self.model.lower() == "stochastic" and self.experiment_type.lower() not in [
-                "conventional",
-                "kinetics",
-                "degradation",
-                "kin",
-                "deg",
-                "one-shot",
-            ]:
-                """
-                # temporially convert to deterministic model as moment model for mix_std_stm
-                 and other types of labeling experiment is ongoing."""
-
-                self.model = "deterministic"
-
-            if self.model_was_auto and self.experiment_type.lower() in [
-                "kinetic",
-                "kin",
-                "degradation",
-                "deg",
-            ]:
-                self.model = "deterministic"
 
             self.estimate_parameters(cur_grp_i=cur_grp_i, cur_grp=cur_grp, subset_adata=subset_adata)
             vel_U, vel_S, vel_N, vel_T, vel_P = self.calculate_velocity(subset_adata=subset_adata)
@@ -644,25 +607,9 @@ class LabeledDynamics(BaseDynamics):
 # TODO: rename this later
 def dynamics_wrapper(
     adata: AnnData,
-    filter_gene_mode: Literal["final", "basic", "no"] = "final",
-    use_smoothed: bool = True,
     assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
-    assumption_protein: Literal["ss"] = "ss",
     model: Literal["auto", "deterministic", "stochastic"] = "auto",
-    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
-    NTR_vel: bool = False,
-    group: Optional[str] = None,
-    protein_names: Optional[List[str]] = None,
-    concat_data: bool = False,
-    log_unnormalized: bool = True,
-    one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
-    fraction_for_deg: bool = False,
-    re_smooth: bool = False,
-    sanity_check: bool = False,
-    del_2nd_moments: Optional[bool] = None,
-    cores: int = 1,
-    tkey: str = None,
-    **est_kwargs,
+    **kwargs,
 ) -> AnnData:
     """Run corresponding Dynamics methods according to the parameters."""
     if "pp" not in adata.uns_keys():
@@ -681,7 +628,87 @@ def dynamics_wrapper(
         adata.uns["pp"]["splicing_labeling"],
         adata.uns["pp"]["has_protein"],
     )
-    pass
+
+    (
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        assump_mRNA,
+    ) = get_data_for_kin_params_estimation(
+        adata,
+        has_splicing,
+        has_labeling,
+        model,
+        kwargs["use_smoothed"],
+        kwargs["tkey"],
+        kwargs["protein_names"],
+        kwargs["log_unnormalized"],
+        kwargs["NTR_vel"],
+    )
+    if assumption_mRNA.lower() == "auto":
+        assumption_mRNA = assump_mRNA
+    if experiment_type.lower() == "conventional":
+        assumption_mRNA = "ss"
+    elif experiment_type.lower() in ["mix_pulse_chase", "deg", "kin"]:
+        assumption_mRNA = "kinetic"
+
+    if model.lower() == "stochastic" and experiment_type.lower() not in [
+        "conventional",
+        "kinetics",
+        "degradation",
+        "kin",
+        "deg",
+        "one-shot",
+    ]:
+        """
+        # temporially convert to deterministic model as moment model for mix_std_stm
+         and other types of labeling experiment is ongoing."""
+
+        model = "deterministic"
+
+    if model_was_auto and experiment_type.lower() in [
+        "kinetic",
+        "kin",
+        "degradation",
+        "deg",
+    ]:
+        model = "deterministic"
+
+    if experiment_type == "conventional":
+        estimator = SplicedDynamics(
+            adata=adata,
+            assumption_mRNA=assumption_mRNA,
+            has_splicing=has_splicing,
+            has_labeling=has_labeling,
+            splicing_labeling=splicing_labeling,
+            has_protein=has_protein,
+            model=model,
+            model_was_auto=model_was_auto,
+            **kwargs,
+        )
+    elif experiment_type in ["one-shot", "one_shot"]:
+        estimator = SplicedDynamics(
+            adata=adata,
+            assumption_mRNA=assumption_mRNA,
+            has_splicing=has_splicing,
+            has_labeling=has_labeling,
+            splicing_labeling=splicing_labeling,
+            has_protein=has_protein,
+            model=model,
+            model_was_auto=model_was_auto,
+            **kwargs,
+        )
+    else:
+        raise NotImplementedError("This method has not been implemented.")
+    estimator.estimate()
 
 
 # incorporate the model selection code soon
