@@ -117,7 +117,7 @@ class BaseDynamics:
         self.tkey = adata.uns["pp"]["tkey"] if tkey is None else tkey
         self.est_kwargs = est_kwargs
 
-    def estimate_params_ss(self, subset_adata, **est_params_args):
+    def _estimate_params_ss(self, subset_adata, **est_params_args):
         if self.est_method.lower() == "auto":
             self.est_method = "gmm" if self.model.lower() == "stochastic" else "ols"
 
@@ -161,7 +161,7 @@ class BaseDynamics:
 
         self.alpha, self.beta, self.gamma, self.eta, self.delta = self.est.parameters.values()
 
-    def estimate_params_kin(self, cur_grp_i, cur_grp, subset_adata, **est_params_args):
+    def _estimate_params_kin(self, cur_grp_i, cur_grp, subset_adata, **est_params_args):
         return_ntr = True if self.fraction_for_deg and self.experiment_type.lower() == "deg" else False
 
         if self.model_was_auto and self.experiment_type.lower() == "kin":
@@ -230,9 +230,9 @@ class BaseDynamics:
 
     def estimate_parameters(self, cur_grp_i, cur_grp, subset_adata, **est_params_args):
         if self.assumption_mRNA.lower() == "ss" or (self.experiment_type.lower() in ["one-shot", "mix_std_stm"]):
-            self.estimate_params_ss(subset_adata=subset_adata, **est_params_args)
+            self._estimate_params_ss(subset_adata=subset_adata, **est_params_args)
         elif self.assumption_mRNA.lower() == "kinetic":
-            self.estimate_params_kin(cur_grp_i=cur_grp_i, cur_grp=cur_grp, subset_adata=subset_adata, **est_params_args)
+            self._estimate_params_kin(cur_grp_i=cur_grp_i, cur_grp=cur_grp, subset_adata=subset_adata, **est_params_args)
         else:
             main_warning("Not implemented yet.")
 
@@ -303,19 +303,10 @@ class BaseDynamics:
         else:
             main_warning("Not implemented yet.")
 
-    def calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_velocity(self, vel, U, S, N, T):
         raise NotImplementedError("This method has not been implemented.")
 
-    def calculate_vel_S(self, vel, U, S, N, T):
-        raise NotImplementedError("This method has not been implemented.")
-
-    def calculate_vel_N(self, vel, U, S, N, T):
-        raise NotImplementedError("This method has not been implemented.")
-
-    def calculate_vel_T(self, vel, U, S, N, T):
-        raise NotImplementedError("This method has not been implemented.")
-
-    def calculate_vel_P(self, vel, U, S, N, T):
+    def _calculate_vel_P(self, vel, U, S, N, T):
         return vel.vel_p(T, self.P) if self.NTR_vel else vel.vel_p(S, self.P)
 
     def calculate_velocity(self, subset_adata):
@@ -343,15 +334,12 @@ class BaseDynamics:
         else:
             main_warning("Not implemented yet.")
 
-        vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
-        vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
-        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
-        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
-        vel_P = self.calculate_vel_P(vel=vel, U=U, S=S, N=N, T=T)
+        vel_U, vel_S, vel_N, vel_T = self._calculate_velocity(vel=vel, U=U, S=S, N=N, T=T)
+        vel_P = self._calculate_vel_P(vel=vel, U=U, S=S, N=N, T=T)
 
         return vel_U, vel_S, vel_N, vel_T, vel_P
 
-    def filter(self):
+    def _filter(self):
         filter_list, filter_gene_mode_list = (
             [
                 "use_for_pca",
@@ -373,7 +361,7 @@ class BaseDynamics:
             raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
         return filter_gene_mode, valid_bools, gene_num
 
-    def smooth(self, valid_bools):
+    def _smooth(self, valid_bools):
         M_layers = [i for i in self.adata.layers.keys() if i.startswith("M_")]
 
         if len(M_layers) < 2 or self.re_smooth:
@@ -393,7 +381,7 @@ class BaseDynamics:
                 f"performed. Try setting re_smooth = True if not sure."
             )
 
-    def sanity_check(self, valid_bools, valid_bools_, gene_num, subset_adata, kin_param_pre):
+    def _sanity_check(self, valid_bools, valid_bools_, gene_num, subset_adata, kin_param_pre):
         indices_valid_bools = np.where(valid_bools)[0]
         self.t, L = (
             self.t.flatten(),
@@ -435,10 +423,10 @@ class BaseDynamics:
 
     def estimate(self):
         self.X_data, self.X_fit_data = None, None
-        filter_gene_mode, valid_bools, gene_num = self.filter()
+        filter_gene_mode, valid_bools, gene_num = self._filter()
 
         if self.model.lower() == "stochastic" or self.use_smoothed or self.re_smooth:
-            self.smooth(valid_bools=valid_bools)
+            self._smooth(valid_bools=valid_bools)
 
         valid_adata = self.adata[:, valid_bools].copy()
         if self.group is not None and self.group in self.adata.obs.columns:
@@ -539,88 +527,102 @@ class BaseDynamics:
 
 
 class SplicedDynamics(BaseDynamics):
-    # TODO: make sure NTR_vel is False when initialization and remove NTR_vel here
-    def calculate_vel_U(self, vel, U, S, N, T):
-        return vel.vel_u(N) if self.NTR_vel else vel.vel_u(U)
-
-    def calculate_vel_S(self, vel, U, S, N, T):
-        return vel.vel_s(N, T) if self.NTR_vel else vel.vel_s(U, S)
-
-    def calculate_vel_N(self, vel, U, S, N, T):
-        return np.nan
-
-    def calculate_vel_T(self, vel, U, S, N, T):
-        return np.nan
+    def _calculate_velocity(self, vel, U, S, N, T):
+        vel_U = vel.vel_u(U)
+        vel_S = vel.vel_s(U, S)
+        vel_N = np.nan
+        vel_T = np.nan
 
 
 class LabeledDynamics(BaseDynamics):
-    def calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_vel_U(self, vel, U, S, N, T):
+        raise NotImplementedError("This method has not been implemented.")
+
+    def _calculate_vel_S(self, vel, U, S, N, T):
+        raise NotImplementedError("This method has not been implemented.")
+
+    def _calculate_vel_N(self, vel, U, S, N, T):
+        raise NotImplementedError("This method has not been implemented.")
+
+    def _calculate_vel_T(self, vel, U, S, N, T):
+        raise NotImplementedError("This method has not been implemented.")
+
+    def _calculate_velocity(self, vel, U, S, N, T):
+        if self.has_splicing:
+            vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+        else:
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self._calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self._calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class OneShotDynamics(LabeledDynamics):
+    def _calculate_vel_U(self, vel, U, S, N, T):
         return vel.vel_u(U)
 
-    def calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_S(self, vel, U, S, N, T):
         return vel.vel_s(U, S)
 
-    def calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(self, vel, U, S, N, T):
         return vel.vel_u(N)
 
-    def calculate_vel_T(self, vel, U, S, N, T):
-        return vel.vel_s(N, T - N)
-
-    def calc_extra_parameters(self):
-        pass
-
-    def calculate_velocity(self, subset_adata):
-        U, S = get_U_S_for_velocity_estimation(
-            subset_adata,
-            self.use_smoothed,
-            self.has_splicing,
-            self.has_labeling,
-            self.log_unnormalized,
-            False,
-        )
-        N, T = get_U_S_for_velocity_estimation(
-            subset_adata,
-            self.use_smoothed,
-            self.has_splicing,
-            self.has_labeling,
-            self.log_unnormalized,
-            True,
-        )
-        if self.assumption_mRNA.lower() == "ss" or (self.experiment_type.lower() in ["one-shot", "mix_std_stm"]):
-            vel = Velocity(estimation=self.est)
-        elif self.assumption_mRNA.lower() == "kinetic":
-            params = {"alpha": self.alpha, "beta": self.beta, "gamma": self.gamma, "t": self.t}
-            vel = Velocity(**params)
-        else:
-            main_warning("Not implemented yet.")
-
-        self.calc_extra_parameters()
-        if self.has_splicing:
-            vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
-            vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
-        else:
-            vel_U = np.nan
-            vel_S = np.nan
-        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
-        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
-        vel_P = self.calculate_vel_P(vel=vel, U=U, S=S, N=N, T=T)
-
-        return vel_U, vel_S, vel_N, vel_T, vel_P
+    def _calculate_vel_T(self, vel, U, S, N, T):
+        return vel.vel_s(N, T - N) if self.has_splicing else vel.vel_u(T)
 
 
 class SSKineticsDynamics(LabeledDynamics):
-    def calc_extra_parameters(self):
-        self.Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
-        self.gamma_ = -(np.log(1 - self.Kc) / self.t[None, :])  # actual gamma
+    def _calculate_vel_U(self, vel, U, S, N, T):
+        return N.multiply(csr_matrix(self.gamma_ / self.Kc)) - csr_matrix(self.beta).multiply(U)
 
-    def calculate_vel_U(self, vel, U, S, N, T):
-        return N.multiply(csr_matrix(self.gamma_ / self.Kc)) - csr_matrix(self.beta).multiply(U)  # vel.vel_s(U_)
+    def _calculate_vel_S(self, vel, U, S, N, T):
+        return vel.vel_s(U, S)
 
-    def calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(self, vel, U, S, N, T):
         return (N - csr_matrix(self.Kc).multiply(N)).multiply(csr_matrix(self.gamma_ / self.Kc))
 
-    def calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_T(self, vel, U, S, N, T):
         return (N - csr_matrix(self.Kc).multiply(T)).multiply(csr_matrix(self.gamma_ / self.Kc))
+
+    def _calculate_velocity(self, vel, U, S, N, T):
+        self.Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+        self.gamma_ = -(np.log(1 - self.Kc) / self.t[None, :])  # actual gamma
+        if self.has_splicing:
+            vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+        else:
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self._calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self._calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class KineticsDynamics(LabeledDynamics):
+    def _calculate_vel_U(self, vel, U, S, N, T):
+        return vel.vel_u(U)
+
+    def _calculate_vel_S(self, vel, U, S, N, T):
+        return vel.vel_s(U, S)
+
+    def _calculate_vel_N(self, vel, U, S, N, T):
+        return vel.vel_u(N)
+
+    def _calculate_vel_T(self, vel, U, S, N, T):
+        return vel.vel_u(T)
+
+    def _calculate_velocity(self, vel, U, S, N, T):
+        if self.has_splicing:
+            vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+            vel.parameters["beta"] = self.gamma
+        else:
+            vel_U, vel_S = np.nan, np.nan
+            alpha_ = one_shot_alpha_matrix(T, self.gamma, self.t)
+            vel.parameters["alpha"] = alpha_
+        vel_N = self._calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self._calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
 
 
 # TODO: rename this later
