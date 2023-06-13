@@ -592,7 +592,7 @@ class KineticsDynamics(LabeledDynamics):
             vel.parameters["beta"] = self.gamma
         else:
             vel_U, vel_S = np.nan, np.nan
-            alpha_ = one_shot_alpha_matrix(T, self.gamma, self.t)
+            alpha_ = one_shot_alpha_matrix(N, self.gamma, self.t)
             vel.parameters["alpha"] = alpha_
         vel_N = self._calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
         vel_T = self._calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
@@ -786,12 +786,14 @@ def dynamics_wrapper(
     if experiment_type == "conventional":
         estimator = SplicedDynamics(dynamics_kwargs)
     elif experiment_type in ["one-shot", "one_shot"]:
-        estimator = SplicedDynamics(dynamics_kwargs)
+        estimator = OneShotDynamics(dynamics_kwargs)
     elif experiment_type == "kin":
         if assumption_mRNA == "ss":
             estimator = SSKineticsDynamics(dynamics_kwargs)
-        elif assumption_mRNA == "kin":
+        elif assumption_mRNA == "kinetic":
             estimator = KineticsDynamics(dynamics_kwargs)
+        else:
+            raise NotImplementedError("This method has not been implemented.")
     elif experiment_type == "deg":
         estimator = DegradationDynamics(dynamics_kwargs)
     elif experiment_type == "mix_std_stm":
