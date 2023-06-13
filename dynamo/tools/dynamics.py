@@ -566,6 +566,9 @@ class LabeledDynamics(BaseDynamics):
     def calculate_vel_T(self, vel, U, S, N, T):
         return vel.vel_s(N, T - N)
 
+    def calc_extra_parameters(self):
+        pass
+
     def calculate_velocity(self, subset_adata):
         U, S = get_U_S_for_velocity_estimation(
             subset_adata,
@@ -591,6 +594,7 @@ class LabeledDynamics(BaseDynamics):
         else:
             main_warning("Not implemented yet.")
 
+        self.calc_extra_parameters()
         if self.has_splicing:
             vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
             vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
@@ -602,6 +606,21 @@ class LabeledDynamics(BaseDynamics):
         vel_P = self.calculate_vel_P(vel=vel, U=U, S=S, N=N, T=T)
 
         return vel_U, vel_S, vel_N, vel_T, vel_P
+
+
+class SSKineticsDynamics(LabeledDynamics):
+    def calc_extra_parameters(self):
+        self.Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+        self.gamma_ = -(np.log(1 - self.Kc) / self.t[None, :])  # actual gamma
+
+    def calculate_vel_U(self, vel, U, S, N, T):
+        return N.multiply(csr_matrix(self.gamma_ / self.Kc)) - csr_matrix(self.beta).multiply(U)  # vel.vel_s(U_)
+
+    def calculate_vel_N(self, vel, U, S, N, T):
+        return (N - csr_matrix(self.Kc).multiply(N)).multiply(csr_matrix(self.gamma_ / self.Kc))
+
+    def calculate_vel_S(self, vel, U, S, N, T):
+        return (N - csr_matrix(self.Kc).multiply(T)).multiply(csr_matrix(self.gamma_ / self.Kc))
 
 
 # TODO: rename this later
