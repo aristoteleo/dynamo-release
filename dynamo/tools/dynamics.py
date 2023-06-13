@@ -38,6 +38,7 @@ from .moments import (
     prepare_data_no_splicing,
 )
 from .utils import (
+    get_auto_assump_mRNA,
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
     get_valid_bools,
@@ -53,69 +54,41 @@ warnings.simplefilter("ignore", SparseEfficiencyWarning)
 
 
 class BaseDynamics:
-    def __init__(
-        self,
-        adata: AnnData,
-        filter_gene_mode: Literal["final", "basic", "no"] = "final",
-        use_smoothed: bool = True,
-        assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
-        assumption_protein: Literal["ss"] = "ss",
-        model: Literal["auto", "deterministic", "stochastic"] = "auto",
-        model_was_auto: bool = True,
-        experiment_type: str = None,
-        has_splicing: bool = True,
-        has_labeling: bool = False,
-        splicing_labeling: bool = False,
-        has_protein: bool = False,
-        est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
-        NTR_vel: bool = False,
-        group: Optional[str] = None,
-        protein_names: Optional[List[str]] = None,
-        concat_data: bool = False,
-        log_unnormalized: bool = True,
-        one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
-        fraction_for_deg: bool = False,
-        re_smooth: bool = False,
-        sanity_check: bool = False,
-        del_2nd_moments: Optional[bool] = None,
-        cores: int = 1,
-        tkey: str = None,
-        **est_kwargs,
-    ):
-        self.adata = adata
-        self.filter_gene_mode = filter_gene_mode
-        self.use_smoothed = use_smoothed
-        self.assumption_mRNA = assumption_mRNA
-        self.assumption_protein = assumption_protein
-        self.model = model
-        self.model_was_auto = model_was_auto
-        self.experiment_type = experiment_type
-        self.has_splicing = has_splicing
-        self.has_labeling = has_labeling
-        self.splicing_labeling = splicing_labeling
-        self.has_protein = has_protein
-        self.est_method = est_method
-        self.NTR_vel = NTR_vel
-        self.group = group
-        self.protein_names = protein_names
-        self.concat_data = concat_data
-        self.log_unnormalized = log_unnormalized
-        self.one_shot_method = one_shot_method
-        self.fraction_for_deg = fraction_for_deg
-        self.re_smooth = re_smooth
-        self.sanity_check = sanity_check
+    def __init__(self, dynamics_kwargs):
+        self.adata = dynamics_kwargs["adata"]
+        self.filter_gene_mode = dynamics_kwargs["filter_gene_mode"]
+        self.use_smoothed = dynamics_kwargs["use_smoothed"]
+        self.assumption_mRNA = dynamics_kwargs["assumption_mRNA"]
+        self.assumption_protein = dynamics_kwargs["assumption_protein"]
+        self.model = dynamics_kwargs["model"]
+        self.model_was_auto = dynamics_kwargs["model_was_auto"]
+        self.experiment_type = dynamics_kwargs["experiment_type"]
+        self.has_splicing = dynamics_kwargs["has_splicing"]
+        self.has_labeling = dynamics_kwargs["has_labeling"]
+        self.splicing_labeling = dynamics_kwargs["splicing_labeling"]
+        self.has_protein = dynamics_kwargs["has_protein"]
+        self.est_method = dynamics_kwargs["est_method"]
+        self.NTR_vel = dynamics_kwargs["NTR_vel"]
+        self.group = dynamics_kwargs["group"]
+        self.protein_names = dynamics_kwargs["protein_names"]
+        self.concat_data = dynamics_kwargs["concat_data"]
+        self.log_unnormalized = dynamics_kwargs["log_unnormalized"]
+        self.one_shot_method = dynamics_kwargs["one_shot_method"]
+        self.fraction_for_deg = dynamics_kwargs["fraction_for_deg"]
+        self.re_smooth = dynamics_kwargs["re_smooth"]
+        self.sanity_check = dynamics_kwargs["sanity_check"]
         self.del_2nd_moments = DynamoAdataConfig.use_default_var_if_none(
-            del_2nd_moments, DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY
+            dynamics_kwargs["del_2nd_moments"], DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY
         )
-        self.cores = cores
-        if tkey is not None:
-            if adata.obs[tkey].max() > 60:
+        self.cores = dynamics_kwargs["cores"]
+        if dynamics_kwargs["tkey"] is not None:
+            if dynamics_kwargs["adata"].obs[dynamics_kwargs["tkey"]].max() > 60:
                 main_warning(
                     "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
                     "we recommend using hour as the time unit."
                 )
-        self.tkey = adata.uns["pp"]["tkey"] if tkey is None else tkey
-        self.est_kwargs = est_kwargs
+        self.tkey = self.adata.uns["pp"]["tkey"] if dynamics_kwargs["tkey"] is None else dynamics_kwargs["tkey"]
+        self.est_kwargs = dynamics_kwargs["est_kwargs"]
 
     def _estimate_params_ss(self, subset_adata, **est_params_args):
         if self.est_method.lower() == "auto":
@@ -532,6 +505,7 @@ class SplicedDynamics(BaseDynamics):
         vel_S = vel.vel_s(U, S)
         vel_N = np.nan
         vel_T = np.nan
+        return vel_U, vel_S, vel_N, vel_T
 
 
 class LabeledDynamics(BaseDynamics):
@@ -639,7 +613,7 @@ class DegradationDynamics(LabeledDynamics):
         return np.nan
 
 
-class MixStdSdmDynamics(LabeledDynamics):
+class MixStdStmDynamics(LabeledDynamics):
     def _calculate_vel_U(self, vel, U, S, N, T):
         return self.alpha1 - csr_matrix(self.beta[:, None]).multiply(U)
 
@@ -651,7 +625,7 @@ class MixStdSdmDynamics(LabeledDynamics):
 
     def _calculate_vel_T(self, vel, U, S, N, T):
         return self.alpha1 - csr_matrix(self.gamma[:, None]).multiply(T)
-    
+
     def _calculate_velocity(self, vel, U, S, N, T):
         if self.has_splicing:
             u0, self.u_new, self.alpha1 = solve_alpha_2p_mat(
@@ -680,6 +654,7 @@ class MixStdSdmDynamics(LabeledDynamics):
 class MixKineticsDynamics(LabeledDynamics):
     def _calculate_vel_U(self, vel, U, S, N, T):
         return vel.vel_u(U, repeat=True)
+
     def _calculate_vel_S(self, vel, U, S, N, T):
         return vel.vel_s(U, S)
 
@@ -704,9 +679,25 @@ class MixKineticsDynamics(LabeledDynamics):
 # TODO: rename this later
 def dynamics_wrapper(
     adata: AnnData,
+    filter_gene_mode: Literal["final", "basic", "no"] = "final",
+    use_smoothed: bool = True,
     assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
+    assumption_protein: Literal["ss"] = "ss",
     model: Literal["auto", "deterministic", "stochastic"] = "auto",
-    **kwargs,
+    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
+    NTR_vel: bool = False,
+    group: Optional[str] = None,
+    protein_names: Optional[List[str]] = None,
+    concat_data: bool = False,
+    log_unnormalized: bool = True,
+    one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
+    fraction_for_deg: bool = False,
+    re_smooth: bool = False,
+    sanity_check: bool = False,
+    del_2nd_moments: Optional[bool] = None,
+    cores: int = 1,
+    tkey: str = None,
+    **est_kwargs,
 ) -> AnnData:
     """Run corresponding Dynamics methods according to the parameters."""
     if "pp" not in adata.uns_keys():
@@ -726,29 +717,13 @@ def dynamics_wrapper(
         adata.uns["pp"]["has_protein"],
     )
 
-    (
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-        assump_mRNA,
-    ) = get_data_for_kin_params_estimation(
-        adata,
-        has_splicing,
-        has_labeling,
-        model,
-        kwargs["use_smoothed"],
-        kwargs["tkey"],
-        kwargs["protein_names"],
-        kwargs["log_unnormalized"],
-        kwargs["NTR_vel"],
+    (NTR_vel, assump_mRNA) = get_auto_assump_mRNA(
+        subset_adata=adata,
+        has_splicing=has_splicing,
+        has_labeling=has_labeling,
+        use_moments=use_smoothed,
+        tkey=tkey,
+        NTR_vel=NTR_vel,
     )
     if assumption_mRNA.lower() == "auto":
         assumption_mRNA = assump_mRNA
@@ -779,30 +754,50 @@ def dynamics_wrapper(
     ]:
         model = "deterministic"
 
+    dynamics_kwargs = {
+        "adata": adata,
+        "filter_gene_mode": filter_gene_mode,
+        "use_smoothed": use_smoothed,
+        "assumption_mRNA": assumption_mRNA,
+        "assumption_protein": assumption_protein,
+        "model": model,
+        "model_was_auto": model_was_auto,
+        "experiment_type": experiment_type,
+        "has_splicing": has_splicing,
+        "has_labeling": has_labeling,
+        "splicing_labeling": splicing_labeling,
+        "has_protein": has_protein,
+        "est_method": est_method,
+        "NTR_vel": NTR_vel,
+        "group": group,
+        "protein_names": protein_names,
+        "concat_data": concat_data,
+        "log_unnormalized": log_unnormalized,
+        "one_shot_method": one_shot_method,
+        "fraction_for_deg": fraction_for_deg,
+        "re_smooth": re_smooth,
+        "sanity_check": sanity_check,
+        "del_2nd_moments": del_2nd_moments,
+        "cores": cores,
+        "tkey": tkey,
+        "est_kwargs": est_kwargs,
+    }
+
     if experiment_type == "conventional":
-        estimator = SplicedDynamics(
-            adata=adata,
-            assumption_mRNA=assumption_mRNA,
-            has_splicing=has_splicing,
-            has_labeling=has_labeling,
-            splicing_labeling=splicing_labeling,
-            has_protein=has_protein,
-            model=model,
-            model_was_auto=model_was_auto,
-            **kwargs,
-        )
+        estimator = SplicedDynamics(dynamics_kwargs)
     elif experiment_type in ["one-shot", "one_shot"]:
-        estimator = SplicedDynamics(
-            adata=adata,
-            assumption_mRNA=assumption_mRNA,
-            has_splicing=has_splicing,
-            has_labeling=has_labeling,
-            splicing_labeling=splicing_labeling,
-            has_protein=has_protein,
-            model=model,
-            model_was_auto=model_was_auto,
-            **kwargs,
-        )
+        estimator = SplicedDynamics(dynamics_kwargs)
+    elif experiment_type == "kin":
+        if assumption_mRNA == "ss":
+            estimator = SSKineticsDynamics(dynamics_kwargs)
+        elif assumption_mRNA == "kin":
+            estimator = KineticsDynamics(dynamics_kwargs)
+    elif experiment_type == "deg":
+        estimator = DegradationDynamics(dynamics_kwargs)
+    elif experiment_type == "mix_std_stm":
+        estimator = MixStdStmDynamics(dynamics_kwargs)
+    elif experiment_type in ["mix_kin_deg", "mix_pulse_chase"]:
+        estimator = MixKineticsDynamics(dynamics_kwargs)
     else:
         raise NotImplementedError("This method has not been implemented.")
     estimator.estimate()

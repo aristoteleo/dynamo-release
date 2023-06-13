@@ -1126,6 +1126,72 @@ def log_unnormalized_data(
     return raw
 
 
+def get_auto_assump_mRNA(
+    subset_adata,
+    has_splicing,
+    has_labeling,
+    use_moments,
+    tkey,
+    NTR_vel,
+):
+    if not NTR_vel:
+        if has_labeling and not has_splicing:
+            main_warning(
+                "Your adata only has labeling data, but `NTR_vel` is set to be "
+                "`False`. Dynamo will reset it to `True` to enable this analysis."
+            )
+        NTR_vel = True
+
+    normalized, assumption_mRNA = (
+        False,
+        None,
+    )
+    mapper = get_mapper()
+
+    # labeling plus splicing
+    if np.all(([i in subset_adata.layers.keys() for i in ["X_ul", "X_sl", "X_su"]])) or np.all(
+        ([mapper[i] in subset_adata.layers.keys() for i in ["X_ul", "X_sl", "X_su"]])
+    ):  # only uu, ul, su, sl provided
+        normalized, assumption_mRNA = (
+            True,
+            "ss" if NTR_vel else "kinetic",
+        )
+
+    elif np.all(([i in subset_adata.layers.keys() for i in ["uu", "ul", "sl", "su"]])):
+        normalized, assumption_mRNA = (
+            False,
+            "ss" if NTR_vel else "kinetic",
+        )
+    # labeling without splicing
+    if not has_splicing and (
+        ("X_new" in subset_adata.layers.keys() and not use_moments)
+        or (mapper["X_new"] in subset_adata.layers.keys() and use_moments)
+    ):  # run new / total ratio (NTR)
+        normalized, assumption_mRNA = (
+            True,
+            "ss" if NTR_vel else "kinetic",
+        )
+    elif not has_splicing and "new" in subset_adata.layers.keys():
+        assumption_mRNA = ("ss" if NTR_vel else "kinetic",)
+    # splicing data
+    if not has_labeling and (
+        ("X_unspliced" in subset_adata.layers.keys() and not use_moments)
+        or (mapper["X_unspliced"] in subset_adata.layers.keys() and use_moments)
+    ):
+        normalized, assumption_mRNA = (
+            True,
+            "kinetic" if tkey in subset_adata.obs.columns else "ss",
+        )
+    elif not has_labeling and "unspliced" in subset_adata.layers.keys():
+        assumption_mRNA = "kinetic" if tkey in subset_adata.obs.columns else "ss"
+
+    if has_labeling:
+        if assumption_mRNA is None:
+            assumption_mRNA = "ss" if NTR_vel else "kinetic"
+
+    return NTR_vel, assumption_mRNA
+
+
 def get_data_for_kin_params_estimation(
     subset_adata,
     has_splicing,
