@@ -625,6 +625,82 @@ class KineticsDynamics(LabeledDynamics):
         return vel_U, vel_S, vel_N, vel_T
 
 
+class DegradationDynamics(LabeledDynamics):
+    def _calculate_vel_U(self, vel, U, S, N, T):
+        return np.nan
+
+    def _calculate_vel_S(self, vel, U, S, N, T):
+        return vel.vel_s(U, S)
+
+    def _calculate_vel_N(self, vel, U, S, N, T):
+        return np.nan
+
+    def _calculate_vel_T(self, vel, U, S, N, T):
+        return np.nan
+
+
+class MixStdSdmDynamics(LabeledDynamics):
+    def _calculate_vel_U(self, vel, U, S, N, T):
+        return self.alpha1 - csr_matrix(self.beta[:, None]).multiply(U)
+
+    def _calculate_vel_S(self, vel, U, S, N, T):
+        return vel.vel_s(U, S)
+
+    def _calculate_vel_N(self, vel, U, S, N, T):
+        return self.alpha1 - csr_matrix(self.gamma[:, None]).multiply(self.u_new)
+
+    def _calculate_vel_T(self, vel, U, S, N, T):
+        return self.alpha1 - csr_matrix(self.gamma[:, None]).multiply(T)
+    
+    def _calculate_velocity(self, vel, U, S, N, T):
+        if self.has_splicing:
+            u0, self.u_new, self.alpha1 = solve_alpha_2p_mat(
+                t0=np.max(self.t) - self.t,
+                t1=self.t,
+                alpha0=self.alpha[0],
+                beta=self.beta,
+                u1=N,
+            )
+            vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+        else:
+            u0, self.u_new, self.alpha1 = solve_alpha_2p_mat(
+                t0=np.max(self.t) - self.t,
+                t1=self.t,
+                alpha0=self.alpha[0],
+                beta=self.gamma,
+                u1=N,
+            )
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self._calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self._calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class MixKineticsDynamics(LabeledDynamics):
+    def _calculate_vel_U(self, vel, U, S, N, T):
+        return vel.vel_u(U, repeat=True)
+    def _calculate_vel_S(self, vel, U, S, N, T):
+        return vel.vel_s(U, S)
+
+    def _calculate_vel_N(self, vel, U, S, N, T):
+        return vel.vel_u(N, repeat=True)
+
+    def _calculate_vel_T(self, vel, U, S, N, T):
+        return vel.vel_u(T) if not self.has_splicing and self.NTR_vel else vel.vel_u(T, repeat=True)
+
+    def _calculate_velocity(self, vel, U, S, N, T):
+        if self.has_splicing:
+            vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+            vel.parameters["beta"] = self.gamma
+        else:
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self._calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self._calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
 # TODO: rename this later
 def dynamics_wrapper(
     adata: AnnData,
