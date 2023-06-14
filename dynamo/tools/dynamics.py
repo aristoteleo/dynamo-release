@@ -10,6 +10,7 @@ except ImportError:
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from numpy import ndarray
 from scipy.sparse import SparseEfficiencyWarning, csr_matrix, issparse
 from tqdm import tqdm
 
@@ -54,7 +55,9 @@ warnings.simplefilter("ignore", SparseEfficiencyWarning)
 
 
 class BaseDynamics:
-    def __init__(self, dynamics_kwargs):
+    """The base class for the inclusive model of expression dynamics considers splicing, metabolic labeling and protein
+    translation."""
+    def __init__(self, dynamics_kwargs: Dict):
         self.adata = dynamics_kwargs["adata"]
         self.filter_gene_mode = dynamics_kwargs["filter_gene_mode"]
         self.use_smoothed = dynamics_kwargs["use_smoothed"]
@@ -90,7 +93,8 @@ class BaseDynamics:
         self.tkey = self.adata.uns["pp"]["tkey"] if dynamics_kwargs["tkey"] is None else dynamics_kwargs["tkey"]
         self.est_kwargs = dynamics_kwargs["est_kwargs"]
 
-    def _estimate_params_ss(self, subset_adata, **est_params_args):
+    def _estimate_params_ss(self, subset_adata: AnnData, **est_params_args):
+        """Estimate velocity parameters with steady state mRNA assumption."""
         if self.est_method.lower() == "auto":
             self.est_method = "gmm" if self.model.lower() == "stochastic" else "ols"
 
@@ -134,7 +138,8 @@ class BaseDynamics:
 
         self.alpha, self.beta, self.gamma, self.eta, self.delta = self.est.parameters.values()
 
-    def _estimate_params_kin(self, cur_grp_i, cur_grp, subset_adata, **est_params_args):
+    def _estimate_params_kin(self, cur_grp_i: int, cur_grp: str, subset_adata: AnnData, **est_params_args):
+        """Estimate velocity parameters with kinetic mRNA assumption."""
         return_ntr = True if self.fraction_for_deg and self.experiment_type.lower() == "deg" else False
 
         if self.model_was_auto and self.experiment_type.lower() == "kin":
@@ -201,7 +206,9 @@ class BaseDynamics:
 
         self.kin_extra_params = params.loc[:, params.columns.difference(all_kinetic_params)]
 
-    def estimate_parameters(self, cur_grp_i, cur_grp, subset_adata, **est_params_args):
+    def estimate_parameters(self, cur_grp_i: int, cur_grp: str, subset_adata: AnnData, **est_params_args):
+        """Wrapper to call corresponding parameters estimation functions according to assumptions. Override this in the
+        subclass if the class doesn't use ss_estimation or kinetic_model to estimate."""
         if self.assumption_mRNA.lower() == "ss" or (self.experiment_type.lower() in ["one-shot", "mix_std_stm"]):
             self._estimate_params_ss(subset_adata=subset_adata, **est_params_args)
         elif self.assumption_mRNA.lower() == "kinetic":
@@ -209,7 +216,21 @@ class BaseDynamics:
         else:
             main_warning("Not implemented yet.")
 
-    def set_velocity(self, vel_U, vel_S, vel_N, vel_T, vel_P, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre, **set_velo_args):
+    def set_velocity(
+        self,
+        vel_U: Union[ndarray, csr_matrix],
+        vel_S: Union[ndarray, csr_matrix],
+        vel_N: Union[ndarray, csr_matrix],
+        vel_T: Union[ndarray, csr_matrix],
+        vel_P: Union[ndarray, csr_matrix],
+        cur_grp: int,
+        cur_cells_bools: ndarray,
+        valid_bools_: ndarray,
+        kin_param_pre: str,
+        **set_velo_args,
+    ):
+        """Save the calculated parameters and velocity to anndata. Override this in the subclass if the class has a
+        different assumption."""
         if self.assumption_mRNA.lower() == "ss" or (self.experiment_type.lower() in ["one-shot", "mix_std_stm"]):
             self.adata = set_velocity(
                 self.adata,
@@ -276,13 +297,41 @@ class BaseDynamics:
         else:
             main_warning("Not implemented yet.")
 
-    def _calculate_velocity(self, vel, U, S, N, T):
+    def _calculate_velocity(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """The core function to calculate the RNA velocity. Every subclass needs to implement this function.
+
+        Args:
+            vel: the Velocity object to calculate the velocity.
+            U: the matrix representing unspliced layer.
+            S: the matrix representing spliced layer.
+            N: the matrix representing new layer in metabolic labeling.
+            T: the matrix representing total layer in metabolic labeling.
+
+        Returns:
+            The velocity matrix for unspliced, spliced, new and total layers.
+        """
         raise NotImplementedError("This method has not been implemented.")
 
-    def _calculate_vel_P(self, vel, U, S, N, T):
+    def _calculate_vel_P(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        """Calculate the protein velocity."""
         return vel.vel_p(T, self.P) if self.NTR_vel else vel.vel_p(S, self.P)
 
-    def calculate_velocity(self, subset_adata):
+    def calculate_velocity(self, subset_adata: AnnData) -> Tuple:
+        """Read the U, S, N, T matrix, create the Velocity class and call the velocity calculation function."""
         U, S = get_U_S_for_velocity_estimation(
             subset_adata,
             self.use_smoothed,
@@ -312,7 +361,8 @@ class BaseDynamics:
 
         return vel_U, vel_S, vel_N, vel_T, vel_P
 
-    def _filter(self):
+    def _filter(self) -> Tuple:
+        """Get filter bools based on existing filter in AnnData."""
         filter_list, filter_gene_mode_list = (
             [
                 "use_for_pca",
@@ -334,7 +384,8 @@ class BaseDynamics:
             raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
         return filter_gene_mode, valid_bools, gene_num
 
-    def _smooth(self, valid_bools):
+    def _smooth(self, valid_bools: ndarray):
+        """Smooth the data by moments when necessary."""
         M_layers = [i for i in self.adata.layers.keys() if i.startswith("M_")]
 
         if len(M_layers) < 2 or self.re_smooth:
@@ -354,7 +405,15 @@ class BaseDynamics:
                 f"performed. Try setting re_smooth = True if not sure."
             )
 
-    def _sanity_check(self, valid_bools, valid_bools_, gene_num, subset_adata, kin_param_pre):
+    def _sanity_check(
+        self,
+        valid_bools: ndarray,
+        valid_bools_: ndarray,
+        gene_num: int,
+        subset_adata: AnnData,
+        kin_param_pre: str,
+    ) -> Tuple:
+        """Perform sanity check by checking the slope for kinetic or degradation metabolic labeling experiments."""
         indices_valid_bools = np.where(valid_bools)[0]
         self.t, L = (
             self.t.flatten(),
@@ -395,6 +454,12 @@ class BaseDynamics:
         return subset_adata, valid_bools_
 
     def estimate(self):
+        """Main function to estimate the RNA dynamics.
+
+        The function initially conducts filtering, smoothing, and sanity checks to ensure data quality. Subsequently, it
+        calls the corresponding functions to estimate parameters and compute velocity. Lastly, it updates the AnnData
+        object and save all results.
+        """
         self.X_data, self.X_fit_data = None, None
         filter_gene_mode, valid_bools, gene_num = self._filter()
 
@@ -500,7 +565,14 @@ class BaseDynamics:
 
 
 class SplicedDynamics(BaseDynamics):
-    def _calculate_velocity(self, vel, U, S, N, T):
+    def _calculate_velocity(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
         vel_N = np.nan
@@ -509,19 +581,54 @@ class SplicedDynamics(BaseDynamics):
 
 
 class LabeledDynamics(BaseDynamics):
-    def _calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         raise NotImplementedError("This method has not been implemented.")
 
-    def _calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         raise NotImplementedError("This method has not been implemented.")
 
-    def _calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         raise NotImplementedError("This method has not been implemented.")
 
-    def _calculate_vel_T(self, vel, U, S, N, T):
+    def _calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         raise NotImplementedError("This method has not been implemented.")
 
-    def _calculate_velocity(self, vel, U, S, N, T):
+    def _calculate_velocity(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
         if self.has_splicing:
             vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
             vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
@@ -533,33 +640,96 @@ class LabeledDynamics(BaseDynamics):
 
 
 class OneShotDynamics(LabeledDynamics):
-    def _calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(U)
 
-    def _calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(U, S)
 
-    def _calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(N)
 
-    def _calculate_vel_T(self, vel, U, S, N, T):
+    def _calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(N, T - N) if self.has_splicing else vel.vel_u(T)
 
 
 class SSKineticsDynamics(LabeledDynamics):
-    def _calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return N.multiply(csr_matrix(self.gamma_ / self.Kc)) - csr_matrix(self.beta).multiply(U)
 
-    def _calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(U, S)
 
-    def _calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return (N - csr_matrix(self.Kc).multiply(N)).multiply(csr_matrix(self.gamma_ / self.Kc))
 
-    def _calculate_vel_T(self, vel, U, S, N, T):
+    def _calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return (N - csr_matrix(self.Kc).multiply(T)).multiply(csr_matrix(self.gamma_ / self.Kc))
 
-    def _calculate_velocity(self, vel, U, S, N, T):
+    def _calculate_velocity(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
         self.Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
         self.gamma_ = -(np.log(1 - self.Kc) / self.t[None, :])  # actual gamma
         if self.has_splicing:
@@ -573,19 +743,54 @@ class SSKineticsDynamics(LabeledDynamics):
 
 
 class KineticsDynamics(LabeledDynamics):
-    def _calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(U)
 
-    def _calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(U, S)
 
-    def _calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(N)
 
-    def _calculate_vel_T(self, vel, U, S, N, T):
+    def _calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(T)
 
-    def _calculate_velocity(self, vel, U, S, N, T):
+    def _calculate_velocity(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
         if self.has_splicing:
             vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
             vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
@@ -600,33 +805,96 @@ class KineticsDynamics(LabeledDynamics):
 
 
 class DegradationDynamics(LabeledDynamics):
-    def _calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return np.nan
 
-    def _calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(U, S)
 
-    def _calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return np.nan
 
-    def _calculate_vel_T(self, vel, U, S, N, T):
+    def _calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return np.nan
 
 
 class MixStdStmDynamics(LabeledDynamics):
-    def _calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return self.alpha1 - csr_matrix(self.beta[:, None]).multiply(U)
 
-    def _calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(U, S)
 
-    def _calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return self.alpha1 - csr_matrix(self.gamma[:, None]).multiply(self.u_new)
 
-    def _calculate_vel_T(self, vel, U, S, N, T):
+    def _calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return self.alpha1 - csr_matrix(self.gamma[:, None]).multiply(T)
 
-    def _calculate_velocity(self, vel, U, S, N, T):
+    def _calculate_velocity(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
         if self.has_splicing:
             u0, self.u_new, self.alpha1 = solve_alpha_2p_mat(
                 t0=np.max(self.t) - self.t,
@@ -652,19 +920,54 @@ class MixStdStmDynamics(LabeledDynamics):
 
 
 class MixKineticsDynamics(LabeledDynamics):
-    def _calculate_vel_U(self, vel, U, S, N, T):
+    def _calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(U, repeat=True)
 
-    def _calculate_vel_S(self, vel, U, S, N, T):
+    def _calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(U, S)
 
-    def _calculate_vel_N(self, vel, U, S, N, T):
+    def _calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(N, repeat=True)
 
-    def _calculate_vel_T(self, vel, U, S, N, T):
+    def _calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(T) if not self.has_splicing and self.NTR_vel else vel.vel_u(T, repeat=True)
 
-    def _calculate_velocity(self, vel, U, S, N, T):
+    def _calculate_velocity(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
         if self.has_splicing:
             vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
             vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
