@@ -1339,7 +1339,8 @@ def dynamics_wrapper(
         estimator = MixKineticsDynamics(dynamics_kwargs)
     else:
         raise NotImplementedError("This method has not been implemented.")
-    estimator.estimate()
+    adata = estimator.estimate()
+    return adata
 
 
 # incorporate the model selection code soon

@@ -1172,7 +1172,7 @@ def get_auto_assump_mRNA(
             "ss" if NTR_vel else "kinetic",
         )
     elif not has_splicing and "new" in subset_adata.layers.keys():
-        assumption_mRNA = ("ss" if NTR_vel else "kinetic",)
+        assumption_mRNA = "ss" if NTR_vel else "kinetic"
     # splicing data
     if not has_labeling and (
         ("X_unspliced" in subset_adata.layers.keys() and not use_moments)
