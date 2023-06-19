@@ -173,6 +173,16 @@ def moments(
             )
 
     layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
+
+    # for CSP-type method
+    layers_raw = [
+        layer
+        for layer in layers
+        if not (layer.startswith("X")) and not (layer.startswith("M")) and (
+                    not layer.endswith("matrix") and not layer.endswith("ambiguous"))
+    ]
+    layers_raw.sort(reverse=True)  # ensure we get M_CSP_us, M_CSP_tn, etc (instead of M_CSP_su or M_CSP_nt).
+
     layers = [
         layer
         for layer in layers
@@ -223,6 +233,30 @@ def moments(
             adata.layers["M_" + layer[2] + layer2[2]] = calc_2nd_moment(
                 layer_x, layer_y, conn, normalize_W=normalize, mX=None, mY=None
             )
+
+    # for CSP-type method
+    size_factor = adata.obs['Size_Factor'].astype("float").values
+    mapper_CSP = {
+        "new": "M_CSP_n",
+        "old": "M_CSP_o",
+        "total": "M_CSP_t",
+        "uu": "M_CSP_uu",
+        "ul": "M_CSP_ul",
+        "su": "M_CSP_su",
+        "sl": "M_CSP_sl",
+        "unspliced": "M_CSP_u",
+        "spliced": "M_CSP_s",
+    }
+
+    # for CSP-type method
+    for i, layer in enumerate(layers_raw):
+        layer_x = adata.layers[layer].copy()
+        layer_x = inverse_norm(adata, layer_x)
+
+        if mapper_CSP[layer] not in adata.layers.keys():
+            local_size_factor = conn.dot(size_factor)
+            local_raw_counts = conn.dot(layer_x)
+            adata.layers[mapper_CSP[layer]] = csr_matrix(local_raw_counts/local_size_factor.reshape(-1,1))
 
     if "X_protein" in adata.obsm.keys():  # may need to update with mnn or just use knn from protein layer itself.
         adata.obsm[mapper["X_protein"]] = conn.dot(adata.obsm["X_protein"])
