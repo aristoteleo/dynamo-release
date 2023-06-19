@@ -141,6 +141,8 @@ class Velocity:
 
             if self.parameters["beta"].ndim == 1:
                 beta = np.repeat(self.parameters["beta"].reshape((-1, 1)), U.shape[1], axis=1)
+            elif self.parameters["beta"].shape[1] == U.shape[1]:  # to support cell-wise beta
+                beta = self.parameters["beta"]
             elif self.parameters["beta"].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 beta = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):

@@ -376,9 +376,11 @@ class BaseDynamics:
 
         if type(params) == dict:
             self.alpha = params.pop("alpha")
+            self.beta = params.pop("beta") if "beta" in params else None
             params = pd.DataFrame(params)
         else:
             self.alpha = params.loc[:, "alpha"].values if "alpha" in params.columns else None
+            self.beta = params.loc[:, "beta"].values if "beta" in params.columns else None
 
         len_t, len_g = len(np.unique(self.t)), len(self._group)
         if cur_grp == self._group[0]:
@@ -395,12 +397,19 @@ class BaseDynamics:
                 cur_X_fit_data,
             )
 
-        self.a, self.b, self.alpha_a, self.alpha_i, self.beta, self.gamma = (
+        # self.a, self.b, self.alpha_a, self.alpha_i, self.beta, self.gamma = (
+        #     params.loc[:, "a"].values if "a" in params.columns else None,
+        #     params.loc[:, "b"].values if "b" in params.columns else None,
+        #     params.loc[:, "alpha_a"].values if "alpha_a" in params.columns else None,
+        #     params.loc[:, "alpha_i"].values if "alpha_i" in params.columns else None,
+        #     params.loc[:, "beta"].values if "beta" in params.columns else None,
+        #     params.loc[:, "gamma"].values if "gamma" in params.columns else None,
+        # )
+        self.a, self.b, self.alpha_a, self.alpha_i, self.gamma = (
             params.loc[:, "a"].values if "a" in params.columns else None,
             params.loc[:, "b"].values if "b" in params.columns else None,
             params.loc[:, "alpha_a"].values if "alpha_a" in params.columns else None,
             params.loc[:, "alpha_i"].values if "alpha_i" in params.columns else None,
-            params.loc[:, "beta"].values if "beta" in params.columns else None,
             params.loc[:, "gamma"].values if "gamma" in params.columns else None,
         )
         if self.alpha is None:
