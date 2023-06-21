@@ -316,6 +316,16 @@ class BaseDynamics:
         else:
             ss_estimation_kwargs = {}
 
+        if self.one_shot_method == "storm-csp":
+            _, valid_bools, _ = self._filter()
+            self.NewCounts = self.adata[:, valid_bools].layers['new'].T
+            self.TotalCounts = self.adata[:, valid_bools].layers['total'].T
+            self.NewSmoothCSP = self.adata[:, valid_bools].layers['M_CSP_n'].T
+        else:
+            self.NewCounts = None
+            self.TotalCounts = None
+            self.NewSmoothCSP = None
+
         self.est = ss_estimation(
             U=self.U.copy() if self.U is not None else None,
             Ul=self.Ul.copy() if self.Ul is not None else None,
@@ -324,6 +334,9 @@ class BaseDynamics:
             P=self.P.copy() if self.P is not None else None,
             US=self.US.copy() if self.US is not None else None,
             S2=self.S2.copy() if self.S2 is not None else None,
+            NewCounts=self.NewCounts.copy() if self.NewCounts is not None else None,
+            TotalCounts=self.TotalCounts.copy() if self.TotalCounts is not None else None,
+            NewSmoothCSP=self.NewSmoothCSP.copy() if self.NewSmoothCSP is not None else None,
             conn=subset_adata.obsp["moments_con"],
             t=self.t,
             ind_for_proteins=self.ind_for_proteins,
@@ -341,7 +354,10 @@ class BaseDynamics:
             warnings.simplefilter("ignore")
 
             if self.experiment_type.lower() in ["one-shot", "one_shot"]:
-                self.est.fit(one_shot_method=self.one_shot_method, **self.est_kwargs)
+                if self.one_shot_method == "storm-csp":
+                    self.est.fit(one_shot_method=self.one_shot_method, perc_right=50, **self.est_kwargs)
+                else:
+                    self.est.fit(one_shot_method=self.one_shot_method, **self.est_kwargs)
             else:
                 # experiment_type can be `kin` also and by default use
                 # conventional method to estimate k but correct for time
@@ -1417,11 +1433,7 @@ def dynamics_wrapper(
     if experiment_type == "conventional":
         estimator = SplicedDynamics(dynamics_kwargs)
     elif experiment_type in ["one-shot", "one_shot"]:
-        if model == 'deterministic':
-            estimator = OneShotDynamics(dynamics_kwargs)
-        elif model == 'stochastic':
-            dynamics_kwargs['est_method'] = 'storm-csp'
-            estimator = OneShotDynamics(dynamics_kwargs)
+        estimator = OneShotDynamics(dynamics_kwargs)
     elif experiment_type == "kin":
         if assumption_mRNA == "ss":
             estimator = SSKineticsDynamics(dynamics_kwargs)

@@ -2269,6 +2269,9 @@ def set_transition_genes(
         #     min_r2 = 0.5 if min_r2 is None else min_r2
         # else:
         min_r2 = 0.9 if min_r2 is None else min_r2
+    elif "storm" in adata.uns["dynamics"]["est_method"] and adata.uns["dynamics"]["experiment_type"] == "kin":
+        # for storm method
+        min_r2 = 0.9 if min_r2 is None else min_r2
     elif adata.uns["dynamics"]["experiment_type"] in [
         "mix_kin_deg",
         "mix_pulse_chase",
