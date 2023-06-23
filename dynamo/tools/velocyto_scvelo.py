@@ -11,6 +11,7 @@ import anndata
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from ..dynamo_logger import main_info
 from scipy.sparse import csr_matrix
 
 from ..configuration import DKM
@@ -210,6 +211,130 @@ def converter(
     data_out.colorandum = colormap_fun([1] * data_out.S.shape[1])
 
     return data_out
+
+
+def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "tp_scv"] = "to_dyn"):
+    """Convert the adata object used in Scvelo to the adata object used by Dynamo, or vice versa.
+
+    Args:
+        adata: the adata object to be converted.
+        mode: the string indicates the mode
+
+    Returns:
+        The adata object after conversion.
+    """
+    main_info("Dynamo and scvelo have different preprocessing procedures and velocity estimation methods. "
+              "The conversion of adata may not be optimal for every use case, requiring potential manual adjustments.")
+    if mode == "to_dyn":
+        main_info("Start converting Scvelo adata into Dynamo adata...")
+        main_info("Scvelo data wil be converted into Dynamo adata with the conventional assumption and the"
+                  "deterministic model. If this is not what you want, please change them manually.")
+        if "highly_variable_genes" in adata.var.columns:
+            adata.var["pass_basic_filter"] = adata.var.pop("highly_variable_genes")
+            adata.var["pass_basic_filter"] = [True if item == 'True' else False for item in
+                                              adata.var["pass_basic_filter"]]
+        if "spliced" in adata.layers.keys():
+            adata.layers["X_spliced"] = adata.layers.pop("spliced")
+        if "unspliced" in adata.layers.keys():
+            adata.layers["X_unspliced"] = adata.layers.pop("unspliced")
+        if "highly_variable" in adata.var.columns:
+            adata.var["use_for_pca"] = adata.var.pop("highly_variable")
+        if "recover_dynamics" in adata.uns.keys():
+            adata.uns.pop("recover_dynamics")
+            adata.uns["dynamics"] = {
+                "filter_gene_mode": None,
+                "t": None,
+                "group": None,
+                "X_data": None,
+                "X_fit_data": None,
+                "asspt_mRNA": "ss",
+                "experiment_type": "conventional",
+                "normalized": True,
+                "model": "deterministic",
+                "est_method": "ols",
+                "has_splicing": True,
+                "has_labeling": False,
+                "splicing_labeling": False,
+                "has_protein": False,
+                "use_smoothed": True,
+                "NTR_vel": False,
+                "log_unnormalized": True,
+                "fraction_for_deg": False,
+            }
+        adata.uns["pp"] = {
+            "has_splicing": True,
+            "has_labeling": False,
+            "splicing_labeling": False,
+            "has_protein": False,
+            "tkey": None,
+            "experiment_type": "conventional",
+            "X_norm_method": None,
+            "layers_norm_method": None,
+        }
+        if "Ms" in adata.layers.keys():
+            adata.layers["M_s"] = adata.layers.pop("Ms")
+        if "Mu" in adata.layers.keys():
+            adata.layers["M_u"] = adata.layers.pop("Mu")
+        if "velocity_u" in adata.layers.keys():
+            adata.layers["velocity_U"] = adata.layers.pop("velocity_u")
+        if "velocity" in adata.layers.keys():
+            adata.layers["velocity_S"] = adata.layers.pop("velocity")
+        if "fit_alpha" in adata.var.columns:
+            adata.var["alpha"] = adata.var.pop("fit_alpha")
+        if "fit_beta" in adata.var.columns:
+            adata.var["beta"] = adata.var.pop("fit_beta")
+        if "fit_gamma" in adata.var.columns:
+            adata.var["gamma"] = adata.var.pop("fit_gamma")
+        if "fit_r2" in adata.var.columns:
+            adata.var["gamma_r2"] = adata.var.pop("fit_r2")
+        if "fit_u0" in adata.var.columns:
+            adata.var["u0"] = adata.var.pop("fit_u0")
+        if "fit_s0" in adata.var.columns:
+            adata.var["s0"] = adata.var.pop("fit_s0")
+    elif mode == "to_scv":
+        main_info("Start converting Dynamo adata into Scvelo adata...")
+        if "pass_basic_filter" in adata.var.columns:
+            adata.var["highly_variable_genes"] = adata.var.pop("pass_basic_filter")
+            adata.var["highly_variable_genes"] = ["True" if item else "False" for item in
+                                                  adata.var["highly_variable_genes"]]
+        if "X_spliced" in adata.layers.keys():
+            adata.layers["spliced"] = adata.layers.pop("X_spliced")
+        if "X_unspliced" in adata.layers.keys():
+            adata.layers["unspliced"] = adata.layers.pop("X_unspliced")
+        if "use_for_pca" in adata.var.columns:
+            adata.var["highly_variable"] = adata.var.pop("use_for_pca")
+        if "pp" in adata.uns.keys():
+            adata.uns.pop("pp")
+        if "dynamics" in adata.uns.keys():
+            adata.uns.pop("dynamics")
+            adata.uns["recover_dynamics"] = {
+                "fit_connected_states": True,
+                "fit_basal_transcription": None,
+                "use_raw": False,
+            }
+        if "M_s" in adata.layers.keys():
+            adata.layers["Ms"] = adata.layers.pop("M_s")
+        if "M_u" in adata.layers.keys():
+            adata.layers["Mu"] = adata.layers.pop("M_u")
+        if "velocity_U" in adata.layers.keys():
+            adata.layers["velocity_u"] = adata.layers.pop("velocity_U")
+        if "velocity_S" in adata.layers.keys():
+            adata.layers["velocity"] = adata.layers.pop("velocity_S")
+        if "alpha" in adata.var.columns:
+            adata.var["fit_alpha"] = adata.var.pop("alpha")
+        if "beta" in adata.var.columns:
+            adata.var["fit_beta"] = adata.var.pop("beta")
+        if "gamma" in adata.var.columns:
+            adata.var["fit_gamma"] = adata.var.pop("gamma")
+        if "gamma_r2" in adata.var.columns:
+            adata.var["fit_r2"] = adata.var.pop("gamma_r2")
+        if "u0" in adata.var.columns:
+            adata.var["fit_u0"] = adata.var.pop("u0")
+        if "s0" in adata.var.columns:
+            adata.var["fit_s0"] = adata.var.pop("s0")
+    else:
+        raise NotImplementedError(f"Mode: {mode} is not implemented.")
+    return adata
 
 
 def run_velocyto(adata: anndata.AnnData) -> anndata.AnnData:
