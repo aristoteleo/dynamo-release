@@ -216,9 +216,14 @@ def converter(
 def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "tp_scv"] = "to_dyn"):
     """Convert the adata object used in Scvelo to the adata object used by Dynamo, or vice versa.
 
+    Conversion may need manual adjustments based on the use case. For example, all Dynamo anndata objects will be set
+    to the conventional experiment with the deterministic model. The `pp` information needs modification to enable other
+    methods.
+
     Args:
         adata: the adata object to be converted.
-        mode: the string indicates the mode
+        mode: the string indicates the mode. Mode `to_dyn` will convert Scvelo anndata object to Dynamo anndata object.
+            mode `to_scv` will convert Dynamo anndata to Scvelo anndata.
 
     Returns:
         The adata object after conversion.
