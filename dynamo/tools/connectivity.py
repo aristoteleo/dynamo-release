@@ -715,7 +715,7 @@ def neighbors(
         logger.info("X_data is None, fetching or recomputing...", indent_level=2)
         if basis == "pca" and "X_pca" not in adata.obsm_keys():
             logger.info("PCA as basis not X_pca not found, doing PCAs", indent_level=2)
-            from ..preprocessing.utils import pca
+            from ..preprocessing.pca import pca
 
             CM = adata.X if genes is None else adata[:, genes].X
             cm_genesums = CM.sum(axis=0)

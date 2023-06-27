@@ -11,7 +11,8 @@ except:
 from anndata import AnnData
 
 from ..configuration import DKM
-from ..preprocessing.utils import pca
+from ..dynamo_logger import main_info_insert_adata_obsm
+from ..preprocessing.pca import pca
 from .connectivity import (
     _gen_neighbor_keys,
     knn_to_adj,
@@ -135,7 +136,6 @@ def prepare_dim_reduction(
                     pca_key=pca_key,
                     return_all=True,
                 )
-                adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
                 # valid genes used for dimension reduction calculation
                 adata.uns["pca_valid_ind"] = valid_ind
@@ -159,7 +159,6 @@ def prepare_dim_reduction(
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
             adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key, return_all=True)
-            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
             # valid genes used for dimension reduction calculation
             adata.uns["pca_valid_ind"] = valid_ind
@@ -226,6 +225,7 @@ def run_reduce_dim(
         )
         X_dim = triplemap.fit_transform(X_data)
 
+        main_info_insert_adata_obsm(embedding_key, log_level=20)
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = {
             "params": {"n_neighbors": n_neighbors, "method": reduction_method},
@@ -249,6 +249,7 @@ def run_reduce_dim(
 
         # bh_tsne = TSNE(n_components = n_components)
         # X_dim = bh_tsne.fit_transform(X)
+        main_info_insert_adata_obsm(embedding_key, log_level=20)
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = {
             "params": {"n_neighbors": n_neighbors, "method": reduction_method},
@@ -287,6 +288,7 @@ def run_reduce_dim(
                 X_dim,
             ) = umap_conn_indices_dist_embedding(X_data, n_neighbors, **umap_kwargs)
 
+        main_info_insert_adata_obsm(embedding_key, log_level=20)
         adata.obsm[embedding_key] = X_dim
         knn_dists = knn_to_adj(knn_indices, knn_dists)
         adata.uns[neighbor_key] = {
@@ -306,6 +308,7 @@ def run_reduce_dim(
         }
     elif reduction_method == "psl":
         adj_mat, X_dim = psl(X_data, d=n_components, K=n_neighbors)  # this need to be updated
+        main_info_insert_adata_obsm(embedding_key, log_level=20)
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = adj_mat
 

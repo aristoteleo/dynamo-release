@@ -8,7 +8,8 @@ from tqdm import tqdm
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
-from ..preprocessing.utils import pca, normalize_mat_monocle, sz_util
+from ..preprocessing.normalization import normalize_mat_monocle, sz_util
+from ..preprocessing.pca import pca
 from ..utils import copy_adata
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from .utils import elem_prod, get_mapper, inverse_norm
@@ -98,17 +99,13 @@ def moments(
             if X_data is not None:
                 X = X_data
             else:
-                if "X" not in adata.obsm.keys():
+                if DKM.X_PCA not in adata.obsm.keys():
                     if not any([i.startswith("X_") for i in adata.layers.keys()]):
-                        from ..preprocessing.preprocess import recipe_monocle
+                        from ..preprocessing import Preprocessor
 
                         genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
-                        recipe_monocle(
-                            adata,
-                            genes_to_use=genes_to_use,
-                            num_dim=n_pca_components,
-                        )
-                        adata.obsm["X"] = adata.obsm["X_pca"]
+                        preprocessor = Preprocessor(force_gene_list=genes_to_use)
+                        preprocessor.preprocess_adata(adata, recipe="monocle")
                     else:
                         CM = adata.X if genes is None else adata[:, genes].X
                         cm_genesums = CM.sum(axis=0)
@@ -124,7 +121,7 @@ def moments(
 
                         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-                X = adata.obsm["X"][:, :n_pca_components]
+                X = adata.obsm[DKM.X_PCA][:, :n_pca_components]
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -186,10 +183,11 @@ def moments(
         layer_x = adata.layers[layer].copy()
         matched_x_group_indices = np.where([layer in x for x in [only_splicing, only_labeling, splicing_and_labeling]])
         if len(matched_x_group_indices[0]) == 0:
-            logger.warning(f"layer {layer} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping...")
+            logger.warning(
+                f"layer {layer} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping..."
+            )
             continue
         layer_x_group = matched_x_group_indices[0][0]
-        layer_x = inverse_norm(adata, layer_x)
 
         if mapper[layer] not in adata.layers.keys():
             adata.layers[mapper[layer]], conn = (
@@ -198,9 +196,13 @@ def moments(
                 else (conn.dot(layer_x), conn)
             )
         for layer2 in layers[i:]:
-            matched_y_group_indices = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]])
+            matched_y_group_indices = np.where(
+                [layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]]
+            )
             if len(matched_y_group_indices[0]) == 0:
-                logger.warning(f"layer {layer2} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping...")
+                logger.warning(
+                    f"layer {layer2} is not in any of the {only_splicing, only_labeling, splicing_and_labeling} groups, skipping..."
+                )
                 continue
             layer_y = adata.layers[layer2].copy()
 
@@ -210,7 +212,6 @@ def moments(
             # those calculations are model specific
             if (layer_x_group != layer_y_group) or layer_x_group == 2:
                 continue
-            layer_y = inverse_norm(adata, layer_y)
 
             if mapper[layer2] not in adata.layers.keys():
                 adata.layers[mapper[layer2]], conn = (
@@ -372,7 +373,7 @@ def prepare_data_deterministic(
     raw = [None] * len(layers)
     for i, layer in enumerate(layers):
         if layer in ["X_total", "total", "M_t"]:
-            if (layer == "X_total" and adata.uns["pp"]["norm_method"] is None) or layer == "M_t":
+            if (layer == "X_total" and adata.uns["pp"]["layers_norm_method"] is None) or layer == "M_t":
                 x_layer = adata[:, genes].layers[layer]
                 if return_ntr:
                     T_genes = adata[:, genes].layers[get_layer_pair(layer)]
@@ -448,7 +449,7 @@ def prepare_data_deterministic(
                     x_layer = x_layer - y_layer
 
         else:
-            if (layer == ["X_new"] and adata.uns["pp"]["norm_method"] is None) or layer == "M_n":
+            if (layer == ["X_new"] and adata.uns["pp"]["layers_norm_method"] is None) or layer == "M_n":
                 total_layer = "X_total" if layer == ["X_new"] else "M_t"
 
                 if return_ntr:
@@ -686,7 +687,7 @@ def prepare_data_no_splicing(
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
 
-    from ..preprocessing.utils import normalize_mat_monocle, sz_util
+    from ..preprocessing.normalization import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -805,7 +806,7 @@ def prepare_data_mix_has_splicing(
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
 
-    from ..preprocessing.utils import normalize_mat_monocle, sz_util
+    from ..preprocessing.normalization import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)
@@ -958,7 +959,7 @@ def prepare_data_mix_no_splicing(
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
     """
 
-    from ..preprocessing.utils import normalize_mat_monocle, sz_util
+    from ..preprocessing.normalization import normalize_mat_monocle, sz_util
 
     res = [0] * len(genes)
     raw = [0] * len(genes)

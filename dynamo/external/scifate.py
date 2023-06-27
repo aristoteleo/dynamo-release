@@ -169,7 +169,7 @@ def adata_processing_TF_link(
     total = adata.layers[nt_layers[1]]
 
     # recalculate size factor
-    from ..preprocessing import calc_sz_factor_legacy
+    from ..preprocessing.deprecated import calc_sz_factor_legacy
 
     adata = calc_sz_factor_legacy(
         adata,

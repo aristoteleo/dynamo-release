@@ -1,16 +1,26 @@
+from typing import Any, Dict, Tuple
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import numpy as np
+from anndata import AnnData
 
 from ..tools.utils import update_dict
 from .utils import save_fig
 
 
 def plot_direct_graph(
-    adata,
-    layout=None,
-    figsize=[6, 4],
-    save_show_or_return="show",
-    save_kwargs={},
-):
+    adata: AnnData,
+    layout: None = None,
+    figsize: Tuple[float, float] = (6, 4),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> None:
+    """Not implemented."""
+
     df_mat = adata.uns["df_mat"]
 
     import matplotlib.pyplot as plt
@@ -58,7 +68,7 @@ def plot_direct_graph(
     else:
         raise Exception("layout", layout, " is not supported.")
 
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "plot_direct_graph",
@@ -70,9 +80,12 @@ def plot_direct_graph(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return == "show":
+    if save_show_or_return in ["show", "both", "all"]:
         plt.tight_layout()
         plt.show()
-    elif save_show_or_return == "return":
+    if save_show_or_return in ["return", "all"]:
         return g

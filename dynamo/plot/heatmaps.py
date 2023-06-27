@@ -1,11 +1,19 @@
 import math
 import warnings
 from functools import reduce
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 import pandas as pd
 import scipy.spatial as ss
 import seaborn
+from anndata import AnnData
+from matplotlib.colors import Colormap
 
 from ..dynamo_logger import main_info, main_info_insert_adata, main_warning
 from ..estimation.fit_jacobian import (
@@ -69,34 +77,32 @@ def dnorm(x, u=0, sig=1):
     return np.exp(-((x - u) ** 2) / (2 * sig**2)) / (math.sqrt(2 * math.pi) * sig)
 
 
-def kde2d(x, y, h=None, n=25, lims=None):
+def kde2d(
+    x: List[float], y: List[float], h: Optional[List[float]] = None, n: int = 25, lims: Optional[List[float]] = None
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Reproduce kde2d function behavior from MASS package in R.
-    Two-dimensional kernel density estimation with an axis-aligned
-    bivariate normal kernel, evaluated on a square grid.
 
-    Arguments
-    ---------
-        x:  `List`
-            x coordinate of data
-        y:  `List`
-            y coordinate of data
-        h:  `List` (Default: None)
-            vector of bandwidths for :math:`x` and :math:`y` directions.  Defaults to normal reference bandwidth
-            (see `bandwidth.nrd`). A scalar value will be taken to apply to both directions.
-        n: `int` (Default: 25)
-            Number of grid points in each direction.  Can be scalar or a length-2 integer list.
-        lims: `List` (Default: None)
-            The limits of the rectangle covered by the grid as :math:`x_l, x_u, y_l, y_u`.
+    Two-dimensional kernel density estimation with an axis-aligned bivariate normal kernel, evaluated on a square grid.
 
-    Returns
-    -------
-        A list of three components
-        gx, gy: `List`
-            The x and y coordinates of the grid points, lists of length `n`.
-        z:  `List`
-            An :math:`n[1]` by :math:`n[2]` matrix of the estimated density: rows correspond to the value of :math:`x`,
-            columns to the value of :math:`y`.
+    Args:
+        x: x coordinate of the data.
+        y: y coordinate of the data.
+        h: vector of bandwidths for `x` and `y` directions. if None, it would use normal reference bandwidth
+            (see `bandwidth.nrd`). A scalar value will be taken to apply to both directions. Defaults to None.
+        n: number of grid points in each direction. Can be scalar or a length-2 integer list. Defaults to 25.
+        lims: the limits of the rectangle covered by the grid as `x_l, x_u, y_l, y_u`. Defaults to None.
+
+    Raises:
+        ValueError: `x` and `y` have different sizes.
+        ValueError: `x` or `y` has non-valid values.
+        ValueError: `lims` has non-valid values.
+        ValueError: `h` has non-positive values.
+
+    Returns:
+        A tuple (gx, gy, z) where `gx` and `gy` are x and y coordinates of grid points, respectively; `z` is a `n[1]`
+        by `n[2]` matrix of estimated density: its rows correspond to the value of `x` and columns to the value of `y`.
     """
+
     nx = len(x)
     if not lims:
         lims = [min(x), max(x), min(y), max(y)]
@@ -125,7 +131,21 @@ def kde2d(x, y, h=None, n=25, lims=None):
     return gx, gy, z
 
 
-def kde2d_to_mean_and_sigma(gx, gy, dens):
+def kde2d_to_mean_and_sigma(
+    gx: np.ndarray, gy: np.ndarray, dens: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate the mean and sigma of y grids corresponding to x grids from kde2d.
+
+    Args:
+        gx: x coordinates of grid points.
+        gy: y coordinates of grid points.
+        dens: estimated kernel density.
+
+    Returns:
+        A tuple (x_grid, y_mean, y_sigm) where x_grid is unique values of `gx`, `y_mean` and `y_sigm` are corresponding
+        mean and sigma of y grids.
+    """
+
     x_grid = np.unique(gx)
     y_mean = np.zeros(len(x_grid))
     y_sigm = np.zeros(len(x_grid))
@@ -141,100 +161,119 @@ def kde2d_to_mean_and_sigma(gx, gy, dens):
 
 
 def response(
-    adata,
-    pairs_mat,
-    xkey=None,
-    ykey=None,
-    log=True,
-    drop_zero_cells=True,
-    delay=0,
-    grid_num=25,
-    n_row=1,
-    n_col=None,
-    cmap=None,
-    show_ridge=False,
-    show_rug=True,
-    zero_indicator=False,
-    zero_line_style="w--",
-    zero_line_width=2.5,
-    mean_style="c*",
-    fit_curve=False,
-    fit_mode="hill",
-    curve_style="c-",
-    curve_lw=2.5,
-    no_degradation=True,
-    show_extent=False,
-    ext_format=None,
-    stacked_fraction=False,
-    figsize=(6, 4),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    return_data=False,
-):
+    adata: AnnData,
+    pairs_mat: np.ndarray,
+    xkey: Optional[str] = None,
+    ykey: Optional[str] = None,
+    log: bool = True,
+    drop_zero_cells: bool = True,
+    delay: int = 0,
+    grid_num: int = 25,
+    n_row: int = 1,
+    n_col: Optional[int] = None,
+    cmap: Union[str, Colormap, None] = None,
+    show_ridge: bool = False,
+    show_rug: bool = True,
+    zero_indicator: bool = False,
+    zero_line_style: str = "w--",
+    zero_line_width: float = 2.5,
+    mean_style: str = "c*",
+    fit_curve: bool = False,
+    fit_mode: Literal["hill"] = "hill",
+    curve_style: str = "c-",
+    curve_lw: float = 2.5,
+    no_degradation: bool = True,
+    show_extent: bool = False,
+    ext_format: Optional[List[str]] = None,
+    stacked_fraction: bool = False,
+    figsize: Tuple[float, float] = (6, 4),
+    save_show_or_return: Literal["save", "show", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    return_data: bool = False,
+) -> Union[
+    Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+    Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, Dict[str, Any]]],
+    None,
+]:
     """Plot the lagged DREVI plot pairs of genes across pseudotime.
+
     This plotting function builds on the original idea of DREVI plot but is extended in the context for causal network.
-    It considers the time delay between the hypothetical regulators to the target genes which is parametered by :math:`d`.
-    Lagged DREVI plot first estimates the joint density (:math:`P(x_{t - d}, y_t)`) for variables :math:`x_{t - d} and y_t`, then it
-    divides the joint density by the marginal density :math:`P(x_{t - d})` to get the conditional density estimate
-    (:math:`P(x_{t - d}, y_t | x_{x - d})`). We then calculate the z-score normalizing each column of conditional density. Note
-    that this plot tries to demonstrate the potential influence between two variables instead of the factual influence.
-    A red line corresponding to the point with maximal density on each :math:`x` value is plot which indicates the maximal possible
-    point for :math:`y_t` give the value of :math:`x_{t - d}`. The 2-d density is estimated through the kde2d function.
+    It considers the time delay between the hypothetical regulators to the target genes which is parametered by `d`.
+    Lagged DREVI plot first estimates the joint density (`P(x_{t - d}, y_t)`) for variables `x_{t - d} and y_t`, then it
+    divides the joint density by the marginal density `P(x_{t - d})` to get the conditional density estimate
+    (`P(x_{t - d}, y_t | x_{x - d})`). We then calculate the z-score normalizing each column of conditional density.
+    Note that this plot tries to demonstrate the potential influence between two variables instead of the factual
+    influence. A red line corresponding to the point with maximal density on each `x` value is plot which indicates the
+    maximal possible point for `y_t` give the value of `x_{t - d}`. The 2-d density is estimated through the kde2d
+    function.
 
-    Arguments
-    ---------
-        adata: `Anndata`
-            Annotated Data Frame, an Anndata object.
-        pairs_mat: 'np.ndarray'
-            A matrix where each row is the gene pair and the first column is the hypothetical source or regulator while
-            the second column represents the hypothetical target. The name in this matrix should match the name in the
-            gene_short_name column of the adata object.
-        log: `bool` (Default: True)
-            A logic argument used to determine whether or not you should perform log transformation (using :math:`log(expression + 1)`)
-            before calculating density estimates, default to be TRUE.
-        drop_zero_cells: `bool` (Default: True)
-            Whether to drop cells that with zero expression for either the potential regulator or potential target. This
-            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
-            of ignoring strong inhibition effects from certain regulators to targets.
-        delay: `int` (Default: 0)
-            The time delay between the source and target gene. Always zero because we don't have real time-series.
-        k: `int` (Default: 5)
-            Number of k-nearest neighbors used in calculating 2-D kernel density
-        grid_num: `int` (Default: 25)
-            The number of grid when creating the lagged DREVI plot.
-        n_row: `int` (Default: None)
-            number of columns used to layout the faceted cluster panels.
-        n_col: `int` (Default: 1)
-            number of columns used to layout the faceted cluster panels.
-        ext_format: None or `str` or List[str]
-            The string/list of strings (the first is for x and second for y labels) that will be used to format the ticks
-            on x or y-axis. If it is None or one of the element in the list is None, the default setting will be used.
-        stacked_fraction: bool (default: False)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
-            style is used.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+    Args:
+        adata: an AnnData object.
+        pairs_mat: a matrix where each row is the gene pair and the first column is the hypothetical source or regulator
+            while the second column represents the hypothetical target. The name in this matrix should match the name in
+            the gene_short_name column of the adata object.
+        xkey: the key of the layer storing `x` data. Defaults to None.
+        ykey: the key of the layer storing `y` data. Defaults to None.
+        log: whether to perform log transformation (using `log(expression + 1)`) before calculating density estimates.
+            Defaults to True.
+        drop_zero_cells: whether to drop cells that with zero expression for either the potential regulator or potential
+            target. This can signify the relationship between potential regulators and targets, speed up the
+            calculation, but at the risk of ignoring strong inhibition effects from certain regulators to targets.
+            Defaults to True.
+        delay: the time delay between the source and target gene. Always zero because we don't have real time-series.
+            Defaults to 0.
+        grid_num: the number of grid when creating the lagged DREVI plot. Defaults to 25.
+        n_row: number of rows used to layout the faceted cluster panels. Defaults to 1.
+        n_col: number of columns used to layout the faceted cluster panels. Defaults to None.
+        cmap: the color map used to plot the heatmap. Could be the name of the color map or a matplotlib color map
+            object. If None, the color map would be generated automatically. Defaults to None.
+        show_ridge: whether to show the ridge curve. Defaults to False.
+        show_rug: whether to plot marginal distributions by drawing ticks along the x and y axes. Defaults to True.
+        zero_indicator: whether to plot the zero line in the graph. Defaults to False.
+        zero_line_style: line style of the zero line. Defaults to "w--".
+        zero_line_width: line width of the zero line. Defaults to 2.5.
+        mean_style: the line style for plotting the y mean data. Defaults to "c*".
+        fit_curve: whether to fit the curve between `x` and `y`. Defaults to False.
+        fit_mode: the fitting mode for fitting the curve between `x` and `y`. Currently, the relationship can only be
+            fit into Hill function. Defaults to "hill".
+        curve_style: the line style of fitted curve. Defaults to "c-".
+        curve_lw: the line width of the fitted curve. Defaults to 2.5.
+        no_degradation: whether to consider degradation when fitting Hill equations. Defaults to True.
+        show_extent: whether to extend the figure. If False, `show_ridge` and `show_rug` would be set to False
+            automatically. Defaults to False.
+        ext_format: the string/list of strings (the first is for x and second for y labels) that will be used to format
+            the ticks on x or y-axis. If it is None or one of the element in the list is None, the default setting will
+            be used. Defaults to None.
+        stacked_fraction: If True the jacobian will be represe nted as a stacked fraction in the title, otherwise a
+            linear fraction tyle is used. Defaults to False.
+        figsize: size of the figure. Defaults to (6, 4).
+        save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        return_data: whether to return the data used to generate the heatmap. Defaults to False.
 
-    Returns
-    -------
-        In addition to figure created by matplotlib, it also returns:
-        flat_res: 'pd.core.frame.DataFrame'
-            a pandas data frame used to create the heatmap with four columns (`x`: x-coordinate; `y`: y-coordinate; `den`:
-            estimated density at x/y coordinate; `type`: the corresponding gene pair).
-        flat_res_subset: 'pd.core.frame.DataFrame'
-            a pandas data frame used to create the heatmap for the last gene pair (if multiple gene-pairs are inputted) with
-            four columns (`x`: x-coordinate; `y`: y-coordinate; `den`: estimated density at x/y coordinate; `type`: the
-            corresponding gene pair).
-        ridge_curve_subset: 'pd.core.frame.DataFrame'
-            a pandas data frame used to create the read ridge line for the last gene pair (if multiple gene-pairs are inputted) with
-            four columns (`x`: x-coordinate; `y`: y-coordinate; `type`: the corresponding gene pair).
+    Raises:
+        ValueError: no preprocessing data in adata.uns
+        ValueError: No layers named as `xkey` or `ykey`.
+        ValueError: adata does not contain gene data specified in pairs_mat
+        ValueError: `n_col * n_row` is less than number of gene pairs
+        NotImplementedError: invalid `fit_mode`
+
+    Returns:
+        None would be returned in default. If `return_data` is set to be True, a tuple (flat_res, flat_res_subset,
+        ridge_curve_subset) would be returned, where flat_res is a pandas data frame used to create the
+        heatmap with four columns (`x`: x-coordinate; `y`: y-coordinate; `den`: estimated density at x/y coordinate;
+        `type`: the corresponding gene pair), flat_res_subset is a pandas data frame used to create the heatmap for the
+        last gene pair (if multiple gene-pairs are inputted) with four columns (`x`: x-coordinate; `y`: y-coordinate;
+        `den`: estimated density at x/y coordinate; `type`: the corresponding gene pair), and ridge_curve_subset is a
+        pandas data frame used to create the read ridge line for the last gene pair (if multiple gene-pairs are
+        inputted) with four columns (`x`: x-coordinate; `y`: y-coordinate; `type`: the corresponding gene pair). If
+        `fit_curve` is True, the hill function fitting result would also be returned at the 4th position.
     """
+
     import matplotlib
     import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap
@@ -248,7 +287,7 @@ def response(
     all_genes_in_pair = np.unique(pairs_mat)
 
     if "pp" not in adata.uns_keys():
-        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
+        raise ValueError("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
 
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
@@ -256,7 +295,7 @@ def response(
         ykey = "M_n" if adata.uns["pp"]["has_labeling"] else "M_u"
 
     if not set([xkey, ykey]) <= set(adata.layers.keys()).union(set(["jacobian"])):
-        raise Exception(
+        raise ValueError(
             f"adata.layers doesn't have {xkey, ykey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
         )
@@ -273,7 +312,7 @@ def response(
     }
 
     if not (set(all_genes_in_pair) <= set(adata.var_names)):
-        raise Exception(
+        raise ValueError(
             "adata doesn't include all genes in gene_pairs_mat. Make sure all genes are included in adata.var_names."
         )
 
@@ -388,7 +427,7 @@ def response(
     n_col = gene_pairs_num if n_col is None else n_col
 
     if n_row * n_col < gene_pairs_num:
-        raise Exception("The number of row or column specified is less than the gene pairs")
+        raise ValueError("The number of row or column specified is less than the gene pairs")
     figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
 
@@ -524,6 +563,8 @@ def response(
                     )
                 else:
                     raise NotImplementedError("The hill function can be applied to the Jacobian response heatmap only.")
+            else:
+                raise NotImplementedError("Currently, the fit_mode can only be served by the hill function.")
 
         # set the x/y ticks
         inds = np.linspace(0, grid_num - 1, 5, endpoint=True)
@@ -568,7 +609,7 @@ def response(
         axes[i, j].set_yticklabels(ylabels)
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both", "all"]:
+    if save_show_or_return in ["save", "both"]:
         s_kwargs = {
             "path": None,
             "prefix": "scatters",
@@ -580,19 +621,25 @@ def response(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return == "both":
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
 
         plt.show()
 
+    list_for_return = []
+
     if return_data:
         if fit_dict is None:
-            return (flat_res, flat_res_subset, ridge_curve_subset)
+            list_for_return += [flat_res, flat_res_subset, ridge_curve_subset]
         else:
-            return (flat_res, flat_res_subset, ridge_curve_subset, fit_dict)
+            list_for_return += [flat_res, flat_res_subset, ridge_curve_subset, fit_dict]
     else:
         adata.uns["response"] = {
             "flat_res": flat_res,
@@ -602,26 +649,58 @@ def response(
         if fit_dict is not None:
             adata.uns["response"]["fit_curve"] = fit_dict
 
+    if list_for_return:
+        return tuple(list_for_return)
+
 
 def plot_hill_function(
-    adata,
-    pairs_mat=None,
-    normalize=True,
-    n_row=1,
-    n_col=None,
-    figsize=(6, 4),
-    linewidth=2,
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
+    adata: AnnData,
+    pairs_mat: Optional[np.ndarray] = None,
+    normalize: bool = True,
+    n_row: int = 1,
+    n_col: Optional[int] = None,
+    figsize: Tuple[float, float] = (6, 4),
+    linewidth: float = 2,
+    save_show_or_return: Literal["save", "show", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
     **plot_kwargs,
-):
+) -> None:
+    """Plot the hill function curve generated by `dynamo.pl.response`.
 
+    Args:
+        adata: an AnnData object.
+        pairs_mat: a matrix where each row is the gene pair and the first column is the hypothetical source or regulator
+            while the second column represents the hypothetical target. The name in this matrix should match the name in
+            the gene_short_name column of the adata object. If None, all gene pairs in
+            `adata.uns["response"]["fit_curve"]` would be used. Defaults to None.
+        normalize: whether to normalize the curve. Defaults to True.
+        n_row: the number of subplot rows. Defaults to 1.
+        n_col: the number of subplot cols. If None, it would be calculated to show all subplots. Defaults to None.
+        figsize: the size of the figure. Defaults to (6, 4).
+        linewidth: the line width of the curve. Defaults to 2.
+        save_show_or_return: whether to save or show the figure. Could be one of "save", "show", "both", or "all".
+            "both" and "all" have the same effect. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **plot_kwargs: any other kwargs passed to `pyplot.plot`.
+
+    Raises:
+        ValueError: no `"response"` data found in `adata.uns`.
+        ValueError: no `"fit_curve"` data found in `adata.uns["response"]`.
+        ValueError: adata does not contain gene data specified in pairs_mat
+        ValueError: `n_col * n_row` is less than the number of gene pairs.
+        ValueError: the gene specified in `pairs_mat` is not found in `adata.uns["response"]["fit_curve"]`.
+        NotImplementedError: invalid `fit_type` in `adata.uns["response"]["fit_curve"]`.
+        NotImplementedError: invalid `mode` in `adata.uns["response"]["fit_curve"]`.
+    """
     import matplotlib.pyplot as plt
 
     if "response" not in adata.uns.keys():
-        raise Exception("`response` is not found in `.uns`. Run `pl.response` first.")
+        raise ValueError("`response` is not found in `.uns`. Run `pl.response` first.")
     if "fit_curve" not in adata.uns["response"].keys():
-        raise Exception("`fit_curve` is not found. Run `pl.response` with `fit_curve=True` first.")
+        raise ValueError("`fit_curve` is not found. Run `pl.response` with `fit_curve=True` first.")
 
     fit_dict = adata.uns["response"]["fit_curve"]
     if pairs_mat is None:
@@ -633,7 +712,7 @@ def plot_hill_function(
     all_genes_in_pair = np.unique(pairs_mat)
 
     if not (set(all_genes_in_pair) <= set(adata.var_names)):
-        raise Exception(
+        raise ValueError(
             "adata doesn't include all genes in gene_pairs_mat. Make sure all genes are included in adata.var_names."
         )
 
@@ -641,7 +720,7 @@ def plot_hill_function(
     n_col = gene_pairs_num if n_col is None else n_col
 
     if n_row * n_col < gene_pairs_num:
-        raise Exception("The number of row or column specified is less than the gene pairs")
+        raise ValueError("The number of row or column specified is less than the gene pairs")
     figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
 
@@ -652,7 +731,7 @@ def plot_hill_function(
 
         key = f"{gene_pairs[0]}_{gene_pairs[1]}"
         if key not in fit_dict.keys():
-            raise Exception(f"The gene pair {key} is not found in the dictionary.")
+            raise ValueError(f"The gene pair {key} is not found in the dictionary.")
 
         mode = fit_dict[key]["mode"]
         x_grid = fit_dict[key]["x_grid"]
@@ -683,7 +762,7 @@ def plot_hill_function(
             raise NotImplementedError(f"The fit mode `{mode}` is not supported.")
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both", "all"]:
+    if save_show_or_return in ["save", "both"]:
         s_kwargs = {
             "path": None,
             "prefix": "scatters",
@@ -695,8 +774,12 @@ def plot_hill_function(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return == "both":
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
@@ -705,88 +788,90 @@ def plot_hill_function(
 
 
 def causality(
-    adata,
-    pairs_mat,
-    hessian_matrix=False,
-    xkey=None,
-    ykey=None,
-    zkey=None,
-    log=True,
-    drop_zero_cells=False,
-    delay=0,
-    k=30,
-    normalize=True,
-    grid_num=25,
-    n_row=1,
-    n_col=None,
-    cmap="viridis",
-    show_rug=True,
-    show_extent=False,
-    ext_format=None,
-    stacked_fraction=False,
-    figsize=(6, 4),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    return_data=False,
+    adata: AnnData,
+    pairs_mat: np.ndarray,
+    hessian_matrix: bool = False,
+    xkey: Optional[str] = None,
+    ykey: Optional[str] = None,
+    zkey: Optional[str] = None,
+    log: bool = True,
+    drop_zero_cells: bool = False,
+    delay: int = 0,
+    k: int = 30,
+    normalize: bool = True,
+    grid_num: int = 25,
+    n_row: int = 1,
+    n_col: Optional[int] = None,
+    cmap: Union[str, Colormap, None] = "viridis",
+    show_rug: bool = True,
+    show_extent: bool = False,
+    ext_format: Optional[List[str]] = None,
+    stacked_fraction: bool = False,
+    figsize: Tuple[float, float] = (6, 4),
+    save_show_or_return: Literal["save", "show", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    return_data: bool = False,
     **kwargs,
-):
-    """Plot the heatmap for the expected value :math:`y(t)` given :math:`x(t - d)` and :math:`y(t - 1)`.
-    This plotting function tries to intuitively visualize the informatioin transfer from :math:`x(t - d)` to :math:`y(t)`
-    given :math:`y(t)`'s previous state :math:`y(t - 1)`. Firstly, we divide the expression space for :math:`x(t - d)` to
-    :math:`y(t - 1)` based on grid_num and then we estimate the k-nearest neighbor for each of the grid. We then use a
-    Gaussian kernel to estimate the expected value for :math:`y(t)`. It is then displayed in two dimension with :math:`x(t - d)`
-    and :math:`y(t - 1)` as two axis and the color represents the expected value of :math:`y(t)` give :math:`x(t - d)` and
-    :math:`y(t - 1)`. This function accepts a matrix where each row is the gene pair and the first column is the hypothetical
-    source or regulator while the second column represents the hypothetical target. The name in this matrix should match
-    the name in the gene_short_name column of the cds_subset object.
+) -> Optional[pd.DataFrame]:
+    """Plot the heatmap for the expected value `z(t)` given `x` and `y` data.
 
-    Arguments
-    ---------
-        adata: `Anndata`
-            Annotated Data Frame, an Anndata object.
-        hessian_matrix: `bool`
-            Whether to visualize the Hessian matrix results (row, column are the regulatory/co-regulator gene expression
-            while the color is the results of the Hessian to the effector).
-        pairs_mat: 'np.ndarray'
-            A matrix where each row is the gene pair and the first column is the hypothetical source or regulator while
-            the second column represents the hypothetical target. The name in this matrix should match the name in the
-            gene_short_name column of the adata object.
-        log: `bool` (Default: True)
-            A logic argument used to determine whether or not you should perform log transformation (using log(expression + 1))
-            before calculating density estimates, default to be TRUE.
-        drop_zero_cells: `bool` (Default: True)
-            Whether to drop cells that with zero expression for either the potential regulator or potential target. This
-            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
-            of ignoring strong inhibition effects from certain regulators to targets.
-        delay: `int` (Default: 1)
-            The time delay between the source and target gene. Always zero because we don't have real time-series.
-        k: `int` (Default: 5)
-            Number of k-nearest neighbors used in calculating 2-D kernel density
-        grid_num: `int` (Default: 25)
-            The number of grid when creating the lagged DREVI plot.
-        n_row: `int` (Default: None)
-            number of columns used to layout the faceted cluster panels.
-        n_col: `int` (Default: 1)
-            number of columns used to layout the faceted cluster panels.
-        ext_format: None or `str` or List[str]
-            The string/list of strings (the first is for x and second for y labels) that will be used to format the ticks
-            on x or y-axis. If it is None or one of the element in the list is None, the default setting will be used.
-        stacked_fraction: bool (default: False)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
-            style is used.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+    Args:
+        adata: an AnnData object.
+        pairs_mat: a matrix where each row is the gene pair and the first column is the hypothetical source or regulator
+            while the second column represents the hypothetical target. The name in this matrix should match the name in
+            the gene_short_name column of the adata object.
+        hessian_matrix: whether to visualize the Hessian matrix results (row, column are the regulatory/co-regulator
+            gene expression while the color is the results of the Hessian to the effector). Defaults to False.
+        xkey: the layer key of `x` data (regulator gene 1). If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        ykey: the layer key of `y` data (regulator gene 2).  If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        zkey: the layer key of `z` data (the hypothetical target).  If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        log: whether to perform log transformation (using log(expression + 1)) before calculating density estimates.
+            Defaults to True.
+        drop_zero_cells: whether to drop cells that with zero expression for either the potential regulator or potential
+            target. This can signify the relationship between potential regulators and targets, speed up the
+            calculation, but at the risk of ignoring strong inhibition effects from certain regulators to targets.
+            Defaults to False.
+        delay: the time delay between the source and target gene. Always zero because we don't have real time-series.
+            Defaults to 0.
+        k: number of k-nearest neighbors used in calculating 2-D kernel density. Defaults to 30.
+        normalize: whether to row-scale the data. Defaults to True.
+        grid_num: the number of grid when creating the lagged DREVI plot. Defaults to 25.
+        n_row: the number of rows used to layout the faceted cluster panels. Defaults to 1.
+        n_col: the number of columns used to layout the faceted cluster panels. Defaults to None.
+        cmap: the color map used to plot the heatmap. Could be the name of the color map or a matplotlib color map
+            object. If None, the color map would be generated automatically. Defaults to "viridis".
+        show_rug: whether to plot marginal distributions by drawing ticks along the x and y axes. Defaults to True.
+        show_extent: whether to extend the figure. If False, `show_ridge` and `show_rug` would be set to False
+            automatically. Defaults to False.
+        ext_format: the string/list of strings (the first is for x and second for y labels) that will be used to format
+            the ticks on x or y-axis. If it is None or one of the element in the list is None, the default setting will
+            be used. Defaults to None.
+        stacked_fraction: if True the jacobian will be represented as a stacked fraction in the title, otherwise a
+            linear fraction style is used. Defaults to False.
+        figsize: the size of the figure. Defaults to (6, 4).
+        save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
+        return_data: whether to return the calculated causality data. Defaults to False.
 
-    Returns
-    -------
-        A figure created by matplotlib.
+    Raises:
+        ValueError: no preprocessing data in adata.uns
+        ValueError: No layers named as `xkey`, `ykey`, or `zkey`.
+        ValueError: adata does not contain gene data specified in pairs_mat
+        ValueError: `n_col * n_row` is less than number of gene pairs
+
+    Returns:
+        None would be returned by default. If `return_data` is set to be True, the causality data, a DataFrame with
+        columns ("x": x coordination, "y": y coordination, "expected_z": expected z coordination, "pair": gene pairs) would
+        be returned.
     """
+
     import matplotlib
     import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap
@@ -799,7 +884,7 @@ def causality(
     all_genes_in_pair = np.unique(pairs_mat)
 
     if "pp" not in adata.uns_keys():
-        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
+        raise ValueError("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
 
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
@@ -816,7 +901,7 @@ def causality(
         )
 
     if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian", "hessian_pca"])):
-        raise Exception(
+        raise ValueError(
             f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
         )
@@ -829,7 +914,7 @@ def causality(
         "borderpad": 0,
     }
     if not (set(all_genes_in_pair) <= set(adata.var_names)):
-        raise Exception(
+        raise ValueError(
             "adata doesn't include all genes in gene_pairs_mat. Make sure all genes are included in adata.var_names."
         )
 
@@ -970,7 +1055,7 @@ def causality(
     n_col = gene_pairs_num if n_col is None else n_col
 
     if n_row * n_col < gene_pairs_num:
-        raise Exception("The number of row or column specified is less than the gene pairs")
+        raise ValueError("The number of row or column specified is less than the gene pairs")
 
     figsize = (figsize[0] * n_col, figsize[1] * n_row) if figsize is not None else (4 * n_col, 4 * n_row)
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize, sharex=False, sharey=False, squeeze=False)
@@ -1105,7 +1190,7 @@ def causality(
     # plt.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both", "all"]:
+    if save_show_or_return in ["save", "both"]:
         s_kwargs = {
             "path": None,
             "prefix": "scatters",
@@ -1117,8 +1202,12 @@ def causality(
         }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return == "both":
+            s_kwargs["close"] = False
+
         save_fig(**s_kwargs)
-    elif save_show_or_return in ["show", "both", "all"]:
+    if save_show_or_return in ["show", "both"]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
@@ -1132,87 +1221,98 @@ def causality(
 
 
 def comb_logic(
-    adata,
-    pairs_mat,
-    xkey=None,
-    ykey=None,
-    zkey=None,
-    log=True,
-    drop_zero_cells=False,
-    delay=0,
-    grid_num=25,
-    n_row=1,
-    n_col=None,
-    cmap="bwr",
-    normalize=True,
-    k=30,
-    show_rug=True,
-    show_extent=False,
-    ext_format=None,
-    stacked_fraction=False,
-    figsize=(6, 4),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    return_data=False,
-):
-    """Plot the combinatorial influence of two genes :math:`x`, :math:`y` to the target :math:`z`.
-    This plotting function tries to intuitively visualize the influence from genes :math:`x` and :math:`y` to the target :math:`z`.
-    Firstly, we divide the expression space for :math:`x` and :math:`y` based on grid_num and then we estimate the k-nearest neighbor for each of the
-    grid. We then use a Gaussian kernel to estimate the expected value for :math:`z`. It is then displayed in two dimension with :math:`x` and :math:`y`
-    as two axis and the color represents the value of the expected of :math:`z`. This function accepts a matrix where each row is the gene pair
-    and the target genes for this pair. The first column is the first hypothetical source or regulator, the second column represents
-    the second hypothetical target while the third column represents the hypothetical target gene. The name in this matrix should match
-    the name in the gene_short_name column of the cds_subset object.
+    adata: AnnData,
+    pairs_mat: np.ndarray,
+    xkey: Optional[str] = None,
+    ykey: Optional[str] = None,
+    zkey: Optional[str] = None,
+    log: bool = True,
+    drop_zero_cells: bool = False,
+    delay: int = 0,
+    grid_num: int = 25,
+    n_row: int = 1,
+    n_col: Optional[int] = None,
+    cmap: Union[str, Colormap, None] = "bwr",
+    normalize: bool = True,
+    k: int = 30,
+    show_rug: bool = True,
+    show_extent: bool = False,
+    ext_format: Optional[List[str]] = None,
+    stacked_fraction: bool = False,
+    figsize: Tuple[float, float] = (6, 4),
+    save_show_or_return: Literal["save", "show", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    return_data: bool = False,
+) -> Optional[pd.DataFrame]:
+    """Plot the combinatorial influence of two genes `x`, `y` to the target `z`.
 
-    Arguments
-    ---------
-        adata: `Anndata`
-            Annotated Data Frame, an Anndata object.
-        pairs_mat: 'np.ndarray'
-            A matrix where each row is the gene pair and the first and second columns are the hypothetical source or regulator while
-            the third column represents the hypothetical target. The name in this matrix should match the name in the
-            gene_short_name column of the adata object.
-        log: `bool` (Default: True)
-            A logic argument used to determine whether or not you should perform log transformation (using log(expression + 1))
-            before calculating density estimates, default to be TRUE.
-        drop_zero_cells: `bool` (Default: True)
-            Whether to drop cells that with zero expression for either the potential regulator or potential target. This
-            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
-            of ignoring strong inhibition effects from certain regulators to targets.
-        delay: `int` (Default: 1)
-            The time delay between the source and target gene. Always zero because we don't have real time-series.
-        grid_num: `int` (Default: 25)
-            The number of grid when creating the lagged DREVI plot.
-        n_row: `int` (Default: None)
-            number of columns used to layout the faceted cluster panels.
-        normalize: `bool` (Default: True)
-            Whether to row-scale the data
-        n_col: `int` (Default: 1)
-            number of columns used to layout the faceted cluster panels.
-        ext_format: None or `str` or List[str]
-            The string/list of strings (the first is for x and second for y labels) that will be used to format the ticks
-            on x or y-axis. If it is None or one of the element in the list is None, the default setting will be used.
-        stacked_fraction: bool (default: False)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
-            style is used.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+    This plotting function tries to intuitively visualize the influence from genes `x` and `y` to the target `z`.
+    Firstly, we divide the expression space for `x` and `y` based on grid_num and then we estimate the k-nearest
+    neighbor for each of the grid. We then use a Gaussian kernel to estimate the expected value for `z`. It is then
+    displayed in two dimension with `x` and `y` as two axis and the color represents the value of the expected of `z`.
+    This function accepts a matrix where each row is the gene pair and the target genes for this pair. The first column
+    is the first hypothetical source or regulator, the second column represents the second hypothetical target while the
+    third column represents the hypothetical target gene. The name in this matrix should match the name in the
+    gene_short_name column of the cds_subset object.
+
+    Args:
+        adata: an AnnData object.
+        pairs_mat: a matrix where each row is the gene pair and the first column is the hypothetical source or regulator
+            while the second column represents the hypothetical target. The name in this matrix should match the name in
+            the gene_short_name column of the adata object.
+        xkey: the layer key of `x` data (regulator gene 1). If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        ykey: the layer key of `y` data (regulator gene 2).  If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        zkey: the layer key of `z` data (the hypothetical target).  If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        log: whether to perform log transformation (using log(expression + 1)) before calculating density estimates.
+            Defaults to True.
+        drop_zero_cells: whether to drop cells that with zero expression for either the potential regulator or potential
+            target. This can signify the relationship between potential regulators and targets, speed up the
+            calculation, but at the risk of ignoring strong inhibition effects from certain regulators to targets.
+            Defaults to False.
+        delay: the time delay between the source and target gene. Always zero because we don't have real time-series.
+            Defaults to 0.
+        grid_num: the number of grid when creating the lagged DREVI plot. Defaults to 25.
+        n_row: the number of rows used to layout the faceted cluster panels. Defaults to 1.
+        n_col: the number of columns used to layout the faceted cluster panels. Defaults to None.
+        cmap: the color map used to plot the heatmap. Could be the name of the color map or a matplotlib color map
+            object. If None, the color map would be generated automatically. Defaults to "viridis".
+        normalize: whether to row-scale the data. Defaults to True.
+        k: number of k-nearest neighbors used in calculating 2-D kernel density. Defaults to 30.
+        show_rug: whether to plot marginal distributions by drawing ticks along the x and y axes. Defaults to True.
+        show_extent: whether to extend the figure. If False, `show_ridge` and `show_rug` would be set to False
+            automatically. Defaults to False.
+        ext_format: the string/list of strings (the first is for x and second for y labels) that will be used to format
+            the ticks on x or y-axis. If it is None or one of the element in the list is None, the default setting will
+            be used. Defaults to None.
+        stacked_fraction: if True the jacobian will be represented as a stacked fraction in the title, otherwise a
+            linear fraction style is used. Defaults to False.
+        figsize: the size of the figure. Defaults to (6, 4).
+        save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
+        return_data: whether to return the calculated causality data. Defaults to False.
 
-    Returns
-    -------
-        A figure created by matplotlib.
+    Raises:
+        ValueError: no preprocessing data in adata.uns
+        ValueError: No layers named as `xkey`, `ykey`, or `zkey`.
+
+    Returns:
+        None would be returned by default. If `return_data` is set to be True, the causality data, a DataFrame with
+        columns ("x": x coordination, "y": y coordination, "expected_z": expected z coordination, "pair": gene pairs) would
+        be returned.
     """
+
     import matplotlib
     from matplotlib.colors import ListedColormap
 
     if "pp" not in adata.uns_keys():
-        raise Exception("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
+        raise ValueError("You must first run dyn.pp.recipe_monocle and dyn.tl.moments before running this function.")
 
     if xkey is None:
         xkey = "M_t" if adata.uns["pp"]["has_labeling"] else "M_s"
@@ -1222,7 +1322,7 @@ def comb_logic(
         zkey = "velocity_T" if adata.uns["pp"]["has_labeling"] else "velocity_S"
 
     if not set([xkey, ykey, zkey]) <= set(adata.layers.keys()).union(set(["jacobian"])):
-        raise Exception(
+        raise ValueError(
             f"adata.layers doesn't have {xkey, ykey, zkey} layers. Please specify the correct layers or "
             "perform relevant preprocessing and vector field analyses first."
         )
@@ -1282,82 +1382,89 @@ def comb_logic(
 
 
 def hessian(
-    adata,
-    pairs_mat,
-    xkey=None,
-    ykey=None,
-    zkey=None,
-    log=True,
-    drop_zero_cells=False,
-    delay=0,
-    grid_num=25,
-    n_row=1,
-    n_col=None,
-    cmap="bwr",
-    normalize=False,
-    k=30,
-    show_rug=True,
-    show_extent=False,
-    ext_format=None,
-    stacked_fraction=False,
-    figsize=(6, 4),
-    save_show_or_return: str = "show",
-    save_kwargs: dict = {},
-    return_data=False,
-):
-    """Plot the combinatorial influence of two genes :math:`x`, :math:`y` to the target :math:`z`.
-    This plotting function tries to intuitively visualize the influence from genes :math:`x` and :math:`y` to the target :math:`z`.
-    Firstly, we divide the expression space for :math:`x` and :math:`y` based on grid_num and then we estimate the k-nearest neighbor for each of the
-    grid. We then use a Gaussian kernel to estimate the expected value for :math:`z`. It is then displayed in two dimension with :math:`x` and :math:`y`
-    as two axis and the color represents the value of the expected of :math:`z`. This function accepts a matrix where each row is the gene pair
-    and the target genes for this pair. The first column is the first hypothetical source or regulator, the second column represents
-    the second hypothetical target while the third column represents the hypothetical target gene. The name in this matrix should match
-    the name in the gene_short_name column of the cds_subset object.
+    adata: AnnData,
+    pairs_mat: np.ndarray,
+    xkey: Optional[str] = None,
+    ykey: Optional[str] = None,
+    zkey: Optional[str] = None,
+    log: bool = True,
+    drop_zero_cells: bool = False,
+    delay: int = 0,
+    grid_num: int = 25,
+    n_row: int = 1,
+    n_col: Optional[int] = None,
+    cmap: Union[str, Colormap, None] = "bwr",
+    normalize: bool = True,
+    k: int = 30,
+    show_rug: bool = True,
+    show_extent: bool = False,
+    ext_format: Optional[List[str]] = None,
+    stacked_fraction: bool = False,
+    figsize: Tuple[float, float] = (6, 4),
+    save_show_or_return: Literal["save", "show", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    return_data: bool = False,
+) -> Optional[pd.DataFrame]:
+    """Plot the combinatorial influence of two genes `x`, `y` to the target `z`.
 
-    Arguments
-    ---------
-        adata: `Anndata`
-            Annotated Data Frame, an Anndata object.
-        pairs_mat: 'np.ndarray'
-            A matrix where each row is the gene pair and the first and second columns are the hypothetical source or regulator while
-            the third column represents the hypothetical target. The name in this matrix should match the name in the
-            gene_short_name column of the adata object.
-        log: `bool` (Default: True)
-            A logic argument used to determine whether or not you should perform log transformation (using log(expression + 1))
-            before calculating density estimates, default to be TRUE.
-        drop_zero_cells: `bool` (Default: True)
-            Whether to drop cells that with zero expression for either the potential regulator or potential target. This
-            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
-            of ignoring strong inhibition effects from certain regulators to targets.
-        delay: `int` (Default: 1)
-            The time delay between the source and target gene. Always zero because we don't have real time-series.
-        grid_num: `int` (Default: 25)
-            The number of grid when creating the lagged DREVI plot.
-        n_row: `int` (Default: None)
-            number of columns used to layout the faceted cluster panels.
-        normalize: `bool` (Default: False)
-            Whether to row-scale the data
-        n_col: `int` (Default: 1)
-            number of columns used to layout the faceted cluster panels.
-        ext_format: None or `str` or List[str]
-            The string/list of strings (the first is for x and second for y labels) that will be used to format the ticks
-            on x or y-axis. If it is None or one of the element in the list is None, the default setting will be used.
-        stacked_fraction: bool (default: False)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
-            style is used.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+    This plotting function tries to intuitively visualize the influence from genes `x` and `y` to the target `z`.
+    Firstly, we divide the expression space for `x` and `y` based on grid_num and then we estimate the k-nearest
+    neighbor for each of the grid. We then use a Gaussian kernel to estimate the expected value for `z`. It is then
+    displayed in two dimension with `x` and `y` as two axis and the color represents the value of the expected of `z`.
+    This function accepts a matrix where each row is the gene pair and the target genes for this pair. The first column
+    is the first hypothetical source or regulator, the second column represents the second hypothetical target while the
+    third column represents the hypothetical target gene. The name in this matrix should match the name in the
+    gene_short_name column of the cds_subset object.
+
+    Args:
+        adata: an AnnData object.
+        pairs_mat: a matrix where each row is the gene pair and the first column is the hypothetical source or regulator
+            while the second column represents the hypothetical target. The name in this matrix should match the name in
+            the gene_short_name column of the adata object.
+        xkey: the layer key of `x` data (regulator gene 1). If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        ykey: the layer key of `y` data (regulator gene 2).  If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        zkey: the layer key of `z` data (the hypothetical target).  If None, dynamo's default naming rule would be used.
+            Defaults to None.
+        log: whether to perform log transformation (using log(expression + 1)) before calculating density estimates.
+            Defaults to True.
+        drop_zero_cells: whether to drop cells that with zero expression for either the potential regulator or potential
+            target. This can signify the relationship between potential regulators and targets, speed up the
+            calculation, but at the risk of ignoring strong inhibition effects from certain regulators to targets.
+            Defaults to False.
+        delay: the time delay between the source and target gene. Always zero because we don't have real time-series.
+            Defaults to 0.
+        grid_num: the number of grid when creating the lagged DREVI plot. Defaults to 25.
+        n_row: the number of rows used to layout the faceted cluster panels. Defaults to 1.
+        n_col: the number of columns used to layout the faceted cluster panels. Defaults to None.
+        cmap: the color map used to plot the heatmap. Could be the name of the color map or a matplotlib color map
+            object. If None, the color map would be generated automatically. Defaults to "viridis".
+        normalize: whether to row-scale the data. Defaults to True.
+        k: number of k-nearest neighbors used in calculating 2-D kernel density. Defaults to 30.
+        show_rug: whether to plot marginal distributions by drawing ticks along the x and y axes. Defaults to True.
+        show_extent: whether to extend the figure. If False, `show_ridge` and `show_rug` would be set to False
+            automatically. Defaults to False.
+        ext_format: the string/list of strings (the first is for x and second for y labels) that will be used to format
+            the ticks on x or y-axis. If it is None or one of the element in the list is None, the default setting will
+            be used. Defaults to None.
+        stacked_fraction: if True the jacobian will be represented as a stacked fraction in the title, otherwise a
+            linear fraction style is used. Defaults to False.
+        figsize: the size of the figure. Defaults to (6, 4).
+        save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
-            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
-            properly modify those keys according to your needs.
+        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+         and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
+        return_data: whether to return the calculated causality data. Defaults to False.
 
-    Returns
-    -------
-        A figure created by matplotlib.
+    Returns:
+        None would be returned by default. If `return_data` is set to be True, the causality data, a DataFrame with
+        columns ("x": x coordination, "y": y coordination, "expected_z": expected z coordination, "pair": gene pairs)
+        would be returned.
     """
+
     import matplotlib
     from matplotlib.colors import ListedColormap
 

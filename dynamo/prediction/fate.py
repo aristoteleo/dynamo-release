@@ -9,6 +9,7 @@ from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
+from ..configuration import DKM
 from ..dynamo_logger import (
     LoggerManager,
     main_info,
@@ -174,7 +175,7 @@ def fate(
         ndim = adata.uns["umap_fit"]["fit"]._raw_data.shape[1]
 
         if "X" in adata.obsm_keys():
-            if ndim == adata.obsm["X"].shape[1]:  # lift the dimension up again
+            if ndim == adata.obsm[DKM.X_PCA].shape[1]:  # lift the dimension up again
                 exprs = adata.uns["pca_fit"].inverse_transform(prediction)
 
         if adata.var.use_for_dynamics.sum() == exprs.shape[1]:
@@ -212,7 +213,7 @@ def _fate(
     interpolation_num: int = 250,
     average: bool = True,
     sampling: str = "arc_length",
-    cores:int = 1,
+    cores: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector
     field functions from one or a set of initial cell state(s).

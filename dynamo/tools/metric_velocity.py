@@ -12,6 +12,7 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
+from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_critical, main_info, main_warning
 from .connectivity import (
     adj_to_knn,
@@ -68,13 +69,13 @@ def cell_wise_confidence(
 
     if ekey == "X":
         X, V = (
-            adata.X if X_data is None else X_data,
+            adata.X if X_data is None else X_data,  ##### Check! inverse_norm for adata.X?
             adata.layers[vkey] if V_data is None else V_data,
         )
-        norm_method = adata.uns["pp"]["norm_method"].copy()
-        adata.uns["pp"]["norm_method"] = "log1p"
+        norm_method = adata.uns["pp"]["layers_norm_method"].copy()
+        adata.uns["pp"]["layers_norm_method"] = "log1p"
         X = inverse_norm(adata, X) if X_data is None else X_data
-        adata.uns["pp"]["norm_method"] = norm_method
+        adata.uns["pp"]["layers_norm_method"] = norm_method
     else:
         X, V = (
             adata.layers[ekey] if X_data is None else X_data,
@@ -105,7 +106,7 @@ def cell_wise_confidence(
         )
 
     n_neigh = n_neigh[0] if type(n_neigh) == np.ndarray else n_neigh
-    n_pca_components = adata.obsm["X"].shape[1]
+    n_pca_components = adata.obsm[DKM.X_PCA].shape[1]
 
     finite_inds = get_finite_inds(V, 0)
     X, V = X[:, finite_inds], V[:, finite_inds]

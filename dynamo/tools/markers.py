@@ -29,7 +29,7 @@ from ..dynamo_logger import (
     main_tqdm,
     main_warning,
 )
-from ..preprocessing.utils import Freeman_Tukey
+from ..preprocessing.transform import _Freeman_Tukey
 from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
 from .utils import fetch_X_data
 from .utils_markers import fdr, specificity
@@ -667,25 +667,27 @@ def glm_degs(
                 f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
                 f"must be provided"
             )
+
+    norm_method_key = "X_norm_method" if layer is None or layer == "X" else "layers_norm_method"
     if layer is None:
         if issparse(X_data):
             X_data.data = (
                 2**X_data.data - 1
-                if adata.uns["pp"]["norm_method"] == "log2"
+                if adata.uns["pp"][norm_method_key] == "log2"
                 else np.exp(X_data.data) - 1
-                if adata.uns["pp"]["norm_method"] == "log"
-                else Freeman_Tukey(X_data.data + 1, inverse=True)
-                if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
+                if adata.uns["pp"][norm_method_key] == "log"
+                else _Freeman_Tukey(X_data.data + 1, inverse=True)
+                if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
                 else X_data.data
             )
         else:
             X_data = (
                 2**X_data - 1
-                if adata.uns["pp"]["norm_method"] == "log2"
+                if adata.uns["pp"][norm_method_key] == "log2"
                 else np.exp(X_data) - 1
-                if adata.uns["pp"]["norm_method"] == "log"
-                else Freeman_Tukey(X_data, inverse=True)
-                if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
+                if adata.uns["pp"][norm_method_key] == "log"
+                else _Freeman_Tukey(X_data, inverse=True)
+                if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
                 else X_data
             )
 

@@ -344,9 +344,6 @@ def dynamics(
                 del adata.layers[i]
             main_info("making adata smooth...", indent_level=2)
 
-            if filter_gene_mode.lower() == "final" and "X_pca" in adata.obsm.keys():
-                adata.obsm["X"] = adata.obsm["X_pca"]
-
             if group is not None and group in adata.obs.columns:
                 moments(adata, genes=valid_bools, group=group)
             else:

@@ -12,10 +12,10 @@ from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DKM
 from ..dynamo_logger import main_info
-from ..preprocessing.preprocessor_utils import filter_genes_by_outliers as filter_genes
-from ..preprocessing.preprocessor_utils import log1p_adata as log1p
-from ..preprocessing.preprocessor_utils import normalize_cell_expr_by_size_factors
-from ..preprocessing.utils import pca
+from ..preprocessing.normalization import normalize
+from ..preprocessing.QC import filter_genes_by_outliers as filter_genes
+from ..preprocessing.pca import pca
+from ..preprocessing.transform import log1p
 from ..utils import LoggerManager, copy_adata
 from .connectivity import _gen_neighbor_keys, neighbors
 from .utils import update_dict
@@ -559,7 +559,7 @@ def cluster_community_from_graph(
 ) -> Any:
     """A function takes a graph as input and clusters its nodes into communities using one of three algorithms:
     Leiden, Louvain, or Infomap.
-    
+
     Args:
         graph (nx.Graph): the input graph that would be directly used for clustering. Defaults to None.
         graph_sparse_matrix: a sparse matrix that would be converted to a graph if `graph` is not supplied.
@@ -673,7 +673,7 @@ def scc(
 
     filter_genes(adata, min_cell_s=min_cells)
     adata.uns["pp"] = {}
-    normalize_cell_expr_by_size_factors(adata, layers="X")
+    normalize(adata, layers="X")
     log1p(adata)
     pca(adata, n_pca_components=30, pca_key="X_pca")
 
