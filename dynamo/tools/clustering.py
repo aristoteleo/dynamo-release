@@ -409,7 +409,7 @@ def cluster_community(
 
     Args:
         adata: an AnnData object.
-        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain", or "infomap". Defaults
+        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain". Defaults
             to "leiden".
         result_key: the key where the results will be stored in obs. Defaults to None.
         adj_matrix: adj_matrix used for clustering. Defaults to None.
@@ -541,17 +541,17 @@ def cluster_community_from_graph(
     directed: bool = False,
     **kwargs
 ) -> Any:
-    """A function takes a graph as input and clusters its nodes into communities using one of three algorithms:
-    Leiden, Louvain, or Infomap.
+    """A function takes a graph as input and clusters its nodes into communities using one of two algorithms:
+    Leiden, Louvain.
 
     Args:
         graph (nx.Graph): the input graph that would be directly used for clustering. Defaults to None.
         graph_sparse_matrix: a sparse matrix that would be converted to a graph if `graph` is not supplied.
-        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain", or "infomap".
+        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain".
         directed: whether the edges in the graph should be directed. Defaults to False. Defaults to False.
 
     Raises:
-        ImportError: cdlib or networkx not installed.
+        ImportError: networkx not installed.
         ValueError: neither graph nor graph_sparse_matrix is valid.
         KeyError: resolution is not found in kwargs for louvain algorithm.
         KeyError: randomize is not found in kwargs for louvain algorithm.
