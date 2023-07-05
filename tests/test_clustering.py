@@ -51,8 +51,8 @@ def test_simple_cluster_subset(adata):
 
 
 def test_simple_cluster_field(adata):
-    dyn.tl.cluster_field(adata, method="louvain")
-    dyn.tl.cluster_field(adata, method="leiden")
+    dyn.vf.cluster_field(adata, method="louvain")
+    dyn.vf.cluster_field(adata, method="leiden")
 
 
 def test_simple_cluster_keys(adata):
