@@ -632,12 +632,6 @@ def cluster_community_from_graph(
             seed=seed,
             **kwargs
         )
-    elif method == "infomap":
-        try:
-            import cdlib as algorithms
-        except ImportError:
-            raise ImportError("Please install cdlib via `pip install cdlib` for clustering on graph.")
-        coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
 
