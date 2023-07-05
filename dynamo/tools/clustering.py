@@ -385,28 +385,12 @@ def infomap(
         An updated AnnData object if `copy` is set to be true.
     """
 
-    kwargs.update({})
-
-    return cluster_community(
-        adata,
-        method="infomap",
-        use_weight=use_weight,
-        result_key=result_key,
-        adj_matrix=adj_matrix,
-        adj_matrix_key=adj_matrix_key,
-        layer=layer,
-        obsm_key=obsm_key,
-        cluster_and_subsets=selected_cluster_subset,
-        cell_subsets=selected_cell_subset,
-        directed=directed,
-        copy=copy,
-        **kwargs
-    )
+    raise NotImplementedError("infomap algorithm has been deprecated.")
 
 
 def cluster_community(
     adata: AnnData,
-    method: Literal["leiden", "louvain", "infomap"] = "leiden",
+    method: Literal["leiden", "louvain"] = "leiden",
     result_key: Optional[str] = None,
     adj_matrix: Optional[Union[list, np.array, csr_matrix]] = None,
     adj_matrix_key: Optional[str] = None,
@@ -553,7 +537,7 @@ def cluster_community(
 def cluster_community_from_graph(
     graph=None,
     graph_sparse_matrix: Union[np.ndarray, csr_matrix, None] = None,
-    method: Literal["leiden", "louvain", "infomap"] = "louvain",
+    method: Literal["leiden", "louvain"] = "louvain",
     directed: bool = False,
     **kwargs
 ) -> Any:
