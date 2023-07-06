@@ -34,6 +34,7 @@ def test_simple_cluster_community_adata(processed_zebra_adata):
     # dyn.pl.infomap(adata, basis="pca")
 
 
+@pytest.mark.skip(reason="umap compatability issue with numpy, pynndescent and pytest")
 def test_simple_cluster_field(processed_zebra_adata):
     dyn.tl.reduceDimension(processed_zebra_adata, basis="umap", n_pca_components=30, enforce=True)
     dyn.tl.cell_velocities(processed_zebra_adata, basis="umap")
