@@ -141,18 +141,16 @@ def test_calc_dispersion_sparse():
     # assert np.all(np.isclose(sc_var, expected_var))
 
 
-def test_Preprocessor_simple_run():
-    adata = dyn.sample_data.zebrafish()
+def test_Preprocessor_simple_run(raw_zebra_adata):
     preprocess_worker = Preprocessor()
-    preprocess_worker.preprocess_adata(adata, recipe="monocle")
+    preprocess_worker.preprocess_adata(raw_zebra_adata, recipe="monocle")
 
 
-def test_is_log_transformed():
-    adata = dyn.sample_data.zebrafish()
-    adata.uns["pp"] = {}
-    assert not is_log1p_transformed_adata(adata)
-    log1p(adata)
-    assert is_log1p_transformed_adata(adata)
+def test_is_log_transformed(raw_zebra_adata):
+    raw_zebra_adata.uns["pp"] = {}
+    assert not is_log1p_transformed_adata(raw_zebra_adata)
+    log1p(raw_zebra_adata)
+    assert is_log1p_transformed_adata(raw_zebra_adata)
 
 
 def test_layers2csr_matrix():
@@ -182,11 +180,10 @@ def test_compute_gene_exp_fraction():
     assert np.all(np.isclose(frac.flatten(), [2 / 5, 3 / 5]))
 
 
-def test_pca():
-    adata = dyn.sample_data.zebrafish()
+def test_pca(raw_zebra_adata):
     preprocessor = Preprocessor()
-    preprocessor.preprocess_adata_seurat_wo_pca(adata)
-    adata = dyn.pp.pca(adata, n_pca_components=30)
+    preprocessor.preprocess_adata_seurat_wo_pca(raw_zebra_adata)
+    adata = dyn.pp.pca(raw_zebra_adata, n_pca_components=30)
 
     assert adata.obsm["X_pca"].shape[1] == 30
     assert adata.uns["PCs"].shape[1] == 30
@@ -202,10 +199,9 @@ def test_pca():
 
 
 
-def test_preprocessor_seurat():
-    adata = dyn.sample_data.zebrafish()
+def test_preprocessor_seurat(raw_zebra_adata):
     preprocessor = dyn.pp.Preprocessor()
-    preprocessor.preprocess_adata(adata, recipe="seurat")
+    preprocessor.preprocess_adata(raw_zebra_adata, recipe="seurat")
     # TODO add assert comparison later. Now checked by notebooks only.
 
 
@@ -361,10 +357,9 @@ def test_get_cell_phase():
     np.allclose(get_cell_phase(adata).iloc[:, :5], expected_output)
 
 
-def test_gene_selection_method():
-    adata = dyn.sample_data.zebrafish()
-    dyn.pl.basic_stats(adata)
-    dyn.pl.highest_frac_genes(adata)
+def test_gene_selection_method(raw_zebra_adata):
+    dyn.pl.basic_stats(raw_zebra_adata)
+    dyn.pl.highest_frac_genes(raw_zebra_adata)
 
     # Drawing for the downstream analysis.
     # df = adata.obs.loc[:, ["nCounts", "pMito", "nGenes"]]
@@ -374,14 +369,15 @@ def test_gene_selection_method():
     # g.add_legend()
     # plt.show()
 
-    bdata = adata.copy()
-    cdata = adata.copy()
-    ddata = adata.copy()
-    edata = adata.copy()
+    adata = raw_zebra_adata.copy()
+    bdata = raw_zebra_adata.copy()
+    cdata = raw_zebra_adata.copy()
+    ddata = raw_zebra_adata.copy()
+    edata = raw_zebra_adata.copy()
     preprocessor = Preprocessor()
 
     starttime = timeit.default_timer()
-    preprocessor.config_monocle_recipe(adata)
+    preprocessor.config_monocle_recipe(edata)
     preprocessor.select_genes_kwargs = {"sort_by": "gini"}
     preprocessor.preprocess_adata_monocle(edata)
     monocle_gini_result = edata.var.use_for_pca
@@ -391,17 +387,17 @@ def test_gene_selection_method():
     preprocessor.preprocess_adata_monocle(adata)
     monocle_cv_dispersion_result_1 = adata.var.use_for_pca
 
-    preprocessor.config_monocle_recipe(adata)
+    preprocessor.config_monocle_recipe(bdata)
     preprocessor.select_genes_kwargs = {"sort_by": "fano_dispersion"}
     preprocessor.preprocess_adata_monocle(bdata)
     monocle_fano_dispersion_result_2 = bdata.var.use_for_pca
 
-    preprocessor.config_seurat_recipe(adata)
+    preprocessor.config_seurat_recipe(cdata)
     preprocessor.select_genes_kwargs = {"algorithm": "fano_dispersion"}
     preprocessor.preprocess_adata_seurat(cdata)
     seurat_fano_dispersion_result_3 = cdata.var.use_for_pca
 
-    preprocessor.config_seurat_recipe(adata)
+    preprocessor.config_seurat_recipe(ddata)
     preprocessor.select_genes_kwargs = {"algorithm": "seurat_dispersion"}
     preprocessor.preprocess_adata_seurat(ddata)
     seurat_seurat_dispersion_result_4 = ddata.var.use_for_pca

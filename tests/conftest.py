@@ -106,9 +106,6 @@ def processed_zebra_adata():
     adata = dyn.sample_data.zebrafish()
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
-    dyn.tl.reduceDimension(adata, basis="umap", n_pca_components=30, enforce=True)
-    dyn.tl.cell_velocities(adata, basis="umap")
-    dyn.vf.VectorField(adata, basis="umap", M=100)
     dyn.tl.reduceDimension(adata, basis="pca", n_pca_components=30, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
     dyn.vf.VectorField(adata, basis="pca", M=100)
@@ -126,3 +123,8 @@ def processed_zebra_adata():
     #                                     'gamma_logLL', 'delta_b', 'delta_r2', 'bs', 'bf', 'uu0', 'ul0', 'su0',
     #                                     'sl0', 'U0', 'S0', 'total0'], axis=1)
     return adata
+
+
+@pytest.fixture(scope="session")
+def raw_zebra_adata():
+    return dyn.sample_data.zebrafish()

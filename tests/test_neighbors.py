@@ -48,9 +48,8 @@ def test_broken_neighbors_check_recompute(processed_zebra_adata):
     assert check_neighbors_completeness(_adata)
 
 
-def test_neighbors_no_pca_key():
-    adata = dyn.sample_data.zebrafish()
-    dyn.tl.neighbors(adata)
+def test_neighbors_no_pca_key(raw_zebra_adata):
+    dyn.tl.neighbors(raw_zebra_adata)
 
 
 if __name__ == "__main__":
