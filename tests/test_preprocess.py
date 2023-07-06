@@ -471,8 +471,8 @@ def test_regress_out(raw_zebra_adata):
     celltype_key = "Cell_type"
     figsize = (10, 10)
     adata = raw_zebra_adata.copy()  # dyn.sample_data.hematopoiesis_raw()
-    dyn.pl.basic_stats(adata)
-    dyn.pl.highest_frac_genes(adata)
+    # dyn.pl.basic_stats(adata)
+    # dyn.pl.highest_frac_genes(adata)
 
     preprocessor = Preprocessor(regress_out_kwargs={"obs_keys": ["nCounts", "pMito"]})
 

@@ -23,9 +23,9 @@ def test_neighbors_subset(processed_zebra_adata):
     # check obsp keys subsetting by AnnData Obj
     neighbor_result_prefix = ""
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
-    check_and_recompute_neighbors(processed_zebra_adata, result_prefix=neighbor_result_prefix)
-    expected_conn_mat = processed_zebra_adata.obsp[conn_key][indices][:, indices]
-    expected_dist_mat = processed_zebra_adata.obsp[dist_key][indices][:, indices]
+    check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
+    expected_conn_mat = adata.obsp[conn_key][indices][:, indices]
+    expected_dist_mat = adata.obsp[dist_key][indices][:, indices]
 
     print("expected_conn_mat:", expected_conn_mat.shape)
     conn_mat = _adata.obsp[conn_key]
@@ -52,7 +52,7 @@ def test_broken_neighbors_check_recompute(processed_zebra_adata):
 
 def test_neighbors_no_pca_key(raw_zebra_adata):
     adata = raw_zebra_adata.copy()
-    dyn.tl.neighbors(raw_zebra_adata)
+    dyn.tl.neighbors(adata)
 
 
 if __name__ == "__main__":
