@@ -959,19 +959,19 @@ def table_rank_dict(
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
 def log1p_(adata: AnnData, X_data: np.ndarray) -> np.ndarray:
-    """Perform log(1+x) X_data if adata.uns["pp"]["norm_method"] is None.
+    """Perform log(1+x) X_data if adata.uns["pp"]["layers_norm_method"] is None.
 
     Args:
         adata: the AnnData that has been preprocessed.
         X_data: the data to perform log1p on.
 
     Returns:
-        The log1p result data if "norm_method" in adata is None; otherwise, X_data would be returned unchanged.
+        The log1p result data if "layers_norm_method" in adata is None; otherwise, X_data would be returned unchanged.
     """
-    if "norm_method" not in adata.uns["pp"].keys():
+    if "layers_norm_method" not in adata.uns["pp"].keys():
         return X_data
     else:
-        if adata.uns["pp"]["norm_method"] is None:
+        if adata.uns["pp"]["layers_norm_method"] is None:
             if sp.issparse(X_data):
                 X_data.data = np.log1p(X_data.data)
             else:
@@ -994,25 +994,25 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
     if sp.issparse(layer_x):
         layer_x.data = (
             np.expm1(layer_x.data)
-            if adata.uns["pp"]["norm_method"] == "log1p"
+            if adata.uns["pp"]["layers_norm_method"] == "log1p"
             else 2**layer_x.data - 1
-            if adata.uns["pp"]["norm_method"] == "log2"
+            if adata.uns["pp"]["layers_norm_method"] == "log2"
             else np.exp(layer_x.data) - 1
-            if adata.uns["pp"]["norm_method"] == "log"
+            if adata.uns["pp"]["layers_norm_method"] == "log"
             else _Freeman_Tukey(layer_x.data + 1, inverse=True)
-            if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
+            if adata.uns["pp"]["layers_norm_method"] == "Freeman_Tukey"
             else layer_x.data
         )
     else:
         layer_x = (
             np.expm1(layer_x)
-            if adata.uns["pp"]["norm_method"] == "log1p"
+            if adata.uns["pp"]["layers_norm_method"] == "log1p"
             else 2**layer_x - 1
-            if adata.uns["pp"]["norm_method"] == "log2"
+            if adata.uns["pp"]["layers_norm_method"] == "log2"
             else np.exp(layer_x) - 1
-            if adata.uns["pp"]["norm_method"] == "log"
+            if adata.uns["pp"]["layers_norm_method"] == "log"
             else _Freeman_Tukey(layer_x, inverse=True)
-            if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
+            if adata.uns["pp"]["layers_norm_method"] == "Freeman_Tukey"
             else layer_x
         )
 
@@ -2120,7 +2120,7 @@ def calc_R2(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)):
 def norm_loglikelihood(x, mu, sig):
     """Calculate log-likelihood for the data."""
     err = (x - mu) / sig
-    ll = -len(err) / 2 * np.log(2 * np.pi) - 0.5 * len(err) * np.log(sig ** 2) - 0.5 * err.dot(err.T)
+    ll = -len(err) / 2 * np.log(2 * np.pi) - 0.5 * len(err) * np.log(sig**2) - 0.5 * err.dot(err.T)
     return np.sum(ll, 0)
 
 
@@ -2890,3 +2890,17 @@ def projection_with_transition_matrix(
                 delta_X[i] -= T_i.mean() * diff_emb.sum(0)
 
     return delta_X
+
+def density_corrected_transition_matrix(T):
+    '''
+        Returns the transition matrix with density correction from T
+    '''
+    T = sp.csr_matrix(T, copy=True)
+
+    for i in range(T.shape[0]):
+        idx = T[i].indices
+        T_i = T[i].data
+        T_i -= T_i.mean()
+        T[i, idx] = T_i
+
+    return T

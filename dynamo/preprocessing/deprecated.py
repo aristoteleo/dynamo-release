@@ -1,14 +1,15 @@
 import re
 import warnings
-from typing import Callable, List, Iterable, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
 
-import anndata
 import functools
+
+import anndata
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -17,10 +18,13 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
 
-from ..configuration import DynamoAdataConfig, DynamoAdataKeyManager
+from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
+    LoggerManager,
+    main_debug,
     main_info,
     main_info_insert_adata_obsm,
+    main_warning,
 )
 from ..tools.utils import update_dict
 from ..utils import copy_adata
@@ -28,11 +32,7 @@ from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
 from .normalization import calc_sz_factor, get_sz_exprs, normalize_mat_monocle, sz_util
 from .pca import pca
-from .QC import (
-    basic_stats,
-    filter_genes_by_clusters,
-    filter_genes_by_outliers,
-)
+from .QC import basic_stats, filter_genes_by_clusters, filter_genes_by_outliers
 from .transform import _Freeman_Tukey
 from .utils import (
     _infer_labeling_experiment_type,
@@ -44,14 +44,11 @@ from .utils import (
     convert_layers2csr,
     detect_experiment_datatype,
     get_inrange_shared_counts_mask,
-    get_svr_filter,
     get_nan_or_inf_data_bool_mask,
+    get_svr_filter,
     merge_adata_attrs,
     unique_var_obs_adata,
 )
-
-from ..configuration import DKM
-from ..dynamo_logger import LoggerManager, main_debug, main_warning
 
 
 def deprecated(func):
@@ -61,9 +58,10 @@ def deprecated(func):
             f"{func.__name__} is deprecated and will be removed in a future release. "
             f"Please update your code to use the new replacement function.",
             category=DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -393,7 +391,9 @@ def _estimate_dispersion_legacy(
     return adata
 
 
-def _top_table_legacy(adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gini"] = "dispersion") -> pd.DataFrame:
+def _top_table_legacy(
+    adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gini"] = "dispersion"
+) -> pd.DataFrame:
     """Retrieve a table that contains gene names and other info whose dispersions/gini index are highest.
 
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -465,7 +465,9 @@ def _calc_mean_var_dispersion_general_mat_legacy(
         return _calc_mean_var_dispersion_sparse_legacy(data_mat, axis)
 
 
-def _calc_mean_var_dispersion_ndarray_legacy(data_mat: np.ndarray, axis: int = 0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _calc_mean_var_dispersion_ndarray_legacy(
+    data_mat: np.ndarray, axis: int = 0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """calculate mean, variance, and dispersion of a non-sparse matrix.
 
     Args:
@@ -488,7 +490,9 @@ def _calc_mean_var_dispersion_ndarray_legacy(data_mat: np.ndarray, axis: int = 0
     return mean.flatten(), var.flatten(), dispersion.flatten()
 
 
-def _calc_mean_var_dispersion_sparse_legacy(sparse_mat: csr_matrix, axis: int = 0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _calc_mean_var_dispersion_sparse_legacy(
+    sparse_mat: csr_matrix, axis: int = 0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """calculate mean, variance, and dispersion of a matrix.
 
     Args:
@@ -772,7 +776,8 @@ def _normalize_cell_expr_by_size_factors_legacy(
         else:
             adata.layers["X_" + layer] = CM
 
-        adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+        norm_method_key = "X_norm_method" if layer == DKM.X_LAYER else "layers_norm_method"
+        adata.uns["pp"][norm_method_key] = norm_method.__name__ if callable(norm_method) else norm_method
 
     return adata
 
@@ -1504,12 +1509,12 @@ def _recipe_monocle_legacy(
         )
     else:
         layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all")
-        for layer in layers:
-            if layer != "X":
-                logger.info_insert_adata("X_" + layer, "layers")
-                adata.layers["X_" + layer] = adata.layers[layer].copy()
-        logger.info_insert_adata("norm_method", "uns['pp']", indent_level=2)
-        adata.uns["pp"]["norm_method"] = None
+        for tmp_layer in layers:
+            if tmp_layer != "X":
+                logger.info_insert_adata("X_" + tmp_layer, "layers")
+                adata.layers["X_" + tmp_layer] = adata.layers[tmp_layer].copy()
+        logger.info_insert_adata("layers_norm_method", "uns['pp']", indent_level=2)
+        adata.uns["pp"]["layers_norm_method"] = None
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if layer is None:

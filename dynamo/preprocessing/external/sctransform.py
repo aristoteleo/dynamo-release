@@ -17,11 +17,10 @@ import scipy as sp
 import statsmodels.discrete.discrete_model
 import statsmodels.nonparametric.kernel_regression
 from anndata import AnnData
-from KDEpy import FFTKDE
 from scipy import stats
 
 from ...configuration import DKM
-from ...dynamo_logger import main_info, main_info_insert_adata_layer
+from ...dynamo_logger import main_info, main_info_insert_adata_layer, main_warning
 from ..utils import get_gene_selection_filter
 
 _EPS = np.finfo(float).eps
@@ -71,6 +70,10 @@ def is_outlier(
     Returns:
        Boolean array indicating whether each value in `y` is an outlier (`True`) or not (`False`).
     """
+    try:
+        from KDEpy import FFTKDE
+    except ImportError:
+        raise ImportError("Please install KDEpy for sctransform.")
     z = FFTKDE(kernel="gaussian", bw="ISJ").fit(x)
     z.evaluate()
     bin_width = (max(x) - min(x)) * z.bw / 2
@@ -215,6 +218,10 @@ def sctransform_core(
     """
     import multiprocessing
     import sys
+    try:
+        from KDEpy import FFTKDE
+    except ImportError:
+        raise ImportError("Please install KDEpy for sctransform.")
 
     main_info("sctransform adata on layer: %s" % (layer))
     X = DKM.select_layer_data(adata, layer).copy()
@@ -422,10 +429,18 @@ def sctransform(
 ) -> Optional[AnnData]:
     """A wrapper calls sctransform_core and set dynamo style keys in adata"""
     for layer in layers:
+        if layer != DKM.X_LAYER:
+            main_warning(
+                f"Sctransform is only recommended for X layer while you are applying sctransform on layer: {layer}, "
+                f"This will overwrite existing sctransform params and create negative values in layers, "
+                f"which will cause error in the velocities calculation. Please run the sctransform recipe with default "
+                f"if you plan to perform downstream analysis."
+            )
         sctransform_core(adata, layer=layer, n_genes=n_top_genes, **kwargs)
-    if adata.X.shape[1] > n_top_genes:
-        X_squared = adata.X.copy()
-        X_squared.data **= 2
-        variance = X_squared.mean(0) - np.square(adata.X.mean(0))
-        adata.var["sct_score"] = variance.A1
-        adata.var["use_for_pca"] = get_gene_selection_filter(adata.var["sct_score"], n_top_genes=n_top_genes)
+        if layer == DKM.X_LAYER:
+            if adata.X.shape[1] > n_top_genes:
+                X_squared = adata.X.copy()
+                X_squared.data **= 2
+                variance = X_squared.mean(0) - np.square(adata.X.mean(0))
+                adata.var["sct_score"] = variance.A1
+                adata.var["use_for_pca"] = get_gene_selection_filter(adata.var["sct_score"], n_top_genes=n_top_genes)

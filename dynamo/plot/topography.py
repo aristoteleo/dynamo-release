@@ -842,6 +842,7 @@ def topography(
     frontier: bool = False,
     s_kwargs_dict: Dict[str, Any] = {},
     q_kwargs_dict: Dict[str, Any] = {},
+    n: int = 25,
     **streamline_kwargs_dict,
 ) -> Union[Axes, List[Axes], None]:
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
@@ -991,6 +992,7 @@ def topography(
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
         s_kwargs_dict: the dictionary of the scatter arguments. Defaults to {}.
         q_kwargs_dict: additional parameters that will be passed to plt.quiver function. Defaults to {}.
+        n: Number of samples for calculating the fixed points.
         **streamline_kwargs_dict: any other kwargs that would be passed to `pyplot.streamline`.
 
     Returns:
@@ -1067,7 +1069,7 @@ def topography(
                     f"`basis` and `fps_basis` are all {basis}. Will also map topography ...",
                     indent_level=2,
                 )
-                VectorField(adata, basis, map_topography=True)
+                VectorField(adata, basis, map_topography=True, n=n)
             else:
                 VectorField(adata, basis)
     if fps_uns_key not in adata.uns.keys():
@@ -1086,7 +1088,7 @@ def topography(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            VectorField(adata, fps_basis, map_topography=True)
+            VectorField(adata, fps_basis, map_topography=True, n=n)
     # elif "VecFld2D" not in adata.uns[uns_key].keys():
     #     with warnings.catch_warnings():
     #         warnings.simplefilter("ignore")
@@ -1123,7 +1125,7 @@ def topography(
         )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            _topology(adata, fps_basis, VecFld=None)
+            _topology(adata, fps_basis, VecFld=None, n=n)
     else:
         if fps_vecfld_dict["Xss"].size > 0 and fps_vecfld_dict["Xss"].shape[1] > 2:
             fps_vecfld_dict["X_basis"], fps_vecfld_dict["Xss"] = (

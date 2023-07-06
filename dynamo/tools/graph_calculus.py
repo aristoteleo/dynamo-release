@@ -238,7 +238,7 @@ def graphize_velocity_coopt(
 
             # cosine similarity
             w_norm = np.linalg.norm(w)
-            if w_norm == 0 or b == 0:
+            if w_norm == 0 or b == 0 or c_norm==0:
                 jac_sim = 0
             else:
                 jac_sim = b * (c / (w_norm * c_norm) - w.dot(c) / (w_norm**3 * c_norm) * w)
