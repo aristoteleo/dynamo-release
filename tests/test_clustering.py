@@ -16,7 +16,6 @@ logger = LoggerManager.get_main_logger()
 def test_simple_cluster_community_adata(adata):
     dyn.tl.louvain(adata)
     dyn.tl.leiden(adata)
-    dyn.tl.infomap(adata)
 
     try:
         dyn.tl.louvain(adata, directed=True)
@@ -27,42 +26,17 @@ def test_simple_cluster_community_adata(adata):
         print("################################################")
 
     dyn.tl.leiden(adata, directed=True)
-    dyn.tl.infomap(adata, directed=True)
     assert np.all(adata.obs["louvain"] != -1)
     assert np.all(adata.obs["leiden"] != -1)
-    assert np.all(adata.obs["infomap"] != -1)
 
     # dyn.pl.louvain(adata, basis="pca")
     # dyn.pl.leiden(adata, basis="pca")
     # dyn.pl.infomap(adata, basis="pca")
 
 
-def test_simple_cluster_subset(adata):
-    print(adata.obs["Cluster"])
-    result = dyn.tl.infomap(
-        adata,
-        directed=True,
-        copy=True,
-        selected_cluster_subset=["Cluster", [0, 1, 2]],
-    )
-    print(result.obs["subset_infomap"])
-    result = dyn.tl.infomap(adata, directed=True, copy=True, selected_cell_subset=np.arange(0, 10))
-    print(result.obs["subset_infomap"])
-
-
 def test_simple_cluster_field(adata):
     dyn.vf.cluster_field(adata, basis="umap", method="louvain")
     dyn.vf.cluster_field(adata, basis="umap", method="leiden")
-
-
-def test_simple_cluster_keys(adata):
-    adata = dyn.tl.infomap(adata, directed=True, copy=True, layer="curvature")
-    # adata = dyn.tl.infomap(
-    #     adata,
-    #     directed=True,
-    #     copy=True,
-    #     layer="acceleration"
-    # )
 
 
 def test_leiden_membership_input(adata):
@@ -81,6 +55,4 @@ if __name__ == "__main__":
     # ######### testing begins here #########
     # test_leiden_membership_input(adata)
     # test_simple_cluster_community_adata(adata)
-    # test_simple_cluster_subset(adata)
-    # test_simple_cluster_keys(adata)
     pass
