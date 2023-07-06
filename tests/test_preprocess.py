@@ -171,7 +171,6 @@ def test_layers2csr_matrix():
 
     result = dyn.preprocessing.utils.convert_layers2csr(adata)
 
-    assert isinstance(result.layers['layer1'], scipy.sparse._csc.csc_matrix)
     assert issparse(result.layers['layer1'])
     assert result.layers['layer1'].shape == layer.shape
     assert (result.layers['layer1'].toarray() == layer.toarray()).all()

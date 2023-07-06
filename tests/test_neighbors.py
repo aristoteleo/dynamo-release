@@ -13,10 +13,11 @@ from dynamo.tools.connectivity import (
 
 
 def test_neighbors_subset(processed_zebra_adata):
-    dyn.tl.neighbors(processed_zebra_adata)
-    assert check_neighbors_completeness(processed_zebra_adata)
-    indices = np.random.randint(0, len(processed_zebra_adata), size=100)
-    _adata = processed_zebra_adata[indices].copy()
+    adata = processed_zebra_adata.copy()
+    dyn.tl.neighbors(adata)
+    assert check_neighbors_completeness(adata)
+    indices = np.random.randint(0, len(adata), size=100)
+    _adata = adata[indices].copy()
     assert not check_neighbors_completeness(_adata)
 
     # check obsp keys subsetting by AnnData Obj
@@ -39,16 +40,18 @@ def test_neighbors_subset(processed_zebra_adata):
 
 
 def test_broken_neighbors_check_recompute(processed_zebra_adata):
-    dyn.tl.neighbors(processed_zebra_adata)
-    assert check_neighbors_completeness(processed_zebra_adata)
-    indices = np.random.randint(0, len(processed_zebra_adata), size=100)
-    _adata = processed_zebra_adata[indices].copy()
+    adata = processed_zebra_adata.copy()
+    dyn.tl.neighbors(adata)
+    assert check_neighbors_completeness(adata)
+    indices = np.random.randint(0, len(adata), size=100)
+    _adata = adata[indices].copy()
     assert not check_neighbors_completeness(_adata)
     check_and_recompute_neighbors(_adata)
     assert check_neighbors_completeness(_adata)
 
 
 def test_neighbors_no_pca_key(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
     dyn.tl.neighbors(raw_zebra_adata)
 
 
