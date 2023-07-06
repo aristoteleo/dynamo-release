@@ -26,6 +26,7 @@ from dynamo.preprocessing.utils import (
 SHOW_FIG = False
 
 
+@pytest.mark.skip(reason="will be moved to plot tests")
 def test_highest_frac_genes_plot(processed_zebra_adata, is_X_sparse=True):
     dyn.pl.highest_frac_genes(
         processed_zebra_adata,
@@ -72,6 +73,7 @@ def test_highest_frac_genes_plot(processed_zebra_adata, is_X_sparse=True):
         dyn.pl.highest_frac_genes(processed_zebra_adata, show=SHOW_FIG)
 
 
+@pytest.mark.skip(reason="need full test data")
 def test_highest_frac_genes_plot_prefix_list(processed_zebra_adata):
     sample_list = ["MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"]
     dyn.pl.highest_frac_genes(processed_zebra_adata, show=SHOW_FIG, gene_prefix_list=sample_list)
