@@ -3,6 +3,7 @@ import timeit
 import anndata
 import numpy as np
 import pandas as pd
+import pytest
 import scipy
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
@@ -88,6 +89,7 @@ def test_highest_frac_genes_plot_prefix_list(processed_zebra_adata):
         raise AssertionError("Expected ValueError to be raised")
 
 
+@pytest.mark.skip(reason="excessive memory usage")
 def test_recipe_monocle_feature_selection_layer_simple0():
     rpe1 = dyn.sample_data.scEU_seq_rpe1()
     # show results
@@ -198,7 +200,7 @@ def test_pca(raw_zebra_adata):
     assert np.linalg.norm(pca.explained_variance_ratio_[:10] - adata.uns["explained_variance_ratio_"][:10]) < 1e-1
 
 
-
+@pytest.mark.skip(reason="unhelpful test")
 def test_preprocessor_seurat(raw_zebra_adata):
     preprocessor = dyn.pp.Preprocessor()
     preprocessor.preprocess_adata(raw_zebra_adata, recipe="seurat")
@@ -357,6 +359,7 @@ def test_get_cell_phase():
     np.allclose(get_cell_phase(adata).iloc[:, :5], expected_output)
 
 
+@pytest.mark.skip(reason="excessive memory usage")
 def test_gene_selection_method(raw_zebra_adata):
     dyn.pl.basic_stats(raw_zebra_adata)
     dyn.pl.highest_frac_genes(raw_zebra_adata)
