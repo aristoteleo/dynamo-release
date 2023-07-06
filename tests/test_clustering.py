@@ -13,39 +13,39 @@ from dynamo import LoggerManager
 logger = LoggerManager.get_main_logger()
 
 
-def test_simple_cluster_community_adata(adata):
-    dyn.tl.louvain(adata)
-    dyn.tl.leiden(adata)
+def test_simple_cluster_community_adata(processed_zebra_adata):
+    dyn.tl.louvain(processed_zebra_adata)
+    dyn.tl.leiden(processed_zebra_adata)
 
     try:
-        dyn.tl.louvain(adata, directed=True)
+        dyn.tl.louvain(processed_zebra_adata, directed=True)
     except ValueError as e:
         print("################################################")
         print("PASSED: Value error captured as EXPECTED, Exception info:")
         print(e)
         print("################################################")
 
-    dyn.tl.leiden(adata, directed=True)
-    assert np.all(adata.obs["louvain"] != -1)
-    assert np.all(adata.obs["leiden"] != -1)
+    dyn.tl.leiden(processed_zebra_adata, directed=True)
+    assert np.all(processed_zebra_adata.obs["louvain"] != -1)
+    assert np.all(processed_zebra_adata.obs["leiden"] != -1)
 
     # dyn.pl.louvain(adata, basis="pca")
     # dyn.pl.leiden(adata, basis="pca")
     # dyn.pl.infomap(adata, basis="pca")
 
 
-def test_simple_cluster_field(adata):
-    dyn.vf.cluster_field(adata, basis="umap", method="louvain")
-    dyn.vf.cluster_field(adata, basis="umap", method="leiden")
+def test_simple_cluster_field(processed_zebra_adata):
+    dyn.vf.cluster_field(processed_zebra_adata, basis="umap", method="louvain")
+    dyn.vf.cluster_field(processed_zebra_adata, basis="umap", method="leiden")
 
 
-def test_leiden_membership_input(adata):
+def test_leiden_membership_input(processed_zebra_adata):
     # somehow this initial member ship works before, but not now
-    initial_membership = np.random.randint(low=0, high=min(100, len(adata)), size=len(adata), dtype=int)
-    dyn.tl.leiden(adata, initial_membership=initial_membership)
+    initial_membership = np.random.randint(low=0, high=min(100, len(processed_zebra_adata)), size=len(processed_zebra_adata), dtype=int)
+    dyn.tl.leiden(processed_zebra_adata, initial_membership=initial_membership)
 
-    initial_membership = np.random.randint(low=0, high=100, size=len(adata), dtype=int)
-    dyn.tl.leiden(adata, directed=True, initial_membership=initial_membership)
+    initial_membership = np.random.randint(low=0, high=100, size=len(processed_zebra_adata), dtype=int)
+    dyn.tl.leiden(processed_zebra_adata, directed=True, initial_membership=initial_membership)
 
 
 if __name__ == "__main__":

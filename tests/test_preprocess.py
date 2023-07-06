@@ -25,42 +25,41 @@ from dynamo.preprocessing.utils import (
 SHOW_FIG = False
 
 
-def test_highest_frac_genes_plot(adata, is_X_sparse=True):
-    print(adata)
+def test_highest_frac_genes_plot(processed_zebra_adata, is_X_sparse=True):
     dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
         show=SHOW_FIG,
         log=False,
         save_path="./test_simple_highest_frac_genes.png",
     )
     dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
     )
     dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
     )
     dyn.pl.highest_frac_genes(
-        adata,
-        log=False,
-        show=SHOW_FIG,
-        save_path="test_simple_highest_frac_genes.png",
-        orient="h",
-    )
-    dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
         orient="h",
     )
     dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
+        log=False,
+        show=SHOW_FIG,
+        save_path="test_simple_highest_frac_genes.png",
+        orient="h",
+    )
+    dyn.pl.highest_frac_genes(
+        processed_zebra_adata,
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
@@ -68,18 +67,18 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
     )
 
     if is_X_sparse:
-        adata.X = adata.X.toarray()
-        dyn.pl.highest_frac_genes(adata, show=SHOW_FIG)
+        processed_zebra_adata.X = processed_zebra_adata.X.toarray()
+        dyn.pl.highest_frac_genes(processed_zebra_adata, show=SHOW_FIG)
 
 
-def test_highest_frac_genes_plot_prefix_list(adata):
+def test_highest_frac_genes_plot_prefix_list(processed_zebra_adata):
     sample_list = ["MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"]
-    dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=sample_list)
-    dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"])
+    dyn.pl.highest_frac_genes(processed_zebra_adata, show=SHOW_FIG, gene_prefix_list=sample_list)
+    dyn.pl.highest_frac_genes(processed_zebra_adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"])
 
     try:
         dyn.pl.highest_frac_genes(
-            adata,
+            processed_zebra_adata,
             gene_prefix_list=["someGenePrefixNotExisting"],
             show=SHOW_FIG,
         )
@@ -142,7 +141,8 @@ def test_calc_dispersion_sparse():
     # assert np.all(np.isclose(sc_var, expected_var))
 
 
-def test_Preprocessor_simple_run(adata):
+def test_Preprocessor_simple_run():
+    adata = dyn.sample_data.zebrafish()
     preprocess_worker = Preprocessor()
     preprocess_worker.preprocess_adata(adata, recipe="monocle")
 
@@ -202,7 +202,7 @@ def test_pca():
 
 
 
-def test_preprocessor_seurat(adata):
+def test_preprocessor_seurat():
     adata = dyn.sample_data.zebrafish()
     preprocessor = dyn.pp.Preprocessor()
     preprocessor.preprocess_adata(adata, recipe="seurat")

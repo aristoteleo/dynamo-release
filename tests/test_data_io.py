@@ -8,8 +8,8 @@ import dynamo as dyn
 # import utils
 
 
-def test_save_rank_info(adata):
-    dyn.export_rank_xlsx(adata)
+def test_save_rank_info(processed_zebra_adata):
+    dyn.export_rank_xlsx(processed_zebra_adata)
 
 
 def test_scEU_seq():
