@@ -152,10 +152,11 @@ def test_Preprocessor_simple_run(raw_zebra_adata):
 
 
 def test_is_log_transformed(raw_zebra_adata):
-    raw_zebra_adata.uns["pp"] = {}
-    assert not is_log1p_transformed_adata(raw_zebra_adata)
-    log1p(raw_zebra_adata)
-    assert is_log1p_transformed_adata(raw_zebra_adata)
+    adata = raw_zebra_adata.copy()
+    adata.uns["pp"] = {}
+    assert not is_log1p_transformed_adata(adata)
+    log1p(adata)
+    assert is_log1p_transformed_adata(adata)
 
 
 def test_layers2csr_matrix():
@@ -186,9 +187,10 @@ def test_compute_gene_exp_fraction():
 
 
 def test_pca(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
     preprocessor = Preprocessor()
-    preprocessor.preprocess_adata_seurat_wo_pca(raw_zebra_adata)
-    adata = dyn.pp.pca(raw_zebra_adata, n_pca_components=30)
+    preprocessor.preprocess_adata_seurat_wo_pca(adata)
+    adata = dyn.pp.pca(adata, n_pca_components=30)
 
     assert adata.obsm["X_pca"].shape[1] == 30
     assert adata.uns["PCs"].shape[1] == 30
@@ -205,8 +207,9 @@ def test_pca(raw_zebra_adata):
 
 @pytest.mark.skip(reason="unhelpful test")
 def test_preprocessor_seurat(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
     preprocessor = dyn.pp.Preprocessor()
-    preprocessor.preprocess_adata(raw_zebra_adata, recipe="seurat")
+    preprocessor.preprocess_adata(adata, recipe="seurat")
     # TODO add assert comparison later. Now checked by notebooks only.
 
 
