@@ -146,8 +146,9 @@ def test_calc_dispersion_sparse():
 
 
 def test_Preprocessor_simple_run(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
     preprocess_worker = Preprocessor()
-    preprocess_worker.preprocess_adata(raw_zebra_adata, recipe="monocle")
+    preprocess_worker.preprocess_adata(adata, recipe="monocle")
 
 
 def test_is_log_transformed(raw_zebra_adata):
@@ -463,11 +464,11 @@ def test_normalize():
     assert np.allclose(normalized.layers["X_spliced"].toarray(), (X / adata.obs["spliced_Size_Factor"].values[:, None]))
 
 
-def test_regress_out():
+def test_regress_out(raw_zebra_adata):
     starttime = timeit.default_timer()
     celltype_key = "Cell_type"
     figsize = (10, 10)
-    adata = dyn.read("./data/zebrafish.h5ad")  # dyn.sample_data.hematopoiesis_raw()
+    adata = raw_zebra_adata.copy()  # dyn.sample_data.hematopoiesis_raw()
     dyn.pl.basic_stats(adata)
     dyn.pl.highest_frac_genes(adata)
 
