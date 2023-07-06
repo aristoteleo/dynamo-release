@@ -103,7 +103,8 @@ ZEBRAFISH_ADATA = None
 
 @pytest.fixture(scope="session")
 def processed_zebra_adata():
-    adata = dyn.sample_data.zebrafish()
+    raw_adata = dyn.sample_data.zebrafish()
+    adata = raw_adata[:, :6000].copy()
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005, keep_filtered_cells=False, keep_filtered_genes=False)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, basis="pca", n_pca_components=30, enforce=True)
