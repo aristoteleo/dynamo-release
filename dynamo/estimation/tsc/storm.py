@@ -17,15 +17,15 @@ from dynamo.tools.utils import find_extreme
 
 
 def mle_cell_specific_poisson_ss(
-        R: Union[np.ndarray, csr_matrix],
-        N: Union[np.ndarray, csr_matrix],
-        time: np.ndarray,
-        gamma_init: np.ndarray,
-        cell_total: np.ndarray,
-        Total_smoothed,
-        New_smoothed,
+    R: Union[np.ndarray, csr_matrix],
+    N: Union[np.ndarray, csr_matrix],
+    time: np.ndarray,
+    gamma_init: np.ndarray,
+    cell_total: np.ndarray,
+    Total_smoothed,
+    New_smoothed,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """"Infer parameters based on the cell specific Poisson model using maximum likelihood estimation under the
+    """Infer parameters based on the cell specific Poisson model using maximum likelihood estimation under the
     steady-state assumption
 
     Args:
@@ -145,12 +145,12 @@ def mle_cell_specific_poisson_ss(
 
 
 def mle_cell_specific_poisson(
-        N: Union[np.ndarray, csr_matrix],
-        time: np.ndarray,
-        gamma_init: np.ndarray,
-        cell_total: np.ndarray
+    N: Union[np.ndarray, csr_matrix],
+    time: np.ndarray,
+    gamma_init: np.ndarray,
+    cell_total: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """"Infer parameters based on cell specific Poisson distributions using maximum likelihood estimation
+    """Infer parameters based on cell specific Poisson distributions using maximum likelihood estimation
 
     Args:
         N: The number of new mRNA counts for each gene in each cell. shape: (n_var, n_obs).
@@ -234,14 +234,14 @@ def mle_cell_specific_poisson(
 
 
 def mle_cell_specific_zero_inflated_poisson(
-        N: Union[np.ndarray, csr_matrix],
-        time: np.ndarray,
-        gamma_init: np.ndarray,
-        cell_total: np.ndarray
+    N: Union[np.ndarray, csr_matrix],
+    time: np.ndarray,
+    gamma_init: np.ndarray,
+    cell_total: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """"Infer parameters based on cell specific zero-inflated Poisson distributions using maximum likelihood estimation
+    """Infer parameters based on cell specific zero-inflated Poisson distributions using maximum likelihood estimation
 
-        Args:
+    Args:
         N: The number of new mRNA counts for each gene in each cell. shape: (n_var, n_obs).
         time: The time point of each cell. shape: (n_obs,).
         gamma_init: The initial value of gamma. shape: (n_var,).
@@ -354,16 +354,16 @@ def mle_cell_specific_zero_inflated_poisson(
 
 
 def mle_independent_cell_specific_poisson(
-        UL: Union[np.ndarray, csr_matrix],
-        SL: Union[np.ndarray, csr_matrix],
-        time: np.ndarray,
-        gamma_init: np.ndarray,
-        beta_init: np.ndarray,
-        cell_total: np.ndarray,
-        Total_smoothed: Union[np.ndarray, csr_matrix],
-        S_smoothed: Union[np.ndarray, csr_matrix]
+    UL: Union[np.ndarray, csr_matrix],
+    SL: Union[np.ndarray, csr_matrix],
+    time: np.ndarray,
+    gamma_init: np.ndarray,
+    beta_init: np.ndarray,
+    cell_total: np.ndarray,
+    Total_smoothed: Union[np.ndarray, csr_matrix],
+    S_smoothed: Union[np.ndarray, csr_matrix],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """"Infer parameters based on independent cell specific Poisson distributions using maximum likelihood estimation
+    """Infer parameters based on independent cell specific Poisson distributions using maximum likelihood estimation
 
     Args:
         UL: The number of unspliced labeled mRNA counts for each gene in each cell. shape: (n_var, n_obs).
@@ -480,13 +480,13 @@ def mle_independent_cell_specific_poisson(
 
 
 def cell_specific_alpha_beta(
-        UL_smoothed_CSP: Union[np.ndarray, csr_matrix],
-        SL_smoothed_CSP: Union[np.ndarray, csr_matrix],
-        time: np.ndarray,
-        gamma_init: np.ndarray,
-        beta_init: np.ndarray
+    UL_smoothed_CSP: Union[np.ndarray, csr_matrix],
+    SL_smoothed_CSP: Union[np.ndarray, csr_matrix],
+    time: np.ndarray,
+    gamma_init: np.ndarray,
+    beta_init: np.ndarray,
 ) -> Tuple[csr_matrix, csr_matrix]:
-    """"Infer cell specific transcription rate and splicing rate based on ICSP model
+    """Infer cell specific transcription rate and splicing rate based on ICSP model
 
     Args:
         UL_smoothed_CSP: The number of unspliced labeled mRNA expression after smoothing based on CSP type model for
@@ -537,12 +537,13 @@ def cell_specific_alpha_beta(
 
 
 def visualize_CSP_loss_landscape(
-        adata: AnnData,
-        gene_name_list: list,
-        figsize: tuple = (3, 3),
-        dpi: int = 75,
-        save_name: Optional[str] = None):
-    """"Draw the landscape of CSP model-based loss function for the given genes.
+    adata: AnnData,
+    gene_name_list: list,
+    figsize: tuple = (3, 3),
+    dpi: int = 75,
+    save_name: Optional[str] = None,
+):
+    """Draw the landscape of CSP model-based loss function for the given genes.
 
     Args:
         adata: class:`~anndata.AnnData`
@@ -674,8 +675,8 @@ def visualize_CSP_loss_landscape(
 
 
 def robustness_measure_CSP(
-        adata: AnnData,
-        gene_name_list: list,
+    adata: AnnData,
+    gene_name_list: list,
 ) -> np.ndarray:
     """Calculate the robustness measure based on CSP model inference of the given genes
 
@@ -697,9 +698,9 @@ def robustness_measure_CSP(
 
 
 def calculate_robustness_measure_CSP(
-        N: Union[np.ndarray, csr_matrix],
-        time: np.ndarray,
-        cell_total: np.ndarray
+    N: Union[np.ndarray, csr_matrix],
+    time: np.ndarray,
+    cell_total: np.ndarray,
 ) -> np.ndarray:
     """Calculate the robustness measure based on CSP model inference
 
