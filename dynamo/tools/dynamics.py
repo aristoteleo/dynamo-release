@@ -30,6 +30,7 @@ from ..estimation.csc.velocity import Velocity, fit_linreg, ss_estimation
 from ..estimation.tsc.estimation_kinetic import *
 from ..estimation.tsc.twostep import fit_slope_stochastic, lin_reg_gamma_synthesis
 from ..estimation.tsc.utils_kinetic import *
+from ..estimation.tsc import storm
 from .moments import (
     moments,
     prepare_data_deterministic,
@@ -266,6 +267,7 @@ class BaseDynamics:
             NTR_vel: Whether to estimate NTR velocity
             log_unnormalized: Whether to log transform unnormalized data.
         """
+
     def __init__(self, dynamics_kwargs: Dict):
         self.adata = dynamics_kwargs["adata"]
         self.filter_gene_mode = dynamics_kwargs["filter_gene_mode"]
@@ -314,6 +316,16 @@ class BaseDynamics:
         else:
             ss_estimation_kwargs = {}
 
+        if self.one_shot_method == "storm-csp":
+            _, valid_bools, _ = self._filter()
+            self.NewCounts = self.adata[:, valid_bools].layers['new'].T
+            self.TotalCounts = self.adata[:, valid_bools].layers['total'].T
+            self.NewSmoothCSP = self.adata[:, valid_bools].layers['M_CSP_n'].T
+        else:
+            self.NewCounts = None
+            self.TotalCounts = None
+            self.NewSmoothCSP = None
+
         self.est = ss_estimation(
             U=self.U.copy() if self.U is not None else None,
             Ul=self.Ul.copy() if self.Ul is not None else None,
@@ -322,6 +334,9 @@ class BaseDynamics:
             P=self.P.copy() if self.P is not None else None,
             US=self.US.copy() if self.US is not None else None,
             S2=self.S2.copy() if self.S2 is not None else None,
+            NewCounts=self.NewCounts.copy() if self.NewCounts is not None else None,
+            TotalCounts=self.TotalCounts.copy() if self.TotalCounts is not None else None,
+            NewSmoothCSP=self.NewSmoothCSP.copy() if self.NewSmoothCSP is not None else None,
             conn=subset_adata.obsp["moments_con"],
             t=self.t,
             ind_for_proteins=self.ind_for_proteins,
@@ -339,7 +354,10 @@ class BaseDynamics:
             warnings.simplefilter("ignore")
 
             if self.experiment_type.lower() in ["one-shot", "one_shot"]:
-                self.est.fit(one_shot_method=self.one_shot_method, **self.est_kwargs)
+                if self.one_shot_method == "storm-csp":
+                    self.est.fit(one_shot_method=self.one_shot_method, perc_right=50, **self.est_kwargs)
+                else:
+                    self.est.fit(one_shot_method=self.one_shot_method, **self.est_kwargs)
             else:
                 # experiment_type can be `kin` also and by default use
                 # conventional method to estimate k but correct for time
@@ -374,9 +392,11 @@ class BaseDynamics:
 
         if type(params) == dict:
             self.alpha = params.pop("alpha")
+            self.beta = params.pop("beta") if "beta" in params else None
             params = pd.DataFrame(params)
         else:
             self.alpha = params.loc[:, "alpha"].values if "alpha" in params.columns else None
+            self.beta = params.loc[:, "beta"].values if "beta" in params.columns else None
 
         len_t, len_g = len(np.unique(self.t)), len(self._group)
         if cur_grp == self._group[0]:
@@ -393,16 +413,25 @@ class BaseDynamics:
                 cur_X_fit_data,
             )
 
-        self.a, self.b, self.alpha_a, self.alpha_i, self.beta, self.gamma = (
+        # self.a, self.b, self.alpha_a, self.alpha_i, self.beta, self.gamma = (
+        #     params.loc[:, "a"].values if "a" in params.columns else None,
+        #     params.loc[:, "b"].values if "b" in params.columns else None,
+        #     params.loc[:, "alpha_a"].values if "alpha_a" in params.columns else None,
+        #     params.loc[:, "alpha_i"].values if "alpha_i" in params.columns else None,
+        #     params.loc[:, "beta"].values if "beta" in params.columns else None,
+        #     params.loc[:, "gamma"].values if "gamma" in params.columns else None,
+        # )
+        self.a, self.b, self.alpha_a, self.alpha_i, self.gamma = (
             params.loc[:, "a"].values if "a" in params.columns else None,
             params.loc[:, "b"].values if "b" in params.columns else None,
             params.loc[:, "alpha_a"].values if "alpha_a" in params.columns else None,
             params.loc[:, "alpha_i"].values if "alpha_i" in params.columns else None,
-            params.loc[:, "beta"].values if "beta" in params.columns else None,
             params.loc[:, "gamma"].values if "gamma" in params.columns else None,
         )
         if self.alpha is None:
-            self.alpha = fbar(self.a, self.b, self.alpha_a, 0) if self.alpha_i is None else fbar(self.a, self.b, self.alpha_a, self.alpha_i)
+            self.alpha = fbar(self.a, self.b, self.alpha_a, 0) if self.alpha_i is None else fbar(self.a, self.b,
+                                                                                                 self.alpha_a,
+                                                                                                 self.alpha_i)
         all_kinetic_params = [
             "a",
             "b",
@@ -426,17 +455,17 @@ class BaseDynamics:
             main_warning("Not implemented yet.")
 
     def set_velocity(
-        self,
-        vel_U: Union[ndarray, csr_matrix],
-        vel_S: Union[ndarray, csr_matrix],
-        vel_N: Union[ndarray, csr_matrix],
-        vel_T: Union[ndarray, csr_matrix],
-        vel_P: Union[ndarray, csr_matrix],
-        cur_grp: int,
-        cur_cells_bools: ndarray,
-        valid_bools_: ndarray,
-        kin_param_pre: str,
-        **set_velo_args,
+            self,
+            vel_U: Union[ndarray, csr_matrix],
+            vel_S: Union[ndarray, csr_matrix],
+            vel_N: Union[ndarray, csr_matrix],
+            vel_T: Union[ndarray, csr_matrix],
+            vel_P: Union[ndarray, csr_matrix],
+            cur_grp: int,
+            cur_cells_bools: ndarray,
+            valid_bools_: ndarray,
+            kin_param_pre: str,
+            **set_velo_args,
     ):
         """Save the calculated parameters and velocity to anndata. Override this in the subclass if the class has a
         different assumption."""
@@ -615,12 +644,12 @@ class BaseDynamics:
             )
 
     def _sanity_check(
-        self,
-        valid_bools: ndarray,
-        valid_bools_: ndarray,
-        gene_num: int,
-        subset_adata: AnnData,
-        kin_param_pre: str,
+            self,
+            valid_bools: ndarray,
+            valid_bools_: ndarray,
+            gene_num: int,
+            subset_adata: AnnData,
+            kin_param_pre: str,
     ) -> Tuple:
         """Perform sanity check by checking the slope for kinetic or degradation metabolic labeling experiments."""
         indices_valid_bools = np.where(valid_bools)[0]
@@ -1030,6 +1059,78 @@ class KineticsDynamics(LabeledDynamics):
         return vel_U, vel_S, vel_N, vel_T
 
 
+class KineticsStormDynamics(LabeledDynamics):
+    """Stochastic transient dynamics for the kinetic experiment with kinetic assumption. This includes three stochastic
+    models. In Model 1, only transcription and mRNA degradation were considered. In Model 2, we considered
+    transcription, splicing, and spliced mRNA degradation. And in Model 3, we considered the switching of gene
+    expression states, transcription in the active state, and mRNA degradation."""
+
+    def _calculate_vel_U(
+            self,
+            vel: Velocity,
+            U: Union[ndarray, csr_matrix],
+            S: Union[ndarray, csr_matrix],
+            N: Union[ndarray, csr_matrix],
+            T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(U)
+
+    def _calculate_vel_S(
+            self,
+            vel: Velocity,
+            U: Union[ndarray, csr_matrix],
+            S: Union[ndarray, csr_matrix],
+            N: Union[ndarray, csr_matrix],
+            T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(U, S)
+
+    def _calculate_vel_N(
+            self,
+            vel: Velocity,
+            U: Union[ndarray, csr_matrix],
+            S: Union[ndarray, csr_matrix],
+            N: Union[ndarray, csr_matrix],
+            T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        if self.est_method == 'storm-icsp':
+            return vel.vel_u(self.Sl)
+        else:
+            return vel.vel_u(N)
+
+    def _calculate_vel_T(
+            self,
+            vel: Velocity,
+            U: Union[ndarray, csr_matrix],
+            S: Union[ndarray, csr_matrix],
+            N: Union[ndarray, csr_matrix],
+            T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        if self.est_method == 'storm-icsp':
+            return vel.vel_u(S)
+        else:
+            return vel.vel_u(T)
+
+    def _calculate_velocity(
+            self,
+            vel: Velocity,
+            U: Union[ndarray, csr_matrix],
+            S: Union[ndarray, csr_matrix],
+            N: Union[ndarray, csr_matrix],
+            T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """Override the velocity calculation function to reset beta or alpha."""
+        if self.has_splicing:
+            vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+            vel.parameters["beta"] = self.gamma
+        else:
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self._calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self._calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
 class DegradationDynamics(LabeledDynamics):
     """Dynamics model for the degradation experiment. In degradation experiment, samples are chased after an extended
     4sU (or other nucleotide analog) labeling period and the wash-out to observe the decay of the abundance of the
@@ -1214,26 +1315,26 @@ class MixKineticsDynamics(LabeledDynamics):
 
 # TODO: rename this later
 def dynamics_wrapper(
-    adata: AnnData,
-    filter_gene_mode: Literal["final", "basic", "no"] = "final",
-    use_smoothed: bool = True,
-    assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
-    assumption_protein: Literal["ss"] = "ss",
-    model: Literal["auto", "deterministic", "stochastic"] = "auto",
-    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
-    NTR_vel: bool = False,
-    group: Optional[str] = None,
-    protein_names: Optional[List[str]] = None,
-    concat_data: bool = False,
-    log_unnormalized: bool = True,
-    one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
-    fraction_for_deg: bool = False,
-    re_smooth: bool = False,
-    sanity_check: bool = False,
-    del_2nd_moments: Optional[bool] = None,
-    cores: int = 1,
-    tkey: str = None,
-    **est_kwargs,
+        adata: AnnData,
+        filter_gene_mode: Literal["final", "basic", "no"] = "final",
+        use_smoothed: bool = True,
+        assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
+        assumption_protein: Literal["ss"] = "ss",
+        model: Literal["auto", "deterministic", "stochastic"] = "auto",
+        est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
+        NTR_vel: bool = False,
+        group: Optional[str] = None,
+        protein_names: Optional[List[str]] = None,
+        concat_data: bool = False,
+        log_unnormalized: bool = True,
+        one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
+        fraction_for_deg: bool = False,
+        re_smooth: bool = False,
+        sanity_check: bool = False,
+        del_2nd_moments: Optional[bool] = None,
+        cores: int = 1,
+        tkey: str = None,
+        **est_kwargs,
 ) -> AnnData:
     """Predict the model and assumption if they are set as auto. Run corresponding Dynamics methods according to the
     experiment type. More information can be found in the class BaseDynamics."""
@@ -1328,7 +1429,10 @@ def dynamics_wrapper(
         if assumption_mRNA == "ss":
             estimator = SSKineticsDynamics(dynamics_kwargs)
         elif assumption_mRNA == "kinetic":
-            estimator = KineticsDynamics(dynamics_kwargs)
+            if model == 'deterministic':
+                estimator = KineticsDynamics(dynamics_kwargs)
+            elif model == 'stochastic':
+                estimator = KineticsStormDynamics(dynamics_kwargs)
         else:
             raise NotImplementedError("This method has not been implemented.")
     elif experiment_type == "deg":
@@ -1345,26 +1449,26 @@ def dynamics_wrapper(
 
 # incorporate the model selection code soon
 def dynamics(
-    adata: AnnData,
-    filter_gene_mode: Literal["final", "basic", "no"] = "final",
-    use_smoothed: bool = True,
-    assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
-    assumption_protein: Literal["ss"] = "ss",
-    model: Literal["auto", "deterministic", "stochastic"] = "auto",
-    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
-    NTR_vel: bool = False,
-    group: Optional[str] = None,
-    protein_names: Optional[List[str]] = None,
-    concat_data: bool = False,
-    log_unnormalized: bool = True,
-    one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
-    fraction_for_deg: bool = False,
-    re_smooth: bool = False,
-    sanity_check: bool = False,
-    del_2nd_moments: Optional[bool] = None,
-    cores: int = 1,
-    tkey: str = None,
-    **est_kwargs,
+        adata: AnnData,
+        filter_gene_mode: Literal["final", "basic", "no"] = "final",
+        use_smoothed: bool = True,
+        assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
+        assumption_protein: Literal["ss"] = "ss",
+        model: Literal["auto", "deterministic", "stochastic"] = "auto",
+        est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
+        NTR_vel: bool = False,
+        group: Optional[str] = None,
+        protein_names: Optional[List[str]] = None,
+        concat_data: bool = False,
+        log_unnormalized: bool = True,
+        one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
+        fraction_for_deg: bool = False,
+        re_smooth: bool = False,
+        sanity_check: bool = False,
+        del_2nd_moments: Optional[bool] = None,
+        cores: int = 1,
+        tkey: str = None,
+        **est_kwargs,
 ) -> AnnData:
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation.
 
@@ -1707,8 +1811,8 @@ def dynamics(
 
             valid_gene_checker = np.zeros(gene_num, dtype=bool)
             for L_iter, cur_L in tqdm(
-                enumerate(L),
-                desc=f"sanity check of {experiment_type} experiment data:",
+                    enumerate(L),
+                    desc=f"sanity check of {experiment_type} experiment data:",
             ):
                 cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
                 y = strat_mom(cur_L, t, np.nanmean)
@@ -2266,18 +2370,18 @@ def dynamics(
 
 
 def kinetic_model(
-    subset_adata: AnnData,
-    tkey: str,
-    model: Literal["auto", "deterministic", "stochastic"],
-    est_method: Literal["twostep", "direct"],
-    experiment_type: str,
-    has_splicing: bool,
-    splicing_labeling: bool,
-    has_switch: bool,
-    param_rngs: Dict[str, List[int]],
-    data_type: Literal["smoothed", "sfs"] = "sfs",
-    return_ntr: bool = False,
-    **est_kwargs,
+        subset_adata: AnnData,
+        tkey: str,
+        model: Literal["auto", "deterministic", "stochastic"],
+        est_method: Literal["twostep", "direct", "storm-csp", "storm-cszip", "storm-icsp"],
+        experiment_type: str,
+        has_splicing: bool,
+        splicing_labeling: bool,
+        has_switch: bool,
+        param_rngs: Dict[str, List[int]],
+        data_type: Literal["smoothed", "sfs"] = "sfs",
+        return_ntr: bool = False,
+        **est_kwargs,
 ) -> Tuple[
     Union[Dict[str, Any], pd.DataFrame],
     np.ndarray,
@@ -2446,6 +2550,152 @@ def kinetic_model(
                     None,
                     X_data,
                     K_fit,
+                )
+
+                return (
+                    Estm_df,
+                    half_life,
+                    cost,
+                    logLL,
+                    _param_ranges,
+                    X_data,
+                    X_fit_data,
+                )
+        elif "storm" in est_method:
+            if has_splicing:
+                # Initialization based on the steady-state assumption
+                layers_smoothed = ["M_u", "M_s", "M_t", "M_n"]
+                U_smoothed, S_smoothed, Total_smoothed, New_smoothed = (
+                    subset_adata.layers[layers_smoothed[0]].T,
+                    subset_adata.layers[layers_smoothed[1]].T,
+                    subset_adata.layers[layers_smoothed[2]].T,
+                    subset_adata.layers[layers_smoothed[3]].T,
+                )
+
+                US_smoothed, S2_smoothed = (
+                    subset_adata.layers["M_us"].T,
+                    subset_adata.layers["M_ss"].T,
+                )
+                (gamma_k, _, _, _,) = fit_slope_stochastic(S_smoothed, U_smoothed, US_smoothed, S2_smoothed,
+                                                           perc_left=None, perc_right=5)
+                (gamma_init, _, _, _, _) = lin_reg_gamma_synthesis(Total_smoothed, New_smoothed, time, perc_right=5)
+                beta_init = gamma_init / gamma_k  # gamma_k = gamma / beta
+
+                # Read raw counts
+                layers_raw = ["ul", "sl"]
+                UL_raw, SL_raw = (
+                    subset_adata.layers[layers_raw[0]].T,
+                    subset_adata.layers[layers_raw[1]].T,
+                )
+
+                # Read smoothed values based CSP type distribution for cell-specific parameter inference
+                UL_smoothed_CSP, SL_smoothed_CSP = (
+                    subset_adata.layers['M_CSP_ul'].T,
+                    subset_adata.layers['M_CSP_sl'].T,
+                )
+
+                # Parameters inference based on maximum likelihood estimation
+                cell_total = subset_adata.obs['initial_cell_size'].astype("float").values
+                # Independent cell-specific Poisson
+                (gamma_s, gamma_r2, beta, gamma_t, gamma_r2_raw, alpha) = storm.mle_independent_cell_specific_poisson \
+                    (UL_raw, SL_raw, time, gamma_init, beta_init, cell_total, Total_smoothed, S_smoothed)
+                gamma_k = gamma_s / beta
+                gamma_b = np.zeros_like(gamma_k)
+
+                # Cell specific parameters (fixed gamma_s)
+                alpha, beta = storm.cell_specific_alpha_beta(UL_smoothed_CSP, SL_smoothed_CSP, time, gamma_s, beta)
+
+                # # Cell specific parameters(fixed gamma_t)
+                # k = 1 - np.exp(-gamma_t[:, None] * time[None, :])
+                # alpha = csr_matrix(gamma_t[:, None]).multiply(UL_smoothed_CSP+SL_smoothed_CSP).multiply(1 / k)
+
+                Estm_df = {
+                    "alpha": alpha,
+                    "beta": beta,
+                    "gamma_k": gamma_k,
+                    "gamma_b": gamma_b,
+                    # "gamma_k_r2": gamma_all_r2,
+                    # "gamma_logLL": gamma_all_logLL,
+                    "gamma": gamma_s,
+                    "gamma_r2": gamma_r2,
+                    # "mean_R2": mean_R2,
+                    "gamma_t": gamma_t,
+                    "gamma_r2_raw": gamma_r2_raw,
+                }
+                half_life = np.log(2) / gamma_s
+                cost, logLL, _param_ranges, X_data, X_fit_data = (
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+
+                return (
+                    Estm_df,
+                    half_life,
+                    cost,
+                    logLL,
+                    _param_ranges,
+                    X_data,
+                    X_fit_data,
+                )
+            else:
+                # Initialization based on the steady-state assumption
+                layers_smoothed = ["M_t", "M_n"]
+                Total_smoothed, New_smoothed = (
+                    subset_adata.layers[layers_smoothed[0]].T,
+                    subset_adata.layers[layers_smoothed[1]].T,
+                )
+                (gamma_init, _, _, _, _,) = lin_reg_gamma_synthesis(Total_smoothed, New_smoothed, time,
+                                                                    perc_right=5)
+
+                # Read raw counts
+                layers_raw = ["total", "new"]
+                Total_raw, New_raw = (
+                    subset_adata.layers[layers_raw[0]].T,
+                    subset_adata.layers[layers_raw[1]].T,
+                )
+
+                # Read smoothed values based CSP type distribution for cell-specific parameter inference
+                layers_smoothed_CSP = ["M_CSP_t", "M_CSP_n"]
+                Total_smoothed_CSP, New_smoothed_CSP = (
+                    subset_adata.layers[layers_smoothed_CSP[0]].T,
+                    subset_adata.layers[layers_smoothed_CSP[1]].T,
+                )
+
+                # Parameters inference based on maximum likelihood estimation
+                cell_total = subset_adata.obs['initial_cell_size'].astype("float").values
+
+                if "storm-csp" == est_method:
+                    gamma, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_poisson(New_raw, time,
+                                                                                           gamma_init, cell_total)
+                elif "storm-cszip" == est_method:
+                    gamma, prob_off, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_zero_inflated_poisson(
+                        New_raw, time, gamma_init, cell_total)
+                    alpha = alpha * (1 - prob_off)  # gene-wise alpha
+                else:
+                    raise NotImplementedError("This method has not been implemented.")
+
+                k = 1 - np.exp(-gamma[:, None] * time[None, :])
+                alpha = csr_matrix(gamma[:, None]).multiply(New_smoothed_CSP).multiply(1 / k)  # gene-cell-wise alpha
+
+                Estm_df = {
+                    "alpha": alpha,
+                    "gamma": gamma,
+                    "gamma_k": gamma,  # required for phase_potrait
+                    "gamma_r2": gamma_r2,
+                    "gamma_r2_raw": gamma_r2_raw,
+                    # "mean_R2": mean_R2,
+                    "prob_off": prob_off if "cszip" in est_method else None
+                }
+                half_life = np.log(2) / gamma
+                cost, logLL, _param_ranges, X_data, X_fit_data = (
+                    None,
+                    None,
+                    None,
+                    None,  # X_data,
+                    None,  # K_fit,
                 )
 
                 return (
@@ -2949,7 +3199,7 @@ def kinetic_model(
         X_data[i_gene] = cur_X_data
         if model.lower().startswith("mixture"):
             X_fit_data[i_gene] = estm.simulator.x.T
-            X_fit_data[i_gene][estm.model1.n_species :] *= estm.scale
+            X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
         elif experiment_type in ["mix_kin_deg", "mix_pulse_chase"]:
             # kinetic chase simulation
             kinetic_chase = estm.simulator.x.T

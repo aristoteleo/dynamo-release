@@ -1657,11 +1657,22 @@ def set_param_kinetic(
         adata.layers["cell_wise_alpha"][cur_cells_ind, valid_ind_] = alpha
     else:
         adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
+
+    # to support cell-wise beta
+    if isarray(beta) and beta.ndim > 1:
+        adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta.mean(1)
+        if cur_grp == _group[0]:
+            adata.layers["cell_wise_beta"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        beta = beta.T.tocsr() if sp.issparse(beta) else sp.csr_matrix(beta, dtype=np.float64).T
+        adata.layers["cell_wise_beta"][cur_cells_ind, valid_ind_] = beta
+    else:
+        adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
+
     adata.var.loc[valid_ind, kin_param_pre + "a"] = a
     adata.var.loc[valid_ind, kin_param_pre + "b"] = b
     adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
     adata.var.loc[valid_ind, kin_param_pre + "alpha_i"] = alpha_i
-    adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
+    # adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
     adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
     adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
     adata.var.loc[valid_ind, kin_param_pre + "cost"] = cost
@@ -2257,6 +2268,9 @@ def set_transition_genes(
         # if adata.uns['dynamics']['has_splicing']:
         #     min_r2 = 0.5 if min_r2 is None else min_r2
         # else:
+        min_r2 = 0.9 if min_r2 is None else min_r2
+    elif "storm" in adata.uns["dynamics"]["est_method"] and adata.uns["dynamics"]["experiment_type"] == "kin":
+        # for storm method
         min_r2 = 0.9 if min_r2 is None else min_r2
     elif adata.uns["dynamics"]["experiment_type"] in [
         "mix_kin_deg",

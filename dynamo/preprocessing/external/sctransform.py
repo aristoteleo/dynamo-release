@@ -17,7 +17,6 @@ import scipy as sp
 import statsmodels.discrete.discrete_model
 import statsmodels.nonparametric.kernel_regression
 from anndata import AnnData
-from KDEpy import FFTKDE
 from scipy import stats
 
 from ...configuration import DKM
@@ -71,6 +70,10 @@ def is_outlier(
     Returns:
        Boolean array indicating whether each value in `y` is an outlier (`True`) or not (`False`).
     """
+    try:
+        from KDEpy import FFTKDE
+    except ImportError:
+        raise ImportError("Please install KDEpy for sctransform.")
     z = FFTKDE(kernel="gaussian", bw="ISJ").fit(x)
     z.evaluate()
     bin_width = (max(x) - min(x)) * z.bw / 2
@@ -215,6 +218,10 @@ def sctransform_core(
     """
     import multiprocessing
     import sys
+    try:
+        from KDEpy import FFTKDE
+    except ImportError:
+        raise ImportError("Please install KDEpy for sctransform.")
 
     main_info("sctransform adata on layer: %s" % (layer))
     X = DKM.select_layer_data(adata, layer).copy()
