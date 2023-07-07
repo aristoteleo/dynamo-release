@@ -1609,6 +1609,15 @@ def set_param_kinetic(
     return adata
 
 
+def convert_velocity_params_type(adata: AnnData) -> None:
+    velocity_param_names = ["beta", "gamma", "half_life", "alpha_b", "alpha_r2", "gamma_b", "gamma_r2", "gamma_logLL",
+                            "delta_b", "delta_r2", "bs", "bf", "uu0", "ul0", "su0", "sl0", "alpha", "a", "b", "alpha_a",
+                            "alpha_a", "alpha_i", "cost", "logLL"]
+    for param_name in velocity_param_names:
+        if param_name in adata.var.columns:
+            adata.var[param_name] = pd.to_numeric(adata.var[param_name], errors='coerce')
+
+
 def get_U_S_for_velocity_estimation(subset_adata, use_moments, has_splicing, has_labeling, log_unnormalized, NTR):
     mapper = get_mapper()
 
