@@ -1065,7 +1065,7 @@ class KineticsStormDynamics(LabeledDynamics):
     transcription, splicing, and spliced mRNA degradation. And in Model 3, we considered the switching of gene
     expression states, transcription in the active state, and mRNA degradation."""
 
-    def _calculate_vel_U(
+    def calculate_vel_U(
         self,
         vel: Velocity,
         U: Union[ndarray, csr_matrix],
@@ -1075,7 +1075,7 @@ class KineticsStormDynamics(LabeledDynamics):
     ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(U)
 
-    def _calculate_vel_S(
+    def calculate_vel_S(
         self,
         vel: Velocity,
         U: Union[ndarray, csr_matrix],
@@ -1085,7 +1085,7 @@ class KineticsStormDynamics(LabeledDynamics):
     ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(U, S)
 
-    def _calculate_vel_N(
+    def calculate_vel_N(
         self,
         vel: Velocity,
         U: Union[ndarray, csr_matrix],
@@ -1098,7 +1098,7 @@ class KineticsStormDynamics(LabeledDynamics):
         else:
             return vel.vel_u(N)
 
-    def _calculate_vel_T(
+    def calculate_vel_T(
         self,
         vel: Velocity,
         U: Union[ndarray, csr_matrix],
@@ -1111,7 +1111,7 @@ class KineticsStormDynamics(LabeledDynamics):
         else:
             return vel.vel_u(T)
 
-    def _calculate_velocity(
+    def calculate_velocity(
         self,
         vel: Velocity,
         U: Union[ndarray, csr_matrix],
@@ -1121,13 +1121,13 @@ class KineticsStormDynamics(LabeledDynamics):
     ) -> Tuple:
         """Override the velocity calculation function to reset beta or alpha."""
         if self.has_splicing:
-            vel_U = self._calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
-            vel_S = self._calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+            vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
             vel.parameters["beta"] = self.gamma
         else:
             vel_U, vel_S = np.nan, np.nan
-        vel_N = self._calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
-        vel_T = self._calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
         return vel_U, vel_S, vel_N, vel_T
 
 
