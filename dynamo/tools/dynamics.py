@@ -455,17 +455,17 @@ class BaseDynamics:
             main_warning("Not implemented yet.")
 
     def set_velocity(
-            self,
-            vel_U: Union[ndarray, csr_matrix],
-            vel_S: Union[ndarray, csr_matrix],
-            vel_N: Union[ndarray, csr_matrix],
-            vel_T: Union[ndarray, csr_matrix],
-            vel_P: Union[ndarray, csr_matrix],
-            cur_grp: int,
-            cur_cells_bools: ndarray,
-            valid_bools_: ndarray,
-            kin_param_pre: str,
-            **set_velo_args,
+        self,
+        vel_U: Union[ndarray, csr_matrix],
+        vel_S: Union[ndarray, csr_matrix],
+        vel_N: Union[ndarray, csr_matrix],
+        vel_T: Union[ndarray, csr_matrix],
+        vel_P: Union[ndarray, csr_matrix],
+        cur_grp: int,
+        cur_cells_bools: ndarray,
+        valid_bools_: ndarray,
+        kin_param_pre: str,
+        **set_velo_args,
     ):
         """Save the calculated parameters and velocity to anndata. Override this in the subclass if the class has a
         different assumption."""
@@ -644,12 +644,12 @@ class BaseDynamics:
             )
 
     def _sanity_check(
-            self,
-            valid_bools: ndarray,
-            valid_bools_: ndarray,
-            gene_num: int,
-            subset_adata: AnnData,
-            kin_param_pre: str,
+        self,
+        valid_bools: ndarray,
+        valid_bools_: ndarray,
+        gene_num: int,
+        subset_adata: AnnData,
+        kin_param_pre: str,
     ) -> Tuple:
         """Perform sanity check by checking the slope for kinetic or degradation metabolic labeling experiments."""
         indices_valid_bools = np.where(valid_bools)[0]
@@ -1066,32 +1066,32 @@ class KineticsStormDynamics(LabeledDynamics):
     expression states, transcription in the active state, and mRNA degradation."""
 
     def _calculate_vel_U(
-            self,
-            vel: Velocity,
-            U: Union[ndarray, csr_matrix],
-            S: Union[ndarray, csr_matrix],
-            N: Union[ndarray, csr_matrix],
-            T: Union[ndarray, csr_matrix],
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
     ) -> Union[ndarray, csr_matrix]:
         return vel.vel_u(U)
 
     def _calculate_vel_S(
-            self,
-            vel: Velocity,
-            U: Union[ndarray, csr_matrix],
-            S: Union[ndarray, csr_matrix],
-            N: Union[ndarray, csr_matrix],
-            T: Union[ndarray, csr_matrix],
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
     ) -> Union[ndarray, csr_matrix]:
         return vel.vel_s(U, S)
 
     def _calculate_vel_N(
-            self,
-            vel: Velocity,
-            U: Union[ndarray, csr_matrix],
-            S: Union[ndarray, csr_matrix],
-            N: Union[ndarray, csr_matrix],
-            T: Union[ndarray, csr_matrix],
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
     ) -> Union[ndarray, csr_matrix]:
         if self.est_method == 'storm-icsp':
             return vel.vel_u(self.Sl)
@@ -1099,12 +1099,12 @@ class KineticsStormDynamics(LabeledDynamics):
             return vel.vel_u(N)
 
     def _calculate_vel_T(
-            self,
-            vel: Velocity,
-            U: Union[ndarray, csr_matrix],
-            S: Union[ndarray, csr_matrix],
-            N: Union[ndarray, csr_matrix],
-            T: Union[ndarray, csr_matrix],
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
     ) -> Union[ndarray, csr_matrix]:
         if self.est_method == 'storm-icsp':
             return vel.vel_u(S)
@@ -1112,12 +1112,12 @@ class KineticsStormDynamics(LabeledDynamics):
             return vel.vel_u(T)
 
     def _calculate_velocity(
-            self,
-            vel: Velocity,
-            U: Union[ndarray, csr_matrix],
-            S: Union[ndarray, csr_matrix],
-            N: Union[ndarray, csr_matrix],
-            T: Union[ndarray, csr_matrix],
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
     ) -> Tuple:
         """Override the velocity calculation function to reset beta or alpha."""
         if self.has_splicing:
@@ -1315,26 +1315,26 @@ class MixKineticsDynamics(LabeledDynamics):
 
 # TODO: rename this later
 def dynamics_wrapper(
-        adata: AnnData,
-        filter_gene_mode: Literal["final", "basic", "no"] = "final",
-        use_smoothed: bool = True,
-        assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
-        assumption_protein: Literal["ss"] = "ss",
-        model: Literal["auto", "deterministic", "stochastic"] = "auto",
-        est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
-        NTR_vel: bool = False,
-        group: Optional[str] = None,
-        protein_names: Optional[List[str]] = None,
-        concat_data: bool = False,
-        log_unnormalized: bool = True,
-        one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
-        fraction_for_deg: bool = False,
-        re_smooth: bool = False,
-        sanity_check: bool = False,
-        del_2nd_moments: Optional[bool] = None,
-        cores: int = 1,
-        tkey: str = None,
-        **est_kwargs,
+    adata: AnnData,
+    filter_gene_mode: Literal["final", "basic", "no"] = "final",
+    use_smoothed: bool = True,
+    assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
+    assumption_protein: Literal["ss"] = "ss",
+    model: Literal["auto", "deterministic", "stochastic"] = "auto",
+    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
+    NTR_vel: bool = False,
+    group: Optional[str] = None,
+    protein_names: Optional[List[str]] = None,
+    concat_data: bool = False,
+    log_unnormalized: bool = True,
+    one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
+    fraction_for_deg: bool = False,
+    re_smooth: bool = False,
+    sanity_check: bool = False,
+    del_2nd_moments: Optional[bool] = None,
+    cores: int = 1,
+    tkey: str = None,
+    **est_kwargs,
 ) -> AnnData:
     """Predict the model and assumption if they are set as auto. Run corresponding Dynamics methods according to the
     experiment type. More information can be found in the class BaseDynamics."""
@@ -1449,26 +1449,26 @@ def dynamics_wrapper(
 
 # incorporate the model selection code soon
 def dynamics(
-        adata: AnnData,
-        filter_gene_mode: Literal["final", "basic", "no"] = "final",
-        use_smoothed: bool = True,
-        assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
-        assumption_protein: Literal["ss"] = "ss",
-        model: Literal["auto", "deterministic", "stochastic"] = "auto",
-        est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
-        NTR_vel: bool = False,
-        group: Optional[str] = None,
-        protein_names: Optional[List[str]] = None,
-        concat_data: bool = False,
-        log_unnormalized: bool = True,
-        one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
-        fraction_for_deg: bool = False,
-        re_smooth: bool = False,
-        sanity_check: bool = False,
-        del_2nd_moments: Optional[bool] = None,
-        cores: int = 1,
-        tkey: str = None,
-        **est_kwargs,
+    adata: AnnData,
+    filter_gene_mode: Literal["final", "basic", "no"] = "final",
+    use_smoothed: bool = True,
+    assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
+    assumption_protein: Literal["ss"] = "ss",
+    model: Literal["auto", "deterministic", "stochastic"] = "auto",
+    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
+    NTR_vel: bool = False,
+    group: Optional[str] = None,
+    protein_names: Optional[List[str]] = None,
+    concat_data: bool = False,
+    log_unnormalized: bool = True,
+    one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
+    fraction_for_deg: bool = False,
+    re_smooth: bool = False,
+    sanity_check: bool = False,
+    del_2nd_moments: Optional[bool] = None,
+    cores: int = 1,
+    tkey: str = None,
+    **est_kwargs,
 ) -> AnnData:
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation.
 
@@ -2370,18 +2370,18 @@ def dynamics(
 
 
 def kinetic_model(
-        subset_adata: AnnData,
-        tkey: str,
-        model: Literal["auto", "deterministic", "stochastic"],
-        est_method: Literal["twostep", "direct", "storm-csp", "storm-cszip", "storm-icsp"],
-        experiment_type: str,
-        has_splicing: bool,
-        splicing_labeling: bool,
-        has_switch: bool,
-        param_rngs: Dict[str, List[int]],
-        data_type: Literal["smoothed", "sfs"] = "sfs",
-        return_ntr: bool = False,
-        **est_kwargs,
+    subset_adata: AnnData,
+    tkey: str,
+    model: Literal["auto", "deterministic", "stochastic"],
+    est_method: Literal["twostep", "direct", "storm-csp", "storm-cszip", "storm-icsp"],
+    experiment_type: str,
+    has_splicing: bool,
+    splicing_labeling: bool,
+    has_switch: bool,
+    param_rngs: Dict[str, List[int]],
+    data_type: Literal["smoothed", "sfs"] = "sfs",
+    return_ntr: bool = False,
+    **est_kwargs,
 ) -> Tuple[
     Union[Dict[str, Any], pd.DataFrame],
     np.ndarray,

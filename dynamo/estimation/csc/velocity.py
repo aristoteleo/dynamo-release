@@ -45,14 +45,14 @@ class Velocity:
     """
 
     def __init__(
-            self,
-            alpha=None,
-            beta=None,
-            gamma=None,
-            eta=None,
-            delta=None,
-            t=None,
-            estimation=None,
+        self,
+        alpha=None,
+        beta=None,
+        gamma=None,
+        eta=None,
+        delta=None,
+        t=None,
+        estimation=None,
     ):
         if estimation is not None:
             self.parameters = {}
@@ -400,28 +400,28 @@ class ss_estimation:
     """
 
     def __init__(
-            self,
-            U=None,
-            Ul=None,
-            S=None,
-            Sl=None,
-            P=None,
-            US=None,
-            S2=None,
-            NewCounts=None,
-            TotalCounts=None,
-            NewSmoothCSP=None,
-            conn=None,
-            t=None,
-            ind_for_proteins=None,
-            model="stochastic",
-            est_method="gmm",
-            experiment_type="deg",
-            assumption_mRNA=None,
-            assumption_protein="ss",
-            concat_data=True,
-            cores=1,
-            **kwargs
+        self,
+        U=None,
+        Ul=None,
+        S=None,
+        Sl=None,
+        P=None,
+        US=None,
+        S2=None,
+        NewCounts=None,
+        TotalCounts=None,
+        NewSmoothCSP=None,
+        conn=None,
+        t=None,
+        ind_for_proteins=None,
+        model="stochastic",
+        est_method="gmm",
+        experiment_type="deg",
+        assumption_mRNA=None,
+        assumption_protein="ss",
+        concat_data=True,
+        cores=1,
+        **kwargs
     ):
 
         self.t = t
@@ -478,12 +478,12 @@ class ss_estimation:
         self.ind_for_proteins = ind_for_proteins
 
     def fit(
-            self,
-            intercept=False,
-            perc_left=None,
-            perc_right=5,
-            clusters=None,
-            one_shot_method="combined",
+        self,
+        intercept=False,
+        perc_left=None,
+        perc_right=5,
+        clusters=None,
+        one_shot_method="combined",
     ):
         """Fit the input data to estimate all or a subset of the parameters
 
@@ -981,7 +981,7 @@ class ss_estimation:
                                 np.zeros(n_genes),
                             )
                             for i in range(
-                                    n_genes
+                                n_genes
                             ):  # can also use the two extreme time points and apply sci-fate like approach.
                                 S, U = (
                                     self.data["su"][i] + self.data["sl"][i],
@@ -1195,8 +1195,8 @@ class ss_estimation:
                         )
                         if cores == 1:
                             for i in tqdm(
-                                    range(n_genes),
-                                    desc="estimating beta and alpha for one-shot experiment",
+                                range(n_genes),
+                                desc="estimating beta and alpha for one-shot experiment",
                             ):
                                 (
                                     k[i],
@@ -1273,8 +1273,8 @@ class ss_estimation:
                         )
                         if cores == 1:
                             for i in tqdm(
-                                    range(n_genes),
-                                    desc="estimating gamma and alpha for one-shot experiment",
+                                range(n_genes),
+                                desc="estimating gamma and alpha for one-shot experiment",
                             ):
                                 (
                                     k[i],
@@ -1482,13 +1482,13 @@ class ss_estimation:
                         np.zeros(n_genes),
                     )
                     for i in tqdm(
-                            range(n_genes), desc="solving gamma/beta"
+                        range(n_genes), desc="solving gamma/beta"
                     ):  # can also use the two extreme time points and apply sci-fate like approach.
                         tmp = (
-                                self.data["uu"][i, self.t == t_max]
-                                + self.data["ul"][i, self.t == t_max]
-                                + self.data["su"][i, self.t == t_max]
-                                + self.data["sl"][i, self.t == t_max]
+                            self.data["uu"][i, self.t == t_max]
+                            + self.data["ul"][i, self.t == t_max]
+                            + self.data["su"][i, self.t == t_max]
+                            + self.data["sl"][i, self.t == t_max]
                         )
                         total[i] = np.mean(tmp)
                         gamma[i] = solve_gamma(
@@ -1664,15 +1664,15 @@ class ss_estimation:
         return k, b, r2, all_r2, logLL, all_logLL
 
     def fit_gamma_storm_csp(
-            self,
-            new_counts,
-            total_counts,
-            new_smooth,
-            total_smooth,
-            t_uniq,
-            perc_left=None,
-            perc_right=50,
-            normalize=True,
+        self,
+        new_counts,
+        total_counts,
+        new_smooth,
+        total_smooth,
+        t_uniq,
+        perc_left=None,
+        perc_right=50,
+        normalize=True,
     ):
         """Estimate gamma using Storm's CSP model based on the steady state assumption.
 
@@ -1706,15 +1706,15 @@ class ss_estimation:
         return gamma, gamma_r2, k
 
     def fit_gamma_stochastic(
-            self,
-            est_method,
-            u,
-            s,
-            us,
-            ss,
-            perc_left=None,
-            perc_right=5,
-            normalize=True,
+        self,
+        est_method,
+        u,
+        s,
+        us,
+        ss,
+        perc_left=None,
+        perc_right=5,
+        normalize=True,
     ):
         """Estimate gamma using GMM (generalized method of moments) or negbin distrubtion based on the steady state assumption.
 
@@ -1896,8 +1896,8 @@ class ss_estimation:
         alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape[0], len(t_uniq)))
         alpha_stm[:, 0] = alpha_std_ini  # 0 stimulation point is the steady state transcription
         for i in tqdm(
-                range(ul.shape[0]),
-                desc="solving steady state alpha and induction alpha",
+            range(ul.shape[0]),
+            desc="solving steady state alpha and induction alpha",
         ):
             l = ul[i].A.flatten() if issparse(ul) else ul[i]
             for t_ind in np.arange(1, len(t_uniq)):
