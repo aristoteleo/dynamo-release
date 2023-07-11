@@ -152,19 +152,35 @@ class Logger:
         message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
         return self.logger.error(message, *args, **kwargs)
 
-    def info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs):
+    def info_insert_adata(self, key, adata_attr="obsm", log_level=logging.NOTSET, indent_level=1, *args, **kwargs):
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
-        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
-        return self.logger.error(message, *args, **kwargs)
+        if log_level == logging.NOTSET or log_level == logging.DEBUG:
+            self.debug(message, indent_level=indent_level, *args, **kwargs)
+        elif log_level == logging.INFO:
+            self.info(message, indent_level=indent_level, *args, **kwargs)
+        elif log_level == logging.WARN:
+            self.warning(message, indent_level=indent_level, *args, **kwargs)
+        elif log_level == logging.ERROR:
+            self.error(message, indent_level=indent_level, *args, **kwargs)
+        elif log_level == logging.CRITICAL:
+            self.critical(message, indent_level=indent_level, *args, **kwargs)
+        else:
+            raise NotImplementedError
 
-    def info_insert_adata_var(self, key, indent_level=1, *args, **kwargs):
-        return self.info_insert_adata(self, key, adata_attr="var", indent_level=1, *args, **kwargs)
+    def info_insert_adata_var(self, key, log_level, indent_level, *args, **kwargs):
+        return self.info_insert_adata(
+            self, key, adata_attr="var", log_level=log_level, indent_level=indent_level, *args, **kwargs
+        )
 
-    def info_insert_adata_obsm(self, key, indent_level=1, *args, **kwargs):
-        return self.info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs)
+    def info_insert_adata_obsm(self, key, log_level, indent_level, *args, **kwargs):
+        return self.info_insert_adata(
+            self, key, adata_attr="obsm", log_level=log_level, indent_level=indent_level, *args, **kwargs
+        )
 
-    def info_insert_adata_uns(self, key, indent_level=1, *args, **kwargs):
-        return self.info_insert_adata(self, key, adata_attr="uns", indent_level=1, *args, **kwargs)
+    def info_insert_adata_uns(self, key, log_level, indent_level, *args, **kwargs):
+        return self.info_insert_adata(
+            self, key, adata_attr="uns", log_level=log_level, indent_level=indent_level, *args, **kwargs
+        )
 
     def log_time(self):
         now = time.time()
@@ -189,18 +205,17 @@ class Logger:
 
     def finish_progress(self, progress_name="", time_unit="s", indent_level=1):
         self.log_time()
-        self.report_progress(percent=100, progress_name=progress_name)
+        # self.report_progress(percent=100, progress_name=progress_name)
 
         saved_terminator = self.logger_stream_handler.terminator
         self.logger_stream_handler.terminator = ""
-        self.logger.info("\n")
         self.logger_stream_handler.flush()
         self.logger_stream_handler.terminator = saved_terminator
 
         if time_unit == "s":
-            self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed), indent_level=indent_level)
+            self.info("[%s] completed [%.4fs]" % (progress_name, self.time_passed), indent_level=indent_level)
         elif time_unit == "ms":
-            self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3), indent_level=indent_level)
+            self.info("[%s] completed [%.4fms]" % (progress_name, self.time_passed * 1e3), indent_level=indent_level)
         else:
             raise NotImplementedError
         # self.logger.info("|")

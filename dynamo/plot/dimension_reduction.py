@@ -3,127 +3,74 @@
 from typing import Optional, Union
 
 from anndata import AnnData
+from matplotlib.axes import Axes
 
 from .scatters import docstrings, scatters
 
 docstrings.delete_params("scatters.parameters", "adata", "basis")
 
 
-@docstrings.with_indent(4)
-def pca(adata: AnnData, *args, **kwargs):
-    """\
-    Scatter plot with pca basis.
+def pca(adata: AnnData, *args, **kwargs) -> Optional[Axes]:
+    """Scatter plot with pca basis.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        %(scatters.parameters.no_adata|basis)s
+    Args:
+        adata: an AnnData object.
+        *args: any other positional arguments passed to `dynamo.pl.scatters`.
+        **kwargs: any other keyword arguments passed to `dynamo.pl.scatters`.
 
-    Returns
-    -------
-    Nothing but plots the pca embedding of the adata object.
-
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.pl.pca(
-    ...     adata,
-    ...     color='ntr'
-    ... )
+    Returns:
+        None would be returned in default and the plotted figure would be shown directly. If set
+        `save_show_or_return='return'` as a kwarg, the axes of the plot would be returned.
     """
 
-    scatters(adata, "pca", *args, **kwargs)
+    return scatters(adata, "pca", *args, **kwargs)
 
 
-@docstrings.with_indent(4)
-def umap(adata: AnnData, *args, **kwargs):
-    """\
-    Scatter plot with umap basis.
+def umap(adata: AnnData, *args, **kwargs) -> Optional[Axes]:
+    """Scatter plot with umap basis.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        %(scatters.parameters.no_adata|basis)s
+    Args:
+        adata: an AnnData object.
+        *args: any other positional arguments passed to `dynamo.pl.scatters`.
+        **kwargs: any other keyword arguments passed to `dynamo.pl.scatters`.
 
-    Returns
-    -------
-    Nothing but plots the umap embedding of the adata object.
-
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.pl.umap(
-    ...     adata,
-    ...     color='ntr'
-    ... )
+    Returns:
+        None would be returned in default and the plotted figure would be shown directly. If set
+        `save_show_or_return='return'` as a kwarg, the axes of the plot would be returned.
     """
 
     return scatters(adata, "umap", *args, **kwargs)
 
 
-@docstrings.with_indent(4)
 def trimap(adata: AnnData, *args, **kwargs):
-    """\
-    Scatter plot with trimap basis.
+    """Scatter plot with trimap basis.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        %(scatters.parameters.no_adata|basis)s
+    Args:
+        adata: an AnnData object.
+        *args: any other positional arguments passed to `dynamo.pl.scatters`.
+        **kwargs: any other keyword arguments passed to `dynamo.pl.scatters`.
 
-    Returns
-    -------
-    Nothing but plots the pca embedding of the adata object.
-
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.pl.trimap(
-    ...     adata,
-    ...     color='ntr'
-    ... )
+    Returns:
+        None would be returned in default and the plotted figure would be shown directly. If set
+        `save_show_or_return='return'` as a kwarg, the axes of the plot would be returned.
     """
+
     return scatters(adata, "trimap", *args, **kwargs)
 
 
-@docstrings.with_indent(4)
 def tsne(adata: AnnData, *args, **kwargs):
-    """\
-    Scatter plot with tsne basis.
+    """Scatter plot with tsne basis.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        %(scatters.parameters.no_adata|basis)s
+    Args:
+        adata: an AnnData object.
+        *args: any other positional arguments passed to `dynamo.pl.scatters`.
+        **kwargs: any other keyword arguments passed to `dynamo.pl.scatters`.
 
-    Returns
-    -------
-    Nothing but plots the tsne embedding of the adata object.
-
-    Examples
-    --------
-    >>> import dynamo as dyn
-    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
-    >>> dyn.pp.recipe_monocle(adata)
-    >>> dyn.tl.dynamics(adata)
-    >>> dyn.pl.tsne(
-    ...     adata,
-    ...     color='ntr'
-    ... )
+    Returns:
+        None would be returned in default and the plotted figure would be shown directly. If set
+        `save_show_or_return='return'` as a kwarg, the axes of the plot would be returned.
     """
+
     return scatters(adata, "tsne", *args, **kwargs)
 
 

@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -14,22 +14,10 @@ import scipy
 import scipy.sparse
 import statsmodels.api as sm
 from anndata import AnnData
-from scipy.sparse.linalg import LinearOperator, svds
-from scipy.sparse import csc_matrix, csr_matrix, issparse
-from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.utils import check_random_state
-from sklearn.utils.extmath import svd_flip
-from sklearn.utils.sparsefuncs import mean_variance_axis
+from scipy.sparse import csr_matrix, issparse, spmatrix
 
 from ..configuration import DKM, DynamoAdataKeyManager
-from ..dynamo_logger import (
-    LoggerManager,
-    main_debug,
-    main_exception,
-    main_info,
-    main_info_insert_adata_var,
-    main_warning,
-)
+from ..dynamo_logger import LoggerManager, main_debug, main_info, main_warning
 from ..utils import areinstance
 
 
@@ -137,8 +125,9 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
         merge_df = adata.var.merge(official_gene_df, left_on="query", right_on="query", how="left").set_index(
             adata.var.index
         )
-        adata.var = merge_df
         valid_ind = np.where(merge_df["notfound"] != True)[0]  # noqa: E712
+        merge_df.pop("notfound")
+        adata.var = merge_df
 
         if subset is True:
             adata._inplace_subset_var(valid_ind)
@@ -179,172 +168,40 @@ def compute_gene_exp_fraction(X: scipy.sparse.spmatrix, threshold: float = 0.001
 
 
 # ---------------------------------------------------------------------------------------------------
-# implmentation of Cooks' distance (but this is for Poisson distribution fitting)
-
-# https://stackoverflow.com/questions/47686227/poisson-regression-in-statsmodels-and-r
-
-# from __future__ import division, print_function
-
-# https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the-gamma-
-# family
-def _weight_matrix(fitted_model: sm.Poisson) -> np.ndarray:
-    """Calculates weight matrix in Poisson regression.
-
-    Args:
-        fitted_model: a fitted Poisson model
-
-    Returns:
-        A diagonal weight matrix in Poisson regression.
-    """
-
-    return np.diag(fitted_model.fittedvalues)
-
-
-def _hessian(X: np.ndarray, W: np.ndarray) -> np.ndarray:
-    """Hessian matrix calculated as -X'*W*X.
-
-    Args:
-        X: the matrix of covariates.
-        W: the weight matrix.
-
-    Returns:
-        The result Hessian matrix.
-    """
-
-    return -np.dot(X.T, np.dot(W, X))
-
-
-def _hat_matrix(X: np.ndarray, W: np.ndarray) -> np.ndarray:
-    """Calculate hat matrix = W^(1/2) * X * (X'*W*X)^(-1) * X'*W^(1/2)
-
-    Args:
-        X: the matrix of covariates.
-        W: the diagonal weight matrix
-
-    Returns:
-        The result hat matrix
-    """
-
-    # W^(1/2)
-    Wsqrt = W ** (0.5)
-
-    # (X'*W*X)^(-1)
-    XtWX = -_hessian(X=X, W=W)
-    XtWX_inv = np.linalg.inv(XtWX)
-
-    # W^(1/2)*X
-    WsqrtX = np.dot(Wsqrt, X)
-
-    # X'*W^(1/2)
-    XtWsqrt = np.dot(X.T, Wsqrt)
-
-    return np.dot(WsqrtX, np.dot(XtWX_inv, XtWsqrt))
-
-
-def cook_dist(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarray:
-    """calculate Cook's distance
-
-    Args:
-        model: a fitted Poisson model.
-        X: the matrix of covariates.
-        good: the dispersion table for MSE calculation.
-
-    Returns:
-        The result Cook's distance.
-    """
-
-    # Weight matrix
-    W = _weight_matrix(model)
-
-    # Hat matrix
-    H = _hat_matrix(X, W)
-    hii = np.diag(H)  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
-
-    # Pearson residuals
-    r = model.resid_pearson
-
-    # Cook's distance (formula used by R = (res/(1 - hat))^2 * hat/(dispersion * p))
-    # Note: dispersion is 1 since we aren't modeling overdispersion
-
-    resid = good.disp - model.predict(good)
-    rss = np.sum(resid**2)
-    MSE = rss / (good.shape[0] - 2)
-    # use the formula from: https://www.mathworks.com/help/stats/cooks-distance.html
-    cooks_d = r**2 / (2 * MSE) * hii / (1 - hii) ** 2  # (r / (1 - hii)) ** 2 *  / (1 * 2)
-
-    return cooks_d
-
-
-# ---------------------------------------------------------------------------------------------------
 # preprocess utilities
-def filter_genes_by_pattern(
-    adata: anndata.AnnData,
-    patterns: Tuple[str] = ("MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"),
-    drop_genes: bool = False,
-) -> Union[List[bool], None]:
-    """Utility function to filter mitochondria, ribsome protein and ERCC spike-in genes, etc.
+def _infer_labeling_experiment_type(adata: anndata.AnnData, tkey: str) -> Literal["one-shot", "kin", "deg"]:
+    """Returns the experiment type of `adata` according to `tkey`s
 
     Args:
-        adata: an AnnData object.
-        patterns: the patterns used to filter genes. Defaults to ("MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-").
-        drop_genes: whether inplace drop the genes from the AnnData object. Defaults to False.
+        adata: an AnnData Object.
+        tkey: the key for time in `adata.obs`.
 
     Returns:
-        A list of indices of matched genes if `drop_genes` is False. Otherwise, returns none.
+        The experiment type, must be one of "one-shot", "kin" or "deg".
     """
 
-    logger = LoggerManager.gen_logger("dynamo-utils")
-
-    matched_genes = pd.Series(adata.var_names).str.startswith(patterns).to_list()
-    logger.info(
-        "total matched genes is " + str(sum(matched_genes)),
-        indent_level=1,
-    )
-    if sum(matched_genes) > 0:
-        if drop_genes:
-            gene_bools = np.ones(adata.n_vars, dtype=bool)
-            gene_bools[matched_genes] = False
-            logger.info(
-                "inplace subset matched genes ... ",
-                indent_level=1,
-            )
-            # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-
-                adata._inplace_subset_var(gene_bools)
-
-            logger.finish_progress(progress_name="filter_genes_by_pattern")
-            return None
-        else:
-            logger.finish_progress(progress_name="filter_genes_by_pattern")
-            return matched_genes
-
-
-def basic_stats(adata: anndata.AnnData) -> None:
-    """Generate basic stats of the adata, including number of genes, number of cells, and number of mitochondria genes.
-
-    Args:
-        adata: an AnnData object.
-    """
-
-    adata.obs["nGenes"], adata.obs["nCounts"] = np.array((adata.X > 0).sum(1)), np.array((adata.X).sum(1))
-    adata.var["nCells"], adata.var["nCounts"] = np.array((adata.X > 0).sum(0).T), np.array((adata.X).sum(0).T)
-    if adata.var_names.inferred_type == "bytes":
-        adata.var_names = adata.var_names.astype("str")
-    mito_genes = adata.var_names.str.upper().str.startswith("MT-")
-
-    if sum(mito_genes) > 0:
-        try:
-            adata.obs["pMito"] = np.array(adata.X[:, mito_genes].sum(1) / adata.obs["nCounts"].values.reshape((-1, 1)))
-        except:  # noqa E722
-            main_exception(
-                "no mitochondria genes detected; looks like your var_names may be corrupted (i.e. "
-                "include nan values). If you don't believe so, please report to us on github or "
-                "via xqiu@wi.mit.edu"
-            )
+    experiment_type = None
+    tkey_val = np.array(adata.obs[tkey], dtype="float")
+    if len(np.unique(tkey_val)) == 1:
+        experiment_type = "one-shot"
     else:
-        adata.obs["pMito"] = 0
+        labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
+        xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
+
+        yy = tkey_val
+        xm, ym = np.mean(xx), np.mean(yy)
+        cov = np.mean(xx * yy) - xm * ym
+        var_x = np.mean(xx * xx) - xm * xm
+
+        k = cov / var_x
+
+        # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
+        experiment_type = "kin" if k > 0 else "deg"
+    main_debug(
+        f"\nDynamo has detected that your labeling data is from a kin experiment. \nIf the experiment type is incorrect, "
+        f"please provide the correct experiment_type (one-shot, kin, or deg)."
+    )
+    return experiment_type
 
 
 def unique_var_obs_adata(adata: anndata.AnnData) -> anndata.AnnData:
@@ -402,7 +259,7 @@ def merge_adata_attrs(adata_ori: AnnData, adata: AnnData, attr: Literal["var", "
             The merged DataFrame.
         """
 
-        _columns = set(diff_df.columns).difference(origin_df.columns)
+        _columns = list(set(diff_df.columns).difference(origin_df.columns))
         new_df = origin_df.merge(diff_df[_columns], how="left", left_index=True, right_index=True)
         return new_df.loc[origin_df.index, :]
 
@@ -416,6 +273,12 @@ def merge_adata_attrs(adata_ori: AnnData, adata: AnnData, attr: Literal["var", "
             )
         adata_ori.obs = obs_df
     return adata_ori
+
+
+def clip_by_perc(layer_mat):
+    """Returns a new matrix by clipping the layer_mat according to percentage."""
+    # TODO implement this function (currently not used)
+    return
 
 
 def get_inrange_shared_counts_mask(
@@ -492,40 +355,40 @@ def get_inrange_shared_counts_mask(
     )
 
 
-def clusters_stats(
-    U: pd.DataFrame, S: pd.DataFrame, clusters_uid: np.ndarray, cluster_ix: np.ndarray, size_limit: int = 40
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Calculate the averages per cluster for unspliced and spliced data.
+def get_nan_or_inf_data_bool_mask(arr: np.ndarray) -> np.ndarray:
+    """Returns the mask of arr with the same shape, indicating whether each index is nan/inf or not.
 
     Args:
-        U: the unspliced DataFrame.
-        S: the spliced DataFrame.
-        clusters_uid: the uid of the clusters.
-        cluster_ix: the indices of the clusters in adata.obs.
-        size_limit: the max number of members to be considered in a cluster during calculation. Defaults to 40.
+        arr: an array
 
     Returns:
-        U_avgs: the average of clusters for unspliced data.
-        S_avgs: the average of clusters for spliced data.
+        A bool array indicating each element is nan/inf or not
     """
 
-    U_avgs = np.zeros((S.shape[1], len(clusters_uid)))
-    S_avgs = np.zeros((S.shape[1], len(clusters_uid)))
-    # avgU_div_avgS = np.zeros((S.shape[1], len(clusters_uid)))
-    # slopes_by_clust = np.zeros((S.shape[1], len(clusters_uid)))
+    mask = np.isnan(arr) | np.isinf(arr) | np.isneginf(arr)
+    return mask
 
-    for i, uid in enumerate(clusters_uid):
-        cluster_filter = cluster_ix == i
-        n_cells = np.sum(cluster_filter)
-        if n_cells > size_limit:
-            U_avgs[:, i], S_avgs[:, i] = (
-                U[cluster_filter, :].mean(0),
-                S[cluster_filter, :].mean(0),
-            )
-        else:
-            U_avgs[:, i], S_avgs[:, i] = U.mean(0), S.mean(0)
 
-    return U_avgs, S_avgs
+def get_gene_selection_filter(
+    valid_table: pd.Series,
+    n_top_genes: int = 2000,
+    basic_filter: Optional[pd.Series] = None,
+) -> np.ndarray:
+    """Generate the mask by sorting given table of scores.
+
+    Args:
+        valid_table: the scores used to sort the highly variable genes.
+        n_top_genes: number of top genes to be filtered. Defaults to 2000.
+        basic_filter: the filter to remove outliers. For example, the `adata.var["pass_basic_filter"]`.
+
+    Returns:
+        The filter mask as a bool array.
+    """
+    if basic_filter is None:
+        basic_filter = pd.Series(True, index=valid_table.index)
+    feature_gene_idx = np.argsort(-valid_table)[:n_top_genes]
+    feature_gene_idx = valid_table.index[feature_gene_idx]
+    return basic_filter.index.isin(feature_gene_idx)
 
 
 def get_svr_filter(
@@ -565,175 +428,56 @@ def get_svr_filter(
     return res
 
 
-def sz_util(
-    adata: anndata.AnnData,
-    layer: str,
-    round_exprs: bool,
-    method: Literal["mean-geometric-mean-total", "geometric", "median"],
-    locfunc: Callable,
-    total_layers: List[str] = None,
-    CM: pd.DataFrame = None,
-    scale_to: Union[float, None] = None,
-) -> Tuple[pd.Series, pd.Series]:
-    """Calculate the size factor for a given layer.
+def seurat_get_mean_var(
+    X: Union[csr_matrix, np.ndarray],
+    ignore_zeros: bool = False,
+    perc: Union[float, List[float], None] = None,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Only used in seurat impl to match seurat and scvelo implementation result.
 
     Args:
-        adata: an AnnData object.
-        layer: the layer to operate on.
-        round_exprs: whether the gene expression should be rounded into integers.
-        method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
-            `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will
-            be replaced with `np.nanmedian`.
-        locfunc: the function to normalize the data.
-        total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
-            ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
-        CM: the data to operate on, overriding the layer. Defaults to None.
-        scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
-
-    Raises:
-        NotImplementedError: method is invalid.
+        X: a matrix as np.ndarray or a sparse matrix as scipy sparse matrix. Rows are cells while columns are genes.
+        ignore_zeros: whether ignore columns with 0 only. Defaults to False.
+        perc: clip the gene expression values based on the perc or the min/max boundary of the values. Defaults to None.
 
     Returns:
-        A tuple (sfs, cell_total) where sfs is the size factors and cell_total is the initial cell size.
+        A tuple (mean, var) where mean is the mean of the columns after processing of the matrix and var is the variance
+        of the columns after processing of the matrix.
     """
 
-    adata = adata.copy()
+    data = X.data if issparse(X) else X
+    mask_nans = np.isnan(data) | np.isinf(data) | np.isneginf(data)
 
-    if layer == "_total_" and "_total_" not in adata.layers.keys():
-        if total_layers is not None:
-            if not isinstance(total_layers, list):
-                total_layers = [total_layers]
-            if len(set(total_layers).difference(adata.layers.keys())) == 0:
-                total = None
-                for t_key in total_layers:
-                    total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
-                adata.layers["_total_"] = total
+    n_nonzeros = (X != 0).sum(0)
+    n_counts = n_nonzeros if ignore_zeros else X.shape[0]
 
-    if layer == "raw":
-        CM = adata.raw.X if CM is None else CM
-    elif layer == "X":
-        CM = adata.X if CM is None else CM
-    elif layer == "protein":
-        if "protein" in adata.obsm_keys():
-            CM = adata.obsm["protein"] if CM is None else CM
+    if mask_nans.sum() > 0:
+        if issparse(X):
+            data[np.isnan(data) | np.isinf(data) | np.isneginf(data)] = 0
+            n_nans = n_nonzeros - (X != 0).sum(0)
         else:
-            return None, None
+            X[mask_nans] = 0
+            n_nans = mask_nans.sum(0)
+        n_counts -= n_nans
+
+    if perc is not None:
+        if np.size(perc) < 2:
+            perc = [perc, 100] if perc < 50 else [0, perc]
+        lb, ub = np.percentile(data, perc)
+        data = np.clip(data, lb, ub)
+
+    if issparse(X):
+        mean = (X.sum(0) / n_counts).A1
+        mean_sq = (X.multiply(X).sum(0) / n_counts).A1
     else:
-        CM = adata.layers[layer] if CM is None else CM
+        mean = X.sum(0) / n_counts
+        mean_sq = np.multiply(X, X).sum(0) / n_counts
+    n_cells = np.clip(X.shape[0], 2, None)  # to avoid division by zero
+    var = (mean_sq - mean**2) * (n_cells / (n_cells - 1))
 
-    if round_exprs:
-        main_info("rounding expression data of layer: %s during size factor calculation" % (layer))
-        if issparse(CM):
-            CM.data = np.round(CM.data, 0)
-        else:
-            CM = CM.round().astype("int")
-
-    cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
-    cell_total += cell_total == 0  # avoid infinity value after log (0)
-
-    if method in ["mean-geometric-mean-total", "geometric"]:
-        sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)
-    elif method == "median":
-        sfs = cell_total / (np.nanmedian(cell_total) if scale_to is None else scale_to)
-    elif method == "mean":
-        sfs = cell_total / (np.nanmean(cell_total) if scale_to is None else scale_to)
-    else:
-        raise NotImplementedError(f"This method {method} is not supported!")
-
-    return sfs, cell_total
-
-
-def get_sz_exprs(
-    adata: anndata.AnnData, layer: str, total_szfactor: Union[str, None] = None
-) -> Tuple[np.ndarray, npt.ArrayLike]:
-    """Get the size factor from an AnnData object.
-
-    Args:
-        adata: an AnnData object.
-        layer: the layer for which to get the size factor.
-        total_szfactor: the key-name for total size factor entry in `adata.obs`. If not None, would override the layer
-            selected. Defaults to None.
-
-    Returns:
-        A tuple (szfactors, CM), where szfactors is the queried size factor and CM is the data of the layer
-        corresponding to the size factor.
-    """
-
-    if layer == "raw":
-        CM = adata.raw.X
-        szfactors = adata.obs[layer + "Size_Factor"].values[:, None]
-    elif layer == "X":
-        CM = adata.X
-        szfactors = adata.obs["Size_Factor"].values[:, None]
-    elif layer == "protein":
-        if "protein" in adata.obsm_keys():
-            CM = adata.obsm[layer]
-            szfactors = adata.obs["protein_Size_Factor"].values[:, None]
-        else:
-            CM, szfactors = None, None
-    else:
-        CM = adata.layers[layer]
-        szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
-
-    if total_szfactor is not None and total_szfactor in adata.obs.keys():
-        szfactors = adata.obs[total_szfactor][:, None]
-    elif total_szfactor is not None:
-        main_warning("`total_szfactor` is not `None` and it is not in adata object.")
-
-    return szfactors, CM
-
-
-def normalize_mat_monocle(
-    mat: np.ndarray, szfactors: np.ndarray, relative_expr: bool, pseudo_expr: int, norm_method: Callable = np.log1p
-) -> np.ndarray:
-    """Normalize the given array for monocle recipe.
-
-    Args:
-        mat: the array to operate on.
-        szfactors: the size factors corresponding to the array.
-        relative_expr: whether we need to divide gene expression values first by size factor before normalization.
-        pseudo_expr: a pseudocount added to the gene expression value before log/log2 normalization.
-        norm_method: the method used to normalize data. Defaults to np.log1p.
-
-    Returns:
-        The normalized array.
-    """
-
-    if norm_method == np.log1p:
-        pseudo_expr = 0
-    if relative_expr:
-        mat = mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
-
-    if pseudo_expr is None:
-        pseudo_expr = 1
-
-    if issparse(mat):
-        mat.data = norm_method(mat.data + pseudo_expr) if norm_method is not None else mat.data
-        if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
-            mat.data -= 1
-    else:
-        mat = norm_method(mat + pseudo_expr) if norm_method is not None else mat
-
-    return mat
-
-
-def Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
-    """perform Freeman-Tukey transform or inverse transform on the given array.
-
-    Args:
-        X: a matrix.
-        inverse: whether to perform inverse Freeman-Tukey transform. Defaults to False.
-
-    Returns:
-        The transformed array.
-    """
-
-    if inverse:
-        res = np.sqrt(X) + np.sqrt((X + 1))
-    else:
-        res = (X**2 - 1) ** 2 / (4 * X**2)
-
-    return res
+    mean = np.nan_to_num(mean)
+    var = np.nan_to_num(var)
+    return mean, var
 
 
 def anndata_bytestring_decode(adata_item: pd.DataFrame) -> None:
@@ -775,350 +519,6 @@ def decode(adata: anndata.AnnData) -> None:
     anndata_bytestring_decode(adata.var)
 
 
-# ---------------------------------------------------------------------------------------------------
-# pca
-
-def _truncatedSVD_with_center(
-    X: Union[csc_matrix, csr_matrix],
-    n_components: int = 30,
-    random_state: int = 0,
-) -> Dict:
-    """Center a sparse matrix and perform truncated SVD on it.
-
-    It uses `scipy.sparse.linalg.LinearOperator` to express the centered sparse
-    input by given matrix-vector and matrix-matrix products. Then truncated
-    singular value decomposition (SVD) can be solved without calculating the
-    individual entries of the centered matrix. The right singular vectors after
-    decomposition represent the principal components. This function is inspired
-    by the implementation of scanpy (https://github.com/scverse/scanpy).
-
-    Args:
-        X: The input sparse matrix to perform truncated SVD on.
-        n_components: The number of components to keep. Default is 30.
-        random_state: Seed for the random number generator. Default is 0.
-
-    Returns:
-        The transformed input matrix and a sklearn PCA object containing the
-        right singular vectors and amount of variance explained by each
-        principal component.
-    """
-    random_state = check_random_state(random_state)
-    np.random.set_state(random_state.get_state())
-    v0 = random_state.uniform(-1, 1, np.min(X.shape))
-    n_components = min(n_components, X.shape[1] - 1)
-
-    mean = X.mean(0)
-    X_H = X.T.conj()
-    mean_H = mean.T.conj()
-    ones = np.ones(X.shape[0])[None, :].dot
-
-    # Following callables implements different type of matrix calculation.
-    def matvec(x):
-        """Matrix-vector multiplication. Performs the operation X_centered*x
-        where x is a column vector or an 1-D array."""
-        return X.dot(x) - mean.dot(x)
-
-    def matmat(x):
-        """Matrix-matrix multiplication. Performs the operation X_centered*x
-        where x is a matrix or ndarray."""
-        return X.dot(x) - mean.dot(x)
-
-    def rmatvec(x):
-        """Adjoint matrix-vector multiplication. Performs the operation
-        X_centered^H * x where x is a column vector or an 1-d array."""
-        return X_H.dot(x) - mean_H.dot(ones(x))
-
-    def rmatmat(x):
-        """Adjoint matrix-matrix multiplication. Performs the operation
-        X_centered^H * x where x is a matrix or ndarray."""
-        return X_H.dot(x) - mean_H.dot(ones(x))
-
-    # Construct the LinearOperator with callables above.
-    X_centered = LinearOperator(
-        shape=X.shape,
-        matvec=matvec,
-        matmat=matmat,
-        rmatvec=rmatvec,
-        rmatmat=rmatmat,
-        dtype=X.dtype,
-    )
-
-    # Solve SVD without calculating individuals entries in LinearOperator.
-    U, Sigma, VT = svds(X_centered, solver='arpack', k=n_components, v0=v0)
-    Sigma = Sigma[::-1]
-    U, VT = svd_flip(U[:, ::-1], VT[::-1])
-    X_transformed = U * Sigma
-    components_ = VT
-    exp_var = np.var(X_transformed, axis=0)
-    _, full_var = mean_variance_axis(X, axis=0)
-    full_var = full_var.sum()
-
-    result_dict = {
-        "X_pca": X_transformed,
-        "components_": components_,
-        "explained_variance_ratio_": exp_var / full_var,
-    }
-
-    fit = PCA(
-        n_components=n_components,
-        random_state=random_state,
-    )
-    X_pca = result_dict["X_pca"]
-    fit.components_ = result_dict["components_"]
-    fit.explained_variance_ratio_ = result_dict[
-        "explained_variance_ratio_"]
-
-    return fit, X_pca
-
-def _pca_fit(
-    X: np.ndarray,
-    pca_func: Callable,
-    n_components: int = 30,
-    **kwargs,
-) -> Tuple:
-    """Apply PCA to the input data array X using the specified PCA function.
-
-    Args:
-        X: the input data array of shape (n_samples, n_features).
-        pca_func: the PCA function to use, which should have a 'fit' and
-            'transform' method, such as the PCA class or the IncrementalPCA
-            class from sklearn.decomposition.
-        n_components: the number of principal components to compute. If
-            n_components is greater than or equal to the number of features in
-            X, it will be set to n_features - 1 to avoid overfitting.
-        **kwargs: any additional keyword arguments that will be passed to the
-            PCA function.
-
-    Returns:
-        A tuple containing two elements:
-            - The fitted PCA object, which has a 'fit' and 'transform' method.
-            - The transformed array X_pca of shape (n_samples, n_components).
-        """
-    fit = pca_func(
-        n_components=min(n_components, X.shape[1] - 1),
-        **kwargs,
-    ).fit(X)
-    X_pca = fit.transform(X)
-    return fit, X_pca
-
-
-def pca(
-    adata: AnnData,
-    X_data: np.ndarray = None,
-    n_pca_components: int = 30,
-    pca_key: str = "X",
-    pcs_key: str = "PCs",
-    genes_to_append: Union[List[str], None] = None,
-    layer: Union[List[str], str, None] = None,
-    svd_solver: Literal["randomized", "arpack"] = "randomized",
-    random_state: int = 0,
-    use_truncated_SVD_threshold: int = 500000,
-    use_incremental_PCA: bool = False,
-    incremental_batch_size: Optional[int] = None,
-    return_all: bool = False,
-) -> Union[AnnData, Tuple[AnnData, Union[PCA, TruncatedSVD], np.ndarray]]:
-    """Perform PCA reduction for monocle recipe.
-
-    When large dataset is used (e.g. 1 million cells are used), Incremental PCA
-    is recommended to avoid the memory issue. When cell number is less than half
-    a million, by default PCA or _truncatedSVD_with_center (use sparse matrix
-    that doesn't explicitly perform centering) will be used. TruncatedSVD is the
-    fastest method. Unlike other methods which will center the data first,  it
-    performs SVD decomposition on raw input. Only use this when dataset is too
-    large for other methods.
-
-    Args:
-        adata: an AnnData object.
-        X_data: the data to perform dimension reduction on. Defaults to None.
-        n_pca_components: number of PCA components reduced to. Defaults to 30.
-        pca_key: the key to store the reduced data. Defaults to "X".
-        pcs_key: the key to store the principle axes in feature space. Defaults
-            to "PCs".
-        genes_to_append: a list of genes should be inspected. Defaults to None.
-        layer: the layer(s) to perform dimension reduction on. Would be
-            overrided by X_data. Defaults to None.
-        svd_solver: the svd_solver to solve svd decomposition in PCA.
-        random_state: the seed used to initialize the random state for PCA.
-        use_truncated_SVD_threshold: the threshold of observations to use
-            truncated SVD instead of standard PCA for efficiency.
-        use_incremental_PCA: whether to use Incremental PCA. Recommend enabling
-            incremental PCA when dataset is too large to fit in memory.
-        incremental_batch_size: The number of samples to use for each batch when
-            performing incremental PCA. If batch_size is None, then batch_size
-            is inferred from the data and set to 5 * n_features.
-        return_all: whether to return the PCA fit model and the reduced array
-            together with the updated AnnData object. Defaults to False.
-
-    Raises:
-        ValueError: layer provided is not invalid.
-        ValueError: list of genes to append is invalid.
-
-    Returns:
-        The updated AnnData object with reduced data if `return_all` is False.
-        Otherwise, a tuple (adata, fit, X_pca), where adata is the updated
-        AnnData object, fit is the fit model for dimension reduction, and X_pca
-        is the reduced array, will be returned.
-    """
-
-    # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
-    if X_data is None:
-        if "use_for_pca" not in adata.var.keys():
-            adata.var["use_for_pca"] = True
-
-        if layer is None:
-            X_data = adata.X[:, adata.var.use_for_pca.values]
-        else:
-            if "X" in layer:
-                X_data = adata.X[:, adata.var.use_for_pca.values]
-            elif "total" in layer:
-                X_data = adata.layers["X_total"][:, adata.var.use_for_pca.values]
-            elif "spliced" in layer:
-                X_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
-            elif "protein" in layer:
-                X_data = adata.obsm["X_protein"]
-            elif type(layer) is str:
-                X_data = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
-            else:
-                raise ValueError(
-                    f"your input layer argument should be either a `str` or a list that includes one of `X`, "
-                    f"`total`, `protein` element. `Layer` currently is {layer}."
-                )
-
-        cm_genesums = X_data.sum(axis=0)
-        valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
-        valid_ind = np.array(valid_ind).flatten()
-
-        bad_genes = np.where(adata.var.use_for_pca)[0][~valid_ind]
-        if genes_to_append is not None and len(adata.var.index[bad_genes].intersection(genes_to_append)) > 0:
-            raise ValueError(
-                f"The gene list passed to argument genes_to_append contains genes with no expression "
-                f"across cells or non finite values. Please check those genes:"
-                f"{set(bad_genes).intersection(genes_to_append)}!"
-            )
-
-        adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
-        X_data = X_data[:, valid_ind]
-
-    if use_incremental_PCA:
-        from sklearn.decomposition import IncrementalPCA
-        fit, X_pca = _pca_fit(
-            X_data,
-            pca_func=IncrementalPCA,
-            n_components=n_pca_components,
-            batch_size=incremental_batch_size,
-        )
-    else:
-        if adata.n_obs < use_truncated_SVD_threshold:
-            if not issparse(X_data):
-                fit, X_pca = _pca_fit(
-                    X_data,
-                    pca_func=PCA,
-                    n_components=n_pca_components,
-                    svd_solver=svd_solver,
-                    random_state=random_state,
-                )
-            else:
-                fit, X_pca = _truncatedSVD_with_center(
-                    X_data,
-                    n_components=n_pca_components,
-                    random_state=random_state,
-                )
-        else:
-            # TruncatedSVD is the fastest method we have. It doesn't center the
-            # data. It only performs SVD decomposition, which is the second part
-            # in our _truncatedSVD_with_center function.
-            fit, X_pca = _pca_fit(
-                X_data,
-                pca_func=TruncatedSVD,
-                n_components=n_pca_components + 1,
-                random_state=random_state
-            )
-            # first columns is related to the total UMI (or library size)
-            X_pca = X_pca[:, 1:]
-
-    adata.obsm[pca_key] = X_pca
-    if use_incremental_PCA or adata.n_obs < use_truncated_SVD_threshold:
-        adata.uns[pcs_key] = fit.components_.T
-        adata.uns[
-            "explained_variance_ratio_"] = fit.explained_variance_ratio_
-    else:
-        # first columns is related to the total UMI (or library size)
-        adata.uns[pcs_key] = fit.components_.T[:, 1:]
-        adata.uns[
-            "explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
-
-    if return_all:
-        return adata, fit, X_pca
-    else:
-        return adata
-
-
-def pca_genes(PCs: list, n_top_genes: int = 100) -> np.ndarray:
-    """For each gene, if the gene is n_top in some principle component then it is valid. Return all such valid genes.
-
-    Args:
-        PCs: principle components(PC) of PCA
-        n_top_genes: number of gene candidates in EACH PC. Defaults to 100.
-
-    Returns:
-        A bool array indicating whether the gene is valid.
-    """
-
-    valid_genes = np.zeros(PCs.shape[0], dtype=bool)
-    for q in PCs.T:
-        sorted_q = np.sort(np.abs(q))[::-1]
-        is_pc_top_n = np.abs(q) > sorted_q[n_top_genes]
-        valid_genes = np.logical_or(is_pc_top_n, valid_genes)
-    return valid_genes
-
-
-def top_pca_genes(
-    adata: AnnData,
-    pc_key: str = "PCs",
-    n_top_genes: int = 100,
-    pc_components: Union[int, None] = None,
-    adata_store_key: str = "top_pca_genes",
-) -> AnnData:
-    """Define top genes as any gene that is ``n_top_genes`` in some principle component.
-
-    Args:
-        adata: an AnnData object.
-        pc_key: component key stored in adata.uns. Defaults to "PCs".
-        n_top_genes: number of top genes as valid top genes in each component. Defaults to 100.
-        pc_components: number of top principle components to use. Defaults to None.
-        adata_store_key: the key for storing pca genes. Defaults to "top_pca_genes".
-
-    Raises:
-        Exception: invalid pc_key.
-
-    Returns:
-        The AnnData object with top genes stored as values of adata.var[adata_store_key].
-    """
-
-    if pc_key in adata.uns.keys():
-        Q = adata.uns[pc_key]
-    elif pc_key in adata.varm.keys():
-        Q = adata.varm[pc_key]
-    else:
-        raise Exception(f"No PC matrix {pc_key} found in neither .uns nor .varm.")
-    if pc_components is not None:
-        if type(pc_components) == int:
-            Q = Q[:, :pc_components]
-        elif type(pc_components) == list:
-            Q = Q[:, pc_components]
-
-    pcg = pca_genes(Q, n_top_genes=n_top_genes)
-    genes = np.zeros(adata.n_vars, dtype=bool)
-    if DKM.VAR_USE_FOR_PCA in adata.var.keys():
-        genes[adata.var[DKM.VAR_USE_FOR_PCA]] = pcg
-    else:
-        genes = pcg
-    main_info_insert_adata_var(adata_store_key, indent_level=2)
-    adata.var[adata_store_key] = genes
-    return adata
-
-
 def add_noise_to_duplicates(adata: anndata.AnnData, basis: str = "pca") -> None:
     """Add noise to duplicated elements of the reduced array inplace.
 
@@ -1140,6 +540,64 @@ def add_noise_to_duplicates(adata: anndata.AnnData, basis: str = "pca") -> None:
             break
         else:
             X_data[duplicated_idx, :] += np.random.normal(0, min_val / 1000, (len(duplicated_idx), n_var))
+
+
+def is_float_integer_arr(arr: Union[np.ndarray, spmatrix, list]) -> bool:
+    """Test if an array's elements are integers
+
+    Args:
+        arr: an input array.
+
+    Returns:
+        A flag whether all elements of the array are integers.
+    """
+
+    if issparse(arr):
+        arr = arr.data
+    return np.all(np.equal(np.mod(arr, 1), 0))
+
+
+def is_integer_arr(arr: Union[np.ndarray, spmatrix, list]) -> bool:
+    """Test if an array like obj's dtype is integer
+
+    Args:
+        arr: an array like object.
+
+    Returns:
+        A flag whether the array's dtype is integer.
+    """
+
+    return np.issubdtype(arr.dtype, np.integer) or np.issubdtype(arr.dtype, int)
+
+
+def is_nonnegative(mat: Union[np.ndarray, spmatrix, list]) -> bool:
+    """Test whether all elements of an array or sparse array are non-negative.
+
+    Args:
+        mat: an array in ndarray or sparse array in scipy spmatrix.
+
+    Returns:
+        A flag whether all elements are non-negative.
+    """
+
+    if scipy.sparse.issparse(mat):
+        return np.all(mat.sign().data >= 0)
+    return np.all(np.sign(mat) >= 0)
+
+
+def is_nonnegative_integer_arr(mat: Union[np.ndarray, spmatrix, list]) -> bool:
+    """Test if an array's elements are non-negative integers
+
+    Args:
+        mat: an input array.
+
+    Returns:
+        A flag whether all elements of the array are non-negative integers.
+    """
+
+    if (not is_integer_arr(mat)) and (not is_float_integer_arr(mat)):
+        return False
+    return is_nonnegative(mat)
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -1299,10 +757,10 @@ def calc_new_to_total_ratio(adata: anndata.AnnData) -> Union[Tuple[np.ndarray, n
 
 
 def scale(
-    adata: anndata.AnnData,
+    adata: AnnData,
     layers: Union[List[str], str, None] = None,
-    scale_to_layer: Union[str, None] = None,
-    scale_to: float = 1e6,
+    scale_to_layer: Optional[str] = None,
+    scale_to: float = 1e4,
 ) -> anndata.AnnData:
     """Scale layers to a particular total expression value, similar to `normalize_expr_data` function.
 
@@ -1317,8 +775,9 @@ def scale(
         The scaled AnnData object.
     """
 
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
-    has_splicing, has_labeling, _ = detect_experiment_datatype(adata)
+    if layers is None:
+        layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers="all")
+    has_splicing, has_labeling = detect_experiment_datatype(adata)[:2]
 
     if scale_to_layer is None:
         scale_to_layer = "total" if has_labeling else None
@@ -1327,9 +786,8 @@ def scale(
         scale = None
 
     for layer in layers:
-        if scale is None:
-            scale = scale_to / adata.layers[layer].sum(1)
-
+        # if scale is None:
+        scale = scale_to / adata.layers[layer].sum(1)
         adata.layers[layer] = csr_matrix(adata.layers[layer].multiply(scale))
 
     return adata
@@ -1506,3 +964,36 @@ def gen_rotation_2d(degree: float) -> np.ndarray:
         [sin(rad), cos(rad)],
     ]
     return np.array(R)
+
+
+def reset_adata_X(adata: AnnData, experiment_type: str, has_labeling: bool, has_splicing: bool):
+    if has_labeling:
+        if experiment_type.lower() in [
+            "one-shot",
+            "kin",
+            "mixture",
+            "mix_std_stm",
+            "kinetics",
+            "mix_pulse_chase",
+            "mix_kin_deg",
+        ]:
+            adata.X = adata.layers["total"].copy()
+        if experiment_type.lower() in ["deg", "degradation"] and has_splicing:
+            adata.X = adata.layers["spliced"].copy()
+        if experiment_type.lower() in ["deg", "degradation"] and not has_splicing:
+            main_warning(
+                "It is not possible to calculate RNA velocity from a degradation experiment which has no "
+                "splicing information."
+            )
+            adata.X = adata.layers["total"].copy()
+        else:
+            adata.X = adata.layers["total"].copy()
+    else:
+        adata.X = adata.layers["spliced"].copy()
+
+
+def del_raw_layers(adata: AnnData):
+    layers = list(adata.layers.keys())
+    for layer in layers:
+        if not layer.startswith("X_"):
+            del adata.layers[layer]

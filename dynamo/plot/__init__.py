@@ -32,6 +32,7 @@ from .preprocess import (
 )
 from .scatters import scatters
 from .scPotential import show_landscape
+from .sctransform import sctransform_plot_fit, plot_residual_var
 from .scVectorField import (  # , plot_LIC_gray
     cell_wise_vectors,
     cell_wise_vectors_3d,
@@ -150,4 +151,6 @@ __all__ = [
     "causality",
     "comb_logic",
     "hessian",
+    "sctransform_plot_fit",
+    "plot_residual_var",
 ]

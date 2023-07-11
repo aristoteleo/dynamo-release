@@ -1,65 +1,531 @@
+import re
 import warnings
-from collections.abc import Iterable
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
 
+import functools
+
 import anndata
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
+import statsmodels.api as sm
 from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
-from sklearn.utils import sparsefuncs
 
 from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
 from ..dynamo_logger import (
     LoggerManager,
-    main_critical,
+    main_debug,
     main_info,
     main_info_insert_adata_obsm,
-    main_info_insert_adata_uns,
     main_warning,
 )
 from ..tools.utils import update_dict
 from ..utils import copy_adata
 from .cell_cycle import cell_cycle_scores
-from .preprocess_monocle_utils import top_table
-from .preprocessor_utils import (
-    SVRs,
-    _infer_labeling_experiment_type,
-    filter_cells_by_outliers,
-    filter_genes_by_outliers,
-    normalize_cell_expr_by_size_factors,
-    select_genes_monocle,
-)
+from .gene_selection import calc_dispersion_by_svr
+from .normalization import calc_sz_factor, get_sz_exprs, normalize_mat_monocle, sz_util
+from .pca import pca
+from .QC import basic_stats, filter_genes_by_clusters, filter_genes_by_outliers
+from .transform import _Freeman_Tukey
 from .utils import (
-    Freeman_Tukey,
+    _infer_labeling_experiment_type,
     add_noise_to_duplicates,
-    basic_stats,
     calc_new_to_total_ratio,
-    clusters_stats,
     collapse_species_adata,
     compute_gene_exp_fraction,
     convert2symbol,
     convert_layers2csr,
-    cook_dist,
     detect_experiment_datatype,
     get_inrange_shared_counts_mask,
+    get_nan_or_inf_data_bool_mask,
     get_svr_filter,
-    get_sz_exprs,
     merge_adata_attrs,
-    normalize_mat_monocle,
-    pca,
-    sz_util,
     unique_var_obs_adata,
 )
 
 
-def calc_sz_factor_legacy(
+def deprecated(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        warnings.warn(
+            f"{func.__name__} is deprecated and will be removed in a future release. "
+            f"Please update your code to use the new replacement function.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+# ---------------------------------------------------------------------------------------------------
+# implmentation of Cooks' distance (but this is for Poisson distribution fitting)
+
+# https://stackoverflow.com/questions/47686227/poisson-regression-in-statsmodels-and-r
+
+# from __future__ import division, print_function
+
+# https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the-gamma-
+# family
+def _weight_matrix_legacy(fitted_model: sm.Poisson) -> np.ndarray:
+    """Calculates weight matrix in Poisson regression.
+
+    Args:
+        fitted_model: a fitted Poisson model
+
+    Returns:
+        A diagonal weight matrix in Poisson regression.
+    """
+
+    return np.diag(fitted_model.fittedvalues)
+
+
+def _hessian_legacy(X: np.ndarray, W: np.ndarray) -> np.ndarray:
+    """Hessian matrix calculated as -X'*W*X.
+
+    Args:
+        X: the matrix of covariates.
+        W: the weight matrix.
+
+    Returns:
+        The result Hessian matrix.
+    """
+
+    return -np.dot(X.T, np.dot(W, X))
+
+
+def _hat_matrix_legacy(X: np.ndarray, W: np.ndarray) -> np.ndarray:
+    """Calculate hat matrix = W^(1/2) * X * (X'*W*X)^(-1) * X'*W^(1/2)
+
+    Args:
+        X: the matrix of covariates.
+        W: the diagonal weight matrix
+
+    Returns:
+        The result hat matrix
+    """
+
+    # W^(1/2)
+    Wsqrt = W ** (0.5)
+
+    # (X'*W*X)^(-1)
+    XtWX = -_hessian_legacy(X=X, W=W)
+    XtWX_inv = np.linalg.inv(XtWX)
+
+    # W^(1/2)*X
+    WsqrtX = np.dot(Wsqrt, X)
+
+    # X'*W^(1/2)
+    XtWsqrt = np.dot(X.T, Wsqrt)
+
+    return np.dot(WsqrtX, np.dot(XtWX_inv, XtWsqrt))
+
+
+@deprecated
+def cook_dist(*args, **kwargs):
+    _cook_dist_legacy(*args, **kwargs)
+
+
+def _cook_dist_legacy(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarray:
+    """calculate Cook's distance
+
+    Args:
+        model: a fitted Poisson model.
+        X: the matrix of covariates.
+        good: the dispersion table for MSE calculation.
+
+    Returns:
+        The result Cook's distance.
+    """
+
+    # Weight matrix
+    W = _weight_matrix_legacy(model)
+
+    # Hat matrix
+    H = _hat_matrix_legacy(X, W)
+    hii = np.diag(H)  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
+
+    # Pearson residuals
+    r = model.resid_pearson
+
+    # Cook's distance (formula used by R = (res/(1 - hat))^2 * hat/(dispersion * p))
+    # Note: dispersion is 1 since we aren't modeling overdispersion
+
+    resid = good.disp - model.predict(good)
+    rss = np.sum(resid**2)
+    MSE = rss / (good.shape[0] - 2)
+    # use the formula from: https://www.mathworks.com/help/stats/cooks-distance.html
+    cooks_d = r**2 / (2 * MSE) * hii / (1 - hii) ** 2  # (r / (1 - hii)) ** 2 *  / (1 * 2)
+
+    return cooks_d
+
+
+def _disp_calc_helper_NB_legacy(
+    adata: AnnData, layers: str = "X", min_cells_detected: int = 1
+) -> Tuple[List[str], List[pd.DataFrame]]:
+    """Helper function to calculate the dispersion parameter.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Args:
+        adata: an Anndata object.
+        layers: the layer of data used for dispersion fitting. Defaults to "X".
+        min_cells_detected: the minimal required number of cells with expression for selecting gene for dispersion
+            fitting. Defaults to 1.
+
+    Returns:
+        layers: a list of layers available.
+        res_list: a list of pd.DataFrames with mu, dispersion for each gene that passes filters.
+    """
+    main_warning(__name__ + " is deprecated.")
+    layers = DKM.get_available_layer_keys(adata, layers=layers, include_protein=False)
+
+    res_list = []
+    for layer in layers:
+        if layer == "raw":
+            CM = adata.raw.X
+            szfactors = adata.obs[layer + "Size_Factor"][:, None]
+        elif layer == "X":
+            CM = adata.X
+            szfactors = adata.obs["Size_Factor"][:, None]
+        else:
+            CM = adata.layers[layer]
+            szfactors = adata.obs[layer + "Size_Factor"][:, None]
+
+        if issparse(CM):
+            CM.data = np.round(CM.data, 0)
+            rounded = CM
+        else:
+            rounded = CM.round().astype("int")
+
+        lowerDetectedLimit = adata.uns["lowerDetectedLimit"] if "lowerDetectedLimit" in adata.uns.keys() else 1
+        nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
+        nzGenes = nzGenes > min_cells_detected
+
+        nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
+        if layer.startswith("X_"):
+            x = rounded[:, nzGenes]
+        else:
+            x = (
+                rounded[:, nzGenes].multiply(csr_matrix(1 / szfactors))
+                if issparse(rounded)
+                else rounded[:, nzGenes] / szfactors
+            )
+
+        xim = np.mean(1 / szfactors) if szfactors is not None else 1
+
+        f_expression_mean = x.mean(axis=0)
+
+        # For NB: Var(Y) = mu * (1 + mu / k)
+        # x.A.var(axis=0, ddof=1)
+        f_expression_var = (
+            (x.multiply(x).mean(0).A1 - f_expression_mean.A1**2) * x.shape[0] / (x.shape[0] - 1)
+            if issparse(x)
+            else x.var(axis=0, ddof=0) ** 2
+        )  # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
+        # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
+        disp_guess_meth_moments = f_expression_var - xim * f_expression_mean  # variance - mu
+
+        disp_guess_meth_moments = disp_guess_meth_moments / np.power(
+            f_expression_mean, 2
+        )  # this is dispersion parameter (1/k)
+
+        res = pd.DataFrame(
+            {
+                "mu": np.array(f_expression_mean).flatten(),
+                "disp": np.array(disp_guess_meth_moments).flatten(),
+            }
+        )
+        res.loc[res["mu"] == 0, "mu"] = None
+        res.loc[res["mu"] == 0, "disp"] = None
+        res.loc[res["disp"] < 0, "disp"] = 0
+
+        res["gene_id"] = adata.var_names[nzGenes]
+
+        res_list.append(res)
+
+    return layers, res_list
+
+
+def _parametric_dispersion_fit_legacy(
+    disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])
+) -> Tuple[sm.formula.glm, np.ndarray, pd.DataFrame]:
+    """Perform the dispersion parameter fitting with initial guesses of coefficients.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Args:
+        disp_table: A pandas dataframe with mu, dispersion for each gene that passes filters.
+        initial_coefs: Initial parameters for the gamma fit of the dispersion parameters. Defaults to
+            np.array([1e-6, 1]).
+
+    Returns:
+        A tuple (fit, coefs, good), where fit is a statsmodels fitting object, coefs contains the two resulting gamma
+        fitting coefficient, and good is the subsetted dispersion table that is subjected to Gamma fitting.
+    """
+    main_warning(__name__ + " is deprecated.")
+    coefs = initial_coefs
+    iter = 0
+    while True:
+        residuals = disp_table["disp"] / (coefs[0] + coefs[1] / disp_table["mu"])
+        good = disp_table.loc[(residuals > initial_coefs[0]) & (residuals < 10000), :]
+        # https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the
+        # -gamma-family
+        fit = sm.formula.glm(
+            "disp ~ I(1 / mu)",
+            data=good,
+            family=sm.families.Gamma(link=sm.genmod.families.links.identity),
+        ).train(start_params=coefs)
+
+        oldcoefs = coefs
+        coefs = fit.params
+
+        if coefs[0] < initial_coefs[0]:
+            coefs[0] = initial_coefs[0]
+        if coefs[1] < 0:
+            main_warning("Parametric dispersion fit may be failed.")
+
+        if np.sum(np.log(coefs / oldcoefs) ** 2 < coefs[0]):
+            break
+        iter += 1
+
+        if iter > 10:
+            main_warning("Dispersion fit didn't converge")
+            break
+        if not np.all(coefs > 0):
+            main_warning("Parametric dispersion fit may be failed.")
+
+    return fit, coefs, good
+
+
+def _estimate_dispersion_legacy(
+    adata: AnnData,
+    layers: str = "X",
+    modelFormulaStr: str = "~ 1",
+    min_cells_detected: int = 1,
+    removeOutliers: bool = False,
+) -> AnnData:
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Args:
+        adata: an AnnData object.
+        layers: the layer(s) to be used for calculating dispersion. Default is "X" if there is no spliced layers.
+        modelFormulaStr: the model formula used to calculate dispersion parameters. Not used. Defaults to "~ 1".
+        min_cells_detected: the minimum number of cells detected for calculating the dispersion. Defaults to 1.
+        removeOutliers: whether to remove outliers when performing dispersion fitting. Defaults to False.
+
+    Raises:
+        Exception: there is no valid DataFrames with mu for genes.
+
+    Returns:
+        An updated annData object with dispFitInfo added to uns attribute as a new key.
+    """
+    main_warning(__name__ + " is deprecated.")
+    logger = LoggerManager.gen_logger("dynamo-preprocessing")
+    # mu = None
+    model_terms = [x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)]
+    model_terms = list(set(model_terms) - set([""]))
+
+    cds_pdata = adata.obs  # .loc[:, model_terms]
+    cds_pdata["rowname"] = cds_pdata.index.values
+    layers, disp_tables = _disp_calc_helper_NB_legacy(adata[:, :], layers, min_cells_detected)
+    # disp_table['disp'] = np.random.uniform(0, 10, 11)
+    # disp_table = cds_pdata.apply(disp_calc_helper_NB(adata[:, :], min_cells_detected))
+
+    # cds_pdata <- dplyr::group_by_(dplyr::select_(rownames_to_column(pData(cds)), "rowname", .dots=model_terms), .dots
+    # =model_terms)
+    # disp_table <- as.data.frame(cds_pdata %>% do(disp_calc_helper_NB(cds[,.$rowname], cds@expressionFamily, min_cells_
+    # detected)))
+    for ind in range(len(layers)):
+        layer, disp_table = layers[ind], disp_tables[ind]
+
+        if disp_table is None:
+            raise Exception("Parametric dispersion fitting failed, please set a different lowerDetectionLimit")
+
+        disp_table = disp_table.loc[np.where(disp_table["mu"] != np.nan)[0], :]
+
+        res = _parametric_dispersion_fit_legacy(disp_table)
+        fit, coefs, good = res[0], res[1], res[2]
+
+        if removeOutliers:
+            # influence = fit.get_influence().cooks_distance()
+            # #CD is the distance and p is p-value
+            # (CD, p) = influence.cooks_distance
+
+            CD = cook_dist(fit, 1 / good["mu"][:, None], good)
+            cooksCutoff = 4 / good.shape[0]
+            main_debug("Removing " + str(len(CD[CD > cooksCutoff])) + " outliers")
+            outliers = CD > cooksCutoff
+            # use CD.index.values? remove genes that lost when doing parameter fitting
+            lost_gene = set(good.index.values).difference(set(range(len(CD))))
+            outliers[lost_gene] = True
+            res = _parametric_dispersion_fit_legacy(good.loc[~outliers, :])
+
+            fit, coefs = res[0], res[1]
+
+        def ans(q):
+            return coefs[0] + coefs[1] / q
+
+        if layer == "X":
+            logger.info_insert_adata("dispFitInfo", "uns")
+            adata.uns["dispFitInfo"] = {
+                "disp_table": good,
+                "disp_func": ans,
+                "coefs": coefs,
+            }
+        else:
+            logger.info_insert_adata(layer + "_dispFitInfo", "uns")
+            adata.uns[layer + "_dispFitInfo"] = {
+                "disp_table": good,
+                "disp_func": ans,
+                "coefs": coefs,
+            }
+
+    return adata
+
+
+def _top_table_legacy(
+    adata: AnnData, layer: str = "X", mode: Literal["dispersion", "gini"] = "dispersion"
+) -> pd.DataFrame:
+    """Retrieve a table that contains gene names and other info whose dispersions/gini index are highest.
+
+    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Get information of the top layer.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer(s) that would be searched for. Defaults to "X".
+        mode: either "dispersion" or "gini", deciding whether dispersion data or gini data would be acquired. Defaults
+            to "dispersion".
+
+    Raises:
+        KeyError: if mode is set to dispersion but there is no available dispersion model.
+
+    Returns:
+        The data frame of the top layer with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as
+        the columns.
+    """
+
+    layer = DKM.get_available_layer_keys(adata, layers=layer, include_protein=False)[0]
+
+    if layer in ["X"]:
+        key = "dispFitInfo"
+    else:
+        key = layer + "_dispFitInfo"
+
+    if mode == "dispersion":
+        if adata.uns[key] is None:
+            _estimate_dispersion_legacy(adata, layers=[layer])
+            raise KeyError(
+                "Error: for adata.uns.key=%s, no dispersion model found. Please call estimate_dispersion() before calling this function"
+                % key
+            )
+
+        top_df = pd.DataFrame(
+            {
+                "gene_id": adata.uns[key]["disp_table"]["gene_id"],
+                "mean_expression": adata.uns[key]["disp_table"]["mu"],
+                "dispersion_fit": adata.uns[key]["disp_func"](adata.uns[key]["disp_table"]["mu"]),
+                "dispersion_empirical": adata.uns[key]["disp_table"]["disp"],
+            }
+        )
+        top_df = top_df.set_index("gene_id")
+
+    elif mode == "gini":
+        top_df = adata.var[layer + "_gini"]
+
+    return top_df
+
+
+def _calc_mean_var_dispersion_general_mat_legacy(
+    data_mat: Union[np.ndarray, csr_matrix], axis: int = 0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """calculate mean, variance, and dispersion of a matrix.
+
+    Args:
+        data_mat: the matrix to be evaluated, either a ndarray or a scipy sparse matrix.
+        axis: the axis along which calculation is performed. Defaults to 0.
+
+    Returns:
+        A tuple (mean, var, dispersion) where mean is the mean of the array along the given axis, var is the variance of
+        the array along the given axis, and dispersion is the dispersion of the array along the given axis.
+    """
+
+    if not issparse(data_mat):
+        return _calc_mean_var_dispersion_ndarray_legacy(data_mat, axis)
+    else:
+        return _calc_mean_var_dispersion_sparse_legacy(data_mat, axis)
+
+
+def _calc_mean_var_dispersion_ndarray_legacy(
+    data_mat: np.ndarray, axis: int = 0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """calculate mean, variance, and dispersion of a non-sparse matrix.
+
+    Args:
+        data_mat: the matrix to be evaluated.
+        axis: the axis along which calculation is performed. Defaults to 0.
+
+    Returns:
+        A tuple (mean, var, dispersion) where mean is the mean of the array along the given axis, var is the variance of
+        the array along the given axis, and dispersion is the dispersion of the array along the given axis.
+    """
+
+    # per gene mean, var and dispersion
+    mean = np.nanmean(data_mat, axis=axis).flatten()
+
+    # <class 'anndata._core.views.ArrayView'> has bug after using operator "==" (e.g. mean == 0), which changes mean.
+    mean = np.array(mean)
+    mean[mean == 0] += 1e-7  # prevent division by zero
+    var = np.nanvar(data_mat, axis=axis)
+    dispersion = var / mean
+    return mean.flatten(), var.flatten(), dispersion.flatten()
+
+
+def _calc_mean_var_dispersion_sparse_legacy(
+    sparse_mat: csr_matrix, axis: int = 0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """calculate mean, variance, and dispersion of a matrix.
+
+    Args:
+        sparse_mat: the sparse matrix to be evaluated.
+        axis: the axis along which calculation is performed. Defaults to 0.
+
+    Returns:
+        A tuple (mean, var, dispersion), where mean is the mean of the array along the given axis, var is the variance
+        of the array along the given axis, and dispersion is the dispersion of the array along the given axis.
+    """
+
+    sparse_mat = sparse_mat.copy()
+    nan_mask = get_nan_or_inf_data_bool_mask(sparse_mat.data)
+    temp_val = (sparse_mat != 0).sum(axis)
+    sparse_mat.data[nan_mask] = 0
+    nan_count = temp_val - (sparse_mat != 0).sum(axis)
+
+    non_nan_count = sparse_mat.shape[axis] - nan_count
+    mean = (sparse_mat.sum(axis) / sparse_mat.shape[axis]).A1
+    mean[mean == 0] += 1e-7  # prevent division by zero
+
+    # same as numpy var behavior: denominator is N, var=(data_arr-mean)/N
+    var = np.power(sparse_mat - mean, 2).sum(axis) / sparse_mat.shape[axis]
+    dispersion = var / mean
+    return np.array(mean).flatten(), np.array(var).flatten(), np.array(dispersion).flatten()
+
+
+@deprecated
+def calc_sz_factor_legacy(*args, **kwargs):
+    _calc_sz_factor_legacy(*args, **kwargs)
+
+
+def _calc_sz_factor_legacy(
     adata_ori: anndata.AnnData,
     layers: Union[str, list] = "all",
     total_layers: Union[list, None] = None,
@@ -189,7 +655,12 @@ def calc_sz_factor_legacy(
     return adata_ori
 
 
-def normalize_cell_expr_by_size_factors_legacy(
+@deprecated
+def normalize_cell_expr_by_size_factors(*args, **kwargs):
+    _normalize_cell_expr_by_size_factors_legacy(*args, **kwargs)
+
+
+def _normalize_cell_expr_by_size_factors_legacy(
     adata: anndata.AnnData,
     layers: str = "all",
     total_szfactor: str = "total_Size_Factor",
@@ -271,7 +742,7 @@ def normalize_cell_expr_by_size_factors_legacy(
 
         if norm_method is None and layer == "X":
             CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
-        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
+        elif norm_method in [np.log1p, np.log, np.log2, _Freeman_Tukey, None] and layer != "protein":
             CM = normalize_mat_monocle(CM, szfactors, relative_expr, pseudo_expr, norm_method)
         elif layer == "protein":  # norm_method == 'clr':
             if norm_method != "clr":
@@ -305,196 +776,18 @@ def normalize_cell_expr_by_size_factors_legacy(
         else:
             adata.layers["X_" + layer] = CM
 
-        adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+        norm_method_key = "X_norm_method" if layer == DKM.X_LAYER else "layers_norm_method"
+        adata.uns["pp"][norm_method_key] = norm_method.__name__ if callable(norm_method) else norm_method
 
     return adata
 
 
-def Gini(adata: anndata.AnnData, layers: Union[Literal["all"], List[str]] = "all") -> anndata.AnnData:
-    """Calculate the Gini coefficient of a numpy array. https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
-
-    Args:
-        adata: an AnnData object
-        layers: the layer(s) to be normalized. Defaults to "all".
-
-    Returns:
-        An updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
-    """
-
-    # From: https://github.com/oliviaguest/gini
-    # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
-    # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
-
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers)
-
-    for layer in layers:
-        if layer == "raw":
-            CM = adata.raw.X
-        elif layer == "X":
-            CM = adata.X
-        elif layer == "protein":
-            if "protein" in adata.obsm_keys():
-                CM = adata.obsm[layer]
-            else:
-                continue
-        else:
-            CM = adata.layers[layer]
-
-        n_features = adata.shape[1]
-        gini = np.zeros(n_features)
-
-        for i in np.arange(n_features):
-            # all values are treated equally, arrays must be 1d
-            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]
-            if np.amin(CM) < 0:
-                cur_cm -= np.amin(cur_cm)  # values cannot be negative
-            cur_cm += 0.0000001  # np.min(array[array!=0]) #values cannot be 0
-            cur_cm = np.sort(cur_cm, axis=0)  # values must be sorted
-            # index per array element
-            index = np.arange(1, cur_cm.shape[0] + 1)
-            n = cur_cm.shape[0]  # number of array elements
-            gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (n * np.sum(cur_cm))  # Gini coefficient
-
-        if layer in ["raw", "X"]:
-            adata.var["gini"] = gini
-        else:
-            adata.var[layer + "_gini"] = gini
-
-    return adata
+@deprecated
+def filter_cells_legacy(*args, **kwargs):
+    _filter_cells_legacy(*args, **kwargs)
 
 
-def disp_calc_helper_NB(
-    adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
-) -> Tuple[List[str], List[pd.DataFrame]]:
-    """Calculate the dispersion parameter of the negative binomial distribution.
-
-    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Args:
-        adata: an adata object
-        layers: the layer of data used for dispersion fitting. Defaults to "X".
-        min_cells_detected: the minimal required number of cells with expression for selecting gene for dispersion
-            fitting. Defaults to 1.
-
-    Returns:
-        A tuple (layers, res_list), where layers is a list of layers available and res_list is a list of pd.DataFrame's
-        with mu, dispersion for each gene that passes filters.
-    """
-
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers=layers, include_protein=False)
-
-    res_list = []
-    for layer in layers:
-        if layer == "raw":
-            CM = adata.raw.X
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
-        elif layer == "X":
-            CM = adata.X
-            szfactors = adata.obs["Size_Factor"][:, None]
-        else:
-            CM = adata.layers[layer]
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
-
-        if issparse(CM):
-            CM.data = np.round(CM.data, 0)
-            rounded = CM
-        else:
-            rounded = CM.round().astype("int")
-
-        lowerDetectedLimit = adata.uns["lowerDetectedLimit"] if "lowerDetectedLimit" in adata.uns.keys() else 1
-        nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
-        nzGenes = nzGenes > min_cells_detected
-
-        nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
-        if layer.startswith("X_"):
-            x = rounded[:, nzGenes]
-        else:
-            x = (
-                rounded[:, nzGenes].multiply(csr_matrix(1 / szfactors))
-                if issparse(rounded)
-                else rounded[:, nzGenes] / szfactors
-            )
-
-        xim = np.mean(1 / szfactors) if szfactors is not None else 1
-
-        f_expression_mean = x.mean(axis=0)
-
-        # For NB: Var(Y) = mu * (1 + mu / k)
-        # x.A.var(axis=0, ddof=1)
-        f_expression_var = (
-            (x.multiply(x).mean(0).A1 - f_expression_mean.A1**2) * x.shape[0] / (x.shape[0] - 1)
-            if issparse(x)
-            else x.var(axis=0, ddof=0) ** 2
-        )  # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
-        # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
-        disp_guess_meth_moments = f_expression_var - xim * f_expression_mean  # variance - mu
-
-        disp_guess_meth_moments = disp_guess_meth_moments / np.power(
-            f_expression_mean, 2
-        )  # this is dispersion parameter (1/k)
-
-        res = pd.DataFrame(
-            {
-                "mu": np.array(f_expression_mean).flatten(),
-                "disp": np.array(disp_guess_meth_moments).flatten(),
-            }
-        )
-        res.loc[res["mu"] == 0, "mu"] = None
-        res.loc[res["mu"] == 0, "disp"] = None
-        res.loc[res["disp"] < 0, "disp"] = 0
-
-        res["gene_id"] = adata.var_names[nzGenes]
-
-        res_list.append(res)
-
-    return layers, res_list
-
-
-def vstExprs(
-    adata: anndata.AnnData,
-    expr_matrix: Union[np.ndarray, None] = None,
-    round_vals: bool = True,
-) -> np.ndarray:
-    """Variance stabilization transformation of the gene expression.
-
-    This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Args:
-        adata: an AnnData object.
-        expr_matrix: an matrix of values to transform. Must be normalized (e.g. by size factors) already. Defaults to
-            None.
-        round_vals: whether to round expression values to the nearest integer before applying the transformation.
-            Defaults to True.
-
-    Returns:
-        A numpy array of the gene expression after VST.
-    """
-
-    fitInfo = adata.uns["dispFitInfo"]
-
-    coefs = fitInfo["coefs"]
-    if expr_matrix is None:
-        ncounts = adata.X
-        if round_vals:
-            if issparse(ncounts):
-                ncounts.data = np.round(ncounts.data, 0)
-            else:
-                ncounts = ncounts.round().astype("int")
-    else:
-        ncounts = expr_matrix
-
-    def vst(q):  # c( "asymptDisp", "extraPois" )
-        return np.log(
-            (1 + coefs[1] + 2 * coefs[0] * q + 2 * np.sqrt(coefs[0] * q * (1 + coefs[1] + coefs[0] * q)))
-            / (4 * coefs[0])
-        ) / np.log(2)
-
-    res = vst(ncounts.toarray()) if issparse(ncounts) else vst(ncounts)
-
-    return res
-
-
-def filter_cells_legacy(
+def _filter_cells_legacy(
     adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
@@ -580,43 +873,12 @@ def filter_cells_legacy(
     return adata
 
 
-def filter_genes_by_clusters_(
-    adata: anndata.AnnData,
-    cluster: str,
-    min_avg_U: float = 0.02,
-    min_avg_S: float = 0.08,
-    size_limit: int = 40,
-) -> np.ndarray:
-    """Prepare filtering genes on the basis of cluster-wise expression threshold.
-
-    This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
-
-    Args:
-        adata: an Anndata object.
-        cluster: a column name in the adata.obs attribute which will be used for cluster specific expression filtering.
-        min_avg_U: include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters.
-            Defaults to 0.02.
-        min_avg_S: include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters.
-            Defaults to 0.08.
-        size_limit: the max number of members to be considered in a cluster during calculation. Defaults to 40.
-
-    Returns:
-        A boolean array corresponding to genes selected.
-    """
-    U, S, cluster_uid = (
-        adata.layers["unspliced"],
-        adata.layers["spliced"],
-        adata.obs[cluster],
-    )
-    cluster_uid, cluster_ix = np.unique(cluster_uid, return_inverse=True)
-
-    U_avgs, S_avgs = clusters_stats(U, S, cluster_uid, cluster_ix, size_limit=size_limit)
-    clu_avg_selected = (U_avgs.max(1) > min_avg_U) & (S_avgs.max(1) > min_avg_S)
-
-    return clu_avg_selected
+@deprecated
+def filter_genes_by_outliers_legacy(*args, **kwargs):
+    _filter_genes_by_outliers_legacy(*args, **kwargs)
 
 
-def filter_genes_by_outliers_legacy(
+def _filter_genes_by_outliers_legacy(
     adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
@@ -726,7 +988,12 @@ def filter_genes_by_outliers_legacy(
     return adata
 
 
-def recipe_monocle(
+@deprecated
+def recipe_monocle(*args, **kwargs):
+    _recipe_monocle_legacy(*args, **kwargs)
+
+
+def _recipe_monocle_legacy(
     adata: anndata.AnnData,
     reset_X: bool = False,
     tkey: Union[str, None] = None,
@@ -868,6 +1135,7 @@ def recipe_monocle(
         X and reduced dimensions, etc., are updated. Otherwise, return None.
     """
 
+    main_warning(__name__ + " is deprecated.")
     logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
     keep_filtered_cells = DynamoAdataConfig.use_default_var_if_none(
@@ -893,7 +1161,7 @@ def recipe_monocle(
     # we should create all following data after convert2symbol (gene names)
     adata.uns["pp"] = {}
     if norm_method == "Freeman_Tukey":
-        norm_method = Freeman_Tukey
+        norm_method = _Freeman_Tukey
 
     basic_stats(adata)
     (
@@ -1077,7 +1345,7 @@ def recipe_monocle(
 
     logger.info("filtering cells...")
     logger.info_insert_adata("pass_basic_filter", "obs")
-    adata = filter_cells_legacy(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
+    adata = _filter_cells_legacy(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
     logger.info(f"{adata.obs.pass_basic_filter.sum()} cells passed basic filters.")
 
     filter_genes_kwargs = {
@@ -1101,7 +1369,7 @@ def recipe_monocle(
     # set pass_basic_filter for genes
     logger.info("filtering gene...")
     logger.info_insert_adata("pass_basic_filter", "var")
-    adata = filter_genes_by_outliers_legacy(
+    adata = _filter_genes_by_outliers_legacy(
         adata,
         **filter_genes_kwargs,
     )
@@ -1119,7 +1387,7 @@ def recipe_monocle(
     # calculate sz factor
     logger.info("calculating size factor...")
     if not _has_szFactor_normalized or "Size_Factor" not in adata.obs_keys():
-        adata = calc_sz_factor_legacy(
+        adata = _calc_sz_factor_legacy(
             adata,
             total_layers=total_layers,
             scale_to=scale_to,
@@ -1153,7 +1421,7 @@ def recipe_monocle(
                 f"{select_genes_dict}",
             )
         logger.info("selecting genes in layer: %s, sort method: %s..." % (feature_selection_layer, feature_selection))
-        adata = select_genes_monocle_legacy(
+        adata = _select_genes_monocle_legacy(
             adata,
             layer=feature_selection_layer,
             sort_by=feature_selection,
@@ -1207,7 +1475,7 @@ def recipe_monocle(
             # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                filter_bool = select_genes_monocle_legacy(
+                filter_bool = _select_genes_monocle_legacy(
                     adata[:, valid_ids],
                     sort_by=feature_selection,
                     n_top_genes=extra_n_top_genes,
@@ -1226,7 +1494,7 @@ def recipe_monocle(
     if not _has_log1p_transformed:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
         logger.info("size factor normalizing the data, followed by log1p transformation.")
-        adata = normalize_cell_expr_by_size_factors_legacy(
+        adata = _normalize_cell_expr_by_size_factors_legacy(
             adata,
             layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
@@ -1241,12 +1509,12 @@ def recipe_monocle(
         )
     else:
         layers = DynamoAdataKeyManager.get_available_layer_keys(adata, "all")
-        for layer in layers:
-            if layer != "X":
-                logger.info_insert_adata("X_" + layer, "layers")
-                adata.layers["X_" + layer] = adata.layers[layer].copy()
-        logger.info_insert_adata("norm_method", "uns['pp']", indent_level=2)
-        adata.uns["pp"]["norm_method"] = None
+        for tmp_layer in layers:
+            if tmp_layer != "X":
+                logger.info_insert_adata("X_" + tmp_layer, "layers")
+                adata.layers["X_" + tmp_layer] = adata.layers[tmp_layer].copy()
+        logger.info_insert_adata("layers_norm_method", "uns['pp']", indent_level=2)
+        adata.uns["pp"]["layers_norm_method"] = None
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if layer is None:
@@ -1343,7 +1611,12 @@ def recipe_monocle(
     return None
 
 
-def recipe_velocyto(
+@deprecated
+def recipe_velocyto(*args, **kwargs):
+    _recipe_velocyto_legacy(*args, **kwargs)
+
+
+def _recipe_velocyto_legacy(
     adata: anndata.AnnData,
     total_layers: Union[List[str], None] = None,
     method: str = "pca",
@@ -1398,7 +1671,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool]
 
-    adata = SVRs(
+    adata = calc_dispersion_by_svr(
         adata,
         layers=["spliced"],
         min_expr_cells=2,
@@ -1417,11 +1690,11 @@ def recipe_velocyto(
         min_cell_u=20,
         shared_count=None,
     )
-    filter_bool_cluster = filter_genes_by_clusters_(adata, min_avg_S=0.08, min_avg_U=0.01, cluster=cluster)
+    filter_bool_cluster = filter_genes_by_clusters(adata, min_avg_S=0.08, min_avg_U=0.01, cluster=cluster)
 
     adata = adata[:, filter_bool_gene & filter_bool_cluster]
 
-    adata = normalize_cell_expr_by_size_factors_legacy(
+    adata = normalize_cell_expr_by_size_factors(
         adata,
         total_szfactor=None,
         norm_method=norm_method,
@@ -1472,105 +1745,12 @@ def recipe_velocyto(
     return adata
 
 
-def highest_frac_genes(
-    adata: AnnData,
-    store_key: str = "highest_frac_genes",
-    n_top: int = 30,
-    gene_prefix_list: List[str] = None,
-    gene_prefix_only: bool = False,
-    layer: Union[str, None] = None,
-) -> anndata.AnnData:
-    """Compute top genes df and store results in `adata.uns`
-
-    Args:
-        adata: an AnnData object
-        store_key: key for storing expression percent results. Defaults to "highest_frac_genes".
-        n_top: number of top genes to show. Defaults to 30.
-        gene_prefix_list: a list of gene name prefixes used for gathering/calculating expression percents from genes
-            with these prefixes. Defaults to None.
-        gene_prefix_only: whether to calculate percentages for gene groups with the specified prefixes only. It only
-            takes effect if gene prefix list is provided. Defaults to False.
-        layer: layer on which the gene percents will be computed. Defaults to None.
-
-    Returns:
-        An updated adata with top genes df stored in `adata.uns`
-    """
-
-    gene_mat = adata.X
-    if layer is not None:
-        gene_mat = DKM.select_layer_data(layer)
-    # compute gene percents at each cell row
-    cell_expression_sum = gene_mat.sum(axis=1).flatten()
-    # get rid of cells that have all zero counts
-    not_all_zero = cell_expression_sum != 0
-    filtered_adata = adata[not_all_zero, :]
-    cell_expression_sum = cell_expression_sum[not_all_zero]
-    main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
-
-    valid_gene_set = set()
-    prefix_to_genes = {}
-    _adata = filtered_adata
-    if gene_prefix_list is not None:
-        prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
-        for name in _adata.var_names:
-            for prefix in gene_prefix_list:
-                length = len(prefix)
-                if name[:length] == prefix:
-                    valid_gene_set.add(name)
-                    prefix_to_genes[prefix].append(name)
-                    break
-        if len(valid_gene_set) == 0:
-            main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
-            return None
-        if gene_prefix_only:
-            # gathering gene prefix set data
-            df = pd.DataFrame(index=_adata.obs.index)
-            for prefix in prefix_to_genes:
-                if len(prefix_to_genes[prefix]) == 0:
-                    main_info("There is no %s gene prefix in adata." % prefix)
-                    continue
-                df[prefix] = _adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
-            # adata = adata[:, list(valid_gene_set)]
-
-            _adata = AnnData(X=df)
-            gene_mat = _adata.X
-
-    # compute gene's total percents in the dataset
-    gene_percents = np.array(gene_mat.sum(axis=0))
-    gene_percents = (gene_percents / gene_mat.shape[1]).flatten()
-    # obtain top genes
-    sorted_indices = np.argsort(-gene_percents)
-    selected_indices = sorted_indices[:n_top]
-    gene_names = _adata.var_names[selected_indices]
-
-    gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
-
-    # assemble a dataframe
-    selected_gene_X_percents = np.array(gene_X_percents)[:, selected_indices]
-    selected_gene_X_percents = np.squeeze(selected_gene_X_percents)
-
-    top_genes_df = pd.DataFrame(
-        selected_gene_X_percents,
-        index=adata.obs_names,
-        columns=gene_names,
-    )
-    gene_percents_df = pd.Series(gene_percents, index=_adata.var_names)
-
-    main_info_insert_adata_uns(store_key)
-    adata.uns[store_key] = {
-        "top_genes_df": top_genes_df,
-        "gene_mat": gene_mat,
-        "layer": layer,
-        "selected_indices": selected_indices,
-        "gene_prefix_list": gene_prefix_list,
-        "show_individual_prefix_gene": gene_prefix_only,
-        "gene_percents": gene_percents_df,
-    }
-
-    return adata
+@deprecated
+def select_genes_monocle_legacy(*args, **kwargs):
+    _select_genes_monocle_legacy(*args, **kwargs)
 
 
-def select_genes_monocle_legacy(
+def _select_genes_monocle_legacy(
     adata: anndata.AnnData,
     layer: str = "X",
     total_szfactor: str = "total_Size_Factor",
@@ -1615,7 +1795,7 @@ def select_genes_monocle_legacy(
         filter_bool = np.ones(adata.shape[1], dtype=bool)
     else:
         if sort_by == "dispersion":
-            table = top_table(adata, layer, mode="dispersion")
+            table = _top_table_legacy(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
             valid_table = valid_table.loc[
                 set(adata.var.index[filter_bool]).intersection(valid_table.index),
@@ -1625,7 +1805,7 @@ def select_genes_monocle_legacy(
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
         elif sort_by == "gini":
-            table = top_table(adata, layer, mode="gini")
+            table = _top_table_legacy(adata, layer, mode="gini")
             valid_table = table.loc[filter_bool, :]
             gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
             gene_id = valid_table.index[gene_id]
@@ -1641,7 +1821,8 @@ def select_genes_monocle_legacy(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = SVRs(
+
+            adata = calc_dispersion_by_svr(
                 adata,
                 layers=[layer],
                 total_szfactor=total_szfactor,
@@ -1650,6 +1831,7 @@ def select_genes_monocle_legacy(
             )
 
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
+            condition = filter_bool == True
 
     # filter genes by gene expression fraction as well
     adata.var["frac"], invalid_ids = compute_gene_exp_fraction(X=adata.X, threshold=exprs_frac_for_gene_exclusion)

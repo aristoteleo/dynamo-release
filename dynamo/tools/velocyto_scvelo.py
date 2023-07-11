@@ -1,37 +1,36 @@
 # functions to run velocyto and scvelo
 # from .moments import *
+from typing import List, Optional
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import anndata
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-# import velocyto as vcy
-# import scvelo as scv
 from scipy.sparse import csr_matrix
 
+from ..configuration import DKM
 
-def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None):
-    """Conversion function from the velocyto world to the dynamo world.
-    Code original from scSLAM-seq repository
 
-    Parameters
-    ----------
-        vlm: VelocytoLoom Object
-            The VelocytoLoom object that will be converted into adata.
-        n_comps: `int` (default: 30)
-            The number of pc components that will be stored.
-        basis: `str` (default: `umap`)
-            The embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
-            umap as embedding although `umap` as set as default for the convenience of dynamo itself.
-        trans_mats: None or dict
-            A dict of all relevant transition matrices
-        cell_ixs: list of int
-            These are the indices of the subsampled cells
+def vlm_to_adata(
+    vlm, n_comps: int = 30, basis: str = "umap", trans_mats: Optional[dict] = None, cells_ixs: List[int] = None
+) -> anndata.AnnData:
+    """Conversion function from the velocyto world to the dynamo world. Code original from scSLAM-seq repository.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
+    Args:
+        vlm (VelocytoLoom): the VelocytoLoom object that will be converted into adata.
+        n_comps: the number of pc components that will be stored. Defaults to 30.
+        basis: the embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
+            umap as embedding although `umap` as set as default for the convenience of dynamo itself. Defaults to "umap".
+        trans_mats: a dict of all relevant transition matrices. Defaults to None.
+        cells_ixs: these are the indices of the subsampled cells. Defaults to None.
+
+    Returns:
+        The updated AnnData object.
     """
 
     from collections import OrderedDict
@@ -91,7 +90,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
 
     # set obsm
     obsm = {}
-    obsm["X"] = vlm.pcs[:, : min(n_comps, vlm.pcs.shape[1])]
+    obsm[DKM.X_PCA] = vlm.pcs[:, : min(n_comps, vlm.pcs.shape[1])]
     # set basis and velocity on the basis
     if basis is not None:
         obsm["X_" + basis] = vlm.ts
@@ -127,7 +126,8 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
         "has_protein": False,
         "tkey": None,
         "experiment_type": "conventional",
-        "norm_method": None,
+        "X_norm_method": None,
+        "layers_norm_method": None,
     }
 
     uns["dynamics"] = {
@@ -163,12 +163,24 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
     return dyn_adata
 
 
-def converter(data_in, from_type="adata", to_type="vlm", dir="."):
+def converter(
+    data_in, from_type: Literal["adata", "vlm"] = "adata", to_type: Literal["adata", "vlm"] = "vlm", dir: str = "."
+):
+    """Convert adata to loom object or vice versa.
+
+    Args:
+        data_in (Union[vcy.VelocytoLoom, anndata.AnnData]): the object to be converted.
+        from_type: the type of data_in. Defaults to "adata".
+        to_type: convert to which type. Defaults to "vlm".
+        dir: the path to save the loom file. Defaults to ".".
+
+    Raises:
+        ImportError: velocyto not installed.
+
+    Returns:
+        the converted object.
     """
-    convert adata to loom object
-    - we may save_fig to a temp directory automatically
-    - we may write a on-the-fly converter which doesn't involve saving and reading files
-    """
+
     try:
         import velocyto as vcy
     except ImportError:
@@ -200,11 +212,18 @@ def converter(data_in, from_type="adata", to_type="vlm", dir="."):
     return data_out
 
 
-def run_velocyto(adata):
-    """
+def run_velocyto(adata: anndata.AnnData) -> anndata.AnnData:
+    """Run velocyto over the AnnData object.
+
     1. convert adata to vlm data
     2. set up PCA, UMAP, etc.
     3. estimate the gamma parameter
+
+    Args:
+        adata: an AnnData object.
+
+    Returns:
+        The updated AnnData object.
     """
     vlm = converter(adata)
 
@@ -241,12 +260,23 @@ def run_velocyto(adata):
     return vlm
 
 
-def run_scvelo(adata):
+def run_scvelo(adata: anndata.AnnData) -> anndata.AnnData:
+    """Run Scvelo over the AnnData.
+
+    1. Set up PCA, UMAP, etc.
+    2. Estimate gamma and all other parameters
+    3. Return results (adata.var['velocity_gamma'])
+
+    Args:
+        adata: an AnnData object.
+
+    Raises:
+        ImportError: scvelo not installed.
+
+    Returns:
+        The updated AnnData object.
     """
-    1. set up PCA, UMAP, etc.
-    2. estimate gamma and all other parameters
-    3. return results (adata.var['velocity_gamma'])
-    """
+
     try:
         import scvelo as scv
     except ImportError:
@@ -262,7 +292,16 @@ def run_scvelo(adata):
     return adata
 
 
-def mean_var_by_time(X, Time):
+def mean_var_by_time(X: np.ndarray, Time: np.ndarray) -> np.ndarray:
+    """Group the data based on time and find the group's mean and var.
+
+    Args:
+        X: the data to be grouped.
+        Time: the corresponding time.
+
+    Returns:
+        The mean and var of each group.
+    """
     import pandas as pd
 
     exp_data = pd.DataFrame(X)
