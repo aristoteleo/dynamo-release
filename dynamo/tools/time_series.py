@@ -24,6 +24,7 @@ def cal_ncenter(ncells: int, ncells_limit: int = 100) -> int:
 def directed_pg(
     adata: anndata.AnnData,
     basis: str = "umap",
+    transition_method: str = "pearson",
     maxIter: int = 10,
     sigma: float = 0.001,
     Lambda: Optional[float] = None,
@@ -36,6 +37,8 @@ def directed_pg(
     Args:
         adata: an AnnData object,
         basis: the dimension reduction method utilized. Defaults to "umap".
+        transition_method: the method to calculate the transition matrix and project high dimensional vector to low
+            dimension.
         maxIter: the max iteration numbers. Defaults to 10.
         sigma: the bandwidth parameter. Defaults to 0.001.
         Lambda: the regularization parameter for inverse graph embedding. Defaults to None.
@@ -53,11 +56,15 @@ def directed_pg(
         An updated AnnData object that is updated with principal_g_transition, X__DDRTree and and X_DDRTree_pg keys.
     """
 
-    X = adata.obsm["X_" + basis].T if basis in adata.obsm.keys() else None
+    X = adata.obsm["X_" + basis].T if "X_" + basis in adata.obsm.keys() else None
     if X is None:
         raise Exception("{} is not a key of obsm ({} dimension reduction is not performed yet.).".format(basis, basis))
 
-    transition_matrix = adata.uns["transition_matrix"] if "transition_matrix" in adata.uns.keys() else None
+    transition_matrix = (
+        adata.obsp[transition_method + "_transition_matrix"]
+        if transition_method + "_transition_matrix" in adata.obsp.keys()
+        else None
+    )
     if transition_matrix is None:
         raise Exception("transition_matrix is not a key of uns. Please first run cell_velocity.")
 
