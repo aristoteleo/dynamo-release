@@ -85,10 +85,12 @@ def directed_pg(
     principal_g = Tcsr.toarray().astype(int)
 
     # here we can also identify siginificant links using methods related to PAGA
+    transition_matrix = transition_matrix.toarray()
     principal_g_transition = cell_membership.T.dot(transition_matrix).dot(cell_membership) * principal_g
 
     adata.uns["principal_g_transition"] = principal_g_transition
     adata.obsm["X_DDRTree"] = X.T if raw_embedding else Z
+    cell_membership = csr_matrix(cell_membership)
     adata.uns["X_DDRTree_pg"] = cell_membership.dot(X.T) if raw_embedding else Y
 
     return adata
