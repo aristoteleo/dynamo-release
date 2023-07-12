@@ -37,6 +37,7 @@ from .connectivity import (
 
 # Pseudotime related
 from .DDRTree_py import DDRTree, cal_ncenter
+from .time_series import directed_pg
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension  # , run_umap
