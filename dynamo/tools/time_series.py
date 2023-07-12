@@ -71,17 +71,13 @@ def directed_pg(
     Lambda = 5 * X.shape[1] if Lambda is None else Lambda
     ncenter = 250 if cal_ncenter(X.shape[1]) is None else ncenter
 
-    DDRTree_res = DDRTree(
+    Z, Y, principal_g, cell_membership, W, Q, C, objs = DDRTree(
         X,
         maxIter=maxIter,
         Lambda=Lambda,
         sigma=sigma,
         gamma=gamma,
         ncenter=ncenter,
-    )
-    principal_g, cell_membership = (
-        DDRTree_res.loc[maxIter - 1, "stree"],
-        DDRTree_res.loc[maxIter - 1, "R"],
     )
 
     X = csr_matrix(principal_g)
@@ -92,7 +88,7 @@ def directed_pg(
     principal_g_transition = cell_membership.T.dot(transition_matrix).dot(cell_membership) * principal_g
 
     adata.uns["principal_g_transition"] = principal_g_transition
-    adata.obsm["X_DDRTree"] = X.T if raw_embedding else DDRTree_res.loc[maxIter - 1, "Z"]
-    adata.uns["X_DDRTree_pg"] = cell_membership.dot(X.T) if raw_embedding else DDRTree_res.loc[maxIter - 1, "Y"]
+    adata.obsm["X_DDRTree"] = X.T if raw_embedding else Z
+    adata.uns["X_DDRTree_pg"] = cell_membership.dot(X.T) if raw_embedding else Y
 
     return adata
