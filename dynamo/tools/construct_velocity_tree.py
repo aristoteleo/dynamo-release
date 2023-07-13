@@ -3,6 +3,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from scipy.sparse import issparse
 from scipy.sparse.csgraph import shortest_path
 
 from .DDRTree_py import DDRTree
@@ -74,6 +75,10 @@ def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:
         X1: epxression matrix.
         X2: velocity matrix.
     """
+    if issparse(X1):
+        X1 = X1.toarray()
+    if issparse(X2):
+        X2 = X2.toarray()
     n = X1.shape[1]
 
     # merge two data with a given time
@@ -87,7 +92,7 @@ def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:
     gamma = 10
 
     # run DDRTree algorithm
-    W, Z, stree, Y, R, history = DDRTree(X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma)
+    Z, Y, stree, R, W, Q, C, objs = DDRTree(X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma)
 
     # draw velocity figure
 
