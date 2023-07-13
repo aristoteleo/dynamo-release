@@ -2,9 +2,49 @@ from typing import Optional
 
 import anndata
 import numpy as np
+from scipy.spatial import distance
 
 from .DDRTree_py import DDRTree
 from .utils import log1p_
+
+
+def _find_nearest_vertex(data_matrix, target_points, block_size=50000, process_targets_in_blocks=False):
+    closest_vertex = np.array([])
+
+    if not process_targets_in_blocks:
+        num_blocks = np.ceil(data_matrix.shape[1] / block_size).astype(int)
+        if num_blocks < 1:
+            print('bad loop: num_blocks < 1')
+        for i in range(1, num_blocks + 1):
+            if i < num_blocks:
+                block = data_matrix[:, ((i - 1) * block_size):(i * block_size)]
+            else:
+                block = data_matrix[:, ((i - 1) * block_size):]
+            distances_Z_to_Y = distance.cdist(block.T, target_points.T)
+            closest_vertex_for_block = np.argmin(distances_Z_to_Y, axis=1)
+            closest_vertex = np.append(closest_vertex, closest_vertex_for_block)
+    else:
+        num_blocks = np.ceil(target_points.shape[1] / block_size).astype(int)
+        dist_to_closest_vertex = np.full(data_matrix.shape[1], np.inf)
+        closest_vertex = np.full(data_matrix.shape[1], np.nan)
+        if num_blocks < 1:
+            print('bad loop: num_blocks < 1')
+        for i in range(1, num_blocks + 1):
+            if i < num_blocks:
+                block = target_points[:, ((i - 1) * block_size):(i * block_size)]
+            else:
+                block = target_points[:, ((i - 1) * block_size):]
+            distances_Z_to_Y = distance.cdist(data_matrix.T, block.T)
+            closest_vertex_for_block = np.argmin(distances_Z_to_Y, axis=1)
+            if distances_Z_to_Y.shape[0] < 1:
+                print('bad loop: nrow(distances_Z_to_Y) < 1')
+            new_block_distances = distances_Z_to_Y[np.arange(distances_Z_to_Y.shape[0]), closest_vertex_for_block]
+            updated_nearest_idx = np.where(new_block_distances < dist_to_closest_vertex)
+            closest_vertex[updated_nearest_idx] = closest_vertex_for_block[updated_nearest_idx] + (i - 1) * block_size
+            dist_to_closest_vertex[updated_nearest_idx] = new_block_distances[updated_nearest_idx]
+
+    assert len(closest_vertex) == data_matrix.shape[1], "length(closest_vertex) != ncol(data_matrix)"
+    return closest_vertex
 
 
 def Pseudotime(
