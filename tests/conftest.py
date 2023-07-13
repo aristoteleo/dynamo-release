@@ -40,39 +40,6 @@ class TestUtils:
             os.makedirs(path)
             return True
 
-    def gen_zebrafish_test_data(basis="pca"):
-        adata = dyn.sample_data.zebrafish()
-        # adata = adata[:3000]
-        dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
-        dyn.tl.dynamics(adata, model="stochastic", cores=8)
-        dyn.tl.reduceDimension(adata, basis=basis, n_pca_components=30, enforce=True)
-        dyn.tl.cell_velocities(adata, basis=basis)
-        dyn.vf.VectorField(adata, basis=basis, M=100)
-        dyn.vf.curvature(adata, basis=basis)
-        dyn.vf.acceleration(adata, basis=basis)
-
-        dyn.vf.rank_acceleration_genes(adata, groups="Cell_type", akey="acceleration", prefix_store="rank")
-        dyn.vf.rank_curvature_genes(adata, groups="Cell_type", ckey="curvature", prefix_store="rank")
-        dyn.vf.rank_velocity_genes(adata, groups="Cell_type", vkey="velocity_S", prefix_store="rank")
-
-        dyn.pp.top_pca_genes(adata, n_top_genes=100)
-        top_pca_genes = adata.var.index[adata.var.top_pca_genes]
-        dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
-        dyn.cleanup(adata)
-        TestUtils.mkdirs_wrapper(test_data_dir, abort=False)
-        adata.write_h5ad(test_zebrafish_data_path)
-
-    def gen_or_read_zebrafish_data():
-        # generate data if needed
-        if not os.path.exists(test_zebrafish_data_path):
-            print("generating test data...")
-            TestUtils.gen_zebrafish_test_data()
-
-        print("reading test data...")
-        # TODO use a fixture in future
-        adata = dyn.read_h5ad(test_zebrafish_data_path)
-        return adata
-
     def read_test_spatial_genomics_data():
         return dyn.read_h5ad(test_spatial_genomics_path)
 
@@ -84,11 +51,47 @@ def utils():
 
 ZEBRAFISH_ADATA = None
 
+# refactored gen_zebrafish_test_data() from TestUtils into a Pytest fixture
+@pytest.fixture(scope="session")
+def processed_zebra_adata():
+    adata = dyn.sample_data.zebrafish()
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_for_gene_exclusion=0.005)
+    dyn.tl.dynamics(adata, model="stochastic", cores=8)
+    dyn.tl.reduceDimension(adata, basis="pca", n_pca_components=30, enforce=True)
+    dyn.tl.cell_velocities(adata, basis="pca")
+    dyn.vf.VectorField(adata, basis="pca", M=100)
+    dyn.vf.curvature(adata, basis="pca")
+    dyn.vf.acceleration(adata, basis="pca")
 
-@pytest.fixture
-def adata(utils):
-    global ZEBRAFISH_ADATA
-    if ZEBRAFISH_ADATA:
-        return ZEBRAFISH_ADATA
-    ZEBRAFISH_ADATA = utils.gen_or_read_zebrafish_data()
-    return ZEBRAFISH_ADATA
+    dyn.vf.rank_acceleration_genes(adata, groups="Cell_type", akey="acceleration", prefix_store="rank")
+    dyn.vf.rank_curvature_genes(adata, groups="Cell_type", ckey="curvature", prefix_store="rank")
+    dyn.vf.rank_velocity_genes(adata, groups="Cell_type", vkey="velocity_S", prefix_store="rank")
+
+    dyn.pp.top_pca_genes(adata, n_top_genes=100)
+    top_pca_genes = adata.var.index[adata.var.top_pca_genes]
+    dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
+    dyn.cleanup(adata)
+    return adata
+
+
+@pytest.fixture(scope="session")
+def raw_zebra_adata():
+    adata = dyn.sample_data.zebrafish()
+
+
+@pytest.fixture(scope="session")
+def raw_hemato_adata():
+    adata = dyn.sample_data.hematopoiesis()
+    return adata
+
+
+@pytest.fixture(scope="session")
+def raw_pancreas_adata():
+    adata = dyn.sample_data.pancreatic_endocrinogenesis()
+    return adata
+
+
+@pytest.fixture(scope="session")
+def raw_rpe1_adata():
+    adata = dyn.sample_data.scEU_seq_rpe1()
+    return adata
