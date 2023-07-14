@@ -106,6 +106,97 @@ def get_order_from_DDRTree(adata, principal_graph, root_cell):
     return ordering_df
 
 
+def find_cell_proj_closest_vertex(Z, Y):
+    distances_Z_to_Y = distance.cdist(Z.T, Y.T)
+    return np.apply_along_axis(lambda z: np.where(z == np.min(z))[0][0], axis=1, arr=distances_Z_to_Y)
+
+def project_point_to_line_segment(p, df):
+    # Returns q, the closest point to p on the line segment from A to B
+    A = df[:, 0]
+    B = df[:, 1]
+    # Vector from A to B
+    AB = B - A
+    # Squared distance from A to B
+    AB_squared = np.sum(AB**2)
+
+    if AB_squared == 0:
+        # A and B are the same point
+        q = A
+    else:
+        # Vector from A to p
+        Ap = p - A
+        # Calculate the projection parameter t
+        t = np.dot(Ap, AB) / AB_squared
+
+        if t < 0.0:
+            # "Before" A on the line, just return A
+            q = A
+        elif t > 1.0:
+            # "After" B on the line, just return B
+            q = B
+        else:
+            # Projection lies "inbetween" A and B on the line
+            q = A + t * AB
+
+    return q
+
+
+def proj_point_on_line(point, line):
+    ap = point - line[:, 0]
+    ab = line[:, 1] - line[:, 0]
+
+    res = line[:, 0] + (np.dot(ap, ab) / np.dot(ab, ab)) * ab
+    return res
+
+
+def project2MST(dp_mst, Z, Y, Projection_Method):
+    import igraph as ig
+    closest_vertex = find_cell_proj_closest_vertex(Z=Z, Y=Y)
+
+    # closest_vertex_names = Y.columns[closest_vertex]
+    # closest_vertex_df = closest_vertex.reshape(-1, 1)
+    # closest_vertex_df = np.asmatrix(closest_vertex_df)
+    # closest_vertex_df = np.hstack((closest_vertex_df, closest_vertex_df))  # To match the R code's behavior
+    tip_leaves = [v.index for v in dp_mst.vs.select(_degree_eq=1)]
+
+    if not callable(Projection_Method):
+        P = Y.iloc[:, closest_vertex]
+    else:
+        P = np.zeros_like(Z)  # Initialize P with zeros
+        for i in range(len(closest_vertex)):
+            neighbors = dp_mst.neighbors(closest_vertex[i], mode="all")
+            projection = None
+            distance = None
+            Z_i = Z[:, i]
+
+            for neighbor in neighbors:
+                if closest_vertex[i] in tip_leaves:
+                    tmp = proj_point_on_line(Z_i, Y.loc[:, [closest_vertex[i], neighbor]])
+                else:
+                    tmp = Projection_Method(Z_i, Y.loc[:, [closest_vertex[i], neighbor]])
+                projection = np.vstack((projection, tmp)) if projection is not None else tmp
+                distance = np.append(distance, distance.euclidean(Z_i, tmp))
+
+            P[:, i] = projection[np.where(distance == np.min(distance))[0][0], :]
+
+    # P = pd.DataFrame(P, columns=Z.columns)
+
+    dp = distance.squareform(distance.pdist(P.T))
+    min_dist = np.min(dp[np.nonzero(dp)])
+    dp += min_dist
+    np.fill_diagonal(dp, 0)
+
+    cellPairwiseDistances = dp
+    gp = ig.Graph.Weighted_Adjacency(matrix=dp.tolist(), mode="undirected", attr="weight")
+    dp_mst = gp.spanning_tree(weights=gp.es['weight'])
+
+    # adata.uns['DDRTree']['pr_graph_cell_proj_tree'] = dp_mst
+    # adata.uns['DDRTree']['pr_graph_cell_proj_dist'] = P
+    # adata.uns['DDRTree']['pr_graph_cell_proj_closest_vertex'] = closest_vertex
+
+    return cellPairwiseDistances, P, closest_vertex, dp_mst
+
+
 def Pseudotime(
     adata: anndata.AnnData, layer: str = "X", basis: Optional[str] = None, method: str = "DDRTree", **kwargs
 ) -> anndata.AnnData:
