@@ -197,6 +197,54 @@ def project2MST(dp_mst, Z, Y, Projection_Method):
     return cellPairwiseDistances, P, closest_vertex, dp_mst
 
 
+def select_root_cell(adata, Z, root_state=None, reverse=False):
+    import igraph as ig
+
+    if root_state is not None:
+        if 'State' not in adata.obsp["cell_order"].columns:
+            raise ValueError("Error: State has not yet been set. Please call orderCells() without specifying root_state, then try this call again.")
+
+        root_cell_candidates = adata.obsp["cell_order"][adata.obsp["cell_order"]['State'] == root_state]
+        if root_cell_candidates.shape[0] == 0:
+            raise ValueError("Error: no cells for State =", root_state)
+
+        dp = np.matrix(Z[:, root_cell_candidates.index].T)
+        gp = ig.Graph.Adjacency((dp * dp.T).tolist(), mode="undirected", attr="weight")
+        dp_mst = gp.spanning_tree(weights=gp.es['weight'])
+
+        tip_leaves = [v.index for v in dp_mst.vs.select(_degree_eq=1)]
+
+        diameter = dp_mst.diameter(directed=False)
+
+        if len(diameter) == 0:
+            raise ValueError("Error: no valid root cells for State =", root_state)
+
+        root_cell_candidates = root_cell_candidates.loc[diameter, :]
+        if adata.uns['cell_order']['root_cell'] is not None and \
+                adata.obsp["cell_order"][adata.uns['cell_order']['root_cell']]['cell_order_state'] == root_state:
+            root_cell = root_cell_candidates.loc[root_cell_candidates['Pseudotime'].idxmin()].name
+        else:
+            root_cell = root_cell_candidates.loc[root_cell_candidates['Pseudotime'].idxmax()].name
+        if isinstance(root_cell, list):
+            root_cell = root_cell[0]
+
+        if adata.uns['cell_order_method'] == 'DDRTree':
+            graph_point_for_root_cell = adata.uns['DDRTree']['pr_graph_cell_proj_closest_vertex'][root_cell, :]
+            root_cell = dp_mst.vs.select(index=graph_point_for_root_cell)[0]
+
+    else:
+        if 'minSpanningTree' not in adata.uns['DDRTree'].keys:
+            raise ValueError("Error: no spanning tree found for CellDataSet object. Please call reduceDimension before calling orderCells()")
+
+        diameter = adata.uns['DDRTree']['minSpanningTree'].diameter(directed=False)
+        if reverse:
+            root_cell = diameter[-1]
+        else:
+            root_cell = diameter[0]
+
+    return root_cell
+
+
 def Pseudotime(
     adata: anndata.AnnData, layer: str = "X", basis: Optional[str] = None, method: str = "DDRTree", **kwargs
 ) -> anndata.AnnData:
