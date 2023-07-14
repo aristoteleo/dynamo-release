@@ -2,6 +2,7 @@ from typing import Optional
 
 import anndata
 import numpy as np
+import pandas as pd
 from scipy.spatial import distance
 
 from .DDRTree_py import DDRTree
@@ -45,6 +46,64 @@ def _find_nearest_vertex(data_matrix, target_points, block_size=50000, process_t
 
     assert len(closest_vertex) == data_matrix.shape[1], "length(closest_vertex) != ncol(data_matrix)"
     return closest_vertex
+
+
+def _check_and_replace_nan_weights(graph):
+    weights = np.array(graph.es['weight'])
+    nan_indices = np.isnan(weights)
+    weights[nan_indices] = 1
+    graph.es['weight'] = weights
+    return graph
+
+
+def get_order_from_DDRTree(adata, principal_graph, root_cell):
+    import igraph as ig
+    from scipy.sparse.csgraph import minimum_spanning_tree
+
+    dp = adata.obsp["distances"]
+    mst = minimum_spanning_tree(principal_graph)
+    # n = mst.shape[0]
+    # edges = [(i, j) for i in range(n) for j in range(n) if mst[i, j] != 0]
+    # weights = mst[np.nonzero(mst)]
+    dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst, attr='weight', loops=False)
+    # dp_mst.es['weight'] = weights
+    curr_state = 0
+    states = [0 for _ in range(dp.shape[1])]
+    pseudotimes = [0 for _ in range(dp.shape[1])]
+    parents = [None for _ in range(dp.shape[1])]
+    ordering_df = pd.DataFrame(columns=['cell_index', 'cell_pseudo_state', 'pseudo_time', 'parent'])
+
+    orders, pres = dp_mst.dfs(root=root_cell, mode=ig.ALL, unreachable=False, return_fathers=True)
+    pres = pres.astype(int)
+
+    for i in range(len(orders)):
+        curr_node = orders[i]
+
+        if pd.notna(pres[curr_node]):
+            parent_node = pres[curr_node]
+            parent_node_pseudotime = pseudotimes[parent_node]
+            # parent_node_state = states[parent_node]
+            curr_node_pseudotime = parent_node_pseudotime + dp[curr_node, parent_node]
+
+            if dp_mst.degree(parent_node) > 2:
+                curr_state += 1
+        else:
+            parent_node = None
+            curr_node_pseudotime = 0
+
+        pseudotimes[curr_node] = curr_node_pseudotime
+        states[curr_node] = curr_state
+        parents[curr_node] = parent_node
+
+        ordering_df = ordering_df.append({
+            'cell_index': curr_node,
+            'cell_pseudo_state': states[curr_node],
+            'pseudo_time': pseudotimes[curr_node],
+            'parent': parent_node
+        }, ignore_index=True)
+
+    ordering_df.set_index('cell_index', inplace=True)
+    return ordering_df
 
 
 def Pseudotime(
