@@ -56,7 +56,7 @@ def directed_pg(
         An updated AnnData object that is updated with principal_g_transition, X__DDRTree and and X_DDRTree_pg keys.
     """
 
-    X = adata.obsm["X_" + basis].T if "X_" + basis in adata.obsm.keys() else None
+    X = adata.obsm["X_" + basis] if "X_" + basis in adata.obsm.keys() else None
     if X is None:
         raise Exception("{} is not a key of obsm ({} dimension reduction is not performed yet.).".format(basis, basis))
 
