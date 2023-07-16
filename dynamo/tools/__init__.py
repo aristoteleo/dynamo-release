@@ -89,7 +89,7 @@ from .recipes import (
 )
 
 # Sampling methods
-from .sampling import TRNET, lhsclassic, sample, sample_by_velocity, trn
+from .sampling import TRNET, lhsclassic, sample, sample_by_kmeans, sample_by_velocity, trn
 from .utils import (
     AnnDataPredicate,
     cell_norm,

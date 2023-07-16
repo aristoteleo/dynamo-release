@@ -181,7 +181,7 @@ def sample_by_kmeans(X: np.ndarray, n: int, return_index: bool = False) -> Optio
         return_index: whether to return the sample indices. Defaults to False.
 
     Returns:
-        The sample index array if `return_index` is True.
+        The sample index array if `return_index` is True. Else return the array after sampling.
     """
     C, _ = kmeans2(X, n)
     nbrs = nearest_neighbors(C, X, k=1).flatten()
@@ -189,7 +189,7 @@ def sample_by_kmeans(X: np.ndarray, n: int, return_index: bool = False) -> Optio
     if return_index:
         return nbrs
     else:
-        X[nbrs]
+        return X[nbrs]
 
 
 def lhsclassic(
