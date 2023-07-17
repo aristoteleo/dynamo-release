@@ -56,31 +56,23 @@ def _check_and_replace_nan_weights(graph):
     return graph
 
 
-def get_order_from_DDRTree(adata, principal_graph, root_cell):
+def get_order_from_DDRTree(adata, dp, mst, root_cell):
     import igraph as ig
-    from scipy.sparse.csgraph import minimum_spanning_tree
 
-    dp = adata.obsp["distances"]
-    mst = minimum_spanning_tree(principal_graph)
-    # n = mst.shape[0]
-    # edges = [(i, j) for i in range(n) for j in range(n) if mst[i, j] != 0]
-    # weights = mst[np.nonzero(mst)]
-    dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst, attr='weight', loops=False)
-    # dp_mst.es['weight'] = weights
+    dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst)
     curr_state = 0
     states = [0 for _ in range(dp.shape[1])]
     pseudotimes = [0 for _ in range(dp.shape[1])]
     parents = [None for _ in range(dp.shape[1])]
     ordering_df = pd.DataFrame(columns=['cell_index', 'cell_pseudo_state', 'pseudo_time', 'parent'])
 
-    orders, pres = dp_mst.dfs(root=root_cell, mode=ig.ALL, unreachable=False, return_fathers=True)
-    pres = pres.astype(int)
+    orders, pres = dp_mst.dfs(vid=root_cell, mode="all")
 
     for i in range(len(orders)):
         curr_node = orders[i]
 
-        if pd.notna(pres[curr_node]):
-            parent_node = pres[curr_node]
+        if pres[i] > 0:
+            parent_node = pres[i]
             parent_node_pseudotime = pseudotimes[parent_node]
             # parent_node_state = states[parent_node]
             curr_node_pseudotime = parent_node_pseudotime + dp[curr_node, parent_node]
@@ -102,7 +94,10 @@ def get_order_from_DDRTree(adata, principal_graph, root_cell):
             'parent': parent_node
         }, ignore_index=True)
 
+    ordering_df['cell_index'] = ordering_df['cell_index'].astype(int)
+    ordering_df['parent'] = ordering_df['parent'].astype(int)
     ordering_df.set_index('cell_index', inplace=True)
+    ordering_df = ordering_df.sort_index()
     return ordering_df
 
 
@@ -271,13 +266,13 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
     adata.uns["cell_order"]["cell_order_method"] = "DDRTree"
 
     principal_graph = stree
-    dp = distance.pdist(Y.T)
+    dp = distance.squareform(distance.pdist(Y.T))
     # adata.obsp["cell_pairwise_distances"] = dp
     mst = minimum_spanning_tree(principal_graph)
     adata.uns["cell_order"]["minSpanningTree"] = mst
 
     root_cell = select_root_cell(adata, Z)
-    cc_ordering = get_order_from_DDRTree(adata, mst, root_cell)
+    cc_ordering = get_order_from_DDRTree(adata, dp=dp, mst=mst, root_cell=root_cell)
 
     adata.obs["Pseudotime"] = cc_ordering["pseudo_time"]
 
@@ -301,7 +296,7 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
 
     adata.uns["cell_order"]["root_cell"] = root_cell
 
-    cc_ordering_new_pseudotime = get_order_from_DDRTree(adata, mst, root_cell)  # re-calculate the pseudotime again
+    cc_ordering_new_pseudotime = get_order_from_DDRTree(adata, dp=dp, mst=mst, root_cell=root_cell)  # re-calculate the pseudotime again
 
     adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"]
     if root_state is None:
