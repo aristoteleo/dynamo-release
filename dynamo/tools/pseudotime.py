@@ -64,7 +64,13 @@ def get_order_from_DDRTree(adata, dp, mst, root_cell):
     states = [0 for _ in range(dp.shape[1])]
     pseudotimes = [0 for _ in range(dp.shape[1])]
     parents = [None for _ in range(dp.shape[1])]
-    ordering_df = pd.DataFrame(columns=['cell_index', 'cell_pseudo_state', 'pseudo_time', 'parent'])
+    # ordering_df = pd.DataFrame(columns=['cell_index', 'cell_pseudo_state', 'pseudo_time', 'parent'])
+    ordering_dict = {
+        'cell_index': [],
+        'cell_pseudo_state': [],
+        'pseudo_time': [],
+        'parent': []
+    }
 
     orders, pres = dp_mst.dfs(vid=root_cell, mode="all")
 
@@ -80,22 +86,27 @@ def get_order_from_DDRTree(adata, dp, mst, root_cell):
             if dp_mst.degree(parent_node) > 2:
                 curr_state += 1
         else:
-            parent_node = None
+            parent_node = -1
             curr_node_pseudotime = 0
 
         pseudotimes[curr_node] = curr_node_pseudotime
         states[curr_node] = curr_state
         parents[curr_node] = parent_node
 
-        ordering_df = ordering_df.append({
-            'cell_index': curr_node,
-            'cell_pseudo_state': states[curr_node],
-            'pseudo_time': pseudotimes[curr_node],
-            'parent': parent_node
-        }, ignore_index=True)
+        ordering_dict["cell_index"].append(curr_node)
+        ordering_dict["cell_pseudo_state"].append(states[curr_node])
+        ordering_dict["pseudo_time"].append(pseudotimes[curr_node])
+        ordering_dict["parent"].append(parent_node)
+        # ordering_df = ordering_df.append({
+        #     'cell_index': curr_node,
+        #     'cell_pseudo_state': states[curr_node],
+        #     'pseudo_time': pseudotimes[curr_node],
+        #     'parent': parent_node
+        # }, ignore_index=True)
 
-    ordering_df['cell_index'] = ordering_df['cell_index'].astype(int)
-    ordering_df['parent'] = ordering_df['parent'].astype(int)
+    ordering_df = pd.DataFrame.from_dict(ordering_dict)
+    # ordering_df['cell_index'] = ordering_df['cell_index'].astype(int)
+    # ordering_df['parent'] = ordering_df['parent'].astype(int)
     ordering_df.set_index('cell_index', inplace=True)
     ordering_df = ordering_df.sort_index()
     return ordering_df
@@ -144,14 +155,17 @@ def proj_point_on_line(point, line):
     return res
 
 
-def project2MST(dp_mst, Z, Y, Projection_Method):
+def project2MST(mst, Z, Y, Projection_Method):
     import igraph as ig
+    from scipy.sparse.csgraph import minimum_spanning_tree
+
     closest_vertex = find_cell_proj_closest_vertex(Z=Z, Y=Y)
 
     # closest_vertex_names = Y.columns[closest_vertex]
     # closest_vertex_df = closest_vertex.reshape(-1, 1)
     # closest_vertex_df = np.asmatrix(closest_vertex_df)
     # closest_vertex_df = np.hstack((closest_vertex_df, closest_vertex_df))  # To match the R code's behavior
+    dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst)
     tip_leaves = [v.index for v in dp_mst.vs.select(_degree_eq=1)]
 
     if not callable(Projection_Method):
@@ -161,18 +175,18 @@ def project2MST(dp_mst, Z, Y, Projection_Method):
         for i in range(len(closest_vertex)):
             neighbors = dp_mst.neighbors(closest_vertex[i], mode="all")
             projection = None
-            distance = None
+            dist = []
             Z_i = Z[:, i]
 
             for neighbor in neighbors:
                 if closest_vertex[i] in tip_leaves:
-                    tmp = proj_point_on_line(Z_i, Y.loc[:, [closest_vertex[i], neighbor]])
+                    tmp = proj_point_on_line(Z_i, Y[:, [closest_vertex[i], neighbor]])
                 else:
-                    tmp = Projection_Method(Z_i, Y.loc[:, [closest_vertex[i], neighbor]])
-                projection = np.vstack((projection, tmp)) if projection is not None else tmp
-                distance = np.append(distance, distance.euclidean(Z_i, tmp))
+                    tmp = Projection_Method(Z_i, Y[:, [closest_vertex[i], neighbor]])
+                projection = np.vstack((projection, tmp)) if projection is not None else tmp[None, :]
+                dist.append(distance.euclidean(Z_i, tmp))
 
-            P[:, i] = projection[np.where(distance == np.min(distance))[0][0], :]
+            P[:, i] = projection[np.where(dist == np.min(dist))[0][0], :]
 
     # P = pd.DataFrame(P, columns=Z.columns)
 
@@ -182,12 +196,9 @@ def project2MST(dp_mst, Z, Y, Projection_Method):
     np.fill_diagonal(dp, 0)
 
     cellPairwiseDistances = dp
-    gp = ig.Graph.Weighted_Adjacency(matrix=dp.tolist(), mode="undirected", attr="weight")
-    dp_mst = gp.spanning_tree(weights=gp.es['weight'])
-
-    # adata.uns['DDRTree']['pr_graph_cell_proj_tree'] = dp_mst
-    # adata.uns['DDRTree']['pr_graph_cell_proj_dist'] = P
-    # adata.uns['DDRTree']['pr_graph_cell_proj_closest_vertex'] = closest_vertex
+    dp_mst = minimum_spanning_tree(dp)
+    # gp = ig.Graph.Weighted_Adjacency(matrix=dp, mode="undirected")
+    # dp_mst = gp.spanning_tree(weights=gp.es['weight'])
 
     return cellPairwiseDistances, P, closest_vertex, dp_mst
 
@@ -242,6 +253,7 @@ def select_root_cell(adata, Z, root_state=None, reverse=False):
 
 
 def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state = None, **kwargs):
+    import igraph as ig
     from scipy.sparse.csgraph import minimum_spanning_tree
 
     if basis is None:
@@ -252,7 +264,7 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
 
     adata.uns["cell_order"] = {}
     DDRTree_kwargs = {
-        "maxIter": 10,
+        "maxIter": 3,
         "sigma": 0.001,
         "gamma": 10,
         "eps": 0,
@@ -276,20 +288,17 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
 
     adata.obs["Pseudotime"] = cc_ordering["pseudo_time"]
 
-    old_mst = mst.copy()
+    old_mst_graph = ig.Graph.Weighted_Adjacency(matrix=mst)
     cellPairwiseDistances, pr_graph_cell_proj_dist, pr_graph_cell_proj_closest_vertex, pr_graph_cell_proj_tree = project2MST(mst, Z, Y, project_point_to_line_segment)  # project_point_to_line_segment can be changed to other states
 
     adata.uns["cell_order"]["minSpanningTree"] = pr_graph_cell_proj_tree
 
-    root_cell_idx = np.where(old_mst.vs.index == root_cell)[0]
-    cells_mapped_to_graph_root = np.where(pr_graph_cell_proj_closest_vertex == root_cell_idx)[0]
+    cells_mapped_to_graph_root = np.where(pr_graph_cell_proj_closest_vertex == root_cell)[0]
     # avoid the issue of multiple cells projected to the same point on the principal graph
     if len(cells_mapped_to_graph_root) == 0:
-        cells_mapped_to_graph_root = root_cell_idx
+        cells_mapped_to_graph_root = root_cell
 
-    cells_mapped_to_graph_root = mst.vs[cells_mapped_to_graph_root]
-
-    tip_leaves = old_mst.vs.select(_degree=1).index
+    tip_leaves = [v.index for v in old_mst_graph.vs.select(_degree=1)]
     root_cell = cells_mapped_to_graph_root[np.isin(cells_mapped_to_graph_root, tip_leaves)][0]
     if np.isnan(root_cell):
         root_cell = select_root_cell(adata, Z)
@@ -301,14 +310,14 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
     adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"]
     if root_state is None:
         closest_vertex = pr_graph_cell_proj_closest_vertex
-        adata.obs["cell_order_state"] = cc_ordering.loc[closest_vertex[:, 0], "cell_state"]
+        adata.obs["cell_pseudo_state"] = cc_ordering.loc[closest_vertex, "cell_pseudo_state"].values
 
     # reducedDimK(cds) = K_old
     # cellPairwiseDistances(cds) = old_dp
     # minSpanningTree(cds) = old_mst
     # reducedDimW(cds) = old_W
-
-    adata.uns["cell_order"]["branch_points"] = np.array(mst.vs.select(_degree_gt=2))
+    pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=pr_graph_cell_proj_tree)
+    adata.uns["cell_order"]["branch_points"] = np.array(pr_graph_cell_proj_tree_graph.vs.select(_degree_gt=2))
     return adata
 
 
