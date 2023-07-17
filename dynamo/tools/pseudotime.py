@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Callable, Optional, Tuple
 
 import anndata
 import numpy as np
@@ -57,7 +57,7 @@ def _check_and_replace_nan_weights(graph):
     return graph
 
 
-def get_order_from_DDRTree(dp, mst, root_cell):
+def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> pd.DataFrame:
     import igraph as ig
 
     dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst)
@@ -99,11 +99,11 @@ def get_order_from_DDRTree(dp, mst, root_cell):
     return ordering_df
 
 
-def find_cell_proj_closest_vertex(Z, Y):
+def find_cell_proj_closest_vertex(Z: np.ndarray, Y: np.ndarray) -> np.ndarray:
     distances_Z_to_Y = distance.cdist(Z.T, Y.T)
     return np.apply_along_axis(lambda z: np.where(z == np.min(z))[0][0], axis=1, arr=distances_Z_to_Y)
 
-def project_point_to_line_segment(p, df):
+def project_point_to_line_segment(p: np.ndarray, df: np.ndarray) -> np.ndarray:
     # Returns q, the closest point to p on the line segment from A to B
     A = df[:, 0]
     B = df[:, 1]
@@ -134,7 +134,7 @@ def project_point_to_line_segment(p, df):
     return q
 
 
-def proj_point_on_line(point, line):
+def proj_point_on_line(point: np.ndarray, line: np.ndarray) -> np.ndarray:
     ap = point - line[:, 0]
     ab = line[:, 1] - line[:, 0]
 
@@ -142,7 +142,7 @@ def proj_point_on_line(point, line):
     return res
 
 
-def project2MST(mst, Z, Y, Projection_Method):
+def project2MST(mst: np.ndarray, Z: np.ndarray, Y: np.ndarray, Projection_Method: Callable) -> Tuple:
     import igraph as ig
 
     closest_vertex = find_cell_proj_closest_vertex(Z=Z, Y=Y)
@@ -183,7 +183,12 @@ def project2MST(mst, Z, Y, Projection_Method):
     return cellPairwiseDistances, P, closest_vertex, dp_mst
 
 
-def select_root_cell(adata, Z, root_state=None, reverse=False):
+def select_root_cell(
+    adata: anndata.AnnData,
+    Z: np.ndarray,
+    root_state: Optional[int] = None,
+    reverse: bool = False,
+) -> int:
     import igraph as ig
 
     if root_state is not None:
@@ -228,7 +233,14 @@ def select_root_cell(adata, Z, root_state=None, reverse=False):
     return root_cell
 
 
-def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state = None, reverse=False, **kwargs):
+def order_cells(
+    adata: anndata.AnnData,
+    layer: str = "X",
+    basis: Optional[str] = None,
+    root_state: Optional[int] = None,
+    reverse: bool = False,
+    **kwargs,
+) -> anndata.AnnData:
     import igraph as ig
 
     if basis is None:
