@@ -245,6 +245,77 @@ def select_root_cell(adata, Z, root_state=None, reverse=False):
     return root_cell
 
 
+def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state = None, **kwargs):
+    from scipy.sparse.csgraph import minimum_spanning_tree
+
+    if basis is None:
+        X = adata.layers["X_" + layer].T if layer != "X" else adata.X.T
+        X = log1p_(adata, X)
+    else:
+        X = adata.obsm["X_" + basis]
+
+    adata.uns["cell_order"] = {}
+    DDRTree_kwargs = {
+        "maxIter": 10,
+        "sigma": 0.001,
+        "gamma": 10,
+        "eps": 0,
+        "dim": 2,
+        "Lambda": 5 * X.shape[1],
+        "ncenter": _cal_ncenter(X.shape[1]),
+    }
+    DDRTree_kwargs.update(kwargs)
+
+    Z, Y, stree, R, W, Q, C, objs = DDRTree(X, **DDRTree_kwargs)
+    adata.uns["cell_order"]["cell_order_method"] = "DDRTree"
+
+    principal_graph = stree
+    dp = distance.pdist(Y.T)
+    adata.obsp["cell_pairwise_distances"] = dp
+    mst = minimum_spanning_tree(principal_graph)
+    adata.uns["cell_order"]["minSpanningTree"] = mst
+
+    root_cell = select_root_cell(adata, Z)
+    cc_ordering = get_order_from_DDRTree(adata, mst, root_cell)
+
+    adata.obs["Pseudotime"] = cc_ordering["pseudo_time"]
+
+    old_mst = mst.copy()
+    cellPairwiseDistances, pr_graph_cell_proj_dist, pr_graph_cell_proj_closest_vertex, pr_graph_cell_proj_tree = project2MST(mst, Z, Y, project_point_to_line_segment)  # project_point_to_line_segment can be changed to other states
+
+    adata.uns["cell_order"]["minSpanningTree"] = pr_graph_cell_proj_tree
+
+    root_cell_idx = np.where(old_mst.vs.index == root_cell)[0]
+    cells_mapped_to_graph_root = np.where(pr_graph_cell_proj_closest_vertex == root_cell_idx)[0]
+    # avoid the issue of multiple cells projected to the same point on the principal graph
+    if len(cells_mapped_to_graph_root) == 0:
+        cells_mapped_to_graph_root = root_cell_idx
+
+    cells_mapped_to_graph_root = mst.vs[cells_mapped_to_graph_root]
+
+    tip_leaves = old_mst.vs.select(_degree=1).index
+    root_cell = cells_mapped_to_graph_root[np.isin(cells_mapped_to_graph_root, tip_leaves)][0]
+    if np.isnan(root_cell):
+        root_cell = select_root_cell(adata, Z)
+
+    adata.uns["cell_order"]["root_cell"] = root_cell
+
+    cc_ordering_new_pseudotime = get_order_from_DDRTree(adata, mst, root_cell)  # re-calculate the pseudotime again
+
+    adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"]
+    if root_state is None:
+        closest_vertex = pr_graph_cell_proj_closest_vertex
+        adata.obs["cell_order_state"] = cc_ordering.loc[closest_vertex[:, 0], "cell_state"]
+
+    # reducedDimK(cds) = K_old
+    # cellPairwiseDistances(cds) = old_dp
+    # minSpanningTree(cds) = old_mst
+    # reducedDimW(cds) = old_W
+
+    adata.uns["cell_order"]["branch_points"] = np.array(mst.vs.select(_degree_gt=2))
+    return adata
+
+
 def Pseudotime(
     adata: anndata.AnnData, layer: str = "X", basis: Optional[str] = None, method: str = "DDRTree", **kwargs
 ) -> anndata.AnnData:
