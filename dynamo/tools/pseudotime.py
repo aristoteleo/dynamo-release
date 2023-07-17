@@ -233,10 +233,11 @@ def select_root_cell(adata, Z, root_state=None, reverse=False):
             root_cell = dp_mst.vs.select(index=graph_point_for_root_cell)[0]
 
     else:
-        if 'minSpanningTree' not in adata.uns['DDRTree'].keys:
+        if 'minSpanningTree' not in adata.uns['cell_order'].keys():
             raise ValueError("Error: no spanning tree found for CellDataSet object. Please call reduceDimension before calling orderCells()")
 
-        diameter = adata.uns['DDRTree']['minSpanningTree'].diameter(directed=False)
+        graph = ig.Graph.Weighted_Adjacency(adata.uns['cell_order']['minSpanningTree'], mode="undirected")
+        diameter = graph.get_diameter(directed=False)
         if reverse:
             root_cell = diameter[-1]
         else:
@@ -271,7 +272,7 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
 
     principal_graph = stree
     dp = distance.pdist(Y.T)
-    adata.obsp["cell_pairwise_distances"] = dp
+    # adata.obsp["cell_pairwise_distances"] = dp
     mst = minimum_spanning_tree(principal_graph)
     adata.uns["cell_order"]["minSpanningTree"] = mst
 
