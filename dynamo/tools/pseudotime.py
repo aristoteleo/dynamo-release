@@ -207,36 +207,32 @@ def select_root_cell(adata, Z, root_state=None, reverse=False):
     import igraph as ig
 
     if root_state is not None:
-        if 'State' not in adata.obsp["cell_order"].columns:
-            raise ValueError("Error: State has not yet been set. Please call orderCells() without specifying root_state, then try this call again.")
+        if 'cell_pseudo_state' not in adata.obs.keys():
+            raise ValueError("Error: State has not yet been set. Please call orderCells() without specifying root_state.")
 
-        root_cell_candidates = adata.obsp["cell_order"][adata.obsp["cell_order"]['State'] == root_state]
+        root_cell_candidates = np.where(adata.obs["cell_pseudo_state"] == root_state)[0]
         if root_cell_candidates.shape[0] == 0:
             raise ValueError("Error: no cells for State =", root_state)
 
-        dp = np.matrix(Z[:, root_cell_candidates.index].T)
-        gp = ig.Graph.Adjacency((dp * dp.T).tolist(), mode="undirected", attr="weight")
+        reduced_dim_subset = Z[:, root_cell_candidates].T
+        dp = distance.cdist(reduced_dim_subset, reduced_dim_subset, metric="euclidean")
+        gp = ig.Graph.Weighted_Adjacency(dp, mode="undirected")
         dp_mst = gp.spanning_tree(weights=gp.es['weight'])
-
-        tip_leaves = [v.index for v in dp_mst.vs.select(_degree_eq=1)]
-
-        diameter = dp_mst.diameter(directed=False)
+        diameter = dp_mst.get_diameter(directed=False)
 
         if len(diameter) == 0:
             raise ValueError("Error: no valid root cells for State =", root_state)
 
-        root_cell_candidates = root_cell_candidates.loc[diameter, :]
+        root_cell_candidates = root_cell_candidates[diameter]
         if adata.uns['cell_order']['root_cell'] is not None and \
-                adata.obsp["cell_order"][adata.uns['cell_order']['root_cell']]['cell_order_state'] == root_state:
-            root_cell = root_cell_candidates.loc[root_cell_candidates['Pseudotime'].idxmin()].name
+                adata.obs["cell_pseudo_state"][adata.uns['cell_order']['root_cell']] == root_state:
+            root_cell = root_cell_candidates[np.argmin(adata[root_cell_candidates].obs['Pseudotime'].values)]
         else:
-            root_cell = root_cell_candidates.loc[root_cell_candidates['Pseudotime'].idxmax()].name
+            root_cell = root_cell_candidates[np.argmax(adata[root_cell_candidates].obs['Pseudotime'].values)]
         if isinstance(root_cell, list):
             root_cell = root_cell[0]
 
-        if adata.uns['cell_order_method'] == 'DDRTree':
-            graph_point_for_root_cell = adata.uns['DDRTree']['pr_graph_cell_proj_closest_vertex'][root_cell, :]
-            root_cell = dp_mst.vs.select(index=graph_point_for_root_cell)[0]
+        root_cell = adata.uns['cell_order']['pr_graph_cell_proj_closest_vertex'][root_cell]
 
     else:
         if 'minSpanningTree' not in adata.uns['cell_order'].keys():
@@ -252,7 +248,7 @@ def select_root_cell(adata, Z, root_state=None, reverse=False):
     return root_cell
 
 
-def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state = None, **kwargs):
+def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state = None, reverse=False, **kwargs):
     import igraph as ig
     from scipy.sparse.csgraph import minimum_spanning_tree
 
@@ -262,7 +258,10 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
     else:
         X = adata.obsm["X_" + basis]
 
-    adata.uns["cell_order"] = {}
+    if "cell_order" not in adata.uns.keys():
+        adata.uns["cell_order"] = {}
+        adata.uns["cell_order"]["root_cell"] = None
+
     DDRTree_kwargs = {
         "maxIter": 3,
         "sigma": 0.001,
@@ -283,15 +282,17 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
     mst = minimum_spanning_tree(principal_graph)
     adata.uns["cell_order"]["minSpanningTree"] = mst
 
-    root_cell = select_root_cell(adata, Z)
+    root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
     cc_ordering = get_order_from_DDRTree(adata, dp=dp, mst=mst, root_cell=root_cell)
 
-    adata.obs["Pseudotime"] = cc_ordering["pseudo_time"]
+    adata.obs["Pseudotime"] = cc_ordering["pseudo_time"].values
+    adata.uns["cell_order"]["root_cell"] = root_cell
 
     old_mst_graph = ig.Graph.Weighted_Adjacency(matrix=mst)
     cellPairwiseDistances, pr_graph_cell_proj_dist, pr_graph_cell_proj_closest_vertex, pr_graph_cell_proj_tree = project2MST(mst, Z, Y, project_point_to_line_segment)  # project_point_to_line_segment can be changed to other states
 
     adata.uns["cell_order"]["minSpanningTree"] = pr_graph_cell_proj_tree
+    adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"] = pr_graph_cell_proj_closest_vertex
 
     cells_mapped_to_graph_root = np.where(pr_graph_cell_proj_closest_vertex == root_cell)[0]
     # avoid the issue of multiple cells projected to the same point on the principal graph
@@ -301,13 +302,14 @@ def order_cells(adata, layer: str = "X", basis: Optional[str] = None, root_state
     tip_leaves = [v.index for v in old_mst_graph.vs.select(_degree=1)]
     root_cell = cells_mapped_to_graph_root[np.isin(cells_mapped_to_graph_root, tip_leaves)][0]
     if np.isnan(root_cell):
-        root_cell = select_root_cell(adata, Z)
+        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
+        adata.uns["cell_order"]["root_cell"] = root_cell
 
     adata.uns["cell_order"]["root_cell"] = root_cell
 
     cc_ordering_new_pseudotime = get_order_from_DDRTree(adata, dp=dp, mst=mst, root_cell=root_cell)  # re-calculate the pseudotime again
 
-    adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"]
+    adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"].values
     if root_state is None:
         closest_vertex = pr_graph_cell_proj_closest_vertex
         adata.obs["cell_pseudo_state"] = cc_ordering.loc[closest_vertex, "cell_pseudo_state"].values
