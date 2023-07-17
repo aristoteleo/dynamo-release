@@ -239,6 +239,13 @@ def order_cells(
     basis: Optional[str] = None,
     root_state: Optional[int] = None,
     reverse: bool = False,
+    maxIter: int = 10,
+    sigma: float = 0.001,
+    gamma: float = 10.0,
+    eps: int = 0,
+    dim: int = 2,
+    Lambda: Optional[float] = None,
+    ncenter: Optional[int] = None,
     **kwargs,
 ) -> anndata.AnnData:
     import igraph as ig
@@ -254,13 +261,13 @@ def order_cells(
         adata.uns["cell_order"]["root_cell"] = None
 
     DDRTree_kwargs = {
-        "maxIter": 3,
-        "sigma": 0.001,
-        "gamma": 10,
-        "eps": 0,
-        "dim": 2,
-        "Lambda": 5 * X.shape[1],
-        "ncenter": _cal_ncenter(X.shape[1]),
+        "maxIter": maxIter,
+        "sigma": sigma,
+        "gamma": gamma,
+        "eps": eps,
+        "dim": dim,
+        "Lambda": Lambda if Lambda else 5 * X.shape[1],
+        "ncenter": ncenter if ncenter else _cal_ncenter(X.shape[1]),
     }
     DDRTree_kwargs.update(kwargs)
 
