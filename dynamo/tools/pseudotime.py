@@ -58,6 +58,16 @@ def _check_and_replace_nan_weights(graph):
 
 
 def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> pd.DataFrame:
+    """Calculates the order of cells based on a minimum spanning tree and a distance matrix.
+
+    Args:
+        dp: the distance matrix representing the pairwise distances between cells.
+        mst: the minimum spanning tree matrix.
+        root_cell: the index of the root cell.
+
+    Returns:
+        A pandas DataFrame containing the cell ordering information.
+    """
     import igraph as ig
 
     dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst)
@@ -100,6 +110,15 @@ def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> p
 
 
 def find_cell_proj_closest_vertex(Z: np.ndarray, Y: np.ndarray) -> np.ndarray:
+    """Find the closest vertex of each cell's projection to the nearest in the graph.
+
+    Args:
+        Z: a matrix representing cell projection points.
+        Y: a matrix representing target points in the graph.
+
+    Returns:
+        Array of indices indicating the closest vertex.
+    """
     distances_Z_to_Y = distance.cdist(Z.T, Y.T)
     return np.apply_along_axis(lambda z: np.where(z == np.min(z))[0][0], axis=1, arr=distances_Z_to_Y)
 
@@ -162,6 +181,21 @@ def proj_point_on_line(point: np.ndarray, line: np.ndarray) -> np.ndarray:
 
 
 def project2MST(mst: np.ndarray, Z: np.ndarray, Y: np.ndarray, Projection_Method: Callable) -> Tuple:
+    """Project cell projection points onto the minimum spanning tree (MST) of the principal graph.
+
+    Args:
+        mst: the adjacency matrix representing the minimum spanning tree (MST).
+        Z: the matrix representing points to project.
+        Y: the matrix representing target centers on the principal graph.
+        Projection_Method: callable function for projection method.
+
+    Returns:
+        A tuple containing the following elements:
+            - cellPairwiseDistances: Pairwise distances between cells after projection.
+            - P: Projected cell points.
+            - closest_vertex: Array of indices indicating the closest vertex for each cell.
+            - dp_mst: Minimum spanning tree (MST) of the projected cell points.
+    """
     import igraph as ig
 
     closest_vertex = find_cell_proj_closest_vertex(Z=Z, Y=Y)
@@ -208,6 +242,22 @@ def select_root_cell(
     root_state: Optional[int] = None,
     reverse: bool = False,
 ) -> int:
+    """Selects the root cell for ordering based on the diameter of the minimum spanning tree, with the option to specify
+    a root state as an additional constraint.
+
+    Args:
+        adata: the anndata object.
+        Z: a matrix representing cell projection points.
+        root_state: the specific state for selecting the root cell.
+        reverse: whether to reverse the selection of the root cell.
+
+    Raises:
+        ValueError: If the state has not yet been set or if there are no cells for the specified state.
+        ValueError: If no spanning tree is found for the object.
+
+    Returns:
+        The index of the selected root cell.
+    """
     import igraph as ig
 
     if root_state is not None:
@@ -267,6 +317,33 @@ def order_cells(
     ncenter: Optional[int] = None,
     **kwargs,
 ) -> anndata.AnnData:
+    """Order the cells based on the calculated pseudotime derived from the principal graph.
+
+    Learns a "trajectory" describing the biological process the cells are going through, and calculates where each cell
+    falls within that trajectory. The trajectory will be composed of segments. The cells from a segment will share the
+    same value of state. One of these segments will be selected as the root of the trajectory. The most distal cell on
+    that segment will be chosen as the "first" cell in the trajectory, and will have a pseudotime value of zero. Then
+    the function will then "walk" along the trajectory, and as it encounters additional cells, it will assign them
+    increasingly large values of pseudotime based on distance.
+
+    Args:
+        adata: the anndata object.
+        layer: the layer used to order the cells.
+        basis: the basis that indicates the data after dimension reduction.
+        root_state: the specific state for selecting the root cell.
+        reverse: whether to reverse the selection of the root cell.
+        maxIter: the max number of iterations.
+        sigma: the bandwidth parameter.
+        gamma: regularization parameter for k-means.
+        eps: the threshold of convergency to stop the iteration. Defaults to 0.
+        dim: the number of dimensions reduced to. Defaults to 2.
+        Lambda: regularization parameter for inverse praph embedding. Defaults to 1.0.
+        ncenter: the number of center genes to be considered. If None, all genes would be considered. Defaults to None.
+        kwargs: additional keyword arguments.
+
+    Returns:
+        The anndata object updated with pseudotime, cell order state and other necessary information.
+    """
     import igraph as ig
 
     if basis is None:
@@ -396,6 +473,15 @@ def Pseudotime(
 
 
 def _cal_ncenter(ncells, ncells_limit=100):
+    """Calculate the number of centers genes to be considered.
+
+    Parameters:
+        ncells: total number of cells.
+        ncells_limit: upper limit of number of cells to be considered. Default is 100.
+
+    Returns:
+        Number of centers to use. Returns None if `ncells` is less than or equal to `ncells_limit`.
+    """
     if ncells <= ncells_limit:
         return None
     else:
