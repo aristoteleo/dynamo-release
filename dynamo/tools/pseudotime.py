@@ -104,6 +104,16 @@ def find_cell_proj_closest_vertex(Z: np.ndarray, Y: np.ndarray) -> np.ndarray:
     return np.apply_along_axis(lambda z: np.where(z == np.min(z))[0][0], axis=1, arr=distances_Z_to_Y)
 
 def project_point_to_line_segment(p: np.ndarray, df: np.ndarray) -> np.ndarray:
+    """Optimized version of `project_point_to_line`, which projects a point onto a line segment defined by two points A
+    and B.
+
+    Args:
+        p: The point to be projected onto the line segment.
+        df: An array representing the line segment.
+
+    Returns:
+        np.ndarray: The closest point on the line segment to the given point.
+    """
     # Returns q, the closest point to p on the line segment from A to B
     A = df[:, 0]
     B = df[:, 1]
@@ -135,6 +145,15 @@ def project_point_to_line_segment(p: np.ndarray, df: np.ndarray) -> np.ndarray:
 
 
 def proj_point_on_line(point: np.ndarray, line: np.ndarray) -> np.ndarray:
+    """Default method to project a point onto a line defined by two points.
+
+    Args:
+        point: the point to be projected onto the line.
+        line: an array representing the line.
+
+    Returns:
+        The projected point on the line.
+    """
     ap = point - line[:, 0]
     ab = line[:, 1] - line[:, 0]
 
