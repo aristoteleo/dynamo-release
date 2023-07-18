@@ -267,7 +267,7 @@ def sample(
 
     if method == "random":
         np.random.seed(seed)
-        sub_arr = np.random.choice(arr, size=n, replace=False)
+        sub_arr = arr[np.random.choice(arr.shape[0], size=n, replace=False)]
     elif method == "velocity" and V is not None:
         sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
     elif method == "trn" and X is not None:
