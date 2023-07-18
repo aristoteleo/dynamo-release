@@ -9,6 +9,8 @@ from scipy.sparse.csgraph import minimum_spanning_tree
 from .DDRTree_py import DDRTree
 from .utils import log1p_
 
+from ..dynamo_logger import main_info, main_info_insert_adata_obs
+
 
 def _find_nearest_vertex(data_matrix, target_points, block_size=50000, process_targets_in_blocks=False):
     closest_vertex = np.array([])
@@ -346,6 +348,7 @@ def order_cells(
     """
     import igraph as ig
 
+    main_info("Ordering cells based on pseudotime...")
     if basis is None:
         X = adata.layers["X_" + layer].T if layer != "X" else adata.X.T
         X = log1p_(adata, X)
@@ -403,9 +406,11 @@ def order_cells(
     cc_ordering_new_pseudotime = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)  # re-calculate the pseudotime again
 
     adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"].values
+    main_info_insert_adata_obs("Pseudotime")
     if root_state is None:
         closest_vertex = pr_graph_cell_proj_closest_vertex
         adata.obs["cell_pseudo_state"] = cc_ordering.loc[closest_vertex, "cell_pseudo_state"].values
+        main_info_insert_adata_obs("cell_pseudo_state")
 
     pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=pr_graph_cell_proj_tree)
     adata.uns["cell_order"]["branch_points"] = np.array(pr_graph_cell_proj_tree_graph.vs.select(_degree_gt=2))
