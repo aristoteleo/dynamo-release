@@ -262,11 +262,11 @@ def select_root_cell(
 
     if root_state is not None:
         if 'cell_pseudo_state' not in adata.obs.keys():
-            raise ValueError("Error: State has not yet been set. Please call orderCells() without specifying root_state.")
+            raise ValueError("State has not yet been set. Please call order_cells() without specifying root_state.")
 
         root_cell_candidates = np.where(adata.obs["cell_pseudo_state"] == root_state)[0]
         if root_cell_candidates.shape[0] == 0:
-            raise ValueError("Error: no cells for State =", root_state)
+            raise ValueError("No cells for State =", root_state)
 
         reduced_dim_subset = Z[:, root_cell_candidates].T
         dp = distance.cdist(reduced_dim_subset, reduced_dim_subset, metric="euclidean")
@@ -275,7 +275,7 @@ def select_root_cell(
         diameter = dp_mst.get_diameter(directed=False)
 
         if len(diameter) == 0:
-            raise ValueError("Error: no valid root cells for State =", root_state)
+            raise ValueError("No valid root cells for State =", root_state)
 
         root_cell_candidates = root_cell_candidates[diameter]
         if adata.uns['cell_order']['root_cell'] is not None and \
@@ -290,7 +290,7 @@ def select_root_cell(
 
     else:
         if 'minSpanningTree' not in adata.uns['cell_order'].keys():
-            raise ValueError("Error: no spanning tree found for CellDataSet object. Please call reduceDimension before calling orderCells()")
+            raise ValueError("No spanning tree found for adata object.")
 
         graph = ig.Graph.Weighted_Adjacency(adata.uns['cell_order']['minSpanningTree'], mode="undirected")
         diameter = graph.get_diameter(directed=False)
