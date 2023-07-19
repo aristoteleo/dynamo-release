@@ -12,53 +12,6 @@ from .utils import log1p_
 from ..dynamo_logger import main_info, main_info_insert_adata_obs
 
 
-def _find_nearest_vertex(data_matrix, target_points, block_size=50000, process_targets_in_blocks=False):
-    closest_vertex = np.array([])
-
-    if not process_targets_in_blocks:
-        num_blocks = np.ceil(data_matrix.shape[1] / block_size).astype(int)
-        if num_blocks < 1:
-            print('bad loop: num_blocks < 1')
-        for i in range(1, num_blocks + 1):
-            if i < num_blocks:
-                block = data_matrix[:, ((i - 1) * block_size):(i * block_size)]
-            else:
-                block = data_matrix[:, ((i - 1) * block_size):]
-            distances_Z_to_Y = distance.cdist(block.T, target_points.T)
-            closest_vertex_for_block = np.argmin(distances_Z_to_Y, axis=1)
-            closest_vertex = np.append(closest_vertex, closest_vertex_for_block)
-    else:
-        num_blocks = np.ceil(target_points.shape[1] / block_size).astype(int)
-        dist_to_closest_vertex = np.full(data_matrix.shape[1], np.inf)
-        closest_vertex = np.full(data_matrix.shape[1], np.nan)
-        if num_blocks < 1:
-            print('bad loop: num_blocks < 1')
-        for i in range(1, num_blocks + 1):
-            if i < num_blocks:
-                block = target_points[:, ((i - 1) * block_size):(i * block_size)]
-            else:
-                block = target_points[:, ((i - 1) * block_size):]
-            distances_Z_to_Y = distance.cdist(data_matrix.T, block.T)
-            closest_vertex_for_block = np.argmin(distances_Z_to_Y, axis=1)
-            if distances_Z_to_Y.shape[0] < 1:
-                print('bad loop: nrow(distances_Z_to_Y) < 1')
-            new_block_distances = distances_Z_to_Y[np.arange(distances_Z_to_Y.shape[0]), closest_vertex_for_block]
-            updated_nearest_idx = np.where(new_block_distances < dist_to_closest_vertex)
-            closest_vertex[updated_nearest_idx] = closest_vertex_for_block[updated_nearest_idx] + (i - 1) * block_size
-            dist_to_closest_vertex[updated_nearest_idx] = new_block_distances[updated_nearest_idx]
-
-    assert len(closest_vertex) == data_matrix.shape[1], "length(closest_vertex) != ncol(data_matrix)"
-    return closest_vertex
-
-
-def _check_and_replace_nan_weights(graph):
-    weights = np.array(graph.es['weight'])
-    nan_indices = np.isnan(weights)
-    weights[nan_indices] = 1
-    graph.es['weight'] = weights
-    return graph
-
-
 def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> pd.DataFrame:
     """Calculates the order of cells based on a minimum spanning tree and a distance matrix.
 
@@ -436,19 +389,17 @@ def order_cells(
 def Pseudotime(
     adata: anndata.AnnData, layer: str = "X", basis: Optional[str] = None, method: str = "DDRTree", **kwargs
 ) -> anndata.AnnData:
+    """The deprecated function to calculate pseudotime and order cells.
 
-    """
+    Args:
+        adata: the anndata object containing the single-cell data.
+        layer: the layer representing cell information.
+        basis: the basis which will be used to estimate pseudotime.
+        method: the method to order cells.
+        kwargs: additional keyword arguments.
 
-    Parameters
-    ----------
-    adata
-    layer
-    method
-    kwargs
-
-    Returns
-    -------
-
+    Returns:
+        The updated adata object.
     """
 
     if basis is None:
@@ -511,17 +462,18 @@ def _cal_ncenter(ncells, ncells_limit=100):
 
 # make this function to also calculate the directed graph between clusters:
 def compute_partition(adata, transition_matrix, cell_membership, principal_g, group=None):
-    """
+    """Compute a partition of cells based on a minimum spanning tree and cell membership.
 
-    Parameters
-    ----------
-    transition_matrix
-    cell_membership
-    principal_g
+    Args:
+        adata: the anndata object containing the single-cell data.
+        transition_matrix: the matrix representing the transition probabilities between cells.
+        cell_membership: the matrix representing the cell membership information.
+        principal_g: the principal graph information saved as array.
+        group: the name of a categorical group in `adata.obs`. If provided, it is used to construct the
+            `cell_membership` matrix based on the specified group membership. Defaults to None.
 
-    Returns
-    -------
-
+    Returns:
+        A partition of cells represented as a matrix.
     """
 
     from scipy.sparse import csr_matrix
@@ -566,9 +518,3 @@ def compute_partition(adata, transition_matrix, cell_membership, principal_g, gr
     # diag(sig_links) < - 0
 
     return direct_principal_g
-
-
-# if __name__ == '__main__':
-#     # import anndata
-#     # adata=anndata.read_h5ad('')
-#     # Pseudotime(adata)
