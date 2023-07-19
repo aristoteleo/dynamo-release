@@ -68,6 +68,31 @@ def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
     return angle
 
 
+def _compute_transition_matrix(transition_matrix, R):
+    highest_probability = np.max(R, axis=1)
+    assignment = np.argmax(R, axis=1)
+    clusters = {}
+    transition = np.zeros((R.shape[1], R.shape[1]))
+    totals = [0 for _ in range(R.shape[1])]
+    for i in range(R.shape[1]):
+        clusters[i] = np.where(assignment == i)[0]
+    for a in range(R.shape[1]):
+        for b in range(a, R.shape[1]):
+            q = np.sum([
+                highest_probability[i] * highest_probability[j] * transition_matrix[i, j]
+                for i in clusters[a]
+                for j in clusters[b]
+            ])
+            totals[a] += q
+            transition[a, b] = q
+    totals = np.array(totals).reshape(-1, 1)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        res = transition / totals
+        res[res == np.inf] = 0
+        res = np.nan_to_num(res)
+    return res + res.T - np.diag(res.diagonal())
+
+
 def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:
     """Save a velocity tree graph with given data.
 
