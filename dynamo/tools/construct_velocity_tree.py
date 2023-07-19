@@ -93,6 +93,40 @@ def _compute_transition_matrix(transition_matrix, R):
     return res + res.T - np.diag(res.diagonal())
 
 
+def _calculate_segment_probability(center_transition_matrix, orders):
+    with np.errstate(divide='ignore', invalid='ignore'):
+        log_center_transition_matrix = np.log(center_transition_matrix)
+        log_center_transition_matrix[log_center_transition_matrix == np.inf] = 0
+        log_center_transition_matrix[log_center_transition_matrix == -np.inf] = 0
+        log_center_transition_matrix = np.nan_to_num(log_center_transition_matrix)
+    probability = [log_center_transition_matrix[orders[0], orders[1]]]
+    for i in range(2, len(orders)):
+        probability.append(probability[i-2] + log_center_transition_matrix[orders[i-1], orders[i]])
+    return probability
+
+
+def construct_velocity_tree(adata, transition_matrix_key="pearson"):
+    transition_matrix = adata.obsp[transition_matrix_key + "_transition_matrix"]
+    R = adata.uns["cell_order"]["R"]
+    orders = np.argsort(adata.uns["cell_order"]["centers_order"])
+    center_transition_matrix = _compute_transition_matrix(transition_matrix, R)
+    segment_p = _calculate_segment_probability(center_transition_matrix, orders)
+    segment_p_reversed = _calculate_segment_probability(center_transition_matrix, orders[::-1])
+    velocity_tree = adata.uns["cell_order"]["center_minSpanningTree"]
+
+    for i in range(1, len(orders)):
+        r = orders[i-1]
+        c = orders[i]
+        # print(max(velocity_tree[r, c], velocity_tree[c, r]))
+        if segment_p[i-1] >= segment_p_reversed[i-1]:
+            velocity_tree[r, c] = max(velocity_tree[r, c], velocity_tree[c, r])
+            velocity_tree[c, r] = 0
+        else:
+            velocity_tree[c, r] = max(velocity_tree[r, c], velocity_tree[c, r])
+            velocity_tree[r, c] = 0
+    return velocity_tree
+
+
 def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:
     """Save a velocity tree graph with given data.
 
