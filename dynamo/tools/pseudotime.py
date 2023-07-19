@@ -373,57 +373,63 @@ def order_cells(
     DDRTree_kwargs.update(kwargs)
 
     Z, Y, stree, R, W, Q, C, objs = DDRTree(X, **DDRTree_kwargs)
+
+    principal_graph = stree
+    dp = distance.squareform(distance.pdist(Y.T))
+    mst = minimum_spanning_tree(principal_graph)
+
     adata.uns["cell_order"]["cell_order_method"] = "DDRTree"
     adata.uns["cell_order"]["Z"] = Z
     adata.uns["cell_order"]["Y"] = Y
     adata.uns["cell_order"]["stree"] = stree
     adata.uns["cell_order"]["R"] = R
     adata.uns["cell_order"]["W"] = W
-
-    principal_graph = stree
-    dp = distance.squareform(distance.pdist(Y.T))
-    mst = minimum_spanning_tree(principal_graph)
     adata.uns["cell_order"]["minSpanningTree"] = mst
     adata.uns["cell_order"]["centers_minSpanningTree"] = mst
 
     root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
     cc_ordering = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)
 
+    (
+        cellPairwiseDistances,
+        pr_graph_cell_proj_dist,
+        pr_graph_cell_proj_closest_vertex,
+        pr_graph_cell_proj_tree
+    ) = project2MST(mst, Z, Y, project_point_to_line_segment)
+
     adata.uns["cell_order"]["root_cell"] = root_cell
     adata.uns["cell_order"]["centers_order"] = cc_ordering["orders"].values
     adata.uns["cell_order"]["centers_parent"] = cc_ordering["parent"].values
-
-    old_mst_graph = ig.Graph.Weighted_Adjacency(matrix=mst)
-    cellPairwiseDistances, pr_graph_cell_proj_dist, pr_graph_cell_proj_closest_vertex, pr_graph_cell_proj_tree = project2MST(mst, Z, Y, project_point_to_line_segment)  # project_point_to_line_segment can be changed to other states
-
     adata.uns["cell_order"]["minSpanningTree"] = pr_graph_cell_proj_tree
     adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"] = pr_graph_cell_proj_closest_vertex
 
     cells_mapped_to_graph_root = np.where(pr_graph_cell_proj_closest_vertex == root_cell)[0]
     # avoid the issue of multiple cells projected to the same point on the principal graph
     if len(cells_mapped_to_graph_root) == 0:
-        cells_mapped_to_graph_root = root_cell
+        cells_mapped_to_graph_root = [root_cell]
 
     pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=pr_graph_cell_proj_tree)
     tip_leaves = [v.index for v in pr_graph_cell_proj_tree_graph.vs.select(_degree=1)]
-    root_cell = cells_mapped_to_graph_root[np.isin(cells_mapped_to_graph_root, tip_leaves)][0]
-    if np.isnan(root_cell):
-        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
-        adata.uns["cell_order"]["root_cell"] = root_cell
+    root_cell_candidates = np.intersect1d(cells_mapped_to_graph_root, tip_leaves)
 
-    adata.uns["cell_order"]["root_cell"] = root_cell
+    if len(root_cell_candidates) == 0:
+        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
+    else:
+        root_cell = root_cell_candidates[0]
 
     cc_ordering_new_pseudotime = get_order_from_DDRTree(dp=cellPairwiseDistances, mst=pr_graph_cell_proj_tree, root_cell=root_cell)  # re-calculate the pseudotime again
 
+    adata.uns["cell_order"]["root_cell"] = root_cell
     adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"].values
     adata.uns["cell_order"]["parent"] = cc_ordering_new_pseudotime["parent"]
+    adata.uns["cell_order"]["branch_points"] = np.array(pr_graph_cell_proj_tree_graph.vs.select(_degree_gt=2))
     main_info_insert_adata_obs("Pseudotime")
+
     if root_state is None:
         closest_vertex = pr_graph_cell_proj_closest_vertex
         adata.obs["cell_pseudo_state"] = cc_ordering.loc[closest_vertex, "cell_pseudo_state"].values
         main_info_insert_adata_obs("cell_pseudo_state")
 
-    adata.uns["cell_order"]["branch_points"] = np.array(pr_graph_cell_proj_tree_graph.vs.select(_degree_gt=2))
     return adata
 
 

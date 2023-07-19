@@ -8,6 +8,7 @@ from scipy.sparse.csgraph import shortest_path
 
 from .DDRTree_py import DDRTree
 
+from ..dynamo_logger import main_info, main_info_insert_adata_uns
 
 def remove_velocity_points(G: np.ndarray, n: int) -> np.ndarray:
     """Modify a tree graph to remove the nodes themselves and recalculate the weights.
@@ -116,15 +117,26 @@ def _get_segments(orders, parents):
     return segments, segments_reverse
 
 def construct_velocity_tree(adata, transition_matrix_key="pearson"):
+    if transition_matrix_key + "_transition_matrix" not in adata.obsp.keys():
+        raise KeyError("Transition matrix not found in anndata. Please call cell_velocities() before constructing "
+                       "velocity tree")
+
+    if "cell_order" not in adata.uns.keys():
+        raise KeyError("Cell order information not found in anndata. Please call order_cells() before constructing "
+                       "velocity tree.")
+
+    main_info("Constructing velocity tree...")
+
     transition_matrix = adata.obsp[transition_matrix_key + "_transition_matrix"]
     R = adata.uns["cell_order"]["R"]
     orders = np.argsort(adata.uns["cell_order"]["centers_order"])
     parents = [adata.uns["cell_order"]["centers_parent"][node] for node in orders]
+    velocity_tree = adata.uns["cell_order"]["centers_minSpanningTree"]
+
     segments, segments_reverse = _get_segments(orders, parents)
     center_transition_matrix = _compute_transition_matrix(transition_matrix, R)
     segment_p = _calculate_segment_probability(center_transition_matrix, np.array(segments))
     segment_p_reversed = _calculate_segment_probability(center_transition_matrix, np.array(segments_reverse))
-    velocity_tree = adata.uns["cell_order"]["centers_minSpanningTree"]
 
     for i, (r, c) in enumerate(segments):
         if segment_p[i] >= segment_p_reversed[i]:
@@ -133,6 +145,9 @@ def construct_velocity_tree(adata, transition_matrix_key="pearson"):
         else:
             velocity_tree[c, r] = max(velocity_tree[r, c], velocity_tree[c, r])
             velocity_tree[r, c] = 0
+
+    adata.uns["directed_velocity_tree"] = velocity_tree
+    main_info_insert_adata_uns("directed_velocity_tree")
     return velocity_tree
 
 
