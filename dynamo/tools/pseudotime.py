@@ -106,6 +106,8 @@ def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> p
         ordering_dict["parent"].append(parent_node)
 
     ordering_df = pd.DataFrame.from_dict(ordering_dict)
+    ordering_df.reset_index(inplace=True)
+    ordering_df = ordering_df.rename(columns={'index': 'new column name'})
     ordering_df.set_index('cell_index', inplace=True)
     ordering_df = ordering_df.sort_index()
     return ordering_df
@@ -372,6 +374,11 @@ def order_cells(
 
     Z, Y, stree, R, W, Q, C, objs = DDRTree(X, **DDRTree_kwargs)
     adata.uns["cell_order"]["cell_order_method"] = "DDRTree"
+    adata.uns["cell_order"]["Z"] = Z
+    adata.uns["cell_order"]["Y"] = Y
+    adata.uns["cell_order"]["stree"] = stree
+    adata.uns["cell_order"]["R"] = R
+    adata.uns["cell_order"]["W"] = W
 
     principal_graph = stree
     dp = distance.squareform(distance.pdist(Y.T))
@@ -381,7 +388,6 @@ def order_cells(
     root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
     cc_ordering = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)
 
-    adata.obs["Pseudotime"] = cc_ordering["pseudo_time"].values
     adata.uns["cell_order"]["root_cell"] = root_cell
 
     old_mst_graph = ig.Graph.Weighted_Adjacency(matrix=mst)
@@ -395,7 +401,8 @@ def order_cells(
     if len(cells_mapped_to_graph_root) == 0:
         cells_mapped_to_graph_root = root_cell
 
-    tip_leaves = [v.index for v in old_mst_graph.vs.select(_degree=1)]
+    pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=pr_graph_cell_proj_tree)
+    tip_leaves = [v.index for v in pr_graph_cell_proj_tree_graph.vs.select(_degree=1)]
     root_cell = cells_mapped_to_graph_root[np.isin(cells_mapped_to_graph_root, tip_leaves)][0]
     if np.isnan(root_cell):
         root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
@@ -403,16 +410,16 @@ def order_cells(
 
     adata.uns["cell_order"]["root_cell"] = root_cell
 
-    cc_ordering_new_pseudotime = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)  # re-calculate the pseudotime again
+    cc_ordering_new_pseudotime = get_order_from_DDRTree(dp=cellPairwiseDistances, mst=pr_graph_cell_proj_tree, root_cell=root_cell)  # re-calculate the pseudotime again
 
     adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"].values
+    adata.uns["cell_order"]["parent"] = cc_ordering_new_pseudotime["parent"]
     main_info_insert_adata_obs("Pseudotime")
     if root_state is None:
         closest_vertex = pr_graph_cell_proj_closest_vertex
         adata.obs["cell_pseudo_state"] = cc_ordering.loc[closest_vertex, "cell_pseudo_state"].values
         main_info_insert_adata_obs("cell_pseudo_state")
 
-    pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=pr_graph_cell_proj_tree)
     adata.uns["cell_order"]["branch_points"] = np.array(pr_graph_cell_proj_tree_graph.vs.select(_degree_gt=2))
     return adata
 
