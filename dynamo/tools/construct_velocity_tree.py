@@ -69,26 +69,33 @@ def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
 
 
 def _compute_transition_matrix(transition_matrix, R):
+    if scipy.sparse.issparse(transition_matrix):
+        transition_matrix = transition_matrix.toarray()
+
     highest_probability = np.max(R, axis=1)
     assignment = np.argmax(R, axis=1)
-    clusters = {}
-    transition = np.zeros((R.shape[1], R.shape[1]))
-    totals = [0 for _ in range(R.shape[1])]
-    for i in range(R.shape[1]):
-        clusters[i] = np.where(assignment == i)[0]
-    for a in range(R.shape[1]):
-        for b in range(a, R.shape[1]):
-            q = np.sum([
-                highest_probability[i] * highest_probability[j] * transition_matrix[i, j]
-                for i in clusters[a]
-                for j in clusters[b]
-            ])
+    num_clusters = R.shape[1]
+    clusters = {i: np.where(assignment == i)[0] for i in range(num_clusters)}
+
+    transition = np.zeros((num_clusters, num_clusters))
+    totals = np.zeros((num_clusters,))
+
+    for a in range(num_clusters):
+        for b in range(a, num_clusters):
+            indices_a = clusters[a]
+            indices_b = clusters[b]
+            q = np.sum(
+                highest_probability[indices_a, None] *
+                highest_probability[None, indices_b] *
+                transition_matrix[indices_a[:, None], indices_b]
+            )
             totals[a] += q
             transition[a, b] = q
-    totals = np.array(totals).reshape(-1, 1)
+
+    totals = totals.reshape(-1, 1)
     with np.errstate(divide='ignore', invalid='ignore'):
         res = transition / totals
-        res[res == np.inf] = 0
+        res[np.isinf(res)] = 0
         res = np.nan_to_num(res)
     return res + res.T - np.diag(res.diagonal())
 
