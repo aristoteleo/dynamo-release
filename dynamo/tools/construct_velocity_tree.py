@@ -1,9 +1,11 @@
 import re
+from typing import List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from scipy.sparse import issparse
+from anndata import AnnData
+from scipy.sparse import issparse, csr_matrix
 from scipy.sparse.csgraph import shortest_path
 
 from .DDRTree_py import DDRTree
@@ -69,8 +71,17 @@ def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
     return angle
 
 
-def _compute_transition_matrix(transition_matrix, R):
-    if scipy.sparse.issparse(transition_matrix):
+def _compute_transition_matrix(transition_matrix: Union[csr_matrix, np.ndarray], R: np.ndarray) -> np.ndarray:
+    """Calculate the transition matrix for DDRTree centers.
+
+    Args:
+        transition_matrix: the array representing the transition matrix of cells.
+        R: the matrix that assigns cells to the centers.
+
+    Returns:
+        The transition matrix for centers.
+    """
+    if issparse(transition_matrix):
         transition_matrix = transition_matrix.toarray()
 
     highest_probability = np.max(R, axis=1)
@@ -101,7 +112,16 @@ def _compute_transition_matrix(transition_matrix, R):
     return res + res.T - np.diag(res.diagonal())
 
 
-def _calculate_segment_probability(center_transition_matrix, segments):
+def _calculate_segment_probability(center_transition_matrix: np.ndarray, segments: np.ndarray) -> np.ndarray:
+    """Calculate the probability of	the	segment	by first order Markov assumption.
+
+    Args:
+        center_transition_matrix: the transition matrix for DDRTree centers.
+        segments: the segments of the minimum spanning tree.
+
+    Returns:
+        The probability for each segment.
+    """
     with np.errstate(divide='ignore', invalid='ignore'):
         log_center_transition_matrix = np.log(center_transition_matrix)
         log_center_transition_matrix[np.isinf(log_center_transition_matrix)] = 0
@@ -110,13 +130,35 @@ def _calculate_segment_probability(center_transition_matrix, segments):
     return np.cumsum(log_center_transition_matrix[segments[:, 0], segments[:, 1]])
 
 
-def _get_segments(orders, parents):
+def _get_segments(orders: Union[np.ndarray, List], parents: Union[np.ndarray, List]) -> Tuple:
+    """Get m segments pairs from the minimum spanning tree.
+
+    Args:
+        orders: the order to traverse the minimum spanning tree.
+        parents: the parent node for each node.
+
+    Returns:
+        A tuple that contains segments pairs from 1 to m and from m to 1.
+    """
     segments = [(p, o) for p, o in zip(parents, orders) if p != -1]
     segments_reverse = [(seg[1], seg[0]) for seg in segments]
     segments_reverse.reverse()
     return segments, segments_reverse
 
-def construct_velocity_tree(adata, transition_matrix_key="pearson"):
+def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearson"):
+    """Integrate pseudotime ordering with velocity to automatically assign the direction of the learned trajectory.
+
+    Args:
+        adata: the anndata object containing the single-cell data.
+        transition_matrix_key (str, optional): key to the transition matrix in the `adata.obsp` object that represents
+            the transition probabilities between cells. Defaults to "pearson".
+
+    Raises:
+        KeyError: If the transition matrix or cell order information is not found in the `adata` object.
+
+    Returns:
+        A directed velocity tree represented as a NumPy array.
+    """
     if transition_matrix_key + "_transition_matrix" not in adata.obsp.keys():
         raise KeyError("Transition matrix not found in anndata. Please call cell_velocities() before constructing "
                        "velocity tree")
