@@ -93,32 +93,40 @@ def _compute_transition_matrix(transition_matrix, R):
     return res + res.T - np.diag(res.diagonal())
 
 
-def _calculate_segment_probability(center_transition_matrix, orders):
+def _calculate_segment_probability(center_transition_matrix, segments):
     with np.errstate(divide='ignore', invalid='ignore'):
         log_center_transition_matrix = np.log(center_transition_matrix)
         log_center_transition_matrix[log_center_transition_matrix == np.inf] = 0
         log_center_transition_matrix[log_center_transition_matrix == -np.inf] = 0
         log_center_transition_matrix = np.nan_to_num(log_center_transition_matrix)
-    probability = [log_center_transition_matrix[orders[0], orders[1]]]
-    for i in range(2, len(orders)):
-        probability.append(probability[i-2] + log_center_transition_matrix[orders[i-1], orders[i]])
+    probability = [log_center_transition_matrix[segments[0][0], segments[0][1]]]
+    for i in range(1, len(segments)):
+        probability.append(probability[i-1] + log_center_transition_matrix[segments[i][0], segments[i][1]])
     return probability
 
+
+def _get_segments(orders, parents):
+    segments = list(zip(parents, orders))
+    segments = [seg for seg in segments if seg[0] != -1]
+    segments_reverse = [(seg[1], seg[0]) for seg in segments]
+    segments_reverse.reverse()
+    return segments, segments_reverse
 
 def construct_velocity_tree(adata, transition_matrix_key="pearson"):
     transition_matrix = adata.obsp[transition_matrix_key + "_transition_matrix"]
     R = adata.uns["cell_order"]["R"]
     orders = np.argsort(adata.uns["cell_order"]["centers_order"])
+    parents = [adata.uns["cell_order"]["centers_parent"][node] for node in orders]
+    segments, segments_reverse = _get_segments(orders, parents)
     center_transition_matrix = _compute_transition_matrix(transition_matrix, R)
-    segment_p = _calculate_segment_probability(center_transition_matrix, orders)
-    segment_p_reversed = _calculate_segment_probability(center_transition_matrix, orders[::-1])
-    velocity_tree = adata.uns["cell_order"]["center_minSpanningTree"]
+    segment_p = _calculate_segment_probability(center_transition_matrix, segments)
+    segment_p_reversed = _calculate_segment_probability(center_transition_matrix, segments_reverse)
+    velocity_tree = adata.uns["cell_order"]["centers_minSpanningTree"]
 
-    for i in range(1, len(orders)):
-        r = orders[i-1]
-        c = orders[i]
-        # print(max(velocity_tree[r, c], velocity_tree[c, r]))
-        if segment_p[i-1] >= segment_p_reversed[i-1]:
+    for i in range(0, len(segments)):
+        r = segments[i][0]
+        c = segments[i][1]
+        if segment_p[i] >= segment_p_reversed[i]:
             velocity_tree[r, c] = max(velocity_tree[r, c], velocity_tree[c, r])
             velocity_tree[c, r] = 0
         else:

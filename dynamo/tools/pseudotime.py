@@ -384,13 +384,14 @@ def order_cells(
     dp = distance.squareform(distance.pdist(Y.T))
     mst = minimum_spanning_tree(principal_graph)
     adata.uns["cell_order"]["minSpanningTree"] = mst
-    adata.uns["cell_order"]["center_minSpanningTree"] = mst
+    adata.uns["cell_order"]["centers_minSpanningTree"] = mst
 
     root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
     cc_ordering = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)
 
     adata.uns["cell_order"]["root_cell"] = root_cell
     adata.uns["cell_order"]["centers_order"] = cc_ordering["orders"].values
+    adata.uns["cell_order"]["centers_parent"] = cc_ordering["parent"].values
 
     old_mst_graph = ig.Graph.Weighted_Adjacency(matrix=mst)
     cellPairwiseDistances, pr_graph_cell_proj_dist, pr_graph_cell_proj_closest_vertex, pr_graph_cell_proj_tree = project2MST(mst, Z, Y, project_point_to_line_segment)  # project_point_to_line_segment can be changed to other states
