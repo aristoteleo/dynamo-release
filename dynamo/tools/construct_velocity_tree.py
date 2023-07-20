@@ -12,6 +12,7 @@ from .DDRTree_py import DDRTree
 
 from ..dynamo_logger import main_info, main_info_insert_adata_uns
 
+
 def remove_velocity_points(G: np.ndarray, n: int) -> np.ndarray:
     """Modify a tree graph to remove the nodes themselves and recalculate the weights.
 
@@ -144,6 +145,7 @@ def _get_segments(orders: Union[np.ndarray, List], parents: Union[np.ndarray, Li
     segments_reverse = [(seg[1], seg[0]) for seg in segments]
     segments_reverse.reverse()
     return segments, segments_reverse
+
 
 def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearson"):
     """Integrate pseudotime ordering with velocity to automatically assign the direction of the learned trajectory.

@@ -79,6 +79,7 @@ def find_cell_proj_closest_vertex(Z: np.ndarray, Y: np.ndarray) -> np.ndarray:
     distances_Z_to_Y = distance.cdist(Z.T, Y.T)
     return np.apply_along_axis(lambda z: np.where(z == np.min(z))[0][0], axis=1, arr=distances_Z_to_Y)
 
+
 def project_point_to_line_segment(p: np.ndarray, df: np.ndarray) -> np.ndarray:
     """Optimized version of `project_point_to_line`, which projects a point onto a line segment defined by two points A
     and B.
