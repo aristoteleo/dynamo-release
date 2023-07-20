@@ -386,64 +386,6 @@ def order_cells(
     return adata
 
 
-def Pseudotime(
-    adata: anndata.AnnData, layer: str = "X", basis: Optional[str] = None, method: str = "DDRTree", **kwargs
-) -> anndata.AnnData:
-    """The deprecated function to calculate pseudotime and order cells.
-
-    Args:
-        adata: the anndata object containing the single-cell data.
-        layer: the layer representing cell information.
-        basis: the basis which will be used to estimate pseudotime.
-        method: the method to order cells.
-        kwargs: additional keyword arguments.
-
-    Returns:
-        The updated adata object.
-    """
-
-    if basis is None:
-        X = adata.layers["X_" + layer].T if layer != "X" else adata.X.T
-        X = log1p_(adata, X)
-    else:
-        X = adata.obsm["X_" + basis]
-
-    DDRTree_kwargs = {
-        "maxIter": 10,
-        "sigma": 0.001,
-        "gamma": 10,
-        "eps": 0,
-        "dim": 2,
-        "Lambda": 5 * X.shape[1],
-        "ncenter": _cal_ncenter(X.shape[1]),
-    }
-    DDRTree_kwargs.update(kwargs)
-
-    if method == "DDRTree":
-        Z, Y, stree, R, W, Q, C, objs = DDRTree(X, **DDRTree_kwargs)
-
-    transition_matrix, cell_membership, principal_g = (
-        adata.uns["transition_matrix"],
-        R,
-        stree,
-    )
-
-    final_g = compute_partition(transition_matrix, cell_membership, principal_g)
-    direct_g = final_g.copy()
-    tmp = final_g - final_g.T
-    direct_g[np.where(tmp < 0)] = 0
-
-    adata.uns["directed_principal_g"] = direct_g
-
-    # identify branch points and tip points
-
-    # calculate net flow between branchpoints and tip points
-
-    # assign direction of flow and reset direct_g
-
-    return adata
-
-
 def _cal_ncenter(ncells, ncells_limit=100):
     """Calculate the number of centers genes to be considered.
 
