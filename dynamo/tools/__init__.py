@@ -20,7 +20,6 @@ from .clustering import (
     cluster_community,
     cluster_community_from_graph,
     hdbscan,
-    infomap,
     leiden,
     louvain,
     purity,
