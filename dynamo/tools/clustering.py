@@ -385,28 +385,12 @@ def infomap(
         An updated AnnData object if `copy` is set to be true.
     """
 
-    kwargs.update({})
-
-    return cluster_community(
-        adata,
-        method="infomap",
-        use_weight=use_weight,
-        result_key=result_key,
-        adj_matrix=adj_matrix,
-        adj_matrix_key=adj_matrix_key,
-        layer=layer,
-        obsm_key=obsm_key,
-        cluster_and_subsets=selected_cluster_subset,
-        cell_subsets=selected_cell_subset,
-        directed=directed,
-        copy=copy,
-        **kwargs
-    )
+    raise NotImplementedError("infomap algorithm has been deprecated.")
 
 
 def cluster_community(
     adata: AnnData,
-    method: Literal["leiden", "louvain", "infomap"] = "leiden",
+    method: Literal["leiden", "louvain"] = "leiden",
     result_key: Optional[str] = None,
     adj_matrix: Optional[Union[list, np.array, csr_matrix]] = None,
     adj_matrix_key: Optional[str] = None,
@@ -425,7 +409,7 @@ def cluster_community(
 
     Args:
         adata: an AnnData object.
-        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain", or "infomap". Defaults
+        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain". Defaults
             to "leiden".
         result_key: the key where the results will be stored in obs. Defaults to None.
         adj_matrix: adj_matrix used for clustering. Defaults to None.
@@ -553,21 +537,21 @@ def cluster_community(
 def cluster_community_from_graph(
     graph=None,
     graph_sparse_matrix: Union[np.ndarray, csr_matrix, None] = None,
-    method: Literal["leiden", "louvain", "infomap"] = "louvain",
+    method: Literal["leiden", "louvain"] = "louvain",
     directed: bool = False,
     **kwargs
 ) -> Any:
-    """A function takes a graph as input and clusters its nodes into communities using one of three algorithms:
-    Leiden, Louvain, or Infomap.
+    """A function takes a graph as input and clusters its nodes into communities using one of two algorithms:
+    Leiden, Louvain.
 
     Args:
         graph (nx.Graph): the input graph that would be directly used for clustering. Defaults to None.
         graph_sparse_matrix: a sparse matrix that would be converted to a graph if `graph` is not supplied.
-        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain", or "infomap".
+        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain".
         directed: whether the edges in the graph should be directed. Defaults to False. Defaults to False.
 
     Raises:
-        ImportError: cdlib or networkx not installed.
+        ImportError: networkx not installed.
         ValueError: neither graph nor graph_sparse_matrix is valid.
         KeyError: resolution is not found in kwargs for louvain algorithm.
         KeyError: randomize is not found in kwargs for louvain algorithm.
@@ -632,12 +616,6 @@ def cluster_community_from_graph(
             seed=seed,
             **kwargs
         )
-    elif method == "infomap":
-        try:
-            import cdlib as algorithms
-        except ImportError:
-            raise ImportError("Please install cdlib via `pip install cdlib` for clustering on graph.")
-        coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
 

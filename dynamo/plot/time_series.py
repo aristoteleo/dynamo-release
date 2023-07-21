@@ -209,7 +209,7 @@ def kinetic_heatmap(
     color_map: int = "BrBG",
     gene_order_method: Literal["maximum", "half_max_ordering", "raw"] = "maximum",
     show_colorbar: bool = False,
-    cluster_row_col: Tuple[bool, bool] = (False, False),
+    cluster_row_col: List[bool] = [False, False],
     figsize: Tuple[float, float] = (11.5, 6),
     standard_scale: int = 1,
     n_convolve: int = 30,

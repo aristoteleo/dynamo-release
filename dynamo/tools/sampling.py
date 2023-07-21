@@ -56,6 +56,14 @@ class TRNET:
         return self.X[idx]
 
     def runOnce(self, p: np.ndarray, l: float, ep: float, c: float) -> None:
+        """Performs one iteration of the TRN sampling algorithm. Learn from distance to update the sampling index.
+
+        Args:
+            p: the target data points to calculate the distance.
+            l: The learning rate that controls learning speed.
+            ep: The epsilon that controls learning speed.
+            c: The cutoff parameter to accelerate the learning.
+        """
         # calc the squared distances ||w - p||^2
         D = p - self.W
         sD = np.zeros(self.n_nodes)
@@ -80,6 +88,16 @@ class TRNET:
     def run(
         self, tmax: int = 200, li: float = 0.2, lf: float = 0.01, ei: float = 0.3, ef: float = 0.05, c: float = 0
     ) -> None:
+        """Runs the TRN sampling algorithm for the specified number of iterations.
+
+        Args:
+            tmax: The maximum number of iterations.
+            li: The initial learning rate parameter.
+            lf: The final learning rate parameter.
+            ei: The initial epsilon parameter.
+            ef: The final epsilon parameter.
+            c: The cutoff parameter to accelerate the learning.
+        """
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
@@ -102,6 +120,18 @@ class TRNET:
         ef: float = 0.05,
         c: int = 0,
     ) -> None:
+        """Run the TRN algorithm sampling for a specified range of iterations.
+
+        Args:
+            k0: starting iteration number.
+            k: ending iteration number.
+            tmax: The maximum number of iterations.
+            li: The initial learning rate parameter.
+            lf: The final learning rate parameter.
+            ei: The initial epsilon parameter.
+            ef: The final epsilon parameter.
+            c: The cutoff parameter to accelerate the learning.
+        """
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
@@ -174,7 +204,7 @@ def sample_by_kmeans(X: np.ndarray, n: int, return_index: bool = False) -> Optio
         return_index: whether to return the sample indices. Defaults to False.
 
     Returns:
-        The sample index array if `return_index` is True.
+        The sample index array if `return_index` is True. Else return the array after sampling.
     """
     C, _ = kmeans2(X, n)
     nbrs = nearest_neighbors(C, X, k=1).flatten()
@@ -182,7 +212,7 @@ def sample_by_kmeans(X: np.ndarray, n: int, return_index: bool = False) -> Optio
     if return_index:
         return nbrs
     else:
-        X[nbrs]
+        return X[nbrs]
 
 
 def lhsclassic(
@@ -260,7 +290,7 @@ def sample(
 
     if method == "random":
         np.random.seed(seed)
-        sub_arr = np.random.choice(arr, size=n, replace=False)
+        sub_arr = arr[np.random.choice(arr.shape[0], size=n, replace=False)]
     elif method == "velocity" and V is not None:
         sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
     elif method == "trn" and X is not None:

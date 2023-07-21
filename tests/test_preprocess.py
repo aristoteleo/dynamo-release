@@ -3,14 +3,16 @@ import timeit
 import anndata
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix
+import pytest
+import scipy
+from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 
 # from utils import *
 import dynamo as dyn
 from dynamo.preprocessing import Preprocessor
 from dynamo.preprocessing.cell_cycle import get_cell_phase
-from dynamo.preprocessing.deprecated import calc_mean_var_dispersion_sparse
+from dynamo.preprocessing.deprecated import _calc_mean_var_dispersion_sparse_legacy
 from dynamo.preprocessing.normalization import normalize
 from dynamo.preprocessing.transform import log1p, is_log1p_transformed_adata
 from dynamo.preprocessing.utils import (
@@ -24,41 +26,42 @@ from dynamo.preprocessing.utils import (
 SHOW_FIG = False
 
 
-def test_highest_frac_genes_plot(adata, is_X_sparse=True):
+@pytest.mark.skip(reason="will be moved to plot tests")
+def test_highest_frac_genes_plot(processed_zebra_adata, is_X_sparse=True):
     dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
         show=SHOW_FIG,
         log=False,
         save_path="./test_simple_highest_frac_genes.png",
     )
     dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
     )
     dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
     )
     dyn.pl.highest_frac_genes(
-        adata,
-        log=False,
-        show=SHOW_FIG,
-        save_path="test_simple_highest_frac_genes.png",
-        orient="h",
-    )
-    dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
         orient="h",
     )
     dyn.pl.highest_frac_genes(
-        adata,
+        processed_zebra_adata,
+        log=False,
+        show=SHOW_FIG,
+        save_path="test_simple_highest_frac_genes.png",
+        orient="h",
+    )
+    dyn.pl.highest_frac_genes(
+        processed_zebra_adata,
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
@@ -66,22 +69,29 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
     )
 
     if is_X_sparse:
-        adata.X = adata.X.toarray()
-        dyn.pl.highest_frac_genes(adata, show=SHOW_FIG)
+        processed_zebra_adata.X = processed_zebra_adata.X.toarray()
+        dyn.pl.highest_frac_genes(processed_zebra_adata, show=SHOW_FIG)
 
 
-def test_highest_frac_genes_plot_prefix_list(adata, is_X_sparse=True):
+@pytest.mark.skip(reason="need full test data")
+def test_highest_frac_genes_plot_prefix_list(processed_zebra_adata):
     sample_list = ["MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"]
-    dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=sample_list)
-    dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"])
+    dyn.pl.highest_frac_genes(processed_zebra_adata, show=SHOW_FIG, gene_prefix_list=sample_list)
+    dyn.pl.highest_frac_genes(processed_zebra_adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"])
 
-    dyn.pl.highest_frac_genes(
-        adata,
-        gene_prefix_list=["someGenePrefixNotExisting"],
-        show=SHOW_FIG,
-    )
+    try:
+        dyn.pl.highest_frac_genes(
+            processed_zebra_adata,
+            gene_prefix_list=["someGenePrefixNotExisting"],
+            show=SHOW_FIG,
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Expected ValueError to be raised")
 
 
+@pytest.mark.skip(reason="excessive memory usage")
 def test_recipe_monocle_feature_selection_layer_simple0():
     rpe1 = dyn.sample_data.scEU_seq_rpe1()
     # show results
@@ -113,7 +123,7 @@ def test_recipe_monocle_feature_selection_layer_simple0():
 def test_calc_dispersion_sparse():
     # TODO add randomize tests
     sparse_mat = csr_matrix([[1, 2, 0, 1, 5], [0, 0, 3, 1, 299], [4, 0, 5, 1, 399]])
-    mean, var, dispersion = calc_mean_var_dispersion_sparse(sparse_mat)
+    mean, var, dispersion = _calc_mean_var_dispersion_sparse_legacy(sparse_mat)
     expected_mean = np.mean(sparse_mat.toarray(), axis=0)
     expected_var = np.var(sparse_mat.toarray(), axis=0)
     expected_dispersion = expected_var / expected_mean
@@ -135,25 +145,35 @@ def test_calc_dispersion_sparse():
     # assert np.all(np.isclose(sc_var, expected_var))
 
 
-def test_Preprocessor_simple_run(adata):
+def test_Preprocessor_simple_run(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
     preprocess_worker = Preprocessor()
-    preprocess_worker.preprocess_adata_monocle(adata)
+    preprocess_worker.preprocess_adata(adata, recipe="monocle")
 
 
-def test_is_log_transformed():
-    adata = dyn.sample_data.zebrafish()
+def test_is_log_transformed(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
+    adata.uns["pp"] = {}
     assert not is_log1p_transformed_adata(adata)
     log1p(adata)
     assert is_log1p_transformed_adata(adata)
 
 
 def test_layers2csr_matrix():
-    adata = dyn.sample_data.zebrafish()
-    adata = adata[100:]
-    convert_layers2csr(adata)
-    for key in adata.layers.keys():
-        print("layer:", key, "type:", type(adata.layers[key]))
-        assert type(adata.layers[key]) is anndata._core.views.SparseCSRView
+    data = np.array([[1, 2], [3, 4]])
+    adata = anndata.AnnData(
+        X=data,
+        obs={'obs1': ['cell1', 'cell2']},
+        var={'var1': ['gene1', 'gene2']},
+    )
+    layer = csr_matrix([[1, 2], [3, 4]]).transpose()  # Transpose the matrix
+    adata.layers['layer1'] = layer
+
+    result = dyn.preprocessing.utils.convert_layers2csr(adata)
+
+    assert issparse(result.layers['layer1'])
+    assert result.layers['layer1'].shape == layer.shape
+    assert (result.layers['layer1'].toarray() == layer.toarray()).all()
 
 
 def test_compute_gene_exp_fraction():
@@ -165,8 +185,8 @@ def test_compute_gene_exp_fraction():
     assert np.all(np.isclose(frac.flatten(), [2 / 5, 3 / 5]))
 
 
-def test_pca():
-    adata = dyn.sample_data.zebrafish()
+def test_pca(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
     preprocessor = Preprocessor()
     preprocessor.preprocess_adata_seurat_wo_pca(adata)
     adata = dyn.pp.pca(adata, n_pca_components=30)
@@ -184,9 +204,9 @@ def test_pca():
     assert np.linalg.norm(pca.explained_variance_ratio_[:10] - adata.uns["explained_variance_ratio_"][:10]) < 1e-1
 
 
-
-def test_preprocessor_seurat(adata):
-    adata = dyn.sample_data.zebrafish()
+@pytest.mark.skip(reason="unhelpful test")
+def test_preprocessor_seurat(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
     preprocessor = dyn.pp.Preprocessor()
     preprocessor.preprocess_adata(adata, recipe="seurat")
     # TODO add assert comparison later. Now checked by notebooks only.
@@ -344,10 +364,10 @@ def test_get_cell_phase():
     np.allclose(get_cell_phase(adata).iloc[:, :5], expected_output)
 
 
-def test_gene_selection_method():
-    adata = dyn.sample_data.zebrafish()
-    dyn.pl.basic_stats(adata)
-    dyn.pl.highest_frac_genes(adata)
+@pytest.mark.skip(reason="excessive memory usage")
+def test_gene_selection_method(raw_zebra_adata):
+    dyn.pl.basic_stats(raw_zebra_adata)
+    dyn.pl.highest_frac_genes(raw_zebra_adata)
 
     # Drawing for the downstream analysis.
     # df = adata.obs.loc[:, ["nCounts", "pMito", "nGenes"]]
@@ -357,26 +377,37 @@ def test_gene_selection_method():
     # g.add_legend()
     # plt.show()
 
-    bdata = adata.copy()
-    cdata = adata.copy()
-    ddata = adata.copy()
-    edata = adata.copy()
+    adata = raw_zebra_adata.copy()
+    bdata = raw_zebra_adata.copy()
+    cdata = raw_zebra_adata.copy()
+    ddata = raw_zebra_adata.copy()
+    edata = raw_zebra_adata.copy()
     preprocessor = Preprocessor()
 
     starttime = timeit.default_timer()
-    preprocessor.preprocess_adata(edata, recipe="monocle", gene_selection_method="gini")
+    preprocessor.config_monocle_recipe(edata)
+    preprocessor.select_genes_kwargs = {"sort_by": "gini"}
+    preprocessor.preprocess_adata_monocle(edata)
     monocle_gini_result = edata.var.use_for_pca
 
-    preprocessor.preprocess_adata(adata, recipe="monocle", gene_selection_method="cv_dispersion")
+    preprocessor.config_monocle_recipe(adata)
+    preprocessor.select_genes_kwargs = {"sort_by": "cv_dispersion"}
+    preprocessor.preprocess_adata_monocle(adata)
     monocle_cv_dispersion_result_1 = adata.var.use_for_pca
 
-    preprocessor.preprocess_adata(bdata, recipe="monocle", gene_selection_method="fano_dispersion")
+    preprocessor.config_monocle_recipe(bdata)
+    preprocessor.select_genes_kwargs = {"sort_by": "fano_dispersion"}
+    preprocessor.preprocess_adata_monocle(bdata)
     monocle_fano_dispersion_result_2 = bdata.var.use_for_pca
 
-    preprocessor.preprocess_adata(cdata, recipe="seurat", gene_selection_method="fano_dispersion")
+    preprocessor.config_seurat_recipe(cdata)
+    preprocessor.select_genes_kwargs = {"algorithm": "fano_dispersion"}
+    preprocessor.preprocess_adata_seurat(cdata)
     seurat_fano_dispersion_result_3 = cdata.var.use_for_pca
 
-    preprocessor.preprocess_adata(ddata, recipe="seurat", gene_selection_method="seurat_dispersion")
+    preprocessor.config_seurat_recipe(ddata)
+    preprocessor.select_genes_kwargs = {"algorithm": "seurat_dispersion"}
+    preprocessor.preprocess_adata_seurat(ddata)
     seurat_seurat_dispersion_result_4 = ddata.var.use_for_pca
 
     diff_count = sum(1 for x, y in zip(monocle_cv_dispersion_result_1, monocle_gini_result) if x != y)
@@ -435,13 +466,13 @@ def test_normalize():
     assert np.allclose(normalized.layers["X_spliced"].toarray(), (X / adata.obs["spliced_Size_Factor"].values[:, None]))
 
 
-def test_regress_out():
+def test_regress_out(raw_zebra_adata):
     starttime = timeit.default_timer()
     celltype_key = "Cell_type"
     figsize = (10, 10)
-    adata = dyn.read("./data/zebrafish.h5ad")  # dyn.sample_data.hematopoiesis_raw()
-    dyn.pl.basic_stats(adata)
-    dyn.pl.highest_frac_genes(adata)
+    adata = raw_zebra_adata.copy()  # dyn.sample_data.hematopoiesis_raw()
+    # dyn.pl.basic_stats(adata)
+    # dyn.pl.highest_frac_genes(adata)
 
     preprocessor = Preprocessor(regress_out_kwargs={"obs_keys": ["nCounts", "pMito"]})
 

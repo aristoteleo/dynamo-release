@@ -424,7 +424,7 @@ def gene_wise_confidence(
         np.nan,
         np.nan,
     )
-    avg = confidence.groupby("gene")["prog_confidence", "mature_confidence"].mean()
+    avg = confidence.groupby("gene")[["prog_confidence", "mature_confidence"]].mean()
     avg = avg.reset_index().set_index("gene")
     adata.var.loc[genes, "avg_prog_confidence"] = avg.loc[genes, "prog_confidence"]
     adata.var.loc[genes, "avg_mature_confidence"] = avg.loc[genes, "mature_confidence"]

@@ -9,7 +9,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import main_info
 from ..preprocessing.pca import pca
-from ..tools.clustering import hdbscan, infomap, leiden, louvain
+from ..tools.clustering import hdbscan, leiden, louvain
 from ..tools.connectivity import k_nearest_neighbors
 from ..tools.Markov import (
     grid_velocity_filter,
@@ -151,8 +151,7 @@ def cluster_field(
         # clusters need to be categorical variables
         adata.obs[key] = adata.obs.obs[key].astype("category")
 
-    elif method in ["louvain", "leiden", "infomap"]:
-
+    elif method in ["louvain", "leiden"]:
         nbrs_idx, dist = k_nearest_neighbors(
             X,
             k=30,
@@ -174,8 +173,6 @@ def cluster_field(
             leiden(adata, resolution=resolution, adj_matrix_key="vf_feature_knn", result_key="field_leiden", **kwargs)
         elif method == "louvain":
             louvain(adata, resolution=resolution, adj_matrix_key="vf_feature_knn", result_key="field_louvain", **kwargs)
-        elif method == "infomap":
-            infomap(adata, adj_matrix_key="vf_feature_knn", result_key="field_infomap", **kwargs)
 
     logger.finish_progress(progress_name="clustering_field")
 
@@ -402,8 +399,6 @@ def streamline_clusters(
         louvain(feature_adata, obsm_key="X_pca")
     elif clustering_method == "leiden":
         leiden(feature_adata, obsm_key="X_pca")
-    elif clustering_method == "infomap":
-        infomap(feature_adata, obsm_key="X_pca")
     elif method in ["hdbscan", "kmeans"]:
         key = "field_hdbscan"
         hdbscan(feature_adata, X_data=feature_df, result_key=key, **kwargs)
@@ -418,7 +413,7 @@ def streamline_clusters(
         feature_adata.obs[key] = adata.obs.obs[key].astype("category")
     else:
         raise ValueError(
-            "only louvain, leiden, infomap, hdbscan and kmeans clustering supported but your requested "
+            "only louvain, leiden, hdbscan and kmeans clustering supported but your requested "
             f"method is {method}"
         )
 
