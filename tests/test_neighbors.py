@@ -12,7 +12,8 @@ from dynamo.tools.connectivity import (
 )
 
 
-def test_neighbors_subset(adata):
+def test_neighbors_subset(processed_zebra_adata):
+    adata = processed_zebra_adata.copy()
     dyn.tl.neighbors(adata)
     assert check_neighbors_completeness(adata)
     indices = np.random.randint(0, len(adata), size=100)
@@ -38,7 +39,8 @@ def test_neighbors_subset(adata):
     assert check_neighbors_completeness(_adata)
 
 
-def test_broken_neighbors_check_recompute(adata):
+def test_broken_neighbors_check_recompute(processed_zebra_adata):
+    adata = processed_zebra_adata.copy()
     dyn.tl.neighbors(adata)
     assert check_neighbors_completeness(adata)
     indices = np.random.randint(0, len(adata), size=100)
@@ -48,8 +50,8 @@ def test_broken_neighbors_check_recompute(adata):
     assert check_neighbors_completeness(_adata)
 
 
-def test_neighbors_no_pca_key():
-    adata = dyn.sample_data.zebrafish()
+def test_neighbors_no_pca_key(raw_zebra_adata):
+    adata = raw_zebra_adata.copy()
     dyn.tl.neighbors(adata)
 
 
