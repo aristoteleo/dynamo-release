@@ -1,4 +1,6 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
+from typing import Optional, Tuple
+
 import numpy as np
 import scipy.sparse as sp
 from numba import jit
@@ -13,7 +15,20 @@ from ..simulation.utils import directMethod
 from .utils import append_iterative_neighbor_indices, flatten
 
 
-def markov_combination(x, v, X):
+def markov_combination(x: np.ndarray, v: np.ndarray, X: np.ndarray) -> Tuple:
+    """Calculate the Markov combination by solving a 'cvxopt' library quadratic programming (QP) problem, which is
+    defined as:
+        minimize    (1/2)*x'*P*x + q'*x
+        subject to  G*x <= h
+
+    Args:
+        x: the cell data matrix.
+        v: the velocity data matrix.
+        X: the neighbors data matrix.
+
+    Returns:
+        A tuple containing the results of QP problem.
+    """
     from cvxopt import matrix, solvers
 
     n = X.shape[0]
@@ -28,7 +43,24 @@ def markov_combination(x, v, X):
     return p, u
 
 
-def compute_markov_trans_prob(x, v, X, s=None, cont_time=False):
+def compute_markov_trans_prob(
+        x: np.ndarray, v: np.ndarray, X: np.ndarray, s: Optional[np.ndarray] = None, cont_time: bool = False
+) -> np.ndarray:
+    """Calculate the Markov transition probabilities by solving a 'cvxopt' library quadratic programming (QP) problem,
+    which is defined as:
+        minimize    (1/2)*x'*P*x + q'*x
+        subject to  G*x <= h
+
+    Args:
+        x: the cell data matrix.
+        v: the velocity data matrix.
+        X: the neighbors data matrix.
+        s: extra constraints added to the `q` in QP problem.
+        cont_time: whether is continuous-time or not.
+
+    Returns:
+        An array containing the optimal Markov transition probabilities computed by QP problem.
+    """
     from cvxopt import matrix, solvers
 
     n = X.shape[0]
@@ -484,11 +516,19 @@ def divergence(E, tol=1e-5):
 
 
 class MarkovChain:
+    """Base class for all Markov Chain implementation."""
     def __init__(self, P=None, eignum=None, check_norm=True, sumto=1, tol=1e-3):
-        """
-        The elements in the transition matrix P_ij encodes transition probability from j to i, i.e.:
-                P_ij = P(j -> i)
-        Consequently, each column of P should sum to `sumto`.
+        """Constructor.
+
+        Args:
+            P: the transition matrix. The elements in the transition matrix P_ij encodes transition probability from j
+                to i, i.e.:
+                    P_ij = P(j -> i)
+                Consequently, each column of P should sum to `sumto`.
+            eignum: number of eigenvalues/eigenvectors to compute. If None, all are solved.
+            check_norm:  whether to check if the input transition matrix is properly normalized.
+            sumto: the value that each column of the transition matrix should sum to if 'check_norm' is True.
+            tol: The numerical tolerance used for normalization check.
         """
         if check_norm and not self.is_normalized(P, axis=0, sumto=sumto, tol=tol):
             if self.is_normalized(P, axis=1, sumto=sumto, tol=tol):
@@ -507,6 +547,16 @@ class MarkovChain:
         self.eignum = eignum  # if None all eigs are solved
 
     def eigsys(self, eignum=None):
+        """Compute the eigenvalues and eigenvectors of the transition matrix.
+
+        The eigenvalues and eigenvectors are stored in the class variables D, U, and W. If 'eignum' is None, the
+        function uses numpy's eig function to compute all eigenvalues and eigenvectors. Otherwise, it uses
+        sparse.linalg.eigs to compute the first 'eignum' eigenvalues and eigenvectors. The eigenvalues are sorted in
+        descending order, and the eigenvectors are arranged accordingly.
+
+        Args:
+            eignum: number of eigenvalues/eigenvectors to compute.
+        """
         if eignum is not None:
             self.eignum = eignum
         if self.eignum is None:
@@ -526,40 +576,59 @@ class MarkovChain:
             self.U /= np.linalg.norm(self.U, axis=0)
 
     def right_eigvecs_to_left(self, W, p_st):
+        """Transform right eigenvectors into left eigenvectors.
+
+        Args:
+            W: the matrix containing right eigenvectors.
+            p_st: a probability vector.
+
+        Returns:
+            The matrix containing left eigenvectors.
+        """
         U = np.diag(1 / np.abs(p_st)) @ W
         f = np.mean(np.diag(U.T @ U))
         return U / np.sqrt(f)
 
     def get_num_states(self):
+        """Get the number of states in the Markov chain.
+
+        Returns:
+            The number of states in the Markov chain.
+        """
         return self.P.shape[0]
 
     def make_p0(self, init_states):
+        """Create an initial probability distribution vector with probabilities set to 1 at specified initial states.
+
+        Args:
+            init_states: a list or array of initial states.
+
+        Returns:
+            The initial probability distribution vector.
+        """
         p0 = np.zeros(self.get_num_states())
         p0[init_states] = 1
         p0 /= np.sum(p0)
         return p0
 
     def is_normalized(self, P=None, tol=1e-3, sumto=1, axis=0, ignore_nan=True):
-        """
-        check if the matrix is properly normalized up to `tol`.
+        """check if the matrix is properly normalized up to `tol`.
 
-        Parameters
-        ----------
-            P: None or :class:`~numpy.ndarray` (default `None`)
-                The transition matrix. If None, self.P is checked instead.
-            tol: float (default 1e-3)
-                The numerical tolerance.
-            sumto: int (default: 1)
-                The value that each column/row should sum to.
-            axis: int (default: 0)
-                0 - check if the matrix is column normalized;
-                1 - check if the matrix is row normalized.
+        Args:
+            P: the transition matrix. If None, self.P is checked instead.
+            tol: the numerical tolerance.
+            sumto: the value that each column/row should sum to.
+            axis: 0 - check if the matrix is column normalized; 1 - check if the matrix is row normalized.
+
+        Returns:
+            True if the matrix is properly normalized.
         """
         P = self.P if P is None else P
         sumfunc = np.sum if not ignore_nan else np.nansum
         return np.all(np.abs(sumfunc(P, axis=axis) - sumto) < tol)
 
     def __reset__(self):
+        """Reset the class variables D, U, W, and W_inv to None."""
         self.D = None
         self.U = None
         self.W = None
