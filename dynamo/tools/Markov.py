@@ -580,7 +580,7 @@ class MarkovChain:
 
         Args:
             W: the matrix containing right eigenvectors.
-            p_st: a probability vector.
+            p_st: a probability distribution vector.
 
         Returns:
             The matrix containing left eigenvectors.
@@ -636,7 +636,17 @@ class MarkovChain:
 
 
 class KernelMarkovChain(MarkovChain):
+    """KernelMarkovChain class represents a Markov chain with kernel-based transition probabilities."""
     def __init__(self, P=None, Idx=None, n_recurse_neighbors=None):
+        """Constructor.
+
+        Args:
+            P: the transition matrix of the Markov chain.
+            Idx: the neighbor indices used for kernel computation.
+            n_recurse_neighbors: Number of recursive neighbor searches to improve kernel computation. If not None, it
+                appends the iterative neighbor indices using the function append_iterative_neighbor_indices().
+        """
+
         super().__init__(P)
         self.Kd = None
         if n_recurse_neighbors is not None and Idx is not None:
@@ -658,6 +668,23 @@ class KernelMarkovChain(MarkovChain):
         sparse_construct=True,
         sample_fraction=None,
     ):
+        """Fit the KernelMarkovChain model to the given data.
+
+        Args:
+            X: the cell data matrix which represents the states of the Markov chain.
+            V: the velocity matrix which represents the expected returns of each state in the Markov chain.
+            M_diff: the inverse covariance matrix or scalar value representing the difference matrix. It is used for
+                computing transition probabilities.
+            neighbor_idx: the neighbor indices used for kernel computation. If None, it is computed using k-NN.
+            n_recurse_neighbors: number of recursive neighbor searches to improve kernel computation. If not None, it
+                appends the iterative neighbor indices using the function append_iterative_neighbor_indices().
+            k: the number of nearest neighbors used for k-NN downsampling.
+            epsilon: the bandwidth parameter used for computing density kernel if not None.
+            adaptive_local_kernel: whether to use adaptive local kernel computation for transition probabilities.
+            tol: the numerical tolerance used for transition probability computation. Default is 1e-4.
+            sparse_construct: whether construct sparse matrices for transition matrix and density kernel.
+            sample_fraction: the fraction of neighbors used for k-NN downsampling if not None.
+        """
         # compute connectivity
         if neighbor_idx is None:
             if X.shape[0] > 200000 and X.shape[1] > 2:
@@ -744,12 +771,30 @@ class KernelMarkovChain(MarkovChain):
         self.P = sp.csc_matrix(self.P)
 
     def propagate_P(self, num_prop):
+        """Propagate the transition matrix 'P' for a given number of steps.
+
+        Args:
+            num_prop: the number of propagation steps.
+
+        Returns:
+            The propagated transition matrix after 'num_prop' steps.
+        """
         ret = sp.csc_matrix(self.P, copy=True)
         for i in range(num_prop - 1):
             ret = self.P * ret  # sparse matrix (ret) is a `np.matrix`
         return ret
 
     def compute_drift(self, X, num_prop=1, scale=True):
+        """Compute the drift for each state in the Markov chain.
+
+        Args:
+            X: the cell data matrix which represents the states of the Markov chain.
+            num_prop: the number of propagation steps used for drift computation. Default is 1.
+            scale: whether to scale the result.
+
+        Returns:
+            The computed drift values for each state in the Markov chain.
+        """
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(int(num_prop))
@@ -767,6 +812,20 @@ class KernelMarkovChain(MarkovChain):
         correct_by_mean=True,
         scale=True,
     ):
+        """Compute density-corrected drift for each state in the Markov chain.
+
+        Args:
+            X: the cell data matrix which represents the states of the Markov chain.
+            neighbor_idx: the neighbor indices used for density-corrected drift computation.
+            k: the number of nearest neighbors used for computing the mean of kernel probabilities.
+            num_prop: the number of propagation steps used for drift computation. Default is 1.
+            normalize_vector: whether to normalize the drift vector for each state.
+            correct_by_mean: whether to correct the drift by subtracting the mean kernel probability from each state's drift.
+            scale: whether to scale the result.
+
+        Returns:
+            The computed density-corrected drift values for each state in the Markov chain.
+        """
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(num_prop)
@@ -790,6 +849,11 @@ class KernelMarkovChain(MarkovChain):
         return V * 1 / V.max() if scale else V
 
     def compute_stationary_distribution(self):
+        """Compute the stationary distribution of the Markov chain.
+
+        Returns:
+            The computed stationary distribution as a probability vector.
+        """
         # if self.W is None:
         # self.eigsys()
         _, vecs = sp.linalg.eigs(self.P, k=1, which="LR")
@@ -798,6 +862,15 @@ class KernelMarkovChain(MarkovChain):
         return p
 
     def diffusion_map_embedding(self, n_dims=2, t=1):
+        """Perform diffusion map embedding for the Markov chain.
+
+        Args:
+            n_dims: the number of dimensions for the diffusion map embedding.
+            t: the diffusion time parameter used in the embedding.
+
+        Returns:
+            The diffusion map embedding of the Markov chain as a matrix.
+        """
         # if self.W is None:
         #    self.eigsys()
         vals, vecs = sp.linalg.eigs(self.P.T, k=n_dims + 1, which="LR")
@@ -806,6 +879,14 @@ class KernelMarkovChain(MarkovChain):
         return Y
 
     def compute_theta(self, p_st=None):
+        """Compute the matrix 'Theta' for the Markov chain.
+
+        Args:
+            p_st: The stationary distribution of the Markov chain.
+
+        Returns:
+            The computed matrix 'Theta' as a sparse matrix.
+        """
         p_st = self.compute_stationary_distribution() if p_st is None else p_st
         Pi = sp.csr_matrix(np.diag(np.sqrt(p_st)))
         Pi_right = sp.csc_matrix(np.diag(np.sqrt(p_st)))
