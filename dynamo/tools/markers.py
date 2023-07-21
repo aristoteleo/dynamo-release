@@ -79,7 +79,7 @@ def moran_i(
     """
 
     try:
-        import pysal
+        from pysal import explore, lib
     except ImportError:
         raise ImportError(
             "You need to install the package `pysal`."
@@ -118,9 +118,9 @@ def moran_i(
     adj_dict = {i: row.indices for i, row in enumerate(neighbor_graph)}
     if weighted:
         weight_dict = {i: row.data for i, row in enumerate(neighbor_graph)}
-        W = pysal.lib.weights.W(adj_dict, weight_dict)
+        W = lib.weights.W(adj_dict, weight_dict)
     else:
-        W = pysal.lib.weights.W(adj_dict)
+        W = lib.weights.W(adj_dict)
 
     sparse = issparse(X_data)
 
@@ -133,7 +133,7 @@ def moran_i(
         l_moran = np.zeros(X_data.shape)
     for cur_g in tqdm(range(gene_num), desc="Moran’s I Global Autocorrelation Statistic"):
         cur_X = X_data[:, cur_g].A if sparse else X_data[:, cur_g]
-        mbi = pysal.explore.esda.moran.Moran(cur_X, W, two_tailed=False)
+        mbi = explore.esda.moran.Moran(cur_X, W, two_tailed=False)
 
         Moran_I[cur_g] = mbi.I
         p_value[cur_g] = (
@@ -143,7 +143,7 @@ def moran_i(
             mbi.z_sim if assumption == "permutation" else mbi.z_norm if assumption == "normality" else mbi.z_sim
         )
         if local_moran:
-            l_moran[:, cur_g] = pysal.explore.esda.moran.Moran_Local(cur_X, W).Is
+            l_moran[:, cur_g] = explore.esda.moran.Moran_Local(cur_X, W).Is
 
     Moran_res = pd.DataFrame(
         {
