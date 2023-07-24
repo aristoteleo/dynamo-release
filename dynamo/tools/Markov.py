@@ -900,7 +900,16 @@ class KernelMarkovChain(MarkovChain):
 
 
 class DiscreteTimeMarkovChain(MarkovChain):
+    """DiscreteTimeMarkovChain class represents a discrete-time Markov chain."""
     def __init__(self, P=None, eignum=None, sumto=1, **kwargs):
+        """Constructor.
+
+        Args:
+            P: the transition matrix of the Markov chain.
+            eignum: number of eigenvalues/eigenvectors to compute.
+            sumto: the value that each column of the transition matrix should sum to.
+            **kwargs: additional keyword arguments to be passed to the base class MarkovChain's constructor.
+        """
         super().__init__(P, eignum=eignum, sumto=sumto, **kwargs)
         # self.Kd = None
 
@@ -956,12 +965,29 @@ class DiscreteTimeMarkovChain(MarkovChain):
                 self.P[Idx[i], i] = p"""
 
     def propagate_P(self, num_prop):
+        """Propagate the transition matrix 'P' for a given number of steps.
+
+        Args:
+            num_prop: the number of propagation steps.
+
+        Returns:
+            The propagated transition matrix after 'num_prop' steps.
+        """
         ret = np.array(self.P, copy=True)
         for _ in range(num_prop - 1):
             ret = self.P @ ret
         return ret
 
     def compute_drift(self, X, num_prop=1):
+        """Compute the drift for each state in the Markov chain.
+
+        Args:
+            X: the data matrix which represents the states of the Markov chain.
+            num_prop: the number of propagation steps used for drift computation. Default is 1.
+
+        Returns:
+            The computed drift values for each state in the Markov chain.
+        """
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(num_prop)
@@ -970,6 +996,16 @@ class DiscreteTimeMarkovChain(MarkovChain):
         return V
 
     def compute_density_corrected_drift(self, X, k=None, normalize_vector=False):
+        """Compute density-corrected drift for each state in the Markov chain.
+
+        Args:
+            X: the data matrix whicj represents the states of the Markov chain.
+            k: the number of nearest neighbors used for computing the mean of kernel probabilities.
+            normalize_vector: whether to normalize the drift vector for each state.
+
+        Returns:
+            The computed density-corrected drift values for each state in the Markov chain.
+        """
         n = self.get_num_states()
         if k is None:
             k = n
@@ -982,6 +1018,16 @@ class DiscreteTimeMarkovChain(MarkovChain):
         return V
 
     def solve_distribution(self, p0, n, method="naive"):
+        """Solve the distribution for the Markov chain.
+
+        Args:
+            p0: the initial probability distribution vector.
+            n: the number of steps for distribution propagation.
+            method: the method used for solving the distribution.
+
+        Returns:
+            The computed probability distribution vector after 'n' steps.
+        """
         if method == "naive":
             p = p0
             for _ in range(n):
@@ -993,6 +1039,14 @@ class DiscreteTimeMarkovChain(MarkovChain):
         return p
 
     def compute_stationary_distribution(self, method="eig"):
+        """Compute the stationary distribution of the Markov chain.
+
+        Args:
+            method: the method used for computing the stationary distribution.
+
+        Returns:
+            The computed stationary distribution as a probability vector.
+        """
         if method == "solve":
             p = np.real(null_space(self.P - np.eye(self.P.shape[0])[:, 0])[:, 0].flatten())
         else:
@@ -1003,9 +1057,15 @@ class DiscreteTimeMarkovChain(MarkovChain):
         return p
 
     def lump(self, labels, M_weight=None):
-        """
-        Markov chain lumping based on:
-        K. Hoffmanna and P. Salamon, Bounding the lumping error in Markov chain dynamics, Appl Math Lett, (2009)
+        """Markov chain lumping based on:
+            K. Hoffmanna and P. Salamon, Bounding the lumping error in Markov chain dynamics, Appl Math Lett, (2009)
+
+        Args:
+            labels: the lumping labels.
+            M_weight: the weighting matrix. If None, it is computed using the stationary distribution.
+
+        Returns:
+            The lumped transition matrix after the lumping operation.
         """
         k = len(labels)
         M_part = np.zeros((k, self.get_num_states()))
@@ -1023,6 +1083,15 @@ class DiscreteTimeMarkovChain(MarkovChain):
         return P_lumped
 
     def naive_lump(self, x, grp):
+        """Perform naive Markov chain lumping based on given data and group labels.
+
+        Args:
+            x: the data matrix.
+            grp: the group labels.
+
+        Returns:
+            The lumped transition matrix after the lumping operation.
+        """
         k = len(np.unique(grp))
         y = np.zeros((k, k))
         for i in range(len(y)):
@@ -1032,6 +1101,15 @@ class DiscreteTimeMarkovChain(MarkovChain):
         return y
 
     def diffusion_map_embedding(self, n_dims=2, t=1):
+        """Perform diffusion map embedding for the Markov chain.
+
+        Args:
+            n_dims: the number of dimensions for the diffusion map embedding.
+            t: the diffusion time parameter used in the embedding.
+
+        Returns:
+            The diffusion map embedding of the Markov chain as a matrix of shape (n_states, n_dims).
+        """
         if self.W is None:
             self.eigsys()
 
@@ -1040,6 +1118,15 @@ class DiscreteTimeMarkovChain(MarkovChain):
         return Y
 
     def simulate_random_walk(self, init_idx, num_steps):
+        """Simulate a random walk on the Markov chain from a given initial state.
+
+        Args:
+            init_idx: the index of the initial state for the random walk.
+            num_steps: the number of steps for the random walk.
+
+        Returns:
+            The sequence of state indices resulting from the random walk.
+        """
         P = self.P.copy()
 
         seq = np.ones(num_steps + 1, dtype=int) * -1
@@ -1053,13 +1140,33 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
 
 class ContinuousTimeMarkovChain(MarkovChain):
+    """ContinuousTimeMarkovChain class represents a continuous-time Markov chain."""
     def __init__(self, P=None, eignum=None, **kwargs):
+        """Constructor.
+
+        Args:
+            P: the transition matrix of the Markov chain.
+            eignum: number of eigenvalues/eigenvectors to compute.
+            **kwargs: additional keyword arguments to be passed to the base class MarkovChain's constructor.
+        """
         super().__init__(P, eignum=eignum, sumto=0, **kwargs)
         self.Q = None  # embedded markov chain transition matrix
         self.Kd = None  # density kernel for density adjustment
         self.p_st = None  # stationary distribution
 
     def check_transition_rate_matrix(self, P, tol=1e-6):
+        """Check if the input matrix is a valid transition rate matrix.
+
+        Args:
+            P: the transition rate matrix to be checked.
+            tol: tolerance threshold for zero row- or column-sum check.
+
+        Returns:
+            The checked transition rate matrix.
+
+        Raises:
+            ValueError: If the input transition rate matrix has non-zero row- and column-sums.
+        """
         if np.any(flatten(np.abs(np.sum(P, 0))) <= tol):
             return P
         elif np.any(flatten(np.abs(np.sum(P, 1))) <= tol):
@@ -1068,6 +1175,17 @@ class ContinuousTimeMarkovChain(MarkovChain):
             raise ValueError("The input transition rate matrix must have a zero row- or column-sum.")
 
     def compute_drift(self, X, t, n_top=5, normalize_vector=False):
+        """Compute the drift for each state in the continuous-time Markov chain.
+
+        Args:
+            X: the data matrix of shape which represents the states of the Markov chain.
+            t: the time at which the drift is computed.
+            n_top: the number of top states to consider for drift computation.
+            normalize_vector: whether to normalize the drift vector for each state.
+
+        Returns:
+            The computed drift values for each state in the continuous-time Markov chain.
+        """
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.compute_transition_matrix(t)
@@ -1089,6 +1207,17 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return V
 
     def compute_density_corrected_drift(self, X, t, k=None, normalize_vector=False):
+        """Compute density-corrected drift for each state in the continuous-time Markov chain.
+
+        Args:
+            X: the data matrix of shape which represents the states of the Markov chain.
+            t: the time at which the density-corrected drift is computed.
+            k: the number of nearest neighbors used for computing the correction term.
+            normalize_vector: whether to normalize the drift vector for each state.
+
+        Returns:
+            The computed density-corrected drift values for each state in the continuous-time Markov chain.
+        """
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.compute_transition_matrix(t)
@@ -1103,12 +1232,26 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return V
 
     def compute_transition_matrix(self, t):
+        """Compute the transition matrix for a given time.
+
+        Args:
+            t: the time at which the transition matrix is computed.
+
+        Returns:
+            The computed transition matrix.
+        """
+
         if self.D is None:
             self.eigsys()
         P = np.real(self.W @ np.diag(np.exp(self.D * t)) @ self.W_inv)
         return P
 
     def compute_embedded_transition_matrix(self):
+        """Compute the embedded Markov chain transition matrix.
+
+        Returns:
+            The computed embedded Markov chain transition matrix.
+        """
         self.Q = np.array(self.P, copy=True)
         for i in range(self.Q.shape[1]):
             self.Q[i, i] = 0
@@ -1116,12 +1259,29 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return self.Q
 
     def solve_distribution(self, p0, t):
+        """Solve the distribution for the continuous-time Markov chain at a given time.
+
+        Args:
+            p0: the initial probability distribution vector.
+            t: the time at which the distribution is solved.
+
+        Returns:
+            The computed probability distribution vector at time.
+        """
         P = self.compute_transition_matrix(t)
         p = P @ p0
         p = p / np.sum(p)
         return p
 
     def compute_stationary_distribution(self, method="eig"):
+        """Compute the stationary distribution of the continuous-time Markov chain.
+
+        Args:
+            method: the method used for computing the stationary distribution.
+
+        Returns:
+            The computed stationary distribution of the continuous-time Markov chain.
+        """
         if self.p_st is None:
             if method == "null":
                 p = np.abs(np.real(null_space(self.P)[:, 0].flatten()))
@@ -1136,6 +1296,17 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return self.p_st
 
     def simulate_random_walk(self, init_idx, tspan):
+        """Simulate a random walk on the continuous-time Markov chain from a given initial state.
+
+        Args:
+            init_idx: the index of the initial state for the random walk.
+            tspan: the time span for the random walk as a 1D array.
+
+        Returns:
+            A tuple containing two arrays:
+                The value at each time point.
+                The corresponding time points during the random walk.
+        """
         P = self.P.copy()
 
         def prop_func(c):
@@ -1151,11 +1322,17 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return C, T
 
     def compute_mean_exit_time(self, p0, sinks):
-        """
-        compute the mean exit time given a initial distribution p0 and a set of sink nodes using:
+        """Compute the mean exit time given a initial distribution p0 and a set of sink nodes using:
             met = inv(K) @ p0_
         where K is the transition rate matrix (P) where the columns and rows corresponding to the sinks are removed,
         and p0_ the initial distribution w/o the sinks.
+
+        Args:
+            p0: the initial probability distribution vector.
+            sinks: the indices of the sink nodes.
+
+        Returns:
+            The computed mean exit time.
         """
         states = []
         for i in range(self.get_num_states()):
@@ -1167,6 +1344,16 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return met
 
     def compute_mean_first_passage_time(self, p0, target, sinks):
+        """Compute the mean first passage time given an initial distribution, a target node, and a set of sink nodes.
+
+        Args:
+            p0: the initial probability distribution vector of shape (n_states,).
+            target: the index of the target node.
+            sinks: the indices of the sink nodes.
+
+        Returns:
+            The computed mean first passage time.
+        """
         states = []
         all_sinks = np.hstack((target, sinks))
         for i in range(self.get_num_states()):
@@ -1185,6 +1372,15 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return mfpt
 
     def compute_hitting_time(self, p_st=None, return_Z=False):
+        """Compute the hitting time of the continuous-time Markov chain.
+
+        Args:
+            p_st: the stationary distribution of the continuous-time Markov chain.
+            return_Z: whether to return the matrix Z in addition to the hitting time matrix.
+
+        Returns:
+            The computed hitting time matrix.
+        """
         p_st = self.compute_stationary_distribution() if p_st is None else p_st
         n_nodes = len(p_st)
         W = np.ones((n_nodes, 1)) * p_st
@@ -1198,6 +1394,16 @@ class ContinuousTimeMarkovChain(MarkovChain):
             return H
 
     def diffusion_map_embedding(self, n_dims=2, t=1, n_pca_dims=None):
+        """Perform diffusion map embedding for the continuous-time Markov chain.
+
+        Args:
+            n_dims: the number of dimensions for the diffusion map embedding.
+            t: the diffusion time parameter used in the embedding.
+            n_pca_dims: the number of dimensions for PCA before diffusion map embedding.
+
+        Returns:
+            The diffusion map embedding of the continuous-time Markov chain.
+        """
         if self.D is None:
             self.eigsys()
 
