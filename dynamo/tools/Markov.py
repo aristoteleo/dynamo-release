@@ -1,5 +1,5 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
-from typing import Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy.sparse as sp
@@ -44,7 +44,7 @@ def markov_combination(x: np.ndarray, v: np.ndarray, X: np.ndarray) -> Tuple:
 
 
 def compute_markov_trans_prob(
-        x: np.ndarray, v: np.ndarray, X: np.ndarray, s: Optional[np.ndarray] = None, cont_time: bool = False
+    x: np.ndarray, v: np.ndarray, X: np.ndarray, s: Optional[np.ndarray] = None, cont_time: bool = False
 ) -> np.ndarray:
     """Calculate the Markov transition probabilities by solving a 'cvxopt' library quadratic programming (QP) problem,
     which is defined as:
@@ -95,7 +95,9 @@ def compute_markov_trans_prob(
 
 
 @jit(nopython=True)
-def compute_kernel_trans_prob(x, v, X, inv_s, cont_time=False):
+def compute_kernel_trans_prob(
+    x: np.ndarray, v: np.ndarray, X:np.ndarray, inv_s: Union[np.ndarray, float], cont_time: bool = False
+) -> np.ndarray:
     """Compute the transition probabilities using the kernel method.
 
     Args:
@@ -118,7 +120,7 @@ def compute_kernel_trans_prob(x, v, X, inv_s, cont_time=False):
 
 
 # @jit(nopython=True)
-def compute_drift_kernel(x, v, X, inv_s):
+def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X:np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
     """Compute the drift kernel values for each state in the Markov chain.
 
     Args:
@@ -166,7 +168,7 @@ def compute_drift_kernel(x, v, X, inv_s):
 
 
 # @jit(nopython=True)
-def compute_drift_local_kernel(x, v, X, inv_s):
+def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X:np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
     """Compute the drift local kernel values.
 
     Args:
@@ -208,7 +210,7 @@ def compute_drift_local_kernel(x, v, X, inv_s):
 
 
 @jit(nopython=True)
-def compute_density_kernel(x, X, inv_eps):
+def compute_density_kernel(x: np.ndarray, X: np.ndarray, inv_eps: float) -> np.ndarray:
     """Compute the density kernel values.
 
     Args:
@@ -228,7 +230,7 @@ def compute_density_kernel(x, X, inv_eps):
 
 
 @jit(nopython=True)
-def makeTransitionMatrix(Qnn, I_vec, tol=0.0):  # Qnn, I, tol=0.0
+def makeTransitionMatrix(Qnn: np.ndarray, I_vec: np.ndarray, tol: float = 0.0) -> np.ndarray:  # Qnn, I, tol=0.0
     """Create the transition matrix based on the non-negative rate matrix `Qnn` and the indexing vector `I_vec`.
 
     Args:
@@ -251,7 +253,7 @@ def makeTransitionMatrix(Qnn, I_vec, tol=0.0):  # Qnn, I, tol=0.0
 
 
 @jit(nopython=True)
-def compute_tau(X, V, k=100, nbr_idx=None):
+def compute_tau(X: np.ndarray, V: np.ndarray, k: int = 100, nbr_idx: Optional[np.ndarray] = None) -> Tuple:
     """Compute the tau values for each state in `X` based on the local density and velocity magnitudes.
 
     Args:
@@ -295,12 +297,12 @@ def compute_tau(X, V, k=100, nbr_idx=None):
 
 
 def prepare_velocity_grid_data(
-    X_emb,
-    xy_grid_nums,
-    density=None,
-    smooth=None,
-    n_neighbors=None,
-):
+    X_emb: np.ndarray,
+    xy_grid_nums: List,
+    density: Optional[int] = None,
+    smooth: Optional[float] = None,
+    n_neighbors: Optional[int] = None,
+) -> Tuple:
     """Prepare the velocity grid data.
 
     Args:
@@ -363,16 +365,16 @@ def prepare_velocity_grid_data(
 
 
 def grid_velocity_filter(
-    V_emb,
-    neighs,
-    p_mass,
-    X_grid,
-    V_grid,
-    min_mass=None,
-    autoscale=False,
-    adjust_for_stream=True,
-    V_threshold=None,
-):
+    V_emb: np.ndarray,
+    neighs: np.ndarray,
+    p_mass: np.ndarray,
+    X_grid: np.ndarray,
+    V_grid: np.ndarray,
+    min_mass: Optional[float] = None,
+    autoscale: bool = False,
+    adjust_for_stream: bool = True,
+    V_threshold: Optional[float]=None,
+) -> Tuple:
     """Filter the grid velocities, adjusting for streamlines if needed.
 
     Args:
@@ -427,18 +429,18 @@ def grid_velocity_filter(
 
 
 def velocity_on_grid(
-    X_emb,
-    V_emb,
-    xy_grid_nums,
-    density=None,
-    smooth=None,
-    n_neighbors=None,
-    min_mass=None,
-    autoscale=False,
-    adjust_for_stream=True,
-    V_threshold=None,
-    cut_off_velocity=True,
-):
+    X_emb: np.ndarray,
+    V_emb: np.ndarray,
+    xy_grid_nums: List,
+    density: Optional[int] = None,
+    smooth: Optional[float] = None,
+    n_neighbors: Optional[int] = None,
+    min_mass: Optional[float] = None,
+    autoscale: bool = False,
+    adjust_for_stream: bool = True,
+    V_threshold: Optional[float] = None,
+    cut_off_velocity: bool = True,
+) -> Tuple:
     """Function to calculate the velocity vectors on a grid for grid vector field quiver plot and streamplot, adapted
     from scVelo.
 
@@ -503,7 +505,14 @@ def velocity_on_grid(
 
 
 # we might need a separate module/file for discrete vector field and markovian methods in the future
-def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None):
+def graphize_velocity(
+    V: np.ndarray,
+    X: np.ndarray,
+    nbrs_idx: Optional[list] = None,
+    k: int = 30,
+    normalize_v: bool = False,
+    E_func: Optional[Union[Callable, str]]=None
+) -> Tuple:
     """The function generates a graph based on the velocity data. The flow from i- to j-th
     node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
 
@@ -585,7 +594,7 @@ def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None)
     return E, nbrs_idx
 
 
-def calc_Laplacian(E, convention="graph"):
+def calc_Laplacian(E: np.ndarray, convention: str = "graph") -> np.ndarray:
     """Calculate the Laplacian matrix of a given matrix of edge weights.
 
     Args:
@@ -607,7 +616,7 @@ def calc_Laplacian(E, convention="graph"):
     return L
 
 
-def fp_operator(E, D):
+def fp_operator(E: np.ndarray, D: Union[int, float]) -> np.ndarray:
     """Calculate the Fokker-Planck operator based on the given matrix of edge weights (E) and diffusion coefficient (D).
 
     Args:
@@ -627,7 +636,7 @@ def fp_operator(E, D):
     return -Mu + D * L
 
 
-def divergence(E, tol=1e-5):
+def divergence(E: np.ndarray, tol: float = 1e-5) -> np.ndarray:
     """Calculate the divergence for each node in a given matrix of edge weights.
 
     Args:
