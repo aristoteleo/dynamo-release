@@ -659,7 +659,14 @@ def divergence(E: np.ndarray, tol: float = 1e-5) -> np.ndarray:
 
 class MarkovChain:
     """Base class for all Markov Chain implementation."""
-    def __init__(self, P=None, eignum=None, check_norm=True, sumto=1, tol=1e-3):
+    def __init__(
+        self,
+        P: Optional[np.ndarray] = None,
+        eignum: Optional[int] = None,
+        check_norm: bool = True,
+        sumto: int = 1,
+        tol: float = 1e-3
+    ) -> None:
         """Constructor.
 
         Args:
@@ -688,7 +695,7 @@ class MarkovChain:
         self.W_inv = None
         self.eignum = eignum  # if None all eigs are solved
 
-    def eigsys(self, eignum=None):
+    def eigsys(self, eignum: Optional[int] = None) -> None:
         """Compute the eigenvalues and eigenvectors of the transition matrix.
 
         The eigenvalues and eigenvectors are stored in the class variables D, U, and W. If 'eignum' is None, the
@@ -717,7 +724,7 @@ class MarkovChain:
             self.W_inv = self.U.T.copy()
             self.U /= np.linalg.norm(self.U, axis=0)
 
-    def right_eigvecs_to_left(self, W, p_st):
+    def right_eigvecs_to_left(self, W: np.ndarray, p_st:np.ndarray) -> np.ndarray:
         """Transform right eigenvectors into left eigenvectors.
 
         Args:
@@ -731,7 +738,7 @@ class MarkovChain:
         f = np.mean(np.diag(U.T @ U))
         return U / np.sqrt(f)
 
-    def get_num_states(self):
+    def get_num_states(self) -> float:
         """Get the number of states in the Markov chain.
 
         Returns:
@@ -739,7 +746,7 @@ class MarkovChain:
         """
         return self.P.shape[0]
 
-    def make_p0(self, init_states):
+    def make_p0(self, init_states: np.ndarray) -> np.ndarray:
         """Create an initial probability distribution vector with probabilities set to 1 at specified initial states.
 
         Args:
@@ -753,7 +760,14 @@ class MarkovChain:
         p0 /= np.sum(p0)
         return p0
 
-    def is_normalized(self, P=None, tol=1e-3, sumto=1, axis=0, ignore_nan=True):
+    def is_normalized(
+        self,
+        P: Optional[np.ndarray] = None,
+        tol: float = 1e-3,
+        sumto: int = 1,
+        axis: int = 0,
+        ignore_nan: bool = True
+    ) -> bool:
         """check if the matrix is properly normalized up to `tol`.
 
         Args:
@@ -769,7 +783,7 @@ class MarkovChain:
         sumfunc = np.sum if not ignore_nan else np.nansum
         return np.all(np.abs(sumfunc(P, axis=axis) - sumto) < tol)
 
-    def __reset__(self):
+    def __reset__(self) -> None:
         """Reset the class variables D, U, W, and W_inv to None."""
         self.D = None
         self.U = None
@@ -779,7 +793,12 @@ class MarkovChain:
 
 class KernelMarkovChain(MarkovChain):
     """KernelMarkovChain class represents a Markov chain with kernel-based transition probabilities."""
-    def __init__(self, P=None, Idx=None, n_recurse_neighbors=None):
+    def __init__(
+        self,
+        P: Optional[np.ndarray] = None,
+        Idx: Optional[np.ndarray] = None,
+        n_recurse_neighbors: Optional[int] = None
+    ) -> None:
         """Constructor.
 
         Args:
@@ -798,17 +817,17 @@ class KernelMarkovChain(MarkovChain):
 
     def fit(
         self,
-        X,
-        V,
-        M_diff,
-        neighbor_idx=None,
-        n_recurse_neighbors=None,
-        k=30,
-        epsilon=None,
-        adaptive_local_kernel=False,
-        tol=1e-4,
-        sparse_construct=True,
-        sample_fraction=None,
+        X: np.ndarray,
+        V: np.ndarray,
+        M_diff: Union[np.ndarray, float],
+        neighbor_idx: Optional[np.ndarray] = None,
+        n_recurse_neighbors: Optional[int] = None,
+        k: int = 30,
+        epsilon: Optional[float] = None,
+        adaptive_local_kernel: bool = False,
+        tol: float = 1e-4,
+        sparse_construct: bool = True,
+        sample_fraction: float = None,
     ):
         """Fit the KernelMarkovChain model to the given data.
 
@@ -912,7 +931,7 @@ class KernelMarkovChain(MarkovChain):
 
         self.P = sp.csc_matrix(self.P)
 
-    def propagate_P(self, num_prop):
+    def propagate_P(self, num_prop: int) -> sp.csc_matrix:
         """Propagate the transition matrix 'P' for a given number of steps.
 
         Args:
@@ -926,7 +945,7 @@ class KernelMarkovChain(MarkovChain):
             ret = self.P * ret  # sparse matrix (ret) is a `np.matrix`
         return ret
 
-    def compute_drift(self, X, num_prop=1, scale=True):
+    def compute_drift(self, X: np.ndarray, num_prop: int = 1, scale: bool = True) -> np.ndarray:
         """Compute the drift for each state in the Markov chain.
 
         Args:
@@ -946,14 +965,14 @@ class KernelMarkovChain(MarkovChain):
 
     def compute_density_corrected_drift(
         self,
-        X,
-        neighbor_idx=None,
-        k=None,
-        num_prop=1,
-        normalize_vector=False,
-        correct_by_mean=True,
-        scale=True,
-    ):
+        X: np.ndarray,
+        neighbor_idx: Optional[np.ndarray] = None,
+        k: Optional[int] = None,
+        num_prop: int = 1,
+        normalize_vector: bool = False,
+        correct_by_mean: bool = True,
+        scale: bool = True,
+    ) -> np.ndarray:
         """Compute density-corrected drift for each state in the Markov chain.
 
         Args:
@@ -990,7 +1009,7 @@ class KernelMarkovChain(MarkovChain):
             V[i] = D.T.dot(p)
         return V * 1 / V.max() if scale else V
 
-    def compute_stationary_distribution(self):
+    def compute_stationary_distribution(self) -> np.ndarray:
         """Compute the stationary distribution of the Markov chain.
 
         Returns:
@@ -1003,7 +1022,7 @@ class KernelMarkovChain(MarkovChain):
         p = p / np.sum(p)
         return p
 
-    def diffusion_map_embedding(self, n_dims=2, t=1):
+    def diffusion_map_embedding(self, n_dims: int = 2, t: int = 1) -> np.ndarray:
         """Perform diffusion map embedding for the Markov chain.
 
         Args:
@@ -1020,7 +1039,7 @@ class KernelMarkovChain(MarkovChain):
         Y = np.real(vals[ind] ** t) * np.real(vecs[:, ind])
         return Y
 
-    def compute_theta(self, p_st=None):
+    def compute_theta(self, p_st: Optional[np.ndarray] = None) -> sp.csr_matrix:
         """Compute the matrix 'Theta' for the Markov chain.
 
         Args:
@@ -1043,7 +1062,7 @@ class KernelMarkovChain(MarkovChain):
 
 class DiscreteTimeMarkovChain(MarkovChain):
     """DiscreteTimeMarkovChain class represents a discrete-time Markov chain."""
-    def __init__(self, P=None, eignum=None, sumto=1, **kwargs):
+    def __init__(self, P: Optional[np.ndarray] = None, eignum: Optional[int] = None, sumto: int = 1, **kwargs) -> None:
         """Constructor.
 
         Args:
@@ -1106,7 +1125,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
                 p = p / np.sum(p)
                 self.P[Idx[i], i] = p"""
 
-    def propagate_P(self, num_prop):
+    def propagate_P(self, num_prop: int) -> np.ndarray:
         """Propagate the transition matrix 'P' for a given number of steps.
 
         Args:
@@ -1120,7 +1139,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
             ret = self.P @ ret
         return ret
 
-    def compute_drift(self, X, num_prop=1):
+    def compute_drift(self, X: np.ndarray, num_prop: int = 1) -> np.ndarray:
         """Compute the drift for each state in the Markov chain.
 
         Args:
@@ -1137,7 +1156,9 @@ class DiscreteTimeMarkovChain(MarkovChain):
             V[i] = (X - X[i]).T.dot(P[:, i])
         return V
 
-    def compute_density_corrected_drift(self, X, k=None, normalize_vector=False):
+    def compute_density_corrected_drift(
+        self, X: np.ndarray, k: Optional[int] = None, normalize_vector: bool = False
+    ) -> np.ndarray:
         """Compute density-corrected drift for each state in the Markov chain.
 
         Args:
@@ -1159,7 +1180,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
             V[i] = d.T.dot(self.P[:, i] - 1 / k)
         return V
 
-    def solve_distribution(self, p0, n, method="naive"):
+    def solve_distribution(self, p0: np.ndarray, n: int, method: str = "naive") -> np.ndarray:
         """Solve the distribution for the Markov chain.
 
         Args:
@@ -1180,7 +1201,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
             p = np.real(self.W @ np.diag(self.D**n) @ np.linalg.inv(self.W)).dot(p0)
         return p
 
-    def compute_stationary_distribution(self, method="eig"):
+    def compute_stationary_distribution(self, method: str = "eig") -> np.ndarray:
         """Compute the stationary distribution of the Markov chain.
 
         Args:
@@ -1198,7 +1219,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
         p = p / np.sum(p)
         return p
 
-    def lump(self, labels, M_weight=None):
+    def lump(self, labels: np.ndarray, M_weight: Optional[np.ndarray] = None) -> np.ndarray:
         """Markov chain lumping based on:
             K. Hoffmanna and P. Salamon, Bounding the lumping error in Markov chain dynamics, Appl Math Lett, (2009)
 
@@ -1224,7 +1245,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
         return P_lumped
 
-    def naive_lump(self, x, grp):
+    def naive_lump(self, x: np.ndarray, grp: np.ndarray) -> np.ndarray:
         """Perform naive Markov chain lumping based on given data and group labels.
 
         Args:
@@ -1242,7 +1263,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
         return y
 
-    def diffusion_map_embedding(self, n_dims=2, t=1):
+    def diffusion_map_embedding(self, n_dims: int = 2, t: int = 1) -> np.ndarray:
         """Perform diffusion map embedding for the Markov chain.
 
         Args:
@@ -1259,7 +1280,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
         Y = np.real(self.D[ind] ** t) * np.real(self.U[:, ind])
         return Y
 
-    def simulate_random_walk(self, init_idx, num_steps):
+    def simulate_random_walk(self, init_idx: int, num_steps: int) -> np.ndarray:
         """Simulate a random walk on the Markov chain from a given initial state.
 
         Args:
@@ -1283,7 +1304,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
 class ContinuousTimeMarkovChain(MarkovChain):
     """ContinuousTimeMarkovChain class represents a continuous-time Markov chain."""
-    def __init__(self, P=None, eignum=None, **kwargs):
+    def __init__(self, P: Optional[np.ndarray] = None, eignum: Optional[int] = None, **kwargs) -> None:
         """Constructor.
 
         Args:
@@ -1296,7 +1317,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         self.Kd = None  # density kernel for density adjustment
         self.p_st = None  # stationary distribution
 
-    def check_transition_rate_matrix(self, P, tol=1e-6):
+    def check_transition_rate_matrix(self, P: np.ndarray, tol: float = 1e-6) -> np.ndarray:
         """Check if the input matrix is a valid transition rate matrix.
 
         Args:
@@ -1316,7 +1337,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         else:
             raise ValueError("The input transition rate matrix must have a zero row- or column-sum.")
 
-    def compute_drift(self, X, t, n_top=5, normalize_vector=False):
+    def compute_drift(self, X: np.ndarray, t: float, n_top: int = 5, normalize_vector: bool = False) -> np.ndarray:
         """Compute the drift for each state in the continuous-time Markov chain.
 
         Args:
@@ -1348,7 +1369,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
                 # V[i] = d.dot(q)
         return V
 
-    def compute_density_corrected_drift(self, X, t, k=None, normalize_vector=False):
+    def compute_density_corrected_drift(
+        self, X: np.ndarray, t: float, k: Optional[int] = None, normalize_vector: bool = False
+    ) -> np.ndarray:
         """Compute density-corrected drift for each state in the continuous-time Markov chain.
 
         Args:
@@ -1373,7 +1396,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
             V[i] = d.T.dot(P[:, i] - correction)
         return V
 
-    def compute_transition_matrix(self, t):
+    def compute_transition_matrix(self, t: float) -> np.ndarray:
         """Compute the transition matrix for a given time.
 
         Args:
@@ -1388,7 +1411,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         P = np.real(self.W @ np.diag(np.exp(self.D * t)) @ self.W_inv)
         return P
 
-    def compute_embedded_transition_matrix(self):
+    def compute_embedded_transition_matrix(self) -> np.ndarray:
         """Compute the embedded Markov chain transition matrix.
 
         Returns:
@@ -1400,7 +1423,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
             self.Q[:, i] /= np.sum(self.Q[:, i])
         return self.Q
 
-    def solve_distribution(self, p0, t):
+    def solve_distribution(self, p0: np.ndarray, t: float) -> np.ndarray:
         """Solve the distribution for the continuous-time Markov chain at a given time.
 
         Args:
@@ -1415,7 +1438,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         p = p / np.sum(p)
         return p
 
-    def compute_stationary_distribution(self, method="eig"):
+    def compute_stationary_distribution(self, method: str = "eig"):
         """Compute the stationary distribution of the continuous-time Markov chain.
 
         Args:
@@ -1437,7 +1460,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
                 self.p_st = p
         return self.p_st
 
-    def simulate_random_walk(self, init_idx, tspan):
+    def simulate_random_walk(self, init_idx: int, tspan: np.ndarray) -> Tuple:
         """Simulate a random walk on the continuous-time Markov chain from a given initial state.
 
         Args:
@@ -1463,7 +1486,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
 
         return C, T
 
-    def compute_mean_exit_time(self, p0, sinks):
+    def compute_mean_exit_time(self, p0: np.ndarray, sinks: np.ndarray) -> float:
         """Compute the mean exit time given a initial distribution p0 and a set of sink nodes using:
             met = inv(K) @ p0_
         where K is the transition rate matrix (P) where the columns and rows corresponding to the sinks are removed,
@@ -1485,7 +1508,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         met = np.sum(-np.linalg.inv(K) @ p0_)
         return met
 
-    def compute_mean_first_passage_time(self, p0, target, sinks):
+    def compute_mean_first_passage_time(self, p0: np.ndarray, target: int, sinks: np.ndarray) -> float:
         """Compute the mean first passage time given an initial distribution, a target node, and a set of sink nodes.
 
         Args:
@@ -1513,7 +1536,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         mfpt = -(k @ (K_inv @ K_inv @ p0_)) / (k @ (K_inv @ p0_))
         return mfpt
 
-    def compute_hitting_time(self, p_st=None, return_Z=False):
+    def compute_hitting_time(self, p_st: Optional[np.ndarray] = None, return_Z: bool = False) -> Union[Tuple, np.ndarray]:
         """Compute the hitting time of the continuous-time Markov chain.
 
         Args:
@@ -1535,7 +1558,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         else:
             return H
 
-    def diffusion_map_embedding(self, n_dims=2, t=1, n_pca_dims=None):
+    def diffusion_map_embedding(self, n_dims: int = 2, t: Union[int, float] = 1, n_pca_dims: Optional[int] = None) -> np.ndarray:
         """Perform diffusion map embedding for the continuous-time Markov chain.
 
         Args:
