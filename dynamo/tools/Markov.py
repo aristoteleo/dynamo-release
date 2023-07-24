@@ -96,6 +96,18 @@ def compute_markov_trans_prob(
 
 @jit(nopython=True)
 def compute_kernel_trans_prob(x, v, X, inv_s, cont_time=False):
+    """Compute the transition probabilities using the kernel method.
+
+    Args:
+        x: the cell data matrix.
+        v: the velocity data matrix.
+        X: the neighbors data matrix.
+        inv_s: the inverse of the diffusion matrix or a scalar value.
+        cont_time: whether to use continuous-time kernel computation.
+
+    Returns:
+        The computed transition probabilities for each state in the Markov chain.
+    """
     n = X.shape[0]
     p = np.zeros(n)
     for i in range(n):
@@ -107,6 +119,17 @@ def compute_kernel_trans_prob(x, v, X, inv_s, cont_time=False):
 
 # @jit(nopython=True)
 def compute_drift_kernel(x, v, X, inv_s):
+    """Compute the drift kernel values for each state in the Markov chain.
+
+    Args:
+        x: the cell data matrix.
+        v: the velocity data matrix.
+        X: the neighbors data matrix.
+        inv_s: the inverse of the diffusion matrix or a scalar value.
+
+    Returns:
+        The computed drift kernel values for each state in the Markov chain.
+    """
     n = X.shape[0]
     k = np.zeros(n)
     for i in range(n):
@@ -144,6 +167,17 @@ def compute_drift_kernel(x, v, X, inv_s):
 
 # @jit(nopython=True)
 def compute_drift_local_kernel(x, v, X, inv_s):
+    """Compute the drift local kernel values.
+
+    Args:
+        x: the cell data matrix.
+        v: the velocity data matrix.
+        X: the neighbors data matrix.
+        inv_s: the inverse of the diffusion matrix or a scalar value.
+
+    Returns:
+        The computed drift kernel values.
+    """
     n = X.shape[0]
     k = np.zeros(n)
     # compute tau
@@ -175,6 +209,16 @@ def compute_drift_local_kernel(x, v, X, inv_s):
 
 @jit(nopython=True)
 def compute_density_kernel(x, X, inv_eps):
+    """Compute the density kernel values.
+
+    Args:
+        x: the cell data matrix.
+        X: the neighbors data matrix.
+        inv_eps: The inverse of the epsilon.
+
+    Returns:
+        The computed density kernel values for each state.
+    """
     n = X.shape[0]
     k = np.zeros(n)
     for i in range(n):
@@ -185,6 +229,16 @@ def compute_density_kernel(x, X, inv_eps):
 
 @jit(nopython=True)
 def makeTransitionMatrix(Qnn, I_vec, tol=0.0):  # Qnn, I, tol=0.0
+    """Create the transition matrix based on the non-negative rate matrix `Qnn` and the indexing vector `I_vec`.
+
+    Args:
+        Qnn: the non-negative rate matrix which represents the transition rates between different states.
+        I_vec: the indexing vector to map the rows to the appropriate positions in the transition matrix.
+        tol: a numerical tolerance value to consider rate matrix elements as zero.
+
+    Returns:
+        The computed transition matrix based on `Qnn` and `I_vec`.
+    """
     n = Qnn.shape[0]
     M = np.zeros((n, n))
 
@@ -198,6 +252,18 @@ def makeTransitionMatrix(Qnn, I_vec, tol=0.0):  # Qnn, I, tol=0.0
 
 @jit(nopython=True)
 def compute_tau(X, V, k=100, nbr_idx=None):
+    """Compute the tau values for each state in `X` based on the local density and velocity magnitudes.
+
+    Args:
+        X: the data matrix which represents the states of the system.
+        V: the velocity matrix which represents the velocity vectors associated with each state in `X`.
+        k: the number of neighbors to consider when estimating local density. Default is 100.
+        nbr_idx: the indices of neighbors for each state in `X`.
+
+    Returns:
+        The computed tau values representing the timescale of transitions for each state in `X`. The computed velocity
+        magnitudes for each state in `X`.
+    """
     if nbr_idx is None:
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
@@ -235,6 +301,22 @@ def prepare_velocity_grid_data(
     smooth=None,
     n_neighbors=None,
 ):
+    """Prepare the velocity grid data.
+
+    Args:
+        X_emb: the embedded data matrix.
+        xy_grid_nums: the number of grid points along each dimension for the velocity grid.
+        density: the density of grid points relative to the number of points in each dimension.
+        smooth: the smoothing factor for grid points relative to the range of each dimension.
+        n_neighbors: the number of neighbors to consider when estimating grid velocities.
+
+    Returns:
+        A tuple containing:
+            The grid points for the velocity.
+            The estimated probability mass for each grid point based on grid velocities.
+            The indices of neighbors for each grid point.
+            The weights corresponding to the neighbors for each grid point.
+    """
     n_obs, n_dim = X_emb.shape
     density = 1 if density is None else density
     smooth = 0.5 if smooth is None else smooth
@@ -291,6 +373,22 @@ def grid_velocity_filter(
     adjust_for_stream=True,
     V_threshold=None,
 ):
+    """Filter the grid velocities, adjusting for streamlines if needed.
+
+    Args:
+        V_emb: the velocity matrix which represents the velocity vectors associated with each data point in the embedding.
+        neighs: the indices of neighbors for each grid point.
+        p_mass: the estimated probability mass for each grid point based on grid velocities.
+        X_grid: the grid points for the velocity.
+        V_grid: the estimated grid velocities.
+        min_mass: the minimum probability mass threshold to filter grid points based on p_mass.
+        autoscale: whether to autoscale the grid velocities based on the grid points and their velocities.
+        adjust_for_stream: whether to adjust the grid velocities to show streamlines.
+        V_threshold: the velocity threshold to filter grid points based on velocity magnitude.
+
+    Returns:
+        The filtered grid points and the filtered estimated grid velocities.
+    """
     if adjust_for_stream:
         X_grid = np.stack([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])])
         ns = int(np.sqrt(V_grid.shape[0]))
@@ -342,7 +440,24 @@ def velocity_on_grid(
     cut_off_velocity=True,
 ):
     """Function to calculate the velocity vectors on a grid for grid vector field quiver plot and streamplot, adapted
-    from scVelo"""
+    from scVelo.
+
+    Args:
+        X_emb: the low-dimensional embedding which represents the coordinates of the data points in the embedding space.
+        V_emb: the velocity matrix which represents the velocity vectors associated with each data point in the embedding.
+        xy_grid_nums: the number of grid points along each dimension of the embedding space.
+        density: the number of density grid points for each dimension.
+        smooth: the smoothing parameter for grid points along each dimension.
+        n_neighbors: the number of neighbors to consider for estimating grid velocities.
+        min_mass: the minimum probability mass threshold to filter grid points based on p_mass.
+        autoscale: whether to autoscale the grid velocities based on the grid points and their velocities.
+        adjust_for_stream: whether to adjust the grid velocities to show streamlines.
+        V_threshold: the velocity threshold to filter grid points based on velocity magnitude.
+        cut_off_velocity: whether to cut off the grid velocities or return the entire grid.
+
+    Returns:
+        A tuple containing the grid points, the filtered estimated grid velocities, the diffusion matrix D of shape.
+    """
     from ..vectorfield.stochastic_process import diffusionMatrix2D
 
     valid_idx = np.isfinite(X_emb.sum(1) + V_emb.sum(1))
@@ -389,34 +504,22 @@ def velocity_on_grid(
 
 # we might need a separate module/file for discrete vector field and markovian methods in the future
 def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None):
-    """
-        The function generates a graph based on the velocity data. The flow from i- to j-th
-        node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
+    """The function generates a graph based on the velocity data. The flow from i- to j-th
+    node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
 
-    Arguments
-    ---------
-        V: :class:`~numpy.ndarray`
-            The velocities for all cells.
-        X: :class:`~numpy.ndarray`
-            The coordinates for all cells.
-        nbrs_idx: list (optional, default None)
-            a list of neighbor indices for each cell. If None a KNN will be performed instead.
-        k: int (optional, default 30)
-            The number of neighbors for the KNN search.
-        normalize_v: bool (optional, default False)
-            Whether or not normalizing the velocity vectors.
-        E_func: str, function, or None (optional, default None)
-            A variance stabilizing function for reducing the variance of the flows.
+    Args:
+        V: the velocities for all cells.
+        X: the coordinates for all cells.
+        nbrs_idx: a list of neighbor indices for each cell. If None a KNN will be performed instead.
+        k: the number of neighbors for the KNN search.
+        normalize_v: whether to normalize the velocity vectors.
+        E_func: a variance stabilizing function for reducing the variance of the flows.
             If a string is passed, there are two options:
                 'sqrt': the numpy.sqrt square root function;
                 'exp': the numpy.exp exponential function.
 
-    Returns
-    -------
-        E: :class:`~numpy.ndarray`
-            The edge matrix.
-        nbrs_idx: list
-            Neighbor indices.
+    Returns:
+        The edge matrix and the neighbor indices.
     """
     n, d = X.shape
 
@@ -483,6 +586,18 @@ def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None)
 
 
 def calc_Laplacian(E, convention="graph"):
+    """Calculate the Laplacian matrix of a given matrix of edge weights.
+
+    Args:
+        E: the matrix of edge weights which represents the weights of edges in a graph.
+        convention: the convention used to compute the Laplacian matrix.
+            If "graph", the Laplacian matrix will be calculated as the diagonal matrix of node degrees minus the adjacency matrix.
+            If "diffusion", the Laplacian matrix will be calculated as the negative of the graph Laplacian.
+            Default is "graph".
+
+    Returns:
+        The Laplacian matrix.
+    """
     A = np.abs(np.sign(E))
     L = np.diag(np.sum(A, 0)) - A
 
@@ -493,6 +608,15 @@ def calc_Laplacian(E, convention="graph"):
 
 
 def fp_operator(E, D):
+    """Calculate the Fokker-Planck operator based on the given matrix of edge weights (E) and diffusion coefficient (D).
+
+    Args:
+        E: the matrix of edge weights.
+        D: the diffusion coefficient used in the Fokker-Planck operator.
+
+    Returns:
+        The Fokker-Planck operator matrix.
+    """
     # drift
     Mu = E.T.copy()
     Mu[Mu < 0] = 0
@@ -504,6 +628,15 @@ def fp_operator(E, D):
 
 
 def divergence(E, tol=1e-5):
+    """Calculate the divergence for each node in a given matrix of edge weights.
+
+    Args:
+        E: the matrix of edge weights.
+        tol: the tolerance value. Edge weights below this value will be treated as zero.
+
+    Returns:
+        The divergence values for each node.
+    """
     n = E.shape[0]
     div = np.zeros(n)
     # optimize for sparse matrices later...
