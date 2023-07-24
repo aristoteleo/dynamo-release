@@ -96,7 +96,7 @@ def compute_markov_trans_prob(
 
 @jit(nopython=True)
 def compute_kernel_trans_prob(
-    x: np.ndarray, v: np.ndarray, X:np.ndarray, inv_s: Union[np.ndarray, float], cont_time: bool = False
+    x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float], cont_time: bool = False
 ) -> np.ndarray:
     """Compute the transition probabilities using the kernel method.
 
@@ -120,7 +120,7 @@ def compute_kernel_trans_prob(
 
 
 # @jit(nopython=True)
-def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X:np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
+def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
     """Compute the drift kernel values for each state in the Markov chain.
 
     Args:
@@ -168,7 +168,7 @@ def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X:np.ndarray, inv_s: Unio
 
 
 # @jit(nopython=True)
-def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X:np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
+def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
     """Compute the drift local kernel values.
 
     Args:
@@ -511,7 +511,7 @@ def graphize_velocity(
     nbrs_idx: Optional[list] = None,
     k: int = 30,
     normalize_v: bool = False,
-    E_func: Optional[Union[Callable, str]]=None
+    E_func: Optional[Union[Callable, str]] = None
 ) -> Tuple:
     """The function generates a graph based on the velocity data. The flow from i- to j-th
     node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
@@ -724,7 +724,7 @@ class MarkovChain:
             self.W_inv = self.U.T.copy()
             self.U /= np.linalg.norm(self.U, axis=0)
 
-    def right_eigvecs_to_left(self, W: np.ndarray, p_st:np.ndarray) -> np.ndarray:
+    def right_eigvecs_to_left(self, W: np.ndarray, p_st: np.ndarray) -> np.ndarray:
         """Transform right eigenvectors into left eigenvectors.
 
         Args:
