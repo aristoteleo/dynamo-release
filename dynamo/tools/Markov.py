@@ -806,7 +806,7 @@ class KernelMarkovChain(MarkovChain):
         Args:
             X: the cell data matrix which represents the states of the Markov chain.
             V: the velocity matrix which represents the expected returns of each state in the Markov chain.
-            M_diff: the inverse covariance matrix or scalar value representing the difference matrix. It is used for
+            M_diff: the covariance matrix or scalar value representing the diffussion matrix. It is used for
                 computing transition probabilities.
             neighbor_idx: the neighbor indices used for kernel computation. If None, it is computed using k-NN.
             n_recurse_neighbors: number of recursive neighbor searches to improve kernel computation. If not None, it
