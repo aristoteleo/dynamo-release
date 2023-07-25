@@ -10,7 +10,7 @@ from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_warning
 from ..simulation.utils import directMethod
 from .utils import append_iterative_neighbor_indices, flatten
 
@@ -779,9 +779,12 @@ class MarkovChain:
         Returns:
             True if the matrix is properly normalized.
         """
-        P = self.P if P is None else P
-        sumfunc = np.sum if not ignore_nan else np.nansum
-        return np.all(np.abs(sumfunc(P, axis=axis) - sumto) < tol)
+        if not P:
+            main_warning("No transition matrix input. Normalization check is skipped.")
+            return True
+        else:
+            sumfunc = np.sum if not ignore_nan else np.nansum
+            return np.all(np.abs(sumfunc(P, axis=axis) - sumto) < tol)
 
     def __reset__(self) -> None:
         """Reset the class variables D, U, W, and W_inv to None."""
