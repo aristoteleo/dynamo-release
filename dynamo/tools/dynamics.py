@@ -304,8 +304,14 @@ class BaseDynamics:
         self.tkey = self.adata.uns["pp"]["tkey"] if dynamics_kwargs["tkey"] is None else dynamics_kwargs["tkey"]
         self.est_kwargs = dynamics_kwargs["est_kwargs"]
 
-    def estimate_params_utils(self, params_est_kwargs):
-        pass
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        self.est = ss_estimation(**kwargs)
+        if self.model.lower() == "deterministic":
+            self.est.fit_conventional_deterministic(**fit_kwargs)
+        elif self.model.lower() == "stochastic":
+            self.est.fit_conventional_stochastic(**fit_kwargs)
+        else:
+            raise NotImplementedError("Method not implemented.")
 
     def estimate_params_ss(self, subset_adata: AnnData, **est_params_args):
         """Estimate velocity parameters with steady state mRNA assumption."""
@@ -329,7 +335,8 @@ class BaseDynamics:
             self.TotalCounts = None
             self.NewSmoothCSP = None
 
-        self.est = ss_estimation(
+        self.estimate_params_utils(
+            fit_kwargs=self.est_kwargs,
             U=self.U.copy() if self.U is not None else None,
             Ul=self.Ul.copy() if self.Ul is not None else None,
             S=self.S.copy() if self.S is not None else None,
@@ -351,20 +358,7 @@ class BaseDynamics:
             concat_data=self.concat_data,
             cores=self.cores,
             **ss_estimation_kwargs,
-        )  # U: (unlabeled) unspliced; S: (unlabeled) spliced; U / Ul: old and labeled; U, Ul, S, Sl: uu/ul/su/sl
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-
-            if self.experiment_type.lower() in ["one-shot", "one_shot"]:
-                if self.one_shot_method == "storm-csp":
-                    self.est.fit(one_shot_method=self.one_shot_method, perc_right=50, **self.est_kwargs)
-                else:
-                    self.est.fit(one_shot_method=self.one_shot_method, **self.est_kwargs)
-            else:
-                # experiment_type can be `kin` also and by default use
-                # conventional method to estimate k but correct for time
-                self.est.fit(**self.est_kwargs)
+        )
 
         self.alpha, self.beta, self.gamma, self.eta, self.delta = self.est.parameters.values()
 
@@ -378,14 +372,15 @@ class BaseDynamics:
             self.est_method = "direct"
         data_type = "smoothed" if self.use_smoothed else "sfs"
 
-        (params, half_life, self.cost, self.logLL, param_ranges, cur_X_data, cur_X_fit_data,) = kinetic_model(
-            subset_adata,
-            self.tkey,
-            self.model,
-            self.est_method,
-            self.experiment_type,
-            self.has_splicing,
-            self.splicing_labeling,
+        (params, half_life, self.cost, self.logLL, param_ranges, cur_X_data, cur_X_fit_data,) = self.estimate_params_utils(
+            fit_kwargs=self.est_kwargs,
+            subset_adata=subset_adata,
+            tkey=self.tkey,
+            model=self.model,
+            est_method=self.est_method,
+            experiment_type=self.experiment_type,
+            has_splicing=self.has_splicing,
+            splicing_labeling=self.splicing_labeling,
             has_switch=True,
             param_rngs={},
             data_type=data_type,
@@ -892,6 +887,14 @@ class LabeledDynamics(BaseDynamics):
 
 class OneShotDynamics(LabeledDynamics):
     """Dynamics model for the one shot experiment, where there is only one labeling time point."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        self.est = ss_estimation(**kwargs)
+        if self.experiment_type.lower() in ["one-shot", "one_shot"]:
+            if self.one_shot_method == "storm-csp":
+                self.est.fit_oneshot(one_shot_method=self.one_shot_method, perc_right=50, **fit_kwargs)
+            else:
+                self.est.fit_oneshot(one_shot_method=self.one_shot_method, **fit_kwargs)
+
     def calculate_vel_U(
         self,
         vel: Velocity,
@@ -1063,8 +1066,9 @@ class KineticsDynamics(LabeledDynamics):
 
 
 class TwoStepKineticsDynamics(KineticsDynamics):
-    def estimate_params_utils(self, params_est_kwargs):
-        pass
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_twostep_kinetics(**fit_kwargs)
 
 
 class KineticsStormDynamics(LabeledDynamics):
@@ -1072,8 +1076,9 @@ class KineticsStormDynamics(LabeledDynamics):
     models. In Model 1, only transcription and mRNA degradation were considered. In Model 2, we considered
     transcription, splicing, and spliced mRNA degradation. And in Model 3, we considered the switching of gene
     expression states, transcription in the active state, and mRNA degradation."""
-    def estimate_params_utils(self, params_est_kwargs):
-        pass
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_storm(**fit_kwargs)
 
     def calculate_vel_U(
         self,
@@ -1142,14 +1147,19 @@ class KineticsStormDynamics(LabeledDynamics):
 
 
 class DirectKineticsDynamics(KineticsDynamics):
-    def estimate_params_utils(self, params_est_kwargs):
-        pass
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_direct_kinetics(**fit_kwargs)
 
 
 class DegradationDynamics(LabeledDynamics):
     """Dynamics model for the degradation experiment. In degradation experiment, samples are chased after an extended
     4sU (or other nucleotide analog) labeling period and the wash-out to observe the decay of the abundance of the
     (labeled) unspliced and spliced RNA decay over time."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_degradation(**fit_kwargs)
+
     def calculate_vel_U(
         self,
         vel: Velocity,
@@ -1193,6 +1203,10 @@ class DegradationDynamics(LabeledDynamics):
 
 class MixStdStmDynamics(LabeledDynamics):
     """Dynamics model for the mixed steady state and stimulation labeling (mix_std_stm) experiment."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        self.est = ss_estimation(**kwargs)
+        self.est.fit_mix_std_stm(**fit_kwargs)
+
     def calculate_vel_U(
         self,
         vel: Velocity,
@@ -1268,6 +1282,10 @@ class MixStdStmDynamics(LabeledDynamics):
 
 class MixKineticsDynamics(LabeledDynamics):
     """Dynamics model for two mix experiment type: mix_kin_deg and mix_pulse_chase."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_mix_kinetics(**fit_kwargs)
+
     def calculate_vel_U(
         self,
         vel: Velocity,
@@ -1444,9 +1462,11 @@ def dynamics_wrapper(
         if assumption_mRNA == "ss":
             estimator = SSKineticsDynamics(dynamics_kwargs)
         elif assumption_mRNA == "kinetic":
-            if model == 'deterministic':
-                estimator = KineticsDynamics(dynamics_kwargs)
-            elif model == 'stochastic':
+            if est_method == 'twostep':
+                estimator = TwoStepKineticsDynamics(dynamics_kwargs)
+            elif est_method == "direct":
+                estimator = DirectKineticsDynamics(dynamics_kwargs)
+            elif "storm" in est_method:
                 estimator = KineticsStormDynamics(dynamics_kwargs)
         else:
             raise NotImplementedError("This method has not been implemented.")
@@ -2400,7 +2420,7 @@ class KineticEstimation:
         return_ntr: bool = False,
         **est_kwargs,
     ):
-        self.subset_data = subset_adata
+        self.subset_adata = subset_adata
         self.tkey = tkey
         self.model = model
         self.est_method = est_method
@@ -2608,7 +2628,7 @@ class KineticEstimation:
                 self.subset_adata.layers[layers_smoothed[0]].T,
                 self.subset_adata.layers[layers_smoothed[1]].T,
             )
-            (gamma_init, _, _, _, _,) = lin_reg_gamma_synthesis(Total_smoothed, New_smoothed, time,
+            (gamma_init, _, _, _, _,) = lin_reg_gamma_synthesis(Total_smoothed, New_smoothed, self.time,
                                                                 perc_right=5)
 
             # Read raw counts
@@ -2629,7 +2649,7 @@ class KineticEstimation:
             cell_total = self.subset_adata.obs['initial_cell_size'].astype("float").values
 
             if "storm-csp" == self.est_method:
-                gamma, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_poisson(New_raw, time,
+                gamma, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_poisson(New_raw, self.time,
                                                                                        gamma_init, cell_total)
             elif "storm-cszip" == self.est_method:
                 gamma, prob_off, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_zero_inflated_poisson(
@@ -2986,9 +3006,9 @@ class KineticEstimation:
                     alpha0 = guestimate_alpha(np.sum(cur_X_data, 0), np.unique(self.time))
                 else:
                     alpha0 = (
-                        guestimate_alpha(cur_X_data, np.unique(time))
+                        guestimate_alpha(cur_X_data, np.unique(self.time))
                         if cur_X_data.ndim == 1
-                        else guestimate_alpha(cur_X_data[0], np.unique(time))
+                        else guestimate_alpha(cur_X_data[0], np.unique(self.time))
                     )
 
                 if self.model.lower() == "stochastic":
