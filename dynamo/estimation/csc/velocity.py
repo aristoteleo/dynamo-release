@@ -2637,6 +2637,7 @@ class ss_estimation:
             # alpha estimation
             self.parameters["alpha"] = self.solve_alpha_mix_std_stm(
                 self.t, self.data["ul"], self.parameters["gamma"]
+            )
 
         self.fit_protein(intercept=intercept, perc_left=perc_left, perc_right=perc_right, cores=cores)
 
