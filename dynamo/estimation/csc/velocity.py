@@ -1604,6 +1604,7 @@ class ss_estimation:
                 ) = (delta, delta_intercept, delta_r2, delta_logLL)
 
     def fit_protein(self, intercept, perc_left, perc_right, cores):
+        """Fit the input data to estimate parameters for protein."""
         if np.all(self._exist_data("p", "su")):
             ind_for_proteins = self.ind_for_proteins
             n_genes = len(ind_for_proteins) if ind_for_proteins is not None else 0
@@ -1672,6 +1673,8 @@ class ss_estimation:
         perc_left=None,
         perc_right=5,
     ):
+        """Fit the input data to estimate parameters for conventional experiment type and steady-state kinetics
+        experiment type with deterministic model."""
         n_genes = self.get_n_genes()
         cores = max(1, int(self.cores))
         if np.all(self._exist_data("uu", "su")):
@@ -1790,6 +1793,8 @@ class ss_estimation:
         perc_left=None,
         perc_right=5,
     ):
+        """Fit the input data to estimate parameters for conventional experiment type and steady-state kinetics
+        experiment type with stochastic model."""
         n_genes = self.get_n_genes()
         cores = max(1, int(self.cores))
         if np.all(self._exist_data("uu", "su")):
@@ -1976,6 +1981,7 @@ class ss_estimation:
         clusters=None,
         one_shot_method="combined",
     ):
+        """Fit the input data to estimate parameters for one-shot experiment type."""
         n_genes = self.get_n_genes()
         cores = max(1, int(self.cores))
         if len(np.unique(self.t)) > 1:
@@ -2570,6 +2576,7 @@ class ss_estimation:
         perc_left=None,
         perc_right=5,
     ):
+        """Fit the input data to estimate parameters for mix_std_stm experiment type."""
         n_genes = self.get_n_genes()
         cores = max(1, int(self.cores))
         t_min, t_max = np.min(self.t), np.max(self.t)

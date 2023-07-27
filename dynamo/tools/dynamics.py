@@ -305,6 +305,7 @@ class BaseDynamics:
         self.est_kwargs = dynamics_kwargs["est_kwargs"]
 
     def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        """Default method to estimate the velocity parameters."""
         self.est = ss_estimation(**kwargs)
         if self.model.lower() == "deterministic":
             self.est.fit_conventional_deterministic(**fit_kwargs)
@@ -363,7 +364,7 @@ class BaseDynamics:
         self.alpha, self.beta, self.gamma, self.eta, self.delta = self.est.parameters.values()
 
     def estimate_params_kin(self, cur_grp_i: int, cur_grp: str, subset_adata: AnnData, **est_params_args):
-        """Estimate velocity parameters with kinetic mRNA assumption."""
+        """Estimate velocity parameters with kinetic mRNA assumption. Will be overriden in the subclass."""
         return_ntr = True if self.fraction_for_deg and self.experiment_type.lower() == "deg" else False
 
         if self.model_was_auto and self.experiment_type.lower() == "kin":
@@ -1066,6 +1067,7 @@ class KineticsDynamics(LabeledDynamics):
 
 
 class TwoStepKineticsDynamics(KineticsDynamics):
+    """Dynamic models for the kinetic experiment with two-step method."""
     def estimate_params_utils(self, fit_kwargs=None, **kwargs):
         kin_estimation = KineticEstimation(**kwargs)
         return kin_estimation.fit_twostep_kinetics(**fit_kwargs)
@@ -1147,6 +1149,7 @@ class KineticsStormDynamics(LabeledDynamics):
 
 
 class DirectKineticsDynamics(KineticsDynamics):
+    """Dynamic models for the kinetic experiment with direct method."""
     def estimate_params_utils(self, fit_kwargs=None, **kwargs):
         kin_estimation = KineticEstimation(**kwargs)
         return kin_estimation.fit_direct_kinetics(**fit_kwargs)
@@ -2405,6 +2408,7 @@ def dynamics(
 
 
 class KineticEstimation:
+    """The clss to estimate the parameters required for velocity estimation when the mRNA assumption is 'kinetic'."""
     def __init__(
         self,
         subset_adata: AnnData,
@@ -2420,6 +2424,52 @@ class KineticEstimation:
         return_ntr: bool = False,
         **est_kwargs,
     ):
+        """Constructor.
+
+        Args:
+            subset_adata: an AnnData object with invalid genes trimmed.
+            tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data. If `tkey`
+                is None, then `adata.uns["pp"]["tkey"]` will be checked and used if exists.
+            model: String indicates which estimation model will be used.
+                Available options are:
+                    (1) 'deterministic': The method based on `deterministic` ordinary differential equations;
+                    (2) 'stochastic' or `moment`: The new method from us that is based on `stochastic` master equations;
+                Note that `kinetic` model doesn't need to assume the `experiment_type` is not `conventional`. As other
+                labeling experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional`
+                scRNA-seq datasets. A "model_selection" model will be supported soon in which alpha, beta and gamma will be
+                modeled as a function of time.
+            est_method: Available options when the `assumption_mRNA` is 'kinetic' include:
+                    (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`,
+                        `experiment_type` and `model` parameter.
+                    (2) `twostep`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
+                        use regression via t-np.log(1-K) to get degradation rate gamma. When splicing and labeling data both
+                        exist, replacing new/total with ul/u can be used to estimate beta. Suitable for velocity estimation.
+                    (3) `direct` (default): method that directly uses the kinetic model to estimate rate parameters,
+                        generally not good for velocity estimation.
+                Under `kinetic` model, choosing estimation is `experiment_type` dependent. For `kinetics` experiments,
+                dynamo supposes methods including RNA bursting or without RNA bursting. Dynamo also adaptively estimates
+                parameters, based on whether the data has splicing or without splicing.
+                Under `kinetic` assumption, the above method uses non-linear least square fitting. In order to return
+                estimated parameters (including RNA half-life), it additionally returns the log-likelihood of the
+                fitting, which will be used for transition matrix and velocity embedding.
+                All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial
+                sampling.
+            experiment_type: the experiment type of the data.
+            has_splicing: whether the object containing unspliced and spliced data
+            splicing_labeling: hether the object containing both splicing and labelling data
+            has_switch: whether there should be switch for stochastic model.
+            param_rngs: the range set for each parameter.
+            data_type: the data type, could be "smoothed" or "sfs". Defaults to "sfs".
+            return_ntr: whether to deal with new/total ratio. Defaults to False.
+            est_kwargs: additional keyword arguments of fitting function.
+
+        Returns:
+            A tuple (Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data), where Estm_df contains the
+            parameters required for mRNA velocity calculation, half_life is for half-life of spliced mRNA, cost is for the
+            cost of kinetic parameters estimation, logLL is for loglikelihood of kinetic parameters estimation,
+            _param_ranges is for the intended range of parameter estimation, X_data is for the data used for parameter
+            estimation, and X_fit_data is for the data that get fitted during parameter estimation.
+        """
         self.subset_adata = subset_adata
         self.tkey = tkey
         self.model = model
@@ -2435,6 +2485,7 @@ class KineticEstimation:
         self.time = subset_adata.obs[tkey].astype("float").values
 
     def fit_twostep_kinetics(self):
+        """Fit the input data to estimate parameters for kinetics experiment type with two-step method."""
         if self.has_splicing:
             layers = (
                 ["M_u", "M_s", "M_t", "M_n"]
@@ -2543,6 +2594,7 @@ class KineticEstimation:
                 X_fit_data,
             )
     def fit_storm(self):
+        """Fit the input data to estimate parameters for kinetics experiment type with storm method."""
         if self.has_splicing:
             # Initialization based on the steady-state assumption
             layers_smoothed = ["M_u", "M_s", "M_t", "M_n"]
@@ -2690,6 +2742,7 @@ class KineticEstimation:
             )
 
     def fit_direct_kinetics(self):
+        """Fit the input data to estimate parameters for kinetics experiment type with direct method."""
         if self.has_splicing and self.splicing_labeling:
             layers = (
                 ["M_ul", "M_sl", "M_uu", "M_su"]
@@ -3060,6 +3113,7 @@ class KineticEstimation:
         return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
 
     def fit_degradation(self):
+        """Fit the input data to estimate parameters for degradation experiment type."""
         if self.has_splicing and self.splicing_labeling:
             layers = (
                 ["M_ul", "M_sl", "M_uu", "M_su"]
@@ -3256,6 +3310,7 @@ class KineticEstimation:
         return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
 
     def fit_mix_kinetics(self):
+        """Fit the input data to estimate parameters for mix_kinetics_degradation experiment type."""
         total_layer = "M_t" if ("M_t" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_total"
 
         if self.model.lower() in ["deterministic"]:
