@@ -3,6 +3,7 @@
 import os
 from functools import reduce
 
+import pandas as pd
 from anndata import (
     AnnData,
     read,
@@ -78,6 +79,22 @@ def convert2float(adata, columns, var=False):
                 adata.var[i] = data.copy()
             else:
                 adata.obs[i] = data.copy()
+
+
+def convert_velocity_params_type(adata: AnnData) -> None:
+    """Convert the velocity parameters into numeric type to avoid error when saving to h5ad.
+
+    The data type of the parameters in the Pandas Series is set to object due to the initialization of parameters with
+    None values. However, this choice of data type can lead to errors during the process of saving the anndata object.
+    Therefore, it becomes necessary to convert these parameters to a numeric data type to ensure proper handling and
+    compatibility.
+    """
+    velocity_param_names = ["beta", "gamma", "half_life", "alpha_b", "alpha_r2", "gamma_b", "gamma_r2", "gamma_logLL",
+                            "delta_b", "delta_r2", "bs", "bf", "uu0", "ul0", "su0", "sl0", "alpha", "a", "b", "alpha_a",
+                            "alpha_a", "alpha_i", "cost", "logLL", "U0", "S0", "total0"]
+    for param_name in velocity_param_names:
+        if param_name in adata.var.columns:
+            adata.var[param_name] = pd.to_numeric(adata.var[param_name], errors='coerce')
 
 
 def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
@@ -334,3 +351,8 @@ def export_rank_xlsx(adata, path="rank_info.xlsx", ext="excel", rank_prefix="ran
             if key[: len(rank_prefix)] == rank_prefix:
                 main_info("saving sheet: " + str(key))
                 adata.uns[key].to_excel(writer, sheet_name=str(key))
+
+
+def export_h5ad(adata, path="data/processed_data.h5ad"):
+    convert_velocity_params_type(adata)
+    adata.write_h5ad(path)
