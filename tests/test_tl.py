@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 import dynamo as dyn
@@ -31,6 +32,20 @@ def test_calc_2nd_moment():
     assert np.array_equal(result, expected_result)
 
 
+def test_cell_growth_rate(processed_zebra_adata):
+    adata = processed_zebra_adata.copy()
+    dyn.tl.cell_growth_rate(adata, group="Cell_type")
+    assert "growth_rate" in adata.obs.keys()
+
+
+def test_top_n_markers(processed_zebra_adata):
+    adata = processed_zebra_adata.copy()
+    dyn.tl.find_group_markers(adata, group="Cell_type")
+    top_n_df = dyn.tl.top_n_markers(adata)
+    assert type(top_n_df) == pd.DataFrame
+    assert len(top_n_df) == (len(adata.obs["Cell_type"].unique()) - 1) * 5
+
+
 def test_sampling():
     arr = np.random.rand(20, 3)
     n = 2
@@ -54,3 +69,9 @@ def test_sampling():
     assert samples.shape[0] == n
     assert samples[0] in arr
     assert samples[1] in arr
+
+
+def test_score_cells(processed_zebra_adata):
+    adata = processed_zebra_adata.copy()
+    scores = dyn.tl.score_cells(adata)
+    assert scores.shape[0] == adata.n_obs
