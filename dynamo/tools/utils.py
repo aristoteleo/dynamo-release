@@ -1392,30 +1392,31 @@ def set_param_ss(
     valid_ind,
     ind_for_proteins,
 ):
+    params_df = pd.DataFrame(index=adata.var.index)
     if experiment_type == "mix_std_stm":
         if alpha is not None:
             if cur_grp == _group[0]:
                 adata.varm[kin_param_pre + "alpha"] = np.zeros((adata.shape[1], alpha[1].shape[1]))
             adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha[1]
             (
-                adata.var[kin_param_pre + "alpha"],
-                adata.var[kin_param_pre + "alpha_std"],
+                params_df[kin_param_pre + "alpha"],
+                params_df[kin_param_pre + "alpha_std"],
             ) = (None, None)
             (
-                adata.var.loc[valid_ind, kin_param_pre + "alpha"],
-                adata.var.loc[valid_ind, kin_param_pre + "alpha_std"],
+                params_df.loc[valid_ind, kin_param_pre + "alpha"],
+                params_df.loc[valid_ind, kin_param_pre + "alpha_std"],
             ) = (alpha[1][:, -1], alpha[0])
 
         if cur_grp == _group[0]:
             (
-                adata.var[kin_param_pre + "beta"],
-                adata.var[kin_param_pre + "gamma"],
-                adata.var[kin_param_pre + "half_life"],
+                params_df[kin_param_pre + "beta"],
+                params_df[kin_param_pre + "gamma"],
+                params_df[kin_param_pre + "half_life"],
             ) = (None, None, None)
 
-        adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
-        adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
+        params_df.loc[valid_ind, kin_param_pre + "beta"] = beta
+        params_df.loc[valid_ind, kin_param_pre + "gamma"] = gamma
+        params_df.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
     else:
         if alpha is not None:
             if len(alpha.shape) > 1:  # for each cell
@@ -1426,21 +1427,21 @@ def set_param_ss(
                         else np.zeros(adata.shape[::-1])
                     )  #
                 adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha  #
-                adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
+                params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
             elif len(alpha.shape) == 1:
                 if cur_grp == _group[0]:
-                    adata.var[kin_param_pre + "alpha"] = None
-                adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
+                    params_df[kin_param_pre + "alpha"] = None
+                params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha
 
         if cur_grp == _group[0]:
             (
-                adata.var[kin_param_pre + "beta"],
-                adata.var[kin_param_pre + "gamma"],
-                adata.var[kin_param_pre + "half_life"],
+                params_df[kin_param_pre + "beta"],
+                params_df[kin_param_pre + "gamma"],
+                params_df[kin_param_pre + "half_life"],
             ) = (None, None, None)
-        adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
-        adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = None if gamma is None else np.log(2) / gamma
+        params_df.loc[valid_ind, kin_param_pre + "beta"] = beta
+        params_df.loc[valid_ind, kin_param_pre + "gamma"] = gamma
+        params_df.loc[valid_ind, kin_param_pre + "half_life"] = None if gamma is None else np.log(2) / gamma
 
         (
             alpha_intercept,
@@ -1466,22 +1467,22 @@ def set_param_ss(
             alpha_r2[~np.isfinite(alpha_r2)] = 0
         if cur_grp == _group[0]:
             (
-                adata.var[kin_param_pre + "alpha_b"],
-                adata.var[kin_param_pre + "alpha_r2"],
-                adata.var[kin_param_pre + "gamma_b"],
-                adata.var[kin_param_pre + "gamma_r2"],
-                adata.var[kin_param_pre + "gamma_logLL"],
-                adata.var[kin_param_pre + "delta_b"],
-                adata.var[kin_param_pre + "delta_r2"],
-                adata.var[kin_param_pre + "bs"],
-                adata.var[kin_param_pre + "bf"],
-                adata.var[kin_param_pre + "uu0"],
-                adata.var[kin_param_pre + "ul0"],
-                adata.var[kin_param_pre + "su0"],
-                adata.var[kin_param_pre + "sl0"],
-                adata.var[kin_param_pre + "U0"],
-                adata.var[kin_param_pre + "S0"],
-                adata.var[kin_param_pre + "total0"],
+                params_df[kin_param_pre + "alpha_b"],
+                params_df[kin_param_pre + "alpha_r2"],
+                params_df[kin_param_pre + "gamma_b"],
+                params_df[kin_param_pre + "gamma_r2"],
+                params_df[kin_param_pre + "gamma_logLL"],
+                params_df[kin_param_pre + "delta_b"],
+                params_df[kin_param_pre + "delta_r2"],
+                params_df[kin_param_pre + "bs"],
+                params_df[kin_param_pre + "bf"],
+                params_df[kin_param_pre + "uu0"],
+                params_df[kin_param_pre + "ul0"],
+                params_df[kin_param_pre + "su0"],
+                params_df[kin_param_pre + "sl0"],
+                params_df[kin_param_pre + "U0"],
+                params_df[kin_param_pre + "S0"],
+                params_df[kin_param_pre + "total0"],
             ) = (
                 None,
                 None,
@@ -1501,47 +1502,49 @@ def set_param_ss(
                 None,
             )
 
-        adata.var.loc[valid_ind, kin_param_pre + "alpha_b"] = alpha_intercept
-        adata.var.loc[valid_ind, kin_param_pre + "alpha_r2"] = alpha_r2
+        params_df.loc[valid_ind, kin_param_pre + "alpha_b"] = alpha_intercept
+        params_df.loc[valid_ind, kin_param_pre + "alpha_r2"] = alpha_r2
 
         if gamma_r2 is not None:
             gamma_r2[~np.isfinite(gamma_r2)] = 0
-        adata.var.loc[valid_ind, kin_param_pre + "gamma_b"] = gamma_intercept
-        adata.var.loc[valid_ind, kin_param_pre + "gamma_r2"] = gamma_r2
-        adata.var.loc[valid_ind, kin_param_pre + "gamma_logLL"] = gamma_logLL
+        params_df.loc[valid_ind, kin_param_pre + "gamma_b"] = gamma_intercept
+        params_df.loc[valid_ind, kin_param_pre + "gamma_r2"] = gamma_r2
+        params_df.loc[valid_ind, kin_param_pre + "gamma_logLL"] = gamma_logLL
 
-        adata.var.loc[valid_ind, kin_param_pre + "bs"] = bs
-        adata.var.loc[valid_ind, kin_param_pre + "bf"] = bf
+        params_df.loc[valid_ind, kin_param_pre + "bs"] = bs
+        params_df.loc[valid_ind, kin_param_pre + "bf"] = bf
 
-        adata.var.loc[valid_ind, kin_param_pre + "uu0"] = uu0
-        adata.var.loc[valid_ind, kin_param_pre + "ul0"] = ul0
-        adata.var.loc[valid_ind, kin_param_pre + "su0"] = su0
-        adata.var.loc[valid_ind, kin_param_pre + "sl0"] = sl0
-        adata.var.loc[valid_ind, kin_param_pre + "U0"] = U0
-        adata.var.loc[valid_ind, kin_param_pre + "S0"] = S0
-        adata.var.loc[valid_ind, kin_param_pre + "total0"] = total0
+        params_df.loc[valid_ind, kin_param_pre + "uu0"] = uu0
+        params_df.loc[valid_ind, kin_param_pre + "ul0"] = ul0
+        params_df.loc[valid_ind, kin_param_pre + "su0"] = su0
+        params_df.loc[valid_ind, kin_param_pre + "sl0"] = sl0
+        params_df.loc[valid_ind, kin_param_pre + "U0"] = U0
+        params_df.loc[valid_ind, kin_param_pre + "S0"] = S0
+        params_df.loc[valid_ind, kin_param_pre + "total0"] = total0
 
         if experiment_type == "one-shot":
-            adata.var[kin_param_pre + "beta_k"] = None
-            adata.var[kin_param_pre + "gamma_k"] = None
-            adata.var.loc[valid_ind, kin_param_pre + "beta_k"] = beta_k
-            adata.var.loc[valid_ind, kin_param_pre + "gamma_k"] = gamma_k
+            params_df[kin_param_pre + "beta_k"] = None
+            params_df[kin_param_pre + "gamma_k"] = None
+            params_df.loc[valid_ind, kin_param_pre + "beta_k"] = beta_k
+            params_df.loc[valid_ind, kin_param_pre + "gamma_k"] = gamma_k
 
         if ind_for_proteins is not None:
             delta_r2[~np.isfinite(delta_r2)] = 0
             if cur_grp == _group[0]:
                 (
-                    adata.var[kin_param_pre + "eta"],
-                    adata.var[kin_param_pre + "delta"],
-                    adata.var[kin_param_pre + "delta_b"],
-                    adata.var[kin_param_pre + "delta_r2"],
-                    adata.var[kin_param_pre + "p_half_life"],
+                    params_df[kin_param_pre + "eta"],
+                    params_df[kin_param_pre + "delta"],
+                    params_df[kin_param_pre + "delta_b"],
+                    params_df[kin_param_pre + "delta_r2"],
+                    params_df[kin_param_pre + "p_half_life"],
                 ) = (None, None, None, None, None)
-            adata.var.loc[valid_ind, kin_param_pre + "eta"][ind_for_proteins] = eta
-            adata.var.loc[valid_ind, kin_param_pre + "delta"][ind_for_proteins] = delta
-            adata.var.loc[valid_ind, kin_param_pre + "delta_b"][ind_for_proteins] = delta_intercept
-            adata.var.loc[valid_ind, kin_param_pre + "delta_r2"][ind_for_proteins] = delta_r2
-            adata.var.loc[valid_ind, kin_param_pre + "p_half_life"][ind_for_proteins] = np.log(2) / delta
+            params_df.loc[valid_ind, kin_param_pre + "eta"][ind_for_proteins] = eta
+            params_df.loc[valid_ind, kin_param_pre + "delta"][ind_for_proteins] = delta
+            params_df.loc[valid_ind, kin_param_pre + "delta_b"][ind_for_proteins] = delta_intercept
+            params_df.loc[valid_ind, kin_param_pre + "delta_r2"][ind_for_proteins] = delta_r2
+            params_df.loc[valid_ind, kin_param_pre + "p_half_life"][ind_for_proteins] = np.log(2) / delta
+
+    adata.uns[kin_param_pre + "params"] = params_df
 
     return adata
 
