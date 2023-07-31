@@ -1567,23 +1567,24 @@ def set_param_kinetic(
     cur_cells_bools,
     valid_ind,
 ):
+    params_df = pd.DataFrame(index=adata.var.index)
     if cur_grp == _group[0]:
         (
-            adata.var[kin_param_pre + "alpha"],
-            adata.var[kin_param_pre + "a"],
-            adata.var[kin_param_pre + "b"],
-            adata.var[kin_param_pre + "alpha_a"],
-            adata.var[kin_param_pre + "alpha_i"],
-            adata.var[kin_param_pre + "beta"],
-            adata.var[kin_param_pre + "p_half_life"],
-            adata.var[kin_param_pre + "gamma"],
-            adata.var[kin_param_pre + "half_life"],
-            adata.var[kin_param_pre + "cost"],
-            adata.var[kin_param_pre + "logLL"],
+            params_df[kin_param_pre + "alpha"],
+            params_df[kin_param_pre + "a"],
+            params_df[kin_param_pre + "b"],
+            params_df[kin_param_pre + "alpha_a"],
+            params_df[kin_param_pre + "alpha_i"],
+            params_df[kin_param_pre + "beta"],
+            params_df[kin_param_pre + "p_half_life"],
+            params_df[kin_param_pre + "gamma"],
+            params_df[kin_param_pre + "half_life"],
+            params_df[kin_param_pre + "cost"],
+            params_df[kin_param_pre + "logLL"],
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
     if isarray(alpha) and alpha.ndim > 1:
-        adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
+        params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
         cur_cells_ind, valid_ind_ = (
             np.where(cur_cells_bools)[0][:, np.newaxis],
             np.where(valid_ind)[0],
@@ -1593,21 +1594,21 @@ def set_param_kinetic(
         alpha = alpha.T.tocsr() if sp.issparse(alpha) else sp.csr_matrix(alpha, dtype=np.float64).T
         adata.layers["cell_wise_alpha"][cur_cells_ind, valid_ind_] = alpha
     else:
-        adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
-    adata.var.loc[valid_ind, kin_param_pre + "a"] = a
-    adata.var.loc[valid_ind, kin_param_pre + "b"] = b
-    adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
-    adata.var.loc[valid_ind, kin_param_pre + "alpha_i"] = alpha_i
-    adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
-    adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-    adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
-    adata.var.loc[valid_ind, kin_param_pre + "cost"] = cost
-    adata.var.loc[valid_ind, kin_param_pre + "logLL"] = logLL
+        params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha
+    params_df.loc[valid_ind, kin_param_pre + "a"] = a
+    params_df.loc[valid_ind, kin_param_pre + "b"] = b
+    params_df.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
+    params_df.loc[valid_ind, kin_param_pre + "alpha_i"] = alpha_i
+    params_df.loc[valid_ind, kin_param_pre + "beta"] = beta
+    params_df.loc[valid_ind, kin_param_pre + "gamma"] = gamma
+    params_df.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
+    params_df.loc[valid_ind, kin_param_pre + "cost"] = cost
+    params_df.loc[valid_ind, kin_param_pre + "logLL"] = logLL
     # add extra parameters (u0, uu0, etc.)
     extra_params.columns = [kin_param_pre + i for i in extra_params.columns]
     extra_params = extra_params.set_index(adata.var.index[valid_ind])
-    var = pd.concat((adata.var, extra_params), axis=1, sort=False)
-    adata.var = var
+    var = pd.concat((params_df, extra_params), axis=1, sort=False)
+    adata.uns[kin_param_pre + "params"] = var
 
     return adata
 
