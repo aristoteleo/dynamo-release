@@ -9,6 +9,7 @@ from typing import Callable, List, Optional, Tuple, Union
 from ..tools.sampling import lhsclassic
 from .Ao import Ao_pot_map
 from .Bhattacharya import alignment, path_integral
+from .scVectorField import BaseVectorField
 from .topography import FixedPoints
 from .utils import is_outside_domain
 from .Wang import Wang_action, Wang_LAP
@@ -420,6 +421,9 @@ def action(
 
 def Potential(
     adata: AnnData,
+    vf: BaseVectorField,
+    x_lim: List = [0, 40],
+    y_lim: List = [0, 40],
     DiffMat: Optional[Callable] = None,
     method: str = "Ao",
     **kwargs
@@ -442,6 +446,9 @@ def Potential(
     Parameters
     ----------
         adata: AnnData object that contains embedding and velocity data.
+        vf: the vectorfield object which contains the vector field function.
+        x_lim: lower or upper limit of x-axis.
+        y_lim: lower or upper limit of y-axis.
         DiffMat: The function which returns the diffusion matrix which can variable (for example, gene) dependent.
         method: Method to map the potential landscape.
 
@@ -451,10 +458,10 @@ def Potential(
 
     """
 
-    Function = adata.uns["VecFld"]
+    Function = vf.func
     DiffMat = DiffusionMatrix if DiffMat is None else DiffMat
     pot = Pot(Function, DiffMat, **kwargs)
-    pot.fit(method=method)
+    pot.fit(adata=adata, x_lim=x_lim, y_lim=y_lim, method=method)
 
     return adata
 
