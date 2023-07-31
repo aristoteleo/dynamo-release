@@ -116,7 +116,7 @@ def path_integral(
 
                 # update dxdt, dydt
 
-                dxdt, dydt = VecFnc([x_p, y_p])
+                dxdt, dydt = VecFnc(np.array([x_p, y_p]))
 
                 # update x, y
                 dx = dxdt * dt
@@ -215,15 +215,15 @@ def path_integral(
 
                         # check if start points of current and previous paths are "adjacent" - if so, assign separatrix
                         if startPt_dist_sqr < (2 * (xyGridSpacing**2)):
-                            curr_sepx = [
-                                path_tag[path_counter - 1],
-                                path_tag[path_counter],
-                                (path_counter - 1),
-                            ]  # create array
+                            curr_sepx = np.array([
+                                path_tag[path_counter - 1][0],
+                                path_tag[path_counter][0],
+                                path_counter - 1,
+                            ])  # create array
                             sepx_old_new_pathNum = (
                                 np.vstack((sepx_old_new_pathNum, curr_sepx))
                                 if sepx_old_new_pathNum is not None
-                                else np.array([curr_sepx])
+                                else curr_sepx
                             )  # append array (vertically)
                             # attractors_pot = np.vstack((attractors_pot, Pot)) # append attractor potentials to array (vertically) #????????????????????????????????????????????????????????????????????????????????????
                             num_sepx = num_sepx + 1  # increment no. of separatrices

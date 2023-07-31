@@ -569,7 +569,7 @@ class Pot:
 
         if method == "Ao":
             X = adata.obsm["X_" + basis]
-            X, U, P, vecMat, S, A = Ao_pot_map(self.VecFld["Function"], X, D=self.VecFld["DiffusionMatrix"])
+            X, U, P, vecMat, S, A = Ao_pot_map(self.VecFld["Function"], X, D=self.VecFld["DiffusionMatrix"](X.T))
 
             adata.uns["grid_Pot_" + basis] = {
                 "Xgrid": X,
@@ -579,7 +579,7 @@ class Pot:
                 "A": A,
             }
         elif method == "Bhattacharya":
-            (numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path,) = path_integral(
+            (_, _, _, _, numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path,) = path_integral(
                 self.VecFld["Function"],
                 x_lim=x_lim,
                 y_lim=y_lim,
@@ -629,7 +629,7 @@ class Pot:
                 stable, saddle = gen_fixed_points(
                     Function,
                     auto_func=False,
-                    dim_range=range,
+                    dim_range=[-25, 25],
                     RandNum=100,
                     EqNum=2,
                 )  # gen_fixed_points(vector_field_function, auto_func = None, dim_range = [-25, 25], RandNum = 5000, EqNum = 2, x_ini = None)
