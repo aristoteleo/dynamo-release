@@ -146,9 +146,22 @@ def test_calc_dispersion_sparse():
 
 
 def test_Preprocessor_simple_run(raw_zebra_adata):
-    adata = raw_zebra_adata.copy()
-    preprocess_worker = Preprocessor()
+    adata = raw_zebra_adata.copy()[:1000, :1000]
+    preprocess_worker = Preprocessor(cell_cycle_score_enable=True)
     preprocess_worker.preprocess_adata(adata, recipe="monocle")
+    assert "X_pca" in adata.obsm.keys()
+
+    adata = raw_zebra_adata.copy()[:1000, :1000]
+    preprocess_worker.preprocess_adata(adata, recipe="seurat")
+    assert "X_pca" in adata.obsm.keys()
+
+    adata = raw_zebra_adata.copy()[:1000, :1000]
+    preprocess_worker.preprocess_adata(adata, recipe="pearson_residuals")
+    assert "X_pca" in adata.obsm.keys()
+
+    adata = raw_zebra_adata.copy()[:1000, :1000]
+    preprocess_worker.preprocess_adata(adata, recipe="monocle_pearson_residuals")
+    assert "X_pca" in adata.obsm.keys()
 
 
 def test_is_log_transformed(raw_zebra_adata):
