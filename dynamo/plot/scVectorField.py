@@ -754,6 +754,7 @@ def cell_wise_vectors(
         df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
     elif projection == "3d":
         df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
+        show_legend = None
     else:
         raise NotImplementedError("Projection method %s is not implemented" % projection)
 
@@ -857,6 +858,7 @@ def cell_wise_vectors(
                 **quiver_kwargs,
             )
         elif projection == "3d":
+            cmap_3d = [element for element in color_list[i]] + [element for element in color_list[i] for _ in range(2)]
             ax.quiver(
                 x0,
                 x1,
@@ -864,7 +866,7 @@ def cell_wise_vectors(
                 v0,
                 v1,
                 v2,
-                # color=color_list[i],
+                color=cmap_3d,
                 # facecolors=color_list[i],
                 **quiver_3d_kwargs,
             )
