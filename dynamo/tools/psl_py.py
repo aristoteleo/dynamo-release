@@ -96,7 +96,7 @@ def psl(
                 (np.repeat(1, N * K), (i, j)), shape=(N, N)
             )  # [1 for k in range(N * K)]
 
-    if not dist:
+    if dist is None:
         if list(set(sG.data)) == [1]:
             print(
                 "Error: sG should not just be an adjacency graph and has to include the distance information between vertices!"
