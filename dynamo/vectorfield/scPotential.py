@@ -9,9 +9,8 @@ from typing import Callable, List, Optional, Tuple, Union
 from ..tools.sampling import lhsclassic
 from .Ao import Ao_pot_map
 from .Bhattacharya import alignment, path_integral
-from .scVectorField import BaseVectorField
 from .topography import FixedPoints
-from .utils import is_outside_domain
+from .utils import is_outside_domain, vecfld_from_adata
 from .Wang import Wang_action, Wang_LAP
 
 # import autograd.numpy as autonp
@@ -421,7 +420,7 @@ def action(
 
 def Potential(
     adata: AnnData,
-    vf: BaseVectorField,
+    basis: str = "umap",
     x_lim: List = [0, 40],
     y_lim: List = [0, 40],
     DiffMat: Optional[Callable] = None,
@@ -446,7 +445,7 @@ def Potential(
     Parameters
     ----------
         adata: AnnData object that contains embedding and velocity data.
-        vf: the vectorfield object which contains the vector field function.
+        basis: the basis of vector field function.
         x_lim: lower or upper limit of x-axis.
         y_lim: lower or upper limit of y-axis.
         DiffMat: The function which returns the diffusion matrix which can variable (for example, gene) dependent.
@@ -458,7 +457,7 @@ def Potential(
 
     """
 
-    Function = vf.func
+    _, Function = vecfld_from_adata(adata, basis=basis)
     DiffMat = DiffusionMatrix if DiffMat is None else DiffMat
     pot = Pot(Function, DiffMat, **kwargs)
     pot.fit(adata=adata, x_lim=x_lim, y_lim=y_lim, method=method)
