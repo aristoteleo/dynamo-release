@@ -89,10 +89,7 @@ def plot_3d_streamtube(
     else:
         _background = background
 
-    if is_gene_name(adata, color):
-        color_val = adata.obs_vector(k=color, layer=None) if layer == "X" else adata.obs_vector(k=color, layer=layer)
-    elif is_cell_anno_column(adata, color):
-        color_val = adata.obs_vector
+    color_val = adata.obs_vector(k=color, layer=None) if layer == "X" else adata.obs_vector(k=color, layer=layer)
 
     is_not_continous = not isinstance(color_val[0], Number) or color_val.dtype.name == "category"
 
@@ -154,7 +151,7 @@ def plot_3d_streamtube(
 
     from ..vectorfield.utils import vecfld_from_adata
 
-    VecFld, func = vecfld_from_adata(adata, basis="umap")
+    VecFld, func = vecfld_from_adata(adata, basis=basis)
 
     velocity_grid = func(X_grid)
 
@@ -167,9 +164,9 @@ def plot_3d_streamtube(
             v=velocity_grid[:, 1],
             w=velocity_grid[:, 2],
             starts=dict(
-                x=adata[labels == init_group, :].obsm["X_umap"][:125, 0],
-                y=adata[labels == init_group, :].obsm["X_umap"][:125, 1],
-                z=adata[labels == init_group, :].obsm["X_umap"][:125, 2],
+                x=adata[labels == init_group, :].obsm["X_" + basis][:125, 0],
+                y=adata[labels == init_group, :].obsm["X_" + basis][:125, 1],
+                z=adata[labels == init_group, :].obsm["X_" + basis][:125, 2],
             ),
             sizeref=3000,
             colorscale="Portland",
