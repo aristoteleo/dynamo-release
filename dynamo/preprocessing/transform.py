@@ -113,6 +113,7 @@ def log_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
     else:
         mat = mat.astype(np.float64)
         _log_inplace(mat)
+        DKM.set_layer_data(adata, layer, mat)
 
 
 def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
@@ -132,6 +133,7 @@ def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
     else:
         mat = mat.astype(np.float64)
         _log1p_inplace(mat)
+        DKM.set_layer_data(adata, layer, mat)
 
 
 def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
@@ -151,6 +153,7 @@ def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
     else:
         mat = mat.astype(np.float64)
         _log2_inplace(mat)
+        DKM.set_layer_data(adata, layer, mat)
 
 
 def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:
