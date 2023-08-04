@@ -89,7 +89,7 @@ def Freeman_Tukey_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
             DKM.set_layer_data(adata, layer, mat)
         _Freeman_Tukey(mat.data)
     else:
-        mat = mat.astype(np.float)
+        mat = mat.astype(np.float64)
         _Freeman_Tukey(mat)
 
     mat.data -= 1
@@ -111,7 +111,7 @@ def log_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
             DKM.set_layer_data(adata, layer, mat)
         _log_inplace(mat.data)
     else:
-        mat = mat.astype(np.float)
+        mat = mat.astype(np.float64)
         _log_inplace(mat)
 
 
@@ -130,7 +130,7 @@ def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
             DKM.set_layer_data(adata, layer, mat)
         _log1p_inplace(mat.data)
     else:
-        mat = mat.astype(np.float)
+        mat = mat.astype(np.float64)
         _log1p_inplace(mat)
 
 
@@ -149,7 +149,7 @@ def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
             DKM.set_layer_data(adata, layer, mat)
         _log2_inplace(mat.data)
     else:
-        mat = mat.astype(np.float)
+        mat = mat.astype(np.float64)
         _log2_inplace(mat)
 
 
