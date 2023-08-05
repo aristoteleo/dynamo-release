@@ -14,7 +14,7 @@ from dynamo.preprocessing import Preprocessor
 from dynamo.preprocessing.cell_cycle import get_cell_phase
 from dynamo.preprocessing.deprecated import _calc_mean_var_dispersion_sparse_legacy
 from dynamo.preprocessing.normalization import normalize
-from dynamo.preprocessing.transform import log1p, is_log1p_transformed_adata
+from dynamo.preprocessing.transform import log, log1p, log2, Freeman_Tukey, is_log1p_transformed_adata
 from dynamo.preprocessing.utils import (
     convert_layers2csr,
     is_float_integer_arr,
@@ -439,6 +439,40 @@ def test_gene_selection_method(raw_zebra_adata):
     print(diff_count / len(monocle_cv_dispersion_result_1) * 100)
 
     print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
+
+
+def test_transform():
+    X = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    layers = {
+        "spliced": csr_matrix(X),
+    }
+    adata = anndata.AnnData(
+        X=X,
+        obs=pd.DataFrame(
+            {
+                "batch": ["batch1", "batch2", "batch2"],
+            }
+        ),
+        var=pd.DataFrame(index=["gene1", "gene2"]),
+        layers=layers,
+    )
+    adata.uns["pp"] = dict()
+
+    adata1 = log1p(adata.copy())
+    assert not np.all(adata1.X == adata.X)
+    assert np.all(adata1.layers["spliced"].A == adata.layers["spliced"].A)
+
+    adata2 = log(adata.copy())
+    assert not np.all(adata2.X == adata.X)
+    assert np.all(adata2.layers["spliced"].A == adata.layers["spliced"].A)
+
+    adata3 = log2(adata.copy())
+    assert not np.all(adata3.X == adata.X)
+    assert np.all(adata3.layers["spliced"].A == adata.layers["spliced"].A)
+
+    adata4 = Freeman_Tukey(adata.copy())
+    assert not np.all(adata3.X == adata.X)
+    assert np.all(adata4.layers["spliced"].A == adata.layers["spliced"].A)
 
 
 def test_normalize():
