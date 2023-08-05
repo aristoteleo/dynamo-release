@@ -38,6 +38,27 @@ def test_cell_growth_rate(processed_zebra_adata):
     assert "growth_rate" in adata.obs.keys()
 
 
+@pytest.mark.skip(reason="umap compatability issue with numpy, pynndescent and pytest")
+def test_dynamics():
+    adata = dyn.sample_data.scNT_seq_neuron_labeling()
+    adata.obs['label_time'] = 2  # this is the labeling time
+
+    adata = adata[:, adata.var.activity_genes]
+    adata.obs['time'] = adata.obs['time'] / 60
+
+    adata1 = adata.copy()
+    preprocessor = dyn.pp.Preprocessor(cell_cycle_score_enable=True)
+    preprocessor.preprocess_adata(adata1, recipe='monocle', tkey='label_time', experiment_type='one-shot')
+    dyn.tl.dynamics(adata1)
+    assert "velocity_N" in adata.layers.keys()
+
+    adata2 = adata.copy()
+    preprocessor = dyn.pp.Preprocessor(cell_cycle_score_enable=True)
+    preprocessor.preprocess_adata(adata2, recipe='monocle', tkey='label_time', experiment_type='kin')
+    dyn.tl.dynamics(adata2)
+    assert "velocity_N" in adata.layers.keys()
+
+
 def test_top_n_markers(processed_zebra_adata):
     adata = processed_zebra_adata.copy()
     dyn.tl.find_group_markers(adata, group="Cell_type")
