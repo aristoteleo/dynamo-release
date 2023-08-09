@@ -16,7 +16,7 @@ from sklearn.utils import sparsefuncs
 from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..utils import areinstance
-from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
+from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors, construct_mapper_umap
 from .dimension_reduction import reduceDimension
 from .graph_calculus import calc_gaussian_weight, fp_operator, graphize_velocity
 from .Markov import ContinuousTimeMarkovChain, KernelMarkovChain, velocity_on_grid
@@ -519,16 +519,27 @@ def cell_velocities(
             adata.obsp["discrete_vector_field"] = E
 
     elif method == "transform":
-        umap_trans, n_pca_components = (
-            adata.uns["umap_fit"]["fit"],
-            adata.uns["umap_fit"]["n_pca_components"],
+        params = adata.uns["umap_fit"]
+        umap_trans = construct_mapper_umap(
+            params["X_data"],
+            n_components=params["umap_kwargs"]["n_components"],
+            metric=params["umap_kwargs"]["metric"],
+            min_dist=params["umap_kwargs"]["min_dist"],
+            spread=params["umap_kwargs"]["spread"],
+            max_iter=params["umap_kwargs"]["max_iter"],
+            alpha=params["umap_kwargs"]["alpha"],
+            gamma=params["umap_kwargs"]["gamma"],
+            negative_sample_rate=params["umap_kwargs"]["negative_sample_rate"],
+            init_pos=params["umap_kwargs"]["init_pos"],
+            random_state=params["umap_kwargs"]["random_state"],
+            umap_kwargs=params["umap_kwargs"],
         )
 
         if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
             CM = adata.X[:, adata.var.use_for_dynamics.values]
             from ..preprocessing.pca import pca
 
-            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X", return_all=True)
+            adata, pca_fit, X_pca = pca(adata, CM, params["n_pca_components"], "X", return_all=True)
             adata.uns["pca_fit"] = pca_fit
 
         X_pca, pca_fit = adata.obsm[DKM.X_PCA], adata.uns["pca_fit"]
@@ -562,7 +573,8 @@ def cell_velocities(
     else:
         transition_key = add_transition_key
 
-    adata.obsp[transition_key] = T
+    if method != "transform":
+        adata.obsp[transition_key] = T
     if add_velocity_key is None:
         velocity_key, grid_velocity_key = "velocity_" + basis, "grid_velocity_" + basis
     else:
