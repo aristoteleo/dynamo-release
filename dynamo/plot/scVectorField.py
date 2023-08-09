@@ -159,6 +159,45 @@ def cell_wise_vectors_3d(
         alpha: the transparency of the colors. Defaults to None.
         show_magnitude: whether to show original values or normalize the data. Defaults to False.
         titles: the titles of the subplots. Defaults to None.
+        highlights: the color group that will be highlighted. If highligts is a list of lists, each list is relate to
+            each color element. Defaults to None.
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Available themes are: {'blue', 'red', 'green', 'inferno', 'fire', 'viridis', 'darkblue',
+            'darkred', 'darkgreen'}. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw".
+        aggregate: the column in adata.obs that will be used to aggregate data points. Defaults to None.
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
+        s_kwargs_dict: any other kwargs that will be passed to `dynamo.pl.scatters`. Defaults to {}.
 
     Raises:
         ValueError: invalid `x`, `y`, or `z`.
