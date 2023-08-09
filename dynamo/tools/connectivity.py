@@ -122,6 +122,104 @@ def get_conn_dist_graph(knn: np.ndarray, distances: np.ndarray) -> Tuple[csr_mat
     return distances, connectivities
 
 
+def construct_mapper_umap(
+    X: np.ndarray,
+    n_neighbors: int = 30,
+    n_components: int = 2,
+    metric: Union[str, Callable] = "euclidean",
+    min_dist: float = 0.1,
+    spread: float = 1.0,
+    max_iter: Optional[int] = None,
+    alpha: float = 1.0,
+    gamma: float = 1.0,
+    negative_sample_rate: float = 5,
+    init_pos: Union[Literal["spectral", "random"], np.ndarray] = "spectral",
+    random_state: Union[int, np.random.RandomState, None] = 0,
+    verbose: bool = False,
+    **umap_kwargs,
+) -> UMAP:
+    """Construct a UMAP object.
+
+    Args:
+        X: the expression matrix (n_cell x n_genes).
+        n_neighbors: the number of nearest neighbors to compute for each sample in `X`. Defaults to 30.
+        n_components: the dimension of the space to embed into. Defaults to 2.
+        metric: the metric to use for the computation. Defaults to "euclidean".
+        min_dist: the effective minimum distance between embedded points. Smaller values will result in a more
+            clustered/clumped embedding where nearby points on the manifold are drawn closer together, while larger
+            values will result on a more even dispersal of points. The value should be set relative to the `spread`
+            value, which determines the scale at which embedded points will be spread out. Defaults to 0.1.
+        spread: the effective scale of embedded points. In combination with min_dist this determines how
+            clustered/clumped the embedded points are. Defaults to 1.0.
+        max_iter: the number of training epochs to be used in optimizing the low dimensional embedding. Larger values
+            result in more accurate embeddings. If None is specified a value will be selected based on the size of the
+            input dataset (200 for large datasets, 500 for small). This argument was refactored from n_epochs from
+            UMAP-learn to account for recent API changes in UMAP-learn 0.5.2. Defaults to None.
+        alpha: initial learning rate for the SGD. Defaults to 1.0.
+        gamma: weight to apply to negative samples. Values higher than one will result in greater weight being given to
+            negative samples. Defaults to 1.0.
+        negative_sample_rate: the number of negative samples to select per positive sample in the optimization process.
+            Increasing this value will result in greater repulsive force being applied, greater optimization cost, but
+            slightly more accuracy. The number of negative edge/1-simplex samples to use per positive edge/1-simplex
+            sample in optimizing the low dimensional embedding. Defaults to 5.
+        init_pos: the method to initialize the low dimensional embedding. Where:
+            "spectral": use a spectral embedding of the fuzzy 1-skeleton.
+            "random": assign initial embedding positions at random.
+            np.ndarray: the array to define the initial position.
+            Defaults to "spectral".
+        random_state: the method to generate random numbers. If int, random_state is the seed used by the random number
+            generator; If RandomState instance, random_state is the random number generator; If None, the random number
+            generator is the RandomState instance used by `numpy.random`. Defaults to 0.
+        verbose: whether to log verbosely. Defaults to False.
+
+    Returns:
+        A `mapper` that is the data mapped onto umap space.
+    """
+
+    import umap.umap_ as umap
+    from sklearn.utils import check_random_state
+
+    from .utils import update_dict
+
+    # also see github issue at: https://github.com/lmcinnes/umap/issues/798
+    default_epochs = 500 if X.shape[0] <= 10000 else 200
+    max_iter = default_epochs if max_iter is None else max_iter
+
+    random_state = check_random_state(random_state)
+
+    _umap_kwargs = {
+        "angular_rp_forest": False,
+        "local_connectivity": 1.0,
+        "metric_kwds": None,
+        "set_op_mix_ratio": 1.0,
+        "target_metric": "categorical",
+        "target_metric_kwds": None,
+        "target_n_neighbors": -1,
+        "target_weight": 0.5,
+        "transform_queue_size": 4.0,
+        "transform_seed": 42,
+    }
+    umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
+
+    mapper = umap.UMAP(
+        n_neighbors=n_neighbors,
+        n_components=n_components,
+        metric=metric,
+        min_dist=min_dist,
+        spread=spread,
+        n_epochs=max_iter,
+        learning_rate=alpha,
+        repulsion_strength=gamma,
+        negative_sample_rate=negative_sample_rate,
+        init=init_pos,
+        random_state=random_state,
+        verbose=verbose,
+        **umap_kwargs,
+    ).fit(X)
+
+    return mapper
+
+
 @docstrings.get_sectionsf("umap_ann")
 def umap_conn_indices_dist_embedding(
     X: np.ndarray,
