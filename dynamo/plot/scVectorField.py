@@ -71,10 +71,11 @@ def cell_wise_vectors_3d(
     save_show_or_return: str = "show",
     save_kwargs: Dict[str, Any] = {},
     quiver_3d_kwargs: Dict[str, Any] = {
-        "zorder": 3,
-        "length": 2,
-        "linewidth": 5,
-        "arrow_length_ratio": 5,
+         "linewidth": 1,
+        "edgecolors": "white",
+        "alpha": 1,
+        "length": 8,
+        "arrow_length_ratio": 1,
         "norm": cm.colors.Normalize(),
         "cmap": cm.PRGn,
     },
@@ -84,8 +85,34 @@ def cell_wise_vectors_3d(
     elev: Optional[float] = None,
     azim: Optional[float] = None,
     alpha: Optional[float] = None,
-    show_magnitude: bool = False,
+    show_magnitude: bool = True,
     titles: Optional[List[str]] = None,
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
+    color_key_cmap: Optional[str] = None,
+    pointsize: Optional[float] = None,
+    use_smoothed: bool = True,
+    sort: Literal["raw", "abs", "neg"] = "raw",
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = False,
+    frontier: bool = False,
+    s_kwargs_dict: Dict[str, Any] = {},
     **cell_wise_kwargs,
 ) -> np.ndarray:
     """Plot the velocity or acceleration vector of each cell.
@@ -248,29 +275,47 @@ def cell_wise_vectors_3d(
         nrows += 1
     ncols = min(ncols, len(color))
 
-    figure, axes = plt.subplots(nrows, ncols, figsize=figsize, subplot_kw=dict(projection="3d"))
-    axes = np.array(axes)
-    axes_flatten = axes.flatten()
+    axes_list, color_list, _ = scatters(
+        adata=adata,
+        basis=basis,
+        x=x,
+        y=y,
+        z=z,
+        color=color,
+        layer=layer,
+        highlights=highlights,
+        labels=labels,
+        values=values,
+        theme=theme,
+        cmap=cmap,
+        color_key=color_key,
+        color_key_cmap=color_key_cmap,
+        background=background,
+        ncols=ncols,
+        pointsize=pointsize,
+        figsize=figsize,
+        show_legend=None,
+        use_smoothed=use_smoothed,
+        aggregate=aggregate,
+        show_arrowed_spines=show_arrowed_spines,
+        ax=ax,
+        sort=sort,
+        save_show_or_return="return",
+        frontier=frontier,
+        projection="3d",
+        **s_kwargs_dict,
+        return_all=True,
+    )
+
+    if type(axes_list) != list:
+        axes_list = [axes_list]
+        color_list = [color_list]
 
     for i in range(len(color)):
-        ax = axes_flatten[i]
+        ax = axes_list[i]
         ax.set_title(color[i])
-        norm = quiver_3d_kwargs["norm"]
-        cmap = quiver_3d_kwargs["cmap"]
-        color_vec = _get_adata_color_vec(adata, layer=layer, col=color[i])
-        assert len(color_vec) > 0, "color vector or data vector size is 0"
-
-        # convet categorical string data colors to labels
-        if type(color_vec[0]) is str:
-            unique_vals, color_vec = np.unique(color_vec, return_inverse=True)
-
-        color_vec = cmap(norm(color_vec))
-
-        # TODO due to matplotlib quiver3 impl, we need to add colors for arrow head segments
-        # TODO if matplotlib changes its detailed impl, we may not need the following line
-        color_vec = list(color_vec) + [element for element in list(color_vec) for _ in range(2)]
-        # color_vec = matplotlib.colors.to_rgba(color_vec, alpha=alpha)
-        main_debug("color vec len: " + str(len(color_vec)))
+        cmap_3d = [element for element in color_list[i]] + [element for element in color_list[i] for _ in range(2)]
+        main_debug("color vec len: " + str(len(cmap_3d)))
         ax.view_init(elev=elev, azim=azim)
         ax.quiver(
             x0,
@@ -279,7 +324,7 @@ def cell_wise_vectors_3d(
             v0,
             v1,
             v2,
-            color=color_vec,
+            color=cmap_3d,
             # facecolors=color_vec,
             **quiver_3d_kwargs,
         )
@@ -306,7 +351,7 @@ def cell_wise_vectors_3d(
     if save_show_or_return in ["show", "both", "all"]:
         plt.show()
     if save_show_or_return in ["return", "all"]:
-        return axes
+        return axes_list
 
 
 def grid_vectors_3d():
@@ -800,7 +845,14 @@ def cell_wise_vectors(
         "zorder": 10,
     }
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
-    quiver_3d_kwargs = {"arrow_length_ratio": scale}
+    quiver_3d_kwargs = {
+        "linewidth": 1,
+        "edgecolors": "white",
+        "alpha": 1,
+        "length": 8,
+        "arrow_length_ratio": scale,
+
+    }
 
     axes_list, color_list, _ = scatters(
         adata=adata,
