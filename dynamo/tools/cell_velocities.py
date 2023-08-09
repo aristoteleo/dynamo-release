@@ -562,7 +562,8 @@ def cell_velocities(
     else:
         transition_key = add_transition_key
 
-    adata.obsp[transition_key] = T
+    if method != "transform":
+        adata.obsp[transition_key] = T
     if add_velocity_key is None:
         velocity_key, grid_velocity_key = "velocity_" + basis, "grid_velocity_" + basis
     else:
