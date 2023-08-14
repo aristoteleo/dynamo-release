@@ -303,7 +303,6 @@ def run_reduce_dim(
         conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
 
         adata.uns["umap_fit"] = {
-            "fit": mapper,
             "X_data": X_data,
             "umap_kwargs": umap_kwargs,
             "n_pca_components": n_pca_components,
