@@ -610,6 +610,44 @@ class VectorField2D:
         return dict_vf
 
 
+class VectorField3D:
+    def __init__(
+        self,
+        func: Callable,
+        func_vx: Optional[Callable] = None,
+        func_vy: Optional[Callable] = None,
+        func_vz: Optional[Callable] = None,
+        X_data: Optional[np.ndarray] = None,
+    ):
+        self.func = func
+
+        def func_dim(x, func, dim):
+            y = func(x)
+            if y.ndim == 1:
+                y = y[dim]
+            else:
+                y = y[:, dim].flatten()
+            return y
+
+        if func_vx is None:
+            self.fx = lambda x: func_dim(x, self.func, 0)
+        else:
+            self.fx = func_vx
+        if func_vy is None:
+            self.fy = lambda x: func_dim(x, self.func, 1)
+        else:
+            self.fy = func_vy
+        if func_vz is None:
+            self.fy = lambda x: func_dim(x, self.func, 2)
+        else:
+            self.fy = func_vz
+        self.Xss = FixedPoints()
+        self.X_data = X_data
+        self.NCx = None
+        self.NCy = None
+        self.NCz = None
+
+
 def util_topology(
     adata: AnnData,
     basis: str,
