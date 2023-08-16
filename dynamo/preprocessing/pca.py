@@ -361,6 +361,15 @@ def top_pca_genes(
 
 
 def pca_transform(data: Union[np.ndarray, csr_matrix], PCs: np.ndarray) -> np.ndarray:
+    """Transform the data with given principal components.
+
+    Args:
+        data: raw data to transform.
+        PCs: the principal components.
+
+    Returns:
+        The transformed data.
+    """
     arr = data.toarray().copy() if issparse(data) else data.copy()
     mean = arr.mean(0)
     centered_data = arr - mean
@@ -368,5 +377,15 @@ def pca_transform(data: Union[np.ndarray, csr_matrix], PCs: np.ndarray) -> np.nd
 
 
 def pca_inverse_transform(data: Union[np.ndarray, csr_matrix], PCs: np.ndarray, mean: np.ndarray) -> np.ndarray:
+    """Inverse transform the data with given principal components.
+
+    Args:
+        data: raw data to transform.
+        PCs: the principal components.
+        mean: the mean used to fit the PCA.
+
+    Returns:
+        The inverse transformed data.
+    """
     arr = data.toarray().copy() if issparse(data) else data.copy()
     return np.dot(arr, PCs.T) + mean
