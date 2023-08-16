@@ -532,8 +532,9 @@ def mnn(
     """
 
     if use_pca_fit:
-        if "pca_fit" in adata.uns.keys():
-            fiter = adata.uns["pca_fit"]
+        from ..preprocessing.pca import pca_transform
+        if "PCs" in adata.uns.keys():
+            PCs = adata.uns["PCs"]
         else:
             raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
@@ -548,7 +549,7 @@ def mnn(
         layer_X = adata.layers[layer]
         layer_X = log1p_(adata, layer_X)
         if use_pca_fit:
-            layer_pca = fiter.fit_transform(layer_X)[:, 1:]
+            layer_pca = pca_transform(layer_X, PCs)[:, 1:]
         else:
             transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
             layer_pca = transformer.fit_transform(layer_X)[:, 1:]

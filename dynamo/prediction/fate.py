@@ -16,6 +16,7 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_warning,
 )
+from ..preprocessing.pca import pca_inverse_transform
 from ..tools.connectivity import construct_mapper_umap
 from ..tools.utils import fetch_states, getTseq
 from ..vectorfield import vector_field_function
@@ -192,7 +193,7 @@ def fate(
 
         if "X" in adata.obsm_keys():
             if ndim == adata.obsm[DKM.X_PCA].shape[1]:  # lift the dimension up again
-                exprs = adata.uns["pca_fit"].inverse_transform(prediction)
+                exprs = pca_inverse_transform(prediction, PCs=PCs.T, mean=adata.uns["pca_mean"])
 
         if adata.var.use_for_dynamics.sum() == exprs.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]

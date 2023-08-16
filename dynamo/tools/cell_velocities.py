@@ -535,18 +535,19 @@ def cell_velocities(
             umap_kwargs=params["umap_kwargs"],
         )
 
-        if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
-            CM = adata.X[:, adata.var.use_for_dynamics.values]
+        CM = adata.X[:, adata.var.use_for_dynamics.values]
+        if "PCs" not in adata.uns_keys():
             from ..preprocessing.pca import pca
 
             adata, pca_fit, X_pca = pca(adata, CM, params["n_pca_components"], "X", return_all=True)
-            adata.uns["pca_fit"] = pca_fit
 
-        X_pca, pca_fit = adata.obsm[DKM.X_PCA], adata.uns["pca_fit"]
+        from ..preprocessing.pca import pca_transform
+
+        X_pca, pca_PCs = adata.obsm[DKM.X_PCA], adata.uns["PCs"]
         V = adata[:, adata.var.use_for_dynamics.values].layers[vkey] if vkey in adata.layers.keys() else None
         CM, V = CM.A if sp.issparse(CM) else CM, V.A if sp.issparse(V) else V
         V[np.isnan(V)] = 0
-        Y_pca = pca_fit.transform(CM + V)
+        Y_pca = pca_transform(CM + V, PCs=pca_PCs)
 
         Y = umap_trans.transform(Y_pca)
 
