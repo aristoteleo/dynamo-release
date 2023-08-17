@@ -178,6 +178,45 @@ def compute_nullclines_2d(
     return NCx, NCy
 
 
+def compute_nullclines_3d(
+    X0: Union[List, np.ndarray],
+    fdx: Callable,
+    fdy: Callable,
+    fdz: Callable,
+    x_range: List,
+    y_range: List,
+    z_range: List,
+    s_max: Optional[float] = None,
+    ds: Optional[float] = None,
+) -> Tuple[List]:
+    if s_max is None:
+        s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]) + (z_range[1] - z_range[0]))
+    if ds is None:
+        ds = s_max / 1e3
+
+    NCx = []
+    NCy = []
+    NCz = []
+    for x0 in X0:
+        # initialize tangent predictor
+        theta = np.random.rand() * 2 * np.pi
+        phi = np.random.rand() * 2 * np.pi
+        r = ds * 2
+        v0 = [r * np.sin(theta) * np.cos(phi), r * np.sin(theta) * np.sin(phi), r * np.cos(theta)]
+        v0 /= np.linalg.norm(v0)
+        # nullcline continuation
+        NCx.append(continuation(x0, fdx, s_max, ds, v0=v0))
+        NCx.append(continuation(x0, fdx, s_max, ds, v0=-v0))
+        NCy.append(continuation(x0, fdy, s_max, ds, v0=v0))
+        NCy.append(continuation(x0, fdy, s_max, ds, v0=-v0))
+        NCz.append(continuation(x0, fdz, s_max, ds, v0=v0))
+        NCz.append(continuation(x0, fdz, s_max, ds, v0=-v0))
+    NCx = clip_curves(NCx, [x_range, y_range, z_range], ds * 10)
+    NCy = clip_curves(NCy, [x_range, y_range, z_range], ds * 10)
+    NCz = clip_curves(NCz, [x_range, y_range, z_range], ds * 10)
+    return NCx, NCy, NCz
+
+
 def compute_separatrices(
     Xss: np.ndarray,
     Js: np.ndarray,
@@ -610,7 +649,7 @@ class VectorField2D:
         return dict_vf
 
 
-class VectorField3D:
+class VectorField3D(VectorField2D):
     def __init__(
         self,
         func: Callable,
@@ -619,7 +658,7 @@ class VectorField3D:
         func_vz: Optional[Callable] = None,
         X_data: Optional[np.ndarray] = None,
     ):
-        self.func = func
+        super().__init__(func, func_vx, func_vy, X_data)
 
         def func_dim(x, func, dim):
             y = func(x)
@@ -629,23 +668,77 @@ class VectorField3D:
                 y = y[:, dim].flatten()
             return y
 
-        if func_vx is None:
-            self.fx = lambda x: func_dim(x, self.func, 0)
-        else:
-            self.fx = func_vx
-        if func_vy is None:
-            self.fy = lambda x: func_dim(x, self.func, 1)
-        else:
-            self.fy = func_vy
         if func_vz is None:
-            self.fy = lambda x: func_dim(x, self.func, 2)
+            self.fz = lambda x: func_dim(x, self.func, 2)
         else:
-            self.fy = func_vz
-        self.Xss = FixedPoints()
-        self.X_data = X_data
-        self.NCx = None
-        self.NCy = None
+            self.fz = func_vz
+
         self.NCz = None
+
+    def find_fixed_points_by_sampling(
+        self,
+        n: int,
+        x_range: Tuple[float, float],
+        y_range: Tuple[float, float],
+        z_range: Tuple[float, float],
+        lhs: Optional[bool] = True,
+        tol_redundant: float = 1e-4,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if lhs:
+            from ..tools.sampling import lhsclassic
+
+            X0 = lhsclassic(n, 3)
+        else:
+            X0 = np.random.rand(n, 3)
+        X0[:, 0] = X0[:, 0] * (x_range[1] - x_range[0]) + x_range[0]
+        X0[:, 1] = X0[:, 1] * (y_range[1] - y_range[0]) + y_range[0]
+        X0[:, 2] = X0[:, 2] * (z_range[1] - z_range[0]) + z_range[0]
+        X, J, _ = find_fixed_points(
+            X0,
+            self.func,
+            domain=[x_range, y_range, z_range],
+            tol_redundant=tol_redundant,
+        )
+        if X is None:
+            raise ValueError(f"No fixed points found. Try to increase the number of samples n.")
+        self.Xss.add_fixed_points(X, J, tol_redundant)
+
+    def compute_nullclines(
+        self,
+        x_range: Tuple[float, float],
+        y_range: Tuple[float, float],
+        z_range: Tuple[float, float],
+        find_new_fixed_points: Optional[bool] = False,
+        tol_redundant: Optional[float] = 1e-4,
+    ):
+        # compute arguments
+        s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
+        ds = s_max / 1e3
+        self.NCx, self.NCy, self.NCz = compute_nullclines_3d(
+            self.Xss.get_X(),
+            self.fx,
+            self.fy,
+            self.fz,
+            x_range,
+            y_range,
+            z_range,
+            s_max=s_max,
+            ds=ds,
+        )
+        # if find_new_fixed_points:
+        #     sample_interval = ds * 10
+        #     X, J = find_fixed_points_nullcline_3d(self.func, self.NCx, self.NCy, self.NCz, sample_interval, tol_redundant)
+        #     outside = is_outside(X, [x_range, y_range])
+        #     self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
+
+    def output_to_dict(self, dict_vf):
+        dict_vf["NCx"] = self.NCx
+        dict_vf["NCy"] = self.NCy
+        dict_vf["NCz"] = self.NCz
+        dict_vf["Xss"] = self.Xss.get_X()
+        dict_vf["confidence"] = self.get_Xss_confidence()
+        dict_vf["J"] = self.Xss.get_J()
+        return dict_vf
 
 
 def util_topology(
