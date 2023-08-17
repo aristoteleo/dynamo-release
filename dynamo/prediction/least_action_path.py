@@ -601,7 +601,7 @@ def least_action(
 
     adata.uns[LAP_key] = {
         "init_states": init_states,
-        "init_cells": init_cells,
+        "init_cells": list(init_cells),
         "t": t,
         "mftp": mftp,
         "prediction": prediction,

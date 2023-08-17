@@ -207,12 +207,12 @@ def fate(
 
     adata.uns[fate_key] = {
         "init_states": init_states,
-        "init_cells": init_cells,
+        "init_cells": list(init_cells),
         "average": average,
         "t": t,
         "prediction": prediction,
         # "VecFld": VecFld,
-        "VecFld_true": VecFld_true,
+        # "VecFld_true": VecFld_true,
         "genes": valid_genes,
     }
     if exprs is not None:
