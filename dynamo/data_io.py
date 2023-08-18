@@ -355,4 +355,20 @@ def export_rank_xlsx(adata, path="rank_info.xlsx", ext="excel", rank_prefix="ran
 
 def export_h5ad(adata, path="data/processed_data.h5ad"):
     convert_velocity_params_type(adata)
+    fate_keys = [i if i.startswith("fate") else None for i in adata.uns_keys()]
+    for i in fate_keys:
+        if i is not None:
+            if "prediction" in adata.uns[i].keys():
+                adata.uns[i]["prediction"] = {str(index): array for index, array in enumerate(adata.uns[i]["prediction"])}
     adata.write_h5ad(path)
+
+
+def import_h5ad(path="data/processed_data.h5ad"):
+    adata = read_h5ad(path)
+    fate_keys = [i if i.startswith("fate") else None for i in adata.uns_keys()]
+    for i in fate_keys:
+        if i is not None:
+            if "prediction" in adata.uns[i].keys():
+                adata.uns[i]["prediction"] = [adata.uns[i]["prediction"]["NCx"][index] for index in adata.uns[i]["prediction"]]
+    return adata
+
