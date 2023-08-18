@@ -383,20 +383,28 @@ def import_kmc(adata):
 
 def export_h5ad(adata, path="data/processed_data.h5ad"):
     convert_velocity_params_type(adata)
+    if "kmc" in adata.uns.keys():
+        export_kmc(adata)
     fate_keys = [i if i.startswith("fate") else None for i in adata.uns_keys()]
     for i in fate_keys:
         if i is not None:
             if "prediction" in adata.uns[i].keys():
                 adata.uns[i]["prediction"] = {str(index): array for index, array in enumerate(adata.uns[i]["prediction"])}
+            if "t" in adata.uns[i].keys():
+                adata.uns[i]["t"] = {str(index): array for index, array in enumerate(adata.uns[i]["t"])}
     adata.write_h5ad(path)
 
 
 def import_h5ad(path="data/processed_data.h5ad"):
     adata = read_h5ad(path)
+    if "kmc_params" in adata.uns.keys():
+        import_kmc(adata)
     fate_keys = [i if i.startswith("fate") else None for i in adata.uns_keys()]
     for i in fate_keys:
         if i is not None:
             if "prediction" in adata.uns[i].keys():
-                adata.uns[i]["prediction"] = [adata.uns[i]["prediction"]["NCx"][index] for index in adata.uns[i]["prediction"]]
+                adata.uns[i]["prediction"] = [adata.uns[i]["prediction"][index] for index in adata.uns[i]["prediction"]]
+            if "t" in adata.uns[i].keys():
+                adata.uns[i]["t"] = [adata.uns[i]["t"][index] for index in adata.uns[i]["t"]]
     return adata
 
