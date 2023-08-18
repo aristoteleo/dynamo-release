@@ -354,7 +354,8 @@ def export_rank_xlsx(adata, path="rank_info.xlsx", ext="excel", rank_prefix="ran
                 adata.uns[key].to_excel(writer, sheet_name=str(key))
 
 
-def export_kmc(adata):
+def export_kmc(adata: AnnData) -> None:
+    """Save the parameters of kmc and delete the kmc object from anndata."""
     kmc = adata.uns["kmc"]
     adata.uns["kmc_params"] = {
         "P": kmc.P,
@@ -369,7 +370,8 @@ def export_kmc(adata):
     adata.uns.pop("kmc")
 
 
-def import_kmc(adata):
+def import_kmc(adata: AnnData) -> None:
+    """Construct the kmc object using the parameters saved."""
     kmc = KernelMarkovChain(P=adata.uns["kmc_params"]["P"], Idx=adata.uns["kmc_params"]["Idx"])
     kmc.eignum = adata.uns["kmc_params"]["eignum"]
     kmc.D = adata.uns["kmc_params"]["D"]
@@ -381,7 +383,8 @@ def import_kmc(adata):
     adata.uns.pop("kmc_params")
 
 
-def export_h5ad(adata, path="data/processed_data.h5ad"):
+def export_h5ad(adata: AnnData, path: str = "data/processed_data.h5ad") -> None:
+    """Export the anndata object to h5ad."""
     convert_velocity_params_type(adata)
     if "kmc" in adata.uns.keys():
         export_kmc(adata)
@@ -395,7 +398,8 @@ def export_h5ad(adata, path="data/processed_data.h5ad"):
     adata.write_h5ad(path)
 
 
-def import_h5ad(path="data/processed_data.h5ad"):
+def import_h5ad(path: str ="data/processed_data.h5ad") -> AnnData:
+    """Import a Dynamo h5ad object into anndata."""
     adata = read_h5ad(path)
     if "kmc_params" in adata.uns.keys():
         import_kmc(adata)
