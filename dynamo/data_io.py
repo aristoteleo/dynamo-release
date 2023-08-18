@@ -20,6 +20,7 @@ from anndata import (
 from tqdm import tqdm
 
 from .dynamo_logger import main_info
+from .tools.Markov import KernelMarkovChain
 
 
 def make_dir(path: str, can_exist=True):
@@ -351,6 +352,33 @@ def export_rank_xlsx(adata, path="rank_info.xlsx", ext="excel", rank_prefix="ran
             if key[: len(rank_prefix)] == rank_prefix:
                 main_info("saving sheet: " + str(key))
                 adata.uns[key].to_excel(writer, sheet_name=str(key))
+
+
+def export_kmc(adata):
+    kmc = adata.uns["kmc"]
+    adata.uns["kmc_params"] = {
+        "P": kmc.P,
+        "Idx": kmc.Idx,
+        "eignum": kmc.eignum,
+        "D": kmc.D,
+        "U": kmc.U,
+        "W": kmc.W,
+        "W_inv": kmc.W_inv,
+        "Kd": kmc.Kd,
+    }
+    adata.uns.pop("kmc")
+
+
+def import_kmc(adata):
+    kmc = KernelMarkovChain(P=adata.uns["kmc_params"]["P"], Idx=adata.uns["kmc_params"]["Idx"])
+    kmc.eignum = adata.uns["kmc_params"]["eignum"]
+    kmc.D = adata.uns["kmc_params"]["D"]
+    kmc.U = adata.uns["kmc_params"]["U"]
+    kmc.W = adata.uns["kmc_params"]["W"]
+    kmc.W_inv = adata.uns["kmc_params"]["W_inv"]
+    kmc.Kd = adata.uns["kmc_params"]["Kd"]
+    adata.uns["kmc"] = kmc
+    adata.uns.pop("kmc_params")
 
 
 def export_h5ad(adata, path="data/processed_data.h5ad"):
