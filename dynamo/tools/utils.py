@@ -1615,6 +1615,38 @@ def set_param_kinetic(
     return adata
 
 
+def get_vel_params(
+    adata: AnnData,
+    params: Union[List, str],
+    kin_param_pre: str = "",
+    skip_cell_wise: bool = False,
+) -> Tuple:
+    if type(params) is str:
+        params = [params]
+
+    if kin_param_pre + "vel_params" not in adata.varm.keys():
+        raise KeyError("No velocity parameters found.")
+
+    array_data = adata.varm[kin_param_pre + "vel_params"]
+    df_columns = adata.uns[kin_param_pre + "vel_params_names"]
+    df = pd.DataFrame(array_data, columns=df_columns)
+    target_params = []
+
+    for param in params:
+        if param == "alpha":
+            if not skip_cell_wise:
+                if "cell_wise_alpha" in adata.layers.keys():
+                    target_params.append(adata.layers["cell_wise_alpha"])
+                elif "alpha" in adata.varm.keys():
+                    target_params.append(adata.varm[kin_param_pre + "alpha"])
+                else:
+                    target_params.append(df[kin_param_pre + "alpha"].values)
+                continue
+        target_params.append(df[kin_param_pre + param].values)
+
+    return tuple(target_params)
+
+
 def get_U_S_for_velocity_estimation(subset_adata, use_moments, has_splicing, has_labeling, log_unnormalized, NTR):
     mapper = get_mapper()
 
