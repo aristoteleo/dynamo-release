@@ -1621,6 +1621,18 @@ def get_vel_params(
     kin_param_pre: str = "",
     skip_cell_wise: bool = False,
 ) -> Tuple:
+    """Get the velocity parameters based on input names.
+
+    Args:
+        adata: the anndata object which contains the parameters.
+        params: the names of parameters to query,
+        kin_param_pre: the prefix used in dynamics when estimating the parameters.
+        skip_cell_wise: whether to skip the detected cell wise parameters. If set to True, the mean will be returned
+            instead of cell wise parameters.
+
+    Returns:
+        All velocity parameters with the same order of query `params`.
+    """
     if type(params) is str:
         params = [params]
 
