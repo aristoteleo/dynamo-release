@@ -235,5 +235,5 @@ def pseudotime_velocity(
 
         logger.info("set gamma to be 0 in .var. so that velocity_S = unspliced RNA.")
         logger.info_insert_adata("gamma", "var", indent_level=2)
-        adata.var["gamma"] = 0
-        adata.var["gamma_b"] = 0
+        adata.varm["vel_params"] = np.zeros((adata.n_vars, 2))
+        adata.uns["vel_params_names"] = ["gamma", "gamma_b"]
