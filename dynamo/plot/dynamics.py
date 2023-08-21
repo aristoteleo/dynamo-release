@@ -1212,7 +1212,7 @@ def dynamics(
         main_warning(
             "dynamics plot doesn't support conventional experiment type, using phase_portraits function instead."
         )
-        phase_portraits(adata)
+        phase_portraits(adata, genes=genes, save_show_or_return=save_show_or_return)
 
     T_uniq = np.unique(T)
     t = np.linspace(0, T_uniq[-1], 1000)
