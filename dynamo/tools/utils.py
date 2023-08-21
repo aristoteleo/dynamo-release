@@ -1620,7 +1620,8 @@ def get_vel_params(
     params: Union[List, str],
     kin_param_pre: str = "",
     skip_cell_wise: bool = False,
-) -> Tuple:
+    return_all: bool = False,
+) -> Union[Tuple, pd.DataFrame]:
     """Get the velocity parameters based on input names.
 
     Args:
@@ -1641,8 +1642,11 @@ def get_vel_params(
 
     array_data = adata.varm[kin_param_pre + "vel_params"]
     df_columns = adata.uns[kin_param_pre + "vel_params_names"]
-    df = pd.DataFrame(array_data, columns=df_columns)
+    df = pd.DataFrame(array_data, index=adata.var_names, columns=df_columns)
     target_params = []
+
+    if return_all:
+        return df
 
     for param in params:
         if param == "alpha":
