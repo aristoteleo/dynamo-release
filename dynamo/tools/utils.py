@@ -1662,6 +1662,21 @@ def get_vel_params(
     return tuple(target_params)
 
 
+def update_vel_params(adata: AnnData, params_df: pd.DataFrame, kin_param_pre: str = "") -> None:
+    """Update the velocity parameters.
+
+    Args:
+        adata: the AnnData obejct to update.
+        params_df: the new velocity parameters.
+        kin_param_pre: the prefix to locate the corresponding parameters.
+
+    Returns:
+        The anndata object will be updated.
+    """
+    adata.varm[kin_param_pre + "vel_params"] = params_df.to_numpy()
+    adata.uns[kin_param_pre + "vel_params_names"] = list(params_df.columns)
+
+
 def get_U_S_for_velocity_estimation(subset_adata, use_moments, has_splicing, has_labeling, log_unnormalized, NTR):
     mapper = get_mapper()
 
