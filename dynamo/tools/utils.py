@@ -1617,10 +1617,9 @@ def set_param_kinetic(
 
 def get_vel_params(
     adata: AnnData,
-    params: Union[List, str],
+    params: Optional[Union[List, str]] = None,
     kin_param_pre: str = "",
     skip_cell_wise: bool = False,
-    return_all: bool = False,
 ) -> Union[Tuple, pd.DataFrame]:
     """Get the velocity parameters based on input names.
 
@@ -1645,7 +1644,7 @@ def get_vel_params(
     df = pd.DataFrame(array_data, index=adata.var_names, columns=df_columns)
     target_params = []
 
-    if return_all:
+    if params is None:
         return df
 
     for param in params:
