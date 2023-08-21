@@ -133,30 +133,38 @@ def plot_3d_streamtube(
     if adata.obsm["X_" + basis].shape[1] < 3:
         raise ValueError("Current basis has dimensions less than 3!")
 
+    if "VecFld_" + basis not in adata.uns.keys():
+        raise KeyError("Corresponding vector field not found! Please run VectorField() with current basis.")
+
     X = adata.obsm["X_" + basis][:, dims]
-    grid_kwargs_dict = {
-        "density": None,
-        "smooth": None,
-        "n_neighbors": None,
-        "min_mass": None,
-        "autoscale": False,
-        "adjust_for_stream": True,
-        "V_threshold": None,
-    }
 
-    X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(
-        X,
-        [60, 60, 60],
-        density=grid_kwargs_dict["density"],
-        smooth=grid_kwargs_dict["smooth"],
-        n_neighbors=grid_kwargs_dict["n_neighbors"],
-    )
+    if "grid" in adata.uns["VecFld_" + basis].keys() and "grid_V" in adata.uns["VecFld_" + basis].keys():
+        X_grid = adata.uns["VecFld_pca3"]["grid"]
+        velocity_grid = adata.uns["VecFld_pca3"]["grid_V"]
+    else:
+        grid_kwargs_dict = {
+            "density": None,
+            "smooth": None,
+            "n_neighbors": None,
+            "min_mass": None,
+            "autoscale": False,
+            "adjust_for_stream": True,
+            "V_threshold": None,
+        }
 
-    from ..vectorfield.utils import vecfld_from_adata
+        X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(
+            X,
+            [60, 60, 60],
+            density=grid_kwargs_dict["density"],
+            smooth=grid_kwargs_dict["smooth"],
+            n_neighbors=grid_kwargs_dict["n_neighbors"],
+        )
 
-    VecFld, func = vecfld_from_adata(adata, basis=basis)
+        from ..vectorfield.utils import vecfld_from_adata
 
-    velocity_grid = func(X_grid)
+        VecFld, func = vecfld_from_adata(adata, basis=basis)
+
+        velocity_grid = func(X_grid)
 
     fig = go.Figure(
         data=go.Streamtube(
