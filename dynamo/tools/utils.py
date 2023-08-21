@@ -1544,7 +1544,8 @@ def set_param_ss(
             params_df.loc[valid_ind, kin_param_pre + "delta_r2"][ind_for_proteins] = delta_r2
             params_df.loc[valid_ind, kin_param_pre + "p_half_life"][ind_for_proteins] = np.log(2) / delta
 
-    adata.uns[kin_param_pre + "params"] = params_df
+    adata.varm[kin_param_pre + "vel_params"] = params_df.to_numpy()
+    adata.uns[kin_param_pre + "vel_params_names"] = list(params_df.columns)
 
     return adata
 
@@ -1608,7 +1609,8 @@ def set_param_kinetic(
     extra_params.columns = [kin_param_pre + i for i in extra_params.columns]
     extra_params = extra_params.set_index(adata.var.index[valid_ind])
     var = pd.concat((params_df, extra_params), axis=1, sort=False)
-    adata.uns[kin_param_pre + "params"] = var
+    adata.varm[kin_param_pre + "vel_params"] = var.to_numpy()
+    adata.uns[kin_param_pre + "vel_params_names"] = list(var.columns)
 
     return adata
 
