@@ -130,6 +130,9 @@ def plot_3d_streamtube(
         mapper = cm.ScalarMappable(norm=norm, cmap=_cmap)
         colors = _to_hex(mapper.to_rgba(values))
 
+    if adata.obsm["X_" + basis].shape[1] < 3:
+        raise ValueError("Current basis has dimensions less than 3!")
+
     X = adata.obsm["X_" + basis][:, dims]
     grid_kwargs_dict = {
         "density": None,
