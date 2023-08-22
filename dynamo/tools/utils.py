@@ -1627,7 +1627,8 @@ def get_vel_params(
 
     Args:
         adata: the anndata object which contains the parameters.
-        params: the names of parameters to query,
+        params: the names of parameters to query. If set to None, the entire velocity parameters DataFrame from `.varm`
+            will be returned.
         kin_param_pre: the prefix used in dynamics when estimating the parameters.
         skip_cell_wise: whether to skip the detected cell wise parameters. If set to True, the mean will be returned
             instead of cell wise parameters.
