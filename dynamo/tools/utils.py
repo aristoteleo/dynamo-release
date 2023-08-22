@@ -401,6 +401,8 @@ def reserve_minimal_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minima
         The minimal gene data.
     """
 
+    vel_params_df = get_vel_params(adata)
+
     # already satisfy the requirement
     if var_store_key in adata.var.columns and adata.var[var_store_key].sum() >= minimal_gene_num:
         return adata.var[var_store_key]
@@ -408,7 +410,7 @@ def reserve_minimal_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minima
     if var_store_key not in adata.var.columns:
         raise ValueError("adata.var.%s does not exists." % (var_store_key))
 
-    gamma_r2_not_na = np.array(adata.var.gamma_r2[adata.var.gamma_r2.notna()])
+    gamma_r2_not_na = np.array(vel_params_df.gamma_r2[vel_params_df.gamma_r2.notna()])
     if len(gamma_r2_not_na) < minimal_gene_num:
         raise ValueError("adata.var.%s does not have enough values that are not NA." % (var_store_key))
 
@@ -2254,6 +2256,7 @@ def set_transition_genes(
     minimal_gene_num=50,
 ):
     layer = vkey.split("_")[1]
+    vel_params_df = get_vel_params(adata)
 
     if adata.uns["dynamics"]["est_method"] == "twostep" and adata.uns["dynamics"]["experiment_type"] == "kin":
         # if adata.uns['dynamics']['has_splicing']:
@@ -2265,12 +2268,12 @@ def set_transition_genes(
         "mix_pulse_chase",
         "kin",
     ]:
-        logLL_col = adata.var.columns[adata.var.columns.str.endswith("logLL")]
+        logLL_col = vel_params_df.columns[vel_params_df.columns.str.endswith("logLL")]
         if len(logLL_col) > 1:
             main_warning(f"there are two columns ends with logLL: {logLL_col}")
 
-        adata.var[store_key] = adata.var[logLL_col[-1]].astype(float) < np.nanpercentile(
-            adata.var[logLL_col[-1]].astype(float), 10
+        adata.var[store_key] = vel_params_df[logLL_col[-1]].astype(float) < np.nanpercentile(
+            vel_params_df[logLL_col[-1]].astype(float), 10
         )
         if layer in ["N", "T"]:
             return adata
@@ -2288,94 +2291,94 @@ def set_transition_genes(
 
     # the following parameters aggreation for different groups can be improved later
     if layer == "U":
-        if "alpha" not in adata.var.columns:
+        if "alpha" not in vel_params_df.columns:
             is_group_alpha, is_group_alpha_r2 = (
                 get_group_params_indices(adata, "alpha"),
                 get_group_params_indices(adata, "alpha_r2"),
             )
             if is_group_alpha.sum() > 0:
-                adata.var["alpha"] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
-                adata.var["alpha_r2"] = adata.var.loc[:, np.hstack((is_group_alpha_r2, False))].mean(1, skipna=True)
+                vel_params_df["alpha"] = vel_params_df.loc[:, is_group_alpha].mean(1, skipna=True)
+                vel_params_df["alpha_r2"] = vel_params_df.loc[:, np.hstack((is_group_alpha_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
 
-        if "alpha_r2" not in adata.var.columns:
-            adata.var["alpha_r2"] = None
-        if np.all(adata.var.alpha_r2.values is None):
-            adata.var.alpha_r2 = 1
+        if "alpha_r2" not in vel_params_df.columns:
+            vel_params_df["alpha_r2"] = None
+        if np.all(vel_params_df.alpha_r2.values is None):
+            vel_params_df.alpha_r2 = 1
         adata.var[store_key] = (
-            (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamics
+            (vel_params_df.alpha > min_alpha) & (vel_params_df.alpha_r2 > min_r2) & adata.var.use_for_dynamics
             if use_for_dynamics
-            else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
+            else (vel_params_df.alpha > min_alpha) & (vel_params_df.alpha_r2 > min_r2)
         )
     elif layer == "S":
-        if "gamma" not in adata.var.columns:
+        if "gamma" not in vel_params_df.columns:
             is_group_gamma, is_group_gamma_r2 = (
                 get_group_params_indices(adata, "gamma"),
                 get_group_params_indices(adata, "gamma_r2"),
             )
             if is_group_gamma.sum() > 0:
-                adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
-                adata.var["gamma_r2"] = adata.var.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
+                vel_params_df["gamma"] = vel_params_df.loc[:, is_group_gamma].mean(1, skipna=True)
+                vel_params_df["gamma_r2"] = vel_params_df.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
-        if "gamma_r2" not in adata.var.columns:
+        if "gamma_r2" not in vel_params_df.columns:
             main_debug("setting all gamma_r2 to 1")
-            adata.var["gamma_r2"] = 1
-        if np.all(adata.var.gamma_r2.values is None) or np.all(adata.var.gamma_r2.values == ""):
-            main_debug("Since all adata.var.gamma_r2 values are None or '', setting all gamma_r2 values to 1.")
-            adata.var.gamma_r2 = 1
+            vel_params_df["gamma_r2"] = 1
+        if np.all(vel_params_df.gamma_r2.values is None) or np.all(vel_params_df.gamma_r2.values == ""):
+            main_debug("Since all gamma_r2 values are None or '', setting all gamma_r2 values to 1.")
+            vel_params_df.gamma_r2 = 1
 
-        adata.var[store_key] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
+        adata.var[store_key] = (vel_params_df.gamma > min_gamma) & (vel_params_df.gamma_r2 > min_r2)
         if use_for_dynamics:
             adata.var[store_key] = adata.var[store_key] & adata.var.use_for_dynamics
 
     elif layer == "P":
-        if "delta" not in adata.var.columns:
+        if "delta" not in vel_params_df.columns:
             is_group_delta, is_group_delta_r2 = (
                 get_group_params_indices(adata, "delta"),
                 get_group_params_indices(adata, "delta_r2"),
             )
             if is_group_delta.sum() > 0:
-                adata.var["delta"] = adata.var.loc[:, is_group_delta].mean(1, skipna=True)
-                adata.var["delta_r2"] = adata.var.loc[:, np.hstack((is_group_delta_r2, False))].mean(1, skipna=True)
+                vel_params_df["delta"] = vel_params_df.loc[:, is_group_delta].mean(1, skipna=True)
+                vel_params_df["delta_r2"] = vel_params_df.loc[:, np.hstack((is_group_delta_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no delta/delta_r2 parameter estimated for your adata object")
 
-        if "delta_r2" not in adata.var.columns:
-            adata.var["delta_r2"] = None
-        if np.all(adata.var.delta_r2.values is None):
-            adata.var.delta_r2 = 1
+        if "delta_r2" not in vel_params_df.columns:
+            vel_params_df["delta_r2"] = None
+        if np.all(vel_params_df.delta_r2.values is None):
+            vel_params_df.delta_r2 = 1
         adata.var[store_key] = (
-            (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamics
+            (vel_params_df.delta > min_delta) & (vel_params_df.delta_r2 > min_r2) & adata.var.use_for_dynamics
             if use_for_dynamics
-            else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
+            else (vel_params_df.delta > min_delta) & (vel_params_df.delta_r2 > min_r2)
         )
     if layer == "T":
-        if "gamma" not in adata.var.columns:
+        if "gamma" not in vel_params_df.columns:
             is_group_gamma, is_group_gamma_r2 = (
                 get_group_params_indices(adata, "gamma"),
                 get_group_params_indices(adata, "gamma_r2"),
             )
             if is_group_gamma.sum() > 0:
-                adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
-                adata.var["gamma_r2"] = adata.var.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
+                vel_params_df["gamma"] = vel_params_df.loc[:, is_group_gamma].mean(1, skipna=True)
+                vel_params_df["gamma_r2"] = vel_params_df.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
-        if "gamma_r2" not in adata.var.columns:
-            adata.var["gamma_r2"] = None
-        if np.all(adata.var.gamma_r2.values is None):
-            adata.var.gamma_r2 = 1
-        if sum(adata.var.gamma_r2.isna()) == adata.n_vars:
-            gamm_r2_checker = adata.var.gamma_r2.isna()
+        if "gamma_r2" not in vel_params_df.columns:
+            vel_params_df["gamma_r2"] = None
+        if np.all(vel_params_df.gamma_r2.values is None):
+            vel_params_df.gamma_r2 = 1
+        if sum(vel_params_df.gamma_r2.isna()) == adata.n_vars:
+            gamm_r2_checker = vel_params_df.gamma_r2.isna()
         else:
-            gamm_r2_checker = adata.var.gamma_r2 > min_r2
+            gamm_r2_checker = vel_params_df.gamma_r2 > min_r2
         adata.var[store_key] = (
-            (adata.var.gamma > min_gamma) & gamm_r2_checker & adata.var.use_for_dynamics
+            (vel_params_df.gamma > min_gamma) & gamm_r2_checker & adata.var.use_for_dynamics
             if use_for_dynamics
-            else (adata.var.gamma > min_gamma) & gamm_r2_checker
+            else (vel_params_df.gamma > min_gamma) & gamm_r2_checker
         )
 
     if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
@@ -2388,6 +2391,8 @@ def set_transition_genes(
             "We auto correct this behavior by selecting the %d top genes according to gamma_r2 values."
         )
         reserve_minimal_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
+
+    update_vel_params(adata, vel_params_df)
 
     return adata
 
