@@ -15,7 +15,7 @@ from ..configuration import _themes
 from ..dynamo_logger import main_warning
 from ..estimation.csc.velocity import sol_s, sol_u, solve_first_order_deg
 from ..estimation.tsc.utils_moments import moments
-from ..tools.utils import get_mapper, get_valid_bools, index_gene, log1p_, update_dict
+from ..tools.utils import get_mapper, get_valid_bools, get_vel_params, index_gene, log1p_, update_dict
 from .scatters import scatters
 from .utils import (
     _datashade_points,
@@ -1322,8 +1322,9 @@ def dynamics(
 
         true_p = None
         true_params = [None, None, None]
-        logLL = valid_adata.var.loc[valid_gene_names, prefix + "logLL"]
-        est_params_df = valid_adata.var.loc[
+        vel_params_df = get_vel_params(adata).loc[valid_gene_names]
+        logLL = vel_params_df.loc[valid_gene_names, prefix + "logLL"]
+        est_params_df = vel_params_df.loc[
             valid_gene_names,
             [
                 prefix + "alpha",
@@ -1603,7 +1604,7 @@ def dynamics(
         else:
             for i, gene_name in enumerate(valid_genes):
                 if model == "moment":
-                    a, b, alpha_a, alpha_i, beta, gamma = valid_adata.var.loc[
+                    a, b, alpha_a, alpha_i, beta, gamma = vel_params_df.loc[
                         gene_name,
                         [
                             prefix + "a",
@@ -1627,23 +1628,23 @@ def dynamics(
                     mom_data = mom.get_all_central_moments() if has_splicing else mom.get_nosplice_central_moments()
                     if true_param_prefix is not None:
                         (true_a, true_b, true_alpha_a, true_alpha_i, true_beta, true_gamma,) = (
-                            valid_adata.var.loc[gene_name, true_param_prefix + "a"]
-                            if true_param_prefix + "a" in valid_adata.var_keys()
+                            vel_params_df.loc[gene_name, true_param_prefix + "a"]
+                            if true_param_prefix + "a" in vel_params_df.columns
                             else -np.inf,
-                            valid_adata.var.loc[gene_name, true_param_prefix + "b"]
-                            if true_param_prefix + "b" in valid_adata.var_keys()
+                            vel_params_df.loc[gene_name, true_param_prefix + "b"]
+                            if true_param_prefix + "b" in vel_params_df.columns
                             else -np.inf,
-                            valid_adata.var.loc[gene_name, true_param_prefix + "alpha_a"]
-                            if true_param_prefix + "alpha_a" in valid_adata.var_keys()
+                            vel_params_df.loc[gene_name, true_param_prefix + "alpha_a"]
+                            if true_param_prefix + "alpha_a" in vel_params_df.columns
                             else -np.inf,
-                            valid_adata.var.loc[gene_name, true_param_prefix + "alpha_i"]
-                            if true_param_prefix + "alpha_i" in valid_adata.var_keys()
+                            vel_params_df.loc[gene_name, true_param_prefix + "alpha_i"]
+                            if true_param_prefix + "alpha_i" in vel_params_df.columns
                             else -np.inf,
-                            valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
-                            if true_param_prefix + "beta" in valid_adata.var_keys()
+                            vel_params_df.loc[gene_name, true_param_prefix + "beta"]
+                            if true_param_prefix + "beta" in vel_params_df.columns
                             else -np.inf,
-                            valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                            if true_param_prefix + "gamma" in valid_adata.var_keys()
+                            vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                            if true_param_prefix + "gamma" in vel_params_df.columns
                             else -np.inf,
                         )
 
@@ -1861,7 +1862,7 @@ def dynamics(
                                 np.log1p(sl),
                             )
 
-                        (alpha, beta, gamma, ul0, sl0, uu0, half_life,) = valid_adata.var.loc[
+                        (alpha, beta, gamma, ul0, sl0, uu0, half_life,) = vel_params_df.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1887,14 +1888,14 @@ def dynamics(
                         l = sol_s(t, sl0, ul0, 0, beta, gamma)
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in vel_params_df.columns
                                 else -np.inf,
-                                valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                if true_param_prefix + "beta" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in vel_params_df.columns
                                 else -np.inf,
-                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in vel_params_df.columns
                                 else -np.inf,
                             )
 
@@ -1931,7 +1932,7 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log1p(uu), np.log1p(ul)
 
-                        alpha, gamma, uu0, ul0, half_life = valid_adata.var.loc[
+                        alpha, gamma, uu0, ul0, half_life = vel_params_df.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1950,11 +1951,11 @@ def dynamics(
                         title_ = ["(unlabeled)", "(labeled)"]
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in vel_params_df.columns
                                 else -np.inf,
-                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in vel_params_df.columns
                                 else -np.inf,
                             )
                             true_u = sol_u(t, uu0, true_alpha, true_gamma)
@@ -2041,8 +2042,8 @@ def dynamics(
                         ax.set_title(gene_name + " " + title_[j])
                 elif experiment_type == "kin":
                     if model == "deterministic":
-                        logLL = valid_adata.var.loc[valid_gene_names, prefix + "logLL"]
-                        alpha, beta, gamma, half_life = valid_adata.var.loc[
+                        logLL = vel_params_df.loc[valid_gene_names, prefix + "logLL"]
+                        alpha, beta, gamma, half_life = vel_params_df.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -2143,7 +2144,7 @@ def dynamics(
                                     np.log1p(sl),
                                 )
 
-                            alpha, beta, gamma, uu0, su0 = valid_adata.var.loc[
+                            alpha, beta, gamma, uu0, su0 = vel_params_df.loc[
                                 gene_name,
                                 [
                                     prefix + "alpha",
@@ -2166,14 +2167,14 @@ def dynamics(
                             l = sol_s(t, 0, 0, alpha, beta, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_beta, true_gamma = (
-                                    valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                    if true_param_prefix + "alpha" in valid_adata.var_keys()
+                                    vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in vel_params_df.columns
                                     else -np.inf,
-                                    valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                    if true_param_prefix + "beta" in valid_adata.var_keys()
+                                    vel_params_df.loc[gene_name, true_param_prefix + "beta"]
+                                    if true_param_prefix + "beta" in vel_params_df.columns
                                     else -np.inf,
-                                    valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                    if true_param_prefix + "gamma" in valid_adata.var_keys()
+                                    vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in vel_params_df.columns
                                     else -np.inf,
                                 )
                                 true_u = sol_u(t, uu0, 0, true_beta)
@@ -2210,7 +2211,7 @@ def dynamics(
                             if log_unnormalized and layers == ["new", "total"]:
                                 uu, ul = np.log1p(uu), np.log1p(ul)
 
-                            alpha, gamma, uu0 = valid_adata.var.loc[
+                            alpha, gamma, uu0 = vel_params_df.loc[
                                 gene_name,
                                 [
                                     prefix + "alpha",
@@ -2226,11 +2227,11 @@ def dynamics(
                             l = None  # sol_s(t, 0, 0, alpha, 1, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_gamma = (
-                                    valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                    if true_param_prefix + "alpha" in valid_adata.var_keys()
+                                    vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in vel_params_df.columns
                                     else -np.inf,
-                                    valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                    if true_param_prefix + "gamma" in valid_adata.var_keys()
+                                    vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in vel_params_df.columns
                                     else -np.inf,
                                 )
                                 true_u = sol_u(t, uu0, 0, true_gamma)
@@ -2350,7 +2351,7 @@ def dynamics(
                                 np.log1p(sl),
                             )
 
-                        alpha, beta, gamma, U0, S0 = valid_adata.var.loc[
+                        alpha, beta, gamma, U0, S0 = vel_params_df.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -2373,14 +2374,14 @@ def dynamics(
                         L = sl + ul
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in vel_params_df.columns
                                 else -np.inf,
-                                valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                if true_param_prefix + "beta" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in vel_params_df.columns
                                 else -np.inf,
-                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in vel_params_df.columns
                                 else -np.inf,
                             )
                             true_l = sol_u(t, 0, true_alpha, true_beta) + sol_s(
@@ -2403,7 +2404,7 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log1p(uu), np.log1p(ul)
 
-                        alpha, gamma, total0 = valid_adata.var.loc[
+                        alpha, gamma, total0 = vel_params_df.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -2420,11 +2421,11 @@ def dynamics(
                         L = ul
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in vel_params_df.columns
                                 else -np.inf,
-                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in valid_adata.var_keys()
+                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in vel_params_df.columns
                                 else -np.inf,
                             )
                             true_l = sol_u(t, 0, true_alpha, true_gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
@@ -2537,7 +2538,7 @@ def dynamics(
                                 np.log1p(sl),
                             )
 
-                        beta, gamma, alpha_std = valid_adata.var.loc[
+                        beta, gamma, alpha_std = vel_params_df.loc[
                             gene_name,
                             [
                                 prefix + "beta",
@@ -2607,7 +2608,7 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log1p(uu), np.log1p(ul)
 
-                        gamma, alpha_std = valid_adata.var.loc[gene_name, [prefix + "gamma", prefix + "alpha_std"]]
+                        gamma, alpha_std = vel_params_df.loc[gene_name, [prefix + "gamma", prefix + "alpha_std"]]
                         alpha_stm = valid_adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
 
                         alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
