@@ -1620,9 +1620,10 @@ def set_param_kinetic(
 def get_vel_params(
     adata: AnnData,
     params: Optional[Union[List, str]] = None,
+    genes: Optional[List] = None,
     kin_param_pre: str = "",
     skip_cell_wise: bool = False,
-) -> Union[Tuple, pd.DataFrame]:
+) -> Union[Tuple, pd.DataFrame, List]:
     """Get the velocity parameters based on input names.
 
     Args:
@@ -1647,22 +1648,28 @@ def get_vel_params(
     df = pd.DataFrame(array_data, index=adata.var_names, columns=df_columns)
     target_params = []
 
+    if genes is None:
+        genes = df.index
+
     if params is None:
-        return df
+        return df.loc[genes]
 
     for param in params:
         if param == "alpha":
             if not skip_cell_wise:
                 if "cell_wise_alpha" in adata.layers.keys():
-                    target_params.append(adata.layers["cell_wise_alpha"])
+                    target_params.append(adata[:, genes].layers["cell_wise_alpha"])
                 elif "alpha" in adata.varm.keys():
-                    target_params.append(adata.varm[kin_param_pre + "alpha"])
+                    target_params.append(adata[:, genes].varm[kin_param_pre + "alpha"])
                 else:
-                    target_params.append(df[kin_param_pre + "alpha"].values)
+                    target_params.append(df.loc[genes, kin_param_pre + "alpha"].values)
                 continue
-        target_params.append(df[kin_param_pre + param].values)
+        target_params.append(df.loc[genes, kin_param_pre + param].values)
 
-    return tuple(target_params)
+    if len(target_params) > 1:
+        return tuple(target_params)
+    else:
+        return target_params[0]
 
 
 def update_vel_params(adata: AnnData, params_df: pd.DataFrame, kin_param_pre: str = "") -> None:
