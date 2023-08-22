@@ -15,7 +15,7 @@ from ..configuration import _themes
 from ..dynamo_logger import main_warning
 from ..estimation.csc.velocity import sol_s, sol_u, solve_first_order_deg
 from ..estimation.tsc.utils_moments import moments
-from ..tools.utils import get_mapper, get_valid_bools, get_vel_params, index_gene, log1p_, update_dict
+from ..tools.utils import get_mapper, get_valid_bools, get_vel_params, index_gene, log1p_, update_dict, update_vel_params
 from .scatters import scatters
 from .utils import (
     _datashade_points,
@@ -230,7 +230,8 @@ def phase_portraits(
     else:
         k_name = "gamma"
 
-    valid_id = np.isfinite(np.array(adata.var.loc[_genes, k_name], dtype="float")).flatten()
+    vel_params_df = get_vel_params(adata)
+    valid_id = np.isfinite(np.array(vel_params_df.loc[_genes, k_name], dtype="float")).flatten()
     genes = np.array(_genes)[valid_id].tolist()
     # idx = [adata.var.index.to_list().index(i) for i in genes]
 
@@ -335,12 +336,12 @@ def phase_portraits(
         V_vec.A if issparse(V_vec) else V_vec,
     )
 
-    if k_name in adata.var.columns:
-        if not ("gamma_b" in adata.var.columns) or all(adata.var.gamma_b.isna()):
-            adata.var.loc[:, "gamma_b"] = 0
+    if k_name in vel_params_df.columns:
+        if not ("gamma_b" in vel_params_df.columns) or all(vel_params_df.gamma_b.isna()):
+            vel_params_df.loc[:, "gamma_b"] = 0
         gamma, velocity_offset = (
-            index_gene(adata, adata.var.loc[:, k_name].values, genes),
-            index_gene(adata, adata.var.gamma_b.values, genes),
+            index_gene(adata, vel_params_df.loc[:, k_name].values, genes),
+            index_gene(adata, vel_params_df.gamma_b.values, genes),
         )
         (
             gamma[~np.isfinite(list(gamma))],
@@ -433,12 +434,12 @@ def phase_portraits(
             )
         )
         if "protein" in adata.obsm.keys():
-            if "delta" in adata.var.columns:
-                gamma_P = adata.var.delta[genes].values
+            if "delta" in vel_params_df.columns:
+                gamma_P = vel_params_df.delta[genes].values
                 velocity_offset_P = (
                     [0] * n_cells
-                    if (not ("delta_b" in adata.var.columns) or adata.var.delta_b.unique() is None)
-                    else adata.var.delta_b[genes].values
+                    if (not ("delta_b" in vel_params_df.columns) or vel_params_df.delta_b.unique() is None)
+                    else vel_params_df.delta_b[genes].values
                 )
             else:
                 raise ValueError(
@@ -1064,6 +1065,8 @@ def phase_portraits(
                 despline_all(ax6)
                 deaxis_all(ax6)
 
+    update_vel_params(adata, params_df=vel_params_df)
+
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
@@ -1213,6 +1216,7 @@ def dynamics(
             "dynamics plot doesn't support conventional experiment type, using phase_portraits function instead."
         )
         phase_portraits(adata, genes=genes, save_show_or_return=save_show_or_return)
+        return
 
     T_uniq = np.unique(T)
     t = np.linspace(0, T_uniq[-1], 1000)
