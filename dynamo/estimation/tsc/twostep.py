@@ -133,8 +133,8 @@ def lin_reg_gamma_synthesis(
         l(t) = (1 - exp(- gamma * t)) alpha / gamma
 
     Args:
-        R: a matrix representing total RNA.
-        N: a matrix representing new RNA.
+        R: a matrix representing total RNA. Can be expression or the first moments.
+        N: a matrix representing new RNA. Can be expression or the first moments.
         time: a matrix with time information.
         perc_right: the percentile limitation to find extreme data points.
 
