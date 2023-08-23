@@ -1326,7 +1326,7 @@ def dynamics(
 
         true_p = None
         true_params = [None, None, None]
-        vel_params_df = get_vel_params(adata).loc[valid_gene_names]
+        vel_params_df = get_vel_params(valid_adata)
         logLL = vel_params_df.loc[valid_gene_names, prefix + "logLL"]
         est_params_df = vel_params_df.loc[
             valid_gene_names,
