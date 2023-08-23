@@ -1,12 +1,21 @@
+from typing import List, Optional, Tuple, Union
+
 import numpy as np
-from scipy.sparse import issparse
+from scipy.sparse import csc_matrix, csr_matrix, issparse
 from tqdm import tqdm
 
 from ...tools.utils import calc_norm_loglikelihood, calc_R2, elem_prod, find_extreme
 from ..csc.utils_velocity import fit_linreg, fit_stochastic_linreg
 
 
-def fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5):
+def fit_slope_stochastic(
+    S: Union[csc_matrix, csr_matrix, np.ndarray],
+    U: Union[csc_matrix, csr_matrix, np.ndarray],
+    US: Union[csc_matrix, csr_matrix, np.ndarray],
+    S2: Union[csc_matrix, csr_matrix, np.ndarray],
+    perc_left: Optional[int] = None,
+    perc_right: int = 5,
+) -> Tuple:
     n_var = S.shape[0]
     k, all_r2, all_logLL = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
 
@@ -28,7 +37,14 @@ def fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5):
     return k, 0, all_r2, all_logLL
 
 
-def fit_labeling_synthesis(new, total, t, intercept=False, perc_left=None, perc_right=None):
+def fit_labeling_synthesis(
+    new: Union[csc_matrix, csr_matrix, np.ndarray],
+    total: Union[csc_matrix, csr_matrix, np.ndarray],
+    t: Union[List, csc_matrix, csr_matrix, np.ndarray],
+    intercept: bool = False,
+    perc_left: Optional[int] = None,
+    perc_right: Optional[int] = None,
+):
     T = np.unique(t)
     K = np.zeros(len(T))
     R2 = np.zeros(len(T))
@@ -40,18 +56,31 @@ def fit_labeling_synthesis(new, total, t, intercept=False, perc_left=None, perc_
     return K, R2
 
 
-def compute_gamma_synthesis(K, T):
+def compute_gamma_synthesis(
+    K: Union[csc_matrix, csr_matrix, np.ndarray],
+    T: Union[csc_matrix, csr_matrix, np.ndarray],
+) -> Tuple:
     gamma, _, r2, _ = fit_linreg(T, -np.log(1 - K))
     return gamma, r2
 
 
-def compute_velocity_synthesis(N, R, gamma, t):
+def compute_velocity_synthesis(
+    N: Union[csc_matrix, csr_matrix, np.ndarray],
+    R: Union[csc_matrix, csr_matrix, np.ndarray],
+    gamma: Union[csc_matrix, csr_matrix, np.ndarray],
+    t: Union[List, csc_matrix, csr_matrix, np.ndarray],
+) -> Union[csc_matrix, csr_matrix, np.ndarray]:
     k = 1 - np.exp(-np.einsum("i,j->ij", t, gamma))
     V = elem_prod(gamma, N) / k - elem_prod(gamma, R)
     return V
 
 
-def lin_reg_gamma_synthesis(R, N, time, perc_right=100):
+def lin_reg_gamma_synthesis(
+    R: Union[csc_matrix, csr_matrix, np.ndarray],
+    N: Union[csc_matrix, csr_matrix, np.ndarray],
+    time: Union[List, csc_matrix, csr_matrix, np.ndarray],
+    perc_right: int = 100,
+) -> Tuple:
     n_var = R.shape[0]
     mean_R2, gamma, r2 = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
     K_list, K_fit_list = [None] * n_var, [None] * n_var
