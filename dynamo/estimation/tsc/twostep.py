@@ -16,6 +16,20 @@ def fit_slope_stochastic(
     perc_left: Optional[int] = None,
     perc_right: int = 5,
 ) -> Tuple:
+    """Estimate the slope of unspliced and spliced RNA with the GMM method: [u, 2*us + u] = gamma * [s, 2*ss - s]. The
+    answer is denoted as gamma_k most of the time, which equals gamma/beta under steady state.
+
+    Args:
+        S: a matrix of the first moments of the spliced RNA.
+        U: a matrix of the first moments of the unspliced RNA.
+        US: a matrix of the cross moments of unspliced/spliced RNA.
+        S2: a matrix of the second moments of spliced RNA.
+        perc_left: the left percentile limitation to find extreme data points.
+        perc_right: the right percentile limitation to find extreme data points.
+
+    Returns:
+        The slope, intercept, R squared and log likelihood.
+    """
     n_var = S.shape[0]
     k, all_r2, all_logLL = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
 
@@ -45,6 +59,19 @@ def fit_labeling_synthesis(
     perc_left: Optional[int] = None,
     perc_right: Optional[int] = None,
 ):
+    """Calculate the slope of total and new RNA under steady-state assumption.
+
+    Args:
+        new: a matrix representing new RNA. Can be expression or the first moments.
+        total: a matrix representing total RNA. Can be expression or the first moments.
+        t: a matrix of time information.
+        intercept: whether to perform the linear regression with intercept.
+        perc_left: the left percentile limitation to find extreme data points.
+        perc_right: the right percentile limitation to find extreme data points.
+
+    Returns:
+        The slope K and R squared of linear regression.
+    """
     T = np.unique(t)
     K = np.zeros(len(T))
     R2 = np.zeros(len(T))
@@ -60,6 +87,15 @@ def compute_gamma_synthesis(
     K: Union[csc_matrix, csr_matrix, np.ndarray],
     T: Union[csc_matrix, csr_matrix, np.ndarray],
 ) -> Tuple:
+    """Calculate gamma as the linear regression results of given time and log(1 - slope k).
+
+    Args:
+        K: a matrix of the slope k.
+        T: a matrix of time information.
+
+    Returns:
+        The gamma and R squared of linear regression.
+    """
     gamma, _, r2, _ = fit_linreg(T, -np.log(1 - K))
     return gamma, r2
 
@@ -70,6 +106,17 @@ def compute_velocity_synthesis(
     gamma: Union[csc_matrix, csr_matrix, np.ndarray],
     t: Union[List, csc_matrix, csr_matrix, np.ndarray],
 ) -> Union[csc_matrix, csr_matrix, np.ndarray]:
+    """Calculate the velocity of total RNA with a physical time unit: velocity = (gamma / k) N - gamma * R.
+
+    Args:
+        N: a matrix representing new RNA.
+        R: a matrix representing total RNA.
+        gamma: a matrix of degradation rate.
+        t: a matrix of time information.
+
+    Returns:
+        The velocity.
+    """
     k = 1 - np.exp(-np.einsum("i,j->ij", t, gamma))
     V = elem_prod(gamma, N) / k - elem_prod(gamma, R)
     return V
