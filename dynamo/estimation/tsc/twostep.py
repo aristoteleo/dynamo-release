@@ -81,6 +81,19 @@ def lin_reg_gamma_synthesis(
     time: Union[List, csc_matrix, csr_matrix, np.ndarray],
     perc_right: int = 100,
 ) -> Tuple:
+    """Under the steady-state assumption, alpha / gamma equals the total RNA. Gamma can be calculated from the slope of
+    total RNA and new RNA. The relationship can be expressed as:
+        l(t) = (1 - exp(- gamma * t)) alpha / gamma
+
+    Args:
+        R: a matrix representing total RNA.
+        N: a matrix representing new RNA.
+        time: a matrix with time information.
+        perc_right: the percentile limitation to find extreme data points.
+
+    Returns:
+        Gamma, R squared, the slope k, the mean of R squared and the fitted k by time and gamma.
+    """
     n_var = R.shape[0]
     mean_R2, gamma, r2 = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
     K_list, K_fit_list = [None] * n_var, [None] * n_var
