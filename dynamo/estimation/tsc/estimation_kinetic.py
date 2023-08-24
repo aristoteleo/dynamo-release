@@ -53,7 +53,7 @@ def guestimate_init_cond(x_data: np.ndarray) -> np.ndarray:
     return x0
 
 
-def guestimate_p0_kinetic_chase(x_data: np.ndarray, time: np.ndarray) -> Tuple:
+def guestimate_p0_kinetic_chase(x_data: np.ndarray, time: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Roughly estimated alpha, gamma and initial conditions for the kinetic chase experiment. Initail conditions are
     the average abundance of labeled RNAs across all cells belonging to the initial labeling time point.
 
@@ -280,11 +280,11 @@ class kinetic_estimation:
         x_data: np.ndarray,
         p0: Optional[np.ndarray] = None,
         n_p0: int = 1,
-        bounds: Optional[Tuple] = None,
+        bounds: Optional[Tuple[Union[float, int], Union[float, int]]] = None,
         sample_method: str = "lhs",
         method: Optional[str] = None,
         normalize: bool = True,
-    ) -> Tuple:
+    ) -> Tuple[np.ndarray, float]:
         """Fit time-seris data using the least squares method.
 
         This method iteratively optimizes the parameters for different initial conditions (p0) and returns
@@ -370,7 +370,7 @@ class kinetic_estimation:
         species: Optional[Union[List, np.ndarray]] = None,
         method: str = "matrix",
         normalize: bool = True,
-    ) -> Tuple:
+    ) -> Tuple[float, float, int]:
         """Perform a Pearson's chi-square test. The statistics is computed as: sum_i (O_i - E_i)^2 / E_i, where O_i is
         the data and E_i is the model predication.
 
