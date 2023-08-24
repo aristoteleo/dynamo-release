@@ -8,8 +8,14 @@ from ..csc.utils_velocity import sol_s, sol_u
 
 
 class LinearODE:
+    """A general class for linear odes."""
     def __init__(self, n_species: int, x0: Optional[np.ndarray] = None) -> None:
-        """A general class for linear odes"""
+        """Initialize the LinearODE object.
+
+        Args:
+            n_species: the number of species.
+            x0: the initial condition of variable x.
+        """
         self.n_species = n_species
         # solution
         self.t = None
@@ -22,11 +28,29 @@ class LinearODE:
         self.default_method = "matrix"
 
     def ode_func(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
-        """Implement your own ODE functions here such that dx=f(x, t)"""
+        """ODE functions to be implemented in the derived class such that dx=f(x, t).
+
+        Args:
+            x: the variable.
+            t: the aray of time.
+
+        Returns:
+            The derivatives dx.
+        """
         dx = np.zeros(len(x))
         return dx
 
     def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: Optional[str] = None) -> np.ndarray:
+        """Integrate the ODE using the given time values.
+
+        Args:
+            t: array of time values.
+            x0: array of initial conditions.
+            method: the method to integrate, including "matrix" and "numerical".
+
+        Returns:
+            Array containing the integrated solution over the specified time values.
+        """
         method = self.default_method if method is None else method
         if method == "matrix":
             sol = self.integrate_matrix(t, x0)
@@ -39,6 +63,15 @@ class LinearODE:
         return sol
 
     def integrate_numerical(self, t: np.ndarray, x0: Optional[np.ndarray] = None) -> np.ndarray:
+        """Numerically integrate the ODE using the given time values.
+
+        Args:
+            t: array of time values.
+            x0: array of initial conditions.
+
+        Returns:
+            Array containing the integrated solution over the specified time values.
+        """
         if x0 is None:
             x0 = self.x0
         else:
@@ -47,6 +80,7 @@ class LinearODE:
         return sol
 
     def reset(self) -> None:
+        """Reset the ODE to initial state."""
         # reset solutions
         self.t = None
         self.x = None
@@ -54,12 +88,21 @@ class LinearODE:
         self.p = None
 
     def computeKnp(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Implement your own vectorized ODE functions here such that dx = Kx + p"""
+        """The vectorized ODE functions to be implemented in the derived class such that dx = Kx + p."""
         K = np.zeros((self.n_species, self.n_species))
         p = np.zeros(self.n_species)
         return K, p
 
     def integrate_matrix(self, t: np.ndarray, x0: Optional[np.ndarray] = None) -> np.ndarray:
+        """Integrate the system of ordinary differential equations (ODEs) using matrix exponential.
+
+        Args:
+            t: array of time values.
+            x0: array of initial conditions.
+
+        Returns:
+            Array containing the integrated solution over the specified time values.
+        """
         # t0 = t[0]
         t0 = 0
         if x0 is None:
@@ -90,8 +133,14 @@ class LinearODE:
 
 
 class MixtureModels:
+    """The base class for mixture models."""
     def __init__(self, models: LinearODE, param_distributor: List) -> None:
-        """A general class for linear odes"""
+        """Initialize the MixtureModels class.
+
+        Args:
+            models: the models to mix.
+            param_distributor: the index to assign parameters.
+        """
         self.n_models = len(models)
         self.models = models
         self.n_species = np.array([mdl.n_species for mdl in self.models])
@@ -104,6 +153,13 @@ class MixtureModels:
         self.default_method = "matrix"
 
     def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: Optional[str] = None) -> None:
+        """Integrate with time values for all models.
+
+        Args:
+            t: array of time values.
+            x0: array of initial conditions.
+            method: the method or methods to integrate, including "matrix" and "numerical".
+        """
         self.x = np.zeros((len(t), np.sum(self.n_species)))
         for i, mdl in enumerate(self.models):
             x0_ = None if x0 is None else x0[self.get_model_species(i)]
@@ -113,11 +169,20 @@ class MixtureModels:
         self.t = np.array(self.models[0].t, copy=True)
 
     def get_model_species(self, model_index: int) -> int:
+        """Get the indices of species associated with the specified model.
+
+        Args:
+            model_index: index of the model.
+
+        Returns:
+            Array containing the indices of species associated with the specified model.
+        """
         id = np.hstack((0, np.cumsum(self.n_species)))
         idx = np.arange(id[-1] + 1)
         return idx[id[model_index] : id[model_index + 1]]
 
     def reset(self) -> None:
+        """Reset all models."""
         # reset solutions
         self.t = None
         self.x = None
@@ -125,9 +190,22 @@ class MixtureModels:
             mdl.reset()
 
     def param_mixer(self, *params: Tuple) -> Tuple:
+        """Unpack the given parameters.
+
+        Args:
+            params: tuple of parameters.
+
+        Returns:
+            The unpacked tuple.
+        """
         return params
 
     def set_params(self, *params: Tuple) -> None:
+        """Set parameters for all models.
+
+        Args:
+            params: tuple of parameters.
+        """
         params = self.param_mixer(*params)
         for i, mdl in enumerate(self.models):
             idx = self.distributor[i]
