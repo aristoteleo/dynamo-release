@@ -1,5 +1,7 @@
+from typing import List, Optional, Tuple, Union
 import warnings
 
+import numpy as np
 from scipy.optimize import least_squares
 from scipy.stats import chi2
 
@@ -9,26 +11,26 @@ from ...tools.sampling import lhsclassic
 from .utils_kinetic import *
 
 
-def guestimate_alpha(x_data, time):
+def guestimate_alpha(x_data: np.ndarray, time: np.ndarray) -> np.ndarray:
     """Roughly estimate p0 for kinetics data."""
     imax = np.argmax(x_data)
     alpha = x_data[imax] / time[imax]
     return alpha
 
 
-def guestimate_gamma(x_data, time):
+def guestimate_gamma(x_data: np.ndarray, time: np.ndarray) -> np.ndarray:
     """Roughly estimate gamma0 with the assumption that time starts at 0 for degradation data."""
     ga0 = np.clip(np.log(max(x_data[0], 0) / (x_data[-1] + 1e-6)) / time[-1], 1e-3, 1e3)
     return ga0
 
 
-def guestimate_init_cond(x_data):
+def guestimate_init_cond(x_data: np.ndarray) -> np.ndarray:
     """Roughly estimate x0 for degradation data."""
     x0 = np.clip(np.max(x_data, 1), 1e-4, np.inf)
     return x0
 
 
-def guestimate_p0_kinetic_chase(x_data, time):
+def guestimate_p0_kinetic_chase(x_data: np.ndarray, time: np.ndarray) -> Tuple:
     t0 = np.min(time)
     x0 = np.mean(x_data[time == t0])
     idx = time != t0
