@@ -12,25 +12,58 @@ from .utils_kinetic import *
 
 
 def guestimate_alpha(x_data: np.ndarray, time: np.ndarray) -> np.ndarray:
-    """Roughly estimate p0 for kinetics data."""
+    """Roughly estimate alpha for kinetics data, which is simply the averaged ratio of new RNA and labeling time.
+
+    Args:
+        x_data: a matrix representing RNA data.
+        time: a matrix of labeling time.
+
+    Returns:
+        The estimated alpha.
+    """
     imax = np.argmax(x_data)
     alpha = x_data[imax] / time[imax]
     return alpha
 
 
 def guestimate_gamma(x_data: np.ndarray, time: np.ndarray) -> np.ndarray:
-    """Roughly estimate gamma0 with the assumption that time starts at 0 for degradation data."""
+    """Roughly estimate gamma0 with the assumption that time starts at 0.
+
+    Args:
+        x_data: a matrix representing RNA data.
+        time: a matrix of labeling time.
+
+    Returns:
+        The estimated gamma.
+    """
     ga0 = np.clip(np.log(max(x_data[0], 0) / (x_data[-1] + 1e-6)) / time[-1], 1e-3, 1e3)
     return ga0
 
 
 def guestimate_init_cond(x_data: np.ndarray) -> np.ndarray:
-    """Roughly estimate x0 for degradation data."""
+    """Roughly estimate x0 for degradation data.
+
+    Args:
+        x_data: a matrix representing RNA data.
+
+    Returns:
+        The estimated x0.
+    """
     x0 = np.clip(np.max(x_data, 1), 1e-4, np.inf)
     return x0
 
 
 def guestimate_p0_kinetic_chase(x_data: np.ndarray, time: np.ndarray) -> Tuple:
+    """Roughly estimated alpha, gamma and initial conditions for the kinetic chase experiment. Initail conditions are
+    the average abundance of labeled RNAs across all cells belonging to the initial labeling time point.
+
+    Args:
+        x_data: a matrix representing RNA data.
+        time: a matrix of labeling time.
+
+    Returns:
+        The estimated alpha0, gamma0 and x0.
+    """
     t0 = np.min(time)
     x0 = np.mean(x_data[time == t0])
     idx = time != t0
