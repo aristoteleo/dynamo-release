@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import odeint
@@ -152,7 +152,7 @@ class MixtureModels:
         self.methods = ["numerical", "matrix"]
         self.default_method = "matrix"
 
-    def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: Optional[str] = None) -> None:
+    def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: Optional[Union[str, List]] = None) -> None:
         """Integrate with time values for all models.
 
         Args:
