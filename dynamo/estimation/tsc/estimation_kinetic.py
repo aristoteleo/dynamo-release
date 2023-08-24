@@ -91,7 +91,7 @@ class kinetic_estimation:
             as well as two functions: integrate (numerical integration), solve (analytical method).
     """
 
-    def __init__(self, param_ranges, x0_ranges, simulator):
+    def __init__(self, param_ranges: np.ndarray, x0_ranges: np.ndarray, simulator: LinearODE) -> None:
         self.simulator = simulator
 
         self.ranges = []
@@ -114,7 +114,7 @@ class kinetic_estimation:
         self.popt = None
         self.cost = None
 
-    def sample_p0(self, samples=1, method="lhs"):
+    def sample_p0(self, samples: int = 1, method: str = "lhs") -> np.ndarray:
         ret = np.zeros((samples, self.n_params))
         if method == "lhs":
             ret = self._lhsclassic(samples)
@@ -127,7 +127,7 @@ class kinetic_estimation:
                     ret[n, i] = r * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         return ret
 
-    def _lhsclassic(self, samples):
+    def _lhsclassic(self, samples: int) -> np.ndarray:
         # From PyDOE
         # Generate the intervals
         # from .utils import lhsclassic
@@ -135,48 +135,55 @@ class kinetic_estimation:
 
         return H
 
-    def get_bound(self, axis):
+    def get_bound(self, axis: int) -> np.ndarray:
         ret = np.zeros(self.n_params)
         for i in range(self.n_params):
             ret[i] = self.ranges[i][axis]
         return ret
 
-    def normalize_data(self, X):
+    def normalize_data(self, X: np.ndarray) -> np.ndarray:
         return np.log1p(X)
 
-    def extract_data_from_simulator(self, t=None, **kwargs):
+    def extract_data_from_simulator(self, t: Optional[np.ndarray] = None, **kwargs) -> np.ndarray:
         if t is None:
             return self.simulator.x.T
         else:
             x = self.simulator.integrate(t=t, **kwargs)
             return x.T
 
-    def assemble_kin_params(self, unfixed_params):
+    def assemble_kin_params(self, unfixed_params: np.ndarray) -> np.ndarray:
         p = np.array(self.fixed_parameters[: self.n_tot_kin_params], copy=True)
         p[np.isnan(p)] = unfixed_params[: self.n_kin_params]
         return p
 
-    def assemble_x0(self, unfixed_params):
+    def assemble_x0(self, unfixed_params: np.ndarray) -> np.ndarray:
         p = np.array(self.fixed_parameters[self.n_tot_kin_params :], copy=True)
         p[np.isnan(p)] = unfixed_params[self.n_kin_params :]
         return p
 
-    def set_params(self, params):
+    def set_params(self, params: np.ndarray) -> None:
         self.simulator.set_params(*self.assemble_kin_params(params))
 
-    def get_opt_kin_params(self):
+    def get_opt_kin_params(self) -> Optional[np.ndarray]:
         if self.popt is not None:
             return self.assemble_kin_params(self.popt)
         else:
             return None
 
-    def get_opt_x0_params(self):
+    def get_opt_x0_params(self) -> Optional[np.ndarray]:
         if self.popt is not None:
             return self.assemble_x0(self.popt)
         else:
             return None
 
-    def f_lsq(self, params, t, x_data, method=None, normalize=True):
+    def f_lsq(
+        self,
+        params: np.ndarray,
+        t: np.ndarray,
+        x_data: np.ndarray,
+        method: Optional[str] = None,
+        normalize: bool = True,
+    ) -> np.ndarray:
         self.set_params(params)
         x0 = self.assemble_x0(params)
         self.simulator.integrate(t, x0, method)
@@ -187,15 +194,15 @@ class kinetic_estimation:
 
     def fit_lsq(
         self,
-        t,
-        x_data,
-        p0=None,
-        n_p0=1,
-        bounds=None,
-        sample_method="lhs",
-        method=None,
-        normalize=True,
-    ):
+        t: np.ndarray,
+        x_data: np.ndarray,
+        p0: Optional[np.ndarray] = None,
+        n_p0: int = 1,
+        bounds: Optional[Tuple] = None,
+        sample_method: str = "lhs",
+        method: Optional[str] = None,
+        normalize: bool = True,
+    ) -> Tuple:
         """Fit time-seris data using least squares
 
         Arguments
@@ -255,19 +262,26 @@ class kinetic_estimation:
         self.cost = costs[i_min]
         return self.popt, self.cost
 
-    def export_parameters(self):
+    def export_parameters(self) -> Optional[np.ndarray]:
         return self.get_opt_kin_params()
 
-    def export_model(self, reinstantiate=True):
+    def export_model(self, reinstantiate: bool = True) -> LinearODE:
         if reinstantiate:
             return self.simulator.__class__()
         else:
             return self.simulator
 
-    def get_SSE(self):
+    def get_SSE(self) -> float:
         return self.cost
 
-    def test_chi2(self, t, x_data, species=None, method="matrix", normalize=True):
+    def test_chi2(
+        self,
+        t: np.ndarray,
+        x_data: np.ndarray,
+        species: Optional[Union[List, np.ndarray]] = None,
+        method: str = "matrix",
+        normalize: bool = True,
+    ) -> Tuple:
         """perform a Pearson's chi-square test. The statistics is computed as: sum_i (O_i - E_i)^2 / E_i, where O_i is the data and E_i is the model predication.
 
         The data can be either 1. stratified moments: 't' is an array of k distinct time points, 'x_data' is a m-by-k matrix of data, where m is the number of species.
