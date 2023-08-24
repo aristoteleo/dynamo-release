@@ -1,3 +1,5 @@
+from typing import List, Optional, Tuple
+
 import numpy as np
 from scipy.integrate import odeint
 
@@ -6,7 +8,7 @@ from ..csc.utils_velocity import sol_s, sol_u
 
 
 class LinearODE:
-    def __init__(self, n_species, x0=None):
+    def __init__(self, n_species: int, x0: Optional[np.ndarray] = None) -> None:
         """A general class for linear odes"""
         self.n_species = n_species
         # solution
@@ -19,12 +21,12 @@ class LinearODE:
         self.methods = ["numerical", "matrix"]
         self.default_method = "matrix"
 
-    def ode_func(self, x, t):
+    def ode_func(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
         """Implement your own ODE functions here such that dx=f(x, t)"""
         dx = np.zeros(len(x))
         return dx
 
-    def integrate(self, t, x0=None, method=None):
+    def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: Optional[str] = None) -> np.ndarray:
         method = self.default_method if method is None else method
         if method == "matrix":
             sol = self.integrate_matrix(t, x0)
@@ -36,7 +38,7 @@ class LinearODE:
         self.t = t
         return sol
 
-    def integrate_numerical(self, t, x0=None):
+    def integrate_numerical(self, t: np.ndarray, x0: Optional[np.ndarray] = None) -> np.ndarray:
         if x0 is None:
             x0 = self.x0
         else:
@@ -44,20 +46,20 @@ class LinearODE:
         sol = odeint(self.ode_func, x0, t)
         return sol
 
-    def reset(self):
+    def reset(self) -> None:
         # reset solutions
         self.t = None
         self.x = None
         self.K = None
         self.p = None
 
-    def computeKnp(self):
+    def computeKnp(self) -> Tuple[np.ndarray, np.ndarray]:
         """Implement your own vectorized ODE functions here such that dx = Kx + p"""
         K = np.zeros((self.n_species, self.n_species))
         p = np.zeros(self.n_species)
         return K, p
 
-    def integrate_matrix(self, t, x0=None):
+    def integrate_matrix(self, t: np.ndarray, x0: Optional[np.ndarray] = None) -> np.ndarray:
         # t0 = t[0]
         t0 = 0
         if x0 is None:
@@ -88,7 +90,7 @@ class LinearODE:
 
 
 class MixtureModels:
-    def __init__(self, models, param_distributor):
+    def __init__(self, models: LinearODE, param_distributor: List) -> None:
         """A general class for linear odes"""
         self.n_models = len(models)
         self.models = models
@@ -101,7 +103,7 @@ class MixtureModels:
         self.methods = ["numerical", "matrix"]
         self.default_method = "matrix"
 
-    def integrate(self, t, x0=None, method=None):
+    def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: Optional[str] = None) -> None:
         self.x = np.zeros((len(t), np.sum(self.n_species)))
         for i, mdl in enumerate(self.models):
             x0_ = None if x0 is None else x0[self.get_model_species(i)]
@@ -110,22 +112,22 @@ class MixtureModels:
             self.x[:, self.get_model_species(i)] = mdl.x
         self.t = np.array(self.models[0].t, copy=True)
 
-    def get_model_species(self, model_index):
+    def get_model_species(self, model_index: int) -> int:
         id = np.hstack((0, np.cumsum(self.n_species)))
         idx = np.arange(id[-1] + 1)
         return idx[id[model_index] : id[model_index + 1]]
 
-    def reset(self):
+    def reset(self) -> None:
         # reset solutions
         self.t = None
         self.x = None
         for mdl in self.models:
             mdl.reset()
 
-    def param_mixer(self, *params):
+    def param_mixer(self, *params: Tuple) -> Tuple:
         return params
 
-    def set_params(self, *params):
+    def set_params(self, *params: Tuple) -> None:
         params = self.param_mixer(*params)
         for i, mdl in enumerate(self.models):
             idx = self.distributor[i]
