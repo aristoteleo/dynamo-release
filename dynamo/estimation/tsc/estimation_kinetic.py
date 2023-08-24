@@ -75,23 +75,20 @@ def guestimate_p0_kinetic_chase(x_data: np.ndarray, time: np.ndarray) -> Tuple:
 
 
 class kinetic_estimation:
-    """A general parameter estimation framework for all types of time-seris data
-
-    Arguments
-    ---------
-        param_ranges: :class:`~numpy.ndarray`
-            A n-by-2 numpy array containing the lower and upper ranges of n parameters
-            (and initial conditions if not fixed).
-        x0_ranges: :class:`~numpy.ndarray`
-            Lower and upper bounds for initial conditions for the integrators.
-            To fix a parameter, set its lower and upper bounds to the same value.
-        simulator: :class:`utils_kinetic.Linear_ODE`
-            An instance of python class which solves ODEs. It should have properties 't' (k time points, 1d numpy array),
-            'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m array),
-            as well as two functions: integrate (numerical integration), solve (analytical method).
-    """
+    """A general parameter estimation framework for all types of time-seris data."""
 
     def __init__(self, param_ranges: np.ndarray, x0_ranges: np.ndarray, simulator: LinearODE) -> None:
+        """Initialize the kinetic_estimation class.
+
+        Args:
+            param_ranges: A n-by-2 numpy array containing the lower and upper ranges of n parameters (and initial
+                conditions if not fixed).
+            x0_ranges: Lower and upper bounds for initial conditions for the integrators. To fix a parameter, set its
+                lower and upper bounds to the same value.
+            simulator: An instance of python class which solves ODEs. It should have properties 't' (k time points,
+                1d numpy array), 'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m
+                array), as well as two functions: integrate (numerical integration), solve (analytical method).
+        """
         self.simulator = simulator
 
         self.ranges = []
@@ -115,6 +112,15 @@ class kinetic_estimation:
         self.cost = None
 
     def sample_p0(self, samples: int = 1, method: str = "lhs") -> np.ndarray:
+        """Sample the initial parameters with either Latin Hypercube Sampling or random method.
+
+        Args:
+            samples: the number of samples.
+            method: the sampling method. Only support "lhs" and random sampling.
+
+        Returns:
+            The sampled array.
+        """
         ret = np.zeros((samples, self.n_params))
         if method == "lhs":
             ret = self._lhsclassic(samples)
@@ -128,6 +134,14 @@ class kinetic_estimation:
         return ret
 
     def _lhsclassic(self, samples: int) -> np.ndarray:
+        """Run the Latin Hypercube Sampling function.
+
+        Args:
+            samples: the number of samples.
+
+        Returns:
+            The sampled data array.
+        """
         # From PyDOE
         # Generate the intervals
         # from .utils import lhsclassic
@@ -136,15 +150,40 @@ class kinetic_estimation:
         return H
 
     def get_bound(self, axis: int) -> np.ndarray:
+        """Get the bounds of the specified axis for all parameters.
+
+        Args:
+            axis: the index of axis.
+
+        Returns:
+            An array containing the bounds of the specified axis for all parameters.
+        """
         ret = np.zeros(self.n_params)
         for i in range(self.n_params):
             ret[i] = self.ranges[i][axis]
         return ret
 
     def normalize_data(self, X: np.ndarray) -> np.ndarray:
+        """Perform log1p normalization on the data.
+
+        Args:
+            X: target data to normalize.
+
+        Returns:
+            The normalized data.
+        """
         return np.log1p(X)
 
     def extract_data_from_simulator(self, t: Optional[np.ndarray] = None, **kwargs) -> np.ndarray:
+        """Extract data from the ODE simulator.
+
+        Args:
+            t: the time information. If provided, the data will be integrated with time information.
+            kwargs: additional keyword arguments.
+
+        Returns:
+            The variable from ODE simulator.
+        """
         if t is None:
             return self.simulator.x.T
         else:
@@ -152,25 +191,56 @@ class kinetic_estimation:
             return x.T
 
     def assemble_kin_params(self, unfixed_params: np.ndarray) -> np.ndarray:
+        """Assemble the kinetic parameters array.
+
+        Args:
+            unfixed_params: array of unfixed parameters.
+
+        Returns:
+            The assembled kinetic parameters.
+        """
         p = np.array(self.fixed_parameters[: self.n_tot_kin_params], copy=True)
         p[np.isnan(p)] = unfixed_params[: self.n_kin_params]
         return p
 
     def assemble_x0(self, unfixed_params: np.ndarray) -> np.ndarray:
+        """Assemble the initial conditions array.
+
+        Args:
+            unfixed_params: array of unfixed parameters.
+
+        Returns:
+            The assembled initial conditions.
+        """
         p = np.array(self.fixed_parameters[self.n_tot_kin_params :], copy=True)
         p[np.isnan(p)] = unfixed_params[self.n_kin_params :]
         return p
 
     def set_params(self, params: np.ndarray) -> None:
+        """Set the parameters of the simulator using assembled kinetic parameters.
+
+        Args:
+            params: array of assembled kinetic parameters.
+        """
         self.simulator.set_params(*self.assemble_kin_params(params))
 
     def get_opt_kin_params(self) -> Optional[np.ndarray]:
+        """Get the optimized kinetic parameters.
+
+        Returns:
+            Array containing the optimized kinetic parameters, or None if not available.
+        """
         if self.popt is not None:
             return self.assemble_kin_params(self.popt)
         else:
             return None
 
     def get_opt_x0_params(self) -> Optional[np.ndarray]:
+        """Get the optimized initial conditions.
+
+        Returns:
+            Array containing the optimized initial conditions, or None if not available.
+        """
         if self.popt is not None:
             return self.assemble_x0(self.popt)
         else:
@@ -184,6 +254,18 @@ class kinetic_estimation:
         method: Optional[str] = None,
         normalize: bool = True,
     ) -> np.ndarray:
+        """Calculate the difference between simulated and observed data for least squares fitting.
+
+        Args:
+            params: array of parameters for the simulation.
+            t: array of time values.
+            x_data: the input array.
+            method: method for integration.
+            normalize: whether to normalize data.
+
+        Returns:
+            Residuals representing the differences between simulated and observed data (flattened).
+        """
         self.set_params(params)
         x0 = self.assemble_x0(params)
         self.simulator.integrate(t, x0, method)
@@ -203,37 +285,26 @@ class kinetic_estimation:
         method: Optional[str] = None,
         normalize: bool = True,
     ) -> Tuple:
-        """Fit time-seris data using least squares
+        """Fit time-seris data using the least squares method.
 
-        Arguments
-        ---------
-            t: :class:`~numpy.ndarray`
-                A numpy array of n time points.
-            x_data: :class:`~numpy.ndarray`
-                A m-by-n numpy a array of m species, each having n values for the n time points.
-            p0: :class:`numpy.ndarray`, optional, default: None
-                Initial guesses of parameters. If None, a random number is generated within the bounds.
-            n_p0: int, optional, default: 1
-                Number of initial guesses.
-            bounds: tuple, optional, default: None
-                Lower and upper bounds for parameters.
-            sample_method: str, optional, default: `lhs`
-                Method used for sampling initial guesses of parameters:
+        This method iteratively optimizes the parameters for different initial conditions (p0) and returns
+        the optimized parameters and associated cost.
+
+        Args:
+            t: a numpy array of n time points.
+            x_data: an m-by-n numpy array of m species, each having n values for the n time points.
+            p0: initial guesses of parameters. If None, a random number is generated within the bounds.
+            n_p0: number of initial guesses.
+            bounds: lower and upper bounds for parameters.
+            sample_method: method used for sampling initial guesses of parameters:
                 `lhs`: latin hypercube sampling;
                 `uniform`: uniform random sampling.
-            method: str or None, optional, default: None
-                Method used for solving ODEs. See options in simulator classes.
-                If None, default method is used.
-            normalize: bool, optional, default: True
-                Whether or not normalize values in x_data across species, so that large values do
+            method: method used for solving ODEs. See options in simulator classes.
+            normalize: whether to normalize values in x_data across species, so that large values do
                 not dominate the optimizer.
 
-        Returns
-        ---------
-            popt: :class:`~numpy.ndarray`
-                Optimal parameters.
-            cost: float
-                The cost function evaluated at the optimum.
+        Returns:
+            Optimal parameters and the cost function evaluated at the optimum.
         """
         if p0 is None:
             p0 = self.sample_p0(n_p0, sample_method)
@@ -263,15 +334,33 @@ class kinetic_estimation:
         return self.popt, self.cost
 
     def export_parameters(self) -> Optional[np.ndarray]:
+        """Export the optimized kinetic parameters.
+
+        Returns:
+            Array containing the optimized kinetic parameters, or None if not available.
+        """
         return self.get_opt_kin_params()
 
     def export_model(self, reinstantiate: bool = True) -> LinearODE:
+        """Export the simulator model.
+
+        Args:
+            reinstantiate: whether to reinstantiate the model class (default: True).
+
+        Returns:
+            Exported simulator model.
+        """
         if reinstantiate:
             return self.simulator.__class__()
         else:
             return self.simulator
 
     def get_SSE(self) -> float:
+        """Get the sum of squared errors (SSE) from the least squares fitting.
+
+        Returns:
+            Sum of squared errors (SSE).
+        """
         return self.cost
 
     def test_chi2(
@@ -282,24 +371,19 @@ class kinetic_estimation:
         method: str = "matrix",
         normalize: bool = True,
     ) -> Tuple:
-        """perform a Pearson's chi-square test. The statistics is computed as: sum_i (O_i - E_i)^2 / E_i, where O_i is the data and E_i is the model predication.
+        """Perform a Pearson's chi-square test. The statistics is computed as: sum_i (O_i - E_i)^2 / E_i, where O_i is
+        the data and E_i is the model predication.
 
-        The data can be either 1. stratified moments: 't' is an array of k distinct time points, 'x_data' is a m-by-k matrix of data, where m is the number of species.
-        or 2. raw data: 't' is an array of k time points for k cells, 'x_data' is a m-by-k matrix of data, where m is the number of species.
-        Note that if the method is 'numerical', t has to monotonically increasing.
-
+        The data can be either:
+            1. stratified moments: 't' is an array of k distinct time points, 'x_data' is an m-by-k matrix of data,
+                where m is the number of species.
+        Or
+            2. raw data: 't' is an array of k time points for k cells, 'x_data' is an m-by-k matrix of data, where m is
+                the number of species. Note that if the method is 'numerical', t has to monotonically increasing.
         If not all species are included in the data, use 'species' to specify the species of interest.
 
-        Returns
-        -------
-            p: float
-            The p-value of a one-tailed chi-square test.
-
-            c2: float
-            The chi-square statistics.
-
-            df: int
-            Degree of freedom.
+        Returns:
+            The p-value of a one-tailed chi-square test, the chi-square statistics and degree of freedom.
         """
         if x_data.ndim == 1:
             x_data = x_data[None]
