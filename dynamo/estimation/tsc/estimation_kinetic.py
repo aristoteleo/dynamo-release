@@ -983,6 +983,16 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
     """
 
     def __init__(self, model1, model2, alpha=None, gamma=None, x0=None, beta=None):
+        """Initialize the Mixture_KinDeg_NoSwitching object.
+
+        Args:
+            model1: the first model to mix.
+            model2: the second model to mix.
+            alpha: transcription rate.
+            gamma: degradation rate.
+            x0: the initial condition.
+            beta: splicing rate.
+        """
         self.model1 = model1
         self.model2 = model2
         self.scale = 1
@@ -990,6 +1000,14 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
             self._initialize(alpha, gamma, x0, beta)
 
     def _initialize(self, alpha, gamma, x0, beta=None):
+        """Initialize the parameters to the default value.
+
+        Args:
+            alpha: transcription rate.
+            gamma: degradation rate.
+            x0: the initial condition.
+            beta: splicing rate.
+        """
         if type(self.model1) in nosplicing_models:
             self.param_distributor = [[0, 2], [1, 2]]
             self.param_keys = ["alpha", "alpha_2", "gamma"]
@@ -1010,6 +1028,16 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         super().__init__(ranges, x0_, model)
 
     def normalize_deg_data(self, x_data, weight):
+        """Normalize the degradation data while preserving the relative proportions between species. It calculates
+        scaling factors to ensure the data's range remains within a certain limit.
+
+        Args:
+            x_data: a matrix representing RNA data.
+            weight: weight for scaling.
+
+        Returns:
+            A tuple containing the normalized degradation data and the scaling factor.
+        """
         x_data_norm = np.array(x_data, copy=True)
 
         x_data_kin = x_data_norm[: self.model1.n_species, :]
@@ -1022,6 +1050,21 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         return x_data_norm, scale
 
     def auto_fit(self, time, x_data, alpha_min=0.1, beta_min=50, gamma_min=10, kin_weight=2, use_p0=True, **kwargs):
+        """Estimate the parameters.
+
+        Args:
+            time: the time information.
+            x_data: a matrix representing RNA data.
+            alpha_min: the minimum limitation on transcription rate.
+            beta_min: the minimum limitation on splicing rate.
+            gamma_min: the minimum limitation on degradation rate.
+            kin_weight: weight for scaling during normalization.
+            use_p0: whether to use initial parameters when estimating.
+            kwargs: the additional keyword arguments.
+
+        Returns:
+            The optimized parameters and the cost.
+        """
         if kin_weight is not None:
             x_data_norm, self.scale = self.normalize_deg_data(x_data, kin_weight)
         else:
@@ -1059,17 +1102,35 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         return popt, cost
 
     def export_model(self, reinstantiate=True):
+        """Export the mixture model.
+
+        Args:
+            reinstantiate: whether to reinstantiate the model.
+
+        Returns:
+            MixtureModels or LinearODE.
+        """
         if reinstantiate:
             return MixtureModels([self.model1, self.model2], self.param_distributor)
         else:
             return self.simulator
 
     def export_x0(self):
+        """Export optimized initial conditions for the mixture of models analysis.
+
+        Returns:
+            Exported initial conditions.
+        """
         x = self.get_opt_x0_params()
         x[self.model1.n_species :] *= self.scale
         return x
 
     def export_dictionary(self):
+        """Export parameter estimation results as a dictionary.
+
+        Returns:
+            Dictionary containing model nameS, kinetic parameters, and initial conditions.
+        """
         mdl1_name = type(self.model1).__name__
         mdl2_name = type(self.model2).__name__
         params = self.export_parameters()
@@ -1099,6 +1160,17 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         x0=None,
         beta=None,
     ):
+        """Initialize the Lambda_NoSwitching object.
+
+        Args:
+            model1: the first model to mix.
+            model2: the second model to mix.
+            alpha: transcription rate.
+            lambd: the lambd value.
+            gamma: degradation rate.
+            x0: the initial condition.
+            beta: splicing rate.
+        """
         self.model1 = model1
         self.model2 = model2
         self.scale = 1
@@ -1106,8 +1178,13 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
             self._initialize(alpha, gamma, x0, beta)
 
     def _initialize(self, alpha, gamma, x0, beta=None):
-        """
-        parameter order: alpha, lambda, (beta), gamma
+        """Initialize the parameters to the default value.
+
+        Args:
+            alpha: transcription rate.
+            gamma: degradation rate.
+            x0: the initial condition.
+            beta: splicing rate.
         """
         if type(self.model1) in nosplicing_models and type(self.model2) in nosplicing_models:
             self.param_keys = ["alpha", "lambda", "gamma"]
@@ -1127,9 +1204,27 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         super(Mixture_KinDeg_NoSwitching, self).__init__(ranges, x0_, model)
 
     def auto_fit(self, time, x_data, **kwargs):
+        """Estimate the parameters.
+
+        Args:
+            time: the time information.
+            x_data: a matrix representing RNA data.
+            kwargs: the additional keyword arguments.
+
+        Returns:
+            The optimized parameters and the cost.
+        """
         return super().auto_fit(time, x_data, kin_weight=None, use_p0=False, **kwargs)
 
     def export_model(self, reinstantiate=True):
+        """Export the mixture model.
+
+        Args:
+            reinstantiate: whether to reinstantiate the model.
+
+        Returns:
+            MixtureModels or LinearODE.
+        """
         if reinstantiate:
             return LambdaModels_NoSwitching(self.model1, self.model2)
         else:
@@ -1137,18 +1232,43 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
 
 
 class Estimation_KineticChase(kinetic_estimation):
+    """An estimation class for kinetic chase experiment."""
     def __init__(self, alpha=None, gamma=None, x0=None):
+        """Initialize the Estimation_KineticChase object.
+
+        Args:
+            alpha: transcription rate.
+            gamma: degradation rate.
+            x0: the initial condition.
+        """
         self.kin_param_keys = np.array(["alpha", "gamma"])
         if alpha is not None and gamma is not None and x0 is not None:
             self._initialize(alpha, gamma, x0)
 
     def _initialize(self, alpha, gamma, x0):
+        """Initialize the parameters to the default value.
+
+        Args:
+            alpha: transcription rate.
+            gamma: degradation rate.
+            x0: the initial condition.
+        """
         ranges = np.zeros((2, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, np.atleast_2d(x0), KineticChase())
 
     def auto_fit(self, time, x_data, **kwargs):
+        """Estimate the parameters.
+
+        Args:
+            time: the time information.
+            x_data: a matrix representing RNA data.
+            kwargs: the additional keyword arguments.
+
+        Returns:
+            The optimized parameters and the cost.
+        """
         if len(time) != len(np.unique(time)):
             t = np.unique(time)
             x = strat_mom(x_data, time, np.mean)
@@ -1163,18 +1283,27 @@ class Estimation_KineticChase(kinetic_estimation):
         return popt, cost
 
     def get_param(self, key):
+        """Get corresponding parameter according to the key."""
         return self.popt[np.where(self.kin_param_keys == key)[0][0]]
 
     def get_alpha(self):
+        """Get the transcription rate."""
         return self.popt[0]
 
     def get_gamma(self):
+        """Get the degradation rate."""
         return self.popt[1]
 
     def calc_half_life(self, key):
+        """Calculate the half life."""
         return np.log(2) / self.get_param(key)
 
     def export_dictionary(self):
+        """Export parameter estimation results as a dictionary.
+
+        Returns:
+            Dictionary containing model nameS, kinetic parameters, and initial conditions.
+        """
         mdl_name = type(self.simulator).__name__
         params = self.export_parameters()
         param_dict = {self.kin_param_keys[i]: params[i] for i in range(len(params))}
