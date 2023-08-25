@@ -408,23 +408,69 @@ class kinetic_estimation:
 
 
 class Estimation_Degradation(kinetic_estimation):
+    """The base parameters, estimation class for degradation experiments."""
     def __init__(self, ranges, x0, simulator):
+        """Initialize the Estimation_Degradation object.
+
+        Args:
+            ranges: the lower and upper ranges of parameters.
+            x0: initial conditions.
+            simulator: instance of the Python class to solve ODEs.
+        """
         self.kin_param_keys = np.array(["alpha", "gamma"])
         super().__init__(np.vstack((np.zeros(2), ranges)), x0, simulator)
 
     def guestimate_init_cond(self, x_data):
+        """Roughly estimate initial conditions for parameter estimation.
+
+        Args:
+            x_data: a matrix representing RNA data.
+
+        Returns:
+            Estimated initial conditions.
+        """
         return guestimate_init_cond(x_data)
 
     def guestimate_gamma(self, x_data, time):
+        """Roughly estimate initial conditions for parameter estimation.
+
+        Args:
+            x_data: a matrix representing RNA data.
+            time: a matrix of time information.
+
+        Returns:
+            Estimated gamma.
+        """
         return guestimate_gamma(x_data, time)
 
     def get_param(self, key):
+        """Get the estimated parameter value by key.
+
+        Args:
+            key: the key of parameter.
+
+        Returns:
+            The estimated parameter value.
+        """
         return self.popt[np.where(self.kin_param_keys == key)[0][0]]
 
     def calc_half_life(self, key):
+        """Calculate half-life of a parameter.
+
+        Args:
+            key: the key of parameter.
+
+        Returns:
+            The half-life value.
+        """
         return np.log(2) / self.get_param(key)
 
     def export_dictionary(self):
+        """Export parameter estimation results as a dictionary.
+
+        Returns:
+            Dictionary containing model name, kinetic parameters, and initial conditions.
+        """
         mdl_name = type(self.simulator).__name__
         params = self.export_parameters()
         param_dict = {self.kin_param_keys[i]: params[i] for i in range(len(params))}
