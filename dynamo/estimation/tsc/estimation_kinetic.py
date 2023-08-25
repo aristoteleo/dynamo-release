@@ -1317,7 +1317,19 @@ class Estimation_KineticChase(kinetic_estimation):
 
 
 class GoodnessOfFit:
+    """Evaluate goodness of fitting.
+
+    This class provides methods for assessing the quality of predictions, using various metrics including Gaussian
+    likelihood, Gaussian log-likelihood, and mean squared deviation.
+    """
     def __init__(self, simulator, params=None, x0=None):
+        """Initialize the GoodnessOfFit object.
+
+        Args:
+            simulator: the linearODE class.
+            params: the parameters.
+            x0: the initial conditions.
+        """
         self.simulator = simulator
         if params is not None:
             self.simulator.set_params(*params)
@@ -1329,6 +1341,14 @@ class GoodnessOfFit:
         self.pred = None
 
     def extract_data_from_simulator(self, species=None):
+        """Extract data from the simulator's results.
+
+        Args:
+            species: index of the species to extract.
+
+        Returns:
+            Extracted data from the simulator's results.
+        """
         ret = self.simulator.x.T
         if species is not None:
             ret = ret[species]
@@ -1343,6 +1363,16 @@ class GoodnessOfFit:
         normalize=True,
         reintegrate=True,
     ):
+        """Prepare data for evaluation.
+
+        Args:
+            t: the time information.
+            x_data: the RNA data.
+            species: index of the species to consider.
+            method: integration method.
+            normalize: whether to normalize data.
+            reintegrate: whether to reintegrate the model.
+        """
         if reintegrate:
             self.simulator.integrate(t, method=method)
         x_model = self.extract_data_from_simulator(species=species)
@@ -1361,12 +1391,27 @@ class GoodnessOfFit:
         self.pred = strat_mom(x_model_norm.T, t, np.mean)
 
     def normalize(self, x_data, x_model, scale=None):
+        """Normalize data and model predictions.
+
+        Args:
+            x_data: the RNA data.
+            x_model: predictions from model.
+            scale: Scaling factors for normalization.
+
+        Returns:
+            Normalized observations and model predictions.
+        """
         scale = np.max(x_data, 1) if scale is None else scale
         x_data_norm = (x_data.T / scale).T
         x_model_norm = (x_model.T / scale).T
         return x_data_norm, x_model_norm
 
     def calc_gaussian_likelihood(self):
+        """ Calculate the Gaussian likelihood between model predictions and observations.
+
+        Returns:
+            Gaussian likelihood value.
+        """
         sig = np.array(self.sigm, copy=True)
         if np.any(sig == 0):
             main_warning("Some standard deviations are 0; Set to 1 instead.")
@@ -1376,6 +1421,11 @@ class GoodnessOfFit:
         return ret
 
     def calc_gaussian_loglikelihood(self):
+        """Calculate the Gaussian log-likelihood between model predictions and observations.
+
+        Returns:
+            Gaussian log-likelihood value.
+        """
         sig = np.array(self.sigm, copy=True)
         if np.any(sig == 0):
             main_warning("Some standard deviations are 0; Set to 1 instead.")
@@ -1385,6 +1435,14 @@ class GoodnessOfFit:
         return ret
 
     def calc_mean_squared_deviation(self, weighted=True):
+        """Calculate the mean squared deviation between model predictions and observations.
+
+        Args:
+            weighted: whether to weight the output.
+
+        Returns:
+            Mean squared deviation
+        """
         sig = np.array(self.sigm, copy=True)
         if np.any(sig == 0):
             main_warning("Some standard deviations are 0; Set to 1 instead.")
