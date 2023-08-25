@@ -489,17 +489,41 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
     """
 
     def __init__(self, beta=None, gamma=None, x0=None):
+        """Initialize the Estimation_DeterministicDeg object.
+
+        Args:
+            beta: the splicing rate.
+            gamma: the degradation rate.
+            x0: the initial conditions.
+        """
         self.kin_param_keys = np.array(["alpha", "beta", "gamma"])
         if beta is not None and gamma is not None and x0 is not None:
             self._initialize(beta, gamma, x0)
 
     def _initialize(self, beta, gamma, x0):
+        """Initialize the parameters to the default value.
+
+        Args:
+            beta: the splicing rate.
+            gamma: the degradation rate.
+            x0: the initial conditions.
+        """
         ranges = np.zeros((2, 2))
         ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, x0, Deterministic())
 
     def auto_fit(self, time, x_data, **kwargs):
+        """Estimate the parameters.
+
+        Args:
+            time: the time information.
+            x_data: a matrix representing RNA data.
+            kwargs: the additional keyword arguments.
+
+        Returns:
+            The optimized parameters and the cost.
+        """
         be0 = self.guestimate_gamma(x_data[0, :], time)
         ga0 = self.guestimate_gamma(x_data[0, :] + x_data[1, :], time)
         x0 = self.guestimate_init_cond(x_data)
@@ -516,10 +540,22 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
     """An estimation class for degradation (without splicing) experiments."""
 
     def __init__(self, gamma=None, x0=None):
+        """Initialize the Estimation_DeterministicDegNosp object.
+
+        Args:
+            gamma: the degradation rate.
+            x0: the initial conditions.
+        """
         if gamma is not None and x0 is not None:
             self._initialize(gamma, x0)
 
     def _initialize(self, gamma, x0):
+        """Initialize the parameters to the default value.
+
+        Args:
+            gamma: the degradation rate.
+            x0: the initial conditions.
+        """
         ranges = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         if np.isscalar(x0) or x0.ndim > 1:
             x0_ = x0
@@ -528,6 +564,20 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
         super().__init__(ranges, x0_, Deterministic_NoSplicing())
 
     def auto_fit(self, time, x_data, sample_method="lhs", method=None, normalize=False):
+        """Estimate the parameters.
+
+        Args:
+            time: the time information.
+            x_data: a matrix representing RNA data.
+            sample_method: method used for sampling initial guesses of parameters:
+                `lhs`: latin hypercube sampling;
+                `uniform`: uniform random sampling.
+            method: method used for solving ODEs. See options in simulator classes.
+            normalize: whether to normalize the
+
+        Returns:
+            The optimized parameters and the cost.
+        """
         ga0 = self.guestimate_gamma(x_data, time)
         x0 = self.guestimate_init_cond(x_data[None])
         gamma_bound = np.array([0, 1e2 * ga0])
@@ -552,18 +602,34 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
     """
 
     def __init__(self, beta=None, gamma=None, x0=None, include_cov=True):
+        """Initialize the Estimation_MomentDeg object.
+
+        Args:
+            beta: the splicing rate.
+            gamma: the degradation rate.
+            x0: the initial conditions.
+            include_cov: whether to consider covariance when estimating.
+        """
         self.kin_param_keys = np.array(["alpha", "beta", "gamma"])
         self.include_cov = include_cov
         if beta is not None and gamma is not None and x0 is not None:
             self._initialize(beta, gamma, x0)
 
     def _initialize(self, beta, gamma, x0):
+        """Initialize the parameters to the default value.
+
+        Args:
+            beta: the splicing rate.
+            gamma: the degradation rate.
+            x0: the initial conditions.
+        """
         ranges = np.zeros((2, 2))
         ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super(Estimation_DeterministicDeg, self).__init__(ranges, x0, Moments_NoSwitching())
 
     def extract_data_from_simulator(self):
+        """Get corresponding data from the LinearODE class."""
         if self.include_cov:
             ret = np.zeros((5, len(self.simulator.t)))
             ret[0] = self.simulator.x[:, self.simulator.u]
@@ -581,20 +647,43 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
 
 
 class Estimation_MomentDegNosp(Estimation_Degradation):
-    """An estimation class for degradation (without splicing) experiments."""
+    """An estimation class for degradation (without splicing) experiments. Order of species: <r>, <rr>."""
 
     def __init__(self, gamma=None, x0=None):
-        """An estimation class for degradation (without splicing) experiments.
-        Order of species: <r>, <rr>
+        """Initialize the Estimation_MomentDeg object.
+
+        Args:
+            gamma: the degradation rate.
+            x0: the initial conditions.
         """
         if gamma is not None and x0 is not None:
             self._initialize(gamma, x0)
 
     def _initialize(self, gamma, x0):
+        """Initialize the parameters to the default value.
+
+        Args:
+            gamma: the degradation rate.
+            x0: the initial conditions.
+        """
         ranges = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, x0, Moments_NoSwitchingNoSplicing())
 
     def auto_fit(self, time, x_data, sample_method="lhs", method=None, normalize=False):
+        """Estimate the parameters.
+
+        Args:
+            time: the time information.
+            x_data: a matrix representing RNA data.
+            sample_method: method used for sampling initial guesses of parameters:
+                `lhs`: latin hypercube sampling;
+                `uniform`: uniform random sampling.
+            method: method used for solving ODEs. See options in simulator classes.
+            normalize: whether to normalize the
+
+        Returns:
+            The optimized parameters and the cost.
+        """
         ga0 = self.guestimate_gamma(x_data[0, :], time)
         x0 = self.guestimate_init_cond(x_data)
         gamma_bound = np.array([0, 1e2 * ga0])
