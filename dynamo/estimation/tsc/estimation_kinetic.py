@@ -707,6 +707,17 @@ class Estimation_MomentKin(kinetic_estimation):
     """
 
     def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=True):
+        """Initialize the Estimation_MomentKin object.
+
+        Args:
+            a: switching rate from active promoter state to inactive promoter state.
+            b: switching rate from inactive promoter state to active promoter state.
+            alpha_a: transcription rate for active promoter.
+            alpha_i: transcription rate for inactive promoter.
+            beta: splicing rate.
+            gamma: degradation rate.
+            include_cov: whether to include the covariance when estimating.
+        """
         self.param_keys = np.array(["a", "b", "alpha_a", "alpha_i", "beta", "gamma"])
         ranges = np.zeros((6, 2))
         ranges[0] = a * np.ones(2) if np.isscalar(a) else a
@@ -719,6 +730,7 @@ class Estimation_MomentKin(kinetic_estimation):
         self.include_cov = include_cov
 
     def extract_data_from_simulator(self):
+        """Get corresponding data from the LinearODE class."""
         if self.include_cov:
             ret = np.zeros((5, len(self.simulator.t)))
             ret[0] = self.simulator.get_nu()
@@ -735,28 +747,40 @@ class Estimation_MomentKin(kinetic_estimation):
         return ret
 
     def get_alpha_a(self):
+        """Get the transcription rate for active promoter."""
         return self.popt[2]
 
     def get_alpha_i(self):
+        """Get the transcription rate for inactive promoter."""
         return self.popt[3]
 
     def get_alpha(self):
+        """Get all transcription rates."""
         alpha = self.simulator.fbar(self.get_alpha_a(), self.get_alpha_i())
         return alpha
 
     def get_beta(self):
+        """Get the splicing rate."""
         return self.popt[4]
 
     def get_gamma(self):
+        """Get the degradation rate."""
         return self.popt[5]
 
     def calc_spl_half_life(self):
+        """Calculate the half life of splicing."""
         return np.log(2) / self.get_beta()
 
     def calc_deg_half_life(self):
+        """Calculate the half life of degradation."""
         return np.log(2) / self.get_gamma()
 
     def export_dictionary(self):
+        """Export parameter estimation results as a dictionary.
+
+        Returns:
+            Dictionary containing model name, kinetic parameters, and initial conditions.
+        """
         mdl_name = type(self.simulator).__name__
         params = self.export_parameters()
         param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
@@ -775,6 +799,15 @@ class Estimation_MomentKinNosp(kinetic_estimation):
     """
 
     def __init__(self, a, b, alpha_a, alpha_i, gamma):
+        """Initialize the Estimation_MomentKinNosp object.
+
+        Args:
+            a: switching rate from active promoter state to inactive promoter state.
+            b: switching rate from inactive promoter state to active promoter state.
+            alpha_a: transcription rate for active promoter.
+            alpha_i: transcription rate for inactive promoter.
+            gamma: degradation rate.
+        """
         self.param_keys = np.array(["a", "b", "alpha_a", "alpha_i", "gamma"])
         ranges = np.zeros((5, 2))
         ranges[0] = a * np.ones(2) if np.isscalar(a) else a
@@ -785,28 +818,39 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         super().__init__(ranges, np.zeros((3, 2)), Moments_Nosplicing())
 
     def extract_data_from_simulator(self):
+        """Get corresponding data from the LinearODE class."""
         ret = np.zeros((2, len(self.simulator.t)))
         ret[0] = self.simulator.get_nu()
         ret[1] = self.simulator.x[:, self.simulator.uu]
         return ret
 
     def get_alpha_a(self):
+        """Get the transcription rate for active promoter."""
         return self.popt[2]
 
     def get_alpha_i(self):
+        """Get the transcription rate for inactive promoter."""
         return self.popt[3]
 
     def get_alpha(self):
+        """Get all transcription rates."""
         alpha = self.simulator.fbar(self.get_alpha_a().self.get_alpha_i())
         return alpha
 
     def get_gamma(self):
+        """Get the degradation rate."""
         return self.popt[4]
 
     def calc_deg_half_life(self):
+        """Calculate the half life of degradation."""
         return np.log(2) / self.get_gamma()
 
     def export_dictionary(self):
+        """Export parameter estimation results as a dictionary.
+
+        Returns:
+            Dictionary containing model name, kinetic parameters, and initial conditions.
+        """
         mdl_name = type(self.simulator).__name__
         params = self.export_parameters()
         param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
@@ -825,6 +869,13 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
     """
 
     def __init__(self, alpha, gamma, x0=0):
+        """Initialize the Estimation_DeterministicKinNosp object.
+
+        Args:
+            alpha: transcription rate.
+            gamma: degradation rate.
+            x0: the initial condition.
+        """
         self.param_keys = np.array(["alpha", "gamma"])
         ranges = np.zeros((2, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
@@ -834,15 +885,23 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
         super().__init__(ranges, x0, Deterministic_NoSplicing())
 
     def get_alpha(self):
+        """Get the transcription rate."""
         return self.popt[0]
 
     def get_gamma(self):
+        """Get the degradation rate."""
         return self.popt[1]
 
     def calc_half_life(self, key):
+        """Calculate the half life."""
         return np.log(2) / self.get_param(key)
 
     def export_dictionary(self):
+        """Export parameter estimation results as a dictionary.
+
+        Returns:
+            Dictionary containing model name, kinetic parameters, and initial conditions.
+        """
         mdl_name = type(self.simulator).__name__
         params = self.export_parameters()
         param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
@@ -861,6 +920,14 @@ class Estimation_DeterministicKin(kinetic_estimation):
     """
 
     def __init__(self, alpha, beta, gamma, x0=np.zeros(2)):
+        """Initialize the Estimation_DeterministicKin object.
+
+        Args:
+            alpha: transcription rate.
+            beta: splicing rate.
+            gamma: degradation rate.
+            x0: the initial condition.
+        """
         self.param_keys = np.array(["alpha", "beta", "gamma"])
         ranges = np.zeros((3, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
@@ -873,21 +940,31 @@ class Estimation_DeterministicKin(kinetic_estimation):
         super().__init__(ranges, x0, Deterministic())
 
     def get_alpha(self):
+        """Get the transcription rate."""
         return self.popt[0]
 
     def get_beta(self):
+        """Get the splicing rate."""
         return self.popt[1]
 
     def get_gamma(self):
+        """Get the degradation rate."""
         return self.popt[2]
 
     def calc_spl_half_life(self):
+        """Calculate the half life of splicing."""
         return np.log(2) / self.get_beta()
 
     def calc_deg_half_life(self):
+        """Calculate the half life of degradation."""
         return np.log(2) / self.get_gamma()
 
     def export_dictionary(self):
+        """Export parameter estimation results as a dictionary.
+
+        Returns:
+            Dictionary containing model name, kinetic parameters, and initial conditions.
+        """
         mdl_name = type(self.simulator).__name__
         params = self.export_parameters()
         param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
