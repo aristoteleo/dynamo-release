@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import warnings
 
 import numpy as np
@@ -409,7 +409,7 @@ class kinetic_estimation:
 
 class Estimation_Degradation(kinetic_estimation):
     """The base parameters, estimation class for degradation experiments."""
-    def __init__(self, ranges, x0, simulator):
+    def __init__(self, ranges: np.ndarray, x0: np.ndarray, simulator: LinearODE) -> None:
         """Initialize the Estimation_Degradation object.
 
         Args:
@@ -420,7 +420,7 @@ class Estimation_Degradation(kinetic_estimation):
         self.kin_param_keys = np.array(["alpha", "gamma"])
         super().__init__(np.vstack((np.zeros(2), ranges)), x0, simulator)
 
-    def guestimate_init_cond(self, x_data):
+    def guestimate_init_cond(self, x_data: np.ndarray) -> np.ndarray:
         """Roughly estimate initial conditions for parameter estimation.
 
         Args:
@@ -431,7 +431,7 @@ class Estimation_Degradation(kinetic_estimation):
         """
         return guestimate_init_cond(x_data)
 
-    def guestimate_gamma(self, x_data, time):
+    def guestimate_gamma(self, x_data: np.ndarray, time: np.ndarray) -> np.ndarray:
         """Roughly estimate initial conditions for parameter estimation.
 
         Args:
@@ -443,7 +443,7 @@ class Estimation_Degradation(kinetic_estimation):
         """
         return guestimate_gamma(x_data, time)
 
-    def get_param(self, key):
+    def get_param(self, key: str) -> np.ndarray:
         """Get the estimated parameter value by key.
 
         Args:
@@ -454,7 +454,7 @@ class Estimation_Degradation(kinetic_estimation):
         """
         return self.popt[np.where(self.kin_param_keys == key)[0][0]]
 
-    def calc_half_life(self, key):
+    def calc_half_life(self, key: str) -> np.ndarray:
         """Calculate half-life of a parameter.
 
         Args:
@@ -465,7 +465,7 @@ class Estimation_Degradation(kinetic_estimation):
         """
         return np.log(2) / self.get_param(key)
 
-    def export_dictionary(self):
+    def export_dictionary(self) -> Dict:
         """Export parameter estimation results as a dictionary.
 
         Returns:
@@ -488,7 +488,12 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
     Order of species: <unspliced>, <spliced>
     """
 
-    def __init__(self, beta=None, gamma=None, x0=None):
+    def __init__(
+        self,
+        beta: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[np.ndarray] = None,
+    ) -> None:
         """Initialize the Estimation_DeterministicDeg object.
 
         Args:
@@ -500,7 +505,7 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         if beta is not None and gamma is not None and x0 is not None:
             self._initialize(beta, gamma, x0)
 
-    def _initialize(self, beta, gamma, x0):
+    def _initialize(self, beta: np.ndarray, gamma: np.ndarray, x0: np.ndarray) -> None:
         """Initialize the parameters to the default value.
 
         Args:
@@ -513,7 +518,7 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, x0, Deterministic())
 
-    def auto_fit(self, time, x_data, **kwargs):
+    def auto_fit(self, time: np.ndarray, x_data: np.ndarray, **kwargs) -> Tuple[np.ndarray, float]:
         """Estimate the parameters.
 
         Args:
@@ -539,7 +544,7 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
 class Estimation_DeterministicDegNosp(Estimation_Degradation):
     """An estimation class for degradation (without splicing) experiments."""
 
-    def __init__(self, gamma=None, x0=None):
+    def __init__(self, gamma: Optional[np.ndarray] = None, x0: Optional[np.ndarray] = None) -> None:
         """Initialize the Estimation_DeterministicDegNosp object.
 
         Args:
@@ -549,7 +554,7 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
         if gamma is not None and x0 is not None:
             self._initialize(gamma, x0)
 
-    def _initialize(self, gamma, x0):
+    def _initialize(self, gamma: np.ndarray, x0: np.ndarray) -> None:
         """Initialize the parameters to the default value.
 
         Args:
@@ -563,7 +568,14 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
             x0_ = np.array([x0])
         super().__init__(ranges, x0_, Deterministic_NoSplicing())
 
-    def auto_fit(self, time, x_data, sample_method="lhs", method=None, normalize=False):
+    def auto_fit(
+        self,
+        time: np.ndarray,
+        x_data: np.ndarray,
+        sample_method: str = "lhs",
+        method: Optional[str] = None,
+        normalize: bool = False,
+    ) -> Tuple[np.ndarray, float]:
         """Estimate the parameters.
 
         Args:
@@ -601,7 +613,13 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
     Order of parameters: beta, gamma
     """
 
-    def __init__(self, beta=None, gamma=None, x0=None, include_cov=True):
+    def __init__(
+        self,
+        beta: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[np.ndarray] = None,
+        include_cov: bool = True,
+    ) -> None:
         """Initialize the Estimation_MomentDeg object.
 
         Args:
@@ -615,7 +633,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         if beta is not None and gamma is not None and x0 is not None:
             self._initialize(beta, gamma, x0)
 
-    def _initialize(self, beta, gamma, x0):
+    def _initialize(self, beta: np.ndarray, gamma: np.ndarray, x0: np.ndarray) -> None:
         """Initialize the parameters to the default value.
 
         Args:
@@ -628,7 +646,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super(Estimation_DeterministicDeg, self).__init__(ranges, x0, Moments_NoSwitching())
 
-    def extract_data_from_simulator(self):
+    def extract_data_from_simulator(self) -> np.ndarray:
         """Get corresponding data from the LinearODE class."""
         if self.include_cov:
             ret = np.zeros((5, len(self.simulator.t)))
@@ -649,7 +667,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
 class Estimation_MomentDegNosp(Estimation_Degradation):
     """An estimation class for degradation (without splicing) experiments. Order of species: <r>, <rr>."""
 
-    def __init__(self, gamma=None, x0=None):
+    def __init__(self, gamma: Optional[np.ndarray] = None, x0: Optional[np.ndarray] = None) -> None:
         """Initialize the Estimation_MomentDeg object.
 
         Args:
@@ -659,7 +677,7 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         if gamma is not None and x0 is not None:
             self._initialize(gamma, x0)
 
-    def _initialize(self, gamma, x0):
+    def _initialize(self, gamma: np.ndarray, x0: np.ndarray) -> None:
         """Initialize the parameters to the default value.
 
         Args:
@@ -669,7 +687,14 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         ranges = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, x0, Moments_NoSwitchingNoSplicing())
 
-    def auto_fit(self, time, x_data, sample_method="lhs", method=None, normalize=False):
+    def auto_fit(
+        self,
+        time: np.ndarray,
+        x_data: np.ndarray,
+        sample_method: str = "lhs",
+        method: Optional[str] = None,
+        normalize: bool = False,
+    ) -> Tuple[np.ndarray, float]:
         """Estimate the parameters.
 
         Args:
