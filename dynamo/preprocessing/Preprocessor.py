@@ -247,7 +247,6 @@ class Preprocessor:
         main_debug("applying convert_gene_name function...")
         self.convert_gene_name(adata)
 
-
         self.basic_stats(adata)
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
