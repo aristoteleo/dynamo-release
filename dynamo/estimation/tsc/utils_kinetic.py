@@ -250,6 +250,8 @@ class LambdaModels_NoSwitching(MixtureModels):
 
 
 class Moments(LinearODE):
+    """The class simulates the dynamics of first and second moments of a transcription-splicing system with promoter
+    switching."""
     def __init__(
         self,
         a=None,
@@ -260,8 +262,17 @@ class Moments(LinearODE):
         gamma=None,
         x0=None,
     ):
-        """This class simulates the dynamics of first and second moments of
-        a transcription-splicing system with promoter switching."""
+        """Initialize the Moments object.
+
+        Args:
+            a: switching rate from active promoter state to inactive promoter state.
+            b: switching rate from inactive promoter state to active promoter state.
+            alpha_a: transcription rate for active promoter.
+            alpha_i: transcription rate for inactive promoter.
+            beta: splicing rate.
+            gamma: degradation rate.
+            x0: the initial conditions.
+        """
         # species
         self.ua = 0
         self.ui = 1
@@ -281,6 +292,20 @@ class Moments(LinearODE):
             self.set_params(a, b, alpha_a, alpha_i, beta, gamma)
 
     def ode_func(self, x, t):
+        """ODE functions to solve:
+            dx[u_a] = alpha_a - beta * u_a + a * (u_i - u_a)
+            dx[u_i] = ai - beta * u_i - b * (u_i - u_a)
+            dx[x_a] = beta * u_a - ga * x_a + a * (x_i - x_a)
+            dx[x_i] = beta * u_i - ga * x_i - b * (x_i - x_a)
+        The second moments is calculated from the variance and covariance of variable u and x.
+
+        Args:
+            x: the variable.
+            t: the aray of time.
+
+        Returns:
+            The derivatives dx.
+        """
         dx = np.zeros(len(x))
         # parameters
         a = self.a
@@ -304,9 +329,28 @@ class Moments(LinearODE):
         return dx
 
     def fbar(self, x_a, x_i):
+        """Calculate the count of a variable by averaging active and inactive states.
+
+        Args:
+            x_a: the variable x under the active state.
+            x_i: the variable x under the inactive state.
+
+        Returns:
+            The count of variable x.
+        """
         return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
 
     def set_params(self, a, b, alpha_a, alpha_i, beta, gamma):
+        """Set the parameters.
+
+        Args:
+            a: switching rate from active promoter state to inactive promoter state.
+            b: switching rate from inactive promoter state to active promoter state.
+            alpha_a: transcription rate for active promoter.
+            alpha_i: transcription rate for inactive promoter.
+            beta: splicing rate.
+            gamma: degradation rate.
+        """
         self.a = a
         self.b = b
         self.aa = alpha_a
@@ -318,6 +362,11 @@ class Moments(LinearODE):
         super().reset()
 
     def get_all_central_moments(self):
+        """Get the first and second central moments for all variables.
+
+        Returns:
+            An array containing all central moments.
+        """
         ret = np.zeros((4, len(self.t)))
         ret[0] = self.get_nu()
         ret[1] = self.get_nx()
@@ -326,37 +375,82 @@ class Moments(LinearODE):
         return ret
 
     def get_nosplice_central_moments(self):
+        """Get the central moments for labeled data.
+
+        Returns:
+            The central moments.
+        """
         ret = np.zeros((2, len(self.t)))
         ret[0] = self.get_n_labeled()
         ret[1] = self.get_var_labeled()
         return ret
 
     def get_nu(self):
+        """Get the number of the variable u from the mean averaging active and inactive state.
+
+        Returns:
+            The number of the variable u.
+        """
         return self.fbar(self.x[:, self.ua], self.x[:, self.ui])
 
     def get_nx(self):
+        """Get the number of the variable x from the mean averaging active and inactive state.
+
+        Returns:
+            The number of the variable x.
+        """
         return self.fbar(self.x[:, self.xa], self.x[:, self.xi])
 
     def get_n_labeled(self):
+        """Get the number of the labeled data by combining the count of two variables.
+
+        Returns:
+            The number of the labeled data.
+        """
         return self.get_nu() + self.get_nx()
 
     def get_var_nu(self):
+        """Get the variance of the variable u.
+
+        Returns:
+            The variance of the variable u.
+        """
         c = self.get_nu()
         return self.x[:, self.uu] + c - c**2
 
     def get_var_nx(self):
+        """Get the variance of the variable x.
+
+        Returns:
+            The variance of the variable x.
+        """
         c = self.get_nx()
         return self.x[:, self.xx] + c - c**2
 
     def get_cov_ux(self):
+        """Get the covariance of the variable x and u.
+
+        Returns:
+            The covariance.
+        """
         cu = self.get_nu()
         cx = self.get_nx()
         return self.x[:, self.ux] - cu * cx
 
     def get_var_labeled(self):
+        """Get the variance of the labeled data by combining the variance of two variables and covariance.
+
+        Returns:
+            The variance of the labeled data.
+        """
         return self.get_var_nu() + self.get_var_nx() + 2 * self.get_cov_ux()
 
     def computeKnp(self):
+        """Calculate the K and p from ODE function such that dx = Kx + p.
+
+        Returns:
+            A tuple containing K and p.
+        """
         # parameters
         a = self.a
         b = self.b
@@ -411,9 +505,19 @@ class Moments(LinearODE):
 
 
 class Moments_Nosplicing(LinearODE):
+    """The class simulates the dynamics of first and second moments of a transcription-splicing system with promoter
+    switching."""
     def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of
-        a transcription-splicing system with promoter switching."""
+        """Initialize the Moments_Nosplicing object.
+
+        Args:
+            a: switching rate from active promoter state to inactive promoter state.
+            b: switching rate from inactive promoter state to active promoter state.
+            alpha_a: transcription rate for active promoter.
+            alpha_i: transcription rate for inactive promoter.
+            gamma: degradation rate.
+            x0: the initial conditions.
+        """
         # species
         self.ua = 0
         self.ui = 1
@@ -429,6 +533,15 @@ class Moments_Nosplicing(LinearODE):
             self.set_params(a, b, alpha_a, alpha_i, gamma)
 
     def ode_func(self, x, t):
+        """ODE functions to solve. Ignore the splicing part in the base class.
+
+        Args:
+            x: the variable.
+            t: the aray of time.
+
+        Returns:
+            The derivatives dx.
+        """
         dx = np.zeros(len(x))
         # parameters
         a = self.a
@@ -447,9 +560,27 @@ class Moments_Nosplicing(LinearODE):
         return dx
 
     def fbar(self, x_a, x_i):
+        """Calculate the count of a variable by averaging active and inactive states.
+
+        Args:
+            x_a: the variable x under the active state.
+            x_i: the variable x under the inactive state.
+
+        Returns:
+            The count of variable x.
+        """
         return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
 
     def set_params(self, a, b, alpha_a, alpha_i, gamma):
+        """Set the parameters.
+
+        Args:
+            a: switching rate from active promoter state to inactive promoter state.
+            b: switching rate from inactive promoter state to active promoter state.
+            alpha_a: transcription rate for active promoter.
+            alpha_i: transcription rate for inactive promoter.
+            gamma: degradation rate.
+        """
         self.a = a
         self.b = b
         self.aa = alpha_a
@@ -460,19 +591,39 @@ class Moments_Nosplicing(LinearODE):
         super().reset()
 
     def get_all_central_moments(self):
+        """Get the first and second central moments for all variables.
+
+        Returns:
+            An array containing all central moments.
+        """
         ret = np.zeros((2, len(self.t)))
         ret[0] = self.get_nu()
         ret[1] = self.get_var_nu()
         return ret
 
     def get_nu(self):
+        """Get the number of the variable u from the mean averaging active and inactive state.
+
+        Returns:
+            The number of the variable u.
+        """
         return self.fbar(self.x[:, self.ua], self.x[:, self.ui])
 
     def get_var_nu(self):
+        """Get the variance of the variable u.
+
+        Returns:
+            The variance of the variable u.
+        """
         c = self.get_nu()
         return self.x[:, self.uu] + c - c**2
 
     def computeKnp(self):
+        """Calculate the K and p from ODE function such that dx = Kx + p.
+
+        Returns:
+            A tuple containing K and p.
+        """
         # parameters
         a = self.a
         b = self.b
@@ -502,9 +653,17 @@ class Moments_Nosplicing(LinearODE):
 
 
 class Moments_NoSwitching(LinearODE):
+    """The class simulates the dynamics of first and second moments of a transcription-splicing system without promoter
+    switching."""
     def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of
-        a transcription-splicing system without promoter switching."""
+        """Initialize the Moments_NoSwitching object.
+
+        Args:
+            alpha: transcription rate.
+            beta: splicing rate.
+            gamma: degradation rate.
+            x0: the initial conditions.
+        """
         # species
         self.u = 0
         self.s = 1
@@ -522,6 +681,15 @@ class Moments_NoSwitching(LinearODE):
             self.set_params(alpha, beta, gamma)
 
     def ode_func(self, x, t):
+        """ODE functions to solve. Ignore the switching part in the base class.
+
+        Args:
+            x: the variable.
+            t: the aray of time.
+
+        Returns:
+            The derivatives dx.
+        """
         dx = np.zeros(len(x))
         # parameters
         al = self.al
@@ -540,6 +708,13 @@ class Moments_NoSwitching(LinearODE):
         return dx
 
     def set_params(self, alpha, beta, gamma):
+        """Set the parameters.
+
+        Args:
+            alpha: transcription rate.
+            beta: splicing rate.
+            gamma: degradation rate.
+        """
         self.al = alpha
         self.be = beta
         self.ga = gamma
@@ -548,6 +723,11 @@ class Moments_NoSwitching(LinearODE):
         super().reset()
 
     def get_all_central_moments(self):
+        """Get the first and second central moments for all variables.
+
+        Returns:
+            An array containing all central moments.
+        """
         ret = np.zeros((5, len(self.t)))
         ret[0] = self.get_mean_u()
         ret[1] = self.get_mean_s()
@@ -557,31 +737,66 @@ class Moments_NoSwitching(LinearODE):
         return ret
 
     def get_nosplice_central_moments(self):
+        """Get the central moments for labeled data.
+
+        Returns:
+            The central moments.
+        """
         ret = np.zeros((2, len(self.t)))
         ret[0] = self.get_mean_u() + self.get_mean_s()
         ret[1] = self.x[:, self.uu] + self.x[:, self.ss] + 2 * self.x[:, self.us]
         return ret
 
     def get_mean_u(self):
+        """Get the mean of the variable u.
+
+        Returns:
+            The mean of the variable u.
+        """
         return self.x[:, self.u]
 
     def get_mean_s(self):
+        """Get the mean of the variable s.
+
+        Returns:
+            The mean of the variable s.
+        """
         return self.x[:, self.s]
 
     def get_var_u(self):
+        """Get the variance of the variable u.
+
+        Returns:
+            The variance of the variable u.
+        """
         c = self.get_mean_u()
         return self.x[:, self.uu] - c**2
 
     def get_var_s(self):
+        """Get the variance of the variable s.
+
+        Returns:
+            The variance of the variable s.
+        """
         c = self.get_mean_s()
         return self.x[:, self.ss] - c**2
 
     def get_cov_us(self):
+        """Get the covariance of the variable s and u.
+
+        Returns:
+            The covariance.
+        """
         cu = self.get_mean_u()
         cs = self.get_mean_s()
         return self.x[:, self.us] - cu * cs
 
     def computeKnp(self):
+        """Calculate the K and p from ODE function such that dx = Kx + p.
+
+        Returns:
+            A tuple containing K and p.
+        """
         # parameters
         al = self.al
         be = self.be
@@ -618,9 +833,16 @@ class Moments_NoSwitching(LinearODE):
 
 
 class Moments_NoSwitchingNoSplicing(LinearODE):
+    """The class simulates the dynamics of first and second moments of a transcription system without promoter
+    switching."""
     def __init__(self, alpha=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of
-        a transcription system without promoter switching."""
+        """Initialize the Moments_NoSwitchingNoSplicing object.
+
+        Args:
+            alpha: transcription rate.
+            gamma: degradation rate.
+            x0: the initial conditions.
+        """
         # species
         self.u = 0
         self.uu = 1
@@ -635,6 +857,15 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
             self.set_params(alpha, gamma)
 
     def ode_func(self, x, t):
+        """ODE functions to solve. Both splicing and switching part in the base class are ignored.
+
+        Args:
+            x: the variable.
+            t: the aray of time.
+
+        Returns:
+            The derivatives dx.
+        """
         dx = np.zeros(len(x))
         # parameters
         al = self.al
@@ -649,6 +880,12 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         return dx
 
     def set_params(self, alpha, gamma):
+        """Set the parameters.
+
+        Args:
+            alpha: transcription rate.
+            gamma: degradation rate.
+        """
         self.al = alpha
         self.ga = gamma
 
@@ -656,19 +893,39 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         super().reset()
 
     def get_all_central_moments(self):
+        """Get the first and second central moments for all variables.
+
+        Returns:
+            An array containing all central moments.
+        """
         ret = np.zeros((2, len(self.t)))
         ret[0] = self.get_mean_u()
         ret[1] = self.get_var_u()
         return ret
 
     def get_mean_u(self):
+        """Get the mean of the variable u.
+
+        Returns:
+            The mean of the variable u.
+        """
         return self.x[:, self.u]
 
     def get_var_u(self):
+        """Get the variance of the variable u.
+
+        Returns:
+            The variance of the variable u.
+        """
         c = self.get_mean_u()
         return self.x[:, self.uu] - c**2
 
     def computeKnp(self):
+        """Calculate the K and p from ODE function such that dx = Kx + p.
+
+        Returns:
+            A tuple containing K and p.
+        """
         # parameters
         al = self.al
         ga = self.ga
