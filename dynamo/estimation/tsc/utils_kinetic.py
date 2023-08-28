@@ -691,9 +691,16 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
 
 
 class Deterministic(LinearODE):
+    """This class simulates the deterministic dynamics of a transcription-splicing system."""
     def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
-        """This class simulates the deterministic dynamics of
-        a transcription-splicing system."""
+        """Initialize the Deterministic object.
+
+        Args:
+            alpha: the transcription rate.
+            beta: the splicing rate.
+            gamma: the degradation rate.
+            x0: the inital conditions.
+        """
         # species
         self.u = 0
         self.s = 1
@@ -711,6 +718,17 @@ class Deterministic(LinearODE):
             self.set_params(alpha, beta, gamma)
 
     def ode_func(self, x, t):
+        """The ODE functions to solve:
+            dx[u] = alpha - beta * u
+            dx[v] = beta * u - gamma * s
+
+        Args:
+            x: the x variable.
+            t: the time information.
+
+        Returns:
+            An array containing the ODEs' output.
+        """
         dx = np.zeros(len(x))
         # parameters
         al = self.al
@@ -724,6 +742,13 @@ class Deterministic(LinearODE):
         return dx
 
     def set_params(self, alpha, beta, gamma):
+        """Set the parameters.
+
+        Args:
+            alpha: the transcription rate.
+            beta: the splicing rate.
+            gamma: the degradation rate.
+        """
         self.al = alpha
         self.be = beta
         self.ga = gamma
@@ -732,6 +757,13 @@ class Deterministic(LinearODE):
         super().reset()
 
     def integrate(self, t, x0=None, method="analytical"):
+        """Integrate the ODE using the given time values.
+
+        Args:
+            t: array of time values.
+            x0: array of initial conditions.
+            method: the method to integrate, including "matrix" and "numerical".
+        """
         method = self.default_method if method is None else method
         if method == "analytical":
             sol = self.integrate_analytical(t, x0)
@@ -741,6 +773,11 @@ class Deterministic(LinearODE):
         self.t = t
 
     def computeKnp(self):
+        """Calculate the K and p from ODE function such that dx = Kx + p.
+
+        Returns:
+            A tuple containing K and p.
+        """
         # parameters
         al = self.al
         be = self.be
@@ -760,6 +797,15 @@ class Deterministic(LinearODE):
         return K, p
 
     def integrate_analytical(self, t, x0=None):
+        """Integrate the odes with the analytical solution.
+
+        Args:
+            t: the time information.
+            x0: the initial conditions.
+
+        Returns:
+            The solution of unspliced and splcied mRNA wrapped in an array.
+        """
         if x0 is None:
             x0 = self.x0
         else:
@@ -770,9 +816,15 @@ class Deterministic(LinearODE):
 
 
 class Deterministic_NoSplicing(LinearODE):
+    """The class simulates the deterministic dynamics of a transcription-splicing system."""
     def __init__(self, alpha=None, gamma=None, x0=None):
-        """This class simulates the deterministic dynamics of
-        a transcription-splicing system."""
+        """Initialize the Deterministic_NoSplicing object.
+
+        Args:
+            alpha: the transcription rate.
+            gamma: the degradation rate.
+            x0: the initial conditions.
+        """
         # species
         self.u = 0
 
@@ -789,6 +841,16 @@ class Deterministic_NoSplicing(LinearODE):
             self.set_params(alpha, gamma)
 
     def ode_func(self, x, t):
+        """The ODE functions to solve:
+            dx[u] = alpha - gamma * u
+
+        Args:
+            x: the x variable.
+            t: the time information.
+
+        Returns:
+            An array containing the ODEs' output.
+        """
         dx = np.zeros(len(x))
         # parameters
         al = self.al
@@ -800,6 +862,12 @@ class Deterministic_NoSplicing(LinearODE):
         return dx
 
     def set_params(self, alpha, gamma):
+        """Set the parameters.
+
+        Args:
+            alpha: the transcription rate.
+            gamma: the degradation rate.
+        """
         self.al = alpha
         self.ga = gamma
 
@@ -807,6 +875,13 @@ class Deterministic_NoSplicing(LinearODE):
         super().reset()
 
     def integrate(self, t, x0=None, method="analytical"):
+        """Integrate the ODE using the given time values.
+
+        Args:
+            t: array of time values.
+            x0: array of initial conditions.
+            method: the method to integrate, including "matrix" and "numerical".
+        """
         method = self.default_method if method is None else method
         if method == "analytical":
             sol = self.integrate_analytical(t, x0)
@@ -816,6 +891,11 @@ class Deterministic_NoSplicing(LinearODE):
         self.t = t
 
     def computeKnp(self):
+        """Calculate the K and p from ODE function such that dx = Kx + p.
+
+        Returns:
+            A tuple containing K and p.
+        """
         # parameters
         al = self.al
         ga = self.ga
@@ -830,6 +910,15 @@ class Deterministic_NoSplicing(LinearODE):
         return K, p
 
     def integrate_analytical(self, t, x0=None):
+        """Integrate the odes with the analytical solution.
+
+        Args:
+            t: the time information.
+            x0: the initial conditions.
+
+        Returns:
+            The solution of unspliced mRNA as an array.
+        """
         x0 = self.x0 if x0 is None else x0
         x0 = x0 if np.isscalar(x0) else x0[self.u]
         if self.x0 is None:
