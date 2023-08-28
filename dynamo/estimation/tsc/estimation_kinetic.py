@@ -585,7 +585,7 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
                 `lhs`: latin hypercube sampling;
                 `uniform`: uniform random sampling.
             method: method used for solving ODEs. See options in simulator classes.
-            normalize: whether to normalize the
+            normalize: whether to normalize the data.
 
         Returns:
             The optimized parameters and the cost.
@@ -704,7 +704,7 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
                 `lhs`: latin hypercube sampling;
                 `uniform`: uniform random sampling.
             method: method used for solving ODEs. See options in simulator classes.
-            normalize: whether to normalize the
+            normalize: whether to normalize the data.
 
         Returns:
             The optimized parameters and the cost.
@@ -1466,7 +1466,7 @@ class GoodnessOfFit:
             weighted: whether to weight the output.
 
         Returns:
-            Mean squared deviation
+            Mean squared deviation.
         """
         sig = np.array(self.sigm, copy=True)
         if np.any(sig == 0):
