@@ -28,6 +28,7 @@ from ..QC import filter_genes_by_outliers
 
 main_logger = LoggerManager.main_logger
 
+
 # TODO: Use compute_pearson_residuals function to calculate residuals
 def _highly_variable_pearson_residuals(
     adata: AnnData,
@@ -108,7 +109,6 @@ def _highly_variable_pearson_residuals(
     # Get pearson residuals for each batch separately
     residual_gene_vars_by_batch = []
     for batch in np.unique(batch_info):
-
         adata_subset = adata[batch_info == batch]
 
         # Filter out zero genes
