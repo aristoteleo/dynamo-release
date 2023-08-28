@@ -247,7 +247,11 @@ def calc_dispersion_by_svr(
         adata_ori.uns[key] = {"mean": mean, "cv": cv, "svr_gamma": svr_gamma}
 
         prefix = "" if layer == "X" else layer + "_"
-        (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
+        (
+            adata.var[prefix + "log_m"],
+            adata.var[prefix + "log_cv"],
+            adata.var[prefix + "score"],
+        ) = (
             np.nan,
             np.nan,
             -np.inf,
