@@ -692,7 +692,13 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
 
 class Deterministic(LinearODE):
     """This class simulates the deterministic dynamics of a transcription-splicing system."""
-    def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
+    def __init__(
+        self,
+        alpha: Optional[np.ndarray] = None,
+        beta: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[np.ndarray] = None,
+    ) -> None:
         """Initialize the Deterministic object.
 
         Args:
@@ -717,7 +723,7 @@ class Deterministic(LinearODE):
         if not (alpha is None or beta is None or gamma is None):
             self.set_params(alpha, beta, gamma)
 
-    def ode_func(self, x, t):
+    def ode_func(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
         """The ODE functions to solve:
             dx[u] = alpha - beta * u
             dx[v] = beta * u - gamma * s
@@ -741,7 +747,7 @@ class Deterministic(LinearODE):
 
         return dx
 
-    def set_params(self, alpha, beta, gamma):
+    def set_params(self, alpha: np.ndarray, beta: np.ndarray, gamma: np.ndarray) -> None:
         """Set the parameters.
 
         Args:
@@ -756,7 +762,7 @@ class Deterministic(LinearODE):
         # reset solutions
         super().reset()
 
-    def integrate(self, t, x0=None, method="analytical"):
+    def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: str = "analytical") -> None:
         """Integrate the ODE using the given time values.
 
         Args:
@@ -772,7 +778,7 @@ class Deterministic(LinearODE):
         self.x = sol
         self.t = t
 
-    def computeKnp(self):
+    def computeKnp(self) -> Tuple[np.ndarray, np.ndarray]:
         """Calculate the K and p from ODE function such that dx = Kx + p.
 
         Returns:
@@ -796,7 +802,7 @@ class Deterministic(LinearODE):
 
         return K, p
 
-    def integrate_analytical(self, t, x0=None):
+    def integrate_analytical(self, t: np.ndarray, x0: Optional[np.ndarray] = None) -> np.ndarray:
         """Integrate the odes with the analytical solution.
 
         Args:
@@ -817,7 +823,12 @@ class Deterministic(LinearODE):
 
 class Deterministic_NoSplicing(LinearODE):
     """The class simulates the deterministic dynamics of a transcription-splicing system."""
-    def __init__(self, alpha=None, gamma=None, x0=None):
+    def __init__(
+        self,
+        alpha: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[np.ndarray] = None,
+    ) -> None:
         """Initialize the Deterministic_NoSplicing object.
 
         Args:
@@ -840,7 +851,7 @@ class Deterministic_NoSplicing(LinearODE):
         if not (alpha is None or gamma is None):
             self.set_params(alpha, gamma)
 
-    def ode_func(self, x, t):
+    def ode_func(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
         """The ODE functions to solve:
             dx[u] = alpha - gamma * u
 
@@ -861,7 +872,7 @@ class Deterministic_NoSplicing(LinearODE):
 
         return dx
 
-    def set_params(self, alpha, gamma):
+    def set_params(self, alpha: np.ndarray, gamma: np.ndarray) -> np.ndarray:
         """Set the parameters.
 
         Args:
@@ -874,7 +885,7 @@ class Deterministic_NoSplicing(LinearODE):
         # reset solutions
         super().reset()
 
-    def integrate(self, t, x0=None, method="analytical"):
+    def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: str = "analytical") -> None:
         """Integrate the ODE using the given time values.
 
         Args:
@@ -890,7 +901,7 @@ class Deterministic_NoSplicing(LinearODE):
         self.x = sol
         self.t = t
 
-    def computeKnp(self):
+    def computeKnp(self) -> Tuple[np.ndarray, np.ndarray]:
         """Calculate the K and p from ODE function such that dx = Kx + p.
 
         Returns:
@@ -909,7 +920,7 @@ class Deterministic_NoSplicing(LinearODE):
 
         return K, p
 
-    def integrate_analytical(self, t, x0=None):
+    def integrate_analytical(self, t: np.ndarray, x0: Optional[np.ndarray] = None) -> np.ndarray:
         """Integrate the odes with the analytical solution.
 
         Args:
