@@ -217,10 +217,15 @@ class MixtureModels:
 
 
 class LambdaModels_NoSwitching(MixtureModels):
-    def __init__(self, model1, model2):
-        """
-        parameter order: alpha, lambda, (beta), gamma
-        distributor order: alpha_1, alpha_2, (beta), gamma
+    """Linear ODEs for the lambda mixture model. The order of params is:
+            parameter order: alpha, lambda, (beta), gamma
+            distributor order: alpha_1, alpha_2, (beta), gamma"""
+    def __init__(self, model1: LinearODE, model2: LinearODE) -> None:
+        """Initialize the LambdaModels_NoSwitching class.
+
+        Args:
+            model1: the first model to mix.
+            model2: the second model to mix.
         """
         models = [model1, model2]
         if type(model1) in nosplicing_models and type(model2) in nosplicing_models:
@@ -231,7 +236,12 @@ class LambdaModels_NoSwitching(MixtureModels):
             param_distributor = [dist1, dist2]
         super().__init__(models, param_distributor)
 
-    def param_mixer(self, *params):
+    def param_mixer(self, *params) -> np.ndarray:
+        """Set parameters for all models.
+
+        Args:
+            params: tuple of parameters.
+        """
         lam = params[1]
         alp_1 = params[0] * lam
         alp_2 = params[0] * (1 - lam)
