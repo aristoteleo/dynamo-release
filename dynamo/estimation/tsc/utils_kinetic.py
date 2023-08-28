@@ -254,14 +254,14 @@ class Moments(LinearODE):
     switching."""
     def __init__(
         self,
-        a=None,
-        b=None,
-        alpha_a=None,
-        alpha_i=None,
-        beta=None,
-        gamma=None,
-        x0=None,
-    ):
+        a: Optional[np.ndarray] = None,
+        b: Optional[np.ndarray] = None,
+        alpha_a: Optional[np.ndarray] = None,
+        alpha_i: Optional[np.ndarray] = None,
+        beta: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[np.ndarray] = None,
+    ) -> None:
         """Initialize the Moments object.
 
         Args:
@@ -291,7 +291,7 @@ class Moments(LinearODE):
         if not (a is None or b is None or alpha_a is None or alpha_i is None or beta is None or gamma is None):
             self.set_params(a, b, alpha_a, alpha_i, beta, gamma)
 
-    def ode_func(self, x, t):
+    def ode_func(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
         """ODE functions to solve:
             dx[u_a] = alpha_a - beta * u_a + a * (u_i - u_a)
             dx[u_i] = ai - beta * u_i - b * (u_i - u_a)
@@ -328,7 +328,7 @@ class Moments(LinearODE):
 
         return dx
 
-    def fbar(self, x_a, x_i):
+    def fbar(self, x_a: np.ndarray, x_i: np.ndarray) -> np.ndarray:
         """Calculate the count of a variable by averaging active and inactive states.
 
         Args:
@@ -340,7 +340,15 @@ class Moments(LinearODE):
         """
         return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
 
-    def set_params(self, a, b, alpha_a, alpha_i, beta, gamma):
+    def set_params(
+        self,
+        a: np.ndarray,
+        b: np.ndarray,
+        alpha_a: np.ndarray,
+        alpha_i: np.ndarray,
+        beta: np.ndarray,
+        gamma: np.ndarray,
+    ) -> None:
         """Set the parameters.
 
         Args:
@@ -361,7 +369,7 @@ class Moments(LinearODE):
         # reset solutions
         super().reset()
 
-    def get_all_central_moments(self):
+    def get_all_central_moments(self) -> np.ndarray:
         """Get the first and second central moments for all variables.
 
         Returns:
@@ -374,7 +382,7 @@ class Moments(LinearODE):
         ret[3] = self.get_var_nx()
         return ret
 
-    def get_nosplice_central_moments(self):
+    def get_nosplice_central_moments(self) -> np.ndarray:
         """Get the central moments for labeled data.
 
         Returns:
@@ -385,7 +393,7 @@ class Moments(LinearODE):
         ret[1] = self.get_var_labeled()
         return ret
 
-    def get_nu(self):
+    def get_nu(self) -> np.ndarray:
         """Get the number of the variable u from the mean averaging active and inactive state.
 
         Returns:
@@ -393,7 +401,7 @@ class Moments(LinearODE):
         """
         return self.fbar(self.x[:, self.ua], self.x[:, self.ui])
 
-    def get_nx(self):
+    def get_nx(self) -> np.ndarray:
         """Get the number of the variable x from the mean averaging active and inactive state.
 
         Returns:
@@ -401,7 +409,7 @@ class Moments(LinearODE):
         """
         return self.fbar(self.x[:, self.xa], self.x[:, self.xi])
 
-    def get_n_labeled(self):
+    def get_n_labeled(self) -> np.ndarray:
         """Get the number of the labeled data by combining the count of two variables.
 
         Returns:
@@ -409,7 +417,7 @@ class Moments(LinearODE):
         """
         return self.get_nu() + self.get_nx()
 
-    def get_var_nu(self):
+    def get_var_nu(self) -> np.ndarray:
         """Get the variance of the variable u.
 
         Returns:
@@ -418,7 +426,7 @@ class Moments(LinearODE):
         c = self.get_nu()
         return self.x[:, self.uu] + c - c**2
 
-    def get_var_nx(self):
+    def get_var_nx(self) -> np.ndarray:
         """Get the variance of the variable x.
 
         Returns:
@@ -427,7 +435,7 @@ class Moments(LinearODE):
         c = self.get_nx()
         return self.x[:, self.xx] + c - c**2
 
-    def get_cov_ux(self):
+    def get_cov_ux(self) -> np.ndarray:
         """Get the covariance of the variable x and u.
 
         Returns:
@@ -437,7 +445,7 @@ class Moments(LinearODE):
         cx = self.get_nx()
         return self.x[:, self.ux] - cu * cx
 
-    def get_var_labeled(self):
+    def get_var_labeled(self) -> np.ndarray:
         """Get the variance of the labeled data by combining the variance of two variables and covariance.
 
         Returns:
@@ -445,7 +453,7 @@ class Moments(LinearODE):
         """
         return self.get_var_nu() + self.get_var_nx() + 2 * self.get_cov_ux()
 
-    def computeKnp(self):
+    def computeKnp(self) -> Tuple[np.ndarray, np.ndarray]:
         """Calculate the K and p from ODE function such that dx = Kx + p.
 
         Returns:
@@ -507,7 +515,15 @@ class Moments(LinearODE):
 class Moments_Nosplicing(LinearODE):
     """The class simulates the dynamics of first and second moments of a transcription-splicing system with promoter
     switching."""
-    def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, gamma=None, x0=None):
+    def __init__(
+        self,
+        a: Optional[np.ndarray] = None,
+        b: Optional[np.ndarray] = None,
+        alpha_a: Optional[np.ndarray] = None,
+        alpha_i: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[np.ndarray] = None
+    ) -> None:
         """Initialize the Moments_Nosplicing object.
 
         Args:
@@ -532,7 +548,7 @@ class Moments_Nosplicing(LinearODE):
         if not (a is None or b is None or alpha_a is None or alpha_i is None or gamma is None):
             self.set_params(a, b, alpha_a, alpha_i, gamma)
 
-    def ode_func(self, x, t):
+    def ode_func(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
         """ODE functions to solve. Ignore the splicing part in the base class.
 
         Args:
@@ -559,7 +575,7 @@ class Moments_Nosplicing(LinearODE):
 
         return dx
 
-    def fbar(self, x_a, x_i):
+    def fbar(self, x_a: np.ndarray, x_i: np.ndarray) -> np.ndarray:
         """Calculate the count of a variable by averaging active and inactive states.
 
         Args:
@@ -571,7 +587,7 @@ class Moments_Nosplicing(LinearODE):
         """
         return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
 
-    def set_params(self, a, b, alpha_a, alpha_i, gamma):
+    def set_params(self, a: np.ndarray, b: np.ndarray, alpha_a: np.ndarray, alpha_i: np.ndarray, gamma: np.ndarray) -> None:
         """Set the parameters.
 
         Args:
@@ -590,7 +606,7 @@ class Moments_Nosplicing(LinearODE):
         # reset solutions
         super().reset()
 
-    def get_all_central_moments(self):
+    def get_all_central_moments(self) -> np.ndarray:
         """Get the first and second central moments for all variables.
 
         Returns:
@@ -601,7 +617,7 @@ class Moments_Nosplicing(LinearODE):
         ret[1] = self.get_var_nu()
         return ret
 
-    def get_nu(self):
+    def get_nu(self) -> np.ndarray:
         """Get the number of the variable u from the mean averaging active and inactive state.
 
         Returns:
@@ -609,7 +625,7 @@ class Moments_Nosplicing(LinearODE):
         """
         return self.fbar(self.x[:, self.ua], self.x[:, self.ui])
 
-    def get_var_nu(self):
+    def get_var_nu(self) -> np.ndarray:
         """Get the variance of the variable u.
 
         Returns:
@@ -618,7 +634,7 @@ class Moments_Nosplicing(LinearODE):
         c = self.get_nu()
         return self.x[:, self.uu] + c - c**2
 
-    def computeKnp(self):
+    def computeKnp(self) -> Tuple[np.ndarray, np.ndarray]:
         """Calculate the K and p from ODE function such that dx = Kx + p.
 
         Returns:
@@ -655,7 +671,13 @@ class Moments_Nosplicing(LinearODE):
 class Moments_NoSwitching(LinearODE):
     """The class simulates the dynamics of first and second moments of a transcription-splicing system without promoter
     switching."""
-    def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
+    def __init__(
+        self,
+        alpha: Optional[np.ndarray] = None,
+        beta: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[np.ndarray] = None,
+    ) -> None:
         """Initialize the Moments_NoSwitching object.
 
         Args:
@@ -680,7 +702,7 @@ class Moments_NoSwitching(LinearODE):
         if not (alpha is None or beta is None or gamma is None):
             self.set_params(alpha, beta, gamma)
 
-    def ode_func(self, x, t):
+    def ode_func(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
         """ODE functions to solve. Ignore the switching part in the base class.
 
         Args:
@@ -707,7 +729,7 @@ class Moments_NoSwitching(LinearODE):
 
         return dx
 
-    def set_params(self, alpha, beta, gamma):
+    def set_params(self, alpha: np.ndarray, beta: np.ndarray, gamma: np.ndarray) -> None:
         """Set the parameters.
 
         Args:
@@ -722,7 +744,7 @@ class Moments_NoSwitching(LinearODE):
         # reset solutions
         super().reset()
 
-    def get_all_central_moments(self):
+    def get_all_central_moments(self) -> np.ndarray:
         """Get the first and second central moments for all variables.
 
         Returns:
@@ -736,7 +758,7 @@ class Moments_NoSwitching(LinearODE):
         ret[4] = self.get_var_s()
         return ret
 
-    def get_nosplice_central_moments(self):
+    def get_nosplice_central_moments(self) -> np.ndarray:
         """Get the central moments for labeled data.
 
         Returns:
@@ -747,7 +769,7 @@ class Moments_NoSwitching(LinearODE):
         ret[1] = self.x[:, self.uu] + self.x[:, self.ss] + 2 * self.x[:, self.us]
         return ret
 
-    def get_mean_u(self):
+    def get_mean_u(self) -> np.ndarray:
         """Get the mean of the variable u.
 
         Returns:
@@ -755,7 +777,7 @@ class Moments_NoSwitching(LinearODE):
         """
         return self.x[:, self.u]
 
-    def get_mean_s(self):
+    def get_mean_s(self) -> np.ndarray:
         """Get the mean of the variable s.
 
         Returns:
@@ -763,7 +785,7 @@ class Moments_NoSwitching(LinearODE):
         """
         return self.x[:, self.s]
 
-    def get_var_u(self):
+    def get_var_u(self) -> np.ndarray:
         """Get the variance of the variable u.
 
         Returns:
@@ -772,7 +794,7 @@ class Moments_NoSwitching(LinearODE):
         c = self.get_mean_u()
         return self.x[:, self.uu] - c**2
 
-    def get_var_s(self):
+    def get_var_s(self) -> np.ndarray:
         """Get the variance of the variable s.
 
         Returns:
@@ -781,7 +803,7 @@ class Moments_NoSwitching(LinearODE):
         c = self.get_mean_s()
         return self.x[:, self.ss] - c**2
 
-    def get_cov_us(self):
+    def get_cov_us(self) -> np.ndarray:
         """Get the covariance of the variable s and u.
 
         Returns:
@@ -791,7 +813,7 @@ class Moments_NoSwitching(LinearODE):
         cs = self.get_mean_s()
         return self.x[:, self.us] - cu * cs
 
-    def computeKnp(self):
+    def computeKnp(self) -> Tuple[np.ndarray, np.ndarray]:
         """Calculate the K and p from ODE function such that dx = Kx + p.
 
         Returns:
@@ -835,7 +857,12 @@ class Moments_NoSwitching(LinearODE):
 class Moments_NoSwitchingNoSplicing(LinearODE):
     """The class simulates the dynamics of first and second moments of a transcription system without promoter
     switching."""
-    def __init__(self, alpha=None, gamma=None, x0=None):
+    def __init__(
+        self,
+        alpha: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[np.ndarray] = None,
+    ) -> None:
         """Initialize the Moments_NoSwitchingNoSplicing object.
 
         Args:
@@ -856,7 +883,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         if not (alpha is None or gamma is None):
             self.set_params(alpha, gamma)
 
-    def ode_func(self, x, t):
+    def ode_func(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
         """ODE functions to solve. Both splicing and switching part in the base class are ignored.
 
         Args:
@@ -879,7 +906,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
 
         return dx
 
-    def set_params(self, alpha, gamma):
+    def set_params(self, alpha: np.ndarray, gamma: np.ndarray) -> None:
         """Set the parameters.
 
         Args:
@@ -892,7 +919,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         # reset solutions
         super().reset()
 
-    def get_all_central_moments(self):
+    def get_all_central_moments(self) -> np.ndarray:
         """Get the first and second central moments for all variables.
 
         Returns:
@@ -903,7 +930,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         ret[1] = self.get_var_u()
         return ret
 
-    def get_mean_u(self):
+    def get_mean_u(self) -> np.ndarray:
         """Get the mean of the variable u.
 
         Returns:
@@ -911,7 +938,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         """
         return self.x[:, self.u]
 
-    def get_var_u(self):
+    def get_var_u(self) -> np.ndarray:
         """Get the variance of the variable u.
 
         Returns:
@@ -920,7 +947,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         c = self.get_mean_u()
         return self.x[:, self.uu] - c**2
 
-    def computeKnp(self):
+    def computeKnp(self) -> Tuple[np.ndarray, np.ndarray]:
         """Calculate the K and p from ODE function such that dx = Kx + p.
 
         Returns:
