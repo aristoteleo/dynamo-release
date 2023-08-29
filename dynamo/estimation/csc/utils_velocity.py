@@ -10,7 +10,7 @@ from ...tools.moments import strat_mom
 from ...tools.utils import elem_prod, find_extreme
 
 
-def sol_u(t, u0, alpha, beta):
+def sol_u(t: np.ndarray, u0: float, alpha: float, beta: float) -> np.ndarray:
     """The analytical solution of unspliced mRNA kinetics.
 
     Arguments
@@ -32,7 +32,7 @@ def sol_u(t, u0, alpha, beta):
     return u0 * np.exp(-beta * t) + alpha / beta * (1 - np.exp(-beta * t))
 
 
-def sol_u_2p(t, u0, t1, alpha0, alpha1, beta):
+def sol_u_2p(t: np.ndarray, u0: float, t1: np.ndarray, alpha0: float, alpha1: float, beta: float) -> np.ndarray:
     """The combined 2-piece analytical solution of unspliced mRNA kinetics.
 
     Arguments
@@ -62,7 +62,7 @@ def sol_u_2p(t, u0, t1, alpha0, alpha1, beta):
     return np.concatenate((u_pre, u_aft))
 
 
-def sol_s(t, s0, u0, alpha, beta, gamma):
+def sol_s(t: np.ndarray, s0: float, u0: float, alpha: float, beta: float, gamma: float) -> np.ndarray:
     """The analytical solution of spliced mRNA kinetics.
 
     Arguments
@@ -97,7 +97,17 @@ def sol_s(t, s0, u0, alpha, beta, gamma):
     return s
 
 
-def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, delta):
+def sol_p(
+    t: np.ndarray,
+    p0: float,
+    s0: float,
+    u0: float,
+    alpha: float,
+    beta: float,
+    gamma: float,
+    eta: float,
+    delta: float,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """The analytical solution of protein kinetics.
 
     Arguments
@@ -139,7 +149,7 @@ def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, delta):
     return p, s, u
 
 
-def solve_gamma(t, old, total):
+def solve_gamma(t: float, old: np.ndarray, total: np.ndarray) -> np.ndarray:
     """Analytical solution to calculate gamma (degradation rate) using first-order degradation kinetics.
 
     Parameters
@@ -162,7 +172,7 @@ def solve_gamma(t, old, total):
     return gamma
 
 
-def solve_alpha_2p(t0, t1, alpha0, beta, u1):
+def solve_alpha_2p(t0: float, t1: float, alpha0: float, beta: float, u1: Union[csr_matrix, np.ndarray]) -> float:
     """Given known steady state alpha and beta, solve stimulation alpha for a mixed steady state and stimulation labeling experiment.
 
     Parameters
@@ -195,7 +205,13 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     return alpha1
 
 
-def solve_alpha_2p_mat(t0, t1, alpha0, beta, u1):
+def solve_alpha_2p_mat(
+    t0: np.ndarray,
+    t1: np.ndarray,
+    alpha0: np.ndarray,
+    beta: np.ndarray,
+    u1: np.ndarray,
+) -> Tuple[csr_matrix, csr_matrix, csr_matrix]:
     """Given known steady state alpha and beta, solve stimulation alpha for a mixed steady state and stimulation
     labeling experiment in a matrix form.
 
