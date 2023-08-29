@@ -232,7 +232,11 @@ def ddhodge(
             W.dot(ddhodge_div),
             W.dot(potential_),
         )
-        (adata.obs[prefix + "ddhodge_sampled"], adata.obs[prefix + "ddhodge_div"], adata.obs[prefix + "potential"],) = (
+        (
+            adata.obs[prefix + "ddhodge_sampled"],
+            adata.obs[prefix + "ddhodge_div"],
+            adata.obs[prefix + "potential"],
+        ) = (
             False,
             0,
             0,
