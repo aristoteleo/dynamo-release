@@ -776,11 +776,36 @@ def concat_time_series_matrices(mats, t=None):
 # ---------------------------------------------------------------------------------------------------
 # negbin method related
 def compute_dispersion(mX, varX):
+    """Compute the reciprocal of the dispersion parameter of NB distribution from the following relationship:
+        variance = mean + phi * mean^2
+
+    Args:
+        mX: the mean of variable X.
+        varX: the variance of variable X.
+
+    Returns:
+        The dispersion parameter.
+    """
     phi = fit_linreg(mX**2, varX - mX, intercept=False)[0]
     return phi
 
 
 def fit_k_negative_binomial(n, r, var, phi=None, k0=None, return_k0=False):
+    """Fit parameter k for the negative binomial distribution of one gene using the least squares optimizer:
+        k * r = n
+        k^2 * variance(r) = k * n - phi * n * 2
+
+    Args:
+        n: unspliced mRNA or new/labeled mRNA of one gene.
+        r: spliced mRNA or total mRNA of one gene.
+        var: the variance of r.
+        phi: the dispersion parameter of the negative binomial distribution of one gene.
+        k0: the initial guess for k.
+        return_k0: whether to return k0.
+
+    Returns:
+        The resolution from the least squares optimizer.
+    """
     k0 = fit_linreg(r, n, intercept=False)[0] if k0 is None else k0
     phi = compute_dispersion(r, var) if phi is None else phi
 
@@ -795,6 +820,19 @@ def fit_k_negative_binomial(n, r, var, phi=None, k0=None, return_k0=False):
 
 
 def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None, return_phi=False):
+    """Fit parameter K of negative binomial distribution to each gene.
+
+    Args:
+        N: unspliced mRNA or new/labeled mRNA.
+        R: spliced mRNA or total mRNA.
+        varR: the variance of R.
+        perc_left: left percentile for selecting extreme data points.
+        perc_right: right percentile for selecting extreme data points.
+        return_phi: whether to return dispersion parameter Phi.
+
+    Returns:
+        Fitted parameter K for each gene.
+    """
     n_gene = N.shape[1]
     K = np.zeros(n_gene)
     Phi = np.zeros(n_gene)
@@ -815,6 +853,17 @@ def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None, return_phi=False):
 
 
 def compute_velocity_labeling(N, R, K, tau):
+    """Compute velocity for labeling data by: velocity = gamma / k * new - gamma * total.
+
+    Parameters:
+        N: new or labeled mRNA.
+        R: total mRNA.
+        K: fitted slope k.
+        tau: time information.
+
+    Returns:
+        Computed velocity.
+    """
     Kc = np.clip(K, 0, 1 - 1e-3)
     if np.isscalar(tau):
         Beta_or_gamma = -np.log(1 - Kc) / tau
