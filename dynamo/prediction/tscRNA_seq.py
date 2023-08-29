@@ -17,7 +17,6 @@ def get_pulse_r0(
     add_init_r0_key: str = "init_r0_pulse",
     copy: bool = False,
 ) -> Union[anndata.AnnData, None]:
-
     """Get the total RNA at the initial time point for a kinetic experiment with the formula:
            :math:`r_0 = \frac{(r - l)}{(1 - k)}`, where :math: `k = 1 - e^{- \gamma t}
 

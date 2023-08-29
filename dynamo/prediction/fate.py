@@ -462,7 +462,6 @@ def fate_bias(
         while True:
             is_dist_larger_than_threshold = distances.flatten() < dist_threshold * median_dist
             if any(is_dist_larger_than_threshold):
-
                 # let us diffuse one step further to identify cells from terminal cell types in case
                 # cells with indices are all close to some random progenitor cells.
                 if hasattr(nbrs, "query"):

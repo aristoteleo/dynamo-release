@@ -534,7 +534,7 @@ def least_action(
         A = []
 
     path_ind = 0
-    for (init_state, target_state) in LoggerManager.progress_logger(
+    for init_state, target_state in LoggerManager.progress_logger(
         pairs, progress_name=f"iterating through {len(pairs)} pairs"
     ):
         logger.info(
