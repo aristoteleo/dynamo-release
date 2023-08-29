@@ -82,7 +82,6 @@ class AnnDataSimulator:
         required_param_names: List = [],
         velocity_func: Optional[Callable] = None,
     ) -> None:
-
         # initialization of variables
         self.reactions = reactions
         self.C0s = np.atleast_2d(C0s)
@@ -193,7 +192,6 @@ class AnnDataSimulator:
 
     def generate_anndata(self, remove_empty_cells: bool = False):
         if self.T is not None and self.C is not None:
-
             obs = pd.DataFrame(
                 {
                     "cell_name": np.arange(self.get_n_cells()),
@@ -391,7 +389,6 @@ class KinLabelingSimulator:
         simulator: CellularModelSimulator,
         syn_rxn_tag: str = "synthesis",
     ) -> None:
-
         self.n_cells = simulator.C.shape[0]
         self.splicing = simulator.splicing
 

@@ -105,7 +105,7 @@ def toggle(
     return res
 
 
-def Ying_model(x: np.ndarray, t: Optional[float]=None):
+def Ying_model(x: np.ndarray, t: Optional[float] = None):
     """network used in the potential landscape paper from Ying, et. al:
     https://www.nature.com/articles/s41598-017-15889-2.
     This is also the mixture of Gaussian model.
