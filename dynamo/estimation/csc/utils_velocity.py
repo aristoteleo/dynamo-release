@@ -1,3 +1,5 @@
+from typing import Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import statsmodels.api as sm
 from scipy.optimize import least_squares
@@ -775,7 +777,7 @@ def concat_time_series_matrices(mats, t=None):
 
 # ---------------------------------------------------------------------------------------------------
 # negbin method related
-def compute_dispersion(mX, varX):
+def compute_dispersion(mX: Union[np.ndarray, csr_matrix], varX: Union[np.ndarray, csr_matrix]) -> float:
     """Compute the reciprocal of the dispersion parameter of NB distribution from the following relationship:
         variance = mean + phi * mean^2
 
@@ -790,7 +792,14 @@ def compute_dispersion(mX, varX):
     return phi
 
 
-def fit_k_negative_binomial(n, r, var, phi=None, k0=None, return_k0=False):
+def fit_k_negative_binomial(
+    n: Union[np.ndarray, csr_matrix],
+    r: Union[np.ndarray, csr_matrix],
+    var: float,
+    phi: Optional[float] = None,
+    k0: Optional[float] = None,
+    return_k0: bool = False,
+) -> Union[Tuple[float, float], float]:
     """Fit parameter k for the negative binomial distribution of one gene using the least squares optimizer:
         k * r = n
         k^2 * variance(r) = k * n - phi * n * 2
@@ -819,7 +828,14 @@ def fit_k_negative_binomial(n, r, var, phi=None, k0=None, return_k0=False):
         return ret.x[0]
 
 
-def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None, return_phi=False):
+def fit_K_negbin(
+    N: Union[np.ndarray, csr_matrix],
+    R: Union[np.ndarray, csr_matrix],
+    varR: Union[np.ndarray, csr_matrix],
+    perc_left: Optional[Union[float, int]] = None,
+    perc_right: Optional[Union[float, int]] = None,
+    return_phi: bool = False,
+) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     """Fit parameter K of negative binomial distribution to each gene.
 
     Args:
@@ -852,7 +868,12 @@ def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None, return_phi=False):
         return K
 
 
-def compute_velocity_labeling(N, R, K, tau):
+def compute_velocity_labeling(
+    N: Union[np.ndarray, csr_matrix],
+    R: Union[np.ndarray, csr_matrix],
+    K: Union[np.ndarray, csr_matrix],
+    tau: Union[np.ndarray, csr_matrix],
+) -> Union[np.ndarray, csr_matrix]:
     """Compute velocity for labeling data by: velocity = gamma / k * new - gamma * total.
 
     Parameters:
