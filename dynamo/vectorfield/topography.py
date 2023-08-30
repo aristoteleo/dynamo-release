@@ -758,17 +758,24 @@ def util_topology(
         basis: A string specifying the reduced dimension embedding  to use for the computation.
         dims: A tuple of two integers specifying the dimensions of X to consider.
         func: A vector-valued function taking in coordinates and returning the vector field.
-        VecFld: `VecFldDict` TypedDict storing information about the vector field and SparseVFC-related parameters and computations.
-        X: an alternative to providing an `AnnData` object. Provide an np.ndarray from which `dims` are accessed, Defaults to None.
+        VecFld: `VecFldDict` TypedDict storing information about the vector field and SparseVFC-related parameters and
+            computations.
+        X: an alternative to providing an `AnnData` object. Provide a np.ndarray from which `dims` are accessed,
+            Defaults to None.
         n: An optional integer specifying the number of points to use for computing fixed points. Defaults to 25.
 
     Returns:
         A tuple consisting of the following elements:
-            - X_basis: an array of shape (n, 2) where n is the number of points in X. This is the subset of X consisting of the first two dimensions specified by dims. If X is not provided, X_basis is taken from the obsm attribute of adata using the key "X_" + basis.
-            - xlim, ylim: a tuple of floats specifying the limits of the x and y axes, respectively. These are computed based on the minimum and maximum values of X_basis.
+            - X_basis: an array of shape (n, 2) where n is the number of points in X. This is the subset of X consisting
+                of the first two dimensions specified by dims. If X is not provided, X_basis is taken from the obsm
+                attribute of adata using the key "X_" + basis.
+            - xlim, ylim, zlim: a tuple of floats specifying the limits of the x, y and z axes, respectively. These are
+                computed based on the minimum and maximum values of X_basis.
             - confidence: an array of shape (n, ) containing the confidence scores of the fixed points.
-            - NCx, NCy: arrays of shape (n, ) containing the x and y coordinates of the nullclines (lines where the derivative of the system is zero), respectively.
-            - Xss: an array of shape (n, k) where k is the number of dimensions of the system, containing the fixed points.
+            - NCx, NCy: arrays of shape (n, ) containing the x and y coordinates of the nullclines (lines where the
+                derivative of the system is zero), respectively.
+            - Xss: an array of shape (n, k) where k is the number of dimensions of the system, containing the fixed
+                points.
             - ftype: an array of shape (n, ) containing the types of fixed points (attractor, repeller, or saddle).
             - an array of shape (n, ) containing the indices of the fixed points in the original data.
     """
@@ -847,12 +854,13 @@ def topography(
     VecFld: Optional[VecFldDict] = None,
     **kwargs,
 ) -> AnnData:
-    """Map the topography of the single cell vector field in (first) two dimensions.
+    """Map the topography of the single cell vector field in (first) two or three dimensions.
 
     Args:
         adata: an AnnData object.
         basis: The reduced dimension embedding of cells to visualize.
-        layer: Which layer of the data will be used for vector field function reconstruction. This will be used in conjunction with X.
+        layer: Which layer of the data will be used for vector field function reconstruction. This will be used in
+            conjunction with X.
         X: Original data. Not used
         dims: The dimensions that will be used for vector field reconstruction.
         n: Number of samples for calculating the fixed points.
@@ -862,7 +870,8 @@ def topography(
 
     Returns:
         `AnnData` object that is updated with the `VecFld` or 'VecFld_' + basis dictionary in the `uns` attribute.
-        The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline, separatrix, computed and stored.
+        The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline,
+            separatrix, computed and stored.
     """
 
     if VecFld is None:
