@@ -786,6 +786,7 @@ def util_topology(
             min_[1] - (max_[1] - min_[1]) * 0.1,
             max_[1] + (max_[1] - min_[1]) * 0.1,
         ]
+        zlim = None
 
         vecfld = VectorField2D(func, X_data=X_basis)
         vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
@@ -821,7 +822,7 @@ def util_topology(
         confidence = vecfld.get_Xss_confidence()
     else:
         fp_ind = None
-        xlim, ylim, confidence, NCx, NCy = None, None, None, None, None
+        xlim, ylim, zlim, confidence, NCx, NCy = None, None, None, None, None, None
         vecfld = BaseVectorField(
             X=VecFld["X"][VecFld["valid_ind"], :],
             V=VecFld["Y"][VecFld["valid_ind"], :],
@@ -833,7 +834,7 @@ def util_topology(
             fp_ind = nearest_neighbors(Xss, vecfld.data["X"], 1).flatten()
             Xss = vecfld.data["X"][fp_ind]
 
-    return X_basis, xlim, ylim, confidence, NCx, NCy, Xss, ftype, fp_ind
+    return X_basis, xlim, ylim, zlim, confidence, NCx, NCy, Xss, ftype, fp_ind
 
 
 def topography(
@@ -884,6 +885,7 @@ def topography(
         X_basis,
         xlim,
         ylim,
+        zlim,
         confidence,
         NCx,
         NCy,
@@ -905,6 +907,7 @@ def topography(
             {
                 "xlim": xlim,
                 "ylim": ylim,
+                "zlim": zlim,
                 "X_data": X_basis,
                 "Xss": Xss,
                 "ftype": ftype,
@@ -918,6 +921,7 @@ def topography(
         adata.uns[vf_key] = {
             "xlim": xlim,
             "ylim": ylim,
+            "zlim": zlim,
             "X_data": X_basis,
             "Xss": Xss,
             "ftype": ftype,
