@@ -250,7 +250,13 @@ def solve_alpha_2p_mat(
     return csr_matrix(u0), csr_matrix(u_new), csr_matrix(alpha1)
 
 
-def fit_linreg(x, y, mask=None, intercept=False, r2=True):
+def fit_linreg(
+    x: Union[csr_matrix, np.ndarray],
+    y: Union[csr_matrix, np.ndarray],
+    mask: Optional[Union[List, np.ndarray]] = None,
+    intercept: bool = False,
+    r2: bool = True,
+) -> Union[Tuple[float, float, float, float], Tuple[float, float]]:
     """Simple linear regression: y = kx + b.
 
     Arguments
@@ -315,7 +321,14 @@ def fit_linreg(x, y, mask=None, intercept=False, r2=True):
         return k, b
 
 
-def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method="rlm"):
+def fit_linreg_robust(
+    x: Union[csr_matrix, np.ndarray],
+    y: Union[csr_matrix, np.ndarray],
+    mask: Optional[Union[List, np.ndarray]] = None,
+    intercept: bool = False,
+    r2: bool = True,
+    est_method: str = "rlm",
+) -> Union[Tuple[float, float, float, float], Tuple[float, float]]:
     """Apply robust linear regression of y w.r.t x.
 
     Arguments
@@ -398,7 +411,14 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method="rlm
         return k, b
 
 
-def fit_stochastic_linreg(u, s, us, ss, fit_2_gammas=True, err_cov=False):
+def fit_stochastic_linreg(
+    u: Union[csr_matrix, np.ndarray],
+    s: Union[csr_matrix, np.ndarray],
+    us: Union[csr_matrix, np.ndarray],
+    ss: Union[csr_matrix, np.ndarray],
+    fit_2_gammas: bool = True,
+    err_cov: bool = False,
+) -> float:
     """generalized method of moments: [u, 2*us + u] = gamma * [s, 2*ss - s].
 
     Arguments
@@ -449,7 +469,13 @@ def fit_stochastic_linreg(u, s, us, ss, fit_2_gammas=True, err_cov=False):
     return gamma
 
 
-def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
+def fit_first_order_deg_lsq(
+    t: np.ndarray,
+    l: Union[csr_matrix, np.ndarray],
+    bounds: Tuple = (0, np.inf),
+    fix_l0: bool = False,
+    beta_0: Union[float, int] = 1,
+) -> Tuple[float, float]:
     """Estimate beta with degradation data using least squares method.
 
     Arguments
@@ -490,7 +516,7 @@ def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     return beta, l0
 
 
-def solve_first_order_deg(t, l):
+def solve_first_order_deg(t: np.ndarray, l: Union[csr_matrix, np.ndarray]) -> Tuple[float, float, float]:
     """Solve for the initial amount and the rate constant of a species (for example, labeled mRNA) with time-series data
     under first-order degration kinetics model.
 
@@ -523,7 +549,14 @@ def solve_first_order_deg(t, l):
     return l0, k, half_life
 
 
-def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
+def fit_gamma_lsq(
+    t: np.ndarray,
+    s: Union[csr_matrix, np.ndarray],
+    beta: float,
+    u0: float,
+    bounds: Tuple = (0, np.inf),
+    fix_s0: bool = False,
+) -> Tuple[float, float]:
     """Estimate gamma with degradation data using least squares method.
 
     Arguments
@@ -570,7 +603,7 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     return gamma, s0
 
 
-def fit_alpha_synthesis(t, u, beta):
+def fit_alpha_synthesis(t: np.ndarray, u: Union[csr_matrix, np.ndarray], beta: float) -> float:
     """Estimate alpha with synthesis data using linear regression with fixed zero intercept.
     It is assumed that u(0) = 0.
 
@@ -599,7 +632,12 @@ def fit_alpha_synthesis(t, u, beta):
     return beta * np.mean(u) / np.mean(x)
 
 
-def fit_alpha_degradation(t, u, beta, intercept=False):
+def fit_alpha_degradation(
+    t: np.ndarray,
+    u: Union[csr_matrix, np.ndarray],
+    beta: float,
+    intercept: bool = False,
+) -> Union[float, float, float]:
     """Estimate alpha with degradation data using linear regression. This is a lsq version of the following function that
     constrains u0 to be larger than 0
 
@@ -641,7 +679,12 @@ def fit_alpha_degradation(t, u, beta, intercept=False):
     return alpha, u0, r2
 
 
-def solve_alpha_degradation(t, u, beta, intercept=False):
+def solve_alpha_degradation(
+    t: np.ndarray,
+    u: Union[csr_matrix, np.ndarray],
+    beta: float,
+    intercept: bool = False,
+) -> Union[float, float, float]:
     """Estimate alpha with degradation data using linear regression.
 
     Arguments
@@ -694,7 +737,13 @@ def solve_alpha_degradation(t, u, beta, intercept=False):
     return k * beta, b, r2
 
 
-def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
+def fit_alpha_beta_synthesis(
+    t: np.ndarray,
+    l: Union[csr_matrix, np.ndarray],
+    bounds: Tuple = (0, np.inf),
+    alpha_0: Union[float, int] = 1,
+    beta_0: Union[float, int] = 1,
+) -> Tuple[float, float]:
     """Estimate alpha and beta with synthesis data using least square method.
     It is assumed that u(0) = 0.
 
@@ -728,7 +777,14 @@ def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
     return ret.x[0], ret.x[1]
 
 
-def fit_all_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1, gamma_0=1):
+def fit_all_synthesis(
+    t: np.ndarray,
+    l: Union[csr_matrix, np.ndarray],
+    bounds: Tuple = (0, np.inf),
+    alpha_0: Union[float, int] = 1,
+    beta_0: Union[float, int] = 1,
+    gamma_0: Union[float, int] = 1,
+) -> Tuple[float, float, float]:
     """Estimate alpha, beta and gamma with synthesis data using least square method.
     It is assumed that u(0) = 0 and s(0) = 0.
 
