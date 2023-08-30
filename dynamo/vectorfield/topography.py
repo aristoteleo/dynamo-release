@@ -795,6 +795,30 @@ def util_topology(
 
         Xss, ftype = vecfld.get_fixed_points(get_types=True)
         confidence = vecfld.get_Xss_confidence()
+    elif X_basis.shape[1] == 3:
+        fp_ind = None
+        min_, max_ = X_basis.min(0), X_basis.max(0)
+
+        xlim = [
+            min_[0] - (max_[0] - min_[0]) * 0.1,
+            max_[0] + (max_[0] - min_[0]) * 0.1,
+        ]
+        ylim = [
+            min_[1] - (max_[1] - min_[1]) * 0.1,
+            max_[1] + (max_[1] - min_[1]) * 0.1,
+        ]
+        zlim = [
+            min_[2] - (max_[2] - min_[2]) * 0.1,
+            max_[2] + (max_[2] - min_[2]) * 0.1,
+        ]
+
+        vecfld = VectorField3D(func, X_data=X_basis)
+        vecfld.find_fixed_points_by_sampling(n, xlim, ylim, zlim)
+
+        NCx, NCy = None, None
+
+        Xss, ftype = vecfld.get_fixed_points(get_types=True)
+        confidence = vecfld.get_Xss_confidence()
     else:
         fp_ind = None
         xlim, ylim, confidence, NCx, NCy = None, None, None, None, None
