@@ -951,7 +951,7 @@ def compute_velocity_labeling(
 ) -> Union[np.ndarray, csr_matrix]:
     """Compute velocity for labeling data by: velocity = gamma / k * new - gamma * total.
 
-    Parameters:
+    Args:
         N: new or labeled mRNA.
         R: total mRNA.
         K: fitted slope k.
@@ -973,26 +973,18 @@ def compute_bursting_properties(
     phi: float,
     gamma: float,
 ) -> Tuple[Union[float, np.ndarray], np.ndarray]:
-    """Compute bursting frequency and size for the negative binomial regression model.
-    The equations come from:
-    Anton J.M. Larsson et al. Genomic encoding of transcriptional burst kinetics, Nature volume 565, pages251–254(2019)
+    """Compute bursting frequency and size for the negative binomial regression model. The equations come from:
+        Anton J.M. Larsson et al. Genomic encoding of transcriptional burst kinetics, Nature volume 565, pages251–254(2019)
 
-    Arguments
-    ---------
-    M_t: :class:`~numpy.ndarray` or float
-        The first moment of the number of total mRNA.
-        If an array is passed, a cell-wise bursting size will be calculated.
-    phi: float
-        The reciprocal dispersion parameter.
-    gamma: float
-        Degradation rate constant.
+    Args:
+        M_t: the first moment of the number of total mRNA. If an array is passed, a cell-wise bursting size will be
+            calculated.
+        phi: the reciprocal dispersion parameter.
+        gamma: degradation rate constant.
 
-    Returns
-    -------
-    bs: :class:`~numpy.ndarray` or float
-        Bursting size
-    bf: float
-        Bursting frequency
+    Returns:
+        bs: bursting size
+        bf: bursting frequency
     """
     bs = M_t * phi
     bf = gamma / phi
