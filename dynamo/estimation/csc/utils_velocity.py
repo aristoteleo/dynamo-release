@@ -822,7 +822,10 @@ def fit_all_synthesis(
     return ret.x[0], ret.x[1], ret.x[2]
 
 
-def concat_time_series_matrices(mats, t=None):
+def concat_time_series_matrices(
+    mats: np.ndarray,
+    t: Optional[Union[List, np.ndarray]] = None,
+) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     """Concatenate a list of gene x cell matrices into a single matrix.
 
     Arguments
@@ -965,7 +968,11 @@ def compute_velocity_labeling(
     return elem_prod(Beta_or_gamma, N) / K - elem_prod(Beta_or_gamma, R)
 
 
-def compute_bursting_properties(M_t, phi, gamma):
+def compute_bursting_properties(
+    M_t: Union[float, np.ndarray],
+    phi: float,
+    gamma: float,
+) -> Tuple[Union[float, np.ndarray], np.ndarray]:
     """Compute bursting frequency and size for the negative binomial regression model.
     The equations come from:
     Anton J.M. Larsson et al. Genomic encoding of transcriptional burst kinetics, Nature volume 565, pages251–254(2019)
