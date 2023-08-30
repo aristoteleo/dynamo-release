@@ -1359,3 +1359,406 @@ def topography(
         plt.show()
     if save_show_or_return in ["return", "all"]:
         return axes_list if len(axes_list) > 1 else axes_list[0]
+
+
+@docstrings.with_indent(4)
+def topography_3D(
+    adata: AnnData,
+    basis: str = "umap",
+    fps_basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = "white",
+    ncols: int = 4,
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float, float] = (6, 4),
+    show_legend: str = "on data",
+    use_smoothed: bool = True,
+    xlim: np.ndarray = None,
+    ylim: np.ndarray = None,
+    zlim: np.ndarray = None,
+    t: Optional[npt.ArrayLike] = None,
+    terms: List[str] = ["fixed_points"],
+    init_cells: List[int] = None,
+    init_states: np.ndarray = None,
+    quiver_source: Literal["raw", "reconstructed"] = "raw",
+    fate: Literal["history", "future", "both"] = "both",
+    approx: bool = False,
+    quiver_size: Optional[float] = None,
+    quiver_length: Optional[float] = None,
+    density: float = 1,
+    linewidth: float = 1,
+    streamline_color: Optional[str] = None,
+    streamline_alpha: float = 0.4,
+    color_start_points: Optional[str] = None,
+    markersize: float = 200,
+    marker_cmap: Optional[str] = None,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = False,
+    ax: Optional[Axes] = None,
+    sort: Literal["raw", "abs", "neg"] = "raw",
+    frontier: bool = False,
+    s_kwargs_dict: Dict[str, Any] = {},
+    q_kwargs_dict: Dict[str, Any] = {},
+    n: int = 25,
+    **streamline_kwargs_dict,
+) -> Union[Axes, List[Axes], None]:
+
+    from ..external.hodge import ddhodge
+
+    logger = LoggerManager.gen_logger("dynamo-topography-plot")
+    logger.log_time()
+
+    from matplotlib import rcParams
+    from matplotlib.colors import to_hex
+
+    if type(color) == str:
+        color = [color]
+
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _background = background
+
+    terms = list(terms) if type(terms) is tuple else [terms] if type(terms) is str else terms
+    if approx:
+        if "streamline" not in terms:
+            terms.append("streamline")
+        if "trajectory" in terms:
+            terms = list(set(terms).difference("trajectory"))
+
+    if init_cells is not None or init_states is not None:
+        terms.extend("trajectory")
+
+    uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
+    fps_uns_key = "VecFld" if fps_basis == "X" else "VecFld_" + fps_basis
+
+    if uns_key not in adata.uns.keys():
+
+        if "velocity_" + basis not in adata.obsm_keys():
+            logger.info(
+                f"velocity_{basis} is computed yet. " f"Projecting the velocity vector to {basis} basis now ...",
+                indent_level=1,
+            )
+            cell_velocities(adata, basis=basis)
+
+        logger.info(
+            f"Vector field for {basis} is not constructed. Constructing it now ...",
+            indent_level=1,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            if basis == fps_basis:
+                logger.info(
+                    f"`basis` and `fps_basis` are all {basis}. Will also map topography ...",
+                    indent_level=2,
+                )
+                VectorField(adata, basis, map_topography=True, n=n)
+            else:
+                VectorField(adata, basis)
+    if fps_uns_key not in adata.uns.keys():
+        if "velocity_" + basis not in adata.obsm_keys():
+            logger.info(
+                f"velocity_{basis} is computed yet. " f"Projecting the velocity vector to {basis} basis now ...",
+                indent_level=1,
+            )
+            cell_velocities(adata, basis=basis)
+
+        logger.info(
+            f"Vector field for {fps_basis} is not constructed. " f"Constructing it and mapping its topography now ...",
+            indent_level=1,
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            VectorField(adata, fps_basis, map_topography=True, n=n)
+    # elif "VecFld2D" not in adata.uns[uns_key].keys():
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    #
+    #         _topology(adata, basis, VecFld=None)
+    # elif "VecFld2D" in adata.uns[uns_key].keys() and type(adata.uns[uns_key]["VecFld2D"]) == str:
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    #
+    #         _topology(adata, basis, VecFld=None)
+
+    vecfld_dict, vecfld = vecfld_from_adata(adata, basis)
+
+    fps_vecfld_dict, fps_vecfld = vecfld_from_adata(adata, fps_basis)
+
+    # need to use "X_basis" to plot on the scatter point space
+    if "Xss" not in fps_vecfld_dict:
+        # if topology is not mapped for this basis, calculate it now.
+        logger.info(
+            f"Vector field for {fps_basis} is but its topography is not mapped. " f"Mapping topography now ...",
+            indent_level=1,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _topology(adata, fps_basis, VecFld=None, n=n)
+    else:
+        if fps_vecfld_dict["Xss"].size > 0 and fps_vecfld_dict["Xss"].shape[1] > 3:
+            fps_vecfld_dict["X_basis"], fps_vecfld_dict["Xss"] = (
+                vecfld_dict["X"][:, :3],
+                vecfld_dict["X"][fps_vecfld_dict["fp_ind"], :3],
+            )
+
+    xlim, ylim, zlim = (
+        adata.uns[fps_uns_key]["xlim"] if xlim is None else xlim,
+        adata.uns[fps_uns_key]["ylim"] if ylim is None else ylim,
+        adata.uns[fps_uns_key]["zlim"] if zlim is None else zlim,
+    )
+
+    if xlim is None or ylim is None or zlim is None:
+        X_basis = vecfld_dict["X"][:, :3]
+        min_, max_ = X_basis.min(0), X_basis.max(0)
+
+        xlim = [
+            min_[0] - (max_[0] - min_[0]) * 0.1,
+            max_[0] + (max_[0] - min_[0]) * 0.1,
+        ]
+        ylim = [
+            min_[1] - (max_[1] - min_[1]) * 0.1,
+            max_[1] + (max_[1] - min_[1]) * 0.1,
+        ]
+        zlim = [
+            min_[2] - (max_[2] - min_[2]) * 0.1,
+            max_[2] + (max_[2] - min_[2]) * 0.1,
+        ]
+
+
+    if init_cells is not None:
+        if init_states is None:
+            intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
+            _init_states = (
+                adata.obsm["X_" + basis][init_cells, :]
+                if len(intersect_cell_names) == 0
+                else adata[intersect_cell_names].obsm["X_" + basis].copy()
+            )
+            V = (
+                adata.obsm["velocity_" + basis][init_cells, :]
+                if len(intersect_cell_names) == 0
+                else adata[intersect_cell_names].obsm["velocity_" + basis].copy()
+            )
+
+            init_states = _init_states
+
+    if quiver_source == "reconstructed" or (init_states is not None and init_cells is None):
+        from ..tools.utils import vector_field_function
+
+        V = vector_field_function(init_states, vecfld_dict, [0, 1])
+
+    # plt.figure(facecolor=_background)
+    axes_list, color_list, font_color = scatters(
+        adata=adata,
+        basis=basis,
+        x=x,
+        y=y,
+        color=color,
+        layer=layer,
+        highlights=highlights,
+        labels=labels,
+        values=values,
+        theme=theme,
+        cmap=cmap,
+        color_key=color_key,
+        color_key_cmap=color_key_cmap,
+        background=_background,
+        ncols=ncols,
+        pointsize=pointsize,
+        figsize=figsize,
+        show_legend=show_legend,
+        use_smoothed=use_smoothed,
+        aggregate=aggregate,
+        show_arrowed_spines=show_arrowed_spines,
+        ax=ax,
+        sort=sort,
+        save_show_or_return="return",
+        frontier=frontier,
+        projection="3d",
+        **s_kwargs_dict,
+        return_all=True,
+    )
+
+    if type(axes_list) != list:
+        axes_list, color_list, font_color = (
+            [axes_list],
+            [color_list],
+            [font_color],
+        )
+    for i in range(len(axes_list)):
+        # ax = axes_list[i]
+
+        axes_list[i].set_xlabel(basis + "_1")
+        axes_list[i].set_ylabel(basis + "_2")
+        axes_list[i].set_zlabel(basis + "_3")
+        # axes_list[i].set_aspect("equal")
+
+        # Build the plot
+        axes_list[i].set_xlim(xlim)
+        axes_list[i].set_ylim(ylim)
+        axes_list[i].set_zlim(zlim)
+
+        axes_list[i].set_facecolor(background)
+
+        if t is None:
+            if vecfld_dict["grid_V"] is None:
+                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["V"][:, :2]))
+            else:
+                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["grid_V"]))
+
+            t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
+
+        integration_direction = (
+            "both" if fate == "both" else "forward" if fate == "future" else "backward" if fate == "history" else "both"
+        )
+
+        if "streamline" in terms:
+            if approx:
+                axes_list[i] = plot_flow_field(
+                    vecfld,
+                    xlim,
+                    ylim,
+                    background=_background,
+                    start_points=init_states,
+                    integration_direction=integration_direction,
+                    density=density,
+                    linewidth=linewidth,
+                    streamline_color=streamline_color,
+                    streamline_alpha=streamline_alpha,
+                    color_start_points=color_start_points,
+                    ax=axes_list[i],
+                    **streamline_kwargs_dict,
+                )
+            else:
+                axes_list[i] = plot_flow_field(
+                    vecfld,
+                    xlim,
+                    ylim,
+                    background=_background,
+                    density=density,
+                    linewidth=linewidth,
+                    streamline_color=streamline_color,
+                    streamline_alpha=streamline_alpha,
+                    color_start_points=color_start_points,
+                    ax=axes_list[i],
+                    **streamline_kwargs_dict,
+                )
+
+        if "fixed_points" in terms:
+            axes_list[i] = plot_fixed_points(
+                fps_vecfld,
+                fps_vecfld_dict,
+                background=_background,
+                ax=axes_list[i],
+                markersize=markersize,
+                cmap=marker_cmap,
+            )
+
+        if "separatrices" in terms:
+            axes_list[i] = plot_separatrix(vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i])
+
+        if init_states is not None and "trajectory" in terms:
+            if not approx:
+                axes_list[i] = plot_traj(
+                    vecfld.func,
+                    init_states,
+                    t,
+                    background=_background,
+                    integration_direction=integration_direction,
+                    ax=axes_list[i],
+                )
+
+        # show quivers for the init_states cells
+        if init_states is not None and "quiver" in terms:
+            X = init_states
+            V /= 3 * quiver_autoscaler(X, V)
+
+            df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
+
+            if quiver_size is None:
+                quiver_size = 1
+            if _background in ["#ffffff", "black"]:
+                edgecolors = "white"
+            else:
+                edgecolors = "black"
+
+            head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
+            quiver_kwargs = {
+                "angles": "xy",
+                "scale": scale,
+                "scale_units": "xy",
+                "width": 0.0005,
+                "headwidth": head_w,
+                "headlength": head_l,
+                "headaxislength": ax_l,
+                "minshaft": 1,
+                "minlength": 1,
+                "pivot": "tail",
+                "linewidth": 0.1,
+                "edgecolors": edgecolors,
+                "alpha": 1,
+                "zorder": 7,
+            }
+            quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
+            # axes_list[i].quiver(X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs)
+            axes_list[i].quiver(
+                df.iloc[:, 0],
+                df.iloc[:, 1],
+                df.iloc[:, 2],
+                df.iloc[:, 3],
+                **quiver_kwargs,
+            )  # color='red',  facecolors='gray'
+
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "topography",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
+        save_fig(**s_kwargs)
+    if save_show_or_return in ["show", "both", "all"]:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            plt.tight_layout()
+
+        plt.show()
+    if save_show_or_return in ["return", "all"]:
+        return axes_list if len(axes_list) > 1 else axes_list[0]

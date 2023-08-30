@@ -60,6 +60,7 @@ from .topography import (
     plot_separatrix,
     plot_traj,
     topography,
+    topography_3D,
 )
 
 # from .theme import points
@@ -115,6 +116,7 @@ __all__ = [
     "plot_separatrix",
     "plot_traj",
     "topography",
+    "topography_3D",
     "speed",
     "acceleration",
     "curl",
