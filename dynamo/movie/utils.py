@@ -9,6 +9,18 @@ def remove_particles(
     ylim: Union[tuple, list],
     zlim: Optional[Union[tuple, list]] = None,
 ):
+    """Remove particles that fall outside specified coordinate ranges.
+
+    Args:
+        pts: an array of points.
+        xlim: X-coordinate limits specified as a tuple or list of two values: (min_x, max_x).
+        ylim: Y-coordinate limits specified as a tuple or list of two values: (min_y, max_y).
+        zlim: Z-coordinate limits specified as a tuple or list of two values: (min_z, max_z). If not provided (default),
+            only 2D filtering based on xlim and ylim is performed.
+
+    Returns:
+        An array of points that fall within the specified coordinate ranges.
+    """
     if len(pts) == 0:
         return []
     outside_xlim = (pts[:, 0] < xlim[0]) | (pts[:, 0] > xlim[1])
