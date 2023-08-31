@@ -185,6 +185,8 @@ class StreamFuncAnim:
         M = M + 0.01 * np.abs(M - m)
         self.xlim = [m[0], M[0]]
         self.ylim = [m[1], M[1]]
+        if X_data.shape[1] == 3:
+            self.zlim = [m[2], M[2]]
 
         # self.ax.set_aspect("equal")
         self.color = color
@@ -205,7 +207,7 @@ class StreamFuncAnim:
             self.fig = fig
             self.ax = ax
 
-        (self.ln,) = self.ax.plot([], [], "ro")
+        (self.ln,) = self.ax.plot([], [], "ro", zs=[]) if X_data.shape[1] == 3 else self.ax.plot([], [], "ro")
 
     def init_background(self):
         return (self.ln,)
