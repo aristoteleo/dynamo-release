@@ -14,15 +14,9 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.base import issparse
 
 from ..configuration import DKM
-from ..dynamo_logger import (
-    main_debug,
-    main_info_insert_adata_layer,
-    main_info_insert_adata_obsm,
-    main_warning,
-)
-from .utils import (
-    merge_adata_attrs,
-)
+from ..dynamo_logger import (main_debug, main_info_insert_adata_layer,
+                             main_info_insert_adata_obsm, main_warning)
+from .utils import merge_adata_attrs
 
 
 def calc_sz_factor(

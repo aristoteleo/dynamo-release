@@ -16,7 +16,8 @@ from sklearn.utils.extmath import svd_flip
 from sklearn.utils.sparsefuncs import mean_variance_axis
 
 from ..configuration import DKM
-from ..dynamo_logger import main_info_insert_adata_obsm, main_info_insert_adata_var
+from ..dynamo_logger import (main_info_insert_adata_obsm,
+                             main_info_insert_adata_var)
 
 
 def _truncatedSVD_with_center(

@@ -19,36 +19,24 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import FastICA
 
 from ..configuration import DKM, DynamoAdataConfig, DynamoAdataKeyManager
-from ..dynamo_logger import (
-    LoggerManager,
-    main_debug,
-    main_info,
-    main_info_insert_adata_obsm,
-    main_warning,
-)
+from ..dynamo_logger import (LoggerManager, main_debug, main_info,
+                             main_info_insert_adata_obsm, main_warning)
 from ..tools.utils import update_dict
 from ..utils import copy_adata
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
-from .normalization import calc_sz_factor, get_sz_exprs, normalize_mat_monocle, sz_util
+from .normalization import (calc_sz_factor, get_sz_exprs,
+                            normalize_mat_monocle, sz_util)
 from .pca import pca
 from .QC import basic_stats, filter_genes_by_clusters, filter_genes_by_outliers
 from .transform import _Freeman_Tukey
-from .utils import (
-    _infer_labeling_experiment_type,
-    add_noise_to_duplicates,
-    calc_new_to_total_ratio,
-    collapse_species_adata,
-    compute_gene_exp_fraction,
-    convert2symbol,
-    convert_layers2csr,
-    detect_experiment_datatype,
-    get_inrange_shared_counts_mask,
-    get_nan_or_inf_data_bool_mask,
-    get_svr_filter,
-    merge_adata_attrs,
-    unique_var_obs_adata,
-)
+from .utils import (_infer_labeling_experiment_type, add_noise_to_duplicates,
+                    calc_new_to_total_ratio, collapse_species_adata,
+                    compute_gene_exp_fraction, convert2symbol,
+                    convert_layers2csr, detect_experiment_datatype,
+                    get_inrange_shared_counts_mask,
+                    get_nan_or_inf_data_bool_mask, get_svr_filter,
+                    merge_adata_attrs, unique_var_obs_adata)
 
 
 def deprecated(func):

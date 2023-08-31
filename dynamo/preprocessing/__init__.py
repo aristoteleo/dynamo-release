@@ -2,40 +2,21 @@
 """
 
 from .cell_cycle import cell_cycle_scores
+from .deprecated import (calc_sz_factor_legacy, cook_dist, filter_cells_legacy,
+                         normalize_cell_expr_by_size_factors, recipe_monocle,
+                         recipe_velocyto)
 from .dynast import lambda_correction
-from .external import (
-    harmony_debatch,
-    integrate,
-    normalize_layers_pearson_residuals,
-    sctransform,
-    select_genes_by_pearson_residuals,
-)
+from .external import (harmony_debatch, integrate,
+                       normalize_layers_pearson_residuals, sctransform,
+                       select_genes_by_pearson_residuals)
 from .normalization import calc_sz_factor, normalize
-from .QC import (
-    basic_stats,
-    filter_genes_by_clusters,
-    filter_cells_by_outliers,
-    filter_genes_by_outliers,
-    filter_genes_by_pattern,
-)
 from .pca import pca, top_pca_genes
+from .QC import (basic_stats, filter_cells_by_outliers,
+                 filter_genes_by_clusters, filter_genes_by_outliers,
+                 filter_genes_by_pattern)
 from .transform import log1p, log1p_adata_layer
-from .utils import (
-    compute_gene_exp_fraction,
-    convert2symbol,
-    decode,
-    get_svr_filter,
-    relative2abs,
-    scale,
-)
-from .deprecated import (
-    cook_dist,
-    calc_sz_factor_legacy,
-    normalize_cell_expr_by_size_factors,
-    filter_cells_legacy,
-    recipe_monocle,
-    recipe_velocyto,
-)
+from .utils import (compute_gene_exp_fraction, convert2symbol, decode,
+                    get_svr_filter, relative2abs, scale)
 
 filter_cells = filter_cells_by_outliers
 filter_genes = filter_genes_by_outliers
@@ -43,7 +24,8 @@ log1p = log1p
 normalize_cells = normalize
 
 from .CnmfPreprocessor import CnmfPreprocessor
-from .gene_selection import calc_Gini, calc_dispersion_by_svr, highest_frac_genes, select_genes_monocle
+from .gene_selection import (calc_dispersion_by_svr, calc_Gini,
+                             highest_frac_genes, select_genes_monocle)
 from .Preprocessor import Preprocessor
 
 __all__ = [
