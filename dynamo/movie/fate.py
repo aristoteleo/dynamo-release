@@ -252,7 +252,9 @@ class StreamFuncAnim:
 
 
 class StreamFuncAnim3D(StreamFuncAnim):
+    """The class of 3D animation instance for matplotlib FuncAnimation function."""
     def update(self, frame):
+        """The function to call at each frame. Update the position of the line object in the animation."""
         init_states = self.init_states
         time_vec = self.time_vec
 
