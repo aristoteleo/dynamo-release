@@ -4,11 +4,11 @@ import numpy as np
 
 
 def remove_particles(
-    pts: list,
+    pts: np.ndarray,
     xlim: Union[tuple, list],
     ylim: Union[tuple, list],
     zlim: Optional[Union[tuple, list]] = None,
-):
+) -> np.ndarray:
     """Remove particles that fall outside specified coordinate ranges.
 
     Args:
