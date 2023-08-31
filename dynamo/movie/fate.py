@@ -249,6 +249,45 @@ class StreamFuncAnim:
         return (self.ln,)  # return line so that blit works properly
 
 
+class StreamFuncAnim3D(StreamFuncAnim):
+    def update(self, frame):
+        init_states = self.init_states
+        time_vec = self.time_vec
+
+        pts = [i.tolist() for i in init_states]
+
+        if frame == 0:
+            x, y, z = init_states.T
+
+            for line in self.ax.get_lines():
+                line.remove()
+
+            (self.ln,) = self.ax.plot(x, y, z, "ro", zorder=20)
+            return (self.ln,)  # return line so that blit works properly
+        else:
+            pts = [self.displace(cur_pts, time_vec[frame])[1].tolist() for cur_pts in pts]
+            pts = np.asarray(pts)
+
+        pts = np.asarray(pts)
+
+        pts = remove_particles(pts, self.xlim, self.ylim, self.zlim)
+
+        x, y, z = np.asarray(pts).transpose()
+
+        for line in self.ax.get_lines():
+            line.remove()
+
+        (self.ln,) = self.ax.plot(x, y, z, "ro", zorder=20)
+
+        if self.time_scaler is not None:
+            vf_time = (time_vec[frame] - time_vec[frame - 1]) * self.time_scaler
+            self.ax.set_title("current vector field time is: {:12.2f}".format(vf_time))
+
+        # anim.event_source.interval = (time_vec[frame] - time_vec[frame - 1]) / 100
+
+        return (self.ln,)  # return line so that blit works properly
+
+
 def animate_fates(
     adata,
     basis="umap",
