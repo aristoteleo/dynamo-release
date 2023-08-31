@@ -17,13 +17,10 @@ from anndata import AnnData
 from scipy.sparse import issparse
 
 from ...configuration import DKM
-from ...dynamo_logger import (
-    LoggerManager,
-    main_info,
-    main_info_insert_adata_layer,
-    main_warning,
-)
-from ...preprocessing.utils import is_nonnegative_integer_arr, seurat_get_mean_var
+from ...dynamo_logger import (LoggerManager, main_info,
+                              main_info_insert_adata_layer, main_warning)
+from ...preprocessing.utils import (is_nonnegative_integer_arr,
+                                    seurat_get_mean_var)
 from ..QC import filter_genes_by_outliers
 
 main_logger = LoggerManager.main_logger
