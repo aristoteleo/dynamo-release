@@ -5,24 +5,12 @@ import numpy as np
 import pandas as pd
 
 # dynamo logger related
-from ..dynamo_logger import (
-    LoggerManager,
-    main_critical,
-    main_exception,
-    main_info,
-    main_tqdm,
-    main_warning,
-)
+from ..dynamo_logger import (LoggerManager, main_critical, main_exception,
+                             main_info, main_tqdm, main_warning)
 from ..tools.sampling import sample
 from ..tools.utils import flatten, isarray
-from .ODE import (
-    hill_act_func,
-    hill_inh_func,
-    neurongenesis,
-    ode_bifur2genes,
-    ode_neurongenesis,
-    ode_osc2genes,
-)
+from .ODE import (hill_act_func, hill_inh_func, neurongenesis, ode_bifur2genes,
+                  ode_neurongenesis, ode_osc2genes)
 from .utils import CellularSpecies, GillespieReactions, Reaction
 
 bifur2genes_params = {
