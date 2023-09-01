@@ -178,45 +178,6 @@ def compute_nullclines_2d(
     return NCx, NCy
 
 
-def compute_nullclines_3d(
-    X0: Union[List, np.ndarray],
-    fdx: Callable,
-    fdy: Callable,
-    fdz: Callable,
-    x_range: List,
-    y_range: List,
-    z_range: List,
-    s_max: Optional[float] = None,
-    ds: Optional[float] = None,
-) -> Tuple[List]:
-    if s_max is None:
-        s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]) + (z_range[1] - z_range[0]))
-    if ds is None:
-        ds = s_max / 1e3
-
-    NCx = []
-    NCy = []
-    NCz = []
-    for x0 in X0:
-        # initialize tangent predictor
-        theta = np.random.rand() * 2 * np.pi
-        phi = np.random.rand() * 2 * np.pi
-        r = ds * 2
-        v0 = [r * np.sin(theta) * np.cos(phi), r * np.sin(theta) * np.sin(phi), r * np.cos(theta)]
-        v0 /= np.linalg.norm(v0)
-        # nullcline continuation
-        NCx.append(continuation(x0, fdx, s_max, ds, v0=v0))
-        NCx.append(continuation(x0, fdx, s_max, ds, v0=-v0))
-        NCy.append(continuation(x0, fdy, s_max, ds, v0=v0))
-        NCy.append(continuation(x0, fdy, s_max, ds, v0=-v0))
-        NCz.append(continuation(x0, fdz, s_max, ds, v0=v0))
-        NCz.append(continuation(x0, fdz, s_max, ds, v0=-v0))
-    NCx = clip_curves(NCx, [x_range, y_range, z_range], ds * 10)
-    NCy = clip_curves(NCy, [x_range, y_range, z_range], ds * 10)
-    NCz = clip_curves(NCz, [x_range, y_range, z_range], ds * 10)
-    return NCx, NCy, NCz
-
-
 def compute_separatrices(
     Xss: np.ndarray,
     Js: np.ndarray,
