@@ -2,7 +2,7 @@
 import datetime
 import os
 import warnings
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -611,6 +611,13 @@ class VectorField2D:
 
 
 class VectorField3D(VectorField2D):
+    """A class that represents a 3D vector field, which is a type of mathematical object that assigns a 3D vector to
+    each point in a 3D space.
+
+    The class is derived from the VectorField2D class. This vector field can be defined using a function that returns
+    the vector at each point, or by separate functions for the x and y components of the vector. Nullclines calculation
+    are not supported for 3D vector space because of the computational complexity.
+    """
     def __init__(
         self,
         func: Callable,
@@ -618,7 +625,19 @@ class VectorField3D(VectorField2D):
         func_vy: Optional[Callable] = None,
         func_vz: Optional[Callable] = None,
         X_data: Optional[np.ndarray] = None,
-    ):
+    ) -> None:
+        """Initialize the VectorField3D object.
+
+        Args:
+            func: a function that takes an (n, 3) array of coordinates and returns an (n, 3) array of vectors
+            func_vx: a function that takes an (n, 3) array of coordinates and returns an (n,) array of x components of
+                the vectors, Defaults to None.
+            func_vy: a function that takes an (n, 3) array of coordinates and returns an (n,) array of y components of
+                the vectors, Defaults to None.
+            func_vz: a function that takes an (n, 3) array of coordinates and returns an (n,) array of z components of
+                the vectors, Defaults to None.
+            X_data: Defaults to None.
+        """
         super().__init__(func, func_vx, func_vy, X_data)
 
         def func_dim(x, func, dim):
@@ -644,7 +663,17 @@ class VectorField3D(VectorField2D):
         z_range: Tuple[float, float],
         lhs: Optional[bool] = True,
         tol_redundant: float = 1e-4,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> None:
+        """Find fixed points by sampling the vector field within a specified range of coordinates.
+
+        Args:
+            n: the number of samples to take.
+            x_range: a tuple of two floats specifying the range of x coordinates to sample.
+            y_range: a tuple of two floats specifying the range of y coordinates to sample.
+            z_range: a tuple of two floats specifying the range of z coordinates to sample.
+            lhs: whether to use Latin Hypercube Sampling to generate the samples. Defaults to `True`.
+            tol_redundant: the tolerance for removing redundant fixed points. Defaults to 1e-4.
+        """
         if lhs:
             from ..tools.sampling import lhsclassic
 
@@ -692,7 +721,12 @@ class VectorField3D(VectorField2D):
         #     outside = is_outside(X, [x_range, y_range])
         #     self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
-    def output_to_dict(self, dict_vf):
+    def output_to_dict(self, dict_vf) -> Dict:
+        """Output the vector field as a dictionary.
+
+        Returns:
+            A dictionary containing nullclines, fixed points, confidence and jacobians.
+        """
         dict_vf["NCx"] = self.NCx
         dict_vf["NCy"] = self.NCy
         dict_vf["NCz"] = self.NCz
