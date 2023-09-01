@@ -701,20 +701,20 @@ class VectorField3D(VectorField2D):
         find_new_fixed_points: Optional[bool] = False,
         tol_redundant: Optional[float] = 1e-4,
     ):
-        # compute arguments
-        s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
-        ds = s_max / 1e3
-        self.NCx, self.NCy, self.NCz = compute_nullclines_3d(
-            self.Xss.get_X(),
-            self.fx,
-            self.fy,
-            self.fz,
-            x_range,
-            y_range,
-            z_range,
-            s_max=s_max,
-            ds=ds,
-        )
+        pass
+        # s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
+        # ds = s_max / 1e3
+        # self.NCx, self.NCy, self.NCz = compute_nullclines_3d(
+        #     self.Xss.get_X(),
+        #     self.fx,
+        #     self.fy,
+        #     self.fz,
+        #     x_range,
+        #     y_range,
+        #     z_range,
+        #     s_max=s_max,
+        #     ds=ds,
+        # )
         # if find_new_fixed_points:
         #     sample_interval = ds * 10
         #     X, J = find_fixed_points_nullcline_3d(self.func, self.NCx, self.NCy, self.NCz, sample_interval, tol_redundant)
