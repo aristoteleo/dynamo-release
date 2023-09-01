@@ -10,7 +10,6 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 
 from ..dynamo_logger import main_finish_progress, main_info, main_log_time
-
 # from ..vectorfield.scVectorField import graphize_vecfld
 from ..tools.graph_calculus import divergence, graphize_velocity, potential
 from ..tools.sampling import sample_by_velocity, trn
@@ -21,7 +20,8 @@ from ..vectorfield.utils import vecfld_from_adata, vector_field_function
     div,
     potential,
 )"""
-from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
+from ..tools.connectivity import (_gen_neighbor_keys,
+                                  check_and_recompute_neighbors)
 
 
 def ddhodge(
