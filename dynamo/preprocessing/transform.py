@@ -29,9 +29,9 @@ def _Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
     """
 
     if inverse:
-        res = np.sqrt(X) + np.sqrt((X + 1))
-    else:
         res = (X**2 - 1) ** 2 / (4 * X**2)
+    else:
+        res = np.sqrt(X) + np.sqrt((X + 1))
 
     return res
 
