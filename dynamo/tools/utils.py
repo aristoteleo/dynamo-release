@@ -999,7 +999,7 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
             if adata.uns["pp"]["layers_norm_method"] == "log2"
             else np.exp(layer_x.data) - 1
             if adata.uns["pp"]["layers_norm_method"] == "log"
-            else _Freeman_Tukey(layer_x.data + 1, inverse=True)
+            else _Freeman_Tukey(layer_x.data + 1, inverse=True) - 1
             if adata.uns["pp"]["layers_norm_method"] == "Freeman_Tukey"
             else layer_x.data
         )
