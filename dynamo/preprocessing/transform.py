@@ -87,12 +87,11 @@ def Freeman_Tukey_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
         if is_integer_arr(mat.data):
             mat = mat.asfptype()
             DKM.set_layer_data(adata, layer, mat)
-        _Freeman_Tukey(mat.data)
+        mat.data = _Freeman_Tukey(mat.data)
     else:
         mat = mat.astype(np.float64)
-        _Freeman_Tukey(mat)
+        mat = _Freeman_Tukey(mat)
 
-    mat.data -= 1
     DKM.set_layer_data(adata, layer, mat)
 
 
