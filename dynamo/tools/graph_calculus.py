@@ -566,11 +566,7 @@ def gradient(E: np.ndarray, p: np.ndarray) -> np.ndarray:
     Returns:
         The gradient of the weighted graph.
     """
-
-    adj = np.abs(np.sign(E))
-    F_pot = np.array(adj, copy=True, dtype=float)
-    F_pot[F_pot.nonzero()] = gradop(adj) * p / E[E.nonzero()] ** 2
-    return F_pot
+    return gradop(E).dot(p)
 
 
 def divop(W: np.ndarray) -> np.ndarray:
