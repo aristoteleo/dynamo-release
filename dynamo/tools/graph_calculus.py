@@ -420,11 +420,11 @@ def calc_laplacian(
     """
 
     if weight_mode == "naive":
-        A = np.abs(np.sign(W))
+        A = abs(W.sign()) if sp.issparse(W) else np.abs(np.sign(W))
     elif weight_mode == "asymmetric":
-        A = np.array(W, copy=True)
+        A = W.copy() if sp.issparse(W) else np.array(W, copy=True)
     elif weight_mode == "symmetric":
-        A = np.array(W, copy=True)
+        A = W.copy() if sp.issparse(W) else np.array(W, copy=True)
         A = 0.5 * (A + A.T)
     else:
         raise NotImplementedError(f"Unidentified weight mode: `{weight_mode}`")
@@ -432,11 +432,11 @@ def calc_laplacian(
     if E is not None:
         E_ = np.zeros(E.shape)
         # E_[np.where(E > 0)] = 1 / E[np.where(E > 0)] ** 2
-        E_[E.nonzero()] = 1 / E[E.nonzero()] ** 2
+        E_[E.nonzero()] = 1 / E[E.nonzero()].A1 ** 2 if sp.issparse(E) else 1 / E[E.nonzero()] ** 2
         # A *= E_
         A = elem_prod(A, E_)
 
-    L = np.diag(np.sum(A, 1)) - A
+    L = np.diag(A.sum(1).A1) - A if sp.issparse(A) else np.diag(np.sum(A, 1)) - A
 
     if convention == "diffusion":
         L = -L
@@ -486,7 +486,7 @@ def fp_operator(
         if E is not None:
             L = calc_laplacian(E, E=E, convention="diffusion", weight_mode="naive")
         else:
-            L = calc_laplacian(F, E=E, convention="diffusion", weight_mode="naive")
+            L =  calc_laplacian(F, E=E, convention="diffusion", weight_mode="naive")
     else:
         L = calc_laplacian(W, E=E, convention="diffusion", weight_mode=weight_mode)
 
