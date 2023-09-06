@@ -527,11 +527,15 @@ def divergence(
             div[i] += np.sum(E[i, :]) - np.sum(E[:, i])
         div *= 0.5
     elif method == "operator":
-        W = np.abs(np.sign(E)) if W is None else W
+        if W is None:
+            W = abs(E.sign()) if sp.issparse(E) else np.abs(np.sign(E))
+        # W = np.abs(np.sign(E)) if W is None else W
         if weighted:
-            div = divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()]
+            div = (divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()].A1
+                   if sp.issparse(E)
+                   else divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()])
         else:
-            div = divop(W) @ E[W.nonzero()]
+            div = divop(W) @ E[W.nonzero()].A1 if sp.issparse(E) else divop(W) @ E[W.nonzero()]
     else:
         raise NotImplementedError(f"Unsupported method `{method}`")
 
