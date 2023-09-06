@@ -441,7 +441,7 @@ def calc_laplacian(
     if convention == "diffusion":
         L = -L
 
-    return L
+    return np.asarray(L) if type(L) == np.matrix else L
 
 
 def fp_operator(
@@ -615,7 +615,8 @@ def potential(
         Potential of this graph.
     """
 
-    W = np.abs(np.sign(F)) if W is None else W
+    if W is None:
+        W = abs(F.sign()) if sp.issparse(F) else np.abs(np.sign(F))
     div_neg = -divergence(F, W=W) if div is None else -div
     L = calc_laplacian(W, E=E, weight_mode="naive")
 
