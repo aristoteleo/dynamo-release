@@ -542,7 +542,7 @@ def divergence(
     return div
 
 
-def gradop(adj: np.ndarray) -> sp.csr_matrix:
+def gradop(adj: Union[sp.csr_matrix, np.ndarray]) -> sp.csr_matrix:
     """Return the gradient operator of a weighted graph in matrix form.
 
     Args:
@@ -560,7 +560,7 @@ def gradop(adj: np.ndarray) -> sp.csr_matrix:
     return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
 
 
-def gradient(E: np.ndarray, p: np.ndarray) -> np.ndarray:
+def gradient(E: Union[sp.csr_matrix, np.ndarray], p: np.ndarray) -> np.ndarray:
     """Calculate gradient of a weighted graph.
 
     Args:
@@ -573,7 +573,7 @@ def gradient(E: np.ndarray, p: np.ndarray) -> np.ndarray:
     return gradop(E).dot(p)
 
 
-def divop(W: np.ndarray) -> np.ndarray:
+def divop(W: Union[sp.csr_matrix, np.ndarray]) -> np.ndarray:
     """Return the divergence operator in matrix form.
 
     Args:
@@ -587,9 +587,9 @@ def divop(W: np.ndarray) -> np.ndarray:
 
 
 def potential(
-    F: np.ndarray,
-    E: Optional[np.ndarray] = None,
-    W: Optional[np.ndarray] = None,
+    F: Union[sp.csr_matrix, np.ndarray],
+    E: Optional[Union[sp.csr_matrix, np.ndarray]] = None,
+    W: Optional[Union[sp.csr_matrix, np.ndarray]] = None,
     div: Optional[np.ndarray] = None,
     method: Literal["inv", "pinv", "qr_pinv", "lsq"] = "lsq",
 ) -> np.ndarray:
