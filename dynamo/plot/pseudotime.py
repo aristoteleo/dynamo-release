@@ -1,15 +1,81 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
 
+import matplotlib.pyplot as plt
+import networkx as nx
 import numpy as np
 from anndata import AnnData
+from scipy.sparse import csr_matrix
 
 from ..tools.utils import update_dict
 from .utils import save_fig
+
+
+def plot_dim_reduced_direct_graph(
+    adata: AnnData,
+    graph: Optional[Union[csr_matrix, np.ndarray]] = None,
+    cell_proj_closest_vertex: Optional[np.ndarray] = None,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+) -> Optional[plt.Axes]:
+
+    if graph is None:
+        graph = adata.uns["directed_velocity_tree"]
+
+    if cell_proj_closest_vertex is None:
+        cell_proj_closest_vertex = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"]
+
+    radius = 0.1
+    cmap = plt.cm.viridis
+
+    cells_percentage = [[0.5, 1, 0.5] for _ in range(graph.shape[0])]
+
+    maxes = np.max(np.array(cells_percentage), axis=0)
+
+    colors = {}
+
+    for i in range(graph.shape[0]):
+        colors[i] = list(np.array(cells_percentage[i]) / maxes)
+
+    G = nx.from_numpy_array(graph)
+    pos = nx.spring_layout(G)
+
+    g = nx.draw_networkx_edges(G, pos=pos)
+
+    for node in G.nodes:
+        attributes = cells_percentage[node]
+
+        plt.pie(
+            [1] * len(attributes),  # s.t. all wedges have equal size
+            center=pos[node],
+            colors=[cmap(a) for a in colors[node]],
+            radius=radius)
+
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "plot_dim_reduced_direct_graph",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
+        save_fig(**s_kwargs)
+    if save_show_or_return in ["show", "both", "all"]:
+        plt.tight_layout()
+        plt.show()
+    if save_show_or_return in ["return", "all"]:
+        return g
 
 
 def plot_direct_graph(
