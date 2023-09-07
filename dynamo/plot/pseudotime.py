@@ -5,6 +5,7 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+import pandas as pd
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -15,8 +16,32 @@ from ..tools.utils import update_dict
 from .utils import save_fig
 
 
+def _calculate_cells_mapping(
+    adata: AnnData,
+    group_key: str,
+    cell_proj_closest_vertex: Optional[np.ndarray] = None,
+):
+    cells_mapping_size = np.bincount(cell_proj_closest_vertex)
+    centroids_index = range(len(cells_mapping_size))
+
+    cell_type_info = pd.DataFrame({
+        "class": adata.obs[group_key].values,
+        "centroid": cell_proj_closest_vertex
+    })
+
+    cell_type_info = cell_type_info.groupby(['centroid', 'class']).size().unstack()
+    cell_type_info = cell_type_info.reindex(centroids_index, fill_value=0)
+    cells_mapping_percentage = cell_type_info.div(cells_mapping_size, axis=0)
+    cells_mapping_percentage = np.nan_to_num(cells_mapping_percentage.values)
+
+    cells_mapping_size = (cells_mapping_size / len(cell_proj_closest_vertex)) + 0.05
+
+    return cells_mapping_size, cells_mapping_percentage
+
+
 def plot_dim_reduced_direct_graph(
     adata: AnnData,
+    group_key: Optional[str] = "Cell_type",
     graph: Optional[Union[csr_matrix, np.ndarray]] = None,
     cell_proj_closest_vertex: Optional[np.ndarray] = None,
     save_show_or_return: Literal["save", "show", "return"] = "show",
@@ -29,10 +54,13 @@ def plot_dim_reduced_direct_graph(
     if cell_proj_closest_vertex is None:
         cell_proj_closest_vertex = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"]
 
-    radius = 0.1
     cmap = plt.cm.viridis
 
-    cells_percentage = [[0.5, 1, 0.5] for _ in range(graph.shape[0])]
+    cells_size, cells_percentage = _calculate_cells_mapping(
+        adata=adata,
+        group_key=group_key,
+        cell_proj_closest_vertex=cell_proj_closest_vertex,
+    )
 
     maxes = np.max(np.array(cells_percentage), axis=0)
 
@@ -53,7 +81,7 @@ def plot_dim_reduced_direct_graph(
             [1] * len(attributes),  # s.t. all wedges have equal size
             center=pos[node],
             colors=[cmap(a) for a in colors[node]],
-            radius=radius)
+            radius=cells_size[node])
 
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
