@@ -199,6 +199,7 @@ def select_root_cell(
     Z: np.ndarray,
     root_state: Optional[int] = None,
     reverse: bool = False,
+    map_to_tree: bool = True,
 ) -> int:
     """Selects the root cell for ordering based on the diameter of the minimum spanning tree, with the option to specify
     a root state as an additional constraint.
@@ -244,7 +245,8 @@ def select_root_cell(
         if isinstance(root_cell, list):
             root_cell = root_cell[0]
 
-        root_cell = adata.uns['cell_order']['pr_graph_cell_proj_closest_vertex'][root_cell]
+        if map_to_tree:
+            root_cell = adata.uns['cell_order']['pr_graph_cell_proj_closest_vertex'][root_cell]
 
     else:
         if 'minSpanningTree' not in adata.uns['cell_order'].keys():
@@ -367,7 +369,7 @@ def order_cells(
     root_cell_candidates = np.intersect1d(cells_mapped_to_graph_root, tip_leaves)
 
     if len(root_cell_candidates) == 0:
-        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
+        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse, map_to_tree=False)
     else:
         root_cell = root_cell_candidates[0]
 
