@@ -209,7 +209,9 @@ def select_root_cell(
         adata: the anndata object.
         Z: a matrix representing cell projection points.
         root_state: the specific state for selecting the root cell.
+        init_cells: the index to search for root cells. If provided, root_state will be ignored.
         reverse: whether to reverse the selection of the root cell.
+        map_to_tree: whether to map the root in all cells to the tree after dimension reduction.
 
     Raises:
         ValueError: If the state has not yet been set or if there are no cells for the specified state.
@@ -306,6 +308,7 @@ def order_cells(
         layer: the layer used to order the cells.
         basis: the basis that indicates the data after dimension reduction.
         root_state: the specific state for selecting the root cell.
+        init_cells: the index to search for root cells. If provided, root_state will be ignored.
         reverse: whether to reverse the selection of the root cell.
         maxIter: the max number of iterations.
         sigma: the bandwidth parameter.
