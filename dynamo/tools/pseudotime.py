@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -198,6 +198,7 @@ def select_root_cell(
     adata: anndata.AnnData,
     Z: np.ndarray,
     root_state: Optional[int] = None,
+    init_cells: Optional[Union[List, np.ndarray, pd.Index]] = None,
     reverse: bool = False,
     map_to_tree: bool = True,
 ) -> int:
@@ -219,7 +220,20 @@ def select_root_cell(
     """
     import igraph as ig
 
-    if root_state is not None:
+    if init_cells is not None:
+
+        root_cell_candidates = [adata.obs_names.get_loc(init_cell) for init_cell in init_cells]
+        reduced_dim_subset = Z[:, root_cell_candidates].T
+        centroid = np.mean(reduced_dim_subset, axis=0)
+        distances = np.linalg.norm(reduced_dim_subset - centroid, axis=1)
+        index_of_closest_sample = np.argmin(distances)
+        root_cell = root_cell_candidates[index_of_closest_sample]
+
+        if map_to_tree:
+            cell_proj_closest_vertex = np.argmax(adata.uns['cell_order']['R'], axis=1)
+            root_cell = cell_proj_closest_vertex[root_cell]
+
+    elif root_state is not None:
         if 'cell_pseudo_state' not in adata.obs.keys():
             raise ValueError("State has not yet been set. Please call order_cells() without specifying root_state.")
 
@@ -267,6 +281,7 @@ def order_cells(
     layer: str = "X",
     basis: Optional[str] = None,
     root_state: Optional[int] = None,
+    init_cells: Optional[Union[List, np.ndarray, pd.Index]] = None,
     reverse: bool = False,
     maxIter: int = 10,
     sigma: float = 0.001,
@@ -343,7 +358,7 @@ def order_cells(
     adata.uns["cell_order"]["minSpanningTree"] = mst
     adata.uns["cell_order"]["centers_minSpanningTree"] = mst
 
-    root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse)
+    root_cell = select_root_cell(adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse)
     cc_ordering = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)
 
     (
@@ -369,7 +384,7 @@ def order_cells(
     root_cell_candidates = np.intersect1d(cells_mapped_to_graph_root, tip_leaves)
 
     if len(root_cell_candidates) == 0:
-        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, reverse=reverse, map_to_tree=False)
+        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse, map_to_tree=False)
     else:
         root_cell = root_cell_candidates[0]
 
