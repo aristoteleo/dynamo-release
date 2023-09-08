@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import shiny.experimental as x
 from shiny import App, render, ui
 
 from ..plot import streamline_plot
@@ -7,19 +8,23 @@ from ..sample_data import hematopoiesis
 
 
 def perturbation_web_app():
-    app_ui = ui.page_fluid(
-        ui.layout_sidebar(
-            ui.panel_sidebar(
-                ui.input_text("selected_genes", "Genes", placeholder="Enter genes"),
-                ui.input_text("emb_basis", "basis", placeholder="Enter basis"),
-                ui.input_text("expression", "expression", placeholder="Enter expression"),
-                ui.input_text("color", "color", placeholder="Enter color"),
-                ui.input_text("streamline_basis", "output basis", placeholder="Enter basis"),
-            ),
-            ui.panel_main(
-                ui.output_plot("perturbation_plot"),
+    app_ui = x.ui.page_sidebar(
+        x.ui.sidebar(
+            x.ui.accordion(
+                x.ui.accordion_panel(
+                    "Perturbation",
+                    ui.input_text("selected_genes", "Genes", placeholder="Enter genes"),
+                    ui.input_text("emb_basis", "basis", placeholder="Enter basis"),
+                    ui.input_text("expression", "expression", placeholder="Enter expression"),
+                ),
+                x.ui.accordion_panel(
+                    "Streamline Plot",
+                    ui.input_text("color", "color", placeholder="Enter color"),
+                    ui.input_text("streamline_basis", "output basis", placeholder="Enter basis"),
+                ),
             ),
         ),
+        x.ui.output_plot("perturbation_plot"),
     )
 
     def server(input, output, session):
