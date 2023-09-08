@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import shiny.experimental as x
-from shiny import App, render, ui
+from shiny import App, reactive, render, ui
 
 from ..plot import streamline_plot
 from ..prediction import perturbation
@@ -24,22 +24,32 @@ def perturbation_web_app():
                 ),
             ),
         ),
+        ui.div(
+            ui.input_action_button(
+                "run", "Run simulation", class_="btn-primary"
+            )
+        ),
         x.ui.output_plot("perturbation_plot"),
     )
 
     def server(input, output, session):
         @output
         @render.plot()
+        @reactive.event(input.run)
         def perturbation_plot():
-            adata = hematopoiesis()
 
-            color = input.color().split(",")
-            selected_genes = input.selected_genes().split(",")
-            expression = [int(txt) for txt in input.expression().split(",")]
+            if input.run() > 0:
+                adata = hematopoiesis()
 
-            perturbation(adata, selected_genes, expression, emb_basis=input.emb_basis())
+                selected_genes = input.selected_genes().split(",")
+                expression = [int(txt) for txt in input.expression().split(",")]
 
-            return streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
+                perturbation(adata, selected_genes, expression, emb_basis=input.emb_basis())
+                color = input.color().split(",")
+
+                return streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
+
+            return plt.gcf()
 
     app = App(app_ui, server, debug=True)
     app.run()
