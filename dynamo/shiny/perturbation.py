@@ -12,6 +12,7 @@ def perturbation_web_app():
             ui.panel_sidebar(
                 ui.input_text("selected_genes", "Genes", placeholder="Enter genes"),
                 ui.input_text("emb_basis", "basis", placeholder="Enter basis"),
+                ui.input_text("expression", "expression", placeholder="Enter expression"),
                 ui.input_text("color", "color", placeholder="Enter color"),
                 ui.input_text("streamline_basis", "output basis", placeholder="Enter basis"),
             ),
@@ -29,8 +30,9 @@ def perturbation_web_app():
 
             color = input.color().split(",")
             selected_genes = input.selected_genes().split(",")
+            expression = [int(txt) for txt in input.expression().split(",")]
 
-            perturbation(adata, selected_genes, emb_basis=input.emb_basis())
+            perturbation(adata, selected_genes, expression, emb_basis=input.emb_basis())
 
             return streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
 
