@@ -26,30 +26,37 @@ def perturbation_web_app():
         ),
         ui.div(
             ui.input_action_button(
-                "run", "Run simulation", class_="btn-primary"
+                "activate_purterbation", "Run simulation", class_="btn-primary"
+            )
+        ),
+        ui.div(
+            ui.input_action_button(
+                "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
             )
         ),
         x.ui.output_plot("perturbation_plot"),
     )
 
     def server(input, output, session):
+        is_perturbated = reactive.Value[bool]()
+        adata = hematopoiesis()
+
+        @reactive.Effect
+        @reactive.event(input.activate_purterbation)
+        def run_purterbation():
+            selected_genes = input.selected_genes().split(",")
+            expression = [int(txt) for txt in input.expression().split(",")]
+
+            perturbation(adata, selected_genes, expression, emb_basis=input.emb_basis())
+            is_perturbated.set(True)
+
         @output
         @render.plot()
-        @reactive.event(input.run)
+        @reactive.event(input.activate_streamline_plot)
         def perturbation_plot():
+            color = input.color().split(",")
 
-            if input.run() > 0:
-                adata = hematopoiesis()
-
-                selected_genes = input.selected_genes().split(",")
-                expression = [int(txt) for txt in input.expression().split(",")]
-
-                perturbation(adata, selected_genes, expression, emb_basis=input.emb_basis())
-                color = input.color().split(",")
-
-                return streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
-
-            return plt.gcf()
+            return streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
 
     app = App(app_ui, server, debug=True)
     app.run()
