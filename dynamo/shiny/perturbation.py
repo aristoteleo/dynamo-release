@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import shiny.experimental as x
 from shiny import App, reactive, render, ui
 
+from .utils import filter_fig
 from ..plot import streamline_plot
 from ..prediction import perturbation
 from ..sample_data import hematopoiesis
@@ -58,13 +59,7 @@ def perturbation_web_app(input_adata):
 
             axes_list = streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
 
-            # remove colorbar from the fig because shiny is incompatible matplotlib>=3.7
-            fig = plt.gcf()
-            for ax in fig.get_axes():
-                if ax.get_subplotspec() is None:
-                    ax.remove()
-
-            return fig
+            return filter_fig(plt.gcf())
 
     app = App(app_ui, server, debug=True)
     app.run()
