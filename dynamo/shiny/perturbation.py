@@ -7,7 +7,7 @@ from ..prediction import perturbation
 from ..sample_data import hematopoiesis
 
 
-def perturbation_web_app():
+def perturbation_web_app(input_adata):
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
             x.ui.accordion(
@@ -39,7 +39,7 @@ def perturbation_web_app():
 
     def server(input, output, session):
         is_perturbated = reactive.Value[bool]()
-        adata = hematopoiesis()
+        adata = input_adata.copy()
 
         @reactive.Effect
         @reactive.event(input.activate_purterbation)
