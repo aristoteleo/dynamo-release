@@ -78,11 +78,12 @@ def plot_dim_reduced_direct_graph(
     if display_piechart:
         for node in G.nodes:
             attributes = cells_percentage[node]
+            valid_indices = np.where(attributes != 0)[0]
 
             plt.pie(
-                [1] * len(attributes),  # s.t. all wedges have equal size
+                attributes[valid_indices],
                 center=pos[node],
-                colors=[cmap(a) for a in colors[node]],
+                colors=[cmap(colors[node][i]) for i in valid_indices],
                 radius=cells_size[node])
     else:
         nx.draw_networkx_nodes(G, pos=pos)
