@@ -56,7 +56,15 @@ def perturbation_web_app(input_adata):
         def perturbation_plot():
             color = input.color().split(",")
 
-            return streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
+            axes_list = streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
+
+            # remove colorbar from the fig because shiny is incompatible matplotlib>=3.7
+            fig = plt.gcf()
+            for ax in fig.get_axes():
+                if ax.get_subplotspec() is None:
+                    ax.remove()
+
+            return fig
 
     app = App(app_ui, server, debug=True)
     app.run()
