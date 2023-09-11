@@ -44,6 +44,7 @@ def plot_dim_reduced_direct_graph(
     group_key: Optional[str] = "Cell_type",
     graph: Optional[Union[csr_matrix, np.ndarray]] = None,
     cell_proj_closest_vertex: Optional[np.ndarray] = None,
+    display_piechart: bool = True,
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
 ) -> Optional[plt.Axes]:
@@ -74,14 +75,17 @@ def plot_dim_reduced_direct_graph(
 
     g = nx.draw_networkx_edges(G, pos=pos)
 
-    for node in G.nodes:
-        attributes = cells_percentage[node]
+    if display_piechart:
+        for node in G.nodes:
+            attributes = cells_percentage[node]
 
-        plt.pie(
-            [1] * len(attributes),  # s.t. all wedges have equal size
-            center=pos[node],
-            colors=[cmap(a) for a in colors[node]],
-            radius=cells_size[node])
+            plt.pie(
+                [1] * len(attributes),  # s.t. all wedges have equal size
+                center=pos[node],
+                colors=[cmap(a) for a in colors[node]],
+                radius=cells_size[node])
+    else:
+        nx.draw_networkx_nodes(G, pos=pos)
 
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
