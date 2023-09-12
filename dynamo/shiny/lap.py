@@ -21,8 +21,6 @@ def lap_web_app(input_adata):
                     ui.input_text("cells_type_key", "cells type key", placeholder="cells type key"),
                     ui.input_text("streamline_basis", "output basis", placeholder="Enter basis"),
                 ),
-            ),
-            x.ui.accordion(
                 x.ui.accordion_panel(
                     "Initialization",
                     ui.input_text("cells_names", "cells names", placeholder="Enter names of cell"),
@@ -32,8 +30,6 @@ def lap_web_app(input_adata):
                         placeholder="Enter the coordinates of fixed point."
                     ),
                 ),
-            ),
-            x.ui.accordion(
                 x.ui.accordion_panel(
                     "Visualize LAP",
                     ui.input_text("visualize_keys", "keys", placeholder="Enter keys"),
@@ -43,26 +39,22 @@ def lap_web_app(input_adata):
         ui.div(
             ui.input_action_button(
                 "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
-            )
-        ),
-        ui.div(
+            ),
             ui.input_action_button(
                 "initialize", "Initialize searching", class_="btn-primary"
-            )
-        ),
-        ui.div(
+            ),
             ui.input_action_button(
                 "activate_lap", "Run LAP analyses", class_="btn-primary"
-            )
-        ),
-        ui.div(
+            ),
             ui.input_action_button(
                 "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
-            )
+            ),
         ),
-        x.ui.output_plot("base_streamline_plot"),
-        x.ui.output_plot("initialize_searching"),
-        x.ui.output_plot("plot_lap"),
+        ui.div(
+            x.ui.output_plot("base_streamline_plot"),
+            x.ui.output_plot("initialize_searching"),
+            x.ui.output_plot("plot_lap"),
+        ),
     )
 
     def server(input, output, session):
