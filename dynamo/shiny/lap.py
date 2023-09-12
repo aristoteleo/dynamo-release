@@ -57,12 +57,16 @@ def lap_web_app(input_adata, tfs_data):
             ui.input_action_button(
                 "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
             ),
+            ui.input_action_button(
+                "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap", class_="btn-primary"
+            ),
         ),
         ui.div(
             x.ui.output_plot("base_streamline_plot"),
             x.ui.output_plot("initialize_searching"),
             x.ui.output_plot("plot_lap"),
             x.ui.output_plot("tfs_barplot"),
+            x.ui.output_plot("pairwise_cell_fate_heatmap"),
         ),
     )
 
@@ -252,6 +256,17 @@ def lap_web_app(input_adata, tfs_data):
             plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
 
             return filter_fig(ig)
+
+        @output
+        @render.plot()
+        @reactive.event(input.activate_pairwise_cell_fate_heatmap)
+        def pairwise_cell_fate_heatmap():
+            action_df = action_dataframe().fillna(0)
+            f, ax = plt.subplots(figsize=(5, 5))
+            ax = sns.heatmap(action_df, annot=True, ax=ax)
+            t_df = t_dataframe().fillna(0)
+            ax = sns.heatmap(t_df, annot=True)
+            return filter_fig(f)
 
 
     app = App(app_ui, server, debug=True)
