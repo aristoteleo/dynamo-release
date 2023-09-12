@@ -4,9 +4,11 @@ import shiny.experimental as x
 from shiny import App, reactive, render, ui
 
 from .utils import filter_fig
+from ..prediction import GeneTrajectory, least_action, least_action_path
 from ..plot import streamline_plot
 from ..tools import neighbors
 from ..tools.utils import nearest_neighbors, select_cell
+from ..vectorfield import rank_genes
 
 
 def lap_web_app(input_adata):
@@ -41,6 +43,11 @@ def lap_web_app(input_adata):
                 "initialize", "Initialize searching", class_="btn-primary"
             )
         ),
+        ui.div(
+            ui.input_action_button(
+                "activate_lap", "Run LAP analyses", class_="btn-primary"
+            )
+        ),
         x.ui.output_plot("base_streamline_plot"),
         x.ui.output_plot("initialize_searching"),
     )
@@ -49,6 +56,7 @@ def lap_web_app(input_adata):
         adata = input_adata.copy()
         cells = reactive.Value[list[np.ndarray]]()
         cells_indices = reactive.Value[list[list[float]]]()
+        transition_graph = reactive.Value[dict]()
 
         @output
         @render.plot()
@@ -82,6 +90,64 @@ def lap_web_app(input_adata):
             axes_list = streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
 
             return filter_fig(plt.gcf())
+
+        @reactive.Effect
+        @reactive.event(input.activate_lap)
+        def _():
+            transition_graph_dict = {}
+            cell_type = input.cells_names().split(",")
+            start_cell_indices = cells_indices()
+            end_cell_indices = start_cell_indices
+            for i, start in enumerate(start_cell_indices):
+                for j, end in enumerate(end_cell_indices):
+                    if start is not end:
+                        min_lap_t = True if i == 0 else False
+                        least_action(
+                            adata,
+                            [adata.obs_names[start[0]][0]],
+                            [adata.obs_names[end[0]][0]],
+                            basis="umap",
+                            adj_key="X_umap_distances",
+                            min_lap_t=min_lap_t,
+                            EM_steps=2,
+                        )
+                        least_action(adata, basis="umap")
+                        lap = least_action(
+                            adata,
+                            [adata.obs_names[start[0]][0]],
+                            [adata.obs_names[end[0]][0]],
+                            basis="pca",
+                            adj_key="cosine_transition_matrix",
+                            min_lap_t=min_lap_t,
+                            EM_steps=2,
+                        )
+                        # dyn.pl.kinetic_heatmap(
+                        #     adata,
+                        #     basis="pca",
+                        #     mode="lap",
+                        #     genes=adata.var_names[adata.var.use_for_transition],
+                        #     project_back_to_high_dim=True,
+                        # )
+                        # The `GeneTrajectory` class can be used to output trajectories for any set of genes of interest
+                        gtraj = GeneTrajectory(adata)
+                        gtraj.from_pca(lap.X, t=lap.t)
+                        gtraj.calc_msd()
+                        ranking = rank_genes(adata, "traj_msd")
+
+                        print(start, "->", end)
+                        genes = ranking[:5]["all"].to_list()
+                        arr = gtraj.select_gene(genes)
+
+                        # dyn.pl.multiplot(lambda k: [plt.plot(arr[k, :]), plt.title(genes[k])], np.arange(len(genes)))
+
+                        transition_graph_dict[cell_type[i] + "->" + cell_type[j]] = {
+                            "lap": lap,
+                            "LAP_umap": adata.uns["LAP_umap"],
+                            "LAP_pca": adata.uns["LAP_pca"],
+                            "ranking": ranking,
+                            "gtraj": gtraj,
+                        }
+            transition_graph.set(transition_graph_dict)
 
 
     app = App(app_ui, server, debug=True)
