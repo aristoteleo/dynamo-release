@@ -6,6 +6,7 @@ from shiny import App, reactive, render, ui
 from .utils import filter_fig
 from ..prediction import GeneTrajectory, least_action, least_action_path
 from ..plot import streamline_plot
+from ..plot.utils import map2color
 from ..tools import neighbors
 from ..tools.utils import nearest_neighbors, select_cell
 from ..vectorfield import rank_genes
@@ -32,6 +33,12 @@ def lap_web_app(input_adata):
                     ),
                 ),
             ),
+            x.ui.accordion(
+                x.ui.accordion_panel(
+                    "Visualize LAP",
+                    ui.input_text("visualize_keys", "keys", placeholder="Enter keys"),
+                ),
+            ),
         ),
         ui.div(
             ui.input_action_button(
@@ -46,6 +53,11 @@ def lap_web_app(input_adata):
         ui.div(
             ui.input_action_button(
                 "activate_lap", "Run LAP analyses", class_="btn-primary"
+            )
+        ),
+        ui.div(
+            ui.input_action_button(
+                "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
             )
         ),
         x.ui.output_plot("base_streamline_plot"),
@@ -149,6 +161,31 @@ def lap_web_app(input_adata):
                         }
             transition_graph.set(transition_graph_dict)
 
+        @output
+        @render.plot()
+        @reactive.event(input.activate_visualize_lap)
+        def plot_lap():
+            paths = input.visualize_keys().split(",")
+            fig, ax = plt.subplots(figsize=(5, 4))
+            ax = streamline_plot(
+                adata,
+                basis=input.streamline_basis(),
+                save_show_or_return="return",
+                ax=ax,
+                color=input.cells_type_key().split(","),
+                frontier=True,
+            )
+            ax = ax[0]
+            x, y = 0, 1
+
+            # plot paths
+            for path in paths:
+                lap_dict = transition_graph[path]["LAP_umap"]
+                for prediction, action in zip(lap_dict["prediction"], lap_dict["action"]):
+                    ax.scatter(*prediction[:, [x, y]].T, c=map2color(action))
+                    ax.plot(*prediction[:, [x, y]].T, c="k")
+
+            return filter_fig(fig)
 
     app = App(app_ui, server, debug=True)
     app.run()
