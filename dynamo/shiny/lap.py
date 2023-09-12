@@ -62,6 +62,7 @@ def lap_web_app(input_adata):
         ),
         x.ui.output_plot("base_streamline_plot"),
         x.ui.output_plot("initialize_searching"),
+        x.ui.output_plot("plot_lap"),
     )
 
     def server(input, output, session):
@@ -87,6 +88,8 @@ def lap_web_app(input_adata):
                 cells_indices_list.append(nearest_neighbors(coord, adata.obsm["X_" + input.streamline_basis()]))
 
             cells.set(cell_list)
+            cells_indices.set(cells_indices_list)
+
             plt.scatter(*adata.obsm["X_" + input.streamline_basis()].T)
             for indices in cells_indices_list:
                 plt.scatter(*adata[indices[0]].obsm["X_" + input.streamline_basis()].T)
@@ -97,9 +100,12 @@ def lap_web_app(input_adata):
         def base_streamline_plot():
             neighbors(adata, basis=input.streamline_basis(), result_prefix=input.streamline_basis())
 
-            color = input.cells_type_key().split(",")
-
-            axes_list = streamline_plot(adata, color=color, basis=input.streamline_basis(), save_show_or_return="return")
+            axes_list = streamline_plot(
+                adata,
+                color=input.cells_type_key().split(","),
+                basis=input.streamline_basis(),
+                save_show_or_return="return",
+            )
 
             return filter_fig(plt.gcf())
 
@@ -123,7 +129,7 @@ def lap_web_app(input_adata):
                             min_lap_t=min_lap_t,
                             EM_steps=2,
                         )
-                        least_action(adata, basis="umap")
+                        # least_action(adata, basis="umap")
                         lap = least_action(
                             adata,
                             [adata.obs_names[start[0]][0]],
@@ -180,7 +186,7 @@ def lap_web_app(input_adata):
 
             # plot paths
             for path in paths:
-                lap_dict = transition_graph[path]["LAP_umap"]
+                lap_dict = transition_graph()[path]["LAP_umap"]
                 for prediction, action in zip(lap_dict["prediction"], lap_dict["action"]):
                     ax.scatter(*prediction[:, [x, y]].T, c=map2color(action))
                     ax.plot(*prediction[:, [x, y]].T, c="k")
