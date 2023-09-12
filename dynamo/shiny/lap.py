@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import shiny.experimental as x
 from shiny import App, reactive, render, ui
 
@@ -53,11 +54,15 @@ def lap_web_app(input_adata, tfs_data):
             ui.input_action_button(
                 "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
             ),
+            ui.input_action_button(
+                "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
+            ),
         ),
         ui.div(
             x.ui.output_plot("base_streamline_plot"),
             x.ui.output_plot("initialize_searching"),
             x.ui.output_plot("plot_lap"),
+            x.ui.output_plot("tfs_barplot"),
         ),
     )
 
@@ -68,6 +73,8 @@ def lap_web_app(input_adata, tfs_data):
         cells = reactive.Value[list[np.ndarray]]()
         cells_indices = reactive.Value[list[list[float]]]()
         transition_graph = reactive.Value[dict]()
+        t_dataframe = reactive.Value[pd.DataFrame]()
+        action_dataframe = reactive.Value[pd.DataFrame]()
 
         @output
         @render.plot()
@@ -208,6 +215,43 @@ def lap_web_app(input_adata, tfs_data):
                         arr = gtraj.select_gene(genes)
                         action_df.loc[cell_type[i], cell_type[j]] = lap.action_t()[-1]
                         t_df.loc[cell_type[i], cell_type[j]] = lap.t[-1]
+
+            action_dataframe.set(action_df)
+            t_dataframe.set(t_df)
+
+        @output
+        @render.plot()
+        @reactive.event(input.activate_tfs_barplot)
+        def tfs_barplot():
+            develop_time_df = pd.DataFrame({"integration time": t_dataframe().iloc[0, :].T})
+            develop_time_df["lineage"] = ["HSC", "Meg", "Ery", "Bas", "Mon", "Neu"]
+            print(develop_time_df)
+            ig, ax = plt.subplots(figsize=(4, 3))
+            dynamo_color_dict = {
+                "Mon": "#b88c7a",
+                "Meg": "#5b7d80",
+                "MEP-like": "#6c05e8",
+                "Ery": "#5d373b",
+                "Bas": "#d70000",
+                "GMP-like": "#ff4600",
+                "HSC": "#c35dbb",
+                "Neu": "#2f3ea8",
+            }
+
+            sns.barplot(
+                y="lineage",
+                x="integration time",
+                hue="lineage",
+                data=develop_time_df.iloc[1:, :],
+                dodge=False,
+                palette=dynamo_color_dict,
+                ax=ax,
+            )
+            ax.set_ylabel("")
+            plt.tight_layout()
+            plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+
+            return filter_fig(ig)
 
 
     app = App(app_ui, server, debug=True)
