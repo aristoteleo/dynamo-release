@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import shiny.experimental as x
 from shiny import App, reactive, render, ui
 
@@ -12,7 +13,7 @@ from ..tools.utils import nearest_neighbors, select_cell
 from ..vectorfield import rank_genes
 
 
-def lap_web_app(input_adata):
+def lap_web_app(input_adata, tfs_data):
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
             x.ui.accordion(
@@ -49,6 +50,9 @@ def lap_web_app(input_adata):
             ui.input_action_button(
                 "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
             ),
+            ui.input_action_button(
+                "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
+            ),
         ),
         ui.div(
             x.ui.output_plot("base_streamline_plot"),
@@ -59,6 +63,8 @@ def lap_web_app(input_adata):
 
     def server(input, output, session):
         adata = input_adata.copy()
+        tfs_names = list(tfs_data["Symbol"])
+        cell_type = input.cells_names().split(",")
         cells = reactive.Value[list[np.ndarray]]()
         cells_indices = reactive.Value[list[list[float]]]()
         transition_graph = reactive.Value[dict]()
@@ -184,6 +190,25 @@ def lap_web_app(input_adata):
                     ax.plot(*prediction[:, [x, y]].T, c="k")
 
             return filter_fig(fig)
+
+        @reactive.Effect
+        @reactive.event(input.activate_prepare_tfs)
+        def _():
+            action_df = pd.DataFrame(index=cell_type, columns=cell_type)
+            t_df = pd.DataFrame(index=cell_type, columns=cell_type)
+            for i, start in enumerate(cells_indices()):
+                for j, end in enumerate(cells_indices()):
+                    if start is not end:
+                        print(cell_type[i] + "->" + cell_type[j], end=",")
+                        lap = transition_graph[cell_type[i] + "->" + cell_type[j]]["lap"]  # lap
+                        gtraj = transition_graph[cell_type[i] + "->" + cell_type[j]]["gtraj"]
+                        ranking = transition_graph[cell_type[i] + "->" + cell_type[j]]["ranking"].copy()
+                        ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
+                        genes = ranking.query("TF == True").head(10)["all"].to_list()
+                        arr = gtraj.select_gene(genes)
+                        action_df.loc[cell_type[i], cell_type[j]] = lap.action_t()[-1]
+                        t_df.loc[cell_type[i], cell_type[j]] = lap.t[-1]
+
 
     app = App(app_ui, server, debug=True)
     app.run()
