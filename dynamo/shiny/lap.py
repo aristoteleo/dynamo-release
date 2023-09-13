@@ -260,10 +260,10 @@ def lap_web_app(input_adata, tfs_data):
         @reactive.event(input.activate_pairwise_cell_fate_heatmap)
         def pairwise_cell_fate_heatmap():
             action_df = action_dataframe().fillna(0)
-            f, ax = plt.subplots(figsize=(5, 5))
-            ax = sns.heatmap(action_df, annot=True, ax=ax)
+            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 5))
+            ax1 = sns.heatmap(action_df, annot=True, ax=ax1)
             t_df = t_dataframe().fillna(0)
-            ax = sns.heatmap(t_df, annot=True)
+            ax2 = sns.heatmap(t_df, annot=True, ax=ax2)
             return filter_fig(f)
 
 
