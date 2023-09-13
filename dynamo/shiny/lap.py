@@ -36,22 +36,44 @@ def lap_web_app(input_adata, tfs_data):
                             "fixed points coordinates",
                             placeholder="Enter the coordinates of fixed point."
                         ),
+                        ui.input_action_button(
+                            "initialize", "Initialize searching", class_="btn-primary"
+                        ),
                     ),
                     x.ui.accordion_panel(
                         "Run LAP",
                         "Run pairwise least action path analyses among given cell types",
+                        ui.input_action_button(
+                            "activate_lap", "Run LAP analyses", class_="btn-primary"
+                        ),
                     ),
                     x.ui.accordion_panel(
                         "Visualize LAP",
                         ui.input_text("visualize_keys", "keys", placeholder="Enter keys"),
+                        ui.input_action_button(
+                            "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
+                        ),
                     ),
                     x.ui.accordion_panel(
                         "Prepare TFs",
                         "load the transcription factors data",
+                        ui.input_action_button(
+                            "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
+                        ),
                     ),
                     x.ui.accordion_panel(
                         "TFs barplot",
                         ui.input_text("cell_type_colormap", "cell type colormap", placeholder="Enter Color Dict"),
+                        ui.input_action_button(
+                            "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
+                        ),
+                    ),
+                    x.ui.accordion_panel(
+                        "Pairwise cell fate heatmap",
+                        "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                        ui.input_action_button(
+                            "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap", class_="btn-primary"
+                        ),
                     ),
                     x.ui.accordion_panel(
                         "LAP Kinetic Heatmap",
@@ -60,6 +82,9 @@ def lap_web_app(input_adata, tfs_data):
                         ui.input_text("lap_basis", "Basis", value="pca", placeholder="Enter basis"),
                         ui.input_text("lap_adj_key", "Adj Key", value="cosine_transition_matrix",
                                       placeholder="Enter adj key"),
+                        ui.input_action_button(
+                            "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
+                        ),
                     ),
                 ),
                 x.ui.accordion_panel(
@@ -79,27 +104,6 @@ def lap_web_app(input_adata, tfs_data):
             ),
         ),
         ui.div(
-            ui.input_action_button(
-                "initialize", "Initialize searching", class_="btn-primary"
-            ),
-            ui.input_action_button(
-                "activate_lap", "Run LAP analyses", class_="btn-primary"
-            ),
-            ui.input_action_button(
-                "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
-            ),
-            ui.input_action_button(
-                "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
-            ),
-            ui.input_action_button(
-                "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
-            ),
-            ui.input_action_button(
-                "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap", class_="btn-primary"
-            ),
-            ui.input_action_button(
-                "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
-            ),
             ui.output_text_verbatim("add_known_tf"),
         ),
         ui.div(
