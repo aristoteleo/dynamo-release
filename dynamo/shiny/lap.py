@@ -7,7 +7,7 @@ from shiny import App, reactive, render, ui
 
 from .utils import filter_fig
 from ..prediction import GeneTrajectory, least_action, least_action_path
-from ..plot import streamline_plot
+from ..plot import kinetic_heatmap, streamline_plot
 from ..plot.utils import map2color
 from ..tools import neighbors
 from ..tools.utils import nearest_neighbors, select_cell
@@ -40,6 +40,13 @@ def lap_web_app(input_adata, tfs_data):
                     "TFs barplot",
                     ui.input_text("cell_type_colormap", "cell type colormap", placeholder="Enter Color Dict"),
                 ),
+                x.ui.accordion_panel(
+                    "LAP Kinetic Heatmap",
+                    ui.input_text("lap_init_cells", "Init Cells", placeholder="Enter init cells"),
+                    ui.input_text("lap_end_cells", "End Cells", placeholder="Enter end cells"),
+                    ui.input_text("lap_basis", "Basis", value="pca", placeholder="Enter basis"),
+                    ui.input_text("lap_adj_key", "Adj Key", value="cosine_transition_matrix", placeholder="Enter adj key"),
+                ),
             ),
         ),
         ui.div(
@@ -64,6 +71,9 @@ def lap_web_app(input_adata, tfs_data):
             ui.input_action_button(
                 "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap", class_="btn-primary"
             ),
+            ui.input_action_button(
+                "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
+            ),
         ),
         ui.div(
             x.ui.output_plot("base_streamline_plot"),
@@ -71,6 +81,7 @@ def lap_web_app(input_adata, tfs_data):
             x.ui.output_plot("plot_lap"),
             x.ui.output_plot("tfs_barplot"),
             x.ui.output_plot("pairwise_cell_fate_heatmap"),
+            x.ui.output_plot("lap_kinetic_heatmap"),
         ),
     )
 
@@ -265,6 +276,41 @@ def lap_web_app(input_adata, tfs_data):
             t_df = t_dataframe().fillna(0)
             ax2 = sns.heatmap(t_df, annot=True, ax=ax2)
             return filter_fig(f)
+
+        @output
+        @render.plot()
+        @reactive.event(input.activate_lap_kinetic_heatmap)
+        def lap_kinetic_heatmap():
+            init_cells = input.lap_init_cells().split(",")
+            end_cells = input.lap_end_cells().split(",")
+            lap = least_action(
+                adata,
+                init_cells=init_cells,
+                target_cells=end_cells,
+                basis=input.lap_basis(),
+                adj_key=input.lap_adj_key(),
+            )
+            is_human_tfs = [gene in tfs_names for gene in
+                            adata.var_names[adata.var.use_for_transition]]
+            human_genes = adata.var_names[adata.var.use_for_transition][is_human_tfs]
+            sns.set(font_scale=0.8)
+            sns_heatmap = kinetic_heatmap(
+                adata,
+                basis=input.lap_basis(),
+                mode="lap",
+                figsize=(10, 5),
+                genes=human_genes,
+                project_back_to_high_dim=True,
+                save_show_or_return="return",
+                color_map="bwr",
+                transpose=True,
+                xticklabels=True,
+                yticklabels=False
+            )
+
+            plt.setp(sns_heatmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
+            plt.tight_layout()
+            return filter_fig(plt.gcf())
 
 
     app = App(app_ui, server, debug=True)
