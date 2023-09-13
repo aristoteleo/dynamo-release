@@ -36,6 +36,10 @@ def lap_web_app(input_adata, tfs_data):
                     "Visualize LAP",
                     ui.input_text("visualize_keys", "keys", placeholder="Enter keys"),
                 ),
+                x.ui.accordion_panel(
+                    "TFs barplot",
+                    ui.input_text("cell_type_colormap", "cell type colormap", placeholder="Enter Color Dict"),
+                ),
             ),
         ),
         ui.div(
@@ -229,18 +233,12 @@ def lap_web_app(input_adata, tfs_data):
         def tfs_barplot():
             develop_time_df = pd.DataFrame({"integration time": t_dataframe().iloc[0, :].T})
             develop_time_df["lineage"] = input.cells_names().split(",")
-            print(develop_time_df)
+
             ig, ax = plt.subplots(figsize=(4, 3))
-            dynamo_color_dict = {
-                "Mon": "#b88c7a",
-                "Meg": "#5b7d80",
-                "MEP-like": "#6c05e8",
-                "Ery": "#5d373b",
-                "Bas": "#d70000",
-                "GMP-like": "#ff4600",
-                "HSC": "#c35dbb",
-                "Neu": "#2f3ea8",
-            }
+            colors = input.cell_type_colormap().split(",")
+            dynamo_color_dict = {}
+            for i in range(len(develop_time_df["lineage"])):
+                dynamo_color_dict[develop_time_df["lineage"][i]] = colors[i]
 
             sns.barplot(
                 y="lineage",
