@@ -47,6 +47,16 @@ def lap_web_app(input_adata, tfs_data):
                     ui.input_text("lap_basis", "Basis", value="pca", placeholder="Enter basis"),
                     ui.input_text("lap_adj_key", "Adj Key", value="cosine_transition_matrix", placeholder="Enter adj key"),
                 ),
+                x.ui.accordion_panel(
+                    "Add known TF",
+                    ui.input_text("known_tf_transition", "Transition", placeholder="Enter target transition"),
+                    ui.input_text("known_tf", "TF", placeholder="Enter known TF"),
+                    ui.input_text("known_tf_key", "tfs key", value="TFs", placeholder="Enter tfs key"),
+                    ui.input_text("known_tf_rank_key", "tfs rank key", value="TFs_rank", placeholder="Enter tfs rank key"),
+                    ui.input_action_button(
+                        "activate_add_known_tf", "Add", class_="btn-primary"
+                    ),
+                ),
             ),
         ),
         ui.div(
@@ -74,6 +84,7 @@ def lap_web_app(input_adata, tfs_data):
             ui.input_action_button(
                 "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
             ),
+            ui.output_text_verbatim("add_known_tf"),
         ),
         ui.div(
             x.ui.output_plot("base_streamline_plot"),
@@ -311,6 +322,28 @@ def lap_web_app(input_adata, tfs_data):
             plt.setp(sns_heatmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
             plt.tight_layout()
             return filter_fig(plt.gcf())
+
+        @output
+        @render.text
+        @reactive.event(input.activate_add_known_tf)
+        def add_known_tf():
+            transition = input.known_tf_transition()
+            cur_transition_graph = transition_graph()
+
+            ranking = cur_transition_graph[transition]["ranking"]
+            ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
+            true_tf_list = list(ranking.query("TF == True")["all"])
+            all_tfs = list(ranking.query("TF == True")["all"])
+            cur_transition_graph[transition][input.known_tf_key()] = input.known_tf()
+
+            cur_transition_graph[transition][input.known_tf_rank_key()] = [
+                all_tfs.index(key) if key in true_tf_list else -1 for key in cur_transition_graph[transition][input.known_tf_key()]
+            ]
+
+            transition_graph.set(cur_transition_graph)
+
+            return "\n".join([f"{key}: {' '.join(value.keys())}" for key, value in cur_transition_graph.items()])
+
 
 
     app = App(app_ui, server, debug=True)
