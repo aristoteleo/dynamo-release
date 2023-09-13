@@ -22,6 +22,9 @@ def lap_web_app(input_adata, tfs_data):
                     "Streamline Plot",
                     ui.input_text("cells_type_key", "cells type key", placeholder="cells type key"),
                     ui.input_text("streamline_basis", "output basis", placeholder="Enter basis"),
+                    ui.input_action_button(
+                        "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
+                    ),
                 ),
                 x.ui.accordion_panel(
                     "Initialization",
@@ -60,9 +63,6 @@ def lap_web_app(input_adata, tfs_data):
             ),
         ),
         ui.div(
-            ui.input_action_button(
-                "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
-            ),
             ui.input_action_button(
                 "initialize", "Initialize searching", class_="btn-primary"
             ),
