@@ -4,6 +4,7 @@ import pandas as pd
 import random
 import seaborn as sns
 import shiny.experimental as x
+from functools import reduce
 from shiny import App, reactive, render, ui
 
 from .utils import filter_fig
@@ -102,7 +103,7 @@ def lap_web_app(input_adata, tfs_data):
                         ),
                     ),
                     x.ui.accordion_panel(
-                        "Construct TF Reprogramming Mat Dict",
+                        "Priority Scores of TFs",
                         ui.input_text("reprog_mat_main_key", "Main Key", placeholder="e.g. HSC->Meg"),
                         "The 'genes' information will be extracted from transition_graph[Transition Key][Genes Key]. "
                         "The 'rank' information will be extracted from transition_graph[Transition Key][Rank Key]",
@@ -113,6 +114,10 @@ def lap_web_app(input_adata, tfs_data):
                         ui.input_text("reprog_mat_type", "Type", placeholder="e.g. development"),
                         ui.input_action_button(
                             "activate_add_reprog_info", "Add", class_="btn-primary"
+                        ),
+                        ui.input_text("reprog_query_type", "Query Type", value="transdifferentiation"),
+                        ui.input_action_button(
+                            "activate_plot_priority_scores", "Plot priority scores for TFs", class_="btn-primary"
                         ),
                     ),
                 ),
@@ -128,7 +133,8 @@ def lap_web_app(input_adata, tfs_data):
             x.ui.output_plot("tfs_barplot"),
             x.ui.output_plot("pairwise_cell_fate_heatmap"),
             x.ui.output_plot("lap_kinetic_heatmap"),
-            ui.output_text_verbatim("add_reprog_info")
+            ui.output_text_verbatim("add_reprog_info"),
+            x.ui.output_plot("plot_priority_scores"),
         ),
     )
 
@@ -418,6 +424,65 @@ def lap_web_app(input_adata, tfs_data):
             reprogramming_mat_dict.set(reprog_dict)
 
             return "\n".join([f"{key}: {' '.join(value.keys())}" for key, value in reprog_dict.items()])
+
+        @output
+        @render.plot()
+        @reactive.event(input.activate_plot_priority_scores)
+        def plot_priority_scores():
+            reprogramming_mat_df = pd.DataFrame(reprogramming_mat_dict())
+            all_genes = reduce(lambda a, b: a + b, reprogramming_mat_df.loc["genes", :])
+            all_rank = reduce(lambda a, b: a + b, reprogramming_mat_df.loc["rank", :])
+            all_keys = np.repeat(
+                np.array(list(reprogramming_mat_dict().keys())), [len(i) for i in reprogramming_mat_df.loc["genes", :]]
+            )
+
+            reprogramming_mat_df_p = pd.DataFrame({"genes": all_genes, "rank": all_rank, "transition": all_keys})
+            reprogramming_mat_df_p = reprogramming_mat_df_p.query("rank > -1")
+            reprogramming_mat_df_p["rank"] /= 133
+            reprogramming_mat_df_p["rank"] = 1 - reprogramming_mat_df_p["rank"]
+
+            query = "type == '{}'".format(input.reprog_query_type())
+            reprogramming_mat_df_p_subset = reprogramming_mat_df_p.query(query)
+            rank = reprogramming_mat_df_p_subset["rank"].values
+            transition = reprogramming_mat_df_p_subset["transition"].values
+            genes = reprogramming_mat_df_p_subset["genes"].values
+
+            fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+            sns.scatterplot(
+                y="transition",
+                x="rank",
+                data=reprogramming_mat_df_p_subset,
+                ec=None,
+                hue="type",
+                alpha=0.8,
+                ax=ax,
+                s=50,
+                palette=transition_color_dict(),
+                clip_on=False,
+            )
+
+            for i in range(reprogramming_mat_df_p_subset.shape[0]):
+                annote_text = genes[i]  # STK_ID
+                ax.annotate(
+                    annote_text, xy=(rank[i], transition[i]), xytext=(0, 3), textcoords="offset points", ha="center",
+                    va="bottom"
+                )
+
+            plt.axvline(0.8, linestyle="--", lw=0.5)
+            ax.set_xlim(0.6, 1.01)
+            ax.set_xlabel("")
+            ax.set_xlabel("Score")
+            ax.set_yticklabels(list(reprogramming_mat_dict().keys())[6:], rotation=0)
+            ax.legend().set_visible(False)
+            ax.spines.top.set_position(("outward", 10))
+            ax.spines.bottom.set_position(("outward", 10))
+
+            ax.spines.right.set_visible(False)
+            ax.spines.top.set_visible(False)
+            ax.yaxis.set_ticks_position("left")
+            ax.xaxis.set_ticks_position("bottom")
+
+            return filter_fig(fig)
 
 
     app = App(app_ui, server, debug=True)
