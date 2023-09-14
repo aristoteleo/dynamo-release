@@ -130,15 +130,13 @@ def lap_web_app(input_adata, tfs_data):
             ),
         ),
         ui.div(
-            ui.output_text_verbatim("add_known_tf"),
-        ),
-        ui.div(
             x.ui.output_plot("base_streamline_plot"),
             x.ui.output_plot("initialize_searching"),
             x.ui.output_plot("plot_lap"),
             x.ui.output_plot("tfs_barplot"),
             x.ui.output_plot("pairwise_cell_fate_heatmap"),
             x.ui.output_plot("lap_kinetic_heatmap"),
+            ui.output_text_verbatim("add_known_tf"),
             ui.output_text_verbatim("add_reprog_info"),
             x.ui.output_plot("plot_priority_scores"),
             x.ui.output_plot("tf_roc_curve")
