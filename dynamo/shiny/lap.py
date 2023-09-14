@@ -386,7 +386,7 @@ def lap_web_app(input_adata, tfs_data):
             ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
             true_tf_list = list(ranking.query("TF == True")["all"])
             all_tfs = list(ranking.query("TF == True")["all"])
-            cur_transition_graph[transition][input.known_tf_key()] = input.known_tf()
+            cur_transition_graph[transition][input.known_tf_key()] = input.known_tf().split(",")
 
             cur_transition_graph[transition][input.known_tf_rank_key()] = [
                 all_tfs.index(key) if key in true_tf_list else -1 for key in cur_transition_graph[transition][input.known_tf_key()]
@@ -435,8 +435,12 @@ def lap_web_app(input_adata, tfs_data):
             all_keys = np.repeat(
                 np.array(list(reprogramming_mat_dict().keys())), [len(i) for i in reprogramming_mat_df.loc["genes", :]]
             )
+            all_types = np.repeat(
+                np.array([v["type"] for v in reprogramming_mat_dict().values()]),
+                [len(i) for i in reprogramming_mat_df.loc["genes", :]],
+            )
 
-            reprogramming_mat_df_p = pd.DataFrame({"genes": all_genes, "rank": all_rank, "transition": all_keys})
+            reprogramming_mat_df_p = pd.DataFrame({"genes": all_genes, "rank": all_rank, "transition": all_keys, "type": all_types})
             reprogramming_mat_df_p = reprogramming_mat_df_p.query("rank > -1")
             reprogramming_mat_df_p["rank"] /= 133
             reprogramming_mat_df_p["rank"] = 1 - reprogramming_mat_df_p["rank"]
