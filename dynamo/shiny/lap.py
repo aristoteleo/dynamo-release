@@ -25,15 +25,15 @@ def lap_web_app(input_adata, tfs_data):
                     "LAP",
                     x.ui.accordion_panel(
                         "Streamline Plot",
-                        ui.input_text("cells_type_key", "cells type key", placeholder="cells type key"),
-                        ui.input_text("streamline_basis", "output basis", placeholder="Enter basis"),
+                        ui.input_text("cells_type_key", "cells type key", value="cell_type"),
+                        ui.input_text("streamline_basis", "output basis", value="umap"),
                         ui.input_action_button(
                             "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
                         ),
                     ),
                     x.ui.accordion_panel(
                         "Initialization",
-                        ui.input_text("cells_names", "cells names", placeholder="Enter names of cell"),
+                        ui.input_text("cells_names", "cells names", placeholder="e.g. HSC,Meg,Ery,Bas,Mon,Neu"),
                         ui.input_text(
                             "fps_coordinates",
                             "fixed points coordinates",
@@ -52,7 +52,7 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                     x.ui.accordion_panel(
                         "Visualize LAP",
-                        ui.input_text("visualize_keys", "keys", placeholder="Enter keys"),
+                        ui.input_text("visualize_keys", "keys", placeholder="e.g. HSC->Meg,HSC->Ery"),
                         ui.input_action_button(
                             "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
                         ),
@@ -80,11 +80,10 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                     x.ui.accordion_panel(
                         "LAP Kinetic Heatmap",
-                        ui.input_text("lap_init_cells", "Init Cells", placeholder="Enter init cells"),
-                        ui.input_text("lap_end_cells", "End Cells", placeholder="Enter end cells"),
-                        ui.input_text("lap_basis", "Basis", value="pca", placeholder="Enter basis"),
-                        ui.input_text("lap_adj_key", "Adj Key", value="cosine_transition_matrix",
-                                      placeholder="Enter adj key"),
+                        ui.input_text("lap_init_cells", "Init Cells", placeholder="e.g. GGGGGGCGGCCT-JL_10"),
+                        ui.input_text("lap_end_cells", "End Cells", placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
+                        ui.input_text("lap_basis", "Basis", value="pca"),
+                        ui.input_text("lap_adj_key", "Adj Key", value="cosine_transition_matrix"),
                         ui.input_action_button(
                             "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
                         ),
@@ -94,11 +93,10 @@ def lap_web_app(input_adata, tfs_data):
                     "transcription factor (TF)",
                     x.ui.accordion_panel(
                         "Add known TF",
-                        ui.input_text("known_tf_transition", "Transition", placeholder="Enter target transition"),
-                        ui.input_text("known_tf", "TF", placeholder="Enter known TF"),
-                        ui.input_text("known_tf_key", "tfs key", value="TFs", placeholder="Enter tfs key"),
-                        ui.input_text("known_tf_rank_key", "tfs rank key", value="TFs_rank",
-                                      placeholder="Enter tfs rank key"),
+                        ui.input_text("known_tf_transition", "Transition", placeholder="e.g. HSC->Meg"),
+                        ui.input_text("known_tf", "TF", placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
+                        ui.input_text("known_tf_key", "tfs key", value="TFs"),
+                        ui.input_text("known_tf_rank_key", "tfs rank key", value="TFs_rank"),
                         ui.input_action_button(
                             "activate_add_known_tf", "Add", class_="btn-primary"
                         ),
