@@ -6,6 +6,7 @@ import seaborn as sns
 import shiny.experimental as x
 from functools import reduce
 from shiny import App, reactive, render, ui
+from sklearn.metrics import roc_curve, auc
 
 from .utils import filter_fig
 from ..prediction import GeneTrajectory, least_action, least_action_path
@@ -119,6 +120,11 @@ def lap_web_app(input_adata, tfs_data):
                         ui.input_action_button(
                             "activate_plot_priority_scores", "Plot priority scores for TFs", class_="btn-primary"
                         ),
+                        ui.input_text("roc_tf_key", "ROC tf key", value="TFs"),
+                        ui.input_text("roc_target_transition", "Target Transition", placeholder="HSC->Bas"),
+                        ui.input_action_button(
+                            "activate_tf_roc_curve", "ROC curve analyses of TF priorization", class_="btn-primary"
+                        ),
                     ),
                 ),
             ),
@@ -135,6 +141,7 @@ def lap_web_app(input_adata, tfs_data):
             x.ui.output_plot("lap_kinetic_heatmap"),
             ui.output_text_verbatim("add_reprog_info"),
             x.ui.output_plot("plot_priority_scores"),
+            x.ui.output_plot("tf_roc_curve")
         ),
     )
 
@@ -156,6 +163,7 @@ def lap_web_app(input_adata, tfs_data):
         )
         reprogramming_mat_dict = reactive.Value[dict]()
         reprogramming_mat_dict.set({})
+        reprogramming_mat_dataframe_p = reactive.Value[pd.DataFrame]()
 
         @output
         @render.plot()
@@ -444,6 +452,7 @@ def lap_web_app(input_adata, tfs_data):
             reprogramming_mat_df_p = reprogramming_mat_df_p.query("rank > -1")
             reprogramming_mat_df_p["rank"] /= 133
             reprogramming_mat_df_p["rank"] = 1 - reprogramming_mat_df_p["rank"]
+            reprogramming_mat_dataframe_p.set(reprogramming_mat_df_p)
 
             query = "type == '{}'".format(input.reprog_query_type())
             reprogramming_mat_df_p_subset = reprogramming_mat_df_p.query(query)
@@ -488,6 +497,56 @@ def lap_web_app(input_adata, tfs_data):
 
             return filter_fig(fig)
 
+        @output
+        @render.plot()
+        @reactive.event(input.activate_tf_roc_curve)
+        def tf_roc_curve():
+            all_ranks_dict = {}
+            for key, value in transition_graph().items():
+                ranking = transition_graph()[key]["ranking"]
+                ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
+                ranking = ranking.query("TF == True")
+                ranking["known_TF"] = [i in value[input.roc_tf_key()] for i in list(ranking["all"])]
+                all_ranks_dict[key.split("->")[0] + "_" + key.split("->")[1] + "_ranking"] = ranking
+
+            all_ranks_df = pd.concat([rank_dict for rank_dict in all_ranks_dict.values()])
+
+            target_ranking = all_ranks_dict[
+                input.roc_target_transition().split("->")[0] +
+                "_" +
+                input.roc_target_transition().split("->")[1] +
+                "_ranking"
+                ]
+
+            all_ranks_df["priority_score"] = (
+                    1 - np.tile(np.arange(target_ranking.shape[0]), len(all_ranks_dict)) / target_ranking.shape[0]
+            )
+            # all_ranks_df['priority_score'].hist()
+            TFs = ranking["all"][ranking["TF"]].values
+            # valid_TFs = np.unique(reprogramming_mat_dataframe_p()["genes"].values)
+            #
+            # use_abs = False
+            # top_genes = len(TFs)
+
+            cls = all_ranks_df["known_TF"].astype(int)
+            pred = all_ranks_df["priority_score"]
+
+            fpr, tpr, _ = roc_curve(cls, pred)
+            roc_auc = auc(fpr, tpr)
+
+            lw = 0.5
+            plt.figure(figsize=(5, 5))
+            plt.plot(fpr, tpr, color="darkorange", lw=lw, label="ROC curve (area = %0.2f)" % roc_auc)
+            plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel("False Positive Rate")
+            plt.ylabel("True Positive Rate")
+            # plt.title(cur_guide)
+            plt.legend(loc="lower right")
+            plt.tight_layout()
+
+            return filter_fig(plt.gcf())
 
     app = App(app_ui, server, debug=True)
     app.run()
