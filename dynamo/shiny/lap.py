@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import random
 import seaborn as sns
 import shiny.experimental as x
 from shiny import App, reactive, render, ui
@@ -100,6 +101,20 @@ def lap_web_app(input_adata, tfs_data):
                             "activate_add_known_tf", "Add", class_="btn-primary"
                         ),
                     ),
+                    x.ui.accordion_panel(
+                        "Construct TF Reprogramming Mat Dict",
+                        ui.input_text("reprog_mat_main_key", "Main Key", placeholder="e.g. HSC->Meg"),
+                        "The 'genes' information will be extracted from transition_graph[Transition Key][Genes Key]. "
+                        "The 'rank' information will be extracted from transition_graph[Transition Key][Rank Key]",
+                        ui.input_text("reprog_mat_transition_key", "Transition Key", placeholder="e.g. HSC->Meg"),
+                        ui.input_text("reprog_mat_genes_key", "Genes Key", value="TFs"),
+                        ui.input_text("reprog_mat_rank_key", "Rank Key", value="TFs_rank"),
+                        ui.input_text("reprog_mat_PMID", "PMID", placeholder="e.g. 18295580"),
+                        ui.input_text("reprog_mat_type", "Type", placeholder="e.g. development"),
+                        ui.input_action_button(
+                            "activate_add_reprog_info", "Add", class_="btn-primary"
+                        ),
+                    ),
                 ),
             ),
         ),
@@ -113,6 +128,7 @@ def lap_web_app(input_adata, tfs_data):
             x.ui.output_plot("tfs_barplot"),
             x.ui.output_plot("pairwise_cell_fate_heatmap"),
             x.ui.output_plot("lap_kinetic_heatmap"),
+            ui.output_text_verbatim("add_reprog_info")
         ),
     )
 
@@ -124,6 +140,16 @@ def lap_web_app(input_adata, tfs_data):
         transition_graph = reactive.Value[dict]()
         t_dataframe = reactive.Value[pd.DataFrame]()
         action_dataframe = reactive.Value[pd.DataFrame]()
+        transition_color_dict = reactive.Value[dict]()
+        transition_color_dict.set(
+            {
+                "development": "#2E3192",
+                "reprogramming": "#EC2227",
+                "transdifferentiation": "#B9519E",
+            }
+        )
+        reprogramming_mat_dict = reactive.Value[dict]()
+        reprogramming_mat_dict.set({})
 
         @output
         @render.plot()
@@ -364,6 +390,34 @@ def lap_web_app(input_adata, tfs_data):
 
             return "\n".join([f"{key}: {' '.join(value.keys())}" for key, value in cur_transition_graph.items()])
 
+        def assign_random_color(new_key: str):
+            available_colors = ["#fde725", "#5ec962", "#21918c", "#3b528b", "#440154"]
+            dictionary = transition_color_dict()
+            available_colors = [c for c in available_colors if c not in dictionary.values()]
+            random_color = random.choice(available_colors)
+            dictionary[new_key] = random_color
+            transition_color_dict.set(dictionary)
+
+        @output
+        @render.text
+        @reactive.event(input.activate_add_reprog_info)
+        def add_reprog_info():
+            reprog_dict = reprogramming_mat_dict()
+            transition_graph_dict = transition_graph()
+
+            reprog_dict[input.reprog_mat_main_key()] = {
+                "genes": transition_graph_dict[input.reprog_mat_transition_key()][input.reprog_mat_genes_key()],
+                "rank": transition_graph_dict[input.reprog_mat_transition_key()][input.reprog_mat_rank_key()],
+                "PMID": input.reprog_mat_PMID(),
+                "type": input.reprog_mat_type(),
+            }
+
+            if input.reprog_mat_type() not in transition_color_dict().keys():
+                assign_random_color(input.reprog_mat_type())
+
+            reprogramming_mat_dict.set(reprog_dict)
+
+            return "\n".join([f"{key}: {' '.join(value.keys())}" for key, value in reprog_dict.items()])
 
 
     app = App(app_ui, server, debug=True)
