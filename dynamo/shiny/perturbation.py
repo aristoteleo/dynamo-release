@@ -23,7 +23,9 @@ def perturbation_web_app(input_adata):
                     ui.input_text("color", "color", placeholder="Enter color"),
                     ui.input_text("streamline_basis", "output basis", placeholder="Enter basis"),
                 ),
+                open=False,
             ),
+            width=500,
         ),
         ui.div(
             ui.input_action_button(

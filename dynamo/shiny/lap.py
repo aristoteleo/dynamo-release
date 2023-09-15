@@ -125,7 +125,9 @@ def lap_web_app(input_adata, tfs_data):
                         ),
                     ),
                 ),
+                open=False,
             ),
+            width=500,
         ),
         ui.div(
             x.ui.output_plot("base_streamline_plot"),
