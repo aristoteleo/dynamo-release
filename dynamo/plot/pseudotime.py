@@ -20,7 +20,17 @@ def _calculate_cells_mapping(
     adata: AnnData,
     group_key: str,
     cell_proj_closest_vertex: Optional[np.ndarray] = None,
-):
+) -> Tuple[np.ndarray, np.ndarray, Dict]:
+    """Calculate the distribution of cells in each node.
+
+    Args:
+        adata: the anndata object.
+        group_key: the key to locate the groups of each cell in adata.
+        cell_proj_closest_vertex: the mapping from each cell to the corresponding node.
+
+    Returns:
+        The size of each node, the percentage of each group in every node, and the color mapping of each group.
+    """
     cells_mapping_size = np.bincount(cell_proj_closest_vertex)
     centroids_index = range(len(cells_mapping_size))
 
@@ -50,6 +60,20 @@ def plot_dim_reduced_direct_graph(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
 ) -> Optional[plt.Axes]:
+    """Plot the directed graph constructed velocity-guided pseudotime.
+
+    Args:
+        adata: the anndata object.
+        group_key:  the key to locate the groups of each cell in adata.
+        graph: the directed graph to plot.
+        cell_proj_closest_vertex: the mapping from each cell to the corresponding node.
+        display_piechart: whether to display piechart for each node.
+        save_show_or_return: whether to save, show or return the plot.
+        save_kwargs: additional keyword arguments of plot saving.
+
+    Returns:
+        The plot of the directed graph or `None`.
+    """
 
     if graph is None:
         graph = adata.uns["directed_velocity_tree"]
