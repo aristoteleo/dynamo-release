@@ -5,7 +5,6 @@ from shiny import App, reactive, render, ui
 from .utils import filter_fig
 from ..plot import streamline_plot
 from ..prediction import perturbation
-from ..sample_data import hematopoiesis
 
 
 def perturbation_web_app(input_adata):
@@ -39,7 +38,6 @@ def perturbation_web_app(input_adata):
     )
 
     def server(input, output, session):
-        is_perturbated = reactive.Value[bool]()
         adata = input_adata.copy()
 
         @reactive.Effect
@@ -49,7 +47,6 @@ def perturbation_web_app(input_adata):
             expression = [int(txt) for txt in input.expression().split(",")]
 
             perturbation(adata, selected_genes, expression, emb_basis=input.emb_basis())
-            is_perturbated.set(True)
 
         @output
         @render.plot()
