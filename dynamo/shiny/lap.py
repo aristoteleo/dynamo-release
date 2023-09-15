@@ -25,18 +25,22 @@ def lap_web_app(input_adata, tfs_data):
                     "LAP",
                     x.ui.accordion_panel(
                         "Streamline Plot",
-                        ui.input_text("cells_type_key", "cells type key", value="cell_type"),
-                        ui.input_text("streamline_basis", "output basis", value="umap"),
+                        ui.input_text("cells_type_key", "Key of cell type information: ", value="cell_type"),
+                        ui.input_text("streamline_basis", "The basis to perform LAP: ", value="umap"),
                         ui.input_action_button(
-                            "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
+                            "activate_streamline_plot", "Streamline plot", class_="btn-primary"
                         ),
                     ),
                     x.ui.accordion_panel(
                         "Initialization",
-                        ui.input_text("cells_names", "cells names", placeholder="e.g. HSC,Meg,Ery,Bas,Mon,Neu"),
+                        ui.input_text(
+                            "cells_names",
+                            "Names of cell types to perform LAP analyses: ",
+                            placeholder="e.g. HSC,Meg,Ery,Bas,Mon,Neu",
+                        ),
                         ui.input_text(
                             "fps_coordinates",
-                            "fixed points coordinates",
+                            "Identified fixed points coordinates for each cell types: ",
                             placeholder="Enter the coordinates of fixed point."
                         ),
                         ui.input_action_button(
@@ -52,21 +56,27 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                     x.ui.accordion_panel(
                         "Visualize LAP",
-                        ui.input_text("visualize_keys", "keys", placeholder="e.g. HSC->Meg,HSC->Ery"),
+                        ui.input_text(
+                            "visualize_keys", "Key of transitions to plot: ", placeholder="e.g. HSC->Meg,HSC->Ery"
+                        ),
                         ui.input_action_button(
                             "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
                         ),
                     ),
                     x.ui.accordion_panel(
                         "Prepare TFs",
-                        "load the transcription factors data",
+                        "Load the transcription factors data",
                         ui.input_action_button(
                             "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
                         ),
                     ),
                     x.ui.accordion_panel(
                         "TFs barplot",
-                        ui.input_text("cell_type_colormap", "cell type colormap", placeholder="Enter Color Dict"),
+                        ui.input_text(
+                            "cell_type_colormap",
+                            "Color of each cell type (random color will be selected if not input): ",
+                            placeholder="Enter Color Dict"
+                        ),
                         ui.input_action_button(
                             "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
                         ),
@@ -80,10 +90,11 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                     x.ui.accordion_panel(
                         "LAP Kinetic Heatmap",
-                        ui.input_text("lap_init_cells", "Init Cells", placeholder="e.g. GGGGGGCGGCCT-JL_10"),
-                        ui.input_text("lap_end_cells", "End Cells", placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
-                        ui.input_text("lap_basis", "Basis", value="pca"),
-                        ui.input_text("lap_adj_key", "Adj Key", value="cosine_transition_matrix"),
+                        " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
+                        ui.input_text("lap_init_cells", "Init cells: ", placeholder="e.g. GGGGGGCGGCCT-JL_10"),
+                        ui.input_text("lap_end_cells", "End cells: ", placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
+                        ui.input_text("lap_basis", "Basis: ", value="pca"),
+                        ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ", value="cosine_transition_matrix"),
                         ui.input_action_button(
                             "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
                         ),
@@ -93,33 +104,33 @@ def lap_web_app(input_adata, tfs_data):
                     "transcription factor (TF)",
                     x.ui.accordion_panel(
                         "Add known TF",
-                        ui.input_text("known_tf_transition", "Transition", placeholder="e.g. HSC->Meg"),
-                        ui.input_text("known_tf", "TF", placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
-                        ui.input_text("known_tf_key", "tfs key", value="TFs"),
-                        ui.input_text("known_tf_rank_key", "tfs rank key", value="TFs_rank"),
+                        ui.input_text("known_tf_transition", "Target transition: ", placeholder="e.g. HSC->Meg"),
+                        ui.input_text("known_tf", "Known TFs: ", placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
+                        ui.input_text("known_tf_key", "Key to save TFs: ", value="TFs"),
+                        ui.input_text("known_tf_rank_key", "Key to save TFs rank: ", value="TFs_rank"),
                         ui.input_action_button(
                             "activate_add_known_tf", "Add", class_="btn-primary"
                         ),
                     ),
                     x.ui.accordion_panel(
                         "Priority Scores of TFs",
-                        ui.input_text("reprog_mat_main_key", "Main Key", placeholder="e.g. HSC->Meg"),
+                        ui.input_text("reprog_mat_main_key", "Main Key: ", placeholder="e.g. HSC->Meg"),
                         "The 'genes' information will be extracted from transition_graph[Transition Key][Genes Key]. "
                         "The 'rank' information will be extracted from transition_graph[Transition Key][Rank Key]",
-                        ui.input_text("reprog_mat_transition_key", "Transition Key", placeholder="e.g. HSC->Meg"),
-                        ui.input_text("reprog_mat_genes_key", "Genes Key", value="TFs"),
-                        ui.input_text("reprog_mat_rank_key", "Rank Key", value="TFs_rank"),
-                        ui.input_text("reprog_mat_PMID", "PMID", placeholder="e.g. 18295580"),
-                        ui.input_text("reprog_mat_type", "Type", placeholder="e.g. development"),
+                        ui.input_text("reprog_mat_transition_key", "Transition Key: ", placeholder="e.g. HSC->Meg"),
+                        ui.input_text("reprog_mat_genes_key", "Genes Key: ", value="TFs"),
+                        ui.input_text("reprog_mat_rank_key", "Rank Key: ", value="TFs_rank"),
+                        ui.input_text("reprog_mat_PMID", "PMID: ", placeholder="e.g. 18295580"),
+                        ui.input_text("reprog_mat_type", "Type of transition: ", placeholder="e.g. development"),
                         ui.input_action_button(
                             "activate_add_reprog_info", "Add", class_="btn-primary"
                         ),
-                        ui.input_text("reprog_query_type", "Query Type", value="transdifferentiation"),
+                        ui.input_text("reprog_query_type", "Query transition type to plot: ", value="transdifferentiation"),
                         ui.input_action_button(
                             "activate_plot_priority_scores", "Plot priority scores for TFs", class_="btn-primary"
                         ),
-                        ui.input_text("roc_tf_key", "ROC tf key", value="TFs"),
-                        ui.input_text("roc_target_transition", "Target Transition", placeholder="HSC->Bas"),
+                        ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs"),
+                        ui.input_text("roc_target_transition", "Target transition of ROC plot: ", placeholder="HSC->Bas"),
                         ui.input_action_button(
                             "activate_tf_roc_curve", "ROC curve analyses of TF priorization", class_="btn-primary"
                         ),
