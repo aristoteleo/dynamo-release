@@ -13,19 +13,23 @@ def perturbation_web_app(input_adata):
             x.ui.accordion(
                 x.ui.accordion_panel(
                     "Perturbation",
-                    ui.input_text("selected_genes", "Genes", placeholder="e.g. GATA1"),
-                    ui.input_text("emb_basis", "basis", value="umap"),
-                    ui.input_text("expression", "expression", placeholder="e.g. -100"),
+                    ui.input_text("selected_genes", "Genes to perform perturbation: ", placeholder="e.g. GATA1"),
+                    ui.input_text("emb_basis", "Basis from which the vector field is reconstructed: ", value="umap"),
+                    ui.input_text(
+                        "expression", "Expression value to encode the genetic perturbation: ", placeholder="e.g. -100"
+                    ),
                     ui.input_action_button(
-                        "activate_purterbation", "Run simulation", class_="btn-primary"
+                        "activate_purterbation", "Run perturbation", class_="btn-primary"
                     )
                 ),
                 x.ui.accordion_panel(
                     "Streamline Plot",
-                    ui.input_text("color", "color", value="cell_type"),
-                    ui.input_text("streamline_basis", "output basis", value="umap_perturbation"),
+                    ui.input_text("color", "The key to color the cells: ", value="cell_type"),
+                    ui.input_text(
+                        "streamline_basis", "The perturbation output as the basis of plot: ", value="umap_perturbation"
+                    ),
                     ui.input_action_button(
-                        "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
+                        "activate_streamline_plot", "Streamline plot", class_="btn-primary"
                     )
                 ),
                 open=False,
