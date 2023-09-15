@@ -13,7 +13,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 from ..tools.utils import update_dict
-from .utils import save_fig
+from .utils import get_color_map_from_labels, save_fig
 
 
 def _calculate_cells_mapping(
@@ -26,8 +26,10 @@ def _calculate_cells_mapping(
 
     cell_type_info = pd.DataFrame({
         "class": adata.obs[group_key].values,
-        "centroid": cell_proj_closest_vertex
+        "centroid": cell_proj_closest_vertex,
     })
+
+    cell_color_map = get_color_map_from_labels(adata.obs[group_key].values)
 
     cell_type_info = cell_type_info.groupby(['centroid', 'class']).size().unstack()
     cell_type_info = cell_type_info.reindex(centroids_index, fill_value=0)
@@ -36,7 +38,7 @@ def _calculate_cells_mapping(
 
     cells_mapping_size = (cells_mapping_size / len(cell_proj_closest_vertex)) + 0.05
 
-    return cells_mapping_size, cells_mapping_percentage
+    return cells_mapping_size, cells_mapping_percentage, cell_color_map
 
 
 def plot_dim_reduced_direct_graph(
@@ -55,20 +57,13 @@ def plot_dim_reduced_direct_graph(
     if cell_proj_closest_vertex is None:
         cell_proj_closest_vertex = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"]
 
-    cmap = plt.cm.viridis
-
-    cells_size, cells_percentage = _calculate_cells_mapping(
+    cells_size, cells_percentage, cells_color_map = _calculate_cells_mapping(
         adata=adata,
         group_key=group_key,
         cell_proj_closest_vertex=cell_proj_closest_vertex,
     )
 
-    maxes = np.max(np.array(cells_percentage), axis=0)
-
-    colors = {}
-
-    for i in range(graph.shape[0]):
-        colors[i] = list(np.array(cells_percentage[i]) / maxes)
+    cells_colors = np.array([v for v in cells_color_map.values()])
 
     G = nx.from_numpy_array(graph)
     pos = nx.spring_layout(G)
@@ -83,8 +78,11 @@ def plot_dim_reduced_direct_graph(
             plt.pie(
                 attributes[valid_indices],
                 center=pos[node],
-                colors=[cmap(colors[node][i]) for i in valid_indices],
+                colors=cells_colors[valid_indices],
                 radius=cells_size[node])
+
+        plt.legend(handles=[plt.Line2D([0], [0], marker="o", color='w', label=label,
+                                       markerfacecolor=color) for label, color in cells_color_map.items()], loc="best")
     else:
         nx.draw_networkx_nodes(G, pos=pos)
 
