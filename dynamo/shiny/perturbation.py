@@ -14,30 +14,28 @@ def perturbation_web_app(input_adata):
             x.ui.accordion(
                 x.ui.accordion_panel(
                     "Perturbation",
-                    ui.input_text("selected_genes", "Genes", placeholder="Enter genes"),
-                    ui.input_text("emb_basis", "basis", placeholder="Enter basis"),
-                    ui.input_text("expression", "expression", placeholder="Enter expression"),
+                    ui.input_text("selected_genes", "Genes", placeholder="e.g. GATA1"),
+                    ui.input_text("emb_basis", "basis", value="umap"),
+                    ui.input_text("expression", "expression", placeholder="e.g. -100"),
+                    ui.input_action_button(
+                        "activate_purterbation", "Run simulation", class_="btn-primary"
+                    )
                 ),
                 x.ui.accordion_panel(
                     "Streamline Plot",
-                    ui.input_text("color", "color", placeholder="Enter color"),
-                    ui.input_text("streamline_basis", "output basis", placeholder="Enter basis"),
+                    ui.input_text("color", "color", value="cell_type"),
+                    ui.input_text("streamline_basis", "output basis", value="umap_perturbation"),
+                    ui.input_action_button(
+                        "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
+                    )
                 ),
                 open=False,
             ),
             width=500,
         ),
         ui.div(
-            ui.input_action_button(
-                "activate_purterbation", "Run simulation", class_="btn-primary"
-            )
+            x.ui.output_plot("perturbation_plot"),
         ),
-        ui.div(
-            ui.input_action_button(
-                "activate_streamline_plot", "Run streamline plot", class_="btn-primary"
-            )
-        ),
-        x.ui.output_plot("perturbation_plot"),
     )
 
     def server(input, output, session):
