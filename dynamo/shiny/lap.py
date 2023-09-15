@@ -11,7 +11,7 @@ from sklearn.metrics import roc_curve, auc
 from .utils import filter_fig
 from ..prediction import GeneTrajectory, least_action, least_action_path
 from ..plot import kinetic_heatmap, streamline_plot
-from ..plot.utils import map2color
+from ..plot.utils import get_color_map_from_labels, map2color
 from ..tools import neighbors
 from ..tools.utils import nearest_neighbors, select_cell
 from ..vectorfield import rank_genes
@@ -315,10 +315,14 @@ def lap_web_app(input_adata, tfs_data):
             develop_time_df["lineage"] = input.cells_names().split(",")
 
             ig, ax = plt.subplots(figsize=(4, 3))
-            colors = input.cell_type_colormap().split(",")
-            dynamo_color_dict = {}
-            for i in range(len(develop_time_df["lineage"])):
-                dynamo_color_dict[develop_time_df["lineage"][i]] = colors[i]
+
+            if input.cell_type_colormap():
+                colors = input.cell_type_colormap().split(",")
+                dynamo_color_dict = {}
+                for i in range(len(develop_time_df["lineage"])):
+                    dynamo_color_dict[develop_time_df["lineage"][i]] = colors[i]
+            else:
+                dynamo_color_dict = get_color_map_from_labels(develop_time_df["lineage"].values)
 
             sns.barplot(
                 y="lineage",
