@@ -4,7 +4,9 @@ import pandas as pd
 import random
 import seaborn as sns
 import shiny.experimental as x
+from htmltools import TagList, div
 from functools import reduce
+from pathlib import Path
 from shiny import App, reactive, render, ui
 from sklearn.metrics import roc_curve, auc
 
@@ -17,22 +19,27 @@ from ..tools.utils import nearest_neighbors, select_cell
 from ..vectorfield import rank_genes
 
 
+css_path = Path(__file__).parent / "styles.css"
+
+
 def lap_web_app(input_adata, tfs_data):
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
+            ui.include_css(css_path),
             x.ui.accordion(
                 x.ui.accordion_panel(
-                    "Run pairwise least action path analyses",
+                    div("Run pairwise least action path analyses", class_="bold-title"),
                     x.ui.accordion_panel(
-                        "Streamline Plot",
+                        div("Streamline Plot", class_="bold-subtitle"),
                         ui.input_text("cells_type_key", "Key of cell type information: ", value="cell_type"),
                         ui.input_text("streamline_basis", "The basis to perform LAP: ", value="umap"),
                         ui.input_action_button(
                             "activate_streamline_plot", "Streamline plot", class_="btn-primary"
                         ),
+                        value="Streamline Plot",
                     ),
                     x.ui.accordion_panel(
-                        "Initialization",
+                        div("Initialization", class_="bold-subtitle"),
                         ui.input_text(
                             "cells_names",
                             "Names of cell types to perform LAP analyses: ",
@@ -46,32 +53,36 @@ def lap_web_app(input_adata, tfs_data):
                         ui.input_action_button(
                             "initialize", "Initialize searching", class_="btn-primary"
                         ),
+                        value="Initialization",
                     ),
                     x.ui.accordion_panel(
-                        "Run LAP",
+                        div("Run LAP", class_="bold-subtitle"),
                         "Run pairwise least action path analyses among given cell types",
                         ui.input_action_button(
                             "activate_lap", "Run LAP analyses", class_="btn-primary"
                         ),
+                        value="Run LAP",
                     ),
                     x.ui.accordion_panel(
-                        "Visualize LAP",
+                        div("Visualize LAP", class_="bold-subtitle"),
                         ui.input_text(
                             "visualize_keys", "Key of transitions to plot: ", placeholder="e.g. HSC->Meg,HSC->Ery"
                         ),
                         ui.input_action_button(
                             "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
                         ),
+                        value="Visualize LAP",
                     ),
                     x.ui.accordion_panel(
-                        "Prepare TFs",
+                        div("Prepare TFs", class_="bold-subtitle"),
                         "Load the transcription factors data",
                         ui.input_action_button(
                             "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
                         ),
+                        value="Prepare TFs",
                     ),
                     x.ui.accordion_panel(
-                        "TFs barplot",
+                        div("TFs barplot", class_="bold-subtitle"),
                         ui.input_text(
                             "cell_type_colormap",
                             "Color of each cell type (random color will be selected if not input): ",
@@ -80,16 +91,18 @@ def lap_web_app(input_adata, tfs_data):
                         ui.input_action_button(
                             "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
                         ),
+                        value="TFs barplot",
                     ),
                     x.ui.accordion_panel(
-                        "Pairwise cell fate heatmap",
+                        div("Pairwise cell fate heatmap", class_="bold-subtitle"),
                         "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
                         ui.input_action_button(
                             "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap", class_="btn-primary"
                         ),
+                        value="Pairwise cell fate heatmap",
                     ),
                     x.ui.accordion_panel(
-                        "LAP Kinetic Heatmap",
+                        div("LAP Kinetic Heatmap", class_="bold-subtitle"),
                         " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
                         ui.input_text("lap_init_cells", "Init cells: ", placeholder="e.g. GGGGGGCGGCCT-JL_10"),
                         ui.input_text("lap_end_cells", "End cells: ", placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
@@ -98,12 +111,14 @@ def lap_web_app(input_adata, tfs_data):
                         ui.input_action_button(
                             "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
                         ),
+                        value="LAP Kinetic Heatmap",
                     ),
+                    value="Run pairwise least action path analyses",
                 ),
                 x.ui.accordion_panel(
-                    "Evaluate TF rankings based on LAP analyses",
+                    div("Evaluate TF rankings based on LAP analyses", class_="bold-title"),
                     x.ui.accordion_panel(
-                        "Add known TF",
+                        div("Add known TFs", class_="bold-subtitle"),
                         ui.input_text("known_tf_transition", "Target transition: ", placeholder="e.g. HSC->Meg"),
                         ui.input_text("known_tf", "Known TFs: ", placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
                         ui.input_text("known_tf_key", "Key to save TFs: ", value="TFs"),
@@ -111,9 +126,10 @@ def lap_web_app(input_adata, tfs_data):
                         ui.input_action_button(
                             "activate_add_known_tf", "Add", class_="btn-primary"
                         ),
+                        value="Add known TFs",
                     ),
                     x.ui.accordion_panel(
-                        "Priority Scores of TFs",
+                        div("Priority Scores of TFs", class_="bold-subtitle"),
                         ui.input_text("reprog_mat_main_key", "Main Key: ", placeholder="e.g. HSC->Meg"),
                         "The 'genes' information will be extracted from transition_graph[Transition Key][Genes Key]. "
                         "The 'rank' information will be extracted from transition_graph[Transition Key][Rank Key]",
@@ -134,7 +150,9 @@ def lap_web_app(input_adata, tfs_data):
                         ui.input_action_button(
                             "activate_tf_roc_curve", "ROC curve analyses of TF priorization", class_="btn-primary"
                         ),
+                        value="Priority Scores of TFs",
                     ),
+                    value="Evaluate TF rankings based on LAP analyses",
                 ),
                 open=False,
             ),
