@@ -396,6 +396,16 @@ def lap_web_app(input_adata, tfs_data):
             plt.tight_layout()
             return filter_fig(plt.gcf())
 
+        def format_dict_to_text(dictionary, target_key, indent=0):
+            text = ""
+            for key, value in dictionary.items():
+                text += "  " * indent + f"{key}:\n"
+                if isinstance(value, dict):
+                    text += format_dict_to_text(value, target_key=target_key, indent=indent + 1)
+                else:
+                    text += "  " * (indent + 1) + f"{value}\n" if key in target_key else "  " * (indent + 1) + f"...\n"
+            return text
+
         @output
         @render.text
         @reactive.event(input.activate_add_known_tf)
@@ -415,7 +425,7 @@ def lap_web_app(input_adata, tfs_data):
 
             transition_graph.set(cur_transition_graph)
 
-            return "\n".join([f"{key}: {' '.join(value.keys())}" for key, value in cur_transition_graph.items()])
+            return format_dict_to_text(cur_transition_graph, [input.known_tf_key()])
 
         def assign_random_color(new_key: str):
             available_colors = ["#fde725", "#5ec962", "#21918c", "#3b528b", "#440154"]
@@ -444,7 +454,7 @@ def lap_web_app(input_adata, tfs_data):
 
             reprogramming_mat_dict.set(reprog_dict)
 
-            return "\n".join([f"{key}: {' '.join(value.keys())}" for key, value in reprog_dict.items()])
+            return format_dict_to_text(reprog_dict, ["genes", "type"])
 
         @output
         @render.plot()
