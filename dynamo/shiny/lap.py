@@ -22,7 +22,7 @@ def lap_web_app(input_adata, tfs_data):
         x.ui.sidebar(
             x.ui.accordion(
                 x.ui.accordion_panel(
-                    "LAP",
+                    "Run pairwise least action path analyses",
                     x.ui.accordion_panel(
                         "Streamline Plot",
                         ui.input_text("cells_type_key", "Key of cell type information: ", value="cell_type"),
@@ -101,7 +101,7 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                 ),
                 x.ui.accordion_panel(
-                    "transcription factor (TF)",
+                    "Evaluate TF rankings based on LAP analyses",
                     x.ui.accordion_panel(
                         "Add known TF",
                         ui.input_text("known_tf_transition", "Target transition: ", placeholder="e.g. HSC->Meg"),
@@ -141,16 +141,24 @@ def lap_web_app(input_adata, tfs_data):
             width=500,
         ),
         ui.div(
-            x.ui.output_plot("base_streamline_plot"),
-            x.ui.output_plot("initialize_searching"),
-            x.ui.output_plot("plot_lap"),
-            x.ui.output_plot("tfs_barplot"),
-            x.ui.output_plot("pairwise_cell_fate_heatmap"),
-            x.ui.output_plot("lap_kinetic_heatmap"),
-            ui.output_text_verbatim("add_known_tf"),
-            ui.output_text_verbatim("add_reprog_info"),
-            x.ui.output_plot("plot_priority_scores"),
-            x.ui.output_plot("tf_roc_curve")
+            ui.navset_tab(
+                ui.nav(
+                    "Run pairwise least action path analyses",
+                    x.ui.output_plot("base_streamline_plot"),
+                    x.ui.output_plot("initialize_searching"),
+                    x.ui.output_plot("plot_lap"),
+                    x.ui.output_plot("tfs_barplot"),
+                    x.ui.output_plot("pairwise_cell_fate_heatmap"),
+                    x.ui.output_plot("lap_kinetic_heatmap"),
+                ),
+                ui.nav(
+                    "Evaluate TF rankings based on LAP analyses",
+                    ui.output_text_verbatim("add_known_tf"),
+                    ui.output_text_verbatim("add_reprog_info"),
+                    x.ui.output_plot("plot_priority_scores"),
+                    x.ui.output_plot("tf_roc_curve")
+                ),
+            ),
         ),
     )
 
