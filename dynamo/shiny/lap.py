@@ -407,11 +407,12 @@ def lap_web_app(input_adata, tfs_data):
         def format_dict_to_text(dictionary, target_key, indent=0):
             text = ""
             for key, value in dictionary.items():
-                text += "  " * indent + f"{key}:\n"
                 if isinstance(value, dict):
+                    text += "  " * indent + f"{key}:\n"
                     text += format_dict_to_text(value, target_key=target_key, indent=indent + 1)
                 else:
-                    text += "  " * (indent + 1) + f"{value}\n" if key in target_key else "  " * (indent + 1) + f"...\n"
+                    text += "  " * indent + f"{key}:"
+                    text += "  " + f"{value}\n" if key in target_key else "  " + f"...\n"
             return text
 
         @output
