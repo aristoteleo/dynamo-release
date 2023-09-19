@@ -176,18 +176,44 @@ def lap_web_app(input_adata, tfs_data):
             ui.navset_tab(
                 ui.nav(
                     "Run pairwise least action path analyses",
+                    div("Streamline plot of given basis and color", class_="bold-subtitle"),
                     x.ui.output_plot("base_streamline_plot"),
+                    div("The fixed points representing the typical cell state of these cells", class_="bold-subtitle"),
                     x.ui.output_plot("initialize_searching"),
+                    div("LAP result of given transition", class_="bold-subtitle"),
                     x.ui.output_plot("plot_lap"),
+                    div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
                     x.ui.output_plot("tfs_barplot"),
+                    div(
+                        "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                        class_="bold-subtitle"
+                    ),
                     x.ui.output_plot("pairwise_cell_fate_heatmap"),
+                    div("Kinetics heatmap of gene expression dynamics along the LAP", class_="bold-subtitle"),
                     x.ui.output_plot("lap_kinetic_heatmap"),
                 ),
                 ui.nav(
                     "Evaluate TF rankings based on LAP analyses",
-                    ui.output_text_verbatim("add_known_tf"),
-                    ui.output_text_verbatim("add_reprog_info"),
+                    div(
+                        "Visualization of the transition_graph which contains LAP and known TFs information",
+                        class_="bold-subtitle",
+                    ),
+                    x.ui.card(
+                        ui.output_text_verbatim("add_known_tf"),
+                    ),
+                    div(
+                        "Visualization of dictionary for converting the rankings of known TFs to a priority score",
+                        class_="bold-subtitle",
+                    ),
+                    x.ui.card(
+                        ui.output_text_verbatim("add_reprog_info"),
+                    ),
+                    div(
+                        "Plotting priority scores of known TFs for specific hematopoietic trandifferentiations",
+                        class_="bold-subtitle",
+                    ),
                     x.ui.output_plot("plot_priority_scores"),
+                    div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
                     x.ui.output_plot("tf_roc_curve")
                 ),
             ),
