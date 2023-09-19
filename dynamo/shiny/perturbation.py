@@ -32,7 +32,7 @@ def perturbation_web_app(input_adata: AnnData):
                         "expression", "Expression value to encode the genetic perturbation: ", placeholder="e.g. -100"
                     ),
                     ui.input_action_button(
-                        "activate_purterbation", "Run perturbation", class_="btn-primary"
+                        "activate_perturbation", "Run perturbation", class_="btn-primary"
                     ),
                     value="Perturbation",
                 ),
@@ -61,8 +61,8 @@ def perturbation_web_app(input_adata: AnnData):
         adata = input_adata.copy()
 
         @reactive.Effect
-        @reactive.event(input.activate_purterbation)
-        def run_purterbation():
+        @reactive.event(input.activate_perturbation)
+        def activate_perturbation():
             selected_genes = input.selected_genes().split(",")
             expression = [int(txt) for txt in input.expression().split(",")]
 

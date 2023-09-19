@@ -620,12 +620,6 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
             all_ranks_df["priority_score"] = (
                     1 - np.tile(np.arange(target_ranking.shape[0]), len(all_ranks_dict)) / target_ranking.shape[0]
             )
-            # all_ranks_df['priority_score'].hist()
-            TFs = ranking["all"][ranking["TF"]].values
-            # valid_TFs = np.unique(reprogramming_mat_dataframe_p()["genes"].values)
-            #
-            # use_abs = False
-            # top_genes = len(TFs)
 
             cls = all_ranks_df["known_TF"].astype(int)
             pred = all_ranks_df["priority_score"]
