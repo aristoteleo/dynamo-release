@@ -57,7 +57,7 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                     x.ui.accordion_panel(
                         div("Run LAP", class_="bold-subtitle"),
-                        "Run pairwise least action path analyses among given cell types",
+                        div("Run pairwise least action path analyses among given cell types", class_="explanation"),
                         ui.input_action_button(
                             "activate_lap", "Run LAP analyses", class_="btn-primary"
                         ),
@@ -75,7 +75,7 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                     x.ui.accordion_panel(
                         div("Prepare TFs", class_="bold-subtitle"),
-                        "Load the transcription factors data",
+                        div("Load the transcription factors data", class_="explanation"),
                         ui.input_action_button(
                             "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
                         ),
@@ -95,7 +95,10 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                     x.ui.accordion_panel(
                         div("Pairwise cell fate heatmap", class_="bold-subtitle"),
-                        "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                        div(
+                            "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                            class_="explanation"
+                        ),
                         ui.input_action_button(
                             "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap", class_="btn-primary"
                         ),
@@ -103,7 +106,10 @@ def lap_web_app(input_adata, tfs_data):
                     ),
                     x.ui.accordion_panel(
                         div("LAP Kinetic Heatmap", class_="bold-subtitle"),
-                        " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
+                        div(
+                            " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
+                            class_="explanation"
+                        ),
                         ui.input_text("lap_init_cells", "Init cells: ", placeholder="e.g. GGGGGGCGGCCT-JL_10"),
                         ui.input_text("lap_end_cells", "End cells: ", placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
                         ui.input_text("lap_basis", "Basis: ", value="pca"),
@@ -131,8 +137,16 @@ def lap_web_app(input_adata, tfs_data):
                     x.ui.accordion_panel(
                         div("Priority Scores of TFs", class_="bold-subtitle"),
                         ui.input_text("reprog_mat_main_key", "Main Key: ", placeholder="e.g. HSC->Meg"),
-                        "The 'genes' information will be extracted from transition_graph[Transition Key][Genes Key]. "
-                        "The 'rank' information will be extracted from transition_graph[Transition Key][Rank Key]",
+                        div(
+                            "The 'genes' information will be extracted from "
+                            "transition_graph[Transition Key][Genes Key]. ",
+                            class_="explanation",
+                        ),
+                        div(
+                            "The 'rank' information will be extracted from "
+                            "transition_graph[Transition Key][Rank Key]",
+                            class_="explanation",
+                        ),
                         ui.input_text("reprog_mat_transition_key", "Transition Key: ", placeholder="e.g. HSC->Meg"),
                         ui.input_text("reprog_mat_genes_key", "Genes Key: ", value="TFs"),
                         ui.input_text("reprog_mat_rank_key", "Rank Key: ", value="TFs_rank"),
