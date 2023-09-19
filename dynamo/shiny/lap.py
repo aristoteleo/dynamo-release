@@ -4,10 +4,11 @@ import pandas as pd
 import random
 import seaborn as sns
 import shiny.experimental as x
+from anndata import AnnData
 from htmltools import TagList, div
 from functools import reduce
 from pathlib import Path
-from shiny import App, reactive, render, ui
+from shiny import App, Inputs, Outputs, reactive, Session, render, ui
 from sklearn.metrics import roc_curve, auc
 
 from .utils import filter_fig
@@ -22,7 +23,15 @@ from ..vectorfield import rank_genes
 css_path = Path(__file__).parent / "styles.css"
 
 
-def lap_web_app(input_adata, tfs_data):
+def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
+    """The shiny web application of most probable path predictions analyses. The process is equivalent to this tutorial:
+    https://dynamo-release.readthedocs.io/en/latest/notebooks/lap_tutorial/lap_tutorial.html
+
+    Args:
+        input_adata: the processed anndata object to perform LAP analyses.
+        tfs_data: the transcription factors information saved in a txt or csv file. The names of TFs should be saved in
+            the `["Symbol"]` column. An example can be found in the `sample_data.py`.
+    """
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
             ui.include_css(css_path),
@@ -220,7 +229,7 @@ def lap_web_app(input_adata, tfs_data):
         ),
     )
 
-    def server(input, output, session):
+    def server(input: Inputs, output: Outputs, session: Session):
         adata = input_adata.copy()
         tfs_names = list(tfs_data["Symbol"])
         cells = reactive.Value[list[np.ndarray]]()

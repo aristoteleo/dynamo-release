@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import shiny.experimental as x
+from anndata import AnnData
 from htmltools import div
 from pathlib import Path
-from shiny import App, reactive, render, ui
+from shiny import App, Inputs, Outputs, reactive, Session, render, ui
 
 from .utils import filter_fig
 from ..plot import streamline_plot
@@ -12,7 +13,13 @@ from ..prediction import perturbation
 css_path = Path(__file__).parent / "styles.css"
 
 
-def perturbation_web_app(input_adata):
+def perturbation_web_app(input_adata: AnnData):
+    """The Shiny web application of the in silico perturbation. The process is equivalent to this tutorial:
+    https://dynamo-release.readthedocs.io/en/latest/notebooks/perturbation_tutorial/perturbation_tutorial.html
+
+    Args:
+        input_adata: the processed anndata object to perform in silico perturbation.
+    """
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
             ui.include_css(css_path),
@@ -50,7 +57,7 @@ def perturbation_web_app(input_adata):
         ),
     )
 
-    def server(input, output, session):
+    def server(input: Inputs, output: Outputs, session: Session):
         adata = input_adata.copy()
 
         @reactive.Effect
