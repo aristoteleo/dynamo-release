@@ -59,6 +59,214 @@ def _get_adata_color_vec(adata, layer, col):
     return np.array(_color).flatten()
 
 
+def calculate_colors(
+    points,
+    ax=None,
+    labels=None,
+    values=None,
+    highlights=None,
+    cmap="Blues",
+    color_key=None,
+    color_key_cmap="Spectral",
+    background="white",
+    width=7,
+    height=5,
+    vmin=2,
+    vmax=98,
+    sort="raw",
+    sym_c=False,
+    projection=None,  # default in matplotlib
+    **kwargs,
+):
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
+
+    dpi = plt.rcParams["figure.dpi"]
+    width, height = width * dpi, height * dpi
+    rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
+    # """Use matplotlib to plot points"""
+    # point_size = 500.0 / np.sqrt(points.shape[0])
+
+    legend_elements = None
+
+    if ax is None:
+        dpi = plt.rcParams["figure.dpi"]
+        fig = plt.figure(figsize=(width / dpi, height / dpi))
+        ax = fig.add_subplot(111, projection=projection)
+
+    ax.set_facecolor(background)
+
+    # Color by labels
+    if labels is not None:
+        main_debug("labels are not None, drawing by labels")
+        color_type = "labels"
+
+        if labels.shape[0] != points.shape[0]:
+            raise ValueError(
+                "Labels must have a label for "
+                "each sample (size mismatch: {} {})".format(labels.shape[0], points.shape[0])
+            )
+        if color_key is None:
+            main_debug("color_key is None")
+            cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
+            cmap.set_bad("lightgray")
+            colors = None
+
+            if highlights is None:
+                unique_labels = np.unique(labels)
+                num_labels = unique_labels.shape[0]
+                color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+            else:
+                if type(highlights) is str:
+                    highlights = [highlights]
+                highlights.append("other")
+                unique_labels = np.array(highlights)
+                num_labels = unique_labels.shape[0]
+                color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
+                color_key[-1] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
+
+                labels[[i not in highlights[:-1] for i in labels]] = "other"
+                points = pd.DataFrame(points)
+                points["label"] = pd.Categorical(labels)
+
+                # reorder data so that highlighting points will be on top of background points
+                highlight_ids, background_ids = (
+                    points["label"] != "other",
+                    points["label"] == "other",
+                )
+                # reorder_data = points.copy(deep=True)
+                # (
+                #     reorder_data.loc[:(sum(background_ids) - 1), :],
+                #     reorder_data.loc[sum(background_ids):, :],
+                # ) = (points.loc[background_ids, :].values, points.loc[highlight_ids, :].values)
+                points = pd.concat(
+                    (
+                        points.loc[background_ids, :],
+                        points.loc[highlight_ids, :],
+                    )
+                ).values
+                labels = points[:, 2]
+
+        # WARNING: do not change the following line to "elif" during refactor
+        # This if-else branch is not logically parallel to the previous one. The following branch sets `colors`.
+        if isinstance(color_key, dict):
+            main_debug("color_key is a dict")
+            colors = pd.Series(labels).map(color_key).values
+            unique_labels = np.unique(labels)
+            legend_elements = [
+                # Patch(facecolor=color_key[k], label=k) for k in unique_labels
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color=color_key[k],
+                    label=k,
+                    linestyle="None",
+                )
+                for k in unique_labels
+            ]
+        else:
+            main_debug("color_key is not None and not a dict")
+            unique_labels = np.unique(labels)
+            if len(color_key) < unique_labels.shape[0]:
+                raise ValueError("Color key must have enough colors for the number of labels")
+
+            new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
+            legend_elements = [
+                # Patch(facecolor=color_key[i], label=k)
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color=color_key[i],
+                    label=k,
+                    linestyle="None",
+                )
+                for i, k in enumerate(unique_labels)
+            ]
+            colors = pd.Series(labels).map(new_color_key)
+
+    # Color by values
+    elif values is not None:
+        main_debug("drawing points by values")
+        color_type = "values"
+        cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
+        cmap_.set_bad("lightgray")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            matplotlib.cm.register_cmap(name=cmap_.name, cmap=cmap_, override_builtin=True)
+
+        if values.shape[0] != points.shape[0]:
+            raise ValueError(
+                "Values must have a value for "
+                "each sample (size mismatch: {} {})".format(values.shape[0], points.shape[0])
+            )
+        # reorder data so that high values points will be on top of background points
+        sorted_id = (
+            np.argsort(abs(values)) if sort == "abs" else np.argsort(-values) if sort == "neg" else np.argsort(values)
+        )
+        values, points = values[sorted_id], points[sorted_id, :]
+
+        # if there are very few cells have expression, set the vmin/vmax only based on positive values to
+        # get rid of outliers
+        if np.nanmin(values) == 0:
+            n_pos_cells = sum(values > 0)
+            if 0 < n_pos_cells / len(values) < 0.02:
+                vmin = 0 if n_pos_cells == 1 else np.percentile(values[values > 0], 2)
+                vmax = np.nanmax(values) if n_pos_cells == 1 else np.percentile(values[values > 0], 98)
+                if vmin + vmax in [1, 100]:
+                    vmin += 1e-12
+                    vmax += 1e-12
+
+        # if None: min/max from data
+        # if positive and sum up to 1, take fraction
+        # if positive and sum up to 100, take percentage
+        # otherwise take the data
+        _vmin = (
+            np.nanmin(values)
+            if vmin is None
+            else np.nanpercentile(values, vmin * 100)
+            if (vmin + vmax == 1 and 0 <= vmin < vmax)
+            else np.nanpercentile(values, vmin)
+            if (vmin + vmax == 100 and 0 <= vmin < vmax)
+            else vmin
+        )
+        _vmax = (
+            np.nanmax(values)
+            if vmax is None
+            else np.nanpercentile(values, vmax * 100)
+            if (vmin + vmax == 1 and 0 <= vmin < vmax)
+            else np.nanpercentile(values, vmax)
+            if (vmin + vmax == 100 and 0 <= vmin < vmax)
+            else vmax
+        )
+
+        if sym_c and _vmin < 0 and _vmax > 0:
+            bounds = np.nanmax([np.abs(_vmin), _vmax])
+            bounds = bounds * np.array([-1, 1])
+            _vmin, _vmax = bounds
+
+
+        if "norm" in kwargs:
+            norm = kwargs["norm"]
+        else:
+            norm = matplotlib.colors.Normalize(vmin=_vmin, vmax=_vmax)
+
+        mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+        mappable.set_array(values)
+
+        cmap = matplotlib.cm.get_cmap(cmap)
+        colors = cmap(values)
+    # No color (just pick the midpoint of the cmap)
+    else:
+        main_debug("drawing points without color passed in args, using midpoint of the cmap")
+        color_type = "midpoint"
+        colors = plt.get_cmap(cmap)(0.5)
+
+    return (colors, color_type, None) if color_type != "labels" else (colors, color_type, legend_elements)
+
+
 # ---------------------------------------------------------------------------------------------------
 # plotting utilities that borrowed from umap
 # link: https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py

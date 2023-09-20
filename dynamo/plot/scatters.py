@@ -31,6 +31,7 @@ from .utils import (
     _matplotlib_points,
     _select_font_color,
     arrowed_spines,
+    calculate_colors,
     deaxis_all,
     despline_all,
     is_cell_anno_column,
@@ -923,8 +924,10 @@ def scatters_pv(
     cmap: Optional[str] = None,
     theme: Optional[str] = None,
     background: Optional[str] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
     color_key_cmap: Optional[str] = None,
     use_smoothed: bool = True,
+    sym_c: bool = False,
     smooth: bool = False,
     save_show_or_return: Literal["save", "show", "return", "both", "all"] = "show",
     save_kwargs: Dict[str, Any] = {},
@@ -934,13 +937,6 @@ def scatters_pv(
         import pyvista as pv
     except ImportError:
         raise ImportError("Please install pyvista first.")
-
-    if background is None:
-        _background = rcParams.get("figure.facecolor")
-        _background = to_hex(_background) if type(_background) is tuple else _background
-        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
-    else:
-        _background = background
 
     if type(x) in [int, str]:
         x = [x]
@@ -979,7 +975,7 @@ def scatters_pv(
     pl = pv.Plotter()
 
     def _plot_basis_layer_pv(cur_b, cur_l):
-        nonlocal _background, adata, cmap, x, y, z, labels, values
+        nonlocal background, adata, cmap, x, y, z, labels, sym_c, values
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
@@ -1123,7 +1119,7 @@ def scatters_pv(
                 if is_not_continuous:
                     labels = np.asarray(_color) if is_categorical_dtype(_color) else _color
                     if theme is None:
-                        if _background in ["#ffffff", "black"]:
+                        if background in ["#ffffff", "black"]:
                             _theme_ = "glasbey_dark"
                         else:
                             _theme_ = "glasbey_white"
@@ -1132,7 +1128,7 @@ def scatters_pv(
                 else:
                     _values = _color
                     if theme is None:
-                        if _background in ["#ffffff", "black"]:
+                        if background in ["#ffffff", "black"]:
                             _theme_ = "inferno" if cur_l != "velocity" else "div_blue_black_red"
                         else:
                             _theme_ = "viridis" if not cur_l.startswith("velocity") else "div_blue_red"
@@ -1142,7 +1138,7 @@ def scatters_pv(
                 _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
 
                 _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
-                _background = _themes[_theme_]["background"] if _background is None else _background
+                background = _themes[_theme_]["background"] if background is None else background
 
                 if labels is not None and values is not None:
                     raise ValueError("Conflicting options; only one of labels or values should be set")
@@ -1156,9 +1152,20 @@ def scatters_pv(
                         else calc_1nd_moment(values, knn**smooth)[0]
                     )
 
+                colors, _, _ = calculate_colors(
+                    points,
+                    labels=labels,
+                    values=_values,
+                    cmap=_cmap,
+                    color_key=color_key,
+                    color_key_cmap=_color_key_cmap,
+                    background=background,
+                    sym_c=sym_c,
+                )
+
                 pvdataset = pv.PolyData(points.values)
-                pl.add_points(pvdataset.points, color='red')
-                # pl.show()
+                pl.add_points(pvdataset.points)
+
 
     for cur_b in basis:
         for cur_l in layer:
