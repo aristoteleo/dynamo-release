@@ -1164,7 +1164,8 @@ def scatters_pv(
                 )
 
                 pvdataset = pv.PolyData(points.values)
-                pl.add_points(pvdataset.points)
+                pvdataset.point_data["colors"] = np.stack(colors.values)
+                pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True)
 
 
     for cur_b in basis:
