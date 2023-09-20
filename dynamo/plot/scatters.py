@@ -13,9 +13,10 @@ import matplotlib.cm
 import numpy as np
 import pandas as pd
 from anndata import AnnData
-from matplotlib import patches
+from matplotlib import patches, rcParams
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
+from matplotlib.colors import rgb2hex, to_hex
 from pandas.api.types import is_categorical_dtype
 
 from ..configuration import _themes, reset_rcParams
@@ -264,8 +265,6 @@ def scatters(
     """
 
     import matplotlib.pyplot as plt
-    from matplotlib import rcParams
-    from matplotlib.colors import rgb2hex, to_hex
 
     # 2d is not a projection in matplotlib, default is None (rectilinear)
     if projection == "2d":
@@ -908,3 +907,269 @@ def scatters(
             return (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
         else:
             return axes_list if total_panels > 1 else ax
+
+
+def scatters_pv(
+    adata: AnnData,
+    basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    z: int = 2,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    cmap: Optional[str] = None,
+    theme: Optional[str] = None,
+    background: Optional[str] = None,
+    color_key_cmap: Optional[str] = None,
+    use_smoothed: bool = True,
+    smooth: bool = False,
+    save_show_or_return: Literal["save", "show", "return", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    **kwargs,
+):
+    try:
+        import pyvista as pv
+    except ImportError:
+        raise ImportError("Please install pyvista first.")
+
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
+        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
+    else:
+        _background = background
+
+    if type(x) in [int, str]:
+        x = [x]
+    if type(y) in [int, str]:
+        y = [y]
+    if type(z) in [int, str]:
+        z = [z]
+
+    # make x, y, z lists of list, where each list corresponds to one coordinate set
+    if (
+            type(x) in [anndata._core.views.ArrayView, np.ndarray]
+            and type(y) in [anndata._core.views.ArrayView, np.ndarray]
+            and type(z) in [anndata._core.views.ArrayView, np.ndarray]
+            and len(x) == adata.n_obs
+            and len(y) == adata.n_obs
+            and len(z) == adata.n_obs
+    ):
+        x, y, z = [x], [y], [z]
+
+    elif hasattr(x, "__len__") and hasattr(y, "__len__") and hasattr(z, "__len__"):
+        x, y, z = list(x), list(y), list(z)
+
+    assert len(x) == len(y) and len(x) == len(z), "bug: x, y, z does not have the same shape."
+
+    if use_smoothed:
+        mapper = get_mapper()
+
+    # check color, layer, basis -> convert to list
+    if type(color) is str:
+        color = [color]
+    if type(layer) is str:
+        layer = [layer]
+    if type(basis) is str:
+        basis = [basis]
+
+    pl = pv.Plotter()
+
+    def _plot_basis_layer_pv(cur_b, cur_l):
+        nonlocal _background, adata, cmap, x, y, z, labels, values
+
+        if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
+            cur_l_smoothed = cur_l
+            cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in the future
+        else:
+            if use_smoothed:
+                cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
+                if cur_l.startswith("velocity"):
+                    cmap, sym_c = "bwr", True
+
+        if cur_l + "_" + cur_b in adata.obsm.keys():
+            prefix = cur_l + "_"
+        elif ("X_" + cur_b) in adata.obsm.keys():
+            prefix = "X_"
+        elif cur_b in adata.obsm.keys():
+            # special case for spatial for compatibility with other packages
+            prefix = ""
+        else:
+            raise ValueError("Please check if basis=%s exists in adata.obsm" % basis)
+
+        basis_key = prefix + cur_b
+        main_info("plotting with basis key=%s" % basis_key, indent_level=2)
+
+        for cur_c in color:
+            main_debug("coloring scatter of cur_c: %s" % str(cur_c))
+            cur_title = cur_c
+
+            _color = _get_adata_color_vec(adata, cur_l, cur_c)
+
+            # select data rows based on stack color thresholding
+            is_numeric_color = np.issubdtype(_color.dtype, np.number)
+            if not is_numeric_color:
+                main_info(
+                    "skip filtering %s by stack threshold when stacking color because it is not a numeric type"
+                    % (cur_c),
+                    indent_level=2,
+                )
+            _values = values
+            _adata = adata
+
+            for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
+                main_debug("handling coordinates, cur_x: %s, cur_y: %s, cur_z: %s" % (cur_x, cur_y, cur_z))
+                if type(cur_x) is int and type(cur_y) is int and type(cur_z):
+                    x_col_name = cur_b + "_0"
+                    y_col_name = cur_b + "_1"
+                    z_col_name = cur_b + "_2"
+
+                    points = pd.DataFrame(
+                        {
+                            x_col_name: _adata.obsm[basis_key][:, cur_x],
+                            y_col_name: _adata.obsm[basis_key][:, cur_y],
+                            z_col_name: _adata.obsm[basis_key][:, cur_z],
+                        }
+                    )
+                    points.columns = [x_col_name, y_col_name, z_col_name]
+
+                elif is_gene_name(_adata, cur_x) and is_gene_name(_adata, cur_y) and is_gene_name(_adata, cur_z):
+                    points = pd.DataFrame(
+                        {
+                            cur_x: _adata.obs_vector(k=cur_x, layer=None)
+                            if cur_l_smoothed == "X"
+                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            cur_y: _adata.obs_vector(k=cur_y, layer=None)
+                            if cur_l_smoothed == "X"
+                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            cur_z: _adata.obs_vector(k=cur_z, layer=None)
+                            if cur_l_smoothed == "X"
+                            else _adata.obs_vector(k=cur_z, layer=cur_l_smoothed),
+                        }
+                    )
+                    # points = points.loc[(points > 0).sum(1) > 1, :]
+                    points.columns = [
+                        cur_x + " (" + cur_l_smoothed + ")",
+                        cur_y + " (" + cur_l_smoothed + ")",
+                        cur_z + " (" + cur_l_smoothed + ")",
+                    ]
+                    cur_title = cur_x + " VS " + cur_y + " VS " + cur_z
+                elif is_cell_anno_column(_adata, cur_x) and is_cell_anno_column(_adata, cur_y) and is_cell_anno_column(_adata, cur_z):
+                    points = pd.DataFrame(
+                        {
+                            cur_x: _adata.obs_vector(cur_x),
+                            cur_y: _adata.obs_vector(cur_y),
+                            cur_z: _adata.obs_vector(cur_z),
+                        }
+                    )
+                    points.columns = [cur_x, cur_y, cur_z]
+                    cur_title = cur_x + " VS " + cur_y + " VS " + cur_z
+                elif is_cell_anno_column(_adata, cur_x) and is_gene_name(_adata, cur_y):
+                    points = pd.DataFrame(
+                        {
+                            cur_x: _adata.obs_vector(cur_x),
+                            cur_y: _adata.obs_vector(k=cur_y, layer=None)
+                            if cur_l_smoothed == "X"
+                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                        }
+                    )
+                    # points = points.loc[points.iloc[:, 1] > 0, :]
+                    points.columns = [
+                        cur_x,
+                        cur_y + " (" + cur_l_smoothed + ")",
+                    ]
+                    cur_title = cur_y
+                elif is_gene_name(_adata, cur_x) and is_cell_anno_column(_adata, cur_y):
+                    points = pd.DataFrame(
+                        {
+                            cur_x: _adata.obs_vector(k=cur_x, layer=None)
+                            if cur_l_smoothed == "X"
+                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            cur_y: _adata.obs_vector(cur_y),
+                        }
+                    )
+                    # points = points.loc[points.iloc[:, 0] > 0, :]
+                    points.columns = [
+                        cur_x + " (" + cur_l_smoothed + ")",
+                        cur_y,
+                    ]
+                    cur_title = cur_x
+                elif is_layer_keys(_adata, cur_x) and is_layer_keys(_adata, cur_y):
+                    cur_x_, cur_y_ = (
+                        _adata[:, cur_b].layers[cur_x],
+                        _adata[:, cur_b].layers[cur_y],
+                    )
+                    points = pd.DataFrame({cur_x: flatten(cur_x_), cur_y: flatten(cur_y_)})
+                    # points = points.loc[points.iloc[:, 0] > 0, :]
+                    points.columns = [cur_x, cur_y]
+                    cur_title = cur_b
+                elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and type(cur_y) in [
+                    anndata._core.views.ArrayView,
+                    np.ndarray,
+                ]:
+                    points = pd.DataFrame({"x": flatten(cur_x), "y": flatten(cur_y)})
+                    points.columns = ["x", "y"]
+                    cur_title = cur_b
+                else:
+                    raise ValueError("Make sure your `x` and `y` are integers, gene names, column names in .obs, etc.")
+
+                # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
+                # answer from Boris.
+                is_not_continuous = not isinstance(_color[0], Number) or _color.dtype.name == "category"
+
+                if is_not_continuous:
+                    labels = np.asarray(_color) if is_categorical_dtype(_color) else _color
+                    if theme is None:
+                        if _background in ["#ffffff", "black"]:
+                            _theme_ = "glasbey_dark"
+                        else:
+                            _theme_ = "glasbey_white"
+                    else:
+                        _theme_ = theme
+                else:
+                    _values = _color
+                    if theme is None:
+                        if _background in ["#ffffff", "black"]:
+                            _theme_ = "inferno" if cur_l != "velocity" else "div_blue_black_red"
+                        else:
+                            _theme_ = "viridis" if not cur_l.startswith("velocity") else "div_blue_red"
+                    else:
+                        _theme_ = theme
+
+                _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
+
+                _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
+                _background = _themes[_theme_]["background"] if _background is None else _background
+
+                if labels is not None and values is not None:
+                    raise ValueError("Conflicting options; only one of labels or values should be set")
+
+                if smooth and not is_not_continuous:
+                    main_debug("smooth and not continuous")
+                    knn = _adata.obsp["moments_con"]
+                    values = (
+                        calc_1nd_moment(values, knn)[0]
+                        if smooth in [1, True]
+                        else calc_1nd_moment(values, knn**smooth)[0]
+                    )
+
+                pvdataset = pv.PolyData(points.values)
+                pl.add_points(pvdataset.points, color='red')
+                # pl.show()
+
+    for cur_b in basis:
+        for cur_l in layer:
+            main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
+            main_debug("colors: %s" % (str(color)))
+            _plot_basis_layer_pv(cur_b, cur_l)
+
+    main_debug("show, return or save...")
+    if save_show_or_return in ["save", "both", "all"]:
+        pl.save_graphic(**save_kwargs)
+    if save_show_or_return in ["show", "both", "all"]:
+        pl.show()
+    if save_show_or_return in ["return", "all"]:
+        return pl
