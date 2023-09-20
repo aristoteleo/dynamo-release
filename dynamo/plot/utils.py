@@ -1640,6 +1640,48 @@ def save_fig(
         print("Done")
 
 
+def retrieve_plot_save_path(
+    path: Optional[str] = None,
+    prefix: Optional[str] = None,
+    ext: str = "pdf",
+) -> str:
+    """Retrieve the path to save dynamo plots.
+
+    Args:
+        path: the path (and filename, without the extension) to save_fig the figure to. Defaults to None.
+        prefix: the prefix added to the figure name. This will be automatically set accordingly to the plotting function
+            used. Defaults to None.
+        ext: the file extension. This must be supported by the active matplotlib or pyvista backend. Most backends
+            support 'png', 'pdf', 'ps', 'eps', and 'svg'. Defaults to "pdf".
+    Returns:
+        The saving path.
+    """
+    prefix = os.path.normpath(prefix)
+    if path is None:
+        path = os.getcwd() + "/"
+
+    # Extract the directory and filename from the given path
+    directory = os.path.split(path)[0]
+    filename = os.path.split(path)[1]
+    if directory == "":
+        directory = "."
+    if filename == "":
+        filename = "dyn_savefig"
+
+    # If the directory does not exist, create it
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # The final path to save_fig to
+    savepath = (
+        os.path.join(directory, filename + "." + ext)
+        if prefix is None
+        else os.path.join(directory, prefix + "_" + filename + "." + ext)
+    )
+
+    return savepath
+
+
 # ---------------------------------------------------------------------------------------------------
 def alpha_shape(x, y, alpha):
     # Start Using SHAPELY
