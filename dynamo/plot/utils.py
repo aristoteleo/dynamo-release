@@ -593,10 +593,12 @@ def _matplotlib_points(
             for i in unique_labels:
                 if i == "other":
                     continue
-                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype("float"), 0)
+                if projection == "3d":
+                    color_cnt = np.nanmedian(points[np.where(labels == i)[0], :3].astype("float"), 0)
+                else:
+                    color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype("float"), 0)
                 txt = ax.text(
-                    color_cnt[0],
-                    color_cnt[1],
+                    *color_cnt,
                     str(i),
                     color=_select_font_color(font_color),
                     zorder=1000,
