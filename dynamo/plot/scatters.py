@@ -1151,6 +1151,12 @@ def scatters_pv(
                 pvdataset.point_data["colors"] = np.stack(colors.values)
                 pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True)
 
+                type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(labels, colors.values)}
+                type_color_pair = [[k, v] for k, v in type_color_dict.items()]
+                pl.add_legend(labels=type_color_pair)
+
+                pl.add_text(cur_title)
+                pl.add_axes(xlabel=points.columns[0], ylabel=points.columns[1], zlabel=points.columns[2])
 
     for cur_b in basis:
         for cur_l in layer:
