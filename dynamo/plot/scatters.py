@@ -917,6 +917,7 @@ def map_to_points(
     axis_y: str,
     axis_z: str,
     basis_key: str,
+    cur_c: str,
     cur_b: str,
     cur_l_smoothed: str,
 ) -> Tuple[pd.DataFrame, str]:
@@ -928,6 +929,7 @@ def map_to_points(
         axis_y: the column index of the low dimensional embedding for the y-axis in current space.
         axis_z: the column index of the low dimensional embedding for the z-axis in current space.
         basis_key: the basis key constructed by current basis and layer.
+        cur_c: the current key to color the data.
         cur_b: the current basis key representing the reduced dimension.
         cur_l_smoothed: the smoothed layer of data to use.
 
@@ -979,6 +981,10 @@ def map_to_points(
             }
         )
         points.columns = [x_col_name, y_col_name, z_col_name]
+
+        cur_title = cur_c
+
+        return points, cur_title
     elif type(axis_x) in [anndata._core.views.ArrayView, np.ndarray] and type(axis_y) in [
             anndata._core.views.ArrayView,
             np.ndarray,
@@ -1185,7 +1191,6 @@ def scatters_pv(
 
         for cur_c in color:
             main_debug("coloring scatter of cur_c: %s" % str(cur_c))
-            cur_title = cur_c
 
             _color = _get_adata_color_vec(adata, cur_l, cur_c)
 
@@ -1209,6 +1214,7 @@ def scatters_pv(
                     axis_y=cur_y,
                     axis_z=cur_z,
                     basis_key=basis_key,
+                    cur_c=cur_c,
                     cur_b=cur_b,
                     cur_l_smoothed=cur_l_smoothed,
                 )
