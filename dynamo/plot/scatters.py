@@ -911,12 +911,78 @@ def scatters(
             return axes_list if total_panels > 1 else ax
 
 
+def map_to_points(_adata: AnnData, axis_x: str, axis_y: str, axis_z: str, basis_key: str, cur_b: str, cur_l_smoothed: str):
+
+    gene_title = []
+    anno_title = []
+
+    def _map_cur_axis(cur):
+        nonlocal gene_title, anno_title
+
+        if is_gene_name(_adata, cur):
+            points_df_data = (_adata.obs_vector(k=cur, layer=None)
+                              if cur_l_smoothed == "X"
+                              else _adata.obs_vector(k=cur, layer=cur_l_smoothed))
+            points_column = cur + " (" + cur_l_smoothed + ")"
+            gene_title.append(cur)
+        elif is_cell_anno_column(_adata, cur):
+            points_df_data = _adata.obs_vector(cur)
+            points_column = cur
+            anno_title.append(cur)
+        elif is_layer_keys(_adata, cur):
+            points_df_data = _adata[:, cur_b].layers[cur]
+            points_column = flatten(points_df_data)
+        else:
+            raise ValueError("Make sure your `x`, `y` and `z` are integers, gene names, column names in .obs, etc.")
+
+        return points_df_data, points_column
+
+    if type(axis_x) is int and type(axis_y) is int and type(axis_z):
+        x_col_name = cur_b + "_0"
+        y_col_name = cur_b + "_1"
+        z_col_name = cur_b + "_2"
+
+        points = pd.DataFrame(
+            {
+                x_col_name: _adata.obsm[basis_key][:, axis_x],
+                y_col_name: _adata.obsm[basis_key][:, axis_y],
+                z_col_name: _adata.obsm[basis_key][:, axis_z],
+            }
+        )
+        points.columns = [x_col_name, y_col_name, z_col_name]
+    elif type(axis_x) in [anndata._core.views.ArrayView, np.ndarray] and type(axis_y) in [
+            anndata._core.views.ArrayView,
+            np.ndarray,
+        ]:
+        points = pd.DataFrame({"x": flatten(axis_x), "y": flatten(axis_y), "x": flatten(axis_z)})
+        points.columns = ["x", "y", "z"]
+    else:
+        x_points_df_data, x_points_column = _map_cur_axis(axis_x)
+        y_points_df_data, y_points_column = _map_cur_axis(axis_y)
+        z_points_df_data, z_points_column = _map_cur_axis(axis_z)
+        points = pd.DataFrame({
+            axis_x: x_points_df_data,
+            axis_y: y_points_df_data,
+            axis_z: z_points_df_data,
+        })
+        points.columns = [x_points_column, y_points_column, z_points_column]
+
+    if len(gene_title) != 0:
+        cur_title = " VS ".join(gene_title)
+    elif len(anno_title) == 3:
+        cur_title = " VS ".join(anno_title)
+    else:
+        cur_title = cur_b
+
+    return points, cur_title
+
+
 def scatters_pv(
     adata: AnnData,
     basis: str = "umap",
-    x: int = 0,
-    y: int = 1,
-    z: int = 2,
+    x: Union[int, str] = 0,
+    y: Union[int, str] = 1,
+    z: Union[int, str] = 2,
     color: str = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
@@ -1019,99 +1085,16 @@ def scatters_pv(
 
             for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
                 main_debug("handling coordinates, cur_x: %s, cur_y: %s, cur_z: %s" % (cur_x, cur_y, cur_z))
-                if type(cur_x) is int and type(cur_y) is int and type(cur_z):
-                    x_col_name = cur_b + "_0"
-                    y_col_name = cur_b + "_1"
-                    z_col_name = cur_b + "_2"
 
-                    points = pd.DataFrame(
-                        {
-                            x_col_name: _adata.obsm[basis_key][:, cur_x],
-                            y_col_name: _adata.obsm[basis_key][:, cur_y],
-                            z_col_name: _adata.obsm[basis_key][:, cur_z],
-                        }
-                    )
-                    points.columns = [x_col_name, y_col_name, z_col_name]
-
-                elif is_gene_name(_adata, cur_x) and is_gene_name(_adata, cur_y) and is_gene_name(_adata, cur_z):
-                    points = pd.DataFrame(
-                        {
-                            cur_x: _adata.obs_vector(k=cur_x, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                            cur_y: _adata.obs_vector(k=cur_y, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
-                            cur_z: _adata.obs_vector(k=cur_z, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_z, layer=cur_l_smoothed),
-                        }
-                    )
-                    # points = points.loc[(points > 0).sum(1) > 1, :]
-                    points.columns = [
-                        cur_x + " (" + cur_l_smoothed + ")",
-                        cur_y + " (" + cur_l_smoothed + ")",
-                        cur_z + " (" + cur_l_smoothed + ")",
-                    ]
-                    cur_title = cur_x + " VS " + cur_y + " VS " + cur_z
-                elif is_cell_anno_column(_adata, cur_x) and is_cell_anno_column(_adata, cur_y) and is_cell_anno_column(_adata, cur_z):
-                    points = pd.DataFrame(
-                        {
-                            cur_x: _adata.obs_vector(cur_x),
-                            cur_y: _adata.obs_vector(cur_y),
-                            cur_z: _adata.obs_vector(cur_z),
-                        }
-                    )
-                    points.columns = [cur_x, cur_y, cur_z]
-                    cur_title = cur_x + " VS " + cur_y + " VS " + cur_z
-                elif is_cell_anno_column(_adata, cur_x) and is_gene_name(_adata, cur_y):
-                    points = pd.DataFrame(
-                        {
-                            cur_x: _adata.obs_vector(cur_x),
-                            cur_y: _adata.obs_vector(k=cur_y, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
-                        }
-                    )
-                    # points = points.loc[points.iloc[:, 1] > 0, :]
-                    points.columns = [
-                        cur_x,
-                        cur_y + " (" + cur_l_smoothed + ")",
-                    ]
-                    cur_title = cur_y
-                elif is_gene_name(_adata, cur_x) and is_cell_anno_column(_adata, cur_y):
-                    points = pd.DataFrame(
-                        {
-                            cur_x: _adata.obs_vector(k=cur_x, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                            cur_y: _adata.obs_vector(cur_y),
-                        }
-                    )
-                    # points = points.loc[points.iloc[:, 0] > 0, :]
-                    points.columns = [
-                        cur_x + " (" + cur_l_smoothed + ")",
-                        cur_y,
-                    ]
-                    cur_title = cur_x
-                elif is_layer_keys(_adata, cur_x) and is_layer_keys(_adata, cur_y):
-                    cur_x_, cur_y_ = (
-                        _adata[:, cur_b].layers[cur_x],
-                        _adata[:, cur_b].layers[cur_y],
-                    )
-                    points = pd.DataFrame({cur_x: flatten(cur_x_), cur_y: flatten(cur_y_)})
-                    # points = points.loc[points.iloc[:, 0] > 0, :]
-                    points.columns = [cur_x, cur_y]
-                    cur_title = cur_b
-                elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and type(cur_y) in [
-                    anndata._core.views.ArrayView,
-                    np.ndarray,
-                ]:
-                    points = pd.DataFrame({"x": flatten(cur_x), "y": flatten(cur_y)})
-                    points.columns = ["x", "y"]
-                    cur_title = cur_b
-                else:
-                    raise ValueError("Make sure your `x` and `y` are integers, gene names, column names in .obs, etc.")
+                points, cur_title = map_to_points(
+                    _adata,
+                    axis_x=cur_x,
+                    axis_y=cur_y,
+                    axis_z=cur_z,
+                    basis_key=basis_key,
+                    cur_b=cur_b,
+                    cur_l_smoothed=cur_l_smoothed,
+                )
 
                 # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
                 # answer from Boris.
