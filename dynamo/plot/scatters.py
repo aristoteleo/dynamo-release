@@ -911,12 +911,41 @@ def scatters(
             return axes_list if total_panels > 1 else ax
 
 
-def map_to_points(_adata: AnnData, axis_x: str, axis_y: str, axis_z: str, basis_key: str, cur_b: str, cur_l_smoothed: str):
+def map_to_points(
+    _adata: AnnData,
+    axis_x: str,
+    axis_y: str,
+    axis_z: str,
+    basis_key: str,
+    cur_b: str,
+    cur_l_smoothed: str,
+) -> Tuple[pd.DataFrame, str]:
+    """A helper function to map the given axis to corresponding coordinates in current embedding space.
 
+    Args:
+        _adata: an AnnData object.
+        axis_x: the column index of the low dimensional embedding for the x-axis in current space.
+        axis_y: the column index of the low dimensional embedding for the y-axis in current space.
+        axis_z: the column index of the low dimensional embedding for the z-axis in current space.
+        basis_key: the basis key constructed by current basis and layer.
+        cur_b: the current basis key representing the reduced dimension.
+        cur_l_smoothed: the smoothed layer of data to use.
+
+    Returns:
+        The 3D DataFrame with coordinates of each sample and the title of the plot.
+    """
     gene_title = []
     anno_title = []
 
-    def _map_cur_axis(cur):
+    def _map_cur_axis(cur: str) -> Tuple[np.ndarray, str]:
+        """A helper function to map an axis.
+
+        Args:
+            cur: the current axis to map.
+
+        Returns:
+            The coordinates and the column names.
+        """
         nonlocal gene_title, anno_title
 
         if is_gene_name(_adata, cur):
@@ -1000,6 +1029,67 @@ def scatters_pv(
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
 ):
+    """Plot an embedding as points with Pyvista. Currently only 3D input is supported. For 2D data, `scatters` is a
+    better alternative.
+
+    The function will use the colors from matplotlib to keep consistence with other plotting functions.
+
+    Args:
+        adata: an AnnData object.
+        basis: the reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following
+            priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters`
+            is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`.
+            Defaults to "umap".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        z: the column index of the low dimensional embedding for the z-axis. Defaults to 2.
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        layer: the layer of data to use for the scatter plot. Defaults to "X".
+        highlights: the color group that will be highlighted. If highlights is a list of lists, each list is relate to
+            each color element. Defaults to None.
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
+            for plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative
+            values. Defaults to False.
+        smooth: whether do you want to further smooth data and how much smoothing do you want. If it is `False`, no
+            smoothing will be applied. If `True`, smoothing based on one-step diffusion of connectivity matrix
+            (`.uns['moment_cnn']`) will be applied. If a number larger than 1, smoothing will be based on `smooth` steps
+            of diffusion.
+        save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
+            the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
+            be return. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the saving function. By default, it is an empty dictionary
+            and the saving function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "title": PyVista Export, "raster": True, "painter": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **kwargs: any other kwargs that would be passed to `Plotter.add_points()`.
+    """
     try:
         import pyvista as pv
     except ImportError:
@@ -1041,7 +1131,13 @@ def scatters_pv(
 
     pl = pv.Plotter()
 
-    def _plot_basis_layer_pv(cur_b, cur_l):
+    def _plot_basis_layer_pv(cur_b: str, cur_l: str) -> None:
+        """A helper function for plotting a specific basis/layer data
+
+        Args:
+            cur_b: current basis
+            cur_l: current layer
+        """
         nonlocal background, adata, cmap, x, y, z, labels, sym_c, values
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
@@ -1149,7 +1245,7 @@ def scatters_pv(
 
                 pvdataset = pv.PolyData(points.values)
                 pvdataset.point_data["colors"] = np.stack(colors.values)
-                pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True)
+                pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, **kwargs)
 
                 type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(labels, colors.values)}
                 type_color_pair = [[k, v] for k, v in type_color_dict.items()]
