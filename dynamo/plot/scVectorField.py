@@ -323,7 +323,7 @@ def cell_wise_vectors_3d(
     ncols = min(ncols, len(color))
 
     if plot_method == "pv":
-        pl = scatters_pv(
+        pl, colors_list = scatters_pv(
             adata=adata,
             basis=basis,
             x=x,
@@ -345,12 +345,13 @@ def cell_wise_vectors_3d(
         )
         point_cloud = pv.PolyData(np.column_stack((x0.values, x1.values, x2.values)))
         point_cloud['vectors'] = np.column_stack((v0.values, v1.values, v2.values))
+        point_cloud.point_data["colors"] = np.stack(colors_list[0].values)
 
         arrows = point_cloud.glyph(
             orient='vectors',
             factor=3.5,
         )
-        pl.add_mesh(arrows, color='lightblue')
+        pl.add_mesh(arrows, scalars="colors", preference='point', rgb=True)
 
         main_debug("show, return or save...")
         if save_show_or_return in ["save", "both", "all"]:

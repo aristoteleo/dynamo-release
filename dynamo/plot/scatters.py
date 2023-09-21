@@ -1152,6 +1152,7 @@ def scatters_pv(
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     subplot_indices = [[i, j] for i in range(nrow) for j in range(ncol)]
     cur_subplot = 0
+    colors_list = []
 
     if total_panels == 1:
         pl = pv.Plotter()
@@ -1269,6 +1270,7 @@ def scatters_pv(
                     background=background,
                     sym_c=sym_c,
                 )
+                colors_list.append(colors)
 
                 if total_panels > 1:
                     pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
@@ -1312,4 +1314,4 @@ def scatters_pv(
         pl.show()
 
     if save_show_or_return in ["return", "all"]:
-        return pl
+        return pl, colors_list
