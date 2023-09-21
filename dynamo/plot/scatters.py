@@ -1276,7 +1276,6 @@ def scatters_pv(
                     background=background,
                     sym_c=sym_c,
                 )
-                colors_list.append(colors)
 
                 if total_panels > 1:
                     pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])

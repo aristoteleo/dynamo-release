@@ -343,15 +343,27 @@ def cell_wise_vectors_3d(
             save_show_or_return="return",
             render_points_as_spheres=True,
         )
+
         point_cloud = pv.PolyData(np.column_stack((x0.values, x1.values, x2.values)))
         point_cloud['vectors'] = np.column_stack((v0.values, v1.values, v2.values))
-        point_cloud.point_data["colors"] = np.stack(colors_list[0].values)
 
-        arrows = point_cloud.glyph(
-            orient='vectors',
-            factor=3.5,
-        )
-        pl.add_mesh(arrows, scalars="colors", preference='point', rgb=True)
+        r, c = pl.shape[0], pl.shape[1]
+        subplot_indices = [[i, j] for i in range(r) for j in range(c)]
+        cur_subplot = 0
+
+        for i in range(len(color)):
+            point_cloud.point_data["colors"] = np.stack(colors_list[i])
+
+            arrows = point_cloud.glyph(
+                orient='vectors',
+                factor=3.5,
+            )
+
+            if r * c != 1:
+                pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
+                cur_subplot += 1
+
+            pl.add_mesh(arrows, scalars="colors", preference='point', rgb=True)
 
         main_debug("show, return or save...")
         if save_show_or_return in ["save", "both", "all"]:
