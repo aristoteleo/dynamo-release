@@ -27,11 +27,12 @@ from ..tools.Markov import (
 from ..tools.utils import update_dict
 from ..vectorfield.topography import VectorField
 from ..vectorfield.utils import vecfld_from_adata
-from .scatters import docstrings, scatters
+from .scatters import docstrings, scatters, scatters_pv
 from .utils import (
     _get_adata_color_vec,
     default_quiver_args,
     quiver_autoscaler,
+    retrieve_plot_save_path,
     save_fig,
     set_arrow_alpha,
     set_stream_line_alpha,
@@ -61,6 +62,7 @@ def cell_wise_vectors_3d(
     V: Union[np.ndarray, spmatrix] = None,
     color: Union[str, List[str]] = None,
     layer: str = "X",
+    plot_method: str = "pv",
     background: Optional[str] = "white",
     ncols: int = 4,
     figsize: Tuple[float] = (6, 4),
@@ -211,6 +213,12 @@ def cell_wise_vectors_3d(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
+    if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+
     def add_axis_label(ax, labels):
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1])
@@ -314,83 +322,137 @@ def cell_wise_vectors_3d(
         nrows += 1
     ncols = min(ncols, len(color))
 
-    axes_list, color_list, _ = scatters(
-        adata=adata,
-        basis=basis,
-        x=x,
-        y=y,
-        z=z,
-        color=color,
-        layer=layer,
-        highlights=highlights,
-        labels=labels,
-        values=values,
-        theme=theme,
-        cmap=cmap,
-        color_key=color_key,
-        color_key_cmap=color_key_cmap,
-        background=background,
-        ncols=ncols,
-        pointsize=pointsize,
-        figsize=figsize,
-        show_legend=None,
-        use_smoothed=use_smoothed,
-        aggregate=aggregate,
-        show_arrowed_spines=show_arrowed_spines,
-        ax=ax,
-        sort=sort,
-        save_show_or_return="return",
-        frontier=frontier,
-        projection="3d",
-        **s_kwargs_dict,
-        return_all=True,
-    )
-
-    if type(axes_list) != list:
-        axes_list = [axes_list]
-        color_list = [color_list]
-
-    for i in range(len(color)):
-        ax = axes_list[i]
-        ax.set_title(color[i])
-        cmap_3d = [element for element in color_list[i]] + [element for element in color_list[i] for _ in range(2)]
-        main_debug("color vec len: " + str(len(cmap_3d)))
-        ax.view_init(elev=elev, azim=azim)
-        ax.quiver(
-            x0,
-            x1,
-            x2,
-            v0,
-            v1,
-            v2,
-            color=cmap_3d,
-            # facecolors=color_vec,
-            **quiver_3d_kwargs,
+    if plot_method == "pv":
+        pl = scatters_pv(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            highlights=highlights,
+            labels=labels,
+            values=values,
+            cmap=cmap,
+            theme=theme,
+            background=background,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            use_smoothed=use_smoothed,
+            save_show_or_return="return",
+            render_points_as_spheres=True,
         )
-        ax.set_title(titles[i])
-        ax.set_facecolor(background)
-        add_axis_label(ax, axis_labels)
+        point_cloud = pv.PolyData(np.column_stack((x0.values, x1.values, x2.values)))
+        point_cloud['vectors'] = np.column_stack((v0.values, v1.values, v2.values))
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "cell_wise_vectors_3d",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
+        arrows = point_cloud.glyph(
+            orient='vectors',
+            factor=3.5,
+        )
+        pl.add_mesh(arrows, color='lightblue')
 
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
+        main_debug("show, return or save...")
+        if save_show_or_return in ["save", "both", "all"]:
+            s_kwargs = {
+                "path": None,
+                "prefix": "scatters_pv",
+                "ext": "pdf",
+                "title": 'PyVista Export',
+                "raster": True,
+                "painter": True,
+            }
 
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return axes_list
+            s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+            saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
+            pl.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"],
+                            painter=s_kwargs["painter"])
+
+        if save_show_or_return in ["show", "both", "all"]:
+            pl.show()
+
+        if save_show_or_return in ["return", "all"]:
+            return pl
+
+    else:
+        axes_list, color_list, _ = scatters(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            highlights=highlights,
+            labels=labels,
+            values=values,
+            theme=theme,
+            cmap=cmap,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            background=background,
+            ncols=ncols,
+            pointsize=pointsize,
+            figsize=figsize,
+            show_legend=None,
+            use_smoothed=use_smoothed,
+            aggregate=aggregate,
+            show_arrowed_spines=show_arrowed_spines,
+            ax=ax,
+            sort=sort,
+            save_show_or_return="return",
+            frontier=frontier,
+            projection="3d",
+            **s_kwargs_dict,
+            return_all=True,
+        )
+
+        if type(axes_list) != list:
+            axes_list = [axes_list]
+            color_list = [color_list]
+
+        for i in range(len(color)):
+            ax = axes_list[i]
+            ax.set_title(color[i])
+            cmap_3d = [element for element in color_list[i]] + [element for element in color_list[i] for _ in range(2)]
+            main_debug("color vec len: " + str(len(cmap_3d)))
+            ax.view_init(elev=elev, azim=azim)
+            ax.quiver(
+                x0,
+                x1,
+                x2,
+                v0,
+                v1,
+                v2,
+                color=cmap_3d,
+                # facecolors=color_vec,
+                **quiver_3d_kwargs,
+            )
+            ax.set_title(titles[i])
+            ax.set_facecolor(background)
+            add_axis_label(ax, axis_labels)
+
+        if save_show_or_return in ["save", "both", "all"]:
+            s_kwargs = {
+                "path": None,
+                "prefix": "cell_wise_vectors_3d",
+                "dpi": None,
+                "ext": "pdf",
+                "transparent": True,
+                "close": True,
+                "verbose": True,
+            }
+            s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+            if save_show_or_return in ["both", "all"]:
+                s_kwargs["close"] = False
+
+            save_fig(**s_kwargs)
+        if save_show_or_return in ["show", "both", "all"]:
+            plt.show()
+        if save_show_or_return in ["return", "all"]:
+            return axes_list
 
 
 def grid_vectors_3d():
