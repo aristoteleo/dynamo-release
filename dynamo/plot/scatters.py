@@ -1129,7 +1129,28 @@ def scatters_pv(
     if type(basis) is str:
         basis = [basis]
 
-    pl = pv.Plotter()
+    n_c, n_l, n_b, n_x, n_y, n_z = (
+        1 if color is None else len(color),
+        1 if layer is None else len(layer),
+        1 if basis is None else len(basis),
+        1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x),
+        1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
+        1 if z is None else 1 if type(z) in [anndata._core.views.ArrayView, np.ndarray] else len(z),
+    )
+
+    total_panels, ncols = (
+        n_c * n_l * n_b * n_x * n_y * n_z,
+        max([n_c, n_l, n_b, n_x, n_y, n_z]),
+    )
+
+    nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
+    subplot_indices = [[i, j] for i in range(nrow) for j in range(ncol)]
+    cur_subplot = 0
+
+    if total_panels == 1:
+        pl = pv.Plotter()
+    else:
+        pl = pv.Plotter(shape=(nrow, ncol))
 
     def _plot_basis_layer_pv(cur_b: str, cur_l: str) -> None:
         """A helper function for plotting a specific basis/layer data
@@ -1138,7 +1159,7 @@ def scatters_pv(
             cur_b: current basis
             cur_l: current layer
         """
-        nonlocal background, adata, cmap, x, y, z, labels, sym_c, values
+        nonlocal background, adata, cmap, cur_subplot, x, y, z, labels, sym_c, values
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
@@ -1243,6 +1264,9 @@ def scatters_pv(
                     sym_c=sym_c,
                 )
 
+                if total_panels > 1:
+                    pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
+
                 pvdataset = pv.PolyData(points.values)
                 pvdataset.point_data["colors"] = np.stack(colors.values)
                 pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, **kwargs)
@@ -1253,6 +1277,8 @@ def scatters_pv(
 
                 pl.add_text(cur_title)
                 pl.add_axes(xlabel=points.columns[0], ylabel=points.columns[1], zlabel=points.columns[2])
+
+                cur_subplot += 1
 
     for cur_b in basis:
         for cur_l in layer:
