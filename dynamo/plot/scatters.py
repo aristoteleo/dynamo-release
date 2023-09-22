@@ -1288,7 +1288,7 @@ def scatters_pv(
                     type_color_pair = [[k, v] for k, v in type_color_dict.items()]
                     pl.add_legend(labels=type_color_pair)
                 else:
-                    pl.add_scalar_bar()
+                    pl.add_scalar_bar()  # TODO: fix the bug that scalar bar only works in the first plot
 
                 pl.add_text(cur_title)
                 pl.add_axes(xlabel=points.columns[0], ylabel=points.columns[1], zlabel=points.columns[2])

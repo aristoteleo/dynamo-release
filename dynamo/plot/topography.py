@@ -527,7 +527,7 @@ def plot_fixed_points(
             cmap=_cmap,
             vmin=0,
             zorder=5,
-        )
+        )  # TODO: Figure out the user warning that no data for colormapping provided via 'c'.
         txt = ax.text(
             *Xss[i],
             repr(i),
@@ -1361,6 +1361,7 @@ def topography(
         return axes_list if len(axes_list) > 1 else axes_list[0]
 
 
+# TODO: Implement more `terms` like streamline and trajectory for 3D topography
 @docstrings.with_indent(4)
 def topography_3D(
     adata: AnnData,
@@ -1498,16 +1499,6 @@ def topography_3D(
             warnings.simplefilter("ignore")
 
             VectorField(adata, fps_basis, map_topography=True, n=n)
-    # elif "VecFld2D" not in adata.uns[uns_key].keys():
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore")
-    #
-    #         _topology(adata, basis, VecFld=None)
-    # elif "VecFld2D" in adata.uns[uns_key].keys() and type(adata.uns[uns_key]["VecFld2D"]) == str:
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore")
-    #
-    #         _topology(adata, basis, VecFld=None)
 
     vecfld_dict, vecfld = vecfld_from_adata(adata, basis)
 
@@ -1636,42 +1627,6 @@ def topography_3D(
 
             t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
 
-        integration_direction = (
-            "both" if fate == "both" else "forward" if fate == "future" else "backward" if fate == "history" else "both"
-        )
-
-        if "streamline" in terms:
-            if approx:
-                axes_list[i] = plot_flow_field(
-                    vecfld,
-                    xlim,
-                    ylim,
-                    background=_background,
-                    start_points=init_states,
-                    integration_direction=integration_direction,
-                    density=density,
-                    linewidth=linewidth,
-                    streamline_color=streamline_color,
-                    streamline_alpha=streamline_alpha,
-                    color_start_points=color_start_points,
-                    ax=axes_list[i],
-                    **streamline_kwargs_dict,
-                )
-            else:
-                axes_list[i] = plot_flow_field(
-                    vecfld,
-                    xlim,
-                    ylim,
-                    background=_background,
-                    density=density,
-                    linewidth=linewidth,
-                    streamline_color=streamline_color,
-                    streamline_alpha=streamline_alpha,
-                    color_start_points=color_start_points,
-                    ax=axes_list[i],
-                    **streamline_kwargs_dict,
-                )
-
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
                 fps_vecfld,
@@ -1681,61 +1636,6 @@ def topography_3D(
                 markersize=markersize,
                 cmap=marker_cmap,
             )
-
-        if "separatrices" in terms:
-            axes_list[i] = plot_separatrix(vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i])
-
-        if init_states is not None and "trajectory" in terms:
-            if not approx:
-                axes_list[i] = plot_traj(
-                    vecfld.func,
-                    init_states,
-                    t,
-                    background=_background,
-                    integration_direction=integration_direction,
-                    ax=axes_list[i],
-                )
-
-        # show quivers for the init_states cells
-        if init_states is not None and "quiver" in terms:
-            X = init_states
-            V /= 3 * quiver_autoscaler(X, V)
-
-            df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
-
-            if quiver_size is None:
-                quiver_size = 1
-            if _background in ["#ffffff", "black"]:
-                edgecolors = "white"
-            else:
-                edgecolors = "black"
-
-            head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
-            quiver_kwargs = {
-                "angles": "xy",
-                "scale": scale,
-                "scale_units": "xy",
-                "width": 0.0005,
-                "headwidth": head_w,
-                "headlength": head_l,
-                "headaxislength": ax_l,
-                "minshaft": 1,
-                "minlength": 1,
-                "pivot": "tail",
-                "linewidth": 0.1,
-                "edgecolors": edgecolors,
-                "alpha": 1,
-                "zorder": 7,
-            }
-            quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
-            # axes_list[i].quiver(X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs)
-            axes_list[i].quiver(
-                df.iloc[:, 0],
-                df.iloc[:, 1],
-                df.iloc[:, 2],
-                df.iloc[:, 3],
-                **quiver_kwargs,
-            )  # color='red',  facecolors='gray'
 
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
