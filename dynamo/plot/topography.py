@@ -34,6 +34,7 @@ from .utils import (
     quiver_autoscaler,
     retrieve_plot_save_path,
     save_fig,
+    save_pyvista_plotter,
     set_arrow_alpha,
     set_stream_line_alpha,
 )
@@ -543,26 +544,11 @@ def plot_fixed_points(
             ax.add_points(points, render_points_as_spheres=True, rgba=True, point_size=15)
             ax.add_point_labels(points, "Labels", font_size=36, show_points=False) # TODO: only work for the first plot
 
-        if save_show_or_return in ["save", "both", "all"]:
-            s_kwargs = {
-                "path": None,
-                "prefix": "scatters_pv",
-                "ext": "pdf",
-                "title": 'PyVista Export',
-                "raster": True,
-                "painter": True,
-            }
-
-            s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-            saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
-            ax.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"], painter=s_kwargs["painter"])
-
-        if save_show_or_return in ["show", "both", "all"]:
-            ax.show()
-
-        if save_show_or_return in ["return", "all"]:
-            return ax
+        return save_pyvista_plotter(
+            pl=ax,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
     else:
         if ax is None:
             ax = plt.gca()
@@ -1661,26 +1647,12 @@ def topography_3D(
                 plot_method="pv",
             )
 
-        if save_show_or_return in ["save", "both", "all"]:
-            s_kwargs = {
-                "path": None,
-                "prefix": "scatters_pv",
-                "ext": "pdf",
-                "title": 'PyVista Export',
-                "raster": True,
-                "painter": True,
-            }
-
-            s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-            saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
-            pl.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"], painter=s_kwargs["painter"])
-
-        if save_show_or_return in ["show", "both", "all"]:
-            pl.show()
-
-        if save_show_or_return in ["return", "all"]:
-            return pl, colors_list
+        return save_pyvista_plotter(
+            pl=pl,
+            colors_list=colors_list,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
     else:
         # plt.figure(facecolor=_background)
         axes_list, color_list, font_color = scatters(

@@ -34,6 +34,7 @@ from .utils import (
     quiver_autoscaler,
     retrieve_plot_save_path,
     save_fig,
+    save_pyvista_plotter,
     set_arrow_alpha,
     set_stream_line_alpha,
 )
@@ -366,28 +367,11 @@ def cell_wise_vectors_3d(
 
             pl.add_mesh(arrows, scalars="colors", preference='point', rgb=True)
 
-        main_debug("show, return or save...")
-        if save_show_or_return in ["save", "both", "all"]:
-            s_kwargs = {
-                "path": None,
-                "prefix": "scatters_pv",
-                "ext": "pdf",
-                "title": 'PyVista Export',
-                "raster": True,
-                "painter": True,
-            }
-
-            s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-            saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
-            pl.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"],
-                            painter=s_kwargs["painter"])
-
-        if save_show_or_return in ["show", "both", "all"]:
-            pl.show()
-
-        if save_show_or_return in ["return", "all"]:
-            return pl
+        return save_pyvista_plotter(
+            pl=pl,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
 
     else:
         axes_list, color_list, _ = scatters(

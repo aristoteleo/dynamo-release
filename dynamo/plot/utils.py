@@ -4,7 +4,7 @@ import os
 
 # import matplotlib.tri as tri
 import warnings
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 from warnings import warn
 
 import matplotlib
@@ -19,7 +19,7 @@ from scipy.spatial import Delaunay
 
 from ..configuration import _themes
 from ..dynamo_logger import main_debug
-from ..tools.utils import integrate_vf  # integrate_vf_ivp
+from ..tools.utils import integrate_vf, update_dict  # integrate_vf_ivp
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -1680,6 +1680,56 @@ def retrieve_plot_save_path(
     )
 
     return savepath
+
+
+def save_pyvista_plotter(
+    pl,
+    colors_list: Optional[List] = None,
+    save_show_or_return: str = "show",
+    save_kwargs: Optional[Dict] = None,
+) -> Optional[Tuple]:
+    """Save, show or return the pyvista.Plotter.
+
+    Args:
+        pl: target plotter object.
+        colors_list: corresponding the list of colors mapping.
+        save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
+            the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
+            be return. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the saving function. By default, it is an empty dictionary
+            and the saving function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "title": PyVista Export, "raster": True, "painter": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+
+    Returns:
+        If `save_show_or_return` is `return` or `all`, the plotter object and list of color mapping will be returned.
+    """
+    try:
+        import pyvista as pv
+    except ImportError:
+        raise ImportError("Please install pyvista first.")
+
+    main_debug("show, return or save...")
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "scatters_pv",
+            "ext": "pdf",
+            "title": 'PyVista Export',
+            "raster": True,
+            "painter": True,
+        }
+
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
+        pl.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"], painter=s_kwargs["painter"])
+
+    if save_show_or_return in ["show", "both", "all"]:
+        pl.show()
+
+    if save_show_or_return in ["return", "all"]:
+        return (pl, colors_list) if colors_list else pl
 
 
 # ---------------------------------------------------------------------------------------------------

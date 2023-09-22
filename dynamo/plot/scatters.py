@@ -40,6 +40,7 @@ from .utils import (
     is_list_of_lists,
     retrieve_plot_save_path,
     save_fig,
+    save_pyvista_plotter,
 )
 
 docstrings = DocstringProcessor()
@@ -1301,24 +1302,9 @@ def scatters_pv(
             main_debug("colors: %s" % (str(color)))
             _plot_basis_layer_pv(cur_b, cur_l)
 
-    main_debug("show, return or save...")
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "scatters_pv",
-            "ext": "pdf",
-            "title": 'PyVista Export',
-            "raster": True,
-            "painter": True,
-        }
-
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
-        pl.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"], painter=s_kwargs["painter"])
-
-    if save_show_or_return in ["show", "both", "all"]:
-        pl.show()
-
-    if save_show_or_return in ["return", "all"]:
-        return pl, colors_list
+    return save_pyvista_plotter(
+        pl=pl,
+        colors_list=colors_list,
+        save_show_or_return=save_show_or_return,
+        save_kwargs=save_kwargs,
+    )
