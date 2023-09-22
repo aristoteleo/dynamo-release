@@ -423,6 +423,7 @@ def plot_fixed_points(
     background: Optional[str] = None,
     save_show_or_return: Literal["save", "show", "return"] = "return",
     save_kwargs: Dict[str, Any] = {},
+    plot_method: str = "matplotlib",
     ax: Optional[Axes] = None,
     **kwargs,
 ) -> Optional[Axes]:
@@ -456,6 +457,12 @@ def plot_fixed_points(
     import matplotlib.patheffects as PathEffects
     from matplotlib import markers, rcParams
     from matplotlib.colors import to_hex
+
+    if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
@@ -511,61 +518,104 @@ def plot_fixed_points(
             vecfld_dict["confidence"],
         )
 
-    if ax is None:
-        ax = plt.gca()
-
     cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
-    for i in range(len(Xss)):
-        cur_ftype = ftype[i]
-        marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
-        ax.scatter(
-            *Xss[i],
-            marker=marker_,
-            s=markersize,
-            c=c if confidence is None else np.array(cm(confidence[i])).reshape(1, -1),
-            edgecolor=_select_font_color(_background),
-            linewidths=1,
-            cmap=_cmap,
-            vmin=0,
-            zorder=5,
-        )  # TODO: Figure out the user warning that no data for colormapping provided via 'c'.
-        txt = ax.text(
-            *Xss[i],
-            repr(i),
-            c=("black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red"),
-            horizontalalignment="center",
-            verticalalignment="center",
-            zorder=6,
-            weight="bold",
-        )
-        txt.set_path_effects(
-            [
-                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
-                PathEffects.Normal(),
-            ]
-        )
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_fixed_points",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
+    if plot_method == "pv":
 
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
+        points = pv.PolyData(Xss)
+        colors = [c if confidence is None else np.array(cm(confidence[i])).reshape(1, -1) for i in range(len(confidence))]
+        points.point_data["colors"] = colors
 
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+        points["Labels"] = [str(i) for i in range(points.n_points)]
+
+        r, c = ax.shape[0], ax.shape[1]
+        subplot_indices = [[i, j] for i in range(r) for j in range(c)]
+        cur_subplot = 0
+
+        for i in range(r * c):
+
+            if r * c != 1:
+                ax.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
+                cur_subplot += 1
+
+            ax.add_points(points, render_points_as_spheres=True, rgba=True, point_size=15)
+            ax.add_point_labels(points, "Labels", font_size=36, show_points=False) # TODO: only work for the first plot
+
+        if save_show_or_return in ["save", "both", "all"]:
+            s_kwargs = {
+                "path": None,
+                "prefix": "scatters_pv",
+                "ext": "pdf",
+                "title": 'PyVista Export',
+                "raster": True,
+                "painter": True,
+            }
+
+            s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+            saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
+            ax.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"], painter=s_kwargs["painter"])
+
+        if save_show_or_return in ["show", "both", "all"]:
+            ax.show()
+
+        if save_show_or_return in ["return", "all"]:
+            return ax
+    else:
+        if ax is None:
+            ax = plt.gca()
+
+        for i in range(len(Xss)):
+            cur_ftype = ftype[i]
+            marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
+            ax.scatter(
+                *Xss[i],
+                marker=marker_,
+                s=markersize,
+                c=c if confidence is None else np.array(cm(confidence[i])).reshape(1, -1),
+                edgecolor=_select_font_color(_background),
+                linewidths=1,
+                cmap=_cmap,
+                vmin=0,
+                zorder=5,
+            )  # TODO: Figure out the user warning that no data for colormapping provided via 'c'.
+            txt = ax.text(
+                *Xss[i],
+                repr(i),
+                c=("black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red"),
+                horizontalalignment="center",
+                verticalalignment="center",
+                zorder=6,
+                weight="bold",
+            )
+            txt.set_path_effects(
+                [
+                    PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
+                    PathEffects.Normal(),
+                ]
+            )
+
+        if save_show_or_return in ["save", "both", "all"]:
+            s_kwargs = {
+                "path": None,
+                "prefix": "plot_fixed_points",
+                "dpi": None,
+                "ext": "pdf",
+                "transparent": True,
+                "close": True,
+                "verbose": True,
+            }
+            s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+            if save_show_or_return in ["both", "all"]:
+                s_kwargs["close"] = False
+
+            save_fig(**s_kwargs)
+        if save_show_or_return in ["show", "both", "all"]:
+            plt.tight_layout()
+            plt.show()
+        if save_show_or_return in ["return", "all"]:
+            return ax
 
 
 def plot_traj(
@@ -1439,6 +1489,12 @@ def topography_3D(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
+    if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+
     if type(color) == str:
         color = [color]
 
@@ -1588,18 +1644,20 @@ def topography_3D(
             color_key_cmap=color_key_cmap,
             use_smoothed=use_smoothed,
             save_show_or_return="return",
-            style='points_gaussian',
-            opacity=0.5,
+            # style='points_gaussian',
+            opacity=0.8,
         )
 
-        r, c = pl.shape[0], pl.shape[1]
-        subplot_indices = [[i, j] for i in range(r) for j in range(c)]
-        cur_subplot = 0
-
-        for i in range(len(color)):
-            if r * c != 1:
-                pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
-                cur_subplot += 1
+        if "fixed_points" in terms:
+            pl = plot_fixed_points(
+                fps_vecfld,
+                fps_vecfld_dict,
+                background=_background,
+                ax=pl,
+                markersize=markersize,
+                cmap=marker_cmap,
+                plot_method="pv",
+            )
 
         if save_show_or_return in ["save", "both", "all"]:
             s_kwargs = {
