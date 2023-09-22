@@ -264,7 +264,7 @@ def calculate_colors(
         color_type = "midpoint"
         colors = plt.get_cmap(cmap)(0.5)
 
-    return (colors, color_type, None) if color_type != "labels" else (colors, color_type, legend_elements)
+    return (colors, color_type, None) if color_type != "labels" else (colors.values, color_type, legend_elements)
 
 
 # ---------------------------------------------------------------------------------------------------

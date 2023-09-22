@@ -1166,7 +1166,7 @@ def scatters_pv(
             cur_b: current basis
             cur_l: current layer
         """
-        nonlocal background, adata, cmap, cur_subplot, x, y, z, labels, sym_c, values
+        nonlocal background, adata, cmap, cur_subplot, sym_c
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
@@ -1204,13 +1204,12 @@ def scatters_pv(
                     indent_level=2,
                 )
             _labels, _values = None, None
-            _adata = adata
 
             for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
                 main_debug("handling coordinates, cur_x: %s, cur_y: %s, cur_z: %s" % (cur_x, cur_y, cur_z))
 
                 points, cur_title = map_to_points(
-                    _adata,
+                    adata,
                     axis_x=cur_x,
                     axis_y=cur_y,
                     axis_z=cur_z,
@@ -1252,19 +1251,18 @@ def scatters_pv(
                     raise ValueError("Conflicting options; only one of labels or values should be set")
 
                 if labels is not None or values is not None:
-                    _labels = labels
-                    _values = values
+                    _labels = labels.copy()
+                    _values = values.copy()
                     main_info("`Color` will be ignored because labels/values is provided.")
 
                 if smooth and not is_not_continuous:
                     main_debug("smooth and not continuous")
-                    knn = _adata.obsp["moments_con"]
-                    values = (
-                        calc_1nd_moment(values, knn)[0]
+                    knn = adata.obsp["moments_con"]
+                    _values = (
+                        calc_1nd_moment(_values, knn)[0]
                         if smooth in [1, True]
-                        else calc_1nd_moment(values, knn**smooth)[0]
+                        else calc_1nd_moment(_values, knn**smooth)[0]
                     )
-                    _values = values
 
                 colors, color_type, _ = calculate_colors(
                     points.values,
@@ -1280,19 +1278,17 @@ def scatters_pv(
                 if total_panels > 1:
                     pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
 
+                colors_list.append(colors)
                 pvdataset = pv.PolyData(points.values)
+                pvdataset.point_data["colors"] = np.stack(colors)
+                pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, cmap=_cmap, **kwargs)
 
                 if color_type == "labels":
-                    type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(_labels, colors.values)}
+                    type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(_labels, colors)}
                     type_color_pair = [[k, v] for k, v in type_color_dict.items()]
                     pl.add_legend(labels=type_color_pair)
-                    colors_list.append(colors.values)
-                    pvdataset.point_data["colors"] = np.stack(colors.values)
                 else:
-                    colors_list.append(colors)
-                    pvdataset.point_data["colors"] = np.stack(colors)
-
-                pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, **kwargs)
+                    pl.add_scalar_bar()
 
                 pl.add_text(cur_title)
                 pl.add_axes(xlabel=points.columns[0], ylabel=points.columns[1], zlabel=points.columns[2])
