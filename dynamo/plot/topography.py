@@ -26,12 +26,13 @@ from ..vectorfield.topography import (  # , compute_separatrices
 from ..vectorfield.topography import topography as _topology  # , compute_separatrices
 from ..vectorfield.utils import vecfld_from_adata
 from ..vectorfield.vector_calculus import curl, divergence
-from .scatters import docstrings, scatters
+from .scatters import docstrings, scatters, scatters_pv
 from .utils import (
     _plot_traj,
     _select_font_color,
     default_quiver_args,
     quiver_autoscaler,
+    retrieve_plot_save_path,
     save_fig,
     set_arrow_alpha,
     set_stream_line_alpha,
@@ -1369,8 +1370,10 @@ def topography_3D(
     fps_basis: str = "umap",
     x: int = 0,
     y: int = 1,
+    z: int = 2,
     color: str = "ntr",
     layer: str = "X",
+    plot_method: str = "matplotlib",
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
     values: Optional[list] = None,
@@ -1566,99 +1569,153 @@ def topography_3D(
 
         V = vector_field_function(init_states, vecfld_dict, [0, 1])
 
-    # plt.figure(facecolor=_background)
-    axes_list, color_list, font_color = scatters(
-        adata=adata,
-        basis=basis,
-        x=x,
-        y=y,
-        color=color,
-        layer=layer,
-        highlights=highlights,
-        labels=labels,
-        values=values,
-        theme=theme,
-        cmap=cmap,
-        color_key=color_key,
-        color_key_cmap=color_key_cmap,
-        background=_background,
-        ncols=ncols,
-        pointsize=pointsize,
-        figsize=figsize,
-        show_legend=show_legend,
-        use_smoothed=use_smoothed,
-        aggregate=aggregate,
-        show_arrowed_spines=show_arrowed_spines,
-        ax=ax,
-        sort=sort,
-        save_show_or_return="return",
-        frontier=frontier,
-        projection="3d",
-        **s_kwargs_dict,
-        return_all=True,
-    )
-
-    if type(axes_list) != list:
-        axes_list, color_list, font_color = (
-            [axes_list],
-            [color_list],
-            [font_color],
+    if plot_method == "pv":
+        pl, colors_list = scatters_pv(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            highlights=highlights,
+            labels=labels,
+            values=values,
+            cmap=cmap,
+            theme=theme,
+            background=background,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            use_smoothed=use_smoothed,
+            save_show_or_return="return",
+            style='points_gaussian',
+            opacity=0.5,
         )
-    for i in range(len(axes_list)):
-        # ax = axes_list[i]
 
-        axes_list[i].set_xlabel(basis + "_1")
-        axes_list[i].set_ylabel(basis + "_2")
-        axes_list[i].set_zlabel(basis + "_3")
-        # axes_list[i].set_aspect("equal")
+        r, c = pl.shape[0], pl.shape[1]
+        subplot_indices = [[i, j] for i in range(r) for j in range(c)]
+        cur_subplot = 0
 
-        # Build the plot
-        axes_list[i].set_xlim(xlim)
-        axes_list[i].set_ylim(ylim)
-        axes_list[i].set_zlim(zlim)
+        for i in range(len(color)):
+            if r * c != 1:
+                pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
+                cur_subplot += 1
 
-        axes_list[i].set_facecolor(background)
+        if save_show_or_return in ["save", "both", "all"]:
+            s_kwargs = {
+                "path": None,
+                "prefix": "scatters_pv",
+                "ext": "pdf",
+                "title": 'PyVista Export',
+                "raster": True,
+                "painter": True,
+            }
 
-        if t is None:
-            if vecfld_dict["grid_V"] is None:
-                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["V"][:, :2]))
-            else:
-                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["grid_V"]))
+            s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-            t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
+            saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
+            pl.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"], painter=s_kwargs["painter"])
 
-        if "fixed_points" in terms:
-            axes_list[i] = plot_fixed_points(
-                fps_vecfld,
-                fps_vecfld_dict,
-                background=_background,
-                ax=axes_list[i],
-                markersize=markersize,
-                cmap=marker_cmap,
+        if save_show_or_return in ["show", "both", "all"]:
+            pl.show()
+
+        if save_show_or_return in ["return", "all"]:
+            return pl, colors_list
+    else:
+        # plt.figure(facecolor=_background)
+        axes_list, color_list, font_color = scatters(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            highlights=highlights,
+            labels=labels,
+            values=values,
+            theme=theme,
+            cmap=cmap,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            background=_background,
+            ncols=ncols,
+            pointsize=pointsize,
+            figsize=figsize,
+            show_legend=show_legend,
+            use_smoothed=use_smoothed,
+            aggregate=aggregate,
+            show_arrowed_spines=show_arrowed_spines,
+            ax=ax,
+            sort=sort,
+            save_show_or_return="return",
+            frontier=frontier,
+            projection="3d",
+            **s_kwargs_dict,
+            return_all=True,
+        )
+
+        if type(axes_list) != list:
+            axes_list, color_list, font_color = (
+                [axes_list],
+                [color_list],
+                [font_color],
             )
+        for i in range(len(axes_list)):
+            # ax = axes_list[i]
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "topography",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
+            axes_list[i].set_xlabel(basis + "_1")
+            axes_list[i].set_ylabel(basis + "_2")
+            axes_list[i].set_zlabel(basis + "_3")
+            # axes_list[i].set_aspect("equal")
 
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
+            # Build the plot
+            axes_list[i].set_xlim(xlim)
+            axes_list[i].set_ylim(ylim)
+            axes_list[i].set_zlim(zlim)
 
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+            axes_list[i].set_facecolor(background)
 
-            plt.tight_layout()
+            if t is None:
+                if vecfld_dict["grid_V"] is None:
+                    max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["V"][:, :2]))
+                else:
+                    max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["grid_V"]))
 
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return axes_list if len(axes_list) > 1 else axes_list[0]
+                t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
+
+            if "fixed_points" in terms:
+                axes_list[i] = plot_fixed_points(
+                    fps_vecfld,
+                    fps_vecfld_dict,
+                    background=_background,
+                    ax=axes_list[i],
+                    markersize=markersize,
+                    cmap=marker_cmap,
+                )
+
+        if save_show_or_return in ["save", "both", "all"]:
+            s_kwargs = {
+                "path": None,
+                "prefix": "topography",
+                "dpi": None,
+                "ext": "pdf",
+                "transparent": True,
+                "close": True,
+                "verbose": True,
+            }
+            s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+            if save_show_or_return in ["both", "all"]:
+                s_kwargs["close"] = False
+
+            save_fig(**s_kwargs)
+        if save_show_or_return in ["show", "both", "all"]:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                plt.tight_layout()
+
+            plt.show()
+        if save_show_or_return in ["return", "all"]:
+            return axes_list if len(axes_list) > 1 else axes_list[0]
