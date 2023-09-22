@@ -423,7 +423,7 @@ def plot_fixed_points(
     background: Optional[str] = None,
     save_show_or_return: Literal["save", "show", "return"] = "return",
     save_kwargs: Dict[str, Any] = {},
-    plot_method: str = "matplotlib",
+    plot_method: Literal["pv", "matplotlib"] = "matplotlib",
     ax: Optional[Axes] = None,
     **kwargs,
 ) -> Optional[Axes]:
@@ -446,7 +446,9 @@ def plot_fixed_points(
             and the save_fig function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
-        ax: the matplotlib axes used for plotting. Default is to use the current axis. Defaults to None.
+        plot_method: the method to plot 3D points. Options include `pv` (pyvista) and `matplotlib`.
+        ax: the matplotlib axes or pyvista plotter used for plotting. Default is to use the current axis. Defaults to
+            None.
 
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the Axes of the generated
@@ -1423,7 +1425,7 @@ def topography_3D(
     z: int = 2,
     color: str = "ntr",
     layer: str = "X",
-    plot_method: str = "matplotlib",
+    plot_method: Literal["pv", "matplotlib"] = "matplotlib",
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
     values: Optional[list] = None,

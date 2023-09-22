@@ -62,7 +62,7 @@ def cell_wise_vectors_3d(
     V: Union[np.ndarray, spmatrix] = None,
     color: Union[str, List[str]] = None,
     layer: str = "X",
-    plot_method: str = "pv",
+    plot_method: Literal["pv", "matplotlib"] = "pv",
     background: Optional[str] = "white",
     ncols: int = 4,
     figsize: Tuple[float] = (6, 4),
@@ -134,6 +134,7 @@ def cell_wise_vectors_3d(
         V: the velocity array. If None, the array would be determined by `vkey` provided. Defaults to None.
         color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
         layer: the layer of data to use for the scatter plot. Defaults to "X".
+        plot_method: the method to plot 3D vectors. Options include `pv` (pyvista) and `matplotlib`.
         background: the background color of the figure. Defaults to "white".
         ncols: the number of sub-plot columns. Defaults to 4.
         figsize: the size of each sub-plot panel. Defaults to (6, 4).
