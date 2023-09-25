@@ -1,6 +1,11 @@
 import warnings
 from typing import Optional, Union
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import matplotlib
 import numpy as np
 from anndata import AnnData
@@ -12,7 +17,138 @@ from ..vectorfield.scVectorField import SvcVectorField
 from .utils import remove_particles
 
 
-class StreamFuncAnim:
+class BaseAnim:
+    def __init__(
+        self,
+        adata: AnnData,
+        basis: str = "umap",
+        fp_basis: Union[str, None] = None,
+        dims: Optional[list] = None,
+        n_steps: int = 100,
+        cell_states: Union[int, list, None] = None,
+        color: str = "ntr",
+        fig: Optional[matplotlib.figure.Figure] = None,
+        ax: matplotlib.axes.Axes = None,
+        logspace: bool = False,
+        max_time: Optional[float] = None,
+        frame_color=None,
+    ):
+        """Animating cell fate commitment prediction via reconstructed vector field function.
+
+        This class creates necessary components to produce an animation that describes the exact speed of a set of cells
+        at each time point, its movement in gene expression and the long range trajectory predicted by the reconstructed
+        vector field. Thus it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
+        fate commitment in action.
+
+        This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies on
+        animation module from matplotlib. Note that you may need to install `imagemagick` in order to properly show or save
+        the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/ for more
+        details.
+
+        Parameters
+        ----------
+            adata: :class:`~anndata.AnnData`
+                AnnData object that already went through the fate prediction.
+            basis: `str` or None (default: `umap`)
+                The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
+                trajectory will be projected back to high dimensional space via the `inverse_transform` function.
+                space.
+            fps_basis: `str` or None (default: `None`)
+                The basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis` is
+                different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and used to
+                visualize the position of the fixed point on `basis` embedding.
+            dims: `list` or `None` (default: `None')
+                The dimensions of low embedding space where cells will be drawn and it should corresponds to the space
+                fate prediction take place.
+            n_steps: `int` (default: `100`)
+                The number of times steps (frames) fate prediction will take.
+            cell_states: `int`, `list` or `None` (default: `None`)
+                The number of cells state that will be randomly selected (if `int`), the indices of the cells states (if
+                `list`) or all cell states which fate prediction executed (if `None`)
+            fig: `matplotlib.figure.Figure` or None (default: `None`)
+                The figure that will contain both the background and animated components.
+            ax: `matplotlib.Axis` (optional, default `None`)
+                The matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
+                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
+                to create an axes.
+            logspace: `bool` (default: `False`)
+                Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
+                from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
+
+        Returns
+        -------
+            A class that contains .fig attribute and .update, .init_background that can be used to produce an animation
+            of the prediction of cell fate commitment.
+        """
+
+        self.adata = adata
+        self.basis = basis
+        self.fp_basis = basis if fp_basis is None else fp_basis
+
+        fate_key = "fate_" + basis
+        if fate_key not in adata.uns_keys():
+            raise Exception(
+                f"You need to first perform fate prediction before animate the prediction, please run"
+                f"dyn.pd.fate(adata, basis='{basis}' before running this function"
+            )
+
+        self.init_states = adata.uns[fate_key]["init_states"]
+        # self.prediction = adata.uns['fate_umap']['prediction']
+        self.t = adata.uns[fate_key]["t"]
+
+        flat_list = np.unique([item for sublist in self.t for item in sublist])
+        flat_list = np.hstack((0, flat_list))
+        flat_list = np.sort(flat_list)
+
+        self.logspace = logspace
+        if self.logspace:
+            self.time_vec = np.logspace(0, np.log10(max(flat_list) + 1), n_steps) - 1
+        else:
+            self.time_vec = flat_list[(np.linspace(0, len(flat_list) - 1, n_steps)).astype(int)]
+
+        self.time_scaler = None if max_time is None else max_time / (self.time_vec[-1] - self.time_vec[-2])
+
+        # init_states, VecFld, t_end, _valid_genes = fetch_states(
+        #     adata, init_states, init_cells, basis, layer, False,
+        #     t_end
+        # )
+        n_states = self.init_states.shape[0]
+        if n_states > 50:
+            main_warning(
+                f"the number of cell states with fate prediction is more than 50. You may want to "
+                f"lower the max number of cell states to draw via cell_states argument."
+            )
+        if cell_states is not None:
+            if type(cell_states) is int:
+                self.init_states = self.init_states[np.random.choice(range(n_states), min(n_states, cell_states))]
+            elif type(cell_states) is list:
+                self.init_states = self.init_states[cell_states]
+            else:
+                self.init_states = self.init_states
+
+        # vf = lambda x: vector_field_function(x=x, vf_dict=VecFld)
+        vf = SvcVectorField()
+        vf.from_adata(adata, basis=basis)
+        # Initialize velocity field and displace *functions*
+        self.f = lambda x, _: vf.func(x)  # scale *
+        self.displace = lambda x, dt: odeint(self.f, x, [0, dt])
+
+        # Save bounds of plot
+        X_data = adata.obsm["X_" + basis][:, :2] if dims is None else adata.obsm["X_" + basis][:, dims]
+        m, M = np.min(X_data, 0), np.max(X_data, 0)
+        m = m - 0.01 * np.abs(M - m)
+        M = M + 0.01 * np.abs(M - m)
+        self.xlim = [m[0], M[0]]
+        self.ylim = [m[1], M[1]]
+        if X_data.shape[1] == 3:
+            self.zlim = [m[2], M[2]]
+
+        # self.ax.set_aspect("equal")
+        self.color = color
+        self.frame_color = frame_color
+
+
+class StreamFuncAnim(BaseAnim):
     """Animating cell fate commitment prediction via reconstructed vector field function."""
 
     def __init__(
@@ -126,71 +262,20 @@ class StreamFuncAnim:
 
         import matplotlib.pyplot as plt
 
-        self.adata = adata
-        self.basis = basis
-        self.fp_basis = basis if fp_basis is None else fp_basis
-
-        fate_key = "fate_" + basis
-        if fate_key not in adata.uns_keys():
-            raise Exception(
-                f"You need to first perform fate prediction before animate the prediction, please run"
-                f"dyn.pd.fate(adata, basis='{basis}' before running this function"
-            )
-
-        self.init_states = adata.uns[fate_key]["init_states"]
-        # self.prediction = adata.uns['fate_umap']['prediction']
-        self.t = adata.uns[fate_key]["t"]
-
-        flat_list = np.unique([item for sublist in self.t for item in sublist])
-        flat_list = np.hstack((0, flat_list))
-        flat_list = np.sort(flat_list)
-
-        self.logspace = logspace
-        if self.logspace:
-            self.time_vec = np.logspace(0, np.log10(max(flat_list) + 1), n_steps) - 1
-        else:
-            self.time_vec = flat_list[(np.linspace(0, len(flat_list) - 1, n_steps)).astype(int)]
-
-        self.time_scaler = None if max_time is None else max_time / (self.time_vec[-1] - self.time_vec[-2])
-
-        # init_states, VecFld, t_end, _valid_genes = fetch_states(
-        #     adata, init_states, init_cells, basis, layer, False,
-        #     t_end
-        # )
-        n_states = self.init_states.shape[0]
-        if n_states > 50:
-            main_warning(
-                f"the number of cell states with fate prediction is more than 50. You may want to "
-                f"lower the max number of cell states to draw via cell_states argument."
-            )
-        if cell_states is not None:
-            if type(cell_states) is int:
-                self.init_states = self.init_states[np.random.choice(range(n_states), min(n_states, cell_states))]
-            elif type(cell_states) is list:
-                self.init_states = self.init_states[cell_states]
-            else:
-                self.init_states = self.init_states
-
-        # vf = lambda x: vector_field_function(x=x, vf_dict=VecFld)
-        vf = SvcVectorField()
-        vf.from_adata(adata, basis=basis)
-        # Initialize velocity field and displace *functions*
-        self.f = lambda x, _: vf.func(x)  # scale *
-        self.displace = lambda x, dt: odeint(self.f, x, [0, dt])
-
-        # Save bounds of plot
-        X_data = adata.obsm["X_" + basis][:, :2] if dims is None else adata.obsm["X_" + basis][:, dims]
-        m, M = np.min(X_data, 0), np.max(X_data, 0)
-        m = m - 0.01 * np.abs(M - m)
-        M = M + 0.01 * np.abs(M - m)
-        self.xlim = [m[0], M[0]]
-        self.ylim = [m[1], M[1]]
-        if X_data.shape[1] == 3:
-            self.zlim = [m[2], M[2]]
-
-        # self.ax.set_aspect("equal")
-        self.color = color
-        self.frame_color = frame_color
+        super().__init__(
+            adata=adata,
+            basis=basis,
+            fp_basis=fp_basis,
+            dims=dims,
+            n_steps=n_steps,
+            cell_states=cell_states,
+            color=color,
+            fig=fig,
+            ax=ax,
+            logspace=logspace,
+            max_time=max_time,
+            frame_color=frame_color,
+        )
 
         # Animation objects must create `fig` and `ax` attributes.
         if ax is None or fig is None:
@@ -207,7 +292,7 @@ class StreamFuncAnim:
             self.fig = fig
             self.ax = ax
 
-        (self.ln,) = self.ax.plot([], [], "ro", zs=[]) if X_data.shape[1] == 3 else self.ax.plot([], [], "ro")
+        (self.ln,) = self.ax.plot([], [], "ro", zs=[]) if len(dims) == 3 else self.ax.plot([], [], "ro")
 
     def init_background(self):
         return (self.ln,)
@@ -415,3 +500,22 @@ def animate_fates(
         HTML(anim.to_jshtml())  # embedding to jupyter notebook.
     else:
         anim
+
+
+def animate_fates_pv(
+    adata,
+    basis="umap",
+    dims=None,
+    n_steps=100,
+    cell_states=None,
+    color="ntr",
+    logspace=False,
+    max_time=None,
+    frame_color=None,
+    interval=100,
+    blit=True,
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
+    pass
