@@ -12,7 +12,7 @@ from anndata import AnnData
 from scipy.integrate import odeint
 
 from ..dynamo_logger import main_info, main_tqdm, main_warning
-from ..plot.topography import topography
+from ..plot.topography import topography, topography_3D
 from ..vectorfield.scVectorField import SvcVectorField
 from .utils import remove_particles
 
@@ -27,8 +27,6 @@ class BaseAnim:
         n_steps: int = 100,
         cell_states: Union[int, list, None] = None,
         color: str = "ntr",
-        fig: Optional[matplotlib.figure.Figure] = None,
-        ax: matplotlib.axes.Axes = None,
         logspace: bool = False,
         max_time: Optional[float] = None,
         frame_color=None,
@@ -270,8 +268,6 @@ class StreamFuncAnim(BaseAnim):
             n_steps=n_steps,
             cell_states=cell_states,
             color=color,
-            fig=fig,
-            ax=ax,
             logspace=logspace,
             max_time=max_time,
             frame_color=frame_color,
@@ -502,20 +498,50 @@ def animate_fates(
         anim
 
 
-def animate_fates_pv(
-    adata,
-    basis="umap",
-    dims=None,
-    n_steps=100,
-    cell_states=None,
-    color="ntr",
-    logspace=False,
-    max_time=None,
-    frame_color=None,
-    interval=100,
-    blit=True,
-    save_show_or_return="show",
-    save_kwargs={},
-    **kwargs,
-):
-    pass
+class PyvistaAnim(BaseAnim):
+    def __init__(
+        self,
+        adata: AnnData,
+        basis: str = "umap",
+        fp_basis: Union[str, None] = None,
+        dims: Optional[list] = None,
+        n_steps: int = 100,
+        cell_states: Union[int, list, None] = None,
+        color: str = "ntr",
+        pl=None,
+        logspace: bool = False,
+        max_time: Optional[float] = None,
+        frame_color=None,
+        filename: str = "fate_ani.gif",
+    ):
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+
+        super().__init__(
+            adata=adata,
+            basis=basis,
+            fp_basis=fp_basis,
+            dims=dims,
+            n_steps=n_steps,
+            cell_states=cell_states,
+            color=color,
+            logspace=logspace,
+            max_time=max_time,
+            frame_color=frame_color,
+        )
+
+        self.filename = filename
+
+        if pl is None:
+            self.pl = topography_3D(
+                self.adata,
+                basis=self.basis,
+                fps_basis=self.fp_basis,
+                color=self.color,
+                ax=self.pl,
+                save_show_or_return="return",
+            )
+        else:
+            self.pl = pl
