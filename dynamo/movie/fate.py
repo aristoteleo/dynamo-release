@@ -505,14 +505,14 @@ class PyvistaAnim(BaseAnim):
         basis: str = "umap",
         fp_basis: Union[str, None] = None,
         dims: Optional[list] = None,
-        n_steps: int = 100,
+        n_steps: int = 15,
         cell_states: Union[int, list, None] = None,
         color: str = "ntr",
         pl=None,
         logspace: bool = False,
         max_time: Optional[float] = None,
         frame_color=None,
-        filename: str = "fate_ani.gif",
+        filename: str = "fate_animation.gif",
     ):
         try:
             import pyvista as pv
@@ -545,3 +545,28 @@ class PyvistaAnim(BaseAnim):
             )
         else:
             self.pl = pl
+
+        self.n_steps = n_steps
+
+    def animate(self):
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+
+        pts = [i.tolist() for i in self.init_states]
+
+        self.pl.open_gif(self.filename)
+
+        mesh = pv.PolyData(self.init_states)
+        self.pl.add_mesh(mesh, color="red", render_points_as_spheres=True)
+
+        for frame in range(0, self.n_steps):
+            pts = [self.displace(cur_pts, self.time_vec[frame])[1].tolist() for cur_pts in pts]
+            pts = np.asarray(pts)
+            pts = remove_particles(pts, self.xlim, self.ylim, self.zlim)
+            mesh.points = pv.PolyData(np.asarray(pts)).points
+
+            self.pl.write_frame()  # TODO: debug this
+
+        self.pl.close()
