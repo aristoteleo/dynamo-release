@@ -139,8 +139,8 @@ def plot_3d_streamtube(
     X = adata.obsm["X_" + basis][:, dims]
 
     if "grid" in adata.uns["VecFld_" + basis].keys() and "grid_V" in adata.uns["VecFld_" + basis].keys():
-        X_grid = adata.uns["VecFld_pca3"]["grid"]
-        velocity_grid = adata.uns["VecFld_pca3"]["grid_V"]
+        X_grid = adata.uns["VecFld_" + basis]["grid"]
+        velocity_grid = adata.uns["VecFld_" + basis]["grid_V"]
     else:
         grid_kwargs_dict = {
             "density": None,
