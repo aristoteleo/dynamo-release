@@ -179,10 +179,8 @@ def plot_3d_streamtube(
                 y=adata[labels == init_group, :].obsm["X_" + basis][:125, 1],
                 z=adata[labels == init_group, :].obsm["X_" + basis][:125, 2],
             ),
-            sizeref=3000,
             colorscale="Portland",
             showscale=False,
-            maxdisplayed=3000,
         )
     )
 
