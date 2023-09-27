@@ -34,6 +34,7 @@ from .utils import (
     quiver_autoscaler,
     retrieve_plot_save_path,
     save_fig,
+    save_plotly_figure,
     save_pyvista_plotter,
     set_arrow_alpha,
     set_stream_line_alpha,
@@ -220,6 +221,13 @@ def cell_wise_vectors_3d(
             import pyvista as pv
         except ImportError:
             raise ImportError("Please install pyvista first.")
+    elif plot_method == "plotly":
+        try:
+            import plotly.graph_objects as go
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+    else:
+        raise NotImplementedError("Current plot method not supported.")
 
     def add_axis_label(ax, labels):
         ax.set_xlabel(labels[0])
@@ -368,6 +376,60 @@ def cell_wise_vectors_3d(
             pl.add_mesh(arrows, scalars="colors", preference='point', rgb=True)
 
         return save_pyvista_plotter(
+            pl=pl,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+
+    elif plot_method == "plotly":
+        pl, colors_list = scatters_interactive(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            plot_method = "plotly",
+            highlights=highlights,
+            labels=labels,
+            values=values,
+            cmap=cmap,
+            theme=theme,
+            background=background,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            use_smoothed=use_smoothed,
+            save_show_or_return="return",
+            opacity=0.5,
+        )
+
+        r, c = pl._get_subplot_rows_columns()
+        subplot_indices = [[i, j] for i in range(list(r)[-1]) for j in range(list(c)[-1])]
+        cur_subplot = 0
+
+        for i in range(len(color)):
+            # colors = [[index, "rgb({},{},{})".format(int(row[0] * 255), int(row[1] * 255), int(row[2] * 255))] for index, row in enumerate(colors_list[i])]
+
+            pl.add_trace(
+                go.Cone(
+                    x=x0.values,
+                    y=x1.values,
+                    z=x2.values,
+                    u=v0.values,
+                    v=v1.values,
+                    w=v2.values,
+                    colorscale='Blues',
+                    # colorscale=colors,
+                    sizemode="absolute",
+                    sizeref=1,
+                ),
+                row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+            )
+
+            cur_subplot += 1
+
+        return save_plotly_figure(
             pl=pl,
             save_show_or_return=save_show_or_return,
             save_kwargs=save_kwargs,

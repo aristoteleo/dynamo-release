@@ -1325,6 +1325,7 @@ def scatters_interactive(
                                 color=colors,
                             ),
                             text=_labels if color_type == "labels" else _values,
+                            **kwargs,
                         ),
                         row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
                     )
