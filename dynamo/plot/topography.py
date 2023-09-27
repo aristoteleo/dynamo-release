@@ -26,7 +26,7 @@ from ..vectorfield.topography import (  # , compute_separatrices
 from ..vectorfield.topography import topography as _topology  # , compute_separatrices
 from ..vectorfield.utils import vecfld_from_adata
 from ..vectorfield.vector_calculus import curl, divergence
-from .scatters import docstrings, scatters, scatters_pv
+from .scatters import docstrings, scatters, scatters_interactive
 from .utils import (
     _plot_traj,
     _select_font_color,
@@ -1614,7 +1614,7 @@ def topography_3D(
         V = vector_field_function(init_states, vecfld_dict, [0, 1])
 
     if plot_method == "pv":
-        pl, colors_list = scatters_pv(
+        pl, colors_list = scatters_interactive(
             adata=adata,
             basis=basis,
             x=x,

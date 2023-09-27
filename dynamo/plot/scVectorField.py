@@ -27,7 +27,7 @@ from ..tools.Markov import (
 from ..tools.utils import update_dict
 from ..vectorfield.topography import VectorField
 from ..vectorfield.utils import vecfld_from_adata
-from .scatters import docstrings, scatters, scatters_pv
+from .scatters import docstrings, scatters, scatters_interactive
 from .utils import (
     _get_adata_color_vec,
     default_quiver_args,
@@ -325,7 +325,7 @@ def cell_wise_vectors_3d(
     ncols = min(ncols, len(color))
 
     if plot_method == "pv":
-        pl, colors_list = scatters_pv(
+        pl, colors_list = scatters_interactive(
             adata=adata,
             basis=basis,
             x=x,

@@ -30,7 +30,7 @@ from .preprocess import (
     show_fraction,
     variance_explained,
 )
-from .scatters import scatters, scatters_pv
+from .scatters import scatters, scatters_interactive
 from .scPotential import show_landscape
 from .sctransform import sctransform_plot_fit, plot_residual_var
 from .scVectorField import (  # , plot_LIC_gray
@@ -81,7 +81,7 @@ __all__ = [
     "quiver_autoscaler",
     "save_fig",
     "scatters",
-    "scatters_pv",
+    "scatters_interactive",
     "basic_stats",
     "show_fraction",
     "feature_genes",

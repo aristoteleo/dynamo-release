@@ -1014,7 +1014,7 @@ def map_to_points(
     return points, cur_title
 
 
-def scatters_pv(
+def scatters_interactive(
     adata: AnnData,
     basis: str = "umap",
     x: Union[int, str] = 0,
