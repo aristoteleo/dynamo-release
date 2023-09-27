@@ -40,6 +40,7 @@ from .utils import (
     is_list_of_lists,
     retrieve_plot_save_path,
     save_fig,
+    save_plotly_figure,
     save_pyvista_plotter,
 )
 
@@ -1021,6 +1022,7 @@ def scatters_pv(
     z: Union[int, str] = 2,
     color: str = "ntr",
     layer: str = "X",
+    plot_method: str = "pv",
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
     values: Optional[list] = None,
@@ -1097,10 +1099,21 @@ def scatters_pv(
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs that would be passed to `Plotter.add_points()`.
     """
-    try:
-        import pyvista as pv
-    except ImportError:
-        raise ImportError("Please install pyvista first.")
+
+    if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+    elif plot_method == "plotly":
+        try:
+            import plotly.express as px
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+    else:
+        raise NotImplementedError("Current plot method not supported.")
 
     if type(x) in [int, str]:
         x = [x]
@@ -1156,9 +1169,14 @@ def scatters_pv(
     colors_list = []
 
     if total_panels == 1:
-        pl = pv.Plotter()
+        pl = pv.Plotter() if plot_method == "pv" else make_subplots(rows=1, cols=1, specs=[[{"type": "scatter3d"}]])
     else:
-        pl = pv.Plotter(shape=(nrow, ncol))
+        pl = (
+            pv.Plotter(shape=(nrow, ncol))
+            if plot_method == "pv"
+            else
+            make_subplots(rows=nrow, cols=ncol, specs=[[{"type": "scatter3d"} for _ in range(ncol)] for _ in range(nrow)])
+        )
 
     def _plot_basis_layer_pv(cur_b: str, cur_l: str) -> None:
         """A helper function for plotting a specific basis/layer data
@@ -1276,23 +1294,48 @@ def scatters_pv(
                     sym_c=sym_c,
                 )
 
-                if total_panels > 1:
-                    pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
-
                 colors_list.append(colors)
-                pvdataset = pv.PolyData(points.values)
-                pvdataset.point_data["colors"] = np.stack(colors)
-                pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, cmap=_cmap, **kwargs)
 
-                if color_type == "labels":
-                    type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(_labels, colors)}
-                    type_color_pair = [[k, v] for k, v in type_color_dict.items()]
-                    pl.add_legend(labels=type_color_pair)
-                else:
-                    pl.add_scalar_bar()  # TODO: fix the bug that scalar bar only works in the first plot
+                if plot_method == "pv":
+                    if total_panels > 1:
+                        pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
 
-                pl.add_text(cur_title)
-                pl.add_axes(xlabel=points.columns[0], ylabel=points.columns[1], zlabel=points.columns[2])
+                    pvdataset = pv.PolyData(points.values)
+                    pvdataset.point_data["colors"] = np.stack(colors)
+                    pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, cmap=_cmap, **kwargs)
+
+                    if color_type == "labels":
+                        type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(_labels, colors)}
+                        type_color_pair = [[k, v] for k, v in type_color_dict.items()]
+                        pl.add_legend(labels=type_color_pair)
+                    else:
+                        pl.add_scalar_bar()  # TODO: fix the bug that scalar bar only works in the first plot
+
+                    pl.add_text(cur_title)
+                    pl.add_axes(xlabel=points.columns[0], ylabel=points.columns[1], zlabel=points.columns[2])
+                elif plot_method == "plotly":
+
+                    pl.add_trace(
+                        go.Scatter3d(
+                            x=points.iloc[:, 0],
+                            y=points.iloc[:, 1],
+                            z=points.iloc[:, 2],
+                            mode="markers",
+                            marker=dict(
+                                color=colors,
+                            ),
+                            text=_labels if color_type == "labels" else _values,
+                        ),
+                        row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+                    )
+
+                    pl.update_layout(
+                        scene=dict(
+                            xaxis_title=points.columns[0],
+                            yaxis_title=points.columns[1],
+                            zaxis_title=points.columns[2]
+                        ),
+                    )
 
                 cur_subplot += 1
 
@@ -1303,6 +1346,11 @@ def scatters_pv(
             _plot_basis_layer_pv(cur_b, cur_l)
 
     return save_pyvista_plotter(
+        pl=pl,
+        colors_list=colors_list,
+        save_show_or_return=save_show_or_return,
+        save_kwargs=save_kwargs,
+    ) if plot_method == "pv" else save_plotly_figure(
         pl=pl,
         colors_list=colors_list,
         save_show_or_return=save_show_or_return,
