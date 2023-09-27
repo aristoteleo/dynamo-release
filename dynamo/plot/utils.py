@@ -1732,6 +1732,49 @@ def save_pyvista_plotter(
         return (pl, colors_list) if colors_list else pl
 
 
+def save_plotly_figure(
+    pl,
+    colors_list: Optional[List] = None,
+    save_show_or_return: str = "show",
+    save_kwargs: Optional[Dict] = None,
+) -> Optional[Tuple]:
+    """Save, show or return the plotly figure.
+
+    Args:
+        pl: target plotly object.
+        colors_list: corresponding the list of colors mapping.
+        save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
+            the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
+            be return. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the saving function. By default, it is an empty dictionary
+            and the saving function will use the {"path": None, "prefix": 'scatter', "ext": 'html'} as its parameters.
+            Otherwise, you can provide a dictionary that properly modify those keys according to your needs. Defaults
+            to {}.
+
+    Returns:
+        If `save_show_or_return` is `return` or `all`, the figure and list of color mapping will be returned.
+    """
+
+    main_debug("show, return or save...")
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "scatters_plotly",
+            "ext": "html",
+        }
+
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
+        pl.write_html(saving_path)
+
+    if save_show_or_return in ["show", "both", "all"]:
+        pl.show()
+
+    if save_show_or_return in ["return", "all"]:
+        return (pl, colors_list) if colors_list else pl
+
+
 # ---------------------------------------------------------------------------------------------------
 def alpha_shape(x, y, alpha):
     # Start Using SHAPELY
