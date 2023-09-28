@@ -462,12 +462,6 @@ def plot_fixed_points(
     from matplotlib import markers, rcParams
     from matplotlib.colors import to_hex
 
-    if plot_method == "pv":
-        try:
-            import pyvista as pv
-        except ImportError:
-            raise ImportError("Please install pyvista first.")
-
     if background is None:
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
@@ -526,6 +520,10 @@ def plot_fixed_points(
     colors = [c if confidence is None else np.array(cm(confidence[i])) for i in range(len(confidence))]
 
     if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
 
         points = pv.PolyData(Xss)
         points.point_data["colors"] = colors
@@ -1511,12 +1509,6 @@ def topography_3D(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if plot_method == "pv":
-        try:
-            import pyvista as pv
-        except ImportError:
-            raise ImportError("Please install pyvista first.")
-
     if type(color) == str:
         color = [color]
 
@@ -1648,6 +1640,11 @@ def topography_3D(
         V = vector_field_function(init_states, vecfld_dict, [0, 1])
 
     if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+
         pl, colors_list = scatters_interactive(
             adata=adata,
             basis=basis,

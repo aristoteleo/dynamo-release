@@ -216,19 +216,6 @@ def cell_wise_vectors_3d(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if plot_method == "pv":
-        try:
-            import pyvista as pv
-        except ImportError:
-            raise ImportError("Please install pyvista first.")
-    elif plot_method == "plotly":
-        try:
-            import plotly.graph_objects as go
-        except ImportError:
-            raise ImportError("Please install plotly first.")
-    else:
-        raise NotImplementedError("Current plot method not supported.")
-
     def add_axis_label(ax, labels):
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1])
@@ -333,6 +320,11 @@ def cell_wise_vectors_3d(
     ncols = min(ncols, len(color))
 
     if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+
         pl, colors_list = scatters_interactive(
             adata=adata,
             basis=basis,
@@ -382,6 +374,11 @@ def cell_wise_vectors_3d(
         )
 
     elif plot_method == "plotly":
+        try:
+            import plotly.graph_objects as go
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+
         pl, colors_list = scatters_interactive(
             adata=adata,
             basis=basis,
