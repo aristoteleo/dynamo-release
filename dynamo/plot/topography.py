@@ -34,6 +34,7 @@ from .utils import (
     quiver_autoscaler,
     retrieve_plot_save_path,
     save_fig,
+    save_plotly_figure,
     save_pyvista_plotter,
     set_arrow_alpha,
     set_stream_line_alpha,
@@ -522,11 +523,11 @@ def plot_fixed_points(
         )
 
     cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
+    colors = [c if confidence is None else np.array(cm(confidence[i])) for i in range(len(confidence))]
 
     if plot_method == "pv":
 
         points = pv.PolyData(Xss)
-        colors = [c if confidence is None else np.array(cm(confidence[i])).reshape(1, -1) for i in range(len(confidence))]
         points.point_data["colors"] = colors
 
         points["Labels"] = [str(i) for i in range(points.n_points)]
@@ -545,6 +546,39 @@ def plot_fixed_points(
             ax.add_point_labels(points, "Labels", font_size=36, show_points=False) # TODO: only work for the first plot
 
         return save_pyvista_plotter(
+            pl=ax,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+    elif plot_method == "plotly":
+        try:
+            import plotly.graph_objects as go
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+
+        r, c = ax._get_subplot_rows_columns()
+        r, c = list(r)[-1], list(c)[-1]
+        subplot_indices = [[i, j] for i in range(r) for j in range(c)]
+        cur_subplot = 0
+
+        for i in range(r * c):
+            ax.add_trace(
+                go.Scatter3d(
+                    x=Xss[:, 0],
+                    y=Xss[:, 1],
+                    z=Xss[:, 2],
+                    mode="markers+text",
+                    marker=dict(
+                        color=colors,
+                        size=15,
+                    ),
+                    text=[str(i) for i in range(len(Xss))],
+                    **kwargs,
+                ),
+                row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+            )
+
+        return save_plotly_figure(
             pl=ax,
             save_show_or_return=save_show_or_return,
             save_kwargs=save_kwargs,
@@ -1648,6 +1682,51 @@ def topography_3D(
             )
 
         return save_pyvista_plotter(
+            pl=pl,
+            colors_list=colors_list,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+    elif plot_method == "plotly":
+        try:
+            import plotly.graph_objects as go
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+
+        pl, colors_list = scatters_interactive(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            plot_method="plotly",
+            highlights=highlights,
+            labels=labels,
+            values=values,
+            cmap=cmap,
+            theme=theme,
+            background=background,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            use_smoothed=use_smoothed,
+            save_show_or_return="return",
+            opacity=0.8,
+        )
+
+        if "fixed_points" in terms:
+            pl = plot_fixed_points(
+                fps_vecfld,
+                fps_vecfld_dict,
+                background=_background,
+                ax=pl,
+                markersize=markersize,
+                cmap=marker_cmap,
+                plot_method="plotly",
+            )
+
+        return save_plotly_figure(
             pl=pl,
             colors_list=colors_list,
             save_show_or_return=save_show_or_return,
