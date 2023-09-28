@@ -570,3 +570,103 @@ class PyvistaAnim(BaseAnim):
             self.pl.write_frame()  # TODO: debug this
 
         self.pl.close()
+
+
+class PlotlyAnim(BaseAnim):
+    def __init__(
+        self,
+        adata: AnnData,
+        basis: str = "umap",
+        fp_basis: Union[str, None] = None,
+        dims: Optional[list] = None,
+        n_steps: int = 15,
+        cell_states: Union[int, list, None] = None,
+        color: str = "ntr",
+        pl=None,
+        logspace: bool = False,
+        max_time: Optional[float] = None,
+        frame_color=None,
+        filename: str = "fate_animation.gif",
+    ):
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+
+        super().__init__(
+            adata=adata,
+            basis=basis,
+            fp_basis=fp_basis,
+            dims=dims,
+            n_steps=n_steps,
+            cell_states=cell_states,
+            color=color,
+            logspace=logspace,
+            max_time=max_time,
+            frame_color=frame_color,
+        )
+
+        self.filename = filename
+
+        if pl is None:
+            self.pl = topography_3D(
+                self.adata,
+                basis=self.basis,
+                fps_basis=self.fp_basis,
+                color=self.color,
+                plot_method="plotly",
+                ax=self.pl,
+                save_show_or_return="return",
+            )
+        else:
+            self.pl = pl
+
+        self.n_steps = n_steps
+        self.pts_history = []
+
+    def calculate_pts_history(self):
+        pts = [i.tolist() for i in self.init_states]
+
+        self.pts_history.append(pts)
+
+        for frame in range(0, self.n_steps):
+            pts = [self.displace(cur_pts, self.time_vec[frame])[1].tolist() for cur_pts in pts]
+            pts = np.asarray(pts)
+            pts = remove_particles(pts, self.xlim, self.ylim, self.zlim)
+            self.pts_history.append(np.asarray(pts))
+
+    def animate(self):
+        try:
+            import plotly.graph_objects as go
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+
+        if len(self.pts_history) == 0:
+            self.calculate_pts_history()
+
+        fig = go.Figure(
+            data=self.pl,
+            layout=go.Layout(title="Moving Frenet Frame Along a Planar Curve",
+                             updatemenus=[dict(type="buttons",
+                                               buttons=[dict(label="Play",
+                                                             method="animate",
+                                                             args=[None])])]),
+            frames=[
+                go.Frame(
+                    data=[
+                        go.Scatter3d(
+                            x=self.pts_history[k][:, 0],
+                            y=self.pts_history[k][:, 1],
+                            z=self.pts_history[k][:, 2],
+                            mode="markers",
+                            marker=dict(
+                                color="red",
+                                size=20,
+                            ),
+                        )
+                    ]
+                ) for k in range(1, self.n_steps)
+            ]
+        )
+
+        fig.show()
