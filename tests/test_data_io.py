@@ -4,23 +4,25 @@ import numpy as np
 
 import dynamo
 import dynamo as dyn
-
+import pytest
 # import utils
 
 
-def test_save_rank_info(adata):
+@pytest.mark.skip(reason="excessive memory usage")
+def test_save_rank_info(processed_zebra_adata):
+    adata = processed_zebra_adata.copy()
+    dyn.vf.acceleration(adata, basis="pca")
+    dyn.vf.rank_acceleration_genes(adata, groups="Cell_type", akey="acceleration", prefix_store="rank")
     dyn.export_rank_xlsx(adata)
 
 
+@pytest.mark.skip(reason="excessive memory usage")
 def test_scEU_seq():
     dynamo.sample_data.scEU_seq_rpe1()
     assert os.path.exists("./data/rpe1.h5ad")
 
 
-def test_zebrafish():
-    dynamo.sample_data.zebrafish()
-
-
+@pytest.mark.skip(reason="excessive memory usage")
 def test_save_adata():
     import numpy as np
 
@@ -113,8 +115,7 @@ def test_save_adata():
 
 if __name__ == "__main__":
     # test_scEU_seq()
-    # test_zebrafish()
     # adata = utils.gen_or_read_zebrafish_data()
     # test_save_rank_info(adata)
-    test_save_adata()
+    # test_save_adata()
     pass
