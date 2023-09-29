@@ -485,7 +485,7 @@ def least_action(
     coords = adata.obsm["X_" + basis]
 
     T = adata.obsp[adj_key]
-    G = nx.convert_matrix.from_scipy_sparse_matrix(T)
+    G = nx.convert_matrix.from_scipy_sparse_array(T)
 
     init_states, _, _, _ = fetch_states(
         adata,
