@@ -107,7 +107,7 @@ def cite_seq():
 
 
 def zebrafish(
-    url="https://pitt.box.com/shared/static/w81022hta7lymss36i8m5ughppjjagqw.h5ad",
+    url="https://www.dropbox.com/scl/fi/3zt89ee0j5twxk4ttzmij/zebrafish.h5ad?rlkey=phwg0b7aqiizd9kf69l2kciak&dl=1",
     filename="zebrafish.h5ad",
 ):
     """The zebrafish is from Saunders, et al (2019).
@@ -313,7 +313,7 @@ def hematopoiesis_raw(
     return adata
 
 
-def human_tfs(url="https://pitt.box.com/shared/static/spr7mi9rl2s7kgstrvrpidg138quuo4c.txt", filename="human_tfs.txt"):
+def human_tfs(url="https://www.dropbox.com/scl/fi/pyocgrhvglg6p7q8yf9ol/human_tfs.txt?rlkey=kbc8vfzf72f8ez0xldrb5nb2d&dl=1", filename="human_tfs.txt"):
     file_path = download_data(url, filename)
     tfs = pd.read_csv(file_path, sep="\t")
     return tfs
