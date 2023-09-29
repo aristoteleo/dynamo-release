@@ -1,9 +1,7 @@
 import matplotlib.pyplot as plt
-import shiny.experimental as x
 from anndata import AnnData
 from htmltools import div
 from pathlib import Path
-from shiny import App, Inputs, Outputs, reactive, Session, render, ui
 
 from .utils import filter_fig
 from ..plot import streamline_plot
@@ -20,6 +18,12 @@ def perturbation_web_app(input_adata: AnnData):
     Args:
         input_adata: the processed anndata object to perform in silico perturbation.
     """
+    try:
+        import shiny.experimental as x
+        from shiny import App, Inputs, Outputs, reactive, Session, render, ui
+    except ImportError:
+        raise ImportError("Please install shiny before running the web application!")
+
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
             ui.include_css(css_path),

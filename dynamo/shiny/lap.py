@@ -3,12 +3,10 @@ import numpy as np
 import pandas as pd
 import random
 import seaborn as sns
-import shiny.experimental as x
 from anndata import AnnData
 from htmltools import TagList, div
 from functools import reduce
 from pathlib import Path
-from shiny import App, Inputs, Outputs, reactive, Session, render, ui
 from sklearn.metrics import roc_curve, auc
 
 from .utils import filter_fig
@@ -32,6 +30,12 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
         tfs_data: the transcription factors information saved in a txt or csv file. The names of TFs should be saved in
             the `["Symbol"]` column. An example can be found in the `sample_data.py`.
     """
+    try:
+        import shiny.experimental as x
+        from shiny import App, Inputs, Outputs, reactive, Session, render, ui
+    except ImportError:
+        raise ImportError("Please install shiny before running the web application!")
+
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
             ui.include_css(css_path),
