@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 from anndata import AnnData
-from htmltools import div
 from pathlib import Path
 
 from .utils import filter_fig
@@ -20,9 +19,10 @@ def perturbation_web_app(input_adata: AnnData):
     """
     try:
         import shiny.experimental as x
+        from htmltools import div
         from shiny import App, Inputs, Outputs, reactive, Session, render, ui
     except ImportError:
-        raise ImportError("Please install shiny before running the web application!")
+        raise ImportError("Please install shiny and htmltools before running the web application!")
 
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(

@@ -4,7 +4,6 @@ import pandas as pd
 import random
 import seaborn as sns
 from anndata import AnnData
-from htmltools import TagList, div
 from functools import reduce
 from pathlib import Path
 from sklearn.metrics import roc_curve, auc
@@ -32,9 +31,10 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
     """
     try:
         import shiny.experimental as x
+        from htmltools import TagList, div
         from shiny import App, Inputs, Outputs, reactive, Session, render, ui
     except ImportError:
-        raise ImportError("Please install shiny before running the web application!")
+        raise ImportError("Please install shiny and htmltools before running the web application!")
 
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
