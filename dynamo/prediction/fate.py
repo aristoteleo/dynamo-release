@@ -162,8 +162,9 @@ def fate(
 
     elif basis == "umap" and inverse_transform:
         # this requires umap 0.4; reverse project to PCA space.
-        if prediction.ndim == 1:
-            prediction = prediction[None, :]
+        if hasattr(prediction, "ndim"):
+            if prediction.ndim == 1:
+                prediction = prediction[None, :]
         exprs = adata.uns["umap_fit"]["fit"].inverse_transform(prediction)
 
         # further reverse project back to raw expression space
