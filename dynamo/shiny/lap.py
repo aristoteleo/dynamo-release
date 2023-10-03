@@ -1,3 +1,4 @@
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -6,6 +7,7 @@ import seaborn as sns
 from anndata import AnnData
 from functools import reduce
 from pathlib import Path
+from shiny.plotutils import brushed_points, near_points
 from sklearn.metrics import roc_curve, auc
 
 from .utils import filter_fig
@@ -18,7 +20,6 @@ from ..vectorfield import rank_genes
 
 
 css_path = Path(__file__).parent / "styles.css"
-
 
 def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
     """The shiny web application of most probable path predictions analyses. The process is equivalent to this tutorial:
@@ -53,16 +54,6 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                     ),
                     x.ui.accordion_panel(
                         div("Initialization", class_="bold-subtitle"),
-                        ui.input_text(
-                            "cells_names",
-                            "Names of cell types to perform LAP analyses: ",
-                            placeholder="e.g. HSC,Meg,Ery,Bas,Mon,Neu",
-                        ),
-                        ui.input_text(
-                            "fps_coordinates",
-                            "Identified fixed points coordinates for each cell types: ",
-                            placeholder="Enter the coordinates of fixed point."
-                        ),
                         ui.input_action_button(
                             "initialize", "Initialize searching", class_="btn-primary"
                         ),
@@ -192,7 +183,15 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                     div("Streamline plot of given basis and color", class_="bold-subtitle"),
                     x.ui.output_plot("base_streamline_plot"),
                     div("The fixed points representing the typical cell state of these cells", class_="bold-subtitle"),
-                    x.ui.output_plot("initialize_searching"),
+                    x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True, brush=True),
+                    ui.row(
+                        ui.column(6, ui.tags.b("Points near cursor"), ui.output_table("near_click")),
+                        ui.column(6, ui.tags.b("Points in brush"), ui.output_table("in_brush")),
+                    ),
+                    ui.row(
+                        ui.column(6, ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),),
+                        ui.column(6, ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),),
+                    ),
                     div("LAP result of given transition", class_="bold-subtitle"),
                     x.ui.output_plot("plot_lap"),
                     div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
@@ -235,6 +234,9 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
 
     def server(input: Inputs, output: Outputs, session: Session):
         adata = input_adata.copy()
+        coordinates_df = reactive.Value[pd.DataFrame]()
+        initialize_fps_coordinates = reactive.Value[pd.DataFrame]()
+        initialize_fps_coordinates.set(None)
         tfs_names = list(tfs_data["Symbol"])
         cells = reactive.Value[list[np.ndarray]]()
         cells_indices = reactive.Value[list[list[float]]]()
@@ -254,27 +256,84 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
         reprogramming_mat_dataframe_p = reactive.Value[pd.DataFrame]()
 
         @output
+        @render.table()
+        def near_click():
+            return near_points(
+                coordinates_df().copy(),
+                coordinfo=input.initialize_searching_click(),
+                xvar="x",
+                yvar="y",
+            )
+
+        @reactive.Effect
+        @reactive.event(input.add_click_pts)
+        def _():
+            points = near_points(
+                coordinates_df().copy(),
+                coordinfo=input.initialize_searching_click(),
+                xvar="x",
+                yvar="y",
+            )
+            if initialize_fps_coordinates() is None:
+                initialize_fps_coordinates.set(points)
+            else:
+                initialize_fps_coordinates.set(pd.concat([initialize_fps_coordinates(), points]))
+
+        @output
+        @render.table()
+        def in_brush():
+            return brushed_points(
+                coordinates_df().copy(),
+                input.initialize_searching_brush(),
+                xvar="x",
+                yvar="y",
+            )
+
+        @reactive.Effect
+        @reactive.event(input.add_brush_pts)
+        def _():
+            points = brushed_points(
+                coordinates_df().copy(),
+                input.initialize_searching_brush(),
+                xvar="x",
+                yvar="y",
+            )
+            if initialize_fps_coordinates() is None:
+                initialize_fps_coordinates.set(points)
+            else:
+                initialize_fps_coordinates.set(pd.concat([initialize_fps_coordinates(), points]))
+
+        @output
         @render.plot()
         @reactive.event(input.initialize)
         def initialize_searching():
-            cells_names = input.cells_names().split(",")
-            cell_list = []
-            for c in cells_names:
-                cell_list.append(select_cell(adata, input.cells_type_key(), c))
-
-            fps_coordinates = [float(num) for num in input.fps_coordinates().split(",")]
-            fps_coordinates = [[fps_coordinates[i], fps_coordinates[i + 1]] for i in range(0, len(fps_coordinates), 2)]
-
-            cells_indices_list = []
-            for coord in fps_coordinates:
-                cells_indices_list.append(nearest_neighbors(coord, adata.obsm["X_" + input.streamline_basis()]))
-
-            cells.set(cell_list)
-            cells_indices.set(cells_indices_list)
+            df = initialize_fps_coordinates()
+            if df is not None:
+                cell_list = []
+                for c in df["Cell_Type"].values:
+                    cell_list.append(select_cell(adata, input.cells_type_key(), c))
+                fps_coordinates = [[row["x"], row["y"]] for idx, row in df.iterrows()]
+                cells_indices_list = []
+                for coord in fps_coordinates:
+                    cells_indices_list.append(nearest_neighbors(coord, adata.obsm["X_" + input.streamline_basis()]))
+                cells.set(cell_list)
+                cells_indices.set(cells_indices_list)
 
             plt.scatter(*adata.obsm["X_" + input.streamline_basis()].T)
-            for indices in cells_indices_list:
-                plt.scatter(*adata[indices[0]].obsm["X_" + input.streamline_basis()].T)
+            if df is not None:
+                for indices in cells_indices_list:
+                    plt.scatter(*adata[indices[0]].obsm["X_" + input.streamline_basis()].T)
+            return filter_fig(plt.gcf())
+
+        @output
+        @render.text()
+        def click_info():
+            return "click:\n" + json.dumps(input.initialize_searching_click(), indent=2)
+
+        @output
+        @render.text()
+        def brush_info():
+            return "brush:\n" + json.dumps(input.initialize_searching_brush(), indent=2)
 
         @output
         @render.plot()
@@ -289,13 +348,21 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                 save_show_or_return="return",
             )
 
+            df = pd.DataFrame({
+                "x": adata.obsm["X_" + input.streamline_basis()][:, 0],
+                "y": adata.obsm["X_" + input.streamline_basis()][:, 1],
+                "Cell_Type": adata.obs[input.cells_type_key().split(",")[0]]
+            }, index=adata.obs_names)
+
+            coordinates_df.set(df)
+
             return filter_fig(plt.gcf())
 
         @reactive.Effect
         @reactive.event(input.activate_lap)
         def _():
             transition_graph_dict = {}
-            cell_type = input.cells_names().split(",")
+            cell_type = list(initialize_fps_coordinates()["Cell_Type"].values)
             start_cell_indices = cells_indices()
             end_cell_indices = start_cell_indices
             for i, start in enumerate(start_cell_indices):
@@ -378,7 +445,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
         @reactive.Effect
         @reactive.event(input.activate_prepare_tfs)
         def _():
-            cell_type = input.cells_names().split(",")
+            cell_type = list(initialize_fps_coordinates()["Cell_Type"].values)
             action_df = pd.DataFrame(index=cell_type, columns=cell_type)
             t_df = pd.DataFrame(index=cell_type, columns=cell_type)
             for i, start in enumerate(cells_indices()):
@@ -402,7 +469,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
         @reactive.event(input.activate_tfs_barplot)
         def tfs_barplot():
             develop_time_df = pd.DataFrame({"integration time": t_dataframe().iloc[0, :].T})
-            develop_time_df["lineage"] = input.cells_names().split(",")
+            develop_time_df["lineage"] = list(initialize_fps_coordinates()["Cell_Type"].values)
 
             ig, ax = plt.subplots(figsize=(4, 3))
 
