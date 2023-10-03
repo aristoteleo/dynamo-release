@@ -165,22 +165,24 @@ def fate(
         if hasattr(prediction, "ndim"):
             if prediction.ndim == 1:
                 prediction = prediction[None, :]
-        exprs = adata.uns["umap_fit"]["fit"].inverse_transform(prediction)
 
-        # further reverse project back to raw expression space
+        umap_fit = adata.uns["umap_fit"]["fit"]
         PCs = adata.uns["PCs"].T
-        if PCs.shape[0] == exprs.shape[1]:
-            exprs = np.expm1(exprs @ PCs + adata.uns["pca_mean"])
 
-        ndim = adata.uns["umap_fit"]["fit"]._raw_data.shape[1]
+        exprs = []
 
-        if "X" in adata.obsm_keys():
-            if ndim == adata.obsm[DKM.X_PCA].shape[1]:  # lift the dimension up again
-                exprs = adata.uns["pca_fit"].inverse_transform(prediction)
+        for cur_pred in prediction:
+            expr = umap_fit.inverse_transform(cur_pred.T)
 
-        if adata.var.use_for_dynamics.sum() == exprs.shape[1]:
+            # further reverse project back to raw expression space
+            if PCs.shape[0] == expr.shape[1]:
+                expr = np.expm1(expr @ PCs + adata.uns["pca_mean"])
+
+            exprs.append(expr)
+
+        if adata.var.use_for_dynamics.sum() == exprs[0].shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
-        elif adata.var.use_for_transition.sum() == exprs.shape[1]:
+        elif adata.var.use_for_transition.sum() == exprs[0].shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_transition]
         else:
             raise Exception(
