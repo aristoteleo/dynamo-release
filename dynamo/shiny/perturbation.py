@@ -27,6 +27,11 @@ def perturbation_web_app(input_adata: AnnData):
     app_ui = x.ui.page_sidebar(
         x.ui.sidebar(
             ui.include_css(css_path),
+            div("Streamline Plot", class_="bold-subtitle"),
+            ui.input_text("base_color", "The key to color the cells: ", value="cell_type"),
+            ui.input_text(
+                "base_streamline_basis", "The perturbation output as the basis of plot: ", value="umap"
+            ),
             x.ui.accordion(
                 x.ui.accordion_panel(
                     div("Perturbation", class_="bold-subtitle"),
@@ -41,7 +46,7 @@ def perturbation_web_app(input_adata: AnnData):
                     value="Perturbation",
                 ),
                 x.ui.accordion_panel(
-                    div("Streamline Plot", class_="bold-subtitle"),
+                    div("Streamline Plot After Perturbation", class_="bold-subtitle"),
                     ui.input_text("color", "The key to color the cells: ", value="cell_type"),
                     ui.input_text(
                         "streamline_basis", "The perturbation output as the basis of plot: ", value="umap_perturbation"
@@ -57,12 +62,24 @@ def perturbation_web_app(input_adata: AnnData):
         ),
         ui.div(
             div("Streamline Plot", class_="bold-subtitle"),
+            x.ui.output_plot("base_plot"),
+            div("Streamline Plot After Perturbation", class_="bold-subtitle"),
             x.ui.output_plot("perturbation_plot"),
         ),
     )
 
     def server(input: Inputs, output: Outputs, session: Session):
         adata = input_adata.copy()
+
+        @output
+        @render.plot()
+        def base_plot():
+            color = input.base_color().split(",")
+
+            axes_list = streamline_plot(adata, color=color, basis=input.base_streamline_basis(),
+                                        save_show_or_return="return")
+
+            return filter_fig(plt.gcf())
 
         @reactive.Effect
         @reactive.event(input.activate_perturbation)
