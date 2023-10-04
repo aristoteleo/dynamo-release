@@ -53,13 +53,6 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                         value="Streamline Plot",
                     ),
                     x.ui.accordion_panel(
-                        div("Initialization", class_="bold-subtitle"),
-                        ui.input_action_button(
-                            "initialize", "Initialize searching", class_="btn-primary"
-                        ),
-                        value="Initialization",
-                    ),
-                    x.ui.accordion_panel(
                         div("Run LAP", class_="bold-subtitle"),
                         div("Run pairwise least action path analyses among given cell types", class_="explanation"),
                         ui.input_action_button(
@@ -306,7 +299,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
 
         @output
         @render.plot()
-        @reactive.event(input.initialize)
+        @reactive.event(input.add_click_pts, input.add_brush_pts, input.activate_streamline_plot)
         def initialize_searching():
             df = initialize_fps_coordinates()
             if df is not None:
@@ -352,7 +345,8 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
             df = pd.DataFrame({
                 "x": adata.obsm["X_" + input.streamline_basis()][:, 0],
                 "y": adata.obsm["X_" + input.streamline_basis()][:, 1],
-                "Cell_Type": adata.obs[input.cells_type_key().split(",")[0]]
+                "Cell_Type": adata.obs[input.cells_type_key().split(",")[0]],
+                "Cell Names": adata.obs_names,
             }, index=adata.obs_names)
 
             coordinates_df.set(df)
@@ -366,55 +360,60 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
             cell_type = list(initialize_fps_coordinates()["Cell_Type"].values)
             start_cell_indices = cells_indices()
             end_cell_indices = start_cell_indices
-            for i, start in enumerate(start_cell_indices):
-                for j, end in enumerate(end_cell_indices):
-                    if start is not end:
-                        min_lap_t = True if i == 0 else False
-                        least_action(
-                            adata,
-                            [adata.obs_names[start[0]][0]],
-                            [adata.obs_names[end[0]][0]],
-                            basis="umap",
-                            adj_key="X_umap_distances",
-                            min_lap_t=min_lap_t,
-                            EM_steps=2,
+            with ui.Progress(min=0, max=len(start_cell_indices) ** 2) as p:
+                for i, start in enumerate(start_cell_indices):
+                    for j, end in enumerate(end_cell_indices):
+                        if start is not end:
+                            min_lap_t = True if i == 0 else False
+                            least_action(
+                                adata,
+                                [adata.obs_names[start[0]][0]],
+                                [adata.obs_names[end[0]][0]],
+                                basis="umap",
+                                adj_key="X_umap_distances",
+                                min_lap_t=min_lap_t,
+                                EM_steps=2,
+                            )
+                            # least_action(adata, basis="umap")
+                            lap = least_action(
+                                adata,
+                                [adata.obs_names[start[0]][0]],
+                                [adata.obs_names[end[0]][0]],
+                                basis="pca",
+                                adj_key="cosine_transition_matrix",
+                                min_lap_t=min_lap_t,
+                                EM_steps=2,
+                            )
+                            # dyn.pl.kinetic_heatmap(
+                            #     adata,
+                            #     basis="pca",
+                            #     mode="lap",
+                            #     genes=adata.var_names[adata.var.use_for_transition],
+                            #     project_back_to_high_dim=True,
+                            # )
+                            # The `GeneTrajectory` class can be used to output trajectories for any set of genes of interest
+                            gtraj = GeneTrajectory(adata)
+                            gtraj.from_pca(lap.X, t=lap.t)
+                            gtraj.calc_msd()
+                            ranking = rank_genes(adata, "traj_msd", output_values=True)
+
+                            print(start, "->", end)
+                            genes = ranking[:5]["all"].to_list()
+                            arr = gtraj.select_gene(genes)
+
+                            # dyn.pl.multiplot(lambda k: [plt.plot(arr[k, :]), plt.title(genes[k])], np.arange(len(genes)))
+
+                            transition_graph_dict[cell_type[i] + "->" + cell_type[j]] = {
+                                "lap": lap,
+                                "LAP_umap": adata.uns["LAP_umap"],
+                                "LAP_pca": adata.uns["LAP_pca"],
+                                "ranking": ranking,
+                                "gtraj": gtraj,
+                            }
+                        p.set(
+                            i * len(start_cell_indices) + j,
+                            message=f"Integrating step = {i * len(start_cell_indices) + j} / {len(start_cell_indices) ** 2}",
                         )
-                        # least_action(adata, basis="umap")
-                        lap = least_action(
-                            adata,
-                            [adata.obs_names[start[0]][0]],
-                            [adata.obs_names[end[0]][0]],
-                            basis="pca",
-                            adj_key="cosine_transition_matrix",
-                            min_lap_t=min_lap_t,
-                            EM_steps=2,
-                        )
-                        # dyn.pl.kinetic_heatmap(
-                        #     adata,
-                        #     basis="pca",
-                        #     mode="lap",
-                        #     genes=adata.var_names[adata.var.use_for_transition],
-                        #     project_back_to_high_dim=True,
-                        # )
-                        # The `GeneTrajectory` class can be used to output trajectories for any set of genes of interest
-                        gtraj = GeneTrajectory(adata)
-                        gtraj.from_pca(lap.X, t=lap.t)
-                        gtraj.calc_msd()
-                        ranking = rank_genes(adata, "traj_msd", output_values=True)
-
-                        print(start, "->", end)
-                        genes = ranking[:5]["all"].to_list()
-                        arr = gtraj.select_gene(genes)
-
-                        # dyn.pl.multiplot(lambda k: [plt.plot(arr[k, :]), plt.title(genes[k])], np.arange(len(genes)))
-
-                        transition_graph_dict[cell_type[i] + "->" + cell_type[j]] = {
-                            "lap": lap,
-                            "LAP_umap": adata.uns["LAP_umap"],
-                            "LAP_pca": adata.uns["LAP_pca"],
-                            "ranking": ranking,
-                            "gtraj": gtraj,
-                        }
             transition_graph.set(transition_graph_dict)
 
         @output
@@ -542,12 +541,12 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                 project_back_to_high_dim=True,
                 save_show_or_return="return",
                 color_map="bwr",
-                transpose=True,
-                xticklabels=True,
-                yticklabels=False
+                transpose=False,
+                xticklabels=False,
+                yticklabels=True
             )
 
-            plt.setp(sns_heatmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
+            plt.setp(sns_heatmap.ax_heatmap.yaxis.get_majorticklabels())
             plt.tight_layout()
             return filter_fig(plt.gcf())
 
