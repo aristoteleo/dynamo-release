@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import pandas as pd
 from anndata import AnnData
 from pathlib import Path
 
@@ -63,6 +64,8 @@ def perturbation_web_app(input_adata: AnnData):
         ui.div(
             div("Streamline Plot", class_="bold-subtitle"),
             x.ui.output_plot("base_plot"),
+            div("In-silico Perturbation Information", class_="bold-subtitle"),
+            ui.output_table("activate_perturbation"),
             div("Streamline Plot After Perturbation", class_="bold-subtitle"),
             x.ui.output_plot("perturbation_plot"),
         ),
@@ -81,13 +84,17 @@ def perturbation_web_app(input_adata: AnnData):
 
             return filter_fig(plt.gcf())
 
-        @reactive.Effect
+        @output
+        @render.table
         @reactive.event(input.activate_perturbation)
         def activate_perturbation():
             selected_genes = input.selected_genes().split(",")
             expression = [int(txt) for txt in input.expression().split(",")]
+            df = pd.DataFrame({"Genes": selected_genes, "Values": expression})
 
             perturbation(adata, selected_genes, expression, emb_basis=input.emb_basis())
+
+            return df
 
         @output
         @render.plot()
