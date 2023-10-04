@@ -72,6 +72,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                         ui.input_text(
                             "visualize_keys", "Key of transitions to plot: ", placeholder="e.g. HSC->Meg,HSC->Ery"
                         ),
+                        ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10),
                         ui.input_action_button(
                             "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
                         ),
@@ -399,7 +400,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                         gtraj = GeneTrajectory(adata)
                         gtraj.from_pca(lap.X, t=lap.t)
                         gtraj.calc_msd()
-                        ranking = rank_genes(adata, "traj_msd")
+                        ranking = rank_genes(adata, "traj_msd", output_values=True)
 
                         print(start, "->", end)
                         genes = ranking[:5]["all"].to_list()
@@ -421,24 +422,32 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
         @reactive.event(input.activate_visualize_lap)
         def plot_lap():
             paths = input.visualize_keys().split(",")
-            fig, ax = plt.subplots(figsize=(5, 4))
-            ax = streamline_plot(
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 4))
+            ax_list = streamline_plot(
                 adata,
                 basis=input.streamline_basis(),
                 save_show_or_return="return",
-                ax=ax,
+                ax=ax1,
                 color=input.cells_type_key().split(","),
                 frontier=True,
             )
-            ax = ax[0]
+            ax1 = ax_list[0]
             x, y = 0, 1
 
             # plot paths
             for path in paths:
                 lap_dict = transition_graph()[path]["LAP_umap"]
                 for prediction, action in zip(lap_dict["prediction"], lap_dict["action"]):
-                    ax.scatter(*prediction[:, [x, y]].T, c=map2color(action))
-                    ax.plot(*prediction[:, [x, y]].T, c="k")
+                    ax1.scatter(*prediction[:, [x, y]].T, c=map2color(action))
+                    ax1.plot(*prediction[:, [x, y]].T, c="k")
+
+            sns.barplot(
+                y="all",
+                x="all_values",
+                data=transition_graph()[path]["ranking"][:input.top_n_genes()],
+                dodge=False,
+                ax=ax2,
+            )
 
             return filter_fig(fig)
 
