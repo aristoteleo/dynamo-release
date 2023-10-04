@@ -1,3 +1,4 @@
+import math
 from typing import Any, Dict, Optional, Tuple, Union
 
 try:
@@ -46,7 +47,8 @@ def _calculate_cells_mapping(
     cells_mapping_percentage = cell_type_info.div(cells_mapping_size, axis=0)
     cells_mapping_percentage = np.nan_to_num(cells_mapping_percentage.values)
 
-    cells_mapping_size = (cells_mapping_size / len(cell_proj_closest_vertex)) + 0.05
+    cells_mapping_size = (cells_mapping_size / len(cell_proj_closest_vertex))
+    cells_mapping_size = [0.05 if s < 0.05 else s for s in cells_mapping_size]
 
     return cells_mapping_size, cells_mapping_percentage, cell_color_map
 
@@ -89,10 +91,20 @@ def plot_dim_reduced_direct_graph(
 
     cells_colors = np.array([v for v in cells_color_map.values()])
 
+    fig, ax = plt.subplots(figsize=(8, 6))
+
     G = nx.from_numpy_array(graph)
     pos = nx.spring_layout(G)
 
-    g = nx.draw_networkx_edges(G, pos=pos)
+    g = nx.draw_networkx_edges(
+        G,
+        pos=pos,
+        node_size=[s * len(cells_size) * 300 for s in cells_size],
+        arrows=True,
+        arrowstyle="->",
+        arrowsize=20,
+        ax=ax,
+    )
 
     if display_piechart:
         for node in G.nodes:
@@ -103,12 +115,16 @@ def plot_dim_reduced_direct_graph(
                 attributes[valid_indices],
                 center=pos[node],
                 colors=cells_colors[valid_indices],
-                radius=cells_size[node])
+                radius=cells_size[node],
+            )
 
         plt.legend(handles=[plt.Line2D([0], [0], marker="o", color='w', label=label,
-                                       markerfacecolor=color) for label, color in cells_color_map.items()], loc="best")
+                                       markerfacecolor=color) for label, color in cells_color_map.items()],
+                   loc="best",
+                   fontsize="large",
+                   )
     else:
-        nx.draw_networkx_nodes(G, pos=pos)
+        nx.draw_networkx_nodes(G, pos=pos, node_size=[s * len(cells_size) * 300 for s in cells_size], ax=ax)
 
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
