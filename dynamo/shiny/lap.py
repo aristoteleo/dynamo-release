@@ -1,3 +1,5 @@
+from typing import Optional
+
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,7 +23,7 @@ from ..vectorfield import rank_genes
 
 css_path = Path(__file__).parent / "styles.css"
 
-def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
+def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
     """The shiny web application of most probable path predictions analyses. The process is equivalent to this tutorial:
     https://dynamo-release.readthedocs.io/en/latest/notebooks/lap_tutorial/lap_tutorial.html
 
@@ -254,7 +256,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
         coordinates_df = reactive.Value[pd.DataFrame]()
         initialize_fps_coordinates = reactive.Value[pd.DataFrame]()
         initialize_fps_coordinates.set(None)
-        tfs_names = list(tfs_data["Symbol"])
+        tfs_names = list(tfs_data["Symbol"]) if tfs_data else list(adata.var_names)
         cells = reactive.Value[list[np.ndarray]]()
         cells_indices = reactive.Value[list[list[float]]]()
         transition_graph = reactive.Value[dict]()
