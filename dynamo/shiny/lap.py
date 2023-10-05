@@ -39,214 +39,239 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
     except ImportError:
         raise ImportError("Please install shiny and htmltools before running the web application!")
 
-    app_ui = x.ui.page_sidebar(
-        x.ui.sidebar(
-            ui.include_css(css_path),
-            x.ui.accordion(
-                x.ui.accordion_panel(
-                    div("Run pairwise least action path analyses", class_="bold-title"),
-                    x.ui.accordion_panel(
-                        div("Streamline Plot", class_="bold-subtitle"),
-                        ui.input_text("cells_type_key", "Key of cell type information: ", value="cell_type"),
-                        ui.input_text("streamline_basis", "The basis to perform LAP: ", value="umap"),
-                        ui.input_action_button(
-                            "activate_streamline_plot", "Streamline plot", class_="btn-primary"
+    app_ui = ui.page_fluid(
+        ui.navset_tab(
+            ui.nav(
+                "Run pairwise least action path analyses",
+                x.ui.layout_sidebar(
+                    x.ui.sidebar(
+                        ui.include_css(css_path),
+                        x.ui.accordion(
+                            x.ui.accordion_panel(
+                                div("Run pairwise least action path analyses", class_="bold-title"),
+                                x.ui.accordion_panel(
+                                    div("Streamline Plot", class_="bold-subtitle"),
+                                    ui.input_text("cells_type_key", "Key of cell type information: ",
+                                                  value="cell_type"),
+                                    ui.input_text("streamline_basis", "The basis to perform LAP: ", value="umap"),
+                                    ui.input_action_button(
+                                        "activate_streamline_plot", "Streamline plot", class_="btn-primary"
+                                    ),
+                                    value="Streamline Plot",
+                                ),
+                                x.ui.accordion_panel(
+                                    div("Run LAP", class_="bold-subtitle"),
+                                    div("Run pairwise least action path analyses among given cell types",
+                                        class_="explanation"),
+                                    ui.input_action_button(
+                                        "activate_lap", "Run LAP analyses", class_="btn-primary"
+                                    ),
+                                    value="Run LAP",
+                                ),
+                                x.ui.accordion_panel(
+                                    div("Visualize LAP", class_="bold-subtitle"),
+                                    ui.input_text(
+                                        "visualize_keys", "Key of transitions to plot: ",
+                                        placeholder="e.g. HSC->Meg,HSC->Ery"
+                                    ),
+                                    ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10),
+                                    ui.input_action_button(
+                                        "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
+                                    ),
+                                    value="Visualize LAP",
+                                ),
+                                x.ui.accordion_panel(
+                                    div("Prepare TFs", class_="bold-subtitle"),
+                                    div("Load the transcription factors data", class_="explanation"),
+                                    ui.input_action_button(
+                                        "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
+                                    ),
+                                    value="Prepare TFs",
+                                ),
+                                x.ui.accordion_panel(
+                                    div("TFs barplot", class_="bold-subtitle"),
+                                    ui.input_text(
+                                        "cell_type_colormap",
+                                        "Color of each cell type (random color will be selected if not input): ",
+                                        placeholder="Enter Color Dict"
+                                    ),
+                                    ui.input_action_button(
+                                        "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
+                                    ),
+                                    value="TFs barplot",
+                                ),
+                                x.ui.accordion_panel(
+                                    div("Pairwise cell fate heatmap", class_="bold-subtitle"),
+                                    div(
+                                        "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                                        class_="explanation"
+                                    ),
+                                    ui.input_action_button(
+                                        "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap",
+                                        class_="btn-primary"
+                                    ),
+                                    value="Pairwise cell fate heatmap",
+                                ),
+                                x.ui.accordion_panel(
+                                    div("LAP Kinetic Heatmap", class_="bold-subtitle"),
+                                    div(
+                                        " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
+                                        class_="explanation"
+                                    ),
+                                    ui.input_text("lap_init_cells", "Init cells: ",
+                                                  placeholder="e.g. GGGGGGCGGCCT-JL_10"),
+                                    ui.input_text("lap_end_cells", "End cells: ",
+                                                  placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
+                                    ui.input_text("lap_basis", "Basis: ", value="pca"),
+                                    ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ",
+                                                  value="cosine_transition_matrix"),
+                                    ui.input_action_button(
+                                        "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
+                                    ),
+                                    value="LAP Kinetic Heatmap",
+                                ),
+                                value="Run pairwise least action path analyses",
+                            ),
+                            open=False,
                         ),
-                        value="Streamline Plot",
+                        width=500,
                     ),
-                    x.ui.accordion_panel(
-                        div("Run LAP", class_="bold-subtitle"),
-                        div("Run pairwise least action path analyses among given cell types", class_="explanation"),
-                        ui.input_action_button(
-                            "activate_lap", "Run LAP analyses", class_="btn-primary"
-                        ),
-                        value="Run LAP",
-                    ),
-                    x.ui.accordion_panel(
-                        div("Visualize LAP", class_="bold-subtitle"),
-                        ui.input_text(
-                            "visualize_keys", "Key of transitions to plot: ", placeholder="e.g. HSC->Meg,HSC->Ery"
-                        ),
-                        ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10),
-                        ui.input_action_button(
-                            "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
-                        ),
-                        value="Visualize LAP",
-                    ),
-                    x.ui.accordion_panel(
-                        div("Prepare TFs", class_="bold-subtitle"),
-                        div("Load the transcription factors data", class_="explanation"),
-                        ui.input_action_button(
-                            "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
-                        ),
-                        value="Prepare TFs",
-                    ),
-                    x.ui.accordion_panel(
-                        div("TFs barplot", class_="bold-subtitle"),
-                        ui.input_text(
-                            "cell_type_colormap",
-                            "Color of each cell type (random color will be selected if not input): ",
-                            placeholder="Enter Color Dict"
-                        ),
-                        ui.input_action_button(
-                            "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
-                        ),
-                        value="TFs barplot",
-                    ),
-                    x.ui.accordion_panel(
-                        div("Pairwise cell fate heatmap", class_="bold-subtitle"),
-                        div(
-                            "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
-                            class_="explanation"
-                        ),
-                        ui.input_action_button(
-                            "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap", class_="btn-primary"
-                        ),
-                        value="Pairwise cell fate heatmap",
-                    ),
-                    x.ui.accordion_panel(
-                        div("LAP Kinetic Heatmap", class_="bold-subtitle"),
-                        div(
-                            " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
-                            class_="explanation"
-                        ),
-                        ui.input_text("lap_init_cells", "Init cells: ", placeholder="e.g. GGGGGGCGGCCT-JL_10"),
-                        ui.input_text("lap_end_cells", "End cells: ", placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
-                        ui.input_text("lap_basis", "Basis: ", value="pca"),
-                        ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ", value="cosine_transition_matrix"),
-                        ui.input_action_button(
-                            "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
-                        ),
-                        value="LAP Kinetic Heatmap",
-                    ),
-                    value="Run pairwise least action path analyses",
-                ),
-                x.ui.accordion_panel(
-                    div("Evaluate TF rankings based on LAP analyses", class_="bold-title"),
-                    x.ui.accordion_panel(
-                        div("Add known TFs", class_="bold-subtitle"),
-                        ui.input_text("known_tf_transition", "Target transition: ", placeholder="e.g. HSC->Meg"),
-                        ui.input_text("known_tf", "Known TFs: ", placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
-                        ui.input_text("known_tf_key", "Key to save TFs: ", value="TFs"),
-                        ui.input_text("known_tf_rank_key", "Key to save TFs rank: ", value="TFs_rank"),
-                        ui.input_action_button(
-                            "activate_add_known_tf", "Add", class_="btn-primary"
-                        ),
-                        value="Add known TFs",
-                    ),
-                    x.ui.accordion_panel(
-                        div("Priority Scores of TFs", class_="bold-subtitle"),
-                        ui.input_text("reprog_mat_main_key", "Main Key: ", placeholder="e.g. HSC->Meg"),
-                        div(
-                            "The 'genes' information will be extracted from "
-                            "transition_graph[Transition Key][Genes Key]. ",
-                            class_="explanation",
-                        ),
-                        div(
-                            "The 'rank' information will be extracted from "
-                            "transition_graph[Transition Key][Rank Key]",
-                            class_="explanation",
-                        ),
-                        ui.input_text("reprog_mat_transition_key", "Transition Key: ", placeholder="e.g. HSC->Meg"),
-                        ui.input_text("reprog_mat_genes_key", "Genes Key: ", value="TFs"),
-                        ui.input_text("reprog_mat_rank_key", "Rank Key: ", value="TFs_rank"),
-                        ui.input_text("reprog_mat_PMID", "PMID: ", placeholder="e.g. 18295580"),
-                        ui.input_text("reprog_mat_type", "Type of transition: ", placeholder="e.g. development"),
-                        ui.input_action_button(
-                            "activate_add_reprog_info", "Add", class_="btn-primary"
-                        ),
-                        ui.input_text("reprog_query_type", "Query transition type to plot: ", value="transdifferentiation"),
-                        ui.input_action_button(
-                            "activate_plot_priority_scores", "Plot priority scores for TFs", class_="btn-primary"
-                        ),
-                        ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs"),
-                        ui.input_text("roc_target_transition", "Target transition of ROC plot: ", placeholder="HSC->Bas"),
-                        ui.input_action_button(
-                            "activate_tf_roc_curve", "ROC curve analyses of TF priorization", class_="btn-primary"
-                        ),
-                        value="Priority Scores of TFs",
-                    ),
-                    value="Evaluate TF rankings based on LAP analyses",
-                ),
-                open=False,
-            ),
-            width=500,
-        ),
-        ui.div(
-            ui.navset_tab(
-                ui.nav(
-                    "Run pairwise least action path analyses",
-                    div("Streamline plot of given basis and color", class_="bold-subtitle"),
-                    x.ui.output_plot("base_streamline_plot"),
-                    div("The fixed points representing the typical cell state of these cells", class_="bold-subtitle"),
-                    x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True, brush=True),
+                    ui.panel_main(
+                        ui.div(
+                            div("Streamline plot of given basis and color", class_="bold-subtitle"),
+                            x.ui.output_plot("base_streamline_plot"),
+                            div("The fixed points representing the typical cell state of these cells",
+                                class_="bold-subtitle"),
+                            x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True, brush=True),
 
-                    ui.row(
-                        ui.column(
-                            6,
                             ui.row(
-                                ui.tags.b("Points near cursor"),
-                                ui.output_table("near_click"),
+                                ui.column(
+                                    6,
+                                    ui.row(
+                                        ui.tags.b("Points near cursor"),
+                                        ui.output_table("near_click"),
+                                    ),
+                                    ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),
+                                    ui.row(
+                                        ui.tags.b("Points in brush"),
+                                        ui.output_table("in_brush"),
+                                    ),
+                                    ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),
+                                ),
+                                ui.column(
+                                    6,
+                                    ui.tags.b("Identified Fixed Points"),
+                                    ui.output_table("fixed_points"),
+                                    ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
+                                ),
                             ),
-                            ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),
-                            ui.row(
-                                ui.tags.b("Points in brush"),
-                                ui.output_table("in_brush"),
+                            div("LAP result of given transition", class_="bold-subtitle"),
+                            x.ui.output_plot("plot_lap"),
+                            div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
+                            x.ui.output_plot("tfs_barplot"),
+                            div(
+                                "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                                class_="bold-subtitle"
                             ),
-                            ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),
-                        ),
-                        ui.column(
-                            6,
-                            ui.tags.b("Identified Fixed Points"),
-                            ui.output_table("fixed_points"),
-                            ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
+                            x.ui.output_plot("pairwise_cell_fate_heatmap"),
+                            div("Kinetics heatmap of gene expression dynamics along the LAP", class_="bold-subtitle"),
+                            x.ui.output_plot("lap_kinetic_heatmap"),
                         ),
                     ),
-                    # ui.row(
-                    #     ui.column(6, ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),),
-                    #     ui.column(6, ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),),
-                    # ),
-                    # ui.row(
-                    #     ui.tags.b("Identified Fixed Points"),
-                    #     ui.output_table("fixed_points"),
-                    #     ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary", width="100px"),
-                    # ),
-                    div("LAP result of given transition", class_="bold-subtitle"),
-                    x.ui.output_plot("plot_lap"),
-                    div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
-                    x.ui.output_plot("tfs_barplot"),
-                    div(
-                        "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
-                        class_="bold-subtitle"
-                    ),
-                    x.ui.output_plot("pairwise_cell_fate_heatmap"),
-                    div("Kinetics heatmap of gene expression dynamics along the LAP", class_="bold-subtitle"),
-                    x.ui.output_plot("lap_kinetic_heatmap"),
                 ),
-                ui.nav(
-                    "Evaluate TF rankings based on LAP analyses",
-                    div(
-                        "Visualization of the transition_graph which contains LAP and known TFs information",
-                        class_="bold-subtitle",
+            ),
+
+            ui.nav(
+                "Evaluate TF rankings based on LAP analyses",
+                x.ui.layout_sidebar(
+                    x.ui.sidebar(
+                        ui.include_css(css_path),
+                        x.ui.accordion(
+                            x.ui.accordion_panel(
+                                div("Evaluate TF rankings based on LAP analyses", class_="bold-title"),
+                                x.ui.accordion_panel(
+                                    div("Add known TFs", class_="bold-subtitle"),
+                                    ui.input_text("known_tf_transition", "Target transition: ",
+                                                  placeholder="e.g. HSC->Meg"),
+                                    ui.input_text("known_tf", "Known TFs: ",
+                                                  placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
+                                    ui.input_text("known_tf_key", "Key to save TFs: ", value="TFs"),
+                                    ui.input_text("known_tf_rank_key", "Key to save TFs rank: ", value="TFs_rank"),
+                                    ui.input_action_button(
+                                        "activate_add_known_tf", "Add", class_="btn-primary"
+                                    ),
+                                    value="Add known TFs",
+                                ),
+                                x.ui.accordion_panel(
+                                    div("Priority Scores of TFs", class_="bold-subtitle"),
+                                    ui.input_text("reprog_mat_main_key", "Main Key: ", placeholder="e.g. HSC->Meg"),
+                                    div(
+                                        "The 'genes' information will be extracted from "
+                                        "transition_graph[Transition Key][Genes Key]. ",
+                                        class_="explanation",
+                                    ),
+                                    div(
+                                        "The 'rank' information will be extracted from "
+                                        "transition_graph[Transition Key][Rank Key]",
+                                        class_="explanation",
+                                    ),
+                                    ui.input_text("reprog_mat_transition_key", "Transition Key: ",
+                                                  placeholder="e.g. HSC->Meg"),
+                                    ui.input_text("reprog_mat_genes_key", "Genes Key: ", value="TFs"),
+                                    ui.input_text("reprog_mat_rank_key", "Rank Key: ", value="TFs_rank"),
+                                    ui.input_text("reprog_mat_type", "Type of transition: ",
+                                                  placeholder="e.g. development"),
+                                    ui.input_action_button(
+                                        "activate_add_reprog_info", "Add", class_="btn-primary"
+                                    ),
+                                    ui.input_text("reprog_query_type", "Query transition type to plot: ",
+                                                  value="transdifferentiation"),
+                                    ui.input_action_button(
+                                        "activate_plot_priority_scores", "Plot priority scores for TFs",
+                                        class_="btn-primary"
+                                    ),
+                                    ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs"),
+                                    ui.input_text("roc_target_transition", "Target transition of ROC plot: ",
+                                                  placeholder="HSC->Bas"),
+                                    ui.input_action_button(
+                                        "activate_tf_roc_curve", "ROC curve analyses of TF priorization",
+                                        class_="btn-primary"
+                                    ),
+                                    value="Priority Scores of TFs",
+                                ),
+                                value="Evaluate TF rankings based on LAP analyses",
+                            ),
+                            open=False,
+                        ),
+                        width=500,
                     ),
-                    x.ui.card(
-                        ui.output_text_verbatim("add_known_tf"),
+                    ui.panel_main(
+                        ui.div(
+                            div(
+                                "Visualization of the transition_graph which contains LAP and known TFs information",
+                                class_="bold-subtitle",
+                            ),
+                            x.ui.card(
+                                ui.output_text_verbatim("add_known_tf"),
+                            ),
+                            div(
+                                "Visualization of dictionary for converting the rankings of known TFs to a priority score",
+                                class_="bold-subtitle",
+                            ),
+                            x.ui.card(
+                                ui.output_text_verbatim("add_reprog_info"),
+                            ),
+                            div(
+                                "Plotting priority scores of known TFs for specific hematopoietic trandifferentiations",
+                                class_="bold-subtitle",
+                            ),
+                            x.ui.output_plot("plot_priority_scores"),
+                            div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
+                            x.ui.output_plot("tf_roc_curve")
+                        ),
                     ),
-                    div(
-                        "Visualization of dictionary for converting the rankings of known TFs to a priority score",
-                        class_="bold-subtitle",
-                    ),
-                    x.ui.card(
-                        ui.output_text_verbatim("add_reprog_info"),
-                    ),
-                    div(
-                        "Plotting priority scores of known TFs for specific hematopoietic trandifferentiations",
-                        class_="bold-subtitle",
-                    ),
-                    x.ui.output_plot("plot_priority_scores"),
-                    div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
-                    x.ui.output_plot("tf_roc_curve")
                 ),
+
             ),
         ),
     )
@@ -256,7 +281,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
         coordinates_df = reactive.Value[pd.DataFrame]()
         initialize_fps_coordinates = reactive.Value[pd.DataFrame]()
         initialize_fps_coordinates.set(None)
-        tfs_names = list(tfs_data["Symbol"]) if tfs_data else list(adata.var_names)
+        tfs_names = list(tfs_data["Symbol"]) if tfs_data is not None else list(adata.var_names)
         cells = reactive.Value[list[np.ndarray]]()
         cells_indices = reactive.Value[list[list[float]]]()
         transition_graph = reactive.Value[dict]()
@@ -636,7 +661,6 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             reprog_dict[input.reprog_mat_main_key()] = {
                 "genes": transition_graph_dict[input.reprog_mat_transition_key()][input.reprog_mat_genes_key()],
                 "rank": transition_graph_dict[input.reprog_mat_transition_key()][input.reprog_mat_rank_key()],
-                "PMID": input.reprog_mat_PMID(),
                 "type": input.reprog_mat_type(),
             }
 
