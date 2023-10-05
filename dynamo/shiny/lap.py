@@ -178,14 +178,37 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                     x.ui.output_plot("base_streamline_plot"),
                     div("The fixed points representing the typical cell state of these cells", class_="bold-subtitle"),
                     x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True, brush=True),
+
                     ui.row(
-                        ui.column(6, ui.tags.b("Points near cursor"), ui.output_table("near_click")),
-                        ui.column(6, ui.tags.b("Points in brush"), ui.output_table("in_brush")),
+                        ui.column(
+                            6,
+                            ui.row(
+                                ui.tags.b("Points near cursor"),
+                                ui.output_table("near_click"),
+                            ),
+                            ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),
+                            ui.row(
+                                ui.tags.b("Points in brush"),
+                                ui.output_table("in_brush"),
+                            ),
+                            ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),
+                        ),
+                        ui.column(
+                            6,
+                            ui.tags.b("Identified Fixed Points"),
+                            ui.output_table("fixed_points"),
+                            ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
+                        ),
                     ),
-                    ui.row(
-                        ui.column(6, ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),),
-                        ui.column(6, ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),),
-                    ),
+                    # ui.row(
+                    #     ui.column(6, ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),),
+                    #     ui.column(6, ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),),
+                    # ),
+                    # ui.row(
+                    #     ui.tags.b("Identified Fixed Points"),
+                    #     ui.output_table("fixed_points"),
+                    #     ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary", width="100px"),
+                    # ),
                     div("LAP result of given transition", class_="bold-subtitle"),
                     x.ui.output_plot("plot_lap"),
                     div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
@@ -299,7 +322,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
 
         @output
         @render.plot()
-        @reactive.event(input.add_click_pts, input.add_brush_pts, input.activate_streamline_plot)
+        @reactive.event(input.add_click_pts, input.add_brush_pts, input.activate_streamline_plot, input.reset_fixed_points)
         def initialize_searching():
             df = initialize_fps_coordinates()
             if df is not None:
@@ -352,6 +375,16 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
             coordinates_df.set(df)
 
             return filter_fig(plt.gcf())
+
+        @output
+        @render.table()
+        def fixed_points():
+            return initialize_fps_coordinates()
+
+        @reactive.Effect
+        @reactive.event(input.reset_fixed_points)
+        def _():
+            initialize_fps_coordinates.set(None)
 
         @reactive.Effect
         @reactive.event(input.activate_lap)
@@ -447,6 +480,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                 dodge=False,
                 ax=ax2,
             )
+            ax2.set(xlabel="ranking scores", ylabel="genes")
 
             return filter_fig(fig)
 
@@ -543,7 +577,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: AnnData):
                 color_map="bwr",
                 transpose=False,
                 xticklabels=False,
-                yticklabels=True
+                yticklabels=True,
             )
 
             plt.setp(sns_heatmap.ax_heatmap.yaxis.get_majorticklabels())
