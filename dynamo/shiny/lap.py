@@ -9,7 +9,6 @@ import seaborn as sns
 from anndata import AnnData
 from functools import reduce
 from pathlib import Path
-from shiny.plotutils import brushed_points, near_points
 from sklearn.metrics import roc_curve, auc
 
 from .utils import filter_fig
@@ -36,6 +35,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
         import shiny.experimental as x
         from htmltools import TagList, div
         from shiny import App, Inputs, Outputs, reactive, Session, render, ui
+        from shiny.plotutils import brushed_points, near_points
     except ImportError:
         raise ImportError("Please install shiny and htmltools before running the web application!")
 
