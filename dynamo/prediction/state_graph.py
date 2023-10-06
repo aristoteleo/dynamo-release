@@ -277,7 +277,7 @@ def state_graph(
                     )
 
                     if arc_sample:
-                        Y, arclength, T = arclength_sampling(Y, arclength / 1000, t=t[~T_bool])
+                        Y, arclength, T = arclength_sampling(Y, arclength / 1000, n_steps=1000, t=t[~T_bool])
                     else:
                         T = t[~T_bool]
                 else:
