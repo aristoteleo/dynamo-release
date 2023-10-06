@@ -339,8 +339,8 @@ def cell_velocities(
     if method == "kmc" and n_pca_components is None:
         n_pca_components = 30
     if n_pca_components is not None:
-        X = log1p_(adata, X)
         X_plus_V = log1p_(adata, X + V)
+        X = log1p_(adata, X)
         if "velocity_pca_fit" not in adata.uns_keys() or type(adata.uns["velocity_pca_fit"]) == str:
             pca_monocle = PCA(
                 n_components=min(n_pca_components, X.shape[1] - 1),
@@ -562,7 +562,8 @@ def cell_velocities(
     else:
         transition_key = add_transition_key
 
-    adata.obsp[transition_key] = T
+    if method != "transform":
+        adata.obsp[transition_key] = T
     if add_velocity_key is None:
         velocity_key, grid_velocity_key = "velocity_" + basis, "grid_velocity_" + basis
     else:
