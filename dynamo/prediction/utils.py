@@ -523,7 +523,7 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         time = time[traj_ind]
 
     if mode.lower() not in ["vector_field", "lap"]:
-        valid_genes = list(set(genes).intersection(adata.var.index))
+        valid_genes = list(sorted(set(genes).intersection(adata.var.index), key=genes.index))
 
         if layer == "X":
             exprs = adata[np.isfinite(time), :][:, valid_genes].X
@@ -536,14 +536,14 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
             raise Exception(f"The {layer} you passed in is not existed in the adata object.")
     else:
         fate_genes = adata.uns[traj_key]["genes"]
-        valid_genes = list(set(genes).intersection(fate_genes))
+        valid_genes = list(sorted(set(genes).intersection(fate_genes), key=genes.index))
 
         if basis is not None:
             if project_back_to_high_dim:
                 exprs = adata.uns[traj_key]["exprs"]
                 if type(exprs) == list:
                     exprs = exprs[traj_ind]
-                exprs = exprs[np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
+                exprs = exprs[np.isfinite(time), :][:, fate_genes.get_indexer(valid_genes)]
             else:
                 exprs = adata.uns[traj_key]["prediction"]
                 if type(exprs) == list:
@@ -554,7 +554,7 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
             exprs = adata.uns[traj_key]["prediction"]
             if type(exprs) == list:
                 exprs = exprs[traj_ind]
-            exprs = exprs.T[np.isfinite(time), adata.var.index.isin(valid_genes)]
+            exprs = exprs.T[np.isfinite(time), adata.var.index.get_indexer(valid_genes)]
 
     time = np.array(time)[np.isfinite(time)]
 

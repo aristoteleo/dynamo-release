@@ -96,7 +96,7 @@ def kinetic_curves(
     import seaborn as sns
 
     if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
-        ddhodge(adata)
+        ddhodge(adata, basis=basis)
         tkey = basis + "_ddhodge_potential"
 
     exprs, valid_genes, time = fetch_exprs(
