@@ -97,6 +97,7 @@ def kinetic_curves(
 
     if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
+        tkey = basis + "_ddhodge_potential"
 
     exprs, valid_genes, time = fetch_exprs(
         adata,

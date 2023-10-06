@@ -548,15 +548,15 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
                 exprs = adata.uns[traj_key]["prediction"]
                 if type(exprs) == list:
                     exprs = exprs[traj_ind]
-                exprs = exprs[np.isfinite(time), :]
+                exprs = exprs.T[np.isfinite(time), :]
                 valid_genes = [basis + "_" + str(i) for i in np.arange(exprs.shape[1])]
         else:
             exprs = adata.uns[traj_key]["prediction"]
             if type(exprs) == list:
                 exprs = exprs[traj_ind]
-            exprs = exprs[np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)]
+            exprs = exprs.T[np.isfinite(time), adata.var.index.isin(valid_genes)]
 
-    time = time[np.isfinite(time)]
+    time = np.array(time)[np.isfinite(time)]
 
     return exprs, valid_genes, time
 
