@@ -4,9 +4,12 @@
 
 ##
 
-[![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release)
-[![documentation](https://readthedocs.org/projects/dynamo-release/badge/?version=latest)](https://dynamo-release.readthedocs.io/en/latest/)
+<!--
+[![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release)/!> 
+-->
+
 [![upload](https://img.shields.io/pypi/v/dynamo-release?logo=PyPI)](https://pypi.org/project/dynamo-release/) 
+[![documentation](https://readthedocs.org/projects/dynamo-release/badge/?version=latest)](https://dynamo-release.readthedocs.io/en/latest/)
 [![download](https://static.pepy.tech/badge/dynamo-release)](https://pepy.tech/project/dynamo-release)
 [![star](https://img.shields.io/github/stars/aristoteleo/dynamo-release?logo=GitHub&color=red)](https://github.com/aristoteleo/dynamo-release/stargazers)
 ![build](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-package.yml/badge.svg)
