@@ -480,9 +480,12 @@ def dynamics(
                 est_method = "gmm" if model.lower() == "stochastic" else "ols"
 
             if experiment_type.lower() == "one-shot":
-                vel_params_df = get_vel_params(subset_adata)
-                beta = vel_params_df.beta if "beta" in vel_params_df.columns else None
-                gamma = vel_params_df.gamma if "gamma" in vel_params_df.columns else None
+                try:
+                    vel_params_df = get_vel_params(subset_adata)
+                    beta = vel_params_df.beta if "beta" in vel_params_df.columns else None
+                    gamma = vel_params_df.gamma if "gamma" in vel_params_df.columns else None
+                except KeyError:
+                    beta, gamma = None, None
                 ss_estimation_kwargs = {"beta": beta, "gamma": gamma}
             else:
                 ss_estimation_kwargs = {}

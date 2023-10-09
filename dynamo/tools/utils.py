@@ -1630,7 +1630,7 @@ def get_vel_params(
         adata: the anndata object which contains the parameters.
         params: the names of parameters to query. If set to None, the entire velocity parameters DataFrame from `.varm`
             will be returned.
-        kin_param_pre: the prefix used in dynamics when estimating the parameters.
+        kin_param_pre: the prefix used to kinetic parameters related to RNA dynamics.
         skip_cell_wise: whether to skip the detected cell wise parameters. If set to True, the mean will be returned
             instead of cell wise parameters.
 
@@ -1641,7 +1641,7 @@ def get_vel_params(
         params = [params]
 
     if kin_param_pre + "vel_params" not in adata.varm.keys():
-        raise KeyError("No velocity parameters found.")
+        raise KeyError("The key of velocity related parameters are not found in varm.")
 
     array_data = adata.varm[kin_param_pre + "vel_params"]
     df_columns = adata.uns[kin_param_pre + "vel_params_names"]
@@ -1673,15 +1673,15 @@ def get_vel_params(
 
 
 def update_vel_params(adata: AnnData, params_df: pd.DataFrame, kin_param_pre: str = "") -> None:
-    """Update the velocity parameters.
+    """Update the kinetic parameters related to RNA velocity calculation.
 
     Args:
-        adata: the AnnData obejct to update.
-        params_df: the new velocity parameters.
-        kin_param_pre: the prefix to locate the corresponding parameters.
+        adata: the AnnData object whose kinetic parameters related to RNA velocity calculation will be updated.
+        params_df: the dataframe of kinetic parameters related to RNA velocity calculation.
+        kin_param_pre: the prefix used to kinetic parameters related to RNA dynamics.
 
     Returns:
-        The anndata object will be updated.
+        The anndata object will be updated with parameters and columns names from given dataframe.
     """
     adata.varm[kin_param_pre + "vel_params"] = params_df.to_numpy()
     adata.uns[kin_param_pre + "vel_params_names"] = list(params_df.columns)
