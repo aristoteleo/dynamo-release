@@ -213,12 +213,19 @@ def converter(
     return data_out
 
 
-def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "tp_scv"] = "to_dyn"):
+def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dyn"):
     """Convert the adata object used in Scvelo to the adata object used by Dynamo, or vice versa.
 
-    Conversion may need manual adjustments based on the use case. For example, all Dynamo anndata objects will be set
-    to the conventional experiment with the deterministic model. The `pp` information needs modification to enable other
-    methods.
+    The use case of this method includes but not limited to:
+        - Preprocess AnnData with Scvelo then estimate velocity with Dynamo.
+        - Preprocess AnnData with Dynamo then estimate velocity with Scvelo.
+        - Apply Dynamo analyses and visualization to the velocity estimated from Scvelo.
+        - Apply Scvelo analyses and visualization to the velocity estimated from Dynamo.
+    Conversion may need manual adjustments based on the use case because of the difference of velocity estimation method.
+    For example, all Dynamo anndata objects will be set to the conventional experiment with the stochastic model. The
+    `pp` information needs modification to enable methods not supported by Scvelo including twostep/direct kinetics,
+    one-shot method, degradation method. They can be specified by setting `adata.uns["pp"]["experiment_type"]`,
+    `adata.uns["pp"]["model"]`, `adata.uns["pp"]["est_method"]`.
 
     Args:
         adata: the adata object to be converted.
@@ -233,7 +240,7 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "tp_scv"] = "to_dy
     if mode == "to_dyn":
         main_info("Start converting Scvelo adata into Dynamo adata...")
         main_info("Scvelo data wil be converted into Dynamo adata with the conventional assumption and the"
-                  "deterministic model. If this is not what you want, please change them manually.")
+                  "stochastic model. If this is not what you want, please change them manually.")
         if "highly_variable_genes" in adata.var.columns:
             adata.var["pass_basic_filter"] = adata.var.pop("highly_variable_genes")
             adata.var["pass_basic_filter"] = [True if item == 'True' else False for item in
@@ -255,8 +262,8 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "tp_scv"] = "to_dy
                 "asspt_mRNA": "ss",
                 "experiment_type": "conventional",
                 "normalized": True,
-                "model": "deterministic",
-                "est_method": "ols",
+                "model": "stochastic",
+                "est_method": "gmm",
                 "has_splicing": True,
                 "has_labeling": False,
                 "splicing_labeling": False,
