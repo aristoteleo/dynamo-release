@@ -37,17 +37,23 @@ def vlm_to_adata(
 
     # set obs, var
     obs, var = pd.DataFrame(vlm.ca), pd.DataFrame(vlm.ra)
+    vel_params = []
+    vel_params_names = []
+    varm = {}
     if "CellID" in obs.keys():
         obs["obs_names"] = obs.pop("CellID")
     if "Gene" in var.keys():
         var["var_names"] = var.pop("Gene")
 
     if hasattr(vlm, "q"):
-        var["gamma_b"] = vlm.q
+        vel_params_names.append("gamma_b")
+        vel_params.append(vlm.q)
     if hasattr(vlm, "gammas"):
-        var["gamma"] = vlm.gammas
+        vel_params_names.append("gamma")
+        vel_params.append(vlm.gammas)
     if hasattr(vlm, "R2"):
-        var["gamma_r2"] = vlm.R2
+        vel_params_names.append("gamma_r2")
+        vel_params.append(vlm.R2)
 
     # rename clusters to louvain
     try:
@@ -158,7 +164,11 @@ def vlm_to_adata(
         X = csr_matrix(vlm.S_sz.T) if hasattr(vlm, "S_sz") else csr_matrix(vlm.S.T)
 
     # create an anndata object with Dynamo characteristics.
-    dyn_adata = anndata.AnnData(X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, layers=layers, uns=uns)
+    if len(vel_params_names) > 0:
+        uns["vel_params_names"] = vel_params_names
+        varm["vel_params"] = vel_params
+
+    dyn_adata = anndata.AnnData(X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, varm=varm, layers=layers, uns=uns)
 
     return dyn_adata
 
