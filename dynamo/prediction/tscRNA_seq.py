@@ -4,6 +4,7 @@ import anndata
 from scipy.sparse import csr_matrix
 
 from ..dynamo_logger import LoggerManager, main_exception, main_warning
+from ..tools.utils import get_vel_params
 from ..utils import copy_adata
 from .utils import init_r0_pulse
 
@@ -67,7 +68,7 @@ def get_pulse_r0(
         % (tkey, nkey, gamma_k_key)
     )
     R, L = adata[:, gene_names].layers[tkey], adata[:, gene_names].layers[nkey]
-    K = adata[:, gene_names].var[gamma_k_key].values.astype(float)
+    K = get_vel_params(adata, params=gamma_k_key, genes=gene_names).astype(float)
 
     logger.info("Calculate initial total RNA via r0 = (r - l) / (1 - k)")
     res = init_r0_pulse(R, L, K[None, :])

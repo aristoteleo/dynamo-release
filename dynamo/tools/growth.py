@@ -132,9 +132,9 @@ def score_cells(
 
 def cell_growth_rate(
     adata: AnnData,
-    group: Optional[str],
-    source: Optional[str],
-    target: Optional[str],
+    group: str,
+    source: str,
+    target: str,
     L0: float = 0.3,
     L: float = 1.2,
     k: float = 1e-3,
