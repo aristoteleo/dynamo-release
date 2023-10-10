@@ -1,5 +1,7 @@
 """General utility functions
 """
+from typing import Callable, Dict, List, Optional, Tuple, Union
+
 import anndata
 import numpy as np
 import scipy.sparse as sp
@@ -82,7 +84,12 @@ def denormalize(y, x_min, x_max):
 
 # ---------------------------------------------------------------------------------------------------
 # trajectory related
-def pca_to_expr(X, PCs, mean=0, func=None):
+def pca_to_expr(
+    X: Union[np.ndarray, sp.csr_matrix],
+    PCs: np.ndarray,
+    mean: Union[int, np.ndarray] = 0,
+    func: Optional[Callable] = None,
+) -> np.ndarray:
     """Inverse transform the data with given principal components.
 
     Args:
@@ -105,7 +112,12 @@ def pca_to_expr(X, PCs, mean=0, func=None):
     return exprs
 
 
-def expr_to_pca(expr, PCs, mean=0, func=None):
+def expr_to_pca(
+    expr: Union[np.ndarray, sp.csr_matrix],
+    PCs: np.ndarray,
+    mean: Union[int, np.ndarray] = 0,
+    func: Optional[Callable] = None,
+) -> np.ndarray:
     """Transform the data with given principal components.
 
     Args:
