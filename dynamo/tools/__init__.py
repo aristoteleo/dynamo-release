@@ -93,6 +93,7 @@ from .utils import (
     AnnDataPredicate,
     cell_norm,
     compute_smallest_distance,
+    get_vel_params,
     index_gene,
     select,
     select_cell,

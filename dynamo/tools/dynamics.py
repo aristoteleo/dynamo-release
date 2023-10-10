@@ -44,6 +44,7 @@ from .utils import (
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
     get_valid_bools,
+    get_vel_params,
     one_shot_alpha_matrix,
     remove_2nd_moments,
     set_param_kinetic,
@@ -1912,8 +1913,12 @@ def dynamics(
                 est_method = "gmm" if model.lower() == "stochastic" else "ols"
 
             if experiment_type.lower() == "one-shot":
-                beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
-                gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
+                try:
+                    vel_params_df = get_vel_params(subset_adata)
+                    beta = vel_params_df.beta if "beta" in vel_params_df.columns else None
+                    gamma = vel_params_df.gamma if "gamma" in vel_params_df.columns else None
+                except KeyError:
+                    beta, gamma = None, None
                 ss_estimation_kwargs = {"beta": beta, "gamma": gamma}
             else:
                 ss_estimation_kwargs = {}
