@@ -50,14 +50,13 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             x.ui.accordion_panel(
                                 div("Run pairwise least action path analyses", class_="bold-title"),
                                 x.ui.accordion_panel(
-                                    div("Streamline Plot", class_="bold-subtitle"),
-                                    ui.input_text("cells_type_key", "Key of cell type information: ",
-                                                  value="cell_type"),
-                                    ui.input_text("streamline_basis", "The basis to perform LAP: ", value="umap"),
-                                    ui.input_action_button(
-                                        "activate_streamline_plot", "Streamline plot", class_="btn-primary"
-                                    ),
-                                    value="Streamline Plot",
+                                    div("Streamline Plot Setting", class_="bold-subtitle"),
+                                    ui.output_ui("selectize_cells_type_key"),
+                                    ui.output_ui("selectize_streamline_basis"),
+                                    # ui.input_action_button(
+                                    #     "activate_streamline_plot", "Streamline plot", class_="btn-primary"
+                                    # ),
+                                    value="Streamline Plot Setting",
                                 ),
                                 x.ui.accordion_panel(
                                     div("Run LAP", class_="bold-subtitle"),
@@ -142,31 +141,35 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                     ),
                     ui.panel_main(
                         ui.div(
-                            div("Streamline plot of given basis and color", class_="bold-subtitle"),
-                            x.ui.output_plot("base_streamline_plot"),
-                            div("The fixed points representing the typical cell state of these cells",
-                                class_="bold-subtitle"),
-                            x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True, brush=True),
+                            x.ui.card(
+                                div("Initialization", class_="bold-title"),
+                                div("Streamline plot of given basis and color", class_="bold-subtitle"),
+                                x.ui.output_plot("base_streamline_plot"),
+                                div("The fixed points representing the typical cell state of these cells",
+                                    class_="bold-subtitle"),
+                                x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True,
+                                                 brush=True),
 
-                            ui.row(
-                                ui.column(
-                                    6,
-                                    ui.row(
-                                        ui.tags.b("Points near cursor"),
-                                        ui.output_table("near_click"),
+                                ui.row(
+                                    ui.column(
+                                        6,
+                                        ui.row(
+                                            ui.tags.b("Points near cursor"),
+                                            ui.output_table("near_click"),
+                                        ),
+                                        ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),
+                                        ui.row(
+                                            ui.tags.b("Points in brush"),
+                                            ui.output_table("in_brush"),
+                                        ),
+                                        ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),
                                     ),
-                                    ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),
-                                    ui.row(
-                                        ui.tags.b("Points in brush"),
-                                        ui.output_table("in_brush"),
+                                    ui.column(
+                                        6,
+                                        ui.tags.b("Identified Fixed Points"),
+                                        ui.output_table("fixed_points"),
+                                        ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
                                     ),
-                                    ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),
-                                ),
-                                ui.column(
-                                    6,
-                                    ui.tags.b("Identified Fixed Points"),
-                                    ui.output_table("fixed_points"),
-                                    ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
                                 ),
                             ),
                             x.ui.output_plot("genes_barplot"),
@@ -305,6 +308,26 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
         reprogramming_mat_dataframe_p = reactive.Value[pd.DataFrame]()
 
         @output
+        @render.ui
+        def selectize_cells_type_key():
+            return ui.input_selectize(
+                        "cells_type_key",
+                        "Key of cell type information: ",
+                        choices=list(adata.obs.keys()),
+                        selected="cell_type",
+                    )
+
+        @output
+        @render.ui
+        def selectize_streamline_basis():
+            return ui.input_selectize(
+                "streamline_basis",
+                "The basis to perform LAP: ",
+                choices=[b[2:] if b.startswith("X_") else b for b in list(adata.obsm.keys())],
+                selected="umap",
+            )
+
+        @output
         @render.table()
         def near_click():
             return near_points(
@@ -354,7 +377,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.plot()
-        @reactive.event(input.add_click_pts, input.add_brush_pts, input.activate_streamline_plot, input.reset_fixed_points)
+        # @reactive.event(input.add_click_pts, input.add_brush_pts, input.reset_fixed_points)
         def initialize_searching():
             df = initialize_fps_coordinates()
             if df is not None:
@@ -386,7 +409,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.plot()
-        @reactive.event(input.activate_streamline_plot)
+        # @reactive.event(input.activate_streamline_plot)
         def base_streamline_plot():
             neighbors(adata, basis=input.streamline_basis(), result_prefix=input.streamline_basis())
 

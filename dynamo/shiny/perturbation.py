@@ -42,9 +42,7 @@ def perturbation_web_app(input_adata: AnnData):
                     div("Streamline Plot Setting", class_="bold-subtitle"),
                     ui.input_slider("n_colors", "Number of observations:", min=1, max=5, value=1),
                     ui.output_ui("selectize_color"),
-                    ui.input_text(
-                        "streamline_basis", "The perturbation output as the basis of plot: ", value="umap"
-                    ),
+                    ui.output_ui("selectize_basis"),
                     ui.input_action_button(
                         "activate_streamline_plot", "Streamline plot", class_="btn-primary"
                     ),
@@ -95,6 +93,16 @@ def perturbation_web_app(input_adata: AnnData):
                 )
 
             return ui_list
+
+        @output
+        @render.ui
+        def selectize_basis():
+            return ui.input_selectize(
+                        "streamline_basis",
+                        "The perturbation output as the basis of plot: ",
+                        choices=[b[2:] if b.startswith("X_") else b for b in list(adata.obsm.keys())],
+                        selected="umap",
+                    )
 
         @output
         @render.ui
