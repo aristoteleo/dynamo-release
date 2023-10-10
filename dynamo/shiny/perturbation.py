@@ -88,7 +88,7 @@ def perturbation_web_app(input_adata: AnnData):
                 ui_list.append(
                     ui.input_selectize(
                         "base_color_" + str(i),
-                        "Color key " + str(i) + " :",
+                        "Color key " + str(i + 1) + " :",
                         choices=list(adata.obs.keys()) + list(adata.var_names),
                         selected="cell_type",
                     ),
@@ -105,7 +105,7 @@ def perturbation_web_app(input_adata: AnnData):
                     (
                         ui.input_selectize(
                             "target_gene_" + str(i),
-                            "Genes " + str(i) + " to perform perturbation:",
+                            "Genes " + str(i + 1) + " to perform perturbation:",
                             choices=list(adata.var_names),
                         ),
                         ui.input_slider(

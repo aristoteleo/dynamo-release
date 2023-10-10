@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 import json
 import matplotlib.pyplot as plt
@@ -66,6 +66,9 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     ui.input_action_button(
                                         "activate_lap", "Run LAP analyses", class_="btn-primary"
                                     ),
+                                    ui.input_action_button(
+                                        "activate_genes_barplot", "genes barplot", class_="btn-primary"
+                                    ),
                                     value="Run LAP",
                                 ),
                                 x.ui.accordion_panel(
@@ -125,6 +128,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     ui.input_text("lap_basis", "Basis: ", value="pca"),
                                     ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ",
                                                   value="cosine_transition_matrix"),
+                                    ui.input_slider("heatmap_n_genes", "number of genes", min=1, max=200, value=50),
                                     ui.input_action_button(
                                         "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
                                     ),
@@ -165,6 +169,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
                                 ),
                             ),
+                            x.ui.output_plot("genes_barplot"),
                             div("LAP result of given transition", class_="bold-subtitle"),
                             x.ui.output_plot("plot_lap"),
                             div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
@@ -476,6 +481,31 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                         )
             transition_graph.set(transition_graph_dict)
 
+        def _merge_df(df_list: List[pd.DataFrame]) -> pd.DataFrame:
+            for i in range(1, len(df_list)):
+                df_list[i] = df_list[i].reindex(df_list[0].index)
+
+            return pd.concat(df_list, axis=1)  # Concatenating along columns
+
+        @output
+        @render.plot()
+        @reactive.event(input.activate_genes_barplot)
+        def genes_barplot():
+            ranking_list = [transition_graph()[path]["ranking"] for path in transition_graph()]
+            mean_df = _merge_df(ranking_list)
+            mean_df["mean"] = mean_df["all_values"].mean(1)
+            mean_df = mean_df.sort_values("mean", ascending=False)[:input.top_n_genes()]
+            merged_df = pd.concat(ranking_list, axis=0)
+
+            ax = sns.barplot(
+                x="all",
+                y="all_values",
+                data=merged_df.loc[mean_df.index,],
+            )
+            ax.set(xlabel="ranking scores", ylabel="genes")
+
+            return filter_fig(plt.gcf())
+
         @output
         @render.plot()
         @reactive.event(input.activate_visualize_lap)
@@ -598,7 +628,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                 basis=input.lap_basis(),
                 mode="lap",
                 figsize=(10, 5),
-                genes=human_genes,
+                genes=human_genes[:input.heatmap_n_genes()],
                 project_back_to_high_dim=True,
                 save_show_or_return="return",
                 color_map="bwr",
