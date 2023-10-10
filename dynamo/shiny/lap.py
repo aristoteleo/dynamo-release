@@ -53,9 +53,6 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     div("Streamline Plot Setting", class_="bold-subtitle"),
                                     ui.output_ui("selectize_cells_type_key"),
                                     ui.output_ui("selectize_streamline_basis"),
-                                    # ui.input_action_button(
-                                    #     "activate_streamline_plot", "Streamline plot", class_="btn-primary"
-                                    # ),
                                     value="Streamline Plot Setting",
                                 ),
                                 x.ui.accordion_panel(
@@ -65,18 +62,19 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     ui.input_action_button(
                                         "activate_lap", "Run LAP analyses", class_="btn-primary"
                                     ),
+                                    div("Then we can rank all the genes based their vector field metrics by transitions",
+                                        class_="explanation"),
+                                    ui.output_ui("selectize_gene_barplot_transition"),
+                                    ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10),
                                     ui.input_action_button(
                                         "activate_genes_barplot", "genes barplot", class_="btn-primary"
                                     ),
-                                    value="Run LAP",
-                                ),
-                                x.ui.accordion_panel(
                                     div("Visualize LAP", class_="bold-subtitle"),
-                                    ui.input_text(
-                                        "visualize_keys", "Key of transitions to plot: ",
-                                        placeholder="e.g. HSC->Meg,HSC->Ery"
-                                    ),
-                                    ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10),
+                                    ui.input_slider(
+                                        "n_lap_visualize_transition",
+                                        "Number of transitions to visualize",
+                                        min=1, max=20, value=1),
+                                    ui.output_ui("selectize_lap_visualize_transition"),
                                     ui.input_action_button(
                                         "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
                                     ),
@@ -135,7 +133,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 ),
                                 value="Run pairwise least action path analyses",
                             ),
-                            open=False,
+                            open=True,
                         ),
                         width=500,
                     ),
@@ -172,9 +170,13 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     ),
                                 ),
                             ),
-                            x.ui.output_plot("genes_barplot"),
-                            div("LAP result of given transition", class_="bold-subtitle"),
-                            x.ui.output_plot("plot_lap"),
+                            x.ui.card(
+                                div("LAP results", class_="bold-title"),
+                                div("Rank of genes in all transitions", class_="bold-subtitle"),
+                                x.ui.output_plot("genes_barplot"),
+                                div("LAP result of given transition", class_="bold-subtitle"),
+                                x.ui.output_plot("plot_lap"),
+                            ),
                             div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
                             x.ui.output_plot("tfs_barplot"),
                             div(
@@ -504,6 +506,16 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                         )
             transition_graph.set(transition_graph_dict)
 
+        @output
+        @render.ui
+        def selectize_gene_barplot_transition():
+            return ui.input_selectize(
+                        "gene_barplot_transition",
+                        "Specific transition to visualize:",
+                        choices=list(transition_graph().keys()),
+                        selected=list(transition_graph().keys())[0],
+                    )
+
         def _merge_df(df_list: List[pd.DataFrame]) -> pd.DataFrame:
             for i in range(1, len(df_list)):
                 df_list[i] = df_list[i].reindex(df_list[0].index)
@@ -520,47 +532,70 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             mean_df = mean_df.sort_values("mean", ascending=False)[:input.top_n_genes()]
             merged_df = pd.concat(ranking_list, axis=0)
 
-            ax = sns.barplot(
-                x="all",
-                y="all_values",
+            fig, (ax1, ax2) = plt.subplots(1, 2)
+
+            sns.barplot(
+                y="all",
+                x="all_values",
                 data=merged_df.loc[mean_df.index,],
+                ax=ax1,
+            ).set(xlabel="ranking scores", ylabel="genes")
+
+
+            sns.barplot(
+                y="all",
+                x="all_values",
+                data=transition_graph()[input.gene_barplot_transition()]["ranking"][:input.top_n_genes()],
+                dodge=False,
+                ax=ax2,
+            ).set(
+                title="Genes rank for transition: " + input.gene_barplot_transition(),
+                xlabel="ranking scores",
+                ylabel="genes",
             )
-            ax.set(xlabel="ranking scores", ylabel="genes")
 
             return filter_fig(plt.gcf())
+
+        @output
+        @render.ui
+        def selectize_lap_visualize_transition():
+            ui_list = ui.TagList()
+            for i in range(input.n_lap_visualize_transition()):
+                ui_list.append(
+                    ui.input_selectize(
+                        "lap_visualize_transition_" + str(i),
+                        "Transition " + str(i + 1) + " to visualize:",
+                        choices=list(transition_graph().keys()),
+                        selected=list(transition_graph().keys())[0],
+                    ),
+                )
+
+            return ui_list
 
         @output
         @render.plot()
         @reactive.event(input.activate_visualize_lap)
         def plot_lap():
-            paths = input.visualize_keys().split(",")
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 4))
+            paths = [getattr(input, "lap_visualize_transition_" + str(i))() for i in range(input.n_lap_visualize_transition())]
+            fig, ax = plt.subplots(figsize=(5, 4))
             ax_list = streamline_plot(
                 adata,
                 basis=input.streamline_basis(),
                 save_show_or_return="return",
-                ax=ax1,
+                ax=ax,
                 color=input.cells_type_key().split(","),
                 frontier=True,
             )
-            ax1 = ax_list[0]
+            ax = ax_list[0]
             x, y = 0, 1
 
             # plot paths
-            for path in paths:
+            for i in range(len(paths)):
+                path = paths[i]
                 lap_dict = transition_graph()[path]["LAP_umap"]
                 for prediction, action in zip(lap_dict["prediction"], lap_dict["action"]):
-                    ax1.scatter(*prediction[:, [x, y]].T, c=map2color(action))
-                    ax1.plot(*prediction[:, [x, y]].T, c="k")
-
-            sns.barplot(
-                y="all",
-                x="all_values",
-                data=transition_graph()[path]["ranking"][:input.top_n_genes()],
-                dodge=False,
-                ax=ax2,
-            )
-            ax2.set(xlabel="ranking scores", ylabel="genes")
+                    ax.scatter(*prediction[:, [x, y]].T, c=map2color(action))
+                    ax.plot(*prediction[:, [x, y]].T, c="k")
 
             return filter_fig(fig)
 
