@@ -5,9 +5,10 @@ from scipy.interpolate import interp1d
 
 from ..dynamo_logger import LoggerManager
 from ..tools.utils import flatten
+from ..utils import expr_to_pca, pca_to_expr
 from ..vectorfield.scVectorField import DifferentiableVectorField
 from ..vectorfield.utils import angle, normalize_vectors
-from .utils import arclength_sampling_n, expr_to_pca, pca_to_expr
+from .utils import arclength_sampling_n
 
 
 class Trajectory:

@@ -484,30 +484,6 @@ def arclength_sampling_n(X, num, t=None):
 
 
 # ---------------------------------------------------------------------------------------------------
-# trajectory related
-def pca_to_expr(X, PCs, mean=0, func=None):
-    # reverse project from PCA back to raw expression space
-    if PCs.shape[1] == X.shape[1]:
-        exprs = X @ PCs.T + mean
-        if func is not None:
-            exprs = func(exprs)
-    else:
-        raise Exception("PCs dim 1 (%d) does not match X dim 1 (%d)." % (PCs.shape[1], X.shape[1]))
-    return exprs
-
-
-def expr_to_pca(expr, PCs, mean=0, func=None):
-    # project from raw expression space to PCA
-    if PCs.shape[0] == expr.shape[1]:
-        X = (expr - mean) @ PCs
-        if func is not None:
-            X = func(X)
-    else:
-        raise Exception("PCs dim 1 (%d) does not match X dim 1 (%d)." % (PCs.shape[0], expr.shape[1]))
-    return X
-
-
-# ---------------------------------------------------------------------------------------------------
 # fate related
 def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim, traj_ind):
     import pandas as pd

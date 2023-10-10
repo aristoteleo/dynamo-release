@@ -21,6 +21,7 @@ from umap import UMAP
 from ..configuration import DynamoAdataKeyManager
 from ..docrep import DocstringProcessor
 from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..utils import expr_to_pca
 from .utils import fetch_X_data, log1p_
 
 docstrings = DocstringProcessor()
@@ -532,7 +533,6 @@ def mnn(
     """
 
     if use_pca_fit:
-        from ..preprocessing.pca import pca_transform
         if "PCs" in adata.uns.keys():
             PCs = adata.uns["PCs"]
         else:
@@ -549,7 +549,7 @@ def mnn(
         layer_X = adata.layers[layer]
         layer_X = log1p_(adata, layer_X)
         if use_pca_fit:
-            layer_pca = pca_transform(layer_X, PCs)[:, 1:]
+            layer_pca = expr_to_pca(layer_X, PCs=PCs, mean=layer_X.mean(0))[:, 1:]
         else:
             transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
             layer_pca = transformer.fit_transform(layer_X)[:, 1:]

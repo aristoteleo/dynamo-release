@@ -8,6 +8,7 @@ from scipy.optimize import minimize
 
 from ..dynamo_logger import LoggerManager
 from ..tools.utils import fetch_states, nearest_neighbors
+from ..utils import pca_to_expr
 from ..vectorfield import SvcVectorField
 from ..vectorfield.utils import (
     vecfld_from_adata,
@@ -15,7 +16,7 @@ from ..vectorfield.utils import (
     vector_transformation,
 )
 from .trajectory import GeneTrajectory, Trajectory
-from .utils import arclength_sampling_n, find_elbow, pca_to_expr
+from .utils import arclength_sampling_n, find_elbow
 
 
 class LeastActionPath(Trajectory):

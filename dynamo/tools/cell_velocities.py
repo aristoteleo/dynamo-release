@@ -15,7 +15,7 @@ from sklearn.utils import sparsefuncs
 
 from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_info, main_warning
-from ..utils import areinstance
+from ..utils import areinstance, expr_to_pca
 from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors, construct_mapper_umap
 from .dimension_reduction import reduceDimension
 from .graph_calculus import calc_gaussian_weight, fp_operator, graphize_velocity
@@ -541,13 +541,11 @@ def cell_velocities(
 
             adata, pca_fit, X_pca = pca(adata, CM, params["n_pca_components"], "X", return_all=True)
 
-        from ..preprocessing.pca import pca_transform
-
         X_pca, pca_PCs = adata.obsm[DKM.X_PCA], adata.uns["PCs"]
         V = adata[:, adata.var.use_for_dynamics.values].layers[vkey] if vkey in adata.layers.keys() else None
         CM, V = CM.A if sp.issparse(CM) else CM, V.A if sp.issparse(V) else V
         V[np.isnan(V)] = 0
-        Y_pca = pca_transform(CM + V, PCs=pca_PCs)
+        Y_pca = expr_to_pca(CM + V, PCs=pca_PCs, mean=(CM + V).mean(0))
 
         Y = umap_trans.transform(Y_pca)
 
