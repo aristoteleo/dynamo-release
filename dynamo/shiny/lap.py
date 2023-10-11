@@ -129,20 +129,19 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                         " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
                                         class_="explanation"
                                     ),
-                                    ui.input_text("lap_init_cells", "Init cells: ",
-                                                  placeholder="e.g. GGGGGGCGGCCT-JL_10"),
-                                    ui.input_text("lap_end_cells", "End cells: ",
-                                                  placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
-                                    ui.input_text("lap_basis", "Basis: ", value="pca"),
-                                    ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ",
-                                                  value="cosine_transition_matrix"),
+                                    ui.input_slider("n_lap_heatmap_init_cells", "number of init cells", min=1, max=10, value=1),
+                                    ui.output_ui("selectize_lap_heatmap_init_cells"),
+                                    ui.input_slider("n_lap_heatmap_end_cells", "number of end cells", min=1, max=10, value=1),
+                                    ui.output_ui("selectize_lap_heatmap_end_cells"),
+                                    ui.output_ui("selectize_lap_heatmap_basis"),
+                                    ui.output_ui("selectize_lap_heatmap_adj_key"),
                                     ui.input_slider("heatmap_n_genes", "number of genes", min=1, max=200, value=50),
                                     ui.input_action_button(
                                         "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
                                     ),
                                 ),
                                 ui.column(
-                                    6,
+                                    9,
                                     x.ui.output_plot("lap_kinetic_heatmap"),
                                 ),
                             ),
@@ -634,17 +633,67 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                 return filter_fig(f)
 
         @output
+        @render.ui
+        def selectize_lap_heatmap_init_cells():
+            ui_list = ui.TagList()
+            for i in range(input.n_lap_heatmap_init_cells()):
+                ui_list.append(
+                    ui.input_selectize(
+                        "lap_heatmap_init_cells_" + str(i),
+                        "Init cells " + str(i + 1) + ": ",
+                        choices=list(adata.obs_names),
+                    ),
+                )
+
+            return ui_list
+
+        @output
+        @render.ui
+        def selectize_lap_heatmap_end_cells():
+            ui_list = ui.TagList()
+            for i in range(input.n_lap_heatmap_end_cells()):
+                ui_list.append(
+                    ui.input_selectize(
+                        "lap_heatmap_end_cells_" + str(i),
+                        "End cells " + str(i + 1) + ": ",
+                        choices=list(adata.obs_names),
+                    ),
+                )
+
+            return ui_list
+
+        @output
+        @render.ui
+        def selectize_lap_heatmap_basis():
+            return ui.input_selectize(
+                "lap_heatmap_basis",
+                "Basis:",
+                choices=[b[2:] if b.startswith("X_") else b for b in list(adata.obsm.keys())],
+                selected="pca",
+            )
+
+        @output
+        @render.ui
+        def selectize_lap_heatmap_adj_key():
+            return ui.input_selectize(
+                "lap_heatmap_adj_key",
+                "Adj key to locate transition matrix:",
+                choices=list(adata.obsp.keys()),
+                selected="cosine_transition_matrix",
+            )
+
+        @output
         @render.plot()
         @reactive.event(input.activate_lap_kinetic_heatmap)
         def lap_kinetic_heatmap():
-            init_cells = input.lap_init_cells().split(",")
-            end_cells = input.lap_end_cells().split(",")
+            init_cells = [getattr(input, "lap_heatmap_init_cells_" + str(i))() for i in range(input.n_lap_heatmap_init_cells())]
+            end_cells = [getattr(input, "lap_heatmap_end_cells_" + str(i))() for i in range(input.n_lap_heatmap_end_cells())]
             lap = least_action(
                 adata,
                 init_cells=init_cells,
                 target_cells=end_cells,
-                basis=input.lap_basis(),
-                adj_key=input.lap_adj_key(),
+                basis=input.lap_heatmap_basis(),
+                adj_key=input.lap_heatmap_adj_key(),
             )
             is_human_tfs = [gene in tfs_names for gene in
                             adata.var_names[adata.var.use_for_transition]]
@@ -652,9 +701,8 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             sns.set(font_scale=0.8)
             sns_heatmap = kinetic_heatmap(
                 adata,
-                basis=input.lap_basis(),
+                basis=input.lap_heatmap_basis(),
                 mode="lap",
-                figsize=(10, 5),
                 genes=human_genes[:input.heatmap_n_genes()],
                 project_back_to_high_dim=True,
                 save_show_or_return="return",
