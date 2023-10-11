@@ -169,7 +169,7 @@ def integrate_vf_ivp(
             x = x[:idx]
             _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
             arc_stepsize = arclen / interpolation_num
-            cur_Y, alen, t_[i] = arclength_sampling(x, step_length=arc_stepsize, t=tau[:idx])
+            cur_Y, alen, t_[i] = arclength_sampling(x, step_length=arc_stepsize, n_steps=interpolation_num, t=tau[:idx])
 
             if integration_direction == "both":
                 neg_t_len = sum(np.array(t_[i]) < 0)
@@ -429,7 +429,7 @@ def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
         return (X, arclength)
 
 
-def arclength_sampling(X, step_length, t=None):
+def arclength_sampling(X, step_length, n_steps: int, t=None):
     """uniformly sample data points on an arc curve that generated from vector field predictions."""
     Y = []
     x0 = X[0]
@@ -439,20 +439,29 @@ def arclength_sampling(X, step_length, t=None):
     terminate = False
     arclength = 0
 
+    def _calculate_new_point():
+        x = x0 if j == i else X[j - 1]
+        cur_y = x + (step_length - L) * tangent / d
+
+        if t is not None:
+            cur_tau = t0 if j == i else t[j - 1]
+            cur_tau += (step_length - L) / d * (t[j] - cur_tau)
+            T.append(cur_tau)
+        else:
+            cur_tau = None
+
+        Y.append(cur_y)
+
+        return cur_y, cur_tau
+
     while i < len(X) - 1 and not terminate:
         L = 0
         for j in range(i, len(X)):
             tangent = X[j] - x0 if j == i else X[j] - X[j - 1]
             d = np.linalg.norm(tangent)
             if L + d >= step_length:
-                x = x0 if j == i else X[j - 1]
-                y = x + (step_length - L) * tangent / d
-                if t is not None:
-                    tau = t0 if j == i else t[j - 1]
-                    tau += (step_length - L) / d * (t[j] - tau)
-                    T.append(tau)
-                    t0 = tau
-                Y.append(y)
+                y, tau = _calculate_new_point()
+                t0 = tau if t is not None else None
                 x0 = y
                 i = j
                 break
@@ -463,6 +472,9 @@ def arclength_sampling(X, step_length, t=None):
         arclength += step_length
         if L + d < step_length:
             terminate = True
+
+    if terminate and len(Y) < n_steps:
+        _, _ = _calculate_new_point()
 
     if T is not None:
         return np.array(Y), arclength, T
