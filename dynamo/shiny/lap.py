@@ -82,26 +82,10 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 ),
                                 x.ui.accordion_panel(
                                     div("Prepare TFs", class_="bold-subtitle"),
-                                    div("Load the transcription factors data", class_="explanation"),
-                                    ui.input_action_button(
-                                        "activate_prepare_tfs", "Prepare TFs", class_="btn-primary"
-                                    ),
-                                    value="Prepare TFs",
-                                ),
-                                x.ui.accordion_panel(
-                                    div("TFs barplot", class_="bold-subtitle"),
-                                    ui.input_text(
-                                        "cell_type_colormap",
-                                        "Color of each cell type (random color will be selected if not input): ",
-                                        placeholder="Enter Color Dict"
-                                    ),
+                                    ui.output_ui("selectize_barplot_start_genes"),
                                     ui.input_action_button(
                                         "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
                                     ),
-                                    value="TFs barplot",
-                                ),
-                                x.ui.accordion_panel(
-                                    div("Pairwise cell fate heatmap", class_="bold-subtitle"),
                                     div(
                                         "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
                                         class_="explanation"
@@ -110,8 +94,32 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                         "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap",
                                         class_="btn-primary"
                                     ),
-                                    value="Pairwise cell fate heatmap",
+                                    value="Prepare TFs",
                                 ),
+                                # x.ui.accordion_panel(
+                                #     div("TFs barplot", class_="bold-subtitle"),
+                                #     ui.input_text(
+                                #         "cell_type_colormap",
+                                #         "Color of each cell type (random color will be selected if not input): ",
+                                #         placeholder="Enter Color Dict"
+                                #     ),
+                                #     ui.input_action_button(
+                                #         "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
+                                #     ),
+                                #     value="TFs barplot",
+                                # ),
+                                # x.ui.accordion_panel(
+                                #     div("Pairwise cell fate heatmap", class_="bold-subtitle"),
+                                #     div(
+                                #         "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                                #         class_="explanation"
+                                #     ),
+                                #     ui.input_action_button(
+                                #         "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap",
+                                #         class_="btn-primary"
+                                #     ),
+                                #     value="Pairwise cell fate heatmap",
+                                # ),
                                 x.ui.accordion_panel(
                                     div("LAP Kinetic Heatmap", class_="bold-subtitle"),
                                     div(
@@ -177,13 +185,15 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 div("LAP result of given transition", class_="bold-subtitle"),
                                 x.ui.output_plot("plot_lap"),
                             ),
-                            div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
-                            x.ui.output_plot("tfs_barplot"),
-                            div(
-                                "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
-                                class_="bold-subtitle"
+                            x.ui.card(
+                                div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
+                                x.ui.output_plot("tfs_barplot"),
+                                div(
+                                    "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                                    class_="bold-subtitle"
+                                ),
+                                x.ui.output_plot("pairwise_cell_fate_heatmap"),
                             ),
-                            x.ui.output_plot("pairwise_cell_fate_heatmap"),
                             div("Kinetics heatmap of gene expression dynamics along the LAP", class_="bold-subtitle"),
                             x.ui.output_plot("lap_kinetic_heatmap"),
                         ),
@@ -506,6 +516,25 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                         )
             transition_graph.set(transition_graph_dict)
 
+            cell_type = list(initialize_fps_coordinates()["Cell_Type"].values)
+            action_df = pd.DataFrame(index=cell_type, columns=cell_type)
+            t_df = pd.DataFrame(index=cell_type, columns=cell_type)
+            for i, start in enumerate(cells_indices()):
+                for j, end in enumerate(cells_indices()):
+                    if start is not end:
+                        print(cell_type[i] + "->" + cell_type[j], end=",")
+                        lap = transition_graph()[cell_type[i] + "->" + cell_type[j]]["lap"]  # lap
+                        gtraj = transition_graph()[cell_type[i] + "->" + cell_type[j]]["gtraj"]
+                        ranking = transition_graph()[cell_type[i] + "->" + cell_type[j]]["ranking"].copy()
+                        ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
+                        genes = ranking.query("TF == True").head(10)["all"].to_list()
+                        arr = gtraj.select_gene(genes)
+                        action_df.loc[cell_type[i], cell_type[j]] = lap.action_t()[-1]
+                        t_df.loc[cell_type[i], cell_type[j]] = lap.t[-1]
+
+            action_dataframe.set(action_df)
+            t_dataframe.set(t_df)
+
         @output
         @render.ui
         def selectize_gene_barplot_transition():
@@ -599,50 +628,40 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
             return filter_fig(fig)
 
-        @reactive.Effect
-        @reactive.event(input.activate_prepare_tfs)
-        def _():
-            cell_type = list(initialize_fps_coordinates()["Cell_Type"].values)
-            action_df = pd.DataFrame(index=cell_type, columns=cell_type)
-            t_df = pd.DataFrame(index=cell_type, columns=cell_type)
-            for i, start in enumerate(cells_indices()):
-                for j, end in enumerate(cells_indices()):
-                    if start is not end:
-                        print(cell_type[i] + "->" + cell_type[j], end=",")
-                        lap = transition_graph()[cell_type[i] + "->" + cell_type[j]]["lap"]  # lap
-                        gtraj = transition_graph()[cell_type[i] + "->" + cell_type[j]]["gtraj"]
-                        ranking = transition_graph()[cell_type[i] + "->" + cell_type[j]]["ranking"].copy()
-                        ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
-                        genes = ranking.query("TF == True").head(10)["all"].to_list()
-                        arr = gtraj.select_gene(genes)
-                        action_df.loc[cell_type[i], cell_type[j]] = lap.action_t()[-1]
-                        t_df.loc[cell_type[i], cell_type[j]] = lap.t[-1]
-
-            action_dataframe.set(action_df)
-            t_dataframe.set(t_df)
+        @output
+        @render.ui
+        def selectize_barplot_start_genes():
+            if initialize_fps_coordinates() is None:
+                return ui.input_text(
+                    "barplot_start_genes",
+                    "Transition to visualize:",
+                )
+            else:
+                return ui.input_selectize(
+                    "barplot_start_genes",
+                    "Transition to visualize:",
+                    choices=list(initialize_fps_coordinates()["Cell_Type"].values),
+                    selected=list(initialize_fps_coordinates()["Cell_Type"].values)[0],
+                )
 
         @output
         @render.plot()
         @reactive.event(input.activate_tfs_barplot)
         def tfs_barplot():
-            develop_time_df = pd.DataFrame({"integration time": t_dataframe().iloc[0, :].T})
+            start_genes = input.barplot_start_genes()
+            develop_time_df = pd.DataFrame({"integration time": t_dataframe().loc[start_genes].T})
             develop_time_df["lineage"] = list(initialize_fps_coordinates()["Cell_Type"].values)
+            develop_time_df = develop_time_df.drop(start_genes)
 
             ig, ax = plt.subplots(figsize=(4, 3))
 
-            if input.cell_type_colormap():
-                colors = input.cell_type_colormap().split(",")
-                dynamo_color_dict = {}
-                for i in range(len(develop_time_df["lineage"])):
-                    dynamo_color_dict[develop_time_df["lineage"][i]] = colors[i]
-            else:
-                dynamo_color_dict = get_color_map_from_labels(develop_time_df["lineage"].values)
+            dynamo_color_dict = get_color_map_from_labels(develop_time_df["lineage"].values)
 
             sns.barplot(
                 y="lineage",
                 x="integration time",
                 hue="lineage",
-                data=develop_time_df.iloc[1:, :],
+                data=develop_time_df,
                 dodge=False,
                 palette=dynamo_color_dict,
                 ax=ax,
