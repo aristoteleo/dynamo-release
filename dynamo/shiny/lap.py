@@ -43,113 +43,109 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
         ui.navset_tab(
             ui.nav(
                 "Run pairwise least action path analyses",
-                x.ui.layout_sidebar(
-                    x.ui.sidebar(
-                        ui.include_css(css_path),
-                        # x.ui.accordion(
-                        #     x.ui.accordion_panel(
-                        #         div("Run pairwise least action path analyses", class_="bold-title"),
-                        #         x.ui.accordion_panel(
-                        #             div("Streamline Plot Setting", class_="bold-subtitle"),
-                        #             ui.output_ui("selectize_cells_type_key"),
-                        #             ui.output_ui("selectize_streamline_basis"),
-                        #             value="Streamline Plot Setting",
-                        #         ),
-                        #         value="Run pairwise least action path analyses",
-                        #     ),
-                        #     open=True,
-                        # ),
-                        width=500,
-                    ),
-                    ui.panel_main(
-                        ui.div(
-                            x.ui.card(
-                                div("Initialization", class_="bold-title"),
-                                div("Streamline plot of given basis and color", class_="bold-subtitle"),
-                                ui.row(
-                                    ui.column(6, ui.output_ui("selectize_cells_type_key")),
-                                    ui.column(6, ui.output_ui("selectize_streamline_basis")),
-                                ),
-                                x.ui.output_plot("base_streamline_plot"),
-                                div("The fixed points representing the typical cell state of these cells",
-                                    class_="bold-subtitle"),
-                                x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True,
-                                                 brush=True),
+                ui.panel_main(
+                    ui.div(
+                        x.ui.card(
+                            div("Initialization", class_="bold-title"),
+                            div("Streamline plot of given basis and color", class_="bold-subtitle"),
+                            ui.row(
+                                ui.column(6, ui.output_ui("selectize_cells_type_key")),
+                                ui.column(6, ui.output_ui("selectize_streamline_basis")),
+                            ),
+                            x.ui.output_plot("base_streamline_plot"),
+                            div("The fixed points representing the typical cell state of these cells",
+                                class_="bold-subtitle"),
+                            x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True,
+                                             brush=True),
 
-                                ui.row(
-                                    ui.column(
-                                        6,
-                                        ui.row(
-                                            ui.tags.b("Points near cursor"),
-                                            ui.output_table("near_click"),
-                                        ),
-                                        ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),
-                                        ui.row(
-                                            ui.tags.b("Points in brush"),
-                                            ui.output_table("in_brush"),
-                                        ),
-                                        ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),
+                            ui.row(
+                                ui.column(
+                                    6,
+                                    ui.row(
+                                        ui.tags.b("Points near cursor"),
+                                        ui.output_table("near_click"),
                                     ),
-                                    ui.column(
-                                        6,
-                                        ui.tags.b("Identified Fixed Points"),
-                                        ui.output_table("fixed_points"),
-                                        ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
-                                        ui.input_action_button(
-                                            "activate_lap", "Run LAP analyses with identified points",
-                                            class_="btn-primary",
-                                        ),
+                                    ui.input_action_button("add_click_pts", "Add", class_="btn-primary"),
+                                    ui.row(
+                                        ui.tags.b("Points in brush"),
+                                        ui.output_table("in_brush"),
+                                    ),
+                                    ui.input_action_button("add_brush_pts", "Add", class_="btn-primary"),
+                                ),
+                                ui.column(
+                                    6,
+                                    ui.tags.b("Identified Fixed Points"),
+                                    ui.output_table("fixed_points"),
+                                    ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
+                                    ui.input_action_button(
+                                        "activate_lap", "Run LAP analyses with identified points",
+                                        class_="btn-primary",
                                     ),
                                 ),
                             ),
-                            x.ui.card(
-                                div("LAP results", class_="bold-title"),
-                                div("Rank of genes in all transitions", class_="bold-subtitle"),
-                                ui.row(
-                                    ui.column(6, ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10)),
-                                    ui.column(6, ui.output_ui("selectize_gene_barplot_transition")),
-                                ),
-                                x.ui.output_plot("genes_barplot"),
-                                div("LAP result of given transition", class_="bold-subtitle"),
-                                ui.panel_sidebar(
+                        ),
+                        x.ui.card(
+                            div("LAP results", class_="bold-title"),
+                            div("Rank of genes in all transitions", class_="bold-subtitle"),
+                            ui.row(
+                                ui.column(6, ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10)),
+                                ui.column(6, ui.output_ui("selectize_gene_barplot_transition")),
+                            ),
+                            x.ui.output_plot("genes_barplot"),
+                            div("LAP result of given transition", class_="bold-subtitle"),
+                            ui.row(
+                                ui.column(
+                                    3,
                                     ui.input_slider(
                                         "n_lap_visualize_transition",
                                         "Number of transitions to visualize",
                                         min=1, max=20, value=1),
                                     ui.output_ui("selectize_lap_visualize_transition"),
                                 ),
-                                ui.panel_main(x.ui.output_plot("plot_lap")),
-                            ),
-                            x.ui.card(
-                                div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
-                                ui.output_ui("selectize_barplot_start_genes"),
-                                x.ui.output_plot("tfs_barplot"),
-                                div(
-                                    "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
-                                    class_="bold-subtitle"
-                                ),
-                                x.ui.output_plot("pairwise_cell_fate_heatmap"),
-                            ),
-                            div("Kinetics heatmap of gene expression dynamics along the LAP", class_="bold-subtitle"),
-                            ui.panel_sidebar(
-                                div("LAP Kinetic Heatmap", class_="bold-subtitle"),
-                                div(
-                                    " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
-                                    class_="explanation"
-                                ),
-                                ui.input_text("lap_init_cells", "Init cells: ",
-                                              placeholder="e.g. GGGGGGCGGCCT-JL_10"),
-                                ui.input_text("lap_end_cells", "End cells: ",
-                                              placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
-                                ui.input_text("lap_basis", "Basis: ", value="pca"),
-                                ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ",
-                                              value="cosine_transition_matrix"),
-                                ui.input_slider("heatmap_n_genes", "number of genes", min=1, max=200, value=50),
-                                ui.input_action_button(
-                                    "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
+                                ui.column(
+                                    9,
+                                    x.ui.output_plot("plot_lap"),
                                 ),
                             ),
-                            ui.panel_main(x.ui.output_plot("lap_kinetic_heatmap")),
+                        ),
+                        x.ui.card(
+                            div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
+                            ui.output_ui("selectize_barplot_start_genes"),
+                            x.ui.output_plot("tfs_barplot"),
+                            div(
+                                "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                                class_="bold-subtitle"
+                            ),
+                            x.ui.output_plot("pairwise_cell_fate_heatmap"),
+                        ),
+                        x.ui.card(
+                            div("Kinetics heatmap of gene expression dynamics along the LAP",
+                                class_="bold-subtitle"),
+                            ui.row(
+                                ui.column(
+                                    3,
+                                    div("LAP Kinetic Heatmap", class_="bold-subtitle"),
+                                    div(
+                                        " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
+                                        class_="explanation"
+                                    ),
+                                    ui.input_text("lap_init_cells", "Init cells: ",
+                                                  placeholder="e.g. GGGGGGCGGCCT-JL_10"),
+                                    ui.input_text("lap_end_cells", "End cells: ",
+                                                  placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
+                                    ui.input_text("lap_basis", "Basis: ", value="pca"),
+                                    ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ",
+                                                  value="cosine_transition_matrix"),
+                                    ui.input_slider("heatmap_n_genes", "number of genes", min=1, max=200, value=50),
+                                    ui.input_action_button(
+                                        "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
+                                    ),
+                                ),
+                                ui.column(
+                                    6,
+                                    x.ui.output_plot("lap_kinetic_heatmap"),
+                                ),
+                            ),
                         ),
                     ),
                 ),
