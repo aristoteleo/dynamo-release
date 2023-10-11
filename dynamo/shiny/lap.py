@@ -46,103 +46,19 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                 x.ui.layout_sidebar(
                     x.ui.sidebar(
                         ui.include_css(css_path),
-                        x.ui.accordion(
-                            x.ui.accordion_panel(
-                                div("Run pairwise least action path analyses", class_="bold-title"),
-                                x.ui.accordion_panel(
-                                    div("Streamline Plot Setting", class_="bold-subtitle"),
-                                    ui.output_ui("selectize_cells_type_key"),
-                                    ui.output_ui("selectize_streamline_basis"),
-                                    value="Streamline Plot Setting",
-                                ),
-                                x.ui.accordion_panel(
-                                    div("Run LAP", class_="bold-subtitle"),
-                                    div("Run pairwise least action path analyses among given cell types",
-                                        class_="explanation"),
-                                    ui.input_action_button(
-                                        "activate_lap", "Run LAP analyses", class_="btn-primary"
-                                    ),
-                                    div("Then we can rank all the genes based their vector field metrics by transitions",
-                                        class_="explanation"),
-                                    ui.output_ui("selectize_gene_barplot_transition"),
-                                    ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10),
-                                    ui.input_action_button(
-                                        "activate_genes_barplot", "genes barplot", class_="btn-primary"
-                                    ),
-                                    div("Visualize LAP", class_="bold-subtitle"),
-                                    ui.input_slider(
-                                        "n_lap_visualize_transition",
-                                        "Number of transitions to visualize",
-                                        min=1, max=20, value=1),
-                                    ui.output_ui("selectize_lap_visualize_transition"),
-                                    ui.input_action_button(
-                                        "activate_visualize_lap", "Visualize LAP", class_="btn-primary"
-                                    ),
-                                    value="Visualize LAP",
-                                ),
-                                x.ui.accordion_panel(
-                                    div("Prepare TFs", class_="bold-subtitle"),
-                                    ui.output_ui("selectize_barplot_start_genes"),
-                                    ui.input_action_button(
-                                        "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
-                                    ),
-                                    div(
-                                        "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
-                                        class_="explanation"
-                                    ),
-                                    ui.input_action_button(
-                                        "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap",
-                                        class_="btn-primary"
-                                    ),
-                                    value="Prepare TFs",
-                                ),
-                                # x.ui.accordion_panel(
-                                #     div("TFs barplot", class_="bold-subtitle"),
-                                #     ui.input_text(
-                                #         "cell_type_colormap",
-                                #         "Color of each cell type (random color will be selected if not input): ",
-                                #         placeholder="Enter Color Dict"
-                                #     ),
-                                #     ui.input_action_button(
-                                #         "activate_tfs_barplot", "TFs barplot", class_="btn-primary"
-                                #     ),
-                                #     value="TFs barplot",
-                                # ),
-                                # x.ui.accordion_panel(
-                                #     div("Pairwise cell fate heatmap", class_="bold-subtitle"),
-                                #     div(
-                                #         "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
-                                #         class_="explanation"
-                                #     ),
-                                #     ui.input_action_button(
-                                #         "activate_pairwise_cell_fate_heatmap", "Pairwise cell fate heatmap",
-                                #         class_="btn-primary"
-                                #     ),
-                                #     value="Pairwise cell fate heatmap",
-                                # ),
-                                x.ui.accordion_panel(
-                                    div("LAP Kinetic Heatmap", class_="bold-subtitle"),
-                                    div(
-                                        " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
-                                        class_="explanation"
-                                    ),
-                                    ui.input_text("lap_init_cells", "Init cells: ",
-                                                  placeholder="e.g. GGGGGGCGGCCT-JL_10"),
-                                    ui.input_text("lap_end_cells", "End cells: ",
-                                                  placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
-                                    ui.input_text("lap_basis", "Basis: ", value="pca"),
-                                    ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ",
-                                                  value="cosine_transition_matrix"),
-                                    ui.input_slider("heatmap_n_genes", "number of genes", min=1, max=200, value=50),
-                                    ui.input_action_button(
-                                        "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
-                                    ),
-                                    value="LAP Kinetic Heatmap",
-                                ),
-                                value="Run pairwise least action path analyses",
-                            ),
-                            open=True,
-                        ),
+                        # x.ui.accordion(
+                        #     x.ui.accordion_panel(
+                        #         div("Run pairwise least action path analyses", class_="bold-title"),
+                        #         x.ui.accordion_panel(
+                        #             div("Streamline Plot Setting", class_="bold-subtitle"),
+                        #             ui.output_ui("selectize_cells_type_key"),
+                        #             ui.output_ui("selectize_streamline_basis"),
+                        #             value="Streamline Plot Setting",
+                        #         ),
+                        #         value="Run pairwise least action path analyses",
+                        #     ),
+                        #     open=True,
+                        # ),
                         width=500,
                     ),
                     ui.panel_main(
@@ -150,6 +66,10 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             x.ui.card(
                                 div("Initialization", class_="bold-title"),
                                 div("Streamline plot of given basis and color", class_="bold-subtitle"),
+                                ui.row(
+                                    ui.column(6, ui.output_ui("selectize_cells_type_key")),
+                                    ui.column(6, ui.output_ui("selectize_streamline_basis")),
+                                ),
                                 x.ui.output_plot("base_streamline_plot"),
                                 div("The fixed points representing the typical cell state of these cells",
                                     class_="bold-subtitle"),
@@ -175,18 +95,34 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                         ui.tags.b("Identified Fixed Points"),
                                         ui.output_table("fixed_points"),
                                         ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
+                                        ui.input_action_button(
+                                            "activate_lap", "Run LAP analyses with identified points",
+                                            class_="btn-primary",
+                                        ),
                                     ),
                                 ),
                             ),
                             x.ui.card(
                                 div("LAP results", class_="bold-title"),
                                 div("Rank of genes in all transitions", class_="bold-subtitle"),
+                                ui.row(
+                                    ui.column(6, ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10)),
+                                    ui.column(6, ui.output_ui("selectize_gene_barplot_transition")),
+                                ),
                                 x.ui.output_plot("genes_barplot"),
                                 div("LAP result of given transition", class_="bold-subtitle"),
-                                x.ui.output_plot("plot_lap"),
+                                ui.panel_sidebar(
+                                    ui.input_slider(
+                                        "n_lap_visualize_transition",
+                                        "Number of transitions to visualize",
+                                        min=1, max=20, value=1),
+                                    ui.output_ui("selectize_lap_visualize_transition"),
+                                ),
+                                ui.panel_main(x.ui.output_plot("plot_lap")),
                             ),
                             x.ui.card(
                                 div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
+                                ui.output_ui("selectize_barplot_start_genes"),
                                 x.ui.output_plot("tfs_barplot"),
                                 div(
                                     "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
@@ -195,7 +131,25 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 x.ui.output_plot("pairwise_cell_fate_heatmap"),
                             ),
                             div("Kinetics heatmap of gene expression dynamics along the LAP", class_="bold-subtitle"),
-                            x.ui.output_plot("lap_kinetic_heatmap"),
+                            ui.panel_sidebar(
+                                div("LAP Kinetic Heatmap", class_="bold-subtitle"),
+                                div(
+                                    " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
+                                    class_="explanation"
+                                ),
+                                ui.input_text("lap_init_cells", "Init cells: ",
+                                              placeholder="e.g. GGGGGGCGGCCT-JL_10"),
+                                ui.input_text("lap_end_cells", "End cells: ",
+                                              placeholder="e.g. GCAGCGAAGGCA-JL12_0"),
+                                ui.input_text("lap_basis", "Basis: ", value="pca"),
+                                ui.input_text("lap_adj_key", "Adj key to locate transition matrix: ",
+                                              value="cosine_transition_matrix"),
+                                ui.input_slider("heatmap_n_genes", "number of genes", min=1, max=200, value=50),
+                                ui.input_action_button(
+                                    "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
+                                ),
+                            ),
+                            ui.panel_main(x.ui.output_plot("lap_kinetic_heatmap")),
                         ),
                     ),
                 ),
@@ -553,37 +507,37 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.plot()
-        @reactive.event(input.activate_genes_barplot)
         def genes_barplot():
-            ranking_list = [transition_graph()[path]["ranking"] for path in transition_graph()]
-            mean_df = _merge_df(ranking_list)
-            mean_df["mean"] = mean_df["all_values"].mean(1)
-            mean_df = mean_df.sort_values("mean", ascending=False)[:input.top_n_genes()]
-            merged_df = pd.concat(ranking_list, axis=0)
+            if input.activate_lap() > 0:
+                ranking_list = [transition_graph()[path]["ranking"] for path in transition_graph()]
+                mean_df = _merge_df(ranking_list)
+                mean_df["mean"] = mean_df["all_values"].mean(1)
+                mean_df = mean_df.sort_values("mean", ascending=False)[:input.top_n_genes()]
+                merged_df = pd.concat(ranking_list, axis=0)
 
-            fig, (ax1, ax2) = plt.subplots(1, 2)
+                fig, (ax1, ax2) = plt.subplots(1, 2)
 
-            sns.barplot(
-                y="all",
-                x="all_values",
-                data=merged_df.loc[mean_df.index,],
-                ax=ax1,
-            ).set(xlabel="ranking scores", ylabel="genes")
+                sns.barplot(
+                    y="all",
+                    x="all_values",
+                    data=merged_df.loc[mean_df.index,],
+                    ax=ax1,
+                ).set(xlabel="ranking scores", ylabel="genes")
 
 
-            sns.barplot(
-                y="all",
-                x="all_values",
-                data=transition_graph()[input.gene_barplot_transition()]["ranking"][:input.top_n_genes()],
-                dodge=False,
-                ax=ax2,
-            ).set(
-                title="Genes rank for transition: " + input.gene_barplot_transition(),
-                xlabel="ranking scores",
-                ylabel="genes",
-            )
+                sns.barplot(
+                    y="all",
+                    x="all_values",
+                    data=transition_graph()[input.gene_barplot_transition()]["ranking"][:input.top_n_genes()],
+                    dodge=False,
+                    ax=ax2,
+                ).set(
+                    title="Genes rank for transition: " + input.gene_barplot_transition(),
+                    xlabel="ranking scores",
+                    ylabel="genes",
+                )
 
-            return filter_fig(plt.gcf())
+                return filter_fig(plt.gcf())
 
         @output
         @render.ui
@@ -603,30 +557,30 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.plot()
-        @reactive.event(input.activate_visualize_lap)
         def plot_lap():
-            paths = [getattr(input, "lap_visualize_transition_" + str(i))() for i in range(input.n_lap_visualize_transition())]
-            fig, ax = plt.subplots(figsize=(5, 4))
-            ax_list = streamline_plot(
-                adata,
-                basis=input.streamline_basis(),
-                save_show_or_return="return",
-                ax=ax,
-                color=input.cells_type_key().split(","),
-                frontier=True,
-            )
-            ax = ax_list[0]
-            x, y = 0, 1
+            if input.activate_lap() > 0:
+                paths = [getattr(input, "lap_visualize_transition_" + str(i))() for i in range(input.n_lap_visualize_transition())]
+                fig, ax = plt.subplots(figsize=(5, 4))
+                ax_list = streamline_plot(
+                    adata,
+                    basis=input.streamline_basis(),
+                    save_show_or_return="return",
+                    ax=ax,
+                    color=input.cells_type_key().split(","),
+                    frontier=True,
+                )
+                ax = ax_list[0]
+                x, y = 0, 1
 
-            # plot paths
-            for i in range(len(paths)):
-                path = paths[i]
-                lap_dict = transition_graph()[path]["LAP_umap"]
-                for prediction, action in zip(lap_dict["prediction"], lap_dict["action"]):
-                    ax.scatter(*prediction[:, [x, y]].T, c=map2color(action))
-                    ax.plot(*prediction[:, [x, y]].T, c="k")
+                # plot paths
+                for i in range(len(paths)):
+                    path = paths[i]
+                    lap_dict = transition_graph()[path]["LAP_umap"]
+                    for prediction, action in zip(lap_dict["prediction"], lap_dict["action"]):
+                        ax.scatter(*prediction[:, [x, y]].T, c=map2color(action))
+                        ax.plot(*prediction[:, [x, y]].T, c="k")
 
-            return filter_fig(fig)
+                return filter_fig(fig)
 
         @output
         @render.ui
@@ -646,42 +600,42 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.plot()
-        @reactive.event(input.activate_tfs_barplot)
         def tfs_barplot():
-            start_genes = input.barplot_start_genes()
-            develop_time_df = pd.DataFrame({"integration time": t_dataframe().loc[start_genes].T})
-            develop_time_df["lineage"] = list(initialize_fps_coordinates()["Cell_Type"].values)
-            develop_time_df = develop_time_df.drop(start_genes)
+            if input.activate_lap() > 0:
+                start_genes = input.barplot_start_genes()
+                develop_time_df = pd.DataFrame({"integration time": t_dataframe().loc[start_genes].T})
+                develop_time_df["lineage"] = list(initialize_fps_coordinates()["Cell_Type"].values)
+                develop_time_df = develop_time_df.drop(start_genes)
 
-            ig, ax = plt.subplots(figsize=(4, 3))
+                ig, ax = plt.subplots(figsize=(4, 3))
 
-            dynamo_color_dict = get_color_map_from_labels(develop_time_df["lineage"].values)
+                dynamo_color_dict = get_color_map_from_labels(develop_time_df["lineage"].values)
 
-            sns.barplot(
-                y="lineage",
-                x="integration time",
-                hue="lineage",
-                data=develop_time_df,
-                dodge=False,
-                palette=dynamo_color_dict,
-                ax=ax,
-            )
-            ax.set_ylabel("")
-            plt.tight_layout()
-            plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+                sns.barplot(
+                    y="lineage",
+                    x="integration time",
+                    hue="lineage",
+                    data=develop_time_df,
+                    dodge=False,
+                    palette=dynamo_color_dict,
+                    ax=ax,
+                )
+                ax.set_ylabel("")
+                plt.tight_layout()
+                plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
 
-            return filter_fig(ig)
+                return filter_fig(ig)
 
         @output
         @render.plot()
-        @reactive.event(input.activate_pairwise_cell_fate_heatmap)
         def pairwise_cell_fate_heatmap():
-            action_df = action_dataframe().fillna(0)
-            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 5))
-            ax1 = sns.heatmap(action_df, annot=True, ax=ax1)
-            t_df = t_dataframe().fillna(0)
-            ax2 = sns.heatmap(t_df, annot=True, ax=ax2)
-            return filter_fig(f)
+            if input.activate_lap() > 0:
+                action_df = action_dataframe().fillna(0)
+                f, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 5))
+                ax1 = sns.heatmap(action_df, annot=True, ax=ax1)
+                t_df = t_dataframe().fillna(0)
+                ax2 = sns.heatmap(t_df, annot=True, ax=ax2)
+                return filter_fig(f)
 
         @output
         @render.plot()
