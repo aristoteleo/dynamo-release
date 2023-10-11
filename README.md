@@ -9,10 +9,10 @@
 -->
 
 [![upload](https://img.shields.io/pypi/v/dynamo-release?logo=PyPI)](https://pypi.org/project/dynamo-release/) 
-[![documentation](https://readthedocs.org/projects/dynamo-release/badge/?version=latest)](https://dynamo-release.readthedocs.io/en/latest/)
 [![download](https://static.pepy.tech/badge/dynamo-release)](https://pepy.tech/project/dynamo-release)
 [![star](https://img.shields.io/github/stars/aristoteleo/dynamo-release?logo=GitHub&color=red)](https://github.com/aristoteleo/dynamo-release/stargazers)
 [![build](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-package.yml/badge.svg)](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-package.yml)
+[![documentation](https://readthedocs.org/projects/dynamo-release/badge/?version=latest)](https://dynamo-release.readthedocs.io/en/latest/)
 [![upload_python_package](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-publish.yml/badge.svg)](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-publish.yml)
 [![test](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-plain-run-test.yml/badge.svg)](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-plain-run-test.yml)
 
