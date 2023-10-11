@@ -13,6 +13,7 @@
 [![download](https://static.pepy.tech/badge/dynamo-release)](https://pepy.tech/project/dynamo-release)
 [![star](https://img.shields.io/github/stars/aristoteleo/dynamo-release?logo=GitHub&color=red)](https://github.com/aristoteleo/dynamo-release/stargazers)
 [![build](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-package.yml/badge.svg)](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-package.yml)
+[![upload_python_package](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-publish.yml/badge.svg)](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-publish.yml)
 [![test](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-plain-run-test.yml/badge.svg)](https://github.com/aristoteleo/dynamo-release/actions/workflows/python-plain-run-test.yml)
 
 ## **Dynamo**: Mapping Transcriptomic Vector Fields of Single Cells
