@@ -156,31 +156,6 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                 ui.panel_main(
                     ui.div(
                         div(
-                            "Visualization of the transition_graph which contains LAP and known TFs information",
-                            class_="bold-subtitle",
-                        ),
-                        x.ui.card(
-                            ui.row(
-                                ui.column(
-                                    3,
-                                    div("Add known TFs", class_="bold-subtitle"),
-                                    ui.input_text("known_tf_transition", "Target transition: ",
-                                                  placeholder="e.g. HSC->Meg"),
-                                    ui.input_text("known_tf", "Known TFs: ",
-                                                  placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
-                                    ui.input_text("known_tf_key", "Key to save TFs: ", value="TFs"),
-                                    ui.input_text("known_tf_rank_key", "Key to save TFs rank: ", value="TFs_rank"),
-                                    ui.input_action_button(
-                                        "activate_add_known_tf", "Add", class_="btn-primary"
-                                    ),
-                                ),
-                                ui.column(
-                                    9,
-                                    ui.output_text_verbatim("add_known_tf"),
-                                ),
-                            ),
-                        ),
-                        div(
                             "Visualization of dictionary for converting the rankings of known TFs to a priority score",
                             class_="bold-subtitle",
                         ),
@@ -189,6 +164,12 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 ui.column(
                                     3,
                                     div("Priority Scores of TFs", class_="bold-subtitle"),
+                                    div("Add known TFs", class_="bold-subtitle"),
+                                    ui.output_ui("selectize_known_tf_transition"),
+                                    ui.input_text("known_tf", "Known TFs: ",
+                                                  placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
+                                    ui.input_text("known_tf_key", "Key to save TFs: ", value="TFs"),
+                                    ui.input_text("known_tf_rank_key", "Key to save TFs rank: ", value="TFs_rank"),
                                     ui.input_text("reprog_mat_main_key", "Main Key: ", placeholder="e.g. HSC->Meg"),
                                     div(
                                         "The 'genes' information will be extracted from "
@@ -200,12 +181,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                         "transition_graph[Transition Key][Rank Key]",
                                         class_="explanation",
                                     ),
-                                    ui.input_text("reprog_mat_transition_key", "Transition Key: ",
-                                                  placeholder="e.g. HSC->Meg"),
-                                    ui.input_text("reprog_mat_genes_key", "Genes Key: ", value="TFs"),
-                                    ui.input_text("reprog_mat_rank_key", "Rank Key: ", value="TFs_rank"),
-                                    ui.input_text("reprog_mat_type", "Type of transition: ",
-                                                  placeholder="e.g. development"),
+                                    ui.output_ui("selectize_reprog_mat_type"),
                                     ui.input_action_button(
                                         "activate_add_reprog_info", "Add", class_="btn-primary"
                                     ),
@@ -733,10 +709,36 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                     text += "  " + f"{value}\n" if key in target_key else "  " + f"...\n"
             return text
 
+        def assign_random_color(new_key: str):
+            available_colors = ["#fde725", "#5ec962", "#21918c", "#3b528b", "#440154"]
+            dictionary = transition_color_dict()
+            available_colors = [c for c in available_colors if c not in dictionary.values()]
+            random_color = random.choice(available_colors)
+            dictionary[new_key] = random_color
+            transition_color_dict.set(dictionary)
+
+        @output
+        @render.ui
+        def selectize_known_tf_transition():
+            return ui.input_selectize(
+                "known_tf_transition",
+                "Target transition to add known TFs:",
+                choices=list(transition_graph().keys()),
+            )
+
+        @output
+        @render.ui
+        def selectize_reprog_mat_type():
+            return ui.input_selectize(
+                "reprog_mat_type",
+                "Type of transition: ",
+                choices=["development", "reprogramming", "transdifferentiation"],
+            )
+
         @output
         @render.text
-        @reactive.event(input.activate_add_known_tf)
-        def add_known_tf():
+        @reactive.event(input.activate_add_reprog_info)
+        def add_reprog_info():
             transition = input.known_tf_transition()
             cur_transition_graph = transition_graph()
 
@@ -747,31 +749,18 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             cur_transition_graph[transition][input.known_tf_key()] = input.known_tf().split(",")
 
             cur_transition_graph[transition][input.known_tf_rank_key()] = [
-                all_tfs.index(key) if key in true_tf_list else -1 for key in cur_transition_graph[transition][input.known_tf_key()]
+                all_tfs.index(key) if key in true_tf_list else -1 for key in
+                cur_transition_graph[transition][input.known_tf_key()]
             ]
 
             transition_graph.set(cur_transition_graph)
 
-            return format_dict_to_text(cur_transition_graph, [input.known_tf_key()])
-
-        def assign_random_color(new_key: str):
-            available_colors = ["#fde725", "#5ec962", "#21918c", "#3b528b", "#440154"]
-            dictionary = transition_color_dict()
-            available_colors = [c for c in available_colors if c not in dictionary.values()]
-            random_color = random.choice(available_colors)
-            dictionary[new_key] = random_color
-            transition_color_dict.set(dictionary)
-
-        @output
-        @render.text
-        @reactive.event(input.activate_add_reprog_info)
-        def add_reprog_info():
             reprog_dict = reprogramming_mat_dict()
             transition_graph_dict = transition_graph()
 
             reprog_dict[input.reprog_mat_main_key()] = {
-                "genes": transition_graph_dict[input.reprog_mat_transition_key()][input.reprog_mat_genes_key()],
-                "rank": transition_graph_dict[input.reprog_mat_transition_key()][input.reprog_mat_rank_key()],
+                "genes": transition_graph_dict[input.known_tf_transition()][input.known_tf_key()],
+                "rank": transition_graph_dict[input.known_tf_transition()][input.known_tf_rank_key()],
                 "type": input.reprog_mat_type(),
             }
 
