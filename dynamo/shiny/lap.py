@@ -40,6 +40,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
         raise ImportError("Please install shiny and htmltools before running the web application!")
 
     app_ui = ui.page_fluid(
+        ui.include_css(css_path),
         ui.navset_tab(
             ui.nav(
                 "Run pairwise least action path analyses",
@@ -152,13 +153,16 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
             ui.nav(
                 "Evaluate TF rankings based on LAP analyses",
-                x.ui.layout_sidebar(
-                    x.ui.sidebar(
-                        ui.include_css(css_path),
-                        x.ui.accordion(
-                            x.ui.accordion_panel(
-                                div("Evaluate TF rankings based on LAP analyses", class_="bold-title"),
-                                x.ui.accordion_panel(
+                ui.panel_main(
+                    ui.div(
+                        div(
+                            "Visualization of the transition_graph which contains LAP and known TFs information",
+                            class_="bold-subtitle",
+                        ),
+                        x.ui.card(
+                            ui.row(
+                                ui.column(
+                                    3,
                                     div("Add known TFs", class_="bold-subtitle"),
                                     ui.input_text("known_tf_transition", "Target transition: ",
                                                   placeholder="e.g. HSC->Meg"),
@@ -169,9 +173,21 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     ui.input_action_button(
                                         "activate_add_known_tf", "Add", class_="btn-primary"
                                     ),
-                                    value="Add known TFs",
                                 ),
-                                x.ui.accordion_panel(
+                                ui.column(
+                                    9,
+                                    ui.output_text_verbatim("add_known_tf"),
+                                ),
+                            ),
+                        ),
+                        div(
+                            "Visualization of dictionary for converting the rankings of known TFs to a priority score",
+                            class_="bold-subtitle",
+                        ),
+                        x.ui.card(
+                            ui.row(
+                                ui.column(
+                                    3,
                                     div("Priority Scores of TFs", class_="bold-subtitle"),
                                     ui.input_text("reprog_mat_main_key", "Main Key: ", placeholder="e.g. HSC->Meg"),
                                     div(
@@ -193,54 +209,44 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     ui.input_action_button(
                                         "activate_add_reprog_info", "Add", class_="btn-primary"
                                     ),
-                                    ui.input_text("reprog_query_type", "Query transition type to plot: ",
-                                                  value="transdifferentiation"),
-                                    ui.input_action_button(
-                                        "activate_plot_priority_scores", "Plot priority scores for TFs",
-                                        class_="btn-primary"
-                                    ),
-                                    ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs"),
-                                    ui.input_text("roc_target_transition", "Target transition of ROC plot: ",
-                                                  placeholder="HSC->Bas"),
-                                    ui.input_action_button(
-                                        "activate_tf_roc_curve", "ROC curve analyses of TF priorization",
-                                        class_="btn-primary"
-                                    ),
-                                    value="Priority Scores of TFs",
                                 ),
-                                value="Evaluate TF rankings based on LAP analyses",
+                                ui.column(
+                                    9,
+                                    ui.output_text_verbatim("add_reprog_info"),
+                                ),
                             ),
-                            open=False,
                         ),
-                        width=500,
-                    ),
-                    ui.panel_main(
-                        ui.div(
-                            div(
-                                "Visualization of the transition_graph which contains LAP and known TFs information",
-                                class_="bold-subtitle",
-                            ),
-                            x.ui.card(
-                                ui.output_text_verbatim("add_known_tf"),
-                            ),
-                            div(
-                                "Visualization of dictionary for converting the rankings of known TFs to a priority score",
-                                class_="bold-subtitle",
-                            ),
-                            x.ui.card(
-                                ui.output_text_verbatim("add_reprog_info"),
-                            ),
-                            div(
-                                "Plotting priority scores of known TFs for specific hematopoietic trandifferentiations",
-                                class_="bold-subtitle",
+                        div(
+                            "Plotting priority scores of known TFs for specific hematopoietic trandifferentiations",
+                            class_="bold-subtitle",
+                        ),
+                        x.ui.card(
+                            ui.input_text("reprog_query_type", "Query transition type to plot: ",
+                                          value="transdifferentiation"),
+                            ui.input_action_button(
+                                "activate_plot_priority_scores", "Plot priority scores for TFs",
+                                class_="btn-primary"
                             ),
                             x.ui.output_plot("plot_priority_scores"),
-                            div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
+                        ),
+                        div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
+                        x.ui.card(
+                            ui.row(
+                                ui.column(6, ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs")),
+                                ui.column(
+                                    6,
+                                    ui.input_text("roc_target_transition", "Target transition of ROC plot: ",
+                                                  placeholder="HSC->Bas"),
+                                ),
+                            ),
+                            ui.input_action_button(
+                                "activate_tf_roc_curve", "ROC curve analyses of TF priorization",
+                                class_="btn-primary"
+                            ),
                             x.ui.output_plot("tf_roc_curve")
                         ),
                     ),
                 ),
-
             ),
         ),
     )
