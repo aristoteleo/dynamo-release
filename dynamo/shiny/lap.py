@@ -170,7 +170,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                                   placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
                                     ui.input_text("known_tf_key", "Key to save TFs: ", value="TFs"),
                                     ui.input_text("known_tf_rank_key", "Key to save TFs rank: ", value="TFs_rank"),
-                                    ui.input_text("reprog_mat_main_key", "Main Key: ", placeholder="e.g. HSC->Meg"),
+                                    ui.output_ui("input_reprog_mat_main_key"),
                                     div(
                                         "The 'genes' information will be extracted from "
                                         "transition_graph[Transition Key][Genes Key]. ",
@@ -197,10 +197,9 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             class_="bold-subtitle",
                         ),
                         x.ui.card(
-                            ui.input_text("reprog_query_type", "Query transition type to plot: ",
-                                          value="transdifferentiation"),
+                            ui.output_ui("selectize_reprog_query_type"),
                             ui.input_action_button(
-                                "activate_plot_priority_scores", "Plot priority scores for TFs",
+                                "activate_plot_priority_scores_and_ROC", "Plot priority scores for TFs",
                                 class_="btn-primary"
                             ),
                             x.ui.output_plot("plot_priority_scores"),
@@ -210,14 +209,8 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             ui.row(
                                 ui.column(6, ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs")),
                                 ui.column(
-                                    6,
-                                    ui.input_text("roc_target_transition", "Target transition of ROC plot: ",
-                                                  placeholder="HSC->Bas"),
+                                    6, ui.output_ui("selectize_roc_target_transition"),
                                 ),
-                            ),
-                            ui.input_action_button(
-                                "activate_tf_roc_curve", "ROC curve analyses of TF priorization",
-                                class_="btn-primary"
                             ),
                             x.ui.output_plot("tf_roc_curve")
                         ),
@@ -736,6 +729,11 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             )
 
         @output
+        @render.ui
+        def input_reprog_mat_main_key():
+            return ui.input_text("reprog_mat_main_key", "Main Key: ", value=input.known_tf_transition()),
+
+        @output
         @render.text
         @reactive.event(input.activate_add_reprog_info)
         def add_reprog_info():
@@ -772,8 +770,17 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             return format_dict_to_text(reprog_dict, ["genes", "type"])
 
         @output
+        @render.ui
+        def selectize_reprog_query_type():
+            return ui.input_selectize(
+                "reprog_query_type",
+                "Query transition type to plot: ",
+                choices=["development", "reprogramming", "transdifferentiation"],
+            )
+
+        @output
         @render.plot()
-        @reactive.event(input.activate_plot_priority_scores)
+        @reactive.event(input.activate_plot_priority_scores_and_ROC)
         def plot_priority_scores():
             reprogramming_mat_df = pd.DataFrame(reprogramming_mat_dict())
             all_genes = reduce(lambda a, b: a + b, reprogramming_mat_df.loc["genes", :])
@@ -836,8 +843,17 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             return filter_fig(fig)
 
         @output
+        @render.ui
+        def selectize_roc_target_transition():
+            return ui.input_selectize(
+                "roc_target_transition",
+                "Target transition of ROC plot: ",
+                choices=list(transition_graph().keys()),
+            )
+
+        @output
         @render.plot()
-        @reactive.event(input.activate_tf_roc_curve)
+        @reactive.event(input.activate_plot_priority_scores_and_ROC)
         def tf_roc_curve():
             all_ranks_dict = {}
             for key, value in transition_graph().items():
