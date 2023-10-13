@@ -137,25 +137,15 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 class_="bold-subtitle"
                             ),
                             x.ui.output_plot("pairwise_cell_fate_heatmap"),
-                        ),
-                        x.ui.card(
                             div("Kinetics heatmap of gene expression dynamics along the LAP",
-                                class_="bold-sectiontitle"),
-                            div("In this section, we will create a kinetics heatmap of the transcriptomic dynamics "
-                                "to illustrate gene-wise kinetics along the LAP.", class_="explanation"),
+                                class_="bold-subtitle"),
                             ui.row(
                                 ui.column(
                                     3,
-                                    ui.input_slider("n_lap_heatmap_init_cells", "number of init cells: ", min=1, max=10, value=1),
-                                    ui.output_ui("selectize_lap_heatmap_init_cells"),
-                                    ui.input_slider("n_lap_heatmap_end_cells", "number of end cells: ", min=1, max=10, value=1),
-                                    ui.output_ui("selectize_lap_heatmap_end_cells"),
+                                    ui.output_ui("selectize_kinetic_heatmap_transition"),
                                     ui.output_ui("selectize_lap_heatmap_basis"),
                                     ui.output_ui("selectize_lap_heatmap_adj_key"),
                                     ui.input_slider("heatmap_n_genes", "number of genes to visualize in the plot: ", min=1, max=200, value=50),
-                                    ui.input_action_button(
-                                        "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
-                                    ),
                                 ),
                                 ui.column(
                                     9,
@@ -624,33 +614,12 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.ui
-        def selectize_lap_heatmap_init_cells():
-            ui_list = ui.TagList()
-            for i in range(input.n_lap_heatmap_init_cells()):
-                ui_list.append(
-                    ui.input_selectize(
-                        "lap_heatmap_init_cells_" + str(i),
-                        "Init cells " + str(i + 1) + ": ",
-                        choices=list(adata.obs_names),
-                    ),
-                )
-
-            return ui_list
-
-        @output
-        @render.ui
-        def selectize_lap_heatmap_end_cells():
-            ui_list = ui.TagList()
-            for i in range(input.n_lap_heatmap_end_cells()):
-                ui_list.append(
-                    ui.input_selectize(
-                        "lap_heatmap_end_cells_" + str(i),
-                        "End cells " + str(i + 1) + ": ",
-                        choices=list(adata.obs_names),
-                    ),
-                )
-
-            return ui_list
+        def selectize_kinetic_heatmap_transition():
+            return ui.input_selectize(
+                "kinetic_heatmap_transition",
+                "Target transition: ",
+                choices=list(transition_graph().keys()),
+            )
 
         @output
         @render.ui
@@ -674,37 +643,32 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.plot()
-        @reactive.event(input.activate_lap_kinetic_heatmap)
         def lap_kinetic_heatmap():
-            init_cells = [getattr(input, "lap_heatmap_init_cells_" + str(i))() for i in range(input.n_lap_heatmap_init_cells())]
-            end_cells = [getattr(input, "lap_heatmap_end_cells_" + str(i))() for i in range(input.n_lap_heatmap_end_cells())]
-            lap = least_action(
-                adata,
-                init_cells=init_cells,
-                target_cells=end_cells,
-                basis=input.lap_heatmap_basis(),
-                adj_key=input.lap_heatmap_adj_key(),
-            )
-            is_human_tfs = [gene in tfs_names for gene in
-                            adata.var_names[adata.var.use_for_transition]]
-            human_genes = adata.var_names[adata.var.use_for_transition][is_human_tfs]
-            sns.set(font_scale=0.8)
-            sns_heatmap = kinetic_heatmap(
-                adata,
-                basis=input.lap_heatmap_basis(),
-                mode="lap",
-                genes=human_genes[:input.heatmap_n_genes()],
-                project_back_to_high_dim=True,
-                save_show_or_return="return",
-                color_map="bwr",
-                transpose=False,
-                xticklabels=False,
-                yticklabels=True,
-            )
+            if input.activate_lap() > 0:
+                path = input.kinetic_heatmap_transition()
+                _adata = adata.copy()
+                _adata.uns["LAP_umap"] = transition_graph()[path]["LAP_umap"]
+                _adata.uns["LAP_pca"] = transition_graph()[path]["LAP_pca"]
+                is_human_tfs = [gene in tfs_names for gene in
+                                _adata.var_names[_adata.var.use_for_transition]]
+                human_genes = _adata.var_names[_adata.var.use_for_transition][is_human_tfs]
+                sns.set(font_scale=0.8)
+                sns_heatmap = kinetic_heatmap(
+                    _adata,
+                    basis=input.lap_heatmap_basis(),
+                    mode="lap",
+                    genes=human_genes[:input.heatmap_n_genes()],
+                    project_back_to_high_dim=True,
+                    save_show_or_return="return",
+                    color_map="bwr",
+                    transpose=False,
+                    xticklabels=False,
+                    yticklabels=True,
+                )
 
-            plt.setp(sns_heatmap.ax_heatmap.yaxis.get_majorticklabels())
-            plt.tight_layout()
-            return filter_fig(plt.gcf())
+                plt.setp(sns_heatmap.ax_heatmap.yaxis.get_majorticklabels())
+                plt.tight_layout()
+                return filter_fig(plt.gcf())
 
         def format_dict_to_text(dictionary, target_key, indent=0):
             text = ""
