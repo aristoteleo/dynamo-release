@@ -87,7 +87,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 ),
                                 ui.column(
                                     6,
-                                    ui.tags.b("Identified Fixed Points"),
+                                    ui.tags.b("Identified Cells to initialize the path"),
                                     ui.output_table("fixed_points"),
                                     ui.input_action_button("reset_fixed_points", "Reset", class_="btn-primary"),
                                     ui.input_action_button(
@@ -127,6 +127,9 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 ),
                             ),
                             div("Barplot of the LAP time starting from given cell type", class_="bold-subtitle"),
+                            ui.input_switch("if_global_lap_time_rank", "Display global LAP time", value=False),
+                            div("Note: If enabled, the rank of all transitions will be displayed. Else, will rank "
+                                "the transitions with given starting cell type.", class_="explanation"),
                             ui.output_ui("selectize_barplot_start_genes"),
                             x.ui.output_plot("tfs_barplot"),
                             div(
@@ -496,38 +499,15 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                         selected=list(transition_graph().keys())[0],
                     )
 
-        def _merge_df(df_list: List[pd.DataFrame]) -> pd.DataFrame:
-            for i in range(1, len(df_list)):
-                df_list[i] = df_list[i].reindex(df_list[0].index)
-
-            return pd.concat(df_list, axis=1)  # Concatenating along columns
-
         @output
         @render.plot()
         def genes_barplot():
             if input.activate_lap() > 0:
-                ranking_list = [transition_graph()[path]["ranking"] for path in transition_graph()]
-                mean_df = _merge_df(ranking_list)
-                mean_df["mean"] = mean_df["all_values"].mean(1)
-                mean_df = mean_df.sort_values("mean", ascending=False)[:input.top_n_genes()]
-                merged_df = pd.concat(ranking_list, axis=0)
-
-                fig, (ax1, ax2) = plt.subplots(1, 2)
-
-                sns.barplot(
-                    y="all",
-                    x="all_values",
-                    data=merged_df.loc[mean_df.index,],
-                    ax=ax1,
-                ).set(xlabel="ranking scores", ylabel="genes")
-
-
                 sns.barplot(
                     y="all",
                     x="all_values",
                     data=transition_graph()[input.gene_barplot_transition()]["ranking"][:input.top_n_genes()],
                     dodge=False,
-                    ax=ax2,
                 ).set(
                     title="Genes rank for transition: " + input.gene_barplot_transition(),
                     xlabel="ranking scores",
@@ -582,27 +562,35 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
         @output
         @render.ui
         def selectize_barplot_start_genes():
-            if initialize_fps_coordinates() is None:
-                return ui.input_text(
-                    "barplot_start_genes",
-                    "Starting cell type of the path: ",
-                )
-            else:
-                return ui.input_selectize(
-                    "barplot_start_genes",
-                    "Starting cell type of the path: ",
-                    choices=list(initialize_fps_coordinates()["Cell_Type"].values),
-                    selected=list(initialize_fps_coordinates()["Cell_Type"].values)[0],
-                )
+            if not input.if_global_lap_time_rank():
+                if initialize_fps_coordinates() is None:
+                    return ui.input_text(
+                        "barplot_start_genes",
+                        "Starting cell type of the path: ",
+                    )
+                else:
+                    return ui.input_selectize(
+                        "barplot_start_genes",
+                        "Starting cell type of the path: ",
+                        choices=list(initialize_fps_coordinates()["Cell_Type"].values),
+                        selected=list(initialize_fps_coordinates()["Cell_Type"].values)[0],
+                    )
 
         @output
         @render.plot()
         def tfs_barplot():
             if input.activate_lap() > 0:
-                start_genes = input.barplot_start_genes()
-                develop_time_df = pd.DataFrame({"integration time": t_dataframe().loc[start_genes].T})
-                develop_time_df["lineage"] = list(initialize_fps_coordinates()["Cell_Type"].values)
-                develop_time_df = develop_time_df.drop(start_genes)
+                if input.if_global_lap_time_rank():
+                    develop_time_df = t_dataframe().stack().reset_index()
+                    develop_time_df = develop_time_df.rename(columns={0: "integration time"})
+                    develop_time_df["lineage"] = develop_time_df["level_0"] + "->" + develop_time_df["level_1"]
+                else:
+                    start_genes = input.barplot_start_genes()
+                    develop_time_df = pd.DataFrame({"integration time": t_dataframe().loc[start_genes].T})
+                    develop_time_df["lineage"] = [
+                        start_genes + "->" + target for target in list(initialize_fps_coordinates()["Cell_Type"].values)
+                    ]
+                    develop_time_df = develop_time_df.drop(start_genes)
 
                 ig, ax = plt.subplots(figsize=(4, 3))
 
