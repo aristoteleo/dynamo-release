@@ -33,7 +33,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
     """
     try:
         import shiny.experimental as x
-        from htmltools import TagList, div
+        from htmltools import HTML, TagList, div
         from shiny import App, Inputs, Outputs, reactive, Session, render, ui
         from shiny.plotutils import brushed_points, near_points
     except ImportError:
@@ -45,17 +45,29 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             ui.nav(
                 "Run pairwise least action path analyses",
                 ui.panel_main(
+                    div("Most probable path predictions", class_="bold-title"),
+                    div(HTML("<br><br>")),
+                    div("The least action path (LAP) is a principled method that has previously been used in "
+                        "theoretical efforts to predict the most probable path a cell will follow during fate "
+                        "transition. Specifically, the optimal path between any two cell states (e.g. the fixed "
+                        "point of HSCs and that of megakaryocytes) is searched by variating the continuous path "
+                        "connecting the source state to the target while minimizing its action and updating the "
+                        "associated transition time. The resultant least action path has the highest transition "
+                        "probability and is associated with a particular transition time.", class_="explanation"),
+                    div(HTML("<br><br>")),
                     ui.div(
                         x.ui.card(
-                            div("Initialization", class_="bold-title"),
-                            div("Streamline plot of given basis and color", class_="bold-subtitle"),
+                            div("Initialization", class_="bold-sectiontitle"),
+                            div("Given the group information and basis, we can visualize the projected velocity "
+                                "information. The velocity provides us with fundamental insights into cell fate "
+                                "transitions.", class_="explanation"),
                             ui.row(
                                 ui.column(6, ui.output_ui("selectize_cells_type_key")),
                                 ui.column(6, ui.output_ui("selectize_streamline_basis")),
                             ),
                             x.ui.output_plot("base_streamline_plot"),
-                            div("The fixed points representing the typical cell state of these cells",
-                                class_="bold-subtitle"),
+                            div("In the scatter plot, we can choose the fixed points to initialize the LAP analyses. ",
+                                class_="explanation"),
                             x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True,
                                              brush=True),
 
@@ -86,14 +98,17 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             ),
                         ),
                         x.ui.card(
-                            div("LAP results", class_="bold-title"),
-                            div("Rank of genes in all transitions", class_="bold-subtitle"),
+                            div("LAP results", class_="bold-sectiontitle"),
+                            div("After calculating LAPs for all possible cell type transition pairs, the results will "
+                                "be visualized in this section.", class_="explanation"),
+                            div("Barplot of genes' ranking based on the mean squared displacement of the path.",
+                                class_="bold-subtitle"),
                             ui.row(
                                 ui.column(6, ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10)),
                                 ui.column(6, ui.output_ui("selectize_gene_barplot_transition")),
                             ),
                             x.ui.output_plot("genes_barplot"),
-                            div("LAP result of given transition", class_="bold-subtitle"),
+                            div("Visualization LAPs for one or more transitions.", class_="bold-subtitle"),
                             ui.row(
                                 ui.column(
                                     3,
@@ -108,9 +123,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     x.ui.output_plot("plot_lap"),
                                 ),
                             ),
-                        ),
-                        x.ui.card(
-                            div("Barplot of the LAP time of given LAPs", class_="bold-subtitle"),
+                            div("Barplot of the LAP time from given cell type", class_="bold-subtitle"),
                             ui.output_ui("selectize_barplot_start_genes"),
                             x.ui.output_plot("tfs_barplot"),
                             div(
@@ -121,15 +134,12 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                         ),
                         x.ui.card(
                             div("Kinetics heatmap of gene expression dynamics along the LAP",
-                                class_="bold-subtitle"),
+                                class_="bold-sectiontitle"),
+                            div("In this section, we will create a kinetics heatmap of the transcriptomic dynamics "
+                                "to illustrate gene-wise kinetics along the LAP.", class_="explanation"),
                             ui.row(
                                 ui.column(
                                     3,
-                                    div("LAP Kinetic Heatmap", class_="bold-subtitle"),
-                                    div(
-                                        " Plot the kinetic heatmap of given gene expression kinetics of all transcription factors",
-                                        class_="explanation"
-                                    ),
                                     ui.input_slider("n_lap_heatmap_init_cells", "number of init cells", min=1, max=10, value=1),
                                     ui.output_ui("selectize_lap_heatmap_init_cells"),
                                     ui.input_slider("n_lap_heatmap_end_cells", "number of end cells", min=1, max=10, value=1),
@@ -154,12 +164,21 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             ui.nav(
                 "Evaluate TF rankings based on LAP analyses",
                 ui.panel_main(
+                    div("Evaluate TF rankings based on LAP analyses.", class_="bold-title"),
+                    div(HTML("<br><br>")),
+                    div("After we obtained the TFs ranking based on the mean square displacement, we are able to "
+                        "evaluate rankings by comparing with known transcription factors that enable the successful "
+                        "cell fate conversion.", class_="explanation"),
+                    div(HTML("<br><br>")),
                     ui.div(
                         x.ui.card(
+                            div("Initialization", class_="bold-sectiontitle"),
                             div(
-                                "Visualization of dictionary for converting the rankings of known TFs to a priority score",
+                                "Visualization of transition information and known TFs",
                                 class_="bold-subtitle",
                             ),
+                            div("Here we need to manually add known TFs and transition type to all possible transition "
+                                "pairs.", class_="explanation"),
                             ui.row(
                                 ui.column(
                                     3,
@@ -197,13 +216,18 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             ),
                         ),
                         x.ui.card(
+                            div("TF evaluation results", class_="bold-sectiontitle"),
                             div(
-                                "Plotting priority scores of known TFs for specific hematopoietic trandifferentiations",
+                                "Plotting priority scores of known TFs for specific transition type",
                                 class_="bold-subtitle",
                             ),
+                            div("The ranking of known TFs will be converted to a priority score, simply defined as "
+                                "1 - ( rank / number of TFs ).", class_="explanation"),
                             ui.output_ui("selectize_reprog_query_type"),
                             x.ui.output_plot("plot_priority_scores"),
                             div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
+                            div("We can evaluate the TF ranking through ROC of LAP TF prioritization predictions using "
+                                "all known genes of all known transitions as the gold standard.", class_="explanation"),
                             ui.row(
                                 ui.column(6, ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs")),
                                 ui.column(
