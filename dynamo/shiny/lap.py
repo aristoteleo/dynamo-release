@@ -155,11 +155,11 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                 "Evaluate TF rankings based on LAP analyses",
                 ui.panel_main(
                     ui.div(
-                        div(
-                            "Visualization of dictionary for converting the rankings of known TFs to a priority score",
-                            class_="bold-subtitle",
-                        ),
                         x.ui.card(
+                            div(
+                                "Visualization of dictionary for converting the rankings of known TFs to a priority score",
+                                class_="bold-subtitle",
+                            ),
                             ui.row(
                                 ui.column(
                                     3,
@@ -183,7 +183,11 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     ),
                                     ui.output_ui("selectize_reprog_mat_type"),
                                     ui.input_action_button(
-                                        "activate_add_reprog_info", "Add", class_="btn-primary"
+                                        "activate_add_reprog_info", "Add transition info", class_="btn-primary",
+                                    ),
+                                    ui.input_action_button(
+                                        "activate_plot_priority_scores_and_ROC", "Analyze with current TFs",
+                                        class_="btn-primary"
                                     ),
                                 ),
                                 ui.column(
@@ -192,20 +196,14 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                 ),
                             ),
                         ),
-                        div(
-                            "Plotting priority scores of known TFs for specific hematopoietic trandifferentiations",
-                            class_="bold-subtitle",
-                        ),
                         x.ui.card(
-                            ui.output_ui("selectize_reprog_query_type"),
-                            ui.input_action_button(
-                                "activate_plot_priority_scores_and_ROC", "Plot priority scores for TFs",
-                                class_="btn-primary"
+                            div(
+                                "Plotting priority scores of known TFs for specific hematopoietic trandifferentiations",
+                                class_="bold-subtitle",
                             ),
+                            ui.output_ui("selectize_reprog_query_type"),
                             x.ui.output_plot("plot_priority_scores"),
-                        ),
-                        div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
-                        x.ui.card(
+                            div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
                             ui.row(
                                 ui.column(6, ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs")),
                                 ui.column(
