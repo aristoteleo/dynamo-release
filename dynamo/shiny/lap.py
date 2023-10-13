@@ -226,12 +226,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
                             div("We can evaluate the TF ranking through ROC of LAP TF prioritization predictions using "
                                 "all known genes of all known transitions as the gold standard.", class_="explanation"),
-                            ui.row(
-                                ui.column(6, ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs")),
-                                ui.column(
-                                    6, ui.output_ui("selectize_roc_target_transition"),
-                                ),
-                            ),
+                            ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs"),
                             x.ui.output_plot("tf_roc_curve")
                         ),
                     ),
@@ -822,15 +817,6 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                 return filter_fig(fig)
 
         @output
-        @render.ui
-        def selectize_roc_target_transition():
-            return ui.input_selectize(
-                "roc_target_transition",
-                "Target transition of ROC plot: ",
-                choices=list(transition_graph().keys()),
-            )
-
-        @output
         @render.plot()
         def tf_roc_curve():
             if input.activate_plot_priority_scores_and_ROC():
@@ -845,9 +831,9 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                 all_ranks_df = pd.concat([rank_dict for rank_dict in all_ranks_dict.values()])
 
                 target_ranking = all_ranks_dict[
-                    input.roc_target_transition().split("->")[0] +
+                    list(transition_graph().keys())[0].split("->")[0] +
                     "_" +
-                    input.roc_target_transition().split("->")[1] +
+                    list(transition_graph().keys())[0].split("->")[1] +
                     "_ranking"
                     ]
 
