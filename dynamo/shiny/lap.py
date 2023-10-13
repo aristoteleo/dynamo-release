@@ -104,7 +104,10 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             div("Barplot of genes' ranking based on the mean squared displacement of the path.",
                                 class_="bold-subtitle"),
                             ui.row(
-                                ui.column(6, ui.input_slider("top_n_genes", "Top N genes to rank", min=0, max=20, value=10)),
+                                ui.column(
+                                    6,
+                                    ui.input_slider("top_n_genes", "Top N genes to visualize: ", min=0, max=20, value=10),
+                                ),
                                 ui.column(6, ui.output_ui("selectize_gene_barplot_transition")),
                             ),
                             x.ui.output_plot("genes_barplot"),
@@ -114,7 +117,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     3,
                                     ui.input_slider(
                                         "n_lap_visualize_transition",
-                                        "Number of transitions to visualize",
+                                        "Number of transitions to visualize: ",
                                         min=1, max=20, value=1),
                                     ui.output_ui("selectize_lap_visualize_transition"),
                                 ),
@@ -123,7 +126,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                                     x.ui.output_plot("plot_lap"),
                                 ),
                             ),
-                            div("Barplot of the LAP time from given cell type", class_="bold-subtitle"),
+                            div("Barplot of the LAP time starting from given cell type", class_="bold-subtitle"),
                             ui.output_ui("selectize_barplot_start_genes"),
                             x.ui.output_plot("tfs_barplot"),
                             div(
@@ -140,13 +143,13 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             ui.row(
                                 ui.column(
                                     3,
-                                    ui.input_slider("n_lap_heatmap_init_cells", "number of init cells", min=1, max=10, value=1),
+                                    ui.input_slider("n_lap_heatmap_init_cells", "number of init cells: ", min=1, max=10, value=1),
                                     ui.output_ui("selectize_lap_heatmap_init_cells"),
-                                    ui.input_slider("n_lap_heatmap_end_cells", "number of end cells", min=1, max=10, value=1),
+                                    ui.input_slider("n_lap_heatmap_end_cells", "number of end cells: ", min=1, max=10, value=1),
                                     ui.output_ui("selectize_lap_heatmap_end_cells"),
                                     ui.output_ui("selectize_lap_heatmap_basis"),
                                     ui.output_ui("selectize_lap_heatmap_adj_key"),
-                                    ui.input_slider("heatmap_n_genes", "number of genes", min=1, max=200, value=50),
+                                    ui.input_slider("heatmap_n_genes", "number of genes to visualize in the plot: ", min=1, max=200, value=50),
                                     ui.input_action_button(
                                         "activate_lap_kinetic_heatmap", "LAP kinetic heatmap", class_="btn-primary"
                                     ),
@@ -182,28 +185,30 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             ui.row(
                                 ui.column(
                                     3,
-                                    div("Priority Scores of TFs", class_="bold-subtitle"),
                                     div("Add known TFs", class_="bold-subtitle"),
+                                    div("First, choose target transition and input known TFs.", class_="explanation"),
                                     ui.output_ui("selectize_known_tf_transition"),
                                     ui.input_text("known_tf", "Known TFs: ",
                                                   placeholder="e.g. GATA1,GATA2,ZFPM1,GFI1B,FLI1,NFE2"),
+                                    div("Next, specify the keys to extract and save the TFs and rank. The TFs and rank "
+                                        "will be saved in dictionary[main key][TF key] and "
+                                        "dictionary[main key][TF rank key]. We don't need to change the default value "
+                                        "unless there are more than one set of known genes to analyze in one "
+                                        "transition.", class_="explanation"),
                                     ui.input_text("known_tf_key", "Key to save TFs: ", value="TFs"),
                                     ui.input_text("known_tf_rank_key", "Key to save TFs rank: ", value="TFs_rank"),
                                     ui.output_ui("input_reprog_mat_main_key"),
                                     div(
-                                        "The 'genes' information will be extracted from "
-                                        "transition_graph[Transition Key][Genes Key]. ",
-                                        class_="explanation",
-                                    ),
-                                    div(
-                                        "The 'rank' information will be extracted from "
-                                        "transition_graph[Transition Key][Rank Key]",
+                                        "Then we can specify the type of transition.",
                                         class_="explanation",
                                     ),
                                     ui.output_ui("selectize_reprog_mat_type"),
                                     ui.input_action_button(
                                         "activate_add_reprog_info", "Add transition info", class_="btn-primary",
                                     ),
+                                    div("The known TF dictionary will be visualized on the right. After we add known "
+                                        "TFs for all transitions, we can click the following button to start the "
+                                        "analyses", class_="explanation"),
                                     ui.input_action_button(
                                         "activate_plot_priority_scores_and_ROC", "Analyze with current TFs",
                                         class_="btn-primary"
@@ -270,7 +275,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
         def selectize_cells_type_key():
             return ui.input_selectize(
                         "cells_type_key",
-                        "Key of cell type information: ",
+                        "Key representing the group information, most of the time it is related to cell type: ",
                         choices=list(adata.obs.keys()),
                         selected="cell_type",
                     )
@@ -580,12 +585,12 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
             if initialize_fps_coordinates() is None:
                 return ui.input_text(
                     "barplot_start_genes",
-                    "Transition to visualize:",
+                    "Starting cell type of the path: ",
                 )
             else:
                 return ui.input_selectize(
                     "barplot_start_genes",
-                    "Transition to visualize:",
+                    "Starting cell type of the path: ",
                     choices=list(initialize_fps_coordinates()["Cell_Type"].values),
                     selected=list(initialize_fps_coordinates()["Cell_Type"].values)[0],
                 )
