@@ -43,9 +43,6 @@ def perturbation_web_app(input_adata: AnnData):
                     ui.input_slider("n_colors", "Number of observations:", min=1, max=5, value=1),
                     ui.output_ui("selectize_color"),
                     ui.output_ui("selectize_basis"),
-                    ui.input_action_button(
-                        "activate_streamline_plot", "Streamline plot", class_="btn-primary"
-                    ),
                     value="Streamline Plot Setting",
                 ),
                 open=True,
@@ -146,12 +143,12 @@ def perturbation_web_app(input_adata: AnnData):
 
         @output
         @render.plot()
-        @reactive.event(input.activate_streamline_plot)
         def perturbation_plot():
-            color = [getattr(input, "base_color_" + str(i))() for i in range(input.n_colors())]
-            axes_list = streamline_plot(adata, color=color, basis=input.streamline_basis() + "_perturbation", save_show_or_return="return")
+            if input.activate_perturbation() > 0:
+                color = [getattr(input, "base_color_" + str(i))() for i in range(input.n_colors())]
+                axes_list = streamline_plot(adata, color=color, basis=input.streamline_basis() + "_perturbation", save_show_or_return="return")
 
-            return filter_fig(plt.gcf())
+                return filter_fig(plt.gcf())
 
     app = App(app_ui, server, debug=True)
     app.run()

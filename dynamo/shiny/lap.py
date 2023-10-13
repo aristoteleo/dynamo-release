@@ -807,67 +807,67 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.plot()
-        @reactive.event(input.activate_plot_priority_scores_and_ROC)
         def plot_priority_scores():
-            reprogramming_mat_df = pd.DataFrame(reprogramming_mat_dict())
-            all_genes = reduce(lambda a, b: a + b, reprogramming_mat_df.loc["genes", :])
-            all_rank = reduce(lambda a, b: a + b, reprogramming_mat_df.loc["rank", :])
-            all_keys = np.repeat(
-                np.array(list(reprogramming_mat_dict().keys())), [len(i) for i in reprogramming_mat_df.loc["genes", :]]
-            )
-            all_types = np.repeat(
-                np.array([v["type"] for v in reprogramming_mat_dict().values()]),
-                [len(i) for i in reprogramming_mat_df.loc["genes", :]],
-            )
-
-            reprogramming_mat_df_p = pd.DataFrame({"genes": all_genes, "rank": all_rank, "transition": all_keys, "type": all_types})
-            reprogramming_mat_df_p = reprogramming_mat_df_p.query("rank > -1")
-            reprogramming_mat_df_p["rank"] /= 133
-            reprogramming_mat_df_p["rank"] = 1 - reprogramming_mat_df_p["rank"]
-            reprogramming_mat_dataframe_p.set(reprogramming_mat_df_p)
-
-            query = "type == '{}'".format(input.reprog_query_type())
-            reprogramming_mat_df_p_subset = reprogramming_mat_df_p.query(query)
-            rank = reprogramming_mat_df_p_subset["rank"].values
-            transition = reprogramming_mat_df_p_subset["transition"].values
-            genes = reprogramming_mat_df_p_subset["genes"].values
-
-            fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-            sns.scatterplot(
-                y="transition",
-                x="rank",
-                data=reprogramming_mat_df_p_subset,
-                ec=None,
-                hue="type",
-                alpha=0.8,
-                ax=ax,
-                s=50,
-                palette=transition_color_dict(),
-                clip_on=False,
-            )
-
-            for i in range(reprogramming_mat_df_p_subset.shape[0]):
-                annote_text = genes[i]  # STK_ID
-                ax.annotate(
-                    annote_text, xy=(rank[i], transition[i]), xytext=(0, 3), textcoords="offset points", ha="center",
-                    va="bottom"
+            if input.activate_plot_priority_scores_and_ROC() > 0:
+                reprogramming_mat_df = pd.DataFrame(reprogramming_mat_dict())
+                all_genes = reduce(lambda a, b: a + b, reprogramming_mat_df.loc["genes", :])
+                all_rank = reduce(lambda a, b: a + b, reprogramming_mat_df.loc["rank", :])
+                all_keys = np.repeat(
+                    np.array(list(reprogramming_mat_dict().keys())), [len(i) for i in reprogramming_mat_df.loc["genes", :]]
+                )
+                all_types = np.repeat(
+                    np.array([v["type"] for v in reprogramming_mat_dict().values()]),
+                    [len(i) for i in reprogramming_mat_df.loc["genes", :]],
                 )
 
-            plt.axvline(0.8, linestyle="--", lw=0.5)
-            ax.set_xlim(0.6, 1.01)
-            ax.set_xlabel("")
-            ax.set_xlabel("Score")
-            ax.set_yticklabels(list(reprogramming_mat_dict().keys())[6:], rotation=0)
-            ax.legend().set_visible(False)
-            ax.spines.top.set_position(("outward", 10))
-            ax.spines.bottom.set_position(("outward", 10))
+                reprogramming_mat_df_p = pd.DataFrame({"genes": all_genes, "rank": all_rank, "transition": all_keys, "type": all_types})
+                reprogramming_mat_df_p = reprogramming_mat_df_p.query("rank > -1")
+                reprogramming_mat_df_p["rank"] /= 133
+                reprogramming_mat_df_p["rank"] = 1 - reprogramming_mat_df_p["rank"]
+                reprogramming_mat_dataframe_p.set(reprogramming_mat_df_p)
 
-            ax.spines.right.set_visible(False)
-            ax.spines.top.set_visible(False)
-            ax.yaxis.set_ticks_position("left")
-            ax.xaxis.set_ticks_position("bottom")
+                query = "type == '{}'".format(input.reprog_query_type())
+                reprogramming_mat_df_p_subset = reprogramming_mat_df_p.query(query)
+                rank = reprogramming_mat_df_p_subset["rank"].values
+                transition = reprogramming_mat_df_p_subset["transition"].values
+                genes = reprogramming_mat_df_p_subset["genes"].values
 
-            return filter_fig(fig)
+                fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+                sns.scatterplot(
+                    y="transition",
+                    x="rank",
+                    data=reprogramming_mat_df_p_subset,
+                    ec=None,
+                    hue="type",
+                    alpha=0.8,
+                    ax=ax,
+                    s=50,
+                    palette=transition_color_dict(),
+                    clip_on=False,
+                )
+
+                for i in range(reprogramming_mat_df_p_subset.shape[0]):
+                    annote_text = genes[i]  # STK_ID
+                    ax.annotate(
+                        annote_text, xy=(rank[i], transition[i]), xytext=(0, 3), textcoords="offset points", ha="center",
+                        va="bottom"
+                    )
+
+                plt.axvline(0.8, linestyle="--", lw=0.5)
+                ax.set_xlim(0.6, 1.01)
+                ax.set_xlabel("")
+                ax.set_xlabel("Score")
+                ax.set_yticklabels(list(reprogramming_mat_dict().keys())[6:], rotation=0)
+                ax.legend().set_visible(False)
+                ax.spines.top.set_position(("outward", 10))
+                ax.spines.bottom.set_position(("outward", 10))
+
+                ax.spines.right.set_visible(False)
+                ax.spines.top.set_visible(False)
+                ax.yaxis.set_ticks_position("left")
+                ax.xaxis.set_ticks_position("bottom")
+
+                return filter_fig(fig)
 
         @output
         @render.ui
@@ -880,48 +880,48 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
 
         @output
         @render.plot()
-        @reactive.event(input.activate_plot_priority_scores_and_ROC)
         def tf_roc_curve():
-            all_ranks_dict = {}
-            for key, value in transition_graph().items():
-                ranking = transition_graph()[key]["ranking"]
-                ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
-                ranking = ranking.query("TF == True")
-                ranking["known_TF"] = [i in value[input.roc_tf_key()] for i in list(ranking["all"])]
-                all_ranks_dict[key.split("->")[0] + "_" + key.split("->")[1] + "_ranking"] = ranking
+            if input.activate_plot_priority_scores_and_ROC():
+                all_ranks_dict = {}
+                for key, value in transition_graph().items():
+                    ranking = transition_graph()[key]["ranking"]
+                    ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
+                    ranking = ranking.query("TF == True")
+                    ranking["known_TF"] = [i in value[input.roc_tf_key()] for i in list(ranking["all"])]
+                    all_ranks_dict[key.split("->")[0] + "_" + key.split("->")[1] + "_ranking"] = ranking
 
-            all_ranks_df = pd.concat([rank_dict for rank_dict in all_ranks_dict.values()])
+                all_ranks_df = pd.concat([rank_dict for rank_dict in all_ranks_dict.values()])
 
-            target_ranking = all_ranks_dict[
-                input.roc_target_transition().split("->")[0] +
-                "_" +
-                input.roc_target_transition().split("->")[1] +
-                "_ranking"
-                ]
+                target_ranking = all_ranks_dict[
+                    input.roc_target_transition().split("->")[0] +
+                    "_" +
+                    input.roc_target_transition().split("->")[1] +
+                    "_ranking"
+                    ]
 
-            all_ranks_df["priority_score"] = (
-                    1 - np.tile(np.arange(target_ranking.shape[0]), len(all_ranks_dict)) / target_ranking.shape[0]
-            )
+                all_ranks_df["priority_score"] = (
+                        1 - np.tile(np.arange(target_ranking.shape[0]), len(all_ranks_dict)) / target_ranking.shape[0]
+                )
 
-            cls = all_ranks_df["known_TF"].astype(int)
-            pred = all_ranks_df["priority_score"]
+                cls = all_ranks_df["known_TF"].astype(int)
+                pred = all_ranks_df["priority_score"]
 
-            fpr, tpr, _ = roc_curve(cls, pred)
-            roc_auc = auc(fpr, tpr)
+                fpr, tpr, _ = roc_curve(cls, pred)
+                roc_auc = auc(fpr, tpr)
 
-            lw = 0.5
-            plt.figure(figsize=(5, 5))
-            plt.plot(fpr, tpr, color="darkorange", lw=lw, label="ROC curve (area = %0.2f)" % roc_auc)
-            plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
-            plt.xlim([0.0, 1.0])
-            plt.ylim([0.0, 1.05])
-            plt.xlabel("False Positive Rate")
-            plt.ylabel("True Positive Rate")
-            # plt.title(cur_guide)
-            plt.legend(loc="lower right")
-            plt.tight_layout()
+                lw = 0.5
+                plt.figure(figsize=(5, 5))
+                plt.plot(fpr, tpr, color="darkorange", lw=lw, label="ROC curve (area = %0.2f)" % roc_auc)
+                plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
+                plt.xlim([0.0, 1.0])
+                plt.ylim([0.0, 1.05])
+                plt.xlabel("False Positive Rate")
+                plt.ylabel("True Positive Rate")
+                # plt.title(cur_guide)
+                plt.legend(loc="lower right")
+                plt.tight_layout()
 
-            return filter_fig(plt.gcf())
+                return filter_fig(plt.gcf())
 
     app = App(app_ui, server, debug=True)
     app.run()
