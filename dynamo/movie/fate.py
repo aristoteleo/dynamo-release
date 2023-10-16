@@ -508,6 +508,7 @@ class PyvistaAnim(BaseAnim):
         n_steps: int = 15,
         cell_states: Union[int, list, None] = None,
         color: str = "ntr",
+        point_size: float = 15,
         pl=None,
         logspace: bool = False,
         max_time: Optional[float] = None,
@@ -547,6 +548,7 @@ class PyvistaAnim(BaseAnim):
             self.pl = pl
 
         self.n_steps = n_steps
+        self.point_size = point_size
 
     def animate(self):
         try:
@@ -558,16 +560,20 @@ class PyvistaAnim(BaseAnim):
 
         self.pl.open_gif(self.filename)
 
-        mesh = pv.PolyData(self.init_states)
-        self.pl.add_mesh(mesh, color="red", render_points_as_spheres=True)
+        pts = [self.displace(cur_pts, self.time_vec[0])[1].tolist() for cur_pts in pts]
+        pts = np.asarray(pts)
+        pts = remove_particles(pts, self.xlim, self.ylim, self.zlim)
 
-        for frame in range(0, self.n_steps):
+        mesh = pv.PolyData(pts)
+        self.pl.add_mesh(mesh, color="red", render_points_as_spheres=True, point_size=self.point_size)
+
+        for frame in range(1, self.n_steps):
             pts = [self.displace(cur_pts, self.time_vec[frame])[1].tolist() for cur_pts in pts]
             pts = np.asarray(pts)
-            pts = remove_particles(pts, self.xlim, self.ylim, self.zlim)
-            mesh.points = pv.PolyData(np.asarray(pts)).points
+            # pts = remove_particles(pts, self.xlim, self.ylim, self.zlim)
+            mesh.points = pv.PolyData(pts).points
 
-            self.pl.write_frame()  # TODO: debug this
+            self.pl.write_frame()
 
         self.pl.close()
 
