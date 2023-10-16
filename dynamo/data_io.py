@@ -82,22 +82,6 @@ def convert2float(adata, columns, var=False):
                 adata.obs[i] = data.copy()
 
 
-def convert_velocity_params_type(adata: AnnData) -> None:
-    """Convert the velocity parameters into numeric type to avoid error when saving to h5ad.
-
-    The data type of the parameters in the Pandas Series is set to object due to the initialization of parameters with
-    None values. However, this choice of data type can lead to errors during the process of saving the anndata object.
-    Therefore, it becomes necessary to convert these parameters to a numeric data type to ensure proper handling and
-    compatibility.
-    """
-    velocity_param_names = ["beta", "gamma", "half_life", "alpha_b", "alpha_r2", "gamma_b", "gamma_r2", "gamma_logLL",
-                            "delta_b", "delta_r2", "bs", "bf", "uu0", "ul0", "su0", "sl0", "alpha", "a", "b", "alpha_a",
-                            "alpha_a", "alpha_i", "cost", "logLL", "U0", "S0", "total0"]
-    for param_name in velocity_param_names:
-        if param_name in adata.var.columns:
-            adata.var[param_name] = pd.to_numeric(adata.var[param_name], errors='coerce')
-
-
 def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
     """Function to create an anndata object from NASC-seq pipeline
 
@@ -385,30 +369,19 @@ def import_kmc(adata: AnnData) -> None:
 
 def export_h5ad(adata: AnnData, path: str = "data/processed_data.h5ad") -> None:
     """Export the anndata object to h5ad."""
-    convert_velocity_params_type(adata)
+
     if "kmc" in adata.uns.keys():
         export_kmc(adata)
-    fate_keys = [i if i.startswith("fate") else None for i in adata.uns_keys()]
-    for i in fate_keys:
-        if i is not None:
-            if "prediction" in adata.uns[i].keys():
-                adata.uns[i]["prediction"] = {str(index): array for index, array in enumerate(adata.uns[i]["prediction"])}
-            if "t" in adata.uns[i].keys():
-                adata.uns[i]["t"] = {str(index): array for index, array in enumerate(adata.uns[i]["t"])}
+
     adata.write_h5ad(path)
 
 
 def import_h5ad(path: str ="data/processed_data.h5ad") -> AnnData:
     """Import a Dynamo h5ad object into anndata."""
+
     adata = read_h5ad(path)
     if "kmc_params" in adata.uns.keys():
         import_kmc(adata)
-    fate_keys = [i if i.startswith("fate") else None for i in adata.uns_keys()]
-    for i in fate_keys:
-        if i is not None:
-            if "prediction" in adata.uns[i].keys():
-                adata.uns[i]["prediction"] = [adata.uns[i]["prediction"][index] for index in adata.uns[i]["prediction"]]
-            if "t" in adata.uns[i].keys():
-                adata.uns[i]["t"] = [adata.uns[i]["t"][index] for index in adata.uns[i]["t"]]
+
     return adata
 

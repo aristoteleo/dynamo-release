@@ -473,7 +473,7 @@ def arclength_sampling(X, step_length, n_steps: int, t=None):
         if L + d < step_length:
             terminate = True
 
-    if terminate and len(Y) < n_steps:
+    if len(Y) < n_steps:
         _, _ = _calculate_new_point()
 
     if T is not None:
