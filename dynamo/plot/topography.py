@@ -518,6 +518,7 @@ def plot_fixed_points(
 
     cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
     colors = [c if confidence is None else np.array(cm(confidence[i])) for i in range(len(confidence))]
+    text_colors = ["black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red" for cur_ftype in ftype]
 
     if plot_method == "pv":
         try:
@@ -525,7 +526,6 @@ def plot_fixed_points(
         except ImportError:
             raise ImportError("Please install pyvista first.")
 
-        text_colors = ["black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red" for cur_ftype in ftype]
         emitting_indices = [index for index, color in enumerate(text_colors) if color == "red"]
         unstable_indices = [index for index, color in enumerate(text_colors) if color == "blue"]
         absorbing_indices = [index for index, color in enumerate(text_colors) if color == "black"]
@@ -585,6 +585,10 @@ def plot_fixed_points(
                         size=15,
                     ),
                     text=[str(i) for i in range(len(Xss))],
+                    textfont=dict(
+                        color=text_colors,
+                        size=15,
+                    ),
                     **kwargs,
                 ),
                 row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
