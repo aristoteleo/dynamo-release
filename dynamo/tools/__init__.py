@@ -106,5 +106,6 @@ from .velocyto_scvelo import (
     mean_var_by_time,
     run_scvelo,
     run_velocyto,
+    scv_dyn_convertor,
     vlm_to_adata,
 )
