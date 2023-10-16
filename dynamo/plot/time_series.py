@@ -96,7 +96,8 @@ def kinetic_curves(
     import seaborn as sns
 
     if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
-        ddhodge(adata)
+        ddhodge(adata, basis=basis)
+        tkey = basis + "_ddhodge_potential"
 
     exprs, valid_genes, time = fetch_exprs(
         adata,
@@ -209,7 +210,7 @@ def kinetic_heatmap(
     color_map: int = "BrBG",
     gene_order_method: Literal["maximum", "half_max_ordering", "raw"] = "maximum",
     show_colorbar: bool = False,
-    cluster_row_col: Tuple[bool, bool] = (False, False),
+    cluster_row_col: List[bool] = [False, False],
     figsize: Tuple[float, float] = (11.5, 6),
     standard_scale: int = 1,
     n_convolve: int = 30,

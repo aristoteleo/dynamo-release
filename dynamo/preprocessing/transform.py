@@ -29,9 +29,9 @@ def _Freeman_Tukey(X: np.ndarray, inverse=False) -> np.ndarray:
     """
 
     if inverse:
-        res = np.sqrt(X) + np.sqrt((X + 1))
-    else:
         res = (X**2 - 1) ** 2 / (4 * X**2)
+    else:
+        res = np.sqrt(X) + np.sqrt((X + 1))
 
     return res
 
@@ -87,12 +87,11 @@ def Freeman_Tukey_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
         if is_integer_arr(mat.data):
             mat = mat.asfptype()
             DKM.set_layer_data(adata, layer, mat)
-        _Freeman_Tukey(mat.data)
+        mat.data = _Freeman_Tukey(mat.data)
     else:
-        mat = mat.astype(np.float)
-        _Freeman_Tukey(mat)
+        mat = mat.astype(np.float64)
+        mat = _Freeman_Tukey(mat)
 
-    mat.data -= 1
     DKM.set_layer_data(adata, layer, mat)
 
 
@@ -111,8 +110,9 @@ def log_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
             DKM.set_layer_data(adata, layer, mat)
         _log_inplace(mat.data)
     else:
-        mat = mat.astype(np.float)
+        mat = mat.astype(np.float64)
         _log_inplace(mat)
+        DKM.set_layer_data(adata, layer, mat)
 
 
 def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
@@ -130,8 +130,9 @@ def log1p_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
             DKM.set_layer_data(adata, layer, mat)
         _log1p_inplace(mat.data)
     else:
-        mat = mat.astype(np.float)
+        mat = mat.astype(np.float64)
         _log1p_inplace(mat)
+        DKM.set_layer_data(adata, layer, mat)
 
 
 def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
@@ -149,8 +150,9 @@ def log2_inplace(adata: AnnData, layer: str = DKM.X_LAYER) -> None:
             DKM.set_layer_data(adata, layer, mat)
         _log2_inplace(mat.data)
     else:
-        mat = mat.astype(np.float)
+        mat = mat.astype(np.float64)
         _log2_inplace(mat)
+        DKM.set_layer_data(adata, layer, mat)
 
 
 def is_log1p_transformed_adata(adata: anndata.AnnData) -> bool:

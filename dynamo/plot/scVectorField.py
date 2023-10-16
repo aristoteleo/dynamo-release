@@ -836,6 +836,7 @@ def cell_wise_vectors(
     # single axis output
     if type(axes_list) != list:
         axes_list = [axes_list]
+        color_list = [color_list]
     x0, x1 = df.iloc[:, 0], df.iloc[:, 1]
     v0, v1 = df.iloc[:, 2], df.iloc[:, 3]
 

@@ -398,6 +398,8 @@ def reserve_minimal_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minima
         The minimal gene data.
     """
 
+    vel_params_df = get_vel_params(adata)
+
     # already satisfy the requirement
     if var_store_key in adata.var.columns and adata.var[var_store_key].sum() >= minimal_gene_num:
         return adata.var[var_store_key]
@@ -405,7 +407,7 @@ def reserve_minimal_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minima
     if var_store_key not in adata.var.columns:
         raise ValueError("adata.var.%s does not exists." % (var_store_key))
 
-    gamma_r2_not_na = np.array(adata.var.gamma_r2[adata.var.gamma_r2.notna()])
+    gamma_r2_not_na = np.array(vel_params_df.gamma_r2[vel_params_df.gamma_r2.notna()])
     if len(gamma_r2_not_na) < minimal_gene_num:
         raise ValueError("adata.var.%s does not have enough values that are not NA." % (var_store_key))
 
@@ -996,7 +998,7 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
             if adata.uns["pp"]["layers_norm_method"] == "log2"
             else np.exp(layer_x.data) - 1
             if adata.uns["pp"]["layers_norm_method"] == "log"
-            else _Freeman_Tukey(layer_x.data + 1, inverse=True)
+            else _Freeman_Tukey(layer_x.data + 1, inverse=True) - 1
             if adata.uns["pp"]["layers_norm_method"] == "Freeman_Tukey"
             else layer_x.data
         )
@@ -1389,30 +1391,31 @@ def set_param_ss(
     valid_ind,
     ind_for_proteins,
 ):
+    params_df = pd.DataFrame(index=adata.var.index)
     if experiment_type == "mix_std_stm":
         if alpha is not None:
             if cur_grp == _group[0]:
                 adata.varm[kin_param_pre + "alpha"] = np.zeros((adata.shape[1], alpha[1].shape[1]))
             adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha[1]
             (
-                adata.var[kin_param_pre + "alpha"],
-                adata.var[kin_param_pre + "alpha_std"],
+                params_df[kin_param_pre + "alpha"],
+                params_df[kin_param_pre + "alpha_std"],
             ) = (None, None)
             (
-                adata.var.loc[valid_ind, kin_param_pre + "alpha"],
-                adata.var.loc[valid_ind, kin_param_pre + "alpha_std"],
+                params_df.loc[valid_ind, kin_param_pre + "alpha"],
+                params_df.loc[valid_ind, kin_param_pre + "alpha_std"],
             ) = (alpha[1][:, -1], alpha[0])
 
         if cur_grp == _group[0]:
             (
-                adata.var[kin_param_pre + "beta"],
-                adata.var[kin_param_pre + "gamma"],
-                adata.var[kin_param_pre + "half_life"],
+                params_df[kin_param_pre + "beta"],
+                params_df[kin_param_pre + "gamma"],
+                params_df[kin_param_pre + "half_life"],
             ) = (None, None, None)
 
-        adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
-        adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
+        params_df.loc[valid_ind, kin_param_pre + "beta"] = beta
+        params_df.loc[valid_ind, kin_param_pre + "gamma"] = gamma
+        params_df.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
     else:
         if alpha is not None:
             if len(alpha.shape) > 1:  # for each cell
@@ -1423,21 +1426,21 @@ def set_param_ss(
                         else np.zeros(adata.shape[::-1])
                     )  #
                 adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha  #
-                adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
+                params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
             elif len(alpha.shape) == 1:
                 if cur_grp == _group[0]:
-                    adata.var[kin_param_pre + "alpha"] = None
-                adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
+                    params_df[kin_param_pre + "alpha"] = None
+                params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha
 
         if cur_grp == _group[0]:
             (
-                adata.var[kin_param_pre + "beta"],
-                adata.var[kin_param_pre + "gamma"],
-                adata.var[kin_param_pre + "half_life"],
+                params_df[kin_param_pre + "beta"],
+                params_df[kin_param_pre + "gamma"],
+                params_df[kin_param_pre + "half_life"],
             ) = (None, None, None)
-        adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
-        adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = None if gamma is None else np.log(2) / gamma
+        params_df.loc[valid_ind, kin_param_pre + "beta"] = beta
+        params_df.loc[valid_ind, kin_param_pre + "gamma"] = gamma
+        params_df.loc[valid_ind, kin_param_pre + "half_life"] = None if gamma is None else np.log(2) / gamma
 
         (
             alpha_intercept,
@@ -1463,22 +1466,22 @@ def set_param_ss(
             alpha_r2[~np.isfinite(alpha_r2)] = 0
         if cur_grp == _group[0]:
             (
-                adata.var[kin_param_pre + "alpha_b"],
-                adata.var[kin_param_pre + "alpha_r2"],
-                adata.var[kin_param_pre + "gamma_b"],
-                adata.var[kin_param_pre + "gamma_r2"],
-                adata.var[kin_param_pre + "gamma_logLL"],
-                adata.var[kin_param_pre + "delta_b"],
-                adata.var[kin_param_pre + "delta_r2"],
-                adata.var[kin_param_pre + "bs"],
-                adata.var[kin_param_pre + "bf"],
-                adata.var[kin_param_pre + "uu0"],
-                adata.var[kin_param_pre + "ul0"],
-                adata.var[kin_param_pre + "su0"],
-                adata.var[kin_param_pre + "sl0"],
-                adata.var[kin_param_pre + "U0"],
-                adata.var[kin_param_pre + "S0"],
-                adata.var[kin_param_pre + "total0"],
+                params_df[kin_param_pre + "alpha_b"],
+                params_df[kin_param_pre + "alpha_r2"],
+                params_df[kin_param_pre + "gamma_b"],
+                params_df[kin_param_pre + "gamma_r2"],
+                params_df[kin_param_pre + "gamma_logLL"],
+                params_df[kin_param_pre + "delta_b"],
+                params_df[kin_param_pre + "delta_r2"],
+                params_df[kin_param_pre + "bs"],
+                params_df[kin_param_pre + "bf"],
+                params_df[kin_param_pre + "uu0"],
+                params_df[kin_param_pre + "ul0"],
+                params_df[kin_param_pre + "su0"],
+                params_df[kin_param_pre + "sl0"],
+                params_df[kin_param_pre + "U0"],
+                params_df[kin_param_pre + "S0"],
+                params_df[kin_param_pre + "total0"],
             ) = (
                 None,
                 None,
@@ -1498,47 +1501,50 @@ def set_param_ss(
                 None,
             )
 
-        adata.var.loc[valid_ind, kin_param_pre + "alpha_b"] = alpha_intercept
-        adata.var.loc[valid_ind, kin_param_pre + "alpha_r2"] = alpha_r2
+        params_df.loc[valid_ind, kin_param_pre + "alpha_b"] = alpha_intercept
+        params_df.loc[valid_ind, kin_param_pre + "alpha_r2"] = alpha_r2
 
         if gamma_r2 is not None:
             gamma_r2[~np.isfinite(gamma_r2)] = 0
-        adata.var.loc[valid_ind, kin_param_pre + "gamma_b"] = gamma_intercept
-        adata.var.loc[valid_ind, kin_param_pre + "gamma_r2"] = gamma_r2
-        adata.var.loc[valid_ind, kin_param_pre + "gamma_logLL"] = gamma_logLL
+        params_df.loc[valid_ind, kin_param_pre + "gamma_b"] = gamma_intercept
+        params_df.loc[valid_ind, kin_param_pre + "gamma_r2"] = gamma_r2
+        params_df.loc[valid_ind, kin_param_pre + "gamma_logLL"] = gamma_logLL
 
-        adata.var.loc[valid_ind, kin_param_pre + "bs"] = bs
-        adata.var.loc[valid_ind, kin_param_pre + "bf"] = bf
+        params_df.loc[valid_ind, kin_param_pre + "bs"] = bs
+        params_df.loc[valid_ind, kin_param_pre + "bf"] = bf
 
-        adata.var.loc[valid_ind, kin_param_pre + "uu0"] = uu0
-        adata.var.loc[valid_ind, kin_param_pre + "ul0"] = ul0
-        adata.var.loc[valid_ind, kin_param_pre + "su0"] = su0
-        adata.var.loc[valid_ind, kin_param_pre + "sl0"] = sl0
-        adata.var.loc[valid_ind, kin_param_pre + "U0"] = U0
-        adata.var.loc[valid_ind, kin_param_pre + "S0"] = S0
-        adata.var.loc[valid_ind, kin_param_pre + "total0"] = total0
+        params_df.loc[valid_ind, kin_param_pre + "uu0"] = uu0
+        params_df.loc[valid_ind, kin_param_pre + "ul0"] = ul0
+        params_df.loc[valid_ind, kin_param_pre + "su0"] = su0
+        params_df.loc[valid_ind, kin_param_pre + "sl0"] = sl0
+        params_df.loc[valid_ind, kin_param_pre + "U0"] = U0
+        params_df.loc[valid_ind, kin_param_pre + "S0"] = S0
+        params_df.loc[valid_ind, kin_param_pre + "total0"] = total0
 
         if experiment_type == "one-shot":
-            adata.var[kin_param_pre + "beta_k"] = None
-            adata.var[kin_param_pre + "gamma_k"] = None
-            adata.var.loc[valid_ind, kin_param_pre + "beta_k"] = beta_k
-            adata.var.loc[valid_ind, kin_param_pre + "gamma_k"] = gamma_k
+            params_df[kin_param_pre + "beta_k"] = None
+            params_df[kin_param_pre + "gamma_k"] = None
+            params_df.loc[valid_ind, kin_param_pre + "beta_k"] = beta_k
+            params_df.loc[valid_ind, kin_param_pre + "gamma_k"] = gamma_k
 
         if ind_for_proteins is not None:
             delta_r2[~np.isfinite(delta_r2)] = 0
             if cur_grp == _group[0]:
                 (
-                    adata.var[kin_param_pre + "eta"],
-                    adata.var[kin_param_pre + "delta"],
-                    adata.var[kin_param_pre + "delta_b"],
-                    adata.var[kin_param_pre + "delta_r2"],
-                    adata.var[kin_param_pre + "p_half_life"],
+                    params_df[kin_param_pre + "eta"],
+                    params_df[kin_param_pre + "delta"],
+                    params_df[kin_param_pre + "delta_b"],
+                    params_df[kin_param_pre + "delta_r2"],
+                    params_df[kin_param_pre + "p_half_life"],
                 ) = (None, None, None, None, None)
-            adata.var.loc[valid_ind, kin_param_pre + "eta"][ind_for_proteins] = eta
-            adata.var.loc[valid_ind, kin_param_pre + "delta"][ind_for_proteins] = delta
-            adata.var.loc[valid_ind, kin_param_pre + "delta_b"][ind_for_proteins] = delta_intercept
-            adata.var.loc[valid_ind, kin_param_pre + "delta_r2"][ind_for_proteins] = delta_r2
-            adata.var.loc[valid_ind, kin_param_pre + "p_half_life"][ind_for_proteins] = np.log(2) / delta
+            params_df.loc[valid_ind, kin_param_pre + "eta"][ind_for_proteins] = eta
+            params_df.loc[valid_ind, kin_param_pre + "delta"][ind_for_proteins] = delta
+            params_df.loc[valid_ind, kin_param_pre + "delta_b"][ind_for_proteins] = delta_intercept
+            params_df.loc[valid_ind, kin_param_pre + "delta_r2"][ind_for_proteins] = delta_r2
+            params_df.loc[valid_ind, kin_param_pre + "p_half_life"][ind_for_proteins] = np.log(2) / delta
+
+    adata.varm[kin_param_pre + "vel_params"] = params_df.to_numpy()
+    adata.uns[kin_param_pre + "vel_params_names"] = list(params_df.columns)
 
     return adata
 
@@ -1561,23 +1567,24 @@ def set_param_kinetic(
     cur_cells_bools,
     valid_ind,
 ):
+    params_df = pd.DataFrame(index=adata.var.index)
     if cur_grp == _group[0]:
         (
-            adata.var[kin_param_pre + "alpha"],
-            adata.var[kin_param_pre + "a"],
-            adata.var[kin_param_pre + "b"],
-            adata.var[kin_param_pre + "alpha_a"],
-            adata.var[kin_param_pre + "alpha_i"],
-            adata.var[kin_param_pre + "beta"],
-            adata.var[kin_param_pre + "p_half_life"],
-            adata.var[kin_param_pre + "gamma"],
-            adata.var[kin_param_pre + "half_life"],
-            adata.var[kin_param_pre + "cost"],
-            adata.var[kin_param_pre + "logLL"],
+            params_df[kin_param_pre + "alpha"],
+            params_df[kin_param_pre + "a"],
+            params_df[kin_param_pre + "b"],
+            params_df[kin_param_pre + "alpha_a"],
+            params_df[kin_param_pre + "alpha_i"],
+            params_df[kin_param_pre + "beta"],
+            params_df[kin_param_pre + "p_half_life"],
+            params_df[kin_param_pre + "gamma"],
+            params_df[kin_param_pre + "half_life"],
+            params_df[kin_param_pre + "cost"],
+            params_df[kin_param_pre + "logLL"],
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
     if isarray(alpha) and alpha.ndim > 1:
-        adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
+        params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
         cur_cells_ind, valid_ind_ = (
             np.where(cur_cells_bools)[0][:, np.newaxis],
             np.where(valid_ind)[0],
@@ -1587,23 +1594,94 @@ def set_param_kinetic(
         alpha = alpha.T.tocsr() if sp.issparse(alpha) else sp.csr_matrix(alpha, dtype=np.float64).T
         adata.layers["cell_wise_alpha"][cur_cells_ind, valid_ind_] = alpha
     else:
-        adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
-    adata.var.loc[valid_ind, kin_param_pre + "a"] = a
-    adata.var.loc[valid_ind, kin_param_pre + "b"] = b
-    adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
-    adata.var.loc[valid_ind, kin_param_pre + "alpha_i"] = alpha_i
-    adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
-    adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-    adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
-    adata.var.loc[valid_ind, kin_param_pre + "cost"] = cost
-    adata.var.loc[valid_ind, kin_param_pre + "logLL"] = logLL
+        params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha
+    params_df.loc[valid_ind, kin_param_pre + "a"] = a
+    params_df.loc[valid_ind, kin_param_pre + "b"] = b
+    params_df.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
+    params_df.loc[valid_ind, kin_param_pre + "alpha_i"] = alpha_i
+    params_df.loc[valid_ind, kin_param_pre + "beta"] = beta
+    params_df.loc[valid_ind, kin_param_pre + "gamma"] = gamma
+    params_df.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
+    params_df.loc[valid_ind, kin_param_pre + "cost"] = cost
+    params_df.loc[valid_ind, kin_param_pre + "logLL"] = logLL
     # add extra parameters (u0, uu0, etc.)
     extra_params.columns = [kin_param_pre + i for i in extra_params.columns]
     extra_params = extra_params.set_index(adata.var.index[valid_ind])
-    var = pd.concat((adata.var, extra_params), axis=1, sort=False)
-    adata.var = var
+    var = pd.concat((params_df, extra_params), axis=1, sort=False)
+    adata.varm[kin_param_pre + "vel_params"] = var.to_numpy()
+    adata.uns[kin_param_pre + "vel_params_names"] = list(var.columns)
 
     return adata
+
+
+def get_vel_params(
+    adata: AnnData,
+    params: Optional[Union[List, str]] = None,
+    genes: Optional[List] = None,
+    kin_param_pre: str = "",
+    skip_cell_wise: bool = False,
+) -> Union[Tuple, pd.DataFrame, List]:
+    """Get the velocity parameters based on input names.
+
+    Args:
+        adata: the anndata object which contains the parameters.
+        params: the names of parameters to query. If set to None, the entire velocity parameters DataFrame from `.varm`
+            will be returned.
+        kin_param_pre: the prefix used to kinetic parameters related to RNA dynamics.
+        skip_cell_wise: whether to skip the detected cell wise parameters. If set to True, the mean will be returned
+            instead of cell wise parameters.
+
+    Returns:
+        All velocity parameters with the same order of query `params`.
+    """
+    if type(params) is str:
+        params = [params]
+
+    if kin_param_pre + "vel_params" not in adata.varm.keys():
+        raise KeyError("The key of velocity related parameters are not found in varm.")
+
+    array_data = adata.varm[kin_param_pre + "vel_params"]
+    df_columns = adata.uns[kin_param_pre + "vel_params_names"]
+    df = pd.DataFrame(array_data, index=adata.var_names, columns=df_columns)
+    target_params = []
+
+    if genes is None:
+        genes = df.index
+
+    if params is None:
+        return df.loc[genes]
+
+    for param in params:
+        if param == "alpha":
+            if not skip_cell_wise:
+                if "cell_wise_alpha" in adata.layers.keys():
+                    target_params.append(adata[:, genes].layers["cell_wise_alpha"])
+                elif "alpha" in adata.varm.keys():
+                    target_params.append(adata[:, genes].varm[kin_param_pre + "alpha"])
+                else:
+                    target_params.append(df.loc[genes, kin_param_pre + "alpha"].values)
+                continue
+        target_params.append(df.loc[genes, kin_param_pre + param].values)
+
+    if len(target_params) > 1:
+        return tuple(target_params)
+    else:
+        return target_params[0]
+
+
+def update_vel_params(adata: AnnData, params_df: pd.DataFrame, kin_param_pre: str = "") -> None:
+    """Update the kinetic parameters related to RNA velocity calculation.
+
+    Args:
+        adata: the AnnData object whose kinetic parameters related to RNA velocity calculation will be updated.
+        params_df: the dataframe of kinetic parameters related to RNA velocity calculation.
+        kin_param_pre: the prefix used to kinetic parameters related to RNA dynamics.
+
+    Returns:
+        The anndata object will be updated with parameters and columns names from given dataframe.
+    """
+    adata.varm[kin_param_pre + "vel_params"] = params_df.to_numpy()
+    adata.uns[kin_param_pre + "vel_params_names"] = list(params_df.columns)
 
 
 def get_U_S_for_velocity_estimation(subset_adata, use_moments, has_splicing, has_labeling, log_unnormalized, NTR):
@@ -2183,6 +2261,7 @@ def set_transition_genes(
     minimal_gene_num=50,
 ):
     layer = vkey.split("_")[1]
+    vel_params_df = get_vel_params(adata)
 
     if adata.uns["dynamics"]["est_method"] == "twostep" and adata.uns["dynamics"]["experiment_type"] == "kin":
         # if adata.uns['dynamics']['has_splicing']:
@@ -2194,12 +2273,12 @@ def set_transition_genes(
         "mix_pulse_chase",
         "kin",
     ]:
-        logLL_col = adata.var.columns[adata.var.columns.str.endswith("logLL")]
+        logLL_col = vel_params_df.columns[vel_params_df.columns.str.endswith("logLL")]
         if len(logLL_col) > 1:
             main_warning(f"there are two columns ends with logLL: {logLL_col}")
 
-        adata.var[store_key] = adata.var[logLL_col[-1]].astype(float) < np.nanpercentile(
-            adata.var[logLL_col[-1]].astype(float), 10
+        adata.var[store_key] = vel_params_df[logLL_col[-1]].astype(float) < np.nanpercentile(
+            vel_params_df[logLL_col[-1]].astype(float), 10
         )
         if layer in ["N", "T"]:
             return adata
@@ -2217,94 +2296,94 @@ def set_transition_genes(
 
     # the following parameters aggreation for different groups can be improved later
     if layer == "U":
-        if "alpha" not in adata.var.columns:
+        if "alpha" not in vel_params_df.columns:
             is_group_alpha, is_group_alpha_r2 = (
                 get_group_params_indices(adata, "alpha"),
                 get_group_params_indices(adata, "alpha_r2"),
             )
             if is_group_alpha.sum() > 0:
-                adata.var["alpha"] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
-                adata.var["alpha_r2"] = adata.var.loc[:, np.hstack((is_group_alpha_r2, False))].mean(1, skipna=True)
+                vel_params_df["alpha"] = vel_params_df.loc[:, is_group_alpha].mean(1, skipna=True)
+                vel_params_df["alpha_r2"] = vel_params_df.loc[:, np.hstack((is_group_alpha_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
 
-        if "alpha_r2" not in adata.var.columns:
-            adata.var["alpha_r2"] = None
-        if np.all(adata.var.alpha_r2.values is None):
-            adata.var.alpha_r2 = 1
+        if "alpha_r2" not in vel_params_df.columns:
+            vel_params_df["alpha_r2"] = None
+        if np.all(vel_params_df.alpha_r2.values is None):
+            vel_params_df.alpha_r2 = 1
         adata.var[store_key] = (
-            (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamics
+            (vel_params_df.alpha > min_alpha) & (vel_params_df.alpha_r2 > min_r2) & adata.var.use_for_dynamics
             if use_for_dynamics
-            else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
+            else (vel_params_df.alpha > min_alpha) & (vel_params_df.alpha_r2 > min_r2)
         )
     elif layer == "S":
-        if "gamma" not in adata.var.columns:
+        if "gamma" not in vel_params_df.columns:
             is_group_gamma, is_group_gamma_r2 = (
                 get_group_params_indices(adata, "gamma"),
                 get_group_params_indices(adata, "gamma_r2"),
             )
             if is_group_gamma.sum() > 0:
-                adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
-                adata.var["gamma_r2"] = adata.var.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
+                vel_params_df["gamma"] = vel_params_df.loc[:, is_group_gamma].mean(1, skipna=True)
+                vel_params_df["gamma_r2"] = vel_params_df.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
-        if "gamma_r2" not in adata.var.columns:
+        if "gamma_r2" not in vel_params_df.columns:
             main_debug("setting all gamma_r2 to 1")
-            adata.var["gamma_r2"] = 1
-        if np.all(adata.var.gamma_r2.values is None) or np.all(adata.var.gamma_r2.values == ""):
-            main_debug("Since all adata.var.gamma_r2 values are None or '', setting all gamma_r2 values to 1.")
-            adata.var.gamma_r2 = 1
+            vel_params_df["gamma_r2"] = 1
+        if np.all(vel_params_df.gamma_r2.values is None) or np.all(vel_params_df.gamma_r2.values == ""):
+            main_debug("Since all gamma_r2 values are None or '', setting all gamma_r2 values to 1.")
+            vel_params_df.gamma_r2 = 1
 
-        adata.var[store_key] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
+        adata.var[store_key] = (vel_params_df.gamma > min_gamma) & (vel_params_df.gamma_r2 > min_r2)
         if use_for_dynamics:
             adata.var[store_key] = adata.var[store_key] & adata.var.use_for_dynamics
 
     elif layer == "P":
-        if "delta" not in adata.var.columns:
+        if "delta" not in vel_params_df.columns:
             is_group_delta, is_group_delta_r2 = (
                 get_group_params_indices(adata, "delta"),
                 get_group_params_indices(adata, "delta_r2"),
             )
             if is_group_delta.sum() > 0:
-                adata.var["delta"] = adata.var.loc[:, is_group_delta].mean(1, skipna=True)
-                adata.var["delta_r2"] = adata.var.loc[:, np.hstack((is_group_delta_r2, False))].mean(1, skipna=True)
+                vel_params_df["delta"] = vel_params_df.loc[:, is_group_delta].mean(1, skipna=True)
+                vel_params_df["delta_r2"] = vel_params_df.loc[:, np.hstack((is_group_delta_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no delta/delta_r2 parameter estimated for your adata object")
 
-        if "delta_r2" not in adata.var.columns:
-            adata.var["delta_r2"] = None
-        if np.all(adata.var.delta_r2.values is None):
-            adata.var.delta_r2 = 1
+        if "delta_r2" not in vel_params_df.columns:
+            vel_params_df["delta_r2"] = None
+        if np.all(vel_params_df.delta_r2.values is None):
+            vel_params_df.delta_r2 = 1
         adata.var[store_key] = (
-            (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamics
+            (vel_params_df.delta > min_delta) & (vel_params_df.delta_r2 > min_r2) & adata.var.use_for_dynamics
             if use_for_dynamics
-            else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
+            else (vel_params_df.delta > min_delta) & (vel_params_df.delta_r2 > min_r2)
         )
     if layer == "T":
-        if "gamma" not in adata.var.columns:
+        if "gamma" not in vel_params_df.columns:
             is_group_gamma, is_group_gamma_r2 = (
                 get_group_params_indices(adata, "gamma"),
                 get_group_params_indices(adata, "gamma_r2"),
             )
             if is_group_gamma.sum() > 0:
-                adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
-                adata.var["gamma_r2"] = adata.var.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
+                vel_params_df["gamma"] = vel_params_df.loc[:, is_group_gamma].mean(1, skipna=True)
+                vel_params_df["gamma_r2"] = vel_params_df.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
-        if "gamma_r2" not in adata.var.columns:
-            adata.var["gamma_r2"] = None
-        if np.all(adata.var.gamma_r2.values is None):
-            adata.var.gamma_r2 = 1
-        if sum(adata.var.gamma_r2.isna()) == adata.n_vars:
-            gamm_r2_checker = adata.var.gamma_r2.isna()
+        if "gamma_r2" not in vel_params_df.columns:
+            vel_params_df["gamma_r2"] = None
+        if np.all(vel_params_df.gamma_r2.values is None):
+            vel_params_df.gamma_r2 = 1
+        if sum(vel_params_df.gamma_r2.isna()) == adata.n_vars:
+            gamm_r2_checker = vel_params_df.gamma_r2.isna()
         else:
-            gamm_r2_checker = adata.var.gamma_r2 > min_r2
+            gamm_r2_checker = vel_params_df.gamma_r2 > min_r2
         adata.var[store_key] = (
-            (adata.var.gamma > min_gamma) & gamm_r2_checker & adata.var.use_for_dynamics
+            (vel_params_df.gamma > min_gamma) & gamm_r2_checker & adata.var.use_for_dynamics
             if use_for_dynamics
-            else (adata.var.gamma > min_gamma) & gamm_r2_checker
+            else (vel_params_df.gamma > min_gamma) & gamm_r2_checker
         )
 
     if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
@@ -2317,6 +2396,8 @@ def set_transition_genes(
             "We auto correct this behavior by selecting the %d top genes according to gamma_r2 values."
         )
         reserve_minimal_genes_by_gamma_r2(adata, store_key, minimal_gene_num=minimal_gene_num)
+
+    update_vel_params(adata, vel_params_df)
 
     return adata
 

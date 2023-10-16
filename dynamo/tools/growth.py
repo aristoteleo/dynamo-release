@@ -74,11 +74,11 @@ def score_cells(
     elif basis is not None and "X_" + basis not in adata.obsm.keys():
         raise ValueError(f"Your adata doesn't have the {basis} you inputted in .obsm attribute of your adata.")
 
-    if genes is None and "use_for_pca" not in adata.obs.keys():
-        raise ValueError(f"Your adata doesn't have 'use_for_pca' column in .obs.")
+    if genes is None and "use_for_pca" not in adata.var.keys():
+        raise ValueError(f"Your adata doesn't have 'use_for_pca' column in .var.")
 
     if genes is None:
-        genes = adata.var_names[adata.use_for_pca]
+        genes = adata.var_names[adata.var.use_for_pca]
     else:
         genes = (
             list(adata.var_names.intersection(genes))
@@ -138,9 +138,9 @@ def score_cells(
 
 def cell_growth_rate(
     adata: AnnData,
-    group: Optional[str],
-    source: Optional[str],
-    target: Optional[str],
+    group: str,
+    source: str,
+    target: str,
     L0: float = 0.3,
     L: float = 1.2,
     k: float = 1e-3,

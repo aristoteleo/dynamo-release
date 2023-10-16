@@ -15,7 +15,7 @@ from .connectivity import neighbors, normalize_knn_graph
 from .dimension_reduction import reduceDimension
 from .dynamics import dynamics
 from .moments import moments
-from .utils import set_transition_genes
+from .utils import get_vel_params, set_transition_genes, update_vel_params
 
 # add recipe_csc_data()
 
@@ -325,9 +325,10 @@ def recipe_deg_data(
             set_transition_genes(adata)
             cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
         except BaseException:
+            vel_params_df = get_vel_params(adata)
             cell_velocities(
                 adata,
-                min_r2=adata.var.gamma_r2.min(),
+                min_r2=vel_params_df.gamma_r2.min(),
                 enforce=True,
                 vkey=vkey,
                 ekey=ekey,
@@ -708,6 +709,7 @@ def velocity_N(
 
     var_columns = adata.var.columns
     layer_keys = adata.layers.keys()
+    vel_params_df = get_vel_params(adata)
 
     # check velocity_N, velocity_T, X_new, X_total
     if not np.all([i in layer_keys for i in ["X_new", "X_total"]]):
@@ -743,8 +745,8 @@ def velocity_N(
         "beta_k",
         "gamma_k",
     ]:
-        if i in var_columns:
-            del adata.var[i]
+        if i in vel_params_df.columns:
+            del vel_params_df[i]
 
     if group is not None:
         group_prefixes = [group + "_" + str(i) + "_" for i in adata.obs[group].unique()]
@@ -773,8 +775,9 @@ def velocity_N(
                 "beta_k",
                 "gamma_k",
             ]:
-                if i + j in var_columns:
-                    del adata.var[i + j]
+                if i + j in vel_params_df.columns:
+                    del vel_params_df[i + j]
+    update_vel_params(adata, params_df=vel_params_df)
 
     # now let us first run pca with new RNA
     if recalculate_pca:
