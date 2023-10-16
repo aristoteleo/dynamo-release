@@ -525,10 +525,11 @@ def plot_fixed_points(
         except ImportError:
             raise ImportError("Please install pyvista first.")
 
-        points = pv.PolyData(Xss)
-        points.point_data["colors"] = colors
-
-        points["Labels"] = [str(i) for i in range(points.n_points)]
+        text_colors = ["black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red" for cur_ftype in ftype]
+        emitting_indices = [index for index, color in enumerate(text_colors) if color == "red"]
+        unstable_indices = [index for index, color in enumerate(text_colors) if color == "blue"]
+        absorbing_indices = [index for index, color in enumerate(text_colors) if color == "black"]
+        fps_type_indices = [emitting_indices, unstable_indices, absorbing_indices]
 
         r, c = ax.shape[0], ax.shape[1]
         subplot_indices = [[i, j] for i in range(r) for j in range(c)]
@@ -540,8 +541,21 @@ def plot_fixed_points(
                 ax.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
                 cur_subplot += 1
 
-            ax.add_points(points, render_points_as_spheres=True, rgba=True, point_size=15)
-            ax.add_point_labels(points, "Labels", font_size=36, show_points=False) # TODO: only work for the first plot
+            for indices in fps_type_indices:
+                points = pv.PolyData(Xss[indices])
+                points.point_data["colors"] = np.array(colors)[indices]
+                points["Labels"] = [str(idx) for idx in indices]
+
+                ax.add_points(points, render_points_as_spheres=True, rgba=True, point_size=15)
+                ax.add_point_labels(
+                    points,
+                    "Labels",
+                    text_color=text_colors[indices[0]],
+                    font_size=24,
+                    shape_opacity=0,
+                    show_points=False,
+                    always_visible=True,
+                )
 
         return save_pyvista_plotter(
             pl=ax,
