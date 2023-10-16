@@ -107,6 +107,7 @@ def cell_wise_vectors_3d(
             "darkgreen",
         ]
     ] = None,
+    plotly_color: str = "Reds",
     cmap: Optional[str] = None,
     color_key: Union[Dict[str, str], List[str], None] = None,
     color_key_cmap: Optional[str] = None,
@@ -175,6 +176,8 @@ def cell_wise_vectors_3d(
         theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
             good aesthetics. Available themes are: {'blue', 'red', 'green', 'inferno', 'fire', 'viridis', 'darkblue',
             'darkred', 'darkgreen'}. Defaults to None.
+        plotly_color: the color of the Plotly Cone plot. It must be an array containing arrays mapping a normalized
+            value to a rgb, rgba, hex, hsl, hsv, or named color string.
         cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
             this will be used for shading points according to density (largely only of relevance for very large
             datasets). If values are passed this will be used for shading according the value. Note that if theme is
@@ -387,7 +390,7 @@ def cell_wise_vectors_3d(
             z=z,
             color=color,
             layer=layer,
-            plot_method = "plotly",
+            plot_method="plotly",
             highlights=highlights,
             labels=labels,
             values=values,
@@ -416,13 +419,13 @@ def cell_wise_vectors_3d(
                     u=v0.values,
                     v=v1.values,
                     w=v2.values,
-                    colorscale='Blues',
+                    colorscale=plotly_color,
                     # colorscale=colors,
                     sizemode="absolute",
                     sizeref=1,
                 ),
                 row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
-            )
+            )  # TODO: implement customized color for individual cone
 
             cur_subplot += 1
 
