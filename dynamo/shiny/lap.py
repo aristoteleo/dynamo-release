@@ -133,7 +133,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
                             ui.output_ui("selectize_barplot_start_genes"),
                             x.ui.output_plot("tfs_barplot"),
                             div(
-                                "Heatmap of LAP actions and LAP time matrices of pairwise cell fate conversions",
+                                "Heatmap of LAP actions (left) and LAP time (right) matrices of pairwise cell fate conversions",
                                 class_="bold-subtitle"
                             ),
                             x.ui.output_plot("pairwise_cell_fate_heatmap"),
