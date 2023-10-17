@@ -1,5 +1,5 @@
 import re
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -113,38 +113,41 @@ def _compute_transition_matrix(transition_matrix: Union[csr_matrix, np.ndarray],
     return res + res.T - np.diag(res.diagonal())
 
 
-def _calculate_segment_probability(center_transition_matrix: np.ndarray, segments: np.ndarray) -> np.ndarray:
+def _calculate_segment_probability(transition_matrix: np.ndarray, segments: np.ndarray) -> np.ndarray:
     """Calculate the probability of	the	segment	by first order Markov assumption.
 
     Args:
-        center_transition_matrix: the transition matrix for DDRTree centers.
+        transition_matrix: the transition matrix for DDRTree centers.
         segments: the segments of the minimum spanning tree.
 
     Returns:
         The probability for each segment.
     """
+    transition_matrix = transition_matrix.toarray() if issparse(transition_matrix) else transition_matrix
     with np.errstate(divide='ignore', invalid='ignore'):
-        log_center_transition_matrix = np.log(center_transition_matrix)
-        log_center_transition_matrix[np.isinf(log_center_transition_matrix)] = 0
-        log_center_transition_matrix = np.nan_to_num(log_center_transition_matrix)
+        log_transition_matrix = np.log(transition_matrix)
+        log_transition_matrix[np.isinf(log_transition_matrix)] = 0
+        log_transition_matrix = np.nan_to_num(log_transition_matrix)
 
-    return np.cumsum(log_center_transition_matrix[segments[:, 0], segments[:, 1]])
+    return np.cumsum(log_transition_matrix[[s[0] for s in segments], [s[1] for s in segments]])
 
 
-def _get_segments(orders: Union[np.ndarray, List], parents: Union[np.ndarray, List]) -> Tuple:
+def _get_segments(orders: Union[np.ndarray, List], parents: Optional[Union[np.ndarray, List]] = None) -> Tuple:
     """Get m segments pairs from the minimum spanning tree.
 
     Args:
         orders: the order to traverse the minimum spanning tree.
-        parents: the parent node for each node.
+        parents: the parent node for each node. If not provided, will construct the segments with orders[i-1] and
+            orders[i].
 
     Returns:
         A tuple that contains segments pairs from 1 to m and from m to 1.
     """
-    segments = [(p, o) for p, o in zip(parents, orders) if p != -1]
-    segments_reverse = [(seg[1], seg[0]) for seg in segments]
-    segments_reverse.reverse()
-    return segments, segments_reverse
+    if parents:
+        segments = [(p, o) for p, o in zip(parents, orders) if p != -1]
+    else:
+        segments = [(orders[i-1], orders[i]) for i in range(1, len(orders))]
+    return segments
 
 
 def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearson"):
@@ -176,20 +179,29 @@ def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearso
     orders = np.argsort(adata.uns["cell_order"]["centers_order"])
     parents = [adata.uns["cell_order"]["centers_parent"][node] for node in orders]
     velocity_tree = adata.uns["cell_order"]["centers_minSpanningTree"]
+    cell_proj_closest_vertex = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"]
+    directed_velocity_tree = velocity_tree.copy()
 
-    segments, segments_reverse = _get_segments(orders, parents)
+    segments = _get_segments(orders, parents)
     center_transition_matrix = _compute_transition_matrix(transition_matrix, R)
-    segment_p = _calculate_segment_probability(center_transition_matrix, np.array(segments))
-    segment_p_reversed = _calculate_segment_probability(center_transition_matrix, np.array(segments_reverse))
-    segment_p_reversed = segment_p_reversed[::-1]
 
     for i, (r, c) in enumerate(segments):
-        if segment_p[i] >= segment_p_reversed[i]:
-            velocity_tree[r, c] = max(velocity_tree[r, c], velocity_tree[c, r])
-            velocity_tree[c, r] = 0
+        cell_indices = np.concatenate(
+            (np.where(cell_proj_closest_vertex == r)[0], np.where(cell_proj_closest_vertex == c)[0]),
+            axis=0,
+        )
+        index_time_pairs = list(zip(cell_indices, adata.obs["Pseudotime"][cell_indices]))
+        sorted_index_time_pairs = sorted(index_time_pairs, key=lambda x: x[1])
+        sorted_indices = [index for index, _ in sorted_index_time_pairs]
+        segment_p = _calculate_segment_probability(transition_matrix, _get_segments(sorted_indices))
+        sorted_indices.reverse()
+        segment_p_reversed = _calculate_segment_probability(transition_matrix, _get_segments(sorted_indices))
+        if segment_p[-1] >= segment_p_reversed[-1]:
+            directed_velocity_tree[r, c] = max(velocity_tree[r, c], velocity_tree[c, r])
+            directed_velocity_tree[c, r] = 0
         else:
-            velocity_tree[c, r] = max(velocity_tree[r, c], velocity_tree[c, r])
-            velocity_tree[r, c] = 0
+            directed_velocity_tree[c, r] = max(velocity_tree[r, c], velocity_tree[c, r])
+            directed_velocity_tree[r, c] = 0
 
     adata.uns["directed_velocity_tree"] = velocity_tree
     main_info_insert_adata_uns("directed_velocity_tree")
