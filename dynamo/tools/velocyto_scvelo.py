@@ -308,22 +308,22 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dy
         vel_params_name = []
 
         if "fit_alpha" in adata.var.columns:
-            vel_params.append(adata.var.pop("fit_alpha").values())
+            vel_params.append(adata.var.pop("fit_alpha").values)
             vel_params_name.append("alpha")
         if "fit_beta" in adata.var.columns:
-            vel_params.append(adata.var.pop("fit_beta").values())
+            vel_params.append(adata.var.pop("fit_beta").values)
             vel_params_name.append("beta")
         if "fit_gamma" in adata.var.columns:
-            vel_params.append(adata.var.pop("fit_gamma").values())
+            vel_params.append(adata.var.pop("fit_gamma").values)
             vel_params_name.append("gamma")
         if "fit_r2" in adata.var.columns:
-            vel_params.append(adata.var.pop("fit_r2").values())
+            vel_params.append(adata.var.pop("fit_r2").values)
             vel_params_name.append("gamma_r2")
         if "fit_u0" in adata.var.columns:
-            vel_params.append(adata.var.pop("fit_u0").values())
+            vel_params.append(adata.var.pop("fit_u0").values)
             vel_params_name.append("u0")
         if "fit_s0" in adata.var.columns:
-            vel_params.append(adata.var.pop("fit_s0").values())
+            vel_params.append(adata.var.pop("fit_s0").values)
             vel_params_name.append("s0")
         if len(vel_params_name) > 0:
             adata.varm[kin_param_pre + "vel_params"] = np.array(vel_params).T
