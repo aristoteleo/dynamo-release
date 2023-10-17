@@ -181,6 +181,7 @@ def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearso
     center_transition_matrix = _compute_transition_matrix(transition_matrix, R)
     segment_p = _calculate_segment_probability(center_transition_matrix, np.array(segments))
     segment_p_reversed = _calculate_segment_probability(center_transition_matrix, np.array(segments_reverse))
+    segment_p_reversed = segment_p_reversed[::-1]
 
     for i, (r, c) in enumerate(segments):
         if segment_p[i] >= segment_p_reversed[i]:
