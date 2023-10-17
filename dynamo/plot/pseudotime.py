@@ -117,14 +117,21 @@ def plot_dim_reduced_direct_graph(
                 colors=cells_colors[valid_indices],
                 radius=cells_size[node],
             )
-
-        plt.legend(handles=[plt.Line2D([0], [0], marker="o", color='w', label=label,
-                                       markerfacecolor=color) for label, color in cells_color_map.items()],
-                   loc="best",
-                   fontsize="large",
-                   )
     else:
-        nx.draw_networkx_nodes(G, pos=pos, node_size=[s * len(cells_size) * 300 for s in cells_size], ax=ax)
+        dominate_colors = []
+
+        for node in G.nodes:
+            attributes = cells_percentage[node]
+            max_idx = np.argmax(attributes)
+            dominate_colors.append(cells_colors[max_idx])
+
+        nx.draw_networkx_nodes(G, pos=pos, node_color=dominate_colors, node_size=[s * len(cells_size) * 300 for s in cells_size], ax=ax)
+
+    plt.legend(handles=[plt.Line2D([0], [0], marker="o", color='w', label=label,
+                                   markerfacecolor=color) for label, color in cells_color_map.items()],
+               loc="best",
+               fontsize="large",
+               )
 
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
