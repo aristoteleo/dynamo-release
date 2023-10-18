@@ -1481,11 +1481,12 @@ def topography_3D(
     cmap: Optional[str] = None,
     color_key: Union[Dict[str, str], List[str], None] = None,
     color_key_cmap: Optional[str] = None,
+    alpha: Optional[float] = None,
     background: Optional[str] = "white",
     ncols: int = 4,
     pointsize: Optional[float] = None,
     figsize: Tuple[float, float] = (6, 4),
-    show_legend: str = "on data",
+    show_legend: str = True,
     use_smoothed: bool = True,
     xlim: np.ndarray = None,
     ylim: np.ndarray = None,
@@ -1529,6 +1530,9 @@ def topography_3D(
 
     if type(color) == str:
         color = [color]
+
+    if alpha is None:
+        alpha = 0.8 if plot_method in ["pv", "plotly"] else 0.1
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
@@ -1682,7 +1686,7 @@ def topography_3D(
             use_smoothed=use_smoothed,
             save_show_or_return="return",
             # style='points_gaussian',
-            opacity=0.8,
+            opacity=alpha,
         )
 
         if "fixed_points" in terms:
@@ -1727,7 +1731,7 @@ def topography_3D(
             color_key_cmap=color_key_cmap,
             use_smoothed=use_smoothed,
             save_show_or_return="return",
-            opacity=0.8,
+            opacity=alpha,
         )
 
         if "fixed_points" in terms:
@@ -1764,6 +1768,7 @@ def topography_3D(
             cmap=cmap,
             color_key=color_key,
             color_key_cmap=color_key_cmap,
+            alpha=alpha,
             background=_background,
             ncols=ncols,
             pointsize=pointsize,

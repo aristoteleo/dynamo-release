@@ -407,7 +407,9 @@ def _matplotlib_points(
     if ax is None:
         dpi = plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
-        ax = fig.add_subplot(111, projection=projection)
+        ax = fig.add_subplot(
+            111, projection=projection, computed_zorder=False,
+        ) if projection == "3d" else fig.add_subplot(111, projection=projection)
 
     ax.set_facecolor(background)
 
