@@ -94,14 +94,16 @@ def _compute_transition_matrix(transition_matrix: Union[csr_matrix, np.ndarray],
     totals = np.zeros((num_clusters,))
 
     for a in range(num_clusters):
-        for b in range(a, num_clusters):
+        for b in range(num_clusters):
+            if a == b:
+                continue
             indices_a = clusters[a]
             indices_b = clusters[b]
             q = np.sum(
-                highest_probability[indices_a, None] *
-                highest_probability[None, indices_b] *
+                R[indices_a, a][:, np.newaxis] *
+                R[indices_b, b].T[np.newaxis, :] *
                 transition_matrix[indices_a[:, None], indices_b]
-            )
+            ) if (indices_a.shape[0] > 0 and indices_b.shape[0] > 0) else 0
             totals[a] += q
             transition[a, b] = q
 
@@ -110,7 +112,7 @@ def _compute_transition_matrix(transition_matrix: Union[csr_matrix, np.ndarray],
         res = transition / totals
         res[np.isinf(res)] = 0
         res = np.nan_to_num(res)
-    return res + res.T - np.diag(res.diagonal())
+    return res
 
 
 def _calculate_segment_probability(transition_matrix: np.ndarray, segments: np.ndarray) -> np.ndarray:
