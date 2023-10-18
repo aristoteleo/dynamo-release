@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -132,7 +132,7 @@ def _calculate_segment_probability(transition_matrix: np.ndarray, segments: np.n
     return np.cumsum(log_transition_matrix[[s[0] for s in segments], [s[1] for s in segments]])
 
 
-def _get_segments(orders: Union[np.ndarray, List], parents: Optional[Union[np.ndarray, List]] = None) -> Tuple:
+def _get_edges(orders: Union[np.ndarray, List], parents: Optional[Union[np.ndarray, List]] = None) -> Tuple:
     """Get m segments pairs from the minimum spanning tree.
 
     Args:
@@ -147,6 +147,58 @@ def _get_segments(orders: Union[np.ndarray, List], parents: Optional[Union[np.nd
         segments = [(p, o) for p, o in zip(parents, orders) if p != -1]
     else:
         segments = [(orders[i-1], orders[i]) for i in range(1, len(orders))]
+    return segments
+
+
+def _get_path(
+    parents_dict: Dict,
+    start: int,
+    end_nodes: List,
+):
+    if parents_dict[start] == -1:
+        return None
+    cur = parents_dict[start]
+    path = [start, parents_dict[start]]
+    while cur not in end_nodes:
+        cur = parents_dict[cur]
+        path.append(cur)
+    return path
+
+
+def _get_all_segments(orders: Union[np.ndarray, List], parents: Union[np.ndarray, List]):
+    from collections import Counter
+
+    leaf_nodes = [node for node in orders if node not in parents]
+
+    if len(leaf_nodes) == 1:
+        return [orders]
+
+    parents_dict = {}
+    for child, parent in zip(orders, parents):
+        parents_dict[child] = parent
+
+    element_counts = Counter(parents)
+    bifurcation_nodes = [
+        node for node, count in element_counts.items()
+        if count > 1 and node != -1 and not (count == 2 and parents_dict == -1)
+    ]
+    root_nodes = [node for node in orders if parents_dict[node] == -1]
+    start_nodes = leaf_nodes + bifurcation_nodes
+    end_nodes = bifurcation_nodes
+    for node in root_nodes:
+        if node not in bifurcation_nodes:
+            end_nodes.append(node)
+
+    parents_dict = {}
+    for child, parent in zip(orders, parents):
+        parents_dict[child] = parent
+
+    segments = []
+    for node in start_nodes:
+        path = _get_path(parents_dict=parents_dict, start=node, end_nodes=end_nodes)
+        if path is not None:
+            segments.append(path)
+
     return segments
 
 
@@ -182,26 +234,22 @@ def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearso
     cell_proj_closest_vertex = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"]
     directed_velocity_tree = velocity_tree.copy()
 
-    segments = _get_segments(orders, parents)
+    segments = _get_all_segments(orders, parents)
     center_transition_matrix = _compute_transition_matrix(transition_matrix, R)
 
-    for i, (r, c) in enumerate(segments):
-        cell_indices = np.concatenate(
-            (np.where(cell_proj_closest_vertex == r)[0], np.where(cell_proj_closest_vertex == c)[0]),
-            axis=0,
-        )
-        index_time_pairs = list(zip(cell_indices, adata.obs["Pseudotime"][cell_indices]))
-        sorted_index_time_pairs = sorted(index_time_pairs, key=lambda x: x[1])
-        sorted_indices = [index for index, _ in sorted_index_time_pairs]
-        segment_p = _calculate_segment_probability(transition_matrix, _get_segments(sorted_indices))
-        sorted_indices.reverse()
-        segment_p_reversed = _calculate_segment_probability(transition_matrix, _get_segments(sorted_indices))
-        if segment_p[-1] >= segment_p_reversed[-1]:
-            directed_velocity_tree[r, c] = max(velocity_tree[r, c], velocity_tree[c, r])
-            directed_velocity_tree[c, r] = 0
+    for segment in segments:
+        edge_pairs = _get_edges(segment)
+        edge_pairs_reversed = _get_edges(segment[::-1])
+        segment_p = _calculate_segment_probability(center_transition_matrix, edge_pairs)
+        segment_p_reveresed = _calculate_segment_probability(center_transition_matrix, edge_pairs_reversed)
+        if segment_p[-1] >= segment_p_reveresed[-1]:
+            for i, (r, c) in enumerate(edge_pairs):
+                directed_velocity_tree[r, c] = max(velocity_tree[r, c], velocity_tree[c, r])
+                directed_velocity_tree[c, r] = 0
         else:
-            directed_velocity_tree[c, r] = max(velocity_tree[r, c], velocity_tree[c, r])
-            directed_velocity_tree[r, c] = 0
+            for i, (r, c) in enumerate(edge_pairs):
+                directed_velocity_tree[c, r] = max(velocity_tree[r, c], velocity_tree[c, r])
+                directed_velocity_tree[r, c] = 0
 
     adata.uns["directed_velocity_tree"] = velocity_tree
     main_info_insert_adata_uns("directed_velocity_tree")
