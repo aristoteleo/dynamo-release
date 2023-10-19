@@ -72,7 +72,7 @@ def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
     return angle
 
 
-def _compute_transition_matrix(transition_matrix: Union[csr_matrix, np.ndarray], R: np.ndarray) -> np.ndarray:
+def _compute_center_transition_matrix(transition_matrix: Union[csr_matrix, np.ndarray], R: np.ndarray) -> np.ndarray:
     """Calculate the transition matrix for DDRTree centers.
 
     Args:
@@ -85,7 +85,6 @@ def _compute_transition_matrix(transition_matrix: Union[csr_matrix, np.ndarray],
     if issparse(transition_matrix):
         transition_matrix = transition_matrix.toarray()
 
-    highest_probability = np.max(R, axis=1)
     assignment = np.argmax(R, axis=1)
     num_clusters = R.shape[1]
     clusters = {i: np.where(assignment == i)[0] for i in range(num_clusters)}
@@ -125,9 +124,9 @@ def _calculate_segment_probability(transition_matrix: np.ndarray, segments: np.n
     Returns:
         The probability for each segment.
     """
-    transition_matrix = transition_matrix.toarray() if issparse(transition_matrix) else transition_matrix
+
     with np.errstate(divide='ignore', invalid='ignore'):
-        log_transition_matrix = np.log(transition_matrix)
+        log_transition_matrix = np.log1p(transition_matrix)
         log_transition_matrix[np.isinf(log_transition_matrix)] = 0
         log_transition_matrix = np.nan_to_num(log_transition_matrix)
 
@@ -236,7 +235,7 @@ def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearso
     directed_velocity_tree = velocity_tree.copy()
 
     segments = _get_all_segments(orders, parents)
-    center_transition_matrix = _compute_transition_matrix(transition_matrix, R)
+    center_transition_matrix = _compute_center_transition_matrix(transition_matrix, R)
 
     for segment in segments:
         edge_pairs = _get_edges(segment)

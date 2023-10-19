@@ -40,7 +40,7 @@ def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> p
     for i in range(len(orders)):
         curr_node = orders[i]
 
-        if pres[i] > 0:
+        if pres[i] >= 0:
             parent_node = pres[i]
             parent_node_pseudotime = pseudotimes[parent_node]
             curr_node_pseudotime = parent_node_pseudotime + dp[curr_node, parent_node]
