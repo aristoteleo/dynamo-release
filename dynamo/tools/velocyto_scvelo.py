@@ -11,6 +11,7 @@ import anndata
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from.utils import get_vel_params
 from ..dynamo_logger import main_info
 from scipy.sparse import csr_matrix
 
@@ -223,7 +224,7 @@ def converter(
     return data_out
 
 
-def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dyn"):
+def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dyn", kin_param_pre: str = ""):
     """Convert the adata object used in Scvelo to the adata object used by Dynamo, or vice versa.
 
     The use case of this method includes but not limited to:
@@ -241,6 +242,7 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dy
         adata: the adata object to be converted.
         mode: the string indicates the mode. Mode `to_dyn` will convert Scvelo anndata object to Dynamo anndata object.
             mode `to_scv` will convert Dynamo anndata to Scvelo anndata.
+        kin_param_pre: the prefix to specify the velocity parameters names and values.
 
     Returns:
         The adata object after conversion.
@@ -301,18 +303,31 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dy
             adata.layers["velocity_U"] = adata.layers.pop("velocity_u")
         if "velocity" in adata.layers.keys():
             adata.layers["velocity_S"] = adata.layers.pop("velocity")
+
+        vel_params = []
+        vel_params_name = []
+
         if "fit_alpha" in adata.var.columns:
-            adata.var["alpha"] = adata.var.pop("fit_alpha")
+            vel_params.append(adata.var.pop("fit_alpha").values)
+            vel_params_name.append("alpha")
         if "fit_beta" in adata.var.columns:
-            adata.var["beta"] = adata.var.pop("fit_beta")
+            vel_params.append(adata.var.pop("fit_beta").values)
+            vel_params_name.append("beta")
         if "fit_gamma" in adata.var.columns:
-            adata.var["gamma"] = adata.var.pop("fit_gamma")
+            vel_params.append(adata.var.pop("fit_gamma").values)
+            vel_params_name.append("gamma")
         if "fit_r2" in adata.var.columns:
-            adata.var["gamma_r2"] = adata.var.pop("fit_r2")
+            vel_params.append(adata.var.pop("fit_r2").values)
+            vel_params_name.append("gamma_r2")
         if "fit_u0" in adata.var.columns:
-            adata.var["u0"] = adata.var.pop("fit_u0")
+            vel_params.append(adata.var.pop("fit_u0").values)
+            vel_params_name.append("u0")
         if "fit_s0" in adata.var.columns:
-            adata.var["s0"] = adata.var.pop("fit_s0")
+            vel_params.append(adata.var.pop("fit_s0").values)
+            vel_params_name.append("s0")
+        if len(vel_params_name) > 0:
+            adata.varm[kin_param_pre + "vel_params"] = np.array(vel_params).T
+            adata.uns[kin_param_pre + "vel_params_names"] = vel_params_name
     elif mode == "to_scv":
         main_info("Start converting Dynamo adata into Scvelo adata...")
         if "pass_basic_filter" in adata.var.columns:
@@ -342,18 +357,23 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dy
             adata.layers["velocity_u"] = adata.layers.pop("velocity_U")
         if "velocity_S" in adata.layers.keys():
             adata.layers["velocity"] = adata.layers.pop("velocity_S")
-        if "alpha" in adata.var.columns:
-            adata.var["fit_alpha"] = adata.var.pop("alpha")
-        if "beta" in adata.var.columns:
-            adata.var["fit_beta"] = adata.var.pop("beta")
-        if "gamma" in adata.var.columns:
-            adata.var["fit_gamma"] = adata.var.pop("gamma")
-        if "gamma_r2" in adata.var.columns:
-            adata.var["fit_r2"] = adata.var.pop("gamma_r2")
-        if "u0" in adata.var.columns:
-            adata.var["fit_u0"] = adata.var.pop("u0")
-        if "s0" in adata.var.columns:
-            adata.var["fit_s0"] = adata.var.pop("s0")
+
+        if kin_param_pre + "vel_params" in adata.varm.keys():
+            vel_params_df = get_vel_params(adata, kin_param_pre=kin_param_pre)
+            if "alpha" in vel_params_df.columns:
+                adata.var["fit_alpha"] = vel_params_df["alpha"]
+            if "beta" in vel_params_df.columns:
+                adata.var["fit_beta"] = vel_params_df["beta"]
+            if "gamma" in vel_params_df.columns:
+                adata.var["fit_gamma"] = vel_params_df["gamma"]
+            if "gamma_r2" in vel_params_df.columns:
+                adata.var["fit_r2"] = vel_params_df["gamma_r2"]
+            if "u0" in vel_params_df.columns:
+                adata.var["fit_u0"] = vel_params_df["u0"]
+            if "s0" in vel_params_df.columns:
+                adata.var["fit_s0"] = vel_params_df["s0"]
+            adata.varm.pop(kin_param_pre + "vel_params")
+            adata.uns.pop(kin_param_pre + "vel_params_names")
     else:
         raise NotImplementedError(f"Mode: {mode} is not implemented.")
     return adata
