@@ -1,5 +1,5 @@
 import math
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -53,11 +53,30 @@ def _calculate_cells_mapping(
     return cells_mapping_size, cells_mapping_percentage, cell_color_map
 
 
+def _scale_positions(positions: np.ndarray, variance_scale: int = 2) -> np.ndarray:
+    """Scale an array representing to the matplotlib coordinates system and scale the variance if needed.
+
+    Args:
+        positions: the array representing the positions of the data to plot.
+        variance_scale: the value to scale the variance of data.
+
+    Returns:
+        The positions after scaling.
+    """
+    min_value = np.min(positions)
+    max_value = np.max(positions)
+    mean = np.mean(positions)
+    positions = (positions - mean) * variance_scale
+    pos = (positions - min_value) / (max_value - min_value)
+    return pos
+
+
 def plot_dim_reduced_direct_graph(
     adata: AnnData,
     group_key: Optional[str] = "Cell_type",
     graph: Optional[Union[csr_matrix, np.ndarray]] = None,
     cell_proj_closest_vertex: Optional[np.ndarray] = None,
+    center_coordinates: Optional[np.ndarray] = None,
     display_piechart: bool = True,
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
@@ -69,6 +88,8 @@ def plot_dim_reduced_direct_graph(
         group_key:  the key to locate the groups of each cell in adata.
         graph: the directed graph to plot.
         cell_proj_closest_vertex: the mapping from each cell to the corresponding node.
+        center_coordinates: the array representing the positions of the center nodes in the low dimensions. Only need
+            this when display_piechart is True.
         display_piechart: whether to display piechart for each node.
         save_show_or_return: whether to save, show or return the plot.
         save_kwargs: additional keyword arguments of plot saving.
@@ -77,11 +98,14 @@ def plot_dim_reduced_direct_graph(
         The plot of the directed graph or `None`.
     """
 
-    if graph is None:
-        graph = adata.uns["directed_velocity_tree"]
+    try:
+        if graph is None:
+            graph = adata.uns["directed_velocity_tree"]
 
-    if cell_proj_closest_vertex is None:
-        cell_proj_closest_vertex = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"]
+        if cell_proj_closest_vertex is None:
+            cell_proj_closest_vertex = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"]
+    except KeyError:
+        raise KeyError("Cell order data is missing. Please run `tl.order_cells()` first!")
 
     cells_size, cells_percentage, cells_color_map = _calculate_cells_mapping(
         adata=adata,
@@ -94,19 +118,11 @@ def plot_dim_reduced_direct_graph(
     fig, ax = plt.subplots(figsize=(8, 6))
 
     G = nx.from_numpy_array(graph, create_using=nx.DiGraph)
-    pos = nx.spring_layout(G)
-
-    g = nx.draw_networkx_edges(
-        G,
-        pos=pos,
-        node_size=[s * len(cells_size) * 300 for s in cells_size],
-        arrows=True,
-        arrowstyle="->",
-        arrowsize=20,
-        ax=ax,
-    )
 
     if display_piechart:
+        center_coordinates = adata.uns["cell_order"]["Y"].T.copy() if center_coordinates is None else center_coordinates
+        pos = _scale_positions(center_coordinates)
+
         for node in G.nodes:
             attributes = cells_percentage[node]
             valid_indices = np.where(attributes != 0)[0]
@@ -117,8 +133,18 @@ def plot_dim_reduced_direct_graph(
                 colors=cells_colors[valid_indices],
                 radius=cells_size[node],
             )
+
+        for edge in G.edges:
+            centers_vec = pos[edge[1]] - pos[edge[0]]
+            unit_vec = centers_vec / np.linalg.norm(centers_vec)
+            arrow_start = np.array(pos[edge[0]]) + cells_size[edge[0]] * unit_vec
+            arrow_end = np.array(pos[edge[1]]) - cells_size[edge[1]] * unit_vec
+            vec = arrow_end - arrow_start
+            plt.arrow(arrow_start[0], arrow_start[1], vec[0], vec[1], head_width=0.02, length_includes_head=True)
+
     else:
         dominate_colors = []
+        pos = nx.spring_layout(G)
 
         for node in G.nodes:
             attributes = cells_percentage[node]
@@ -126,11 +152,20 @@ def plot_dim_reduced_direct_graph(
             dominate_colors.append(cells_colors[max_idx])
 
         nx.draw_networkx_nodes(G, pos=pos, node_color=dominate_colors, node_size=[s * len(cells_size) * 300 for s in cells_size], ax=ax)
+        g = nx.draw_networkx_edges(
+            G,
+            pos=pos,
+            node_size=[s * len(cells_size) * 300 for s in cells_size],
+            arrows=True,
+            arrowstyle="->",
+            arrowsize=20,
+            ax=ax,
+        )
 
     plt.legend(handles=[plt.Line2D([0], [0], marker="o", color='w', label=label,
                                    markerfacecolor=color) for label, color in cells_color_map.items()],
                loc="best",
-               fontsize="large",
+               fontsize="medium",
                )
 
     if save_show_or_return in ["save", "both", "all"]:
