@@ -233,7 +233,6 @@ def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearso
     orders = np.argsort(adata.uns["cell_order"]["centers_order"])
     parents = [adata.uns["cell_order"]["centers_parent"][node] for node in orders]
     velocity_tree = adata.uns["cell_order"]["centers_minSpanningTree"]
-    cell_proj_closest_vertex = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"]
     directed_velocity_tree = velocity_tree.copy()
 
     segments = _get_all_segments(orders, parents)
@@ -244,18 +243,22 @@ def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearso
         edge_pairs_reversed = _get_edges(segment[::-1])
         segment_p = _calculate_segment_probability(center_transition_matrix, edge_pairs)
         segment_p_reveresed = _calculate_segment_probability(center_transition_matrix, edge_pairs_reversed)
-        if segment_p[-1] >= segment_p_reveresed[-1]:
+        if segment_p[-1] > segment_p_reveresed[-1]:
             for i, (r, c) in enumerate(edge_pairs):
                 directed_velocity_tree[r, c] = max(velocity_tree[r, c], velocity_tree[c, r])
                 directed_velocity_tree[c, r] = 0
-        else:
+        elif segment_p[-1] < segment_p_reveresed[-1]:
             for i, (r, c) in enumerate(edge_pairs):
                 directed_velocity_tree[c, r] = max(velocity_tree[r, c], velocity_tree[c, r])
                 directed_velocity_tree[r, c] = 0
+        else:
+            for i, (r, c) in enumerate(edge_pairs):
+                directed_velocity_tree[c, r] = velocity_tree[c, r]
+                directed_velocity_tree[r, c] = velocity_tree[r, c]
 
-    adata.uns["directed_velocity_tree"] = velocity_tree
+    adata.uns["directed_velocity_tree"] = directed_velocity_tree
     main_info_insert_adata_uns("directed_velocity_tree")
-    return velocity_tree
+    return directed_velocity_tree
 
 
 def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:

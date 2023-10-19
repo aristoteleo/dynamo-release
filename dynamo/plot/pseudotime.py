@@ -93,7 +93,7 @@ def plot_dim_reduced_direct_graph(
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    G = nx.from_numpy_array(graph)
+    G = nx.from_numpy_array(graph, create_using=nx.DiGraph)
     pos = nx.spring_layout(G)
 
     g = nx.draw_networkx_edges(
