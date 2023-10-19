@@ -32,7 +32,7 @@ def curlop(g):
     else:
         trie = np.zeros_like(triv)
         for i, x in enumerate(triv):
-            trie[i] = g.get_eids(path=np.hstack((x, x[0])), directed=False)
+            trie[i] = g.get_eids(pairs=[[x[0], x[1]], [x[1], x[2]], [x[2], x[0]]], directed=False)
 
         edges = np.array(g.get_edgelist())
         cc = np.zeros_like(trie)
