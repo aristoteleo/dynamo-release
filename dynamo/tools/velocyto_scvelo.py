@@ -11,7 +11,7 @@ import anndata
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from.utils import get_vel_params
+from .utils import get_vel_params
 from ..dynamo_logger import main_info
 from scipy.sparse import csr_matrix
 
