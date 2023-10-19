@@ -15,12 +15,13 @@ from anndata import AnnData
 from pynndescent.distances import true_angular
 from scipy.sparse import coo_matrix, csr_matrix, issparse
 from sklearn.decomposition import TruncatedSVD
+from sklearn.neighbors import NearestNeighbors
 from sklearn.utils import sparsefuncs
 from umap import UMAP
 
 from ..configuration import DynamoAdataKeyManager
 from ..docrep import DocstringProcessor
-from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..dynamo_logger import Logger, LoggerManager, main_info, main_warning
 from ..utils import expr_to_pca
 from .utils import fetch_X_data, log1p_
 
@@ -328,100 +329,6 @@ def umap_conn_indices_dist_embedding(
     default_epochs = 500 if X.shape[0] <= 10000 else 200
     max_iter = default_epochs if max_iter is None else max_iter
 
-    random_state = check_random_state(random_state)
-
-    _raw_data = X
-
-    if X.shape[0] < 4096:  # 1
-        dmat = pairwise_distances(X, metric=metric)
-        graph = fuzzy_simplicial_set(
-            X=dmat,
-            n_neighbors=n_neighbors,
-            random_state=random_state,
-            metric="precomputed",
-            verbose=verbose,
-        )
-        if type(graph) == tuple:
-            graph = graph[0]
-
-        # extract knn_indices, knn_dist
-        g_tmp = deepcopy(graph)
-        g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
-        knn_indices, knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
-    else:
-        # Standard case
-        (knn_indices, knn_dists, rp_forest) = nearest_neighbors(
-            X=X,
-            n_neighbors=n_neighbors,
-            metric=metric,
-            metric_kwds={},
-            angular=False,
-            random_state=random_state,
-            verbose=verbose,
-        )
-
-        graph = fuzzy_simplicial_set(
-            X=X,
-            n_neighbors=n_neighbors,
-            random_state=random_state,
-            metric=metric,
-            knn_indices=knn_indices,
-            knn_dists=knn_dists,
-            angular=rp_forest,
-            verbose=verbose,
-        )
-
-        _raw_data = X
-        # _transform_available = True
-        # The corresponding nonzero values are stored in similar fashion in self.data.
-        _search_graph, _ = get_conn_dist_graph(knn_indices, knn_dists)
-        _search_graph = _search_graph.maximum(  # Element-wise maximum between this and another matrix.
-            _search_graph.transpose()
-        ).tocsr()
-
-    if verbose:
-        print("Construct embedding")
-
-    a, b = find_ab_params(spread, min_dist)
-    if type(graph) == tuple:
-        graph = graph[0]
-
-    dens_lambda = dens_lambda if densmap else 0.0
-    dens_frac = dens_frac if densmap else 0.0
-
-    if dens_lambda < 0.0:
-        raise ValueError("dens_lambda cannot be negative")
-    if dens_frac < 0.0 or dens_frac > 1.0:
-        raise ValueError("dens_frac must be between 0.0 and 1.0")
-    if dens_var_shift < 0.0:
-        raise ValueError("dens_var_shift cannot be negative")
-
-    densmap_kwds = {
-        "lambda": dens_lambda,
-        "frac": dens_frac,
-        "var_shift": dens_var_shift,
-        "n_neighbors": n_neighbors,
-    }
-    embedding_, aux_data = simplicial_set_embedding(
-        data=_raw_data,
-        graph=graph,
-        n_components=n_components,
-        initial_alpha=alpha,  # learning_rate
-        a=a,
-        b=b,
-        gamma=gamma,
-        negative_sample_rate=negative_sample_rate,
-        n_epochs=max_iter,
-        init=init_pos,
-        random_state=random_state,
-        metric=metric,
-        metric_kwds={},
-        verbose=verbose,
-        densmap=densmap,
-        densmap_kwds=densmap_kwds,
-        output_dens=output_dens,
-    )
-
     if return_mapper:
         import umap.umap_ as umap
 
@@ -440,7 +347,7 @@ def umap_conn_indices_dist_embedding(
             "transform_seed": 42,
         }
         umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
-
+        dmat = pairwise_distances(X, metric=metric)
         mapper = umap.UMAP(
             n_neighbors=n_neighbors,
             n_components=n_components,
@@ -457,8 +364,106 @@ def umap_conn_indices_dist_embedding(
             **umap_kwargs,
         ).fit(X)
 
-        return mapper, graph, knn_indices, knn_dists, embedding_
+        if X.shape[0] < 4096:
+            g_tmp = deepcopy(mapper.graph_)
+            g_tmp[mapper.graph_.nonzero()] = dmat[mapper.graph_.nonzero()]
+            mapper._knn_indices, mapper._knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
+
+        return mapper, mapper.graph_, mapper._knn_indices, mapper._knn_dists, mapper.embedding_
     else:
+        random_state = check_random_state(random_state)
+
+        _raw_data = X
+
+        if X.shape[0] < 4096:  # 1
+            dmat = pairwise_distances(X, metric=metric)
+            graph = fuzzy_simplicial_set(
+                X=dmat,
+                n_neighbors=n_neighbors,
+                random_state=random_state,
+                metric="precomputed",
+                verbose=verbose,
+            )
+            if type(graph) == tuple:
+                graph = graph[0]
+
+            # extract knn_indices, knn_dist
+            g_tmp = deepcopy(graph)
+            g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
+            knn_indices, knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
+        else:
+            # Standard case
+            (knn_indices, knn_dists, rp_forest) = nearest_neighbors(
+                X=X,
+                n_neighbors=n_neighbors,
+                metric=metric,
+                metric_kwds={},
+                angular=False,
+                random_state=random_state,
+                verbose=verbose,
+            )
+
+            graph = fuzzy_simplicial_set(
+                X=X,
+                n_neighbors=n_neighbors,
+                random_state=random_state,
+                metric=metric,
+                knn_indices=knn_indices,
+                knn_dists=knn_dists,
+                angular=rp_forest,
+                verbose=verbose,
+            )
+
+            _raw_data = X
+            # _transform_available = True
+            # The corresponding nonzero values are stored in similar fashion in self.data.
+            _search_graph, _ = get_conn_dist_graph(knn_indices, knn_dists)
+            _search_graph = _search_graph.maximum(  # Element-wise maximum between this and another matrix.
+                _search_graph.transpose()
+            ).tocsr()
+
+        if verbose:
+            print("Construct embedding")
+
+        a, b = find_ab_params(spread, min_dist)
+        if type(graph) == tuple:
+            graph = graph[0]
+
+        dens_lambda = dens_lambda if densmap else 0.0
+        dens_frac = dens_frac if densmap else 0.0
+
+        if dens_lambda < 0.0:
+            raise ValueError("dens_lambda cannot be negative")
+        if dens_frac < 0.0 or dens_frac > 1.0:
+            raise ValueError("dens_frac must be between 0.0 and 1.0")
+        if dens_var_shift < 0.0:
+            raise ValueError("dens_var_shift cannot be negative")
+
+        densmap_kwds = {
+            "lambda": dens_lambda,
+            "frac": dens_frac,
+            "var_shift": dens_var_shift,
+            "n_neighbors": n_neighbors,
+        }
+        embedding_, aux_data = simplicial_set_embedding(
+            data=_raw_data,
+            graph=graph,
+            n_components=n_components,
+            initial_alpha=alpha,  # learning_rate
+            a=a,
+            b=b,
+            gamma=gamma,
+            negative_sample_rate=negative_sample_rate,
+            n_epochs=max_iter,
+            init=init_pos,
+            random_state=random_state,
+            metric=metric,
+            metric_kwds={},
+            verbose=verbose,
+            densmap=densmap,
+            densmap_kwds=densmap_kwds,
+            output_dens=output_dens,
+        )
         return graph, knn_indices, knn_dists, embedding_
 
 
@@ -613,6 +618,147 @@ def _gen_neighbor_keys(result_prefix: str = "") -> Tuple[str, str, str]:
     return conn_key, dist_key, neighbor_key
 
 
+def correct_hnsw_neighbors(knn_hn: np.ndarray, distances_hn: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Corrects the indices and corresponding distances obtained from a hnswlib by manually adding self neighbors.
+
+    Args:
+        knn_hn: array containing the k-NN indices obtained from the hnswlib.
+        distances_hn: array containing the distances corresponding to the k-NN indices obtained from the HNSW index.
+
+    Returns:
+        A tuple containing the corrected indices and distances.
+    """
+    mask = knn_hn[:, 0] == np.arange(knn_hn.shape[0])
+    target_indices = np.where(mask)[0]
+    def roll(arr, value=0):
+        arr = np.roll(arr, 1, axis=0)
+        arr[0] = value
+        return arr
+
+    knn_corrected = [knn_hn[i] if i in target_indices else roll(knn_hn[i], i) for i in range(knn_hn.shape[0])]
+    distances_corrected = [
+        distances_hn[i] if i in target_indices else roll(distances_hn[i]) for i in range(distances_hn.shape[0])
+    ]
+    return np.vstack(knn_corrected), np.vstack(distances_corrected)
+
+
+def k_nearest_neighbors(
+    X: np.ndarray,
+    k: int,
+    query_X: Optional[np.ndarray] = None,
+    method: Optional[str] = None,
+    metric: Union[str, Callable] = "euclidean",
+    metric_kwads: Dict[str, Any] = None,
+    exclude_self: bool = True,
+    knn_dim: int = 10,
+    pynn_num: int = 5000,
+    pynn_dim: int = 2,
+    hnswlib_num: int = int(2e5),
+    pynn_rand_state: int = 19491001,
+    n_jobs: int = -1,
+    return_nbrs: bool = False,
+    logger: Logger = None,
+    **kwargs,
+) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, NearestNeighbors]]:
+    """Compute k nearest neighbors for a given space.
+
+    Args:
+        X: the space to find nearest neighbors on.
+        k: the number of neighbors to be found, excluding the point itself.
+        method: the method used for nearest neighbor search. If it is None, will choose algorithm based on the size of
+            the input data.
+        metric: the distance metric to use for the tree. The default metric is euclidean, and with p=2 is equivalent to
+            the standard Euclidean metric. See the documentation of `DistanceMetric` for a list of available metrics. If
+            metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
+            `sparse graph`, in which case only "nonzero" elements may be considered neighbors. Defaults to "euclidean".
+        metric_kwads: additional keyword arguments for the metric function. Defaults to None.
+        exclude_self: whether to exclude the point itself from the result. Defaults to True.
+        knn_dim: the lowest threshold of dimensions of data to use `ball_tree` algorithm. If dimensions of the data is
+            smaller than this value, `kd_tree` algorithm would be used. Defaults to 10.
+        pynn_num: the lowest threshold of features to use NNDescent package. If number of features less than/equal to
+            this value, `sklearn` package would be used. Defaults to 5000.
+        pynn_dim: the lowest threshold of dimensions to use NNDescent package. If number of features less than/equal to
+            this value, `sklearn` package would be used. Defaults to 2.
+        hnswlib_num: the lowest threshold of features to use `hnswlib` nearest neighbors. Defaults to int(2e5).
+        pynn_rand_state: the random seed for NNDescent calculation. Defaults to 19491001.
+        n_jobs: number of parallel jobs for NNDescent. -1 means all cores would be used. Defaults to -1.
+        return_nbrs: whether to return the fitted nearest neighbor object. If True, will return nearest neighbor object
+            and the method. Defaults to False.
+        logger: the Logger object to display the log information.
+        kwargs: additional arguments that will be passed to each nearest neighbor search algorithm.
+
+    Returns:
+        A tuple (nbrs_idx, dists, [nbrs]), where nbrs_idx contains the indices of nearest neighbors found for each
+        point and dists contains the distances between neighbors and the point. nbrs is the fitted nearest neighbor
+        object, and it would be returned only if `return_nbrs` is True.
+    """
+
+    if method is None:
+        if logger is None:
+            logger = LoggerManager.gen_logger("neighbors")
+        logger.info("method arg is None, choosing methods automatically...")
+        if X.shape[0] > hnswlib_num:
+            method = "hnswlib"
+        elif X.shape[0] > pynn_num and X.shape[1] > pynn_dim:
+            method = "pynn"
+        else:
+            if X.shape[1] > knn_dim:
+                method = "ball_tree"
+            else:
+                method = "kd_tree"
+        logger.info("method %s selected" % (method), indent_level=2)
+
+    if query_X is None:
+        query_X = X
+
+    if method.lower() in ["pynn", "umap"]:
+        from pynndescent import NNDescent
+        nbrs = NNDescent(
+            X,
+            metric=metric,
+            n_neighbors=k + 1,
+            n_jobs=n_jobs,
+            random_state=pynn_rand_state,
+            **kwargs,
+        )
+        nbrs_idx, dists = nbrs.query(query_X, k=k + 1)
+    elif method in ["ball_tree", "kd_tree"]:
+        from sklearn.neighbors import NearestNeighbors
+        # print("***debug X_data:", X_data)
+        nbrs = NearestNeighbors(
+            n_neighbors=k + 1,
+            metric=metric,
+            metric_params=metric_kwads,
+            algorithm=method,
+            n_jobs=n_jobs,
+            **kwargs,
+        ).fit(X)
+        dists, nbrs_idx = nbrs.kneighbors(query_X)
+    elif method == "hnswlib":
+        import hnswlib
+        space = "l2" if metric == "euclidean" else metric
+        if space not in ["l2", "cosine", "ip"]:
+            raise ImportError(f"hnswlib nearest neighbors with space {space} is not supported")
+        nbrs = hnswlib.Index(space=space, dim=X.shape[1])
+        nbrs.init_index(max_elements=X.shape[0], random_seed=pynn_rand_state, **kwargs)
+        nbrs.set_num_threads(n_jobs)
+        nbrs.add_items(X)
+        nbrs_idx, dists = nbrs.knn_query(query_X, k=k + 1)
+        if space == "l2":
+            dists = np.sqrt(dists)
+        nbrs_idx, dists = correct_hnsw_neighbors(nbrs_idx, dists)
+    else:
+        raise ImportError(f"nearest neighbor search method {method} is not supported")
+
+    nbrs_idx = np.array(nbrs_idx)
+    if exclude_self:
+        nbrs_idx = nbrs_idx[:, 1:]
+        dists = dists[:, 1:]
+    if return_nbrs:
+        return nbrs_idx, dists, nbrs, method
+    return nbrs_idx, dists
+
+
 def neighbors(
     adata: AnnData,
     X_data: np.ndarray = None,
@@ -686,45 +832,18 @@ def neighbors(
             logger.info("fetching X data from layer:%s, basis:%s" % (str(layer), str(basis)))
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
-    if method is None:
-        logger.info("method arg is None, choosing methods automatically...")
-        if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
-
-            from pynndescent import NNDescent
-
-            method = "pynn"
-        elif X_data.shape[1] > 10:
-            method = "ball_tree"
-        else:
-            method = "kd_tree"
-        logger.info("method %s selected" % (method), indent_level=2)
-
-    # may distinguish between umap and pynndescent -- treat them equal for now
-    if method.lower() in ["pynn", "umap"]:
-        index = NNDescent(
-            X_data,
-            metric=metric,
-            n_neighbors=n_neighbors,
-            n_jobs=cores,
-            random_state=seed,
-            **kwargs,
-        )
-        knn, distances = index.query(X_data, k=n_neighbors)
-    elif method in ["ball_tree", "kd_tree"]:
-        from sklearn.neighbors import NearestNeighbors
-
-        # print("***debug X_data:", X_data)
-        nbrs = NearestNeighbors(
-            n_neighbors=n_neighbors,
-            metric=metric,
-            metric_params=metric_kwads,
-            algorithm=method,
-            n_jobs=cores,
-            **kwargs,
-        ).fit(X_data)
-        distances, knn = nbrs.kneighbors(X_data)
-    else:
-        raise ImportError(f"nearest neighbor search method {method} is not supported")
+    knn, distances = k_nearest_neighbors(
+        X_data,
+        k=n_neighbors - 1,
+        method=method,
+        metric=metric,
+        metric_kwads=metric_kwads,
+        exclude_self=False,
+        pynn_rand_state=seed,
+        n_jobs=cores,
+        logger=logger,
+        **kwargs,
+    )
 
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
     logger.info_insert_adata(conn_key, adata_attr="obsp")

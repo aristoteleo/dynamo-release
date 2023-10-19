@@ -1,0 +1,18 @@
+.bold-title {
+    font-weight: bold;
+    font-size: 20px;
+    text-align: center;
+}
+
+.bold-sectiontitle {
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.bold-subtitle {
+    font-weight: bold;
+}
+
+.explanation {
+    font-style: italic;
+}

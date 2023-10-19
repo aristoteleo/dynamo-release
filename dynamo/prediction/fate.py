@@ -17,7 +17,7 @@ from ..dynamo_logger import (
     main_warning,
 )
 from ..utils import pca_to_expr
-from ..tools.connectivity import construct_mapper_umap
+from ..tools.connectivity import construct_mapper_umap, correct_hnsw_neighbors, k_nearest_neighbors
 from ..tools.utils import fetch_states, getTseq
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vecfld_from_adata, vector_transformation
@@ -422,24 +422,17 @@ def fate_bias(
 
     X = adata.obsm[basis_key] if basis_key != "X" else adata.X
 
-    if X.shape[0] > 5000 and X.shape[1] > 2:
-        alg = "NNDescent"
-        from pynndescent import NNDescent
-
-        nbrs = NNDescent(
-            X,
-            metric=metric,
-            metric_kwds=metric_kwds,
-            n_neighbors=30,
-            n_jobs=cores,
-            random_state=seed,
-            **kwargs,
-        )
-        knn, distances = nbrs.query(X, k=30)
-    else:
-        alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg, n_jobs=cores).fit(X)
-        distances, knn = nbrs.kneighbors(X)
+    knn, distances, nbrs, alg = k_nearest_neighbors(
+        X,
+        k=29,
+        metric=metric,
+        metric_kwads=metric_kwds,
+        exclude_self=False,
+        pynn_rand_state=seed,
+        return_nbrs=True,
+        n_jobs=cores,
+        **kwargs,
+    )
 
     median_dist = np.median(distances[:, 1])
 
@@ -471,8 +464,13 @@ def fate_bias(
             main_info("using all steps data")
             indices = np.arange(0, n_steps)
 
-        if alg == "NNDescent":
+        if alg == "pynn":
             knn, distances = nbrs.query(prediction[:, indices].T, k=30)
+        elif alg == "hnswlib":
+            knn, distances = nbrs.knn_query(prediction[:, indices].T, k=30)
+            if metric == "euclidean":
+                distances = np.sqrt(distances)
+            knn, distances = correct_hnsw_neighbors(knn, distances)
         else:
             distances, knn = nbrs.kneighbors(prediction[:, indices].T)
 
@@ -486,6 +484,9 @@ def fate_bias(
                 # cells with indices are all close to some random progenitor cells.
                 if hasattr(nbrs, "query"):
                     knn, _ = nbrs.query(X[knn.flatten(), :], k=30)
+                elif hasattr(nbrs, "knn_query"):
+                    knn, distances_hn = nbrs.knn_query(X[knn.flatten(), :], k=30)
+                    knn, _ = correct_hnsw_neighbors(knn, distances_hn)
                 else:
                     _, knn = nbrs.kneighbors(X[knn.flatten(), :])
 
@@ -512,6 +513,11 @@ def fate_bias(
 
                 if hasattr(nbrs, "query"):
                     knn, distances = nbrs.query(prediction[:, indices - 1].T, k=30)
+                elif hasattr(nbrs, "knn_query"):
+                    knn, distances = nbrs.knn_query(prediction[:, indices - 1].T, k=30)
+                    if metric == "euclidean":
+                        distances = np.sqrt(distances)
+                    knn, distances = correct_hnsw_neighbors(knn, distances)
                 else:
                     distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T)
 
@@ -610,22 +616,18 @@ def andecestor(
     X = adata.obsm[basis_key].copy()
 
     main_info("build a kNN graph structure so we can query the nearest cells of the predicted states.")
-    if X.shape[0] > 5000 and X.shape[1] > 2:
-        alg = "NNDescent"
-        from pynndescent import NNDescent
-
-        nbrs = NNDescent(
-            X,
-            metric=metric,
-            metric_kwds=metric_kwds,
-            n_neighbors=n_neighbors,
-            n_jobs=cores,
-            random_state=seed,
-            **kwargs,
-        )
-    else:
-        alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores).fit(X)
+    _, _, nbrs, alg = k_nearest_neighbors(
+        X,
+        k=n_neighbors - 1,
+        metric=metric,
+        metric_kwads=metric_kwds,
+        exclude_self=False,
+        pynn_rand_state=seed,
+        n_jobs=cores,
+        return_nbrs=True,
+        logger=logger,
+        **kwargs,
+    )
 
     if init_states is None:
         init_states = adata[init_cells, :].obsm[basis_key]
@@ -655,8 +657,13 @@ def andecestor(
         last_indices = [0, -1] if direction == "both" else [-1]
         queries = pred[j].T[last_indices] if last_point_only else pred[j].T
 
-        if alg == "NNDescent":
+        if alg == "pynn":
             knn, distances = nbrs.query(queries, k=n_neighbors)
+        elif alg == "hnswlib":
+            knn, distances = nbrs.knn_query(queries, k=n_neighbors)
+            if metric == "euclidean":
+                distances = np.sqrt(distances)
+            knn, distances = correct_hnsw_neighbors(knn, distances)
         else:
             distances, knn = nbrs.kneighbors(queries)
 

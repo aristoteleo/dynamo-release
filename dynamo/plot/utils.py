@@ -49,6 +49,21 @@ def is_list_of_lists(list_of_lists):
     all(isinstance(elem, list) for elem in list_of_lists)
 
 
+def get_color_map_from_labels(labels: np.ndarray, color_key_cmap: str = "glasbey_white") -> np.ndarray:
+    """Generate a color map according to given labels.
+    Args:
+         labels: the label representing the groups of data.
+         color_key_cmap: the cmap used to generate the colors. Recommend 'glasbey_white'/'glasbey_black' for continuous
+            data, and 'inferno'/'viridis' for discrete data.
+    Returns:
+        The mapping of colors corresponding to each unique label.
+    """
+    unique_labels = np.unique(labels)
+    num_labels = unique_labels.shape[0]
+    color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+    return dict(zip(unique_labels, color_key))
+
+
 def _get_adata_color_vec(adata, layer, col):
     if layer in ["protein", "X_protein"]:
         _color = adata.obsm[layer].loc[col, :]
