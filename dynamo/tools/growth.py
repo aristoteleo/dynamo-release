@@ -13,6 +13,7 @@ from anndata import AnnData
 from scipy.sparse import issparse
 from sklearn.neighbors import NearestNeighbors
 
+from .connectivity import k_nearest_neighbors
 
 def score_cells(
     adata: AnnData,
@@ -93,23 +94,16 @@ def score_cells(
 
     X_basis = adata.obsm["X_pca"] if basis is None else adata.obsm["X_" + basis]
 
-    if X_basis.shape[0] > 5000 and X_basis.shape[1] > 2:
-        from pynndescent import NNDescent
-
-        nbrs = NNDescent(
-            X_basis,
-            metric=metric,
-            metric_kwds=metric_kwds,
-            n_neighbors=30,
-            n_jobs=cores,
-            random_state=seed,
-            **kwargs,
-        )
-        knn, distances = nbrs.query(X_basis, k=n_neighbors)
-    else:
-        alg = "ball_tree" if X_basis.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores).fit(X_basis)
-        distances, knn = nbrs.kneighbors(X_basis)
+    knn, distances = k_nearest_neighbors(
+        X_basis,
+        k=n_neighbors - 1,
+        metric=metric,
+        metric_kwads=metric_kwds,
+        exclude_self=False,
+        pynn_rand_state=seed,
+        n_jobs=cores,
+        **kwargs,
+    )
 
     X_data = adata[:, genes].X if layer in [None, "X"] else adata[:, genes].layers[layer]
 

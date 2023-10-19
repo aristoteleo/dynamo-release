@@ -25,6 +25,7 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 from ..dynamo_logger import (
+    Logger,
     LoggerManager,
     main_critical,
     main_debug,
@@ -188,65 +189,6 @@ def nearest_neighbors(coord: np.ndarray, coords: Union[np.ndarray, sp.csr_matrix
     nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(coords)
     _, neighs = nbrs.kneighbors(np.atleast_2d(coord))
     return neighs
-
-
-def k_nearest_neighbors(
-    X: np.ndarray,
-    k: int,
-    exclude_self: bool = True,
-    knn_dim: int = 10,
-    pynn_num: int = int(2e5),
-    pynn_dim: int = 2,
-    pynn_rand_state: int = 19491001,
-    n_jobs: int = -1,
-    return_nbrs: bool = False,
-) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, NearestNeighbors]]:
-    """Compute k nearest neighbors for a given space.
-
-    Args:
-        X: the space to find nearest neighbors on.
-        k: the number of neighbors to be found, excluding the point itself.
-        exclude_self: whether to exclude the point itself from the result. Defaults to True.
-        knn_dim: the lowest threshold of dimensions of data to use `ball_tree` algorithm. If dimensions of the data is
-            smaller than this value, `kd_tree` algorithm would be used. Defaults to 10.
-        pynn_num: the lowest threshold of features to use NNDescent package. If number of features less than/equal to
-            this value, `sklearn` package would be used. Defaults to int(2e5).
-        pynn_dim: the lowest threshold of dimensions to use NNDescent package. If number of features less than/equal to
-            this value, `sklearn` package would be used. Defaults to 2.
-        pynn_rand_state: the random seed for NNDescent calculation. Defaults to 19491001.
-        n_jobs: number of parallel jobs for NNDescent. -1 means all cores would be used. Defaults to -1.
-        return_nbrs: whether to return the fitted nearest neighbor object. Defaults to False.
-
-    Returns:
-        A tuple (nbrs_idx, dists, [nbrs]), where nbrs_idx contains the indices of nearest neighbors found for each
-        point and dists contains the distances between neighbors and the point. nbrs is the fitted nearest neighbor
-        object and it would be returned only if `return_nbrs` is True.
-    """
-
-    n, d = np.atleast_2d(X).shape
-    if n > int(pynn_num) and d > pynn_dim:
-        from pynndescent import NNDescent
-
-        nbrs = NNDescent(
-            X,
-            metric="euclidean",
-            n_neighbors=k + 1,
-            n_jobs=n_jobs,
-            random_state=pynn_rand_state,
-        )
-        nbrs_idx, dists = nbrs.query(X, k=k + 1)
-    else:
-        alg = "ball_tree" if d > knn_dim else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=n_jobs).fit(X)
-        dists, nbrs_idx = nbrs.kneighbors(X)
-
-    nbrs_idx = np.array(nbrs_idx)
-    if exclude_self:
-        nbrs_idx = nbrs_idx[:, 1:]
-        dists = dists[:, 1:]
-    if return_nbrs:
-        return nbrs_idx, dists, nbrs
-    return nbrs_idx, dists
 
 
 def nbrs_to_dists(X: np.ndarray, nbrs_idx: np.ndarray) -> List[np.ndarray]:
