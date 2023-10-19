@@ -9,7 +9,7 @@ from ..tools.moments import (
     prepare_data_mix_no_splicing,
     prepare_data_no_splicing,
 )
-from ..tools.utils import get_mapper
+from ..tools.utils import get_mapper, get_vel_params
 from .utils import _to_hex
 
 
@@ -1685,8 +1685,9 @@ def plot_kin_twostep(
 
     colors = pd.Series(T).map(new_color_key).values
 
-    r2 = adata[:, genes].var["gamma_r2"]
-    mean_R2 = adata[:, genes].var["mean_R2"]
+    vel_params_df = get_vel_params(adata)
+    r2 = vel_params_df.loc[genes, "gamma_r2"]
+    mean_R2 = vel_params_df.loc[genes, "mean_R2"]
 
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_X_fit_data, cur_logLL = (

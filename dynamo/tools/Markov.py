@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from ..dynamo_logger import LoggerManager, main_warning
 from ..simulation.utils import directMethod
+from .connectivity import k_nearest_neighbors
 from .utils import append_iterative_neighbor_indices, flatten
 
 
@@ -266,23 +267,15 @@ def compute_tau(X: np.ndarray, V: np.ndarray, k: int = 100, nbr_idx: Optional[np
         The computed tau values representing the timescale of transitions for each state in `X`. The computed velocity
         magnitudes for each state in `X`.
     """
+
     if nbr_idx is None:
-        if X.shape[0] > 200000 and X.shape[1] > 2:
-            from pynndescent import NNDescent
-
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=k,
-                n_jobs=-1,
-                random_state=19491001,
-            )
-            _, dist = nbrs.query(X, k=k)
-        else:
-            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
-            dists, _ = nbrs.kneighbors(X)
-
+        _, dists = k_nearest_neighbors(
+            X,
+            k=k - 1,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+            n_jobs=-1,
+        )
     else:
         dists = np.zeros(nbr_idx.shape)
         for i in range(nbr_idx.shape[0]):
@@ -341,22 +334,13 @@ def prepare_velocity_grid_data(
     if n_neighbors is None:
         n_neighbors = np.max([10, int(n_obs / 50)])
 
-    if X_emb.shape[0] > 200000 and X_emb.shape[1] > 2:
-        from pynndescent import NNDescent
-
-        nn = NNDescent(
-            X_emb,
-            metric="euclidean",
-            n_neighbors=n_neighbors,
-            n_jobs=-1,
-            random_state=19491001,
-        )
-        neighs, dists = nn.query(X_grid, k=n_neighbors)
-    else:
-        alg = "ball_tree" if X_emb.shape[1] > 10 else "kd_tree"
-        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1, algorithm=alg)
-        nn.fit(X_emb)
-        dists, neighs = nn.kneighbors(X_grid)
+    neighs, dists = k_nearest_neighbors(
+        X_emb,
+        query_X=X_grid,
+        k=n_neighbors - 1,
+        exclude_self=False,
+        pynn_rand_state=19491001,
+    )
 
     weight = norm.pdf(x=dists, scale=scale)
     p_mass = weight.sum(1)
@@ -534,21 +518,12 @@ def graphize_velocity(
 
     nbrs = None
     if nbrs_idx is None:
-        if n > 200000 and d > 2:
-            from pynndescent import NNDescent
-
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=k + 1,
-                n_jobs=-1,
-                random_state=19491001,
-            )
-            nbrs_idx, _ = nbrs.query(X, k=k + 1)
-        else:
-            alg = "ball_tree" if d > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
-            _, nbrs_idx = nbrs.kneighbors(X)
+        nbrs_idx, _ = k_nearest_neighbors(
+            X,
+            k=k,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+        )
 
     if type(E_func) is str:
         if E_func == "sqrt":
@@ -851,21 +826,12 @@ class KernelMarkovChain(MarkovChain):
         """
         # compute connectivity
         if neighbor_idx is None:
-            if X.shape[0] > 200000 and X.shape[1] > 2:
-                from pynndescent import NNDescent
-
-                nbrs = NNDescent(
-                    X,
-                    metric="euclidean",
-                    n_neighbors=k,
-                    n_jobs=-1,
-                    random_state=19491001,
-                )
-                neighbor_idx, _ = nbrs.query(X, k=k)
-            else:
-                alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-                nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
-                _, neighbor_idx = nbrs.kneighbors(X)
+            neighbor_idx, _ = k_nearest_neighbors(
+                X,
+                k=k-1,
+                exclude_self=False,
+                pynn_rand_state=19491001,
+            )
 
         if n_recurse_neighbors is not None:
             self.Idx = append_iterative_neighbor_indices(neighbor_idx, n_recurse_neighbors)

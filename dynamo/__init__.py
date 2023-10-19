@@ -17,6 +17,7 @@ from . import vf
 from . import pd
 from . import pl
 from . import mv
+from . import shiny
 from . import sim
 from .data_io import *
 from . import sample_data
