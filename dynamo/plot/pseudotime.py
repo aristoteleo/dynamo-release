@@ -53,7 +53,7 @@ def _calculate_cells_mapping(
     return cells_mapping_size, cells_mapping_percentage, cell_color_map
 
 
-def _scale_positions(positions: np.ndarray, variance_scale: int = 2) -> np.ndarray:
+def _scale_positions(positions: np.ndarray, variance_scale: int = 1.5) -> np.ndarray:
     """Scale an array representing to the matplotlib coordinates system and scale the variance if needed.
 
     Args:
@@ -65,9 +65,9 @@ def _scale_positions(positions: np.ndarray, variance_scale: int = 2) -> np.ndarr
     """
     min_value = np.min(positions)
     max_value = np.max(positions)
-    mean = np.mean(positions)
-    positions = (positions - mean) * variance_scale
     pos = (positions - min_value) / (max_value - min_value)
+    mean = np.mean(pos, axis=0)
+    pos = (pos - mean) * variance_scale
     return pos
 
 
@@ -78,6 +78,7 @@ def plot_dim_reduced_direct_graph(
     cell_proj_closest_vertex: Optional[np.ndarray] = None,
     center_coordinates: Optional[np.ndarray] = None,
     display_piechart: bool = True,
+    variance_scale: int = 1.5,
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
 ) -> Optional[plt.Axes]:
@@ -91,6 +92,8 @@ def plot_dim_reduced_direct_graph(
         center_coordinates: the array representing the positions of the center nodes in the low dimensions. Only need
             this when display_piechart is True.
         display_piechart: whether to display piechart for each node.
+        variance_scale: the value to scale the variance of data. This function is employed to space out the pie charts
+            when they are positioned too closely to each other.
         save_show_or_return: whether to save, show or return the plot.
         save_kwargs: additional keyword arguments of plot saving.
 
@@ -121,7 +124,7 @@ def plot_dim_reduced_direct_graph(
 
     if display_piechart:
         center_coordinates = adata.uns["cell_order"]["Y"].T.copy() if center_coordinates is None else center_coordinates
-        pos = _scale_positions(center_coordinates)
+        pos = _scale_positions(center_coordinates, variance_scale=variance_scale)
 
         for node in G.nodes:
             attributes = cells_percentage[node]
