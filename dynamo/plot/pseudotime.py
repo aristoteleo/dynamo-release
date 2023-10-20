@@ -125,14 +125,22 @@ def plot_dim_reduced_direct_graph(
 
         for node in G.nodes:
             attributes = cells_percentage[node]
-            valid_indices = np.where(attributes != 0)[0]
 
-            plt.pie(
-                attributes[valid_indices],
-                center=pos[node],
-                colors=cells_colors[valid_indices],
-                radius=cells_size[node],
-            )
+            if np.all(attributes == 0):
+                plt.pie(
+                    [1],
+                    center=pos[node],
+                    colors=[[0, 0, 0, 1]],
+                    radius=cells_size[node],
+                )
+            else:
+                valid_indices = np.where(attributes != 0)[0]
+                plt.pie(
+                    attributes[valid_indices],
+                    center=pos[node],
+                    colors=cells_colors[valid_indices],
+                    radius=cells_size[node],
+                )
 
         for edge in G.edges:
             centers_vec = pos[edge[1]] - pos[edge[0]]
@@ -148,8 +156,11 @@ def plot_dim_reduced_direct_graph(
 
         for node in G.nodes:
             attributes = cells_percentage[node]
-            max_idx = np.argmax(attributes)
-            dominate_colors.append(cells_colors[max_idx])
+            if np.all(attributes == 0):
+                dominate_colors.append([0, 0, 0, 1])
+            else:
+                max_idx = np.argmax(attributes)
+                dominate_colors.append(cells_colors[max_idx])
 
         nx.draw_networkx_nodes(G, pos=pos, node_color=dominate_colors, node_size=[s * len(cells_size) * 300 for s in cells_size], ax=ax)
         g = nx.draw_networkx_edges(
@@ -162,6 +173,7 @@ def plot_dim_reduced_direct_graph(
             ax=ax,
         )
 
+    cells_color_map["None"] = np.array([0, 0, 0, 1])
     plt.legend(handles=[plt.Line2D([0], [0], marker="o", color='w', label=label,
                                    markerfacecolor=color) for label, color in cells_color_map.items()],
                loc="best",
