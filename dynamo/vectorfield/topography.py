@@ -693,33 +693,6 @@ class VectorField3D(VectorField2D):
             raise ValueError(f"No fixed points found. Try to increase the number of samples n.")
         self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def compute_nullclines(
-        self,
-        x_range: Tuple[float, float],
-        y_range: Tuple[float, float],
-        z_range: Tuple[float, float],
-        find_new_fixed_points: Optional[bool] = False,
-        tol_redundant: Optional[float] = 1e-4,
-    ):
-        pass
-        # s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
-        # ds = s_max / 1e3
-        # self.NCx, self.NCy, self.NCz = compute_nullclines_3d(
-        #     self.Xss.get_X(),
-        #     self.fx,
-        #     self.fy,
-        #     self.fz,
-        #     x_range,
-        #     y_range,
-        #     z_range,
-        #     s_max=s_max,
-        #     ds=ds,
-        # )
-        # if find_new_fixed_points:
-        #     sample_interval = ds * 10
-        #     X, J = find_fixed_points_nullcline_3d(self.func, self.NCx, self.NCy, self.NCz, sample_interval, tol_redundant)
-        #     outside = is_outside(X, [x_range, y_range])
-        #     self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
     def output_to_dict(self, dict_vf) -> Dict:
         """Output the vector field as a dictionary.

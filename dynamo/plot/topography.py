@@ -1496,15 +1496,7 @@ def topography_3D(
     init_cells: List[int] = None,
     init_states: np.ndarray = None,
     quiver_source: Literal["raw", "reconstructed"] = "raw",
-    fate: Literal["history", "future", "both"] = "both",
     approx: bool = False,
-    quiver_size: Optional[float] = None,
-    quiver_length: Optional[float] = None,
-    density: float = 1,
-    linewidth: float = 1,
-    streamline_color: Optional[str] = None,
-    streamline_alpha: float = 0.4,
-    color_start_points: Optional[str] = None,
     markersize: float = 200,
     marker_cmap: Optional[str] = None,
     save_show_or_return: Literal["save", "show", "return"] = "show",
@@ -1515,12 +1507,8 @@ def topography_3D(
     sort: Literal["raw", "abs", "neg"] = "raw",
     frontier: bool = False,
     s_kwargs_dict: Dict[str, Any] = {},
-    q_kwargs_dict: Dict[str, Any] = {},
     n: int = 25,
-    **streamline_kwargs_dict,
 ) -> Union[Axes, List[Axes], None]:
-
-    from ..external.hodge import ddhodge
 
     logger = LoggerManager.gen_logger("dynamo-topography-plot")
     logger.log_time()
