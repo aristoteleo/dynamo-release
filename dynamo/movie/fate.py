@@ -18,6 +18,13 @@ from .utils import remove_particles
 
 
 class BaseAnim:
+    """Base class for animating cell fate commitment prediction via reconstructed vector field function.
+
+    This class creates necessary components to produce an animation that describes the exact speed of a set of cells
+    at each time point, its movement in gene expression and the long range trajectory predicted by the reconstructed
+    vector field. Thus, it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
+    fate commitment in action.
+    """
     def __init__(
         self,
         adata: AnnData,
@@ -29,52 +36,30 @@ class BaseAnim:
         color: str = "ntr",
         logspace: bool = False,
         max_time: Optional[float] = None,
-        frame_color=None,
     ):
-        """Animating cell fate commitment prediction via reconstructed vector field function.
+        """Construct a class that can be used to animate cell fate commitment prediction via reconstructed vector field
+        function.
 
-        This class creates necessary components to produce an animation that describes the exact speed of a set of cells
-        at each time point, its movement in gene expression and the long range trajectory predicted by the reconstructed
-        vector field. Thus it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
-        fate commitment in action.
-
-        This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies on
-        animation module from matplotlib. Note that you may need to install `imagemagick` in order to properly show or save
-        the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/ for more
-        details.
-
-        Parameters
-        ----------
-            adata: :class:`~anndata.AnnData`
-                AnnData object that already went through the fate prediction.
-            basis: `str` or None (default: `umap`)
-                The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
-                trajectory will be projected back to high dimensional space via the `inverse_transform` function.
-                space.
-            fps_basis: `str` or None (default: `None`)
-                The basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis` is
-                different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and used to
-                visualize the position of the fixed point on `basis` embedding.
-            dims: `list` or `None` (default: `None')
-                The dimensions of low embedding space where cells will be drawn and it should corresponds to the space
+        Args:
+            adata: annData object that already went through the fate prediction.
+            basis: the embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
+                reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
+                function space.
+            fp_basis: the basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis`
+                is different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and
+                used to visualize the position of the fixed point on `basis` embedding.
+            dims: the dimensions of low embedding space where cells will be drawn, and it should correspond to the space
                 fate prediction take place.
-            n_steps: `int` (default: `100`)
-                The number of times steps (frames) fate prediction will take.
-            cell_states: `int`, `list` or `None` (default: `None`)
-                The number of cells state that will be randomly selected (if `int`), the indices of the cells states (if
-                `list`) or all cell states which fate prediction executed (if `None`)
-            fig: `matplotlib.figure.Figure` or None (default: `None`)
-                The figure that will contain both the background and animated components.
-            ax: `matplotlib.Axis` (optional, default `None`)
-                The matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
-                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
-                to create an axes.
-            logspace: `bool` (default: `False`)
-                Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
-                from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
+            n_steps: the number of times steps (frames) fate prediction will take.
+            cell_states: the number of cells state that will be randomly selected (if `int`), the indices of the cells
+                states (if `list`) or all cell states which fate prediction executed (if `None`)
+            color: the key of the data that will be used to color the embedding.
+            logspace: `whether or to sample time points linearly on log space. If not, the sorted unique set of all-time
+                points from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time
+                points.
+            max_time: the maximum time that will be used to scale the time vector.
 
-        Returns
-        -------
+        Returns:
             A class that contains .fig attribute and .update, .init_background that can be used to produce an animation
             of the prediction of cell fate commitment.
         """
@@ -143,75 +128,17 @@ class BaseAnim:
 
         # self.ax.set_aspect("equal")
         self.color = color
-        self.frame_color = frame_color
 
 
 class StreamFuncAnim(BaseAnim):
-    """Animating cell fate commitment prediction via reconstructed vector field function."""
+    """The class for animating cell fate commitment prediction with matplotlib.
 
-    def __init__(
-        self,
-        adata: AnnData,
-        basis: str = "umap",
-        fp_basis: Union[str, None] = None,
-        dims: Optional[list] = None,
-        n_steps: int = 100,
-        cell_states: Union[int, list, None] = None,
-        color: str = "ntr",
-        fig: Optional[matplotlib.figure.Figure] = None,
-        ax: matplotlib.axes.Axes = None,
-        logspace: bool = False,
-        max_time: Optional[float] = None,
-        frame_color=None,
-    ):
-        """Animating cell fate commitment prediction via reconstructed vector field function.
+    This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies on
+    animation module from matplotlib. Note that you may need to install `imagemagick` in order to properly show or save
+    the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/ for more
+    details.
 
-        This class creates necessary components to produce an animation that describes the exact speed of a set of cells
-        at each time point, its movement in gene expression and the long range trajectory predicted by the reconstructed
-        vector field. Thus it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
-        fate commitment in action.
-
-        This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies on
-        animation module from matplotlib. Note that you may need to install `imagemagick` in order to properly show or save
-        the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/ for more
-        details.
-
-        Parameters
-        ----------
-            adata: :class:`~anndata.AnnData`
-                AnnData object that already went through the fate prediction.
-            basis: `str` or None (default: `umap`)
-                The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
-                trajectory will be projected back to high dimensional space via the `inverse_transform` function.
-                space.
-            fps_basis: `str` or None (default: `None`)
-                The basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis` is
-                different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and used to
-                visualize the position of the fixed point on `basis` embedding.
-            dims: `list` or `None` (default: `None')
-                The dimensions of low embedding space where cells will be drawn and it should corresponds to the space
-                fate prediction take place.
-            n_steps: `int` (default: `100`)
-                The number of times steps (frames) fate prediction will take.
-            cell_states: `int`, `list` or `None` (default: `None`)
-                The number of cells state that will be randomly selected (if `int`), the indices of the cells states (if
-                `list`) or all cell states which fate prediction executed (if `None`)
-            fig: `matplotlib.figure.Figure` or None (default: `None`)
-                The figure that will contain both the background and animated components.
-            ax: `matplotlib.Axis` (optional, default `None`)
-                The matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
-                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
-                to create an axes.
-            logspace: `bool` (default: `False`)
-                Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
-                from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
-
-        Returns
-        -------
-            A class that contains .fig attribute and .update, .init_background that can be used to produce an animation
-            of the prediction of cell fate commitment.
-
-        Examples 1
+    Examples 1
         ----------
         >>> from matplotlib import animation
         >>> progenitor = adata.obs_names[adata.obs.clusters == 'cluster_1']
@@ -256,6 +183,50 @@ class StreamFuncAnim(BaseAnim):
         >>> dyn.mv.animate_fates(adata)
 
                     See also:: :func:`animate_fates`
+    """
+
+    def __init__(
+        self,
+        adata: AnnData,
+        basis: str = "umap",
+        fp_basis: Union[str, None] = None,
+        dims: Optional[list] = None,
+        n_steps: int = 100,
+        cell_states: Union[int, list, None] = None,
+        color: str = "ntr",
+        fig: Optional[matplotlib.figure.Figure] = None,
+        ax: matplotlib.axes.Axes = None,
+        logspace: bool = False,
+        max_time: Optional[float] = None,
+    ):
+        """Construct the StreamFuncAnim class.
+
+        Args:
+            adata: annData object that already went through the fate prediction.
+            basis: the embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
+                reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
+                function space.
+            fp_basis: the basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis`
+                is different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and
+                used to visualize the position of the fixed point on `basis` embedding.
+            dims: the dimensions of low embedding space where cells will be drawn, and it should correspond to the space
+                fate prediction take place.
+            n_steps: the number of times steps (frames) fate prediction will take.
+            cell_states: the number of cells state that will be randomly selected (if `int`), the indices of the cells
+                states (if `list`) or all cell states which fate prediction executed (if `None`)
+            color: the key of the data that will be used to color the embedding.
+            fig: the figure that will contain both the background and animated components.
+            ax: the matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
+                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
+                to create an axes.
+            logspace: `whether or to sample time points linearly on log space. If not, the sorted unique set of all-time
+                points from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time
+                points.
+            max_time: the maximum time that will be used to scale the time vector.
+
+        Returns:
+            A class that contains .fig attribute and .update, .init_background that can be used to produce an animation
+            of the prediction of cell fate commitment.
         """
 
         import matplotlib.pyplot as plt
@@ -270,7 +241,6 @@ class StreamFuncAnim(BaseAnim):
             color=color,
             logspace=logspace,
             max_time=max_time,
-            frame_color=frame_color,
         )
 
         # Animation objects must create `fig` and `ax` attributes.
@@ -288,13 +258,14 @@ class StreamFuncAnim(BaseAnim):
             self.fig = fig
             self.ax = ax
 
-        (self.ln,) = self.ax.plot([], [], "ro", zs=[]) if len(dims) == 3 else self.ax.plot([], [], "ro")
+        (self.ln,) = self.ax.plot([], [], "ro", zs=[]) if dims is not None and len(dims) == 3 else self.ax.plot([], [], "ro")
 
     def init_background(self):
+        """Initialize background of the animation."""
         return (self.ln,)
 
     def update(self, frame):
-        """Update locations of "particles" in flow on each frame frame."""
+        """Update locations of "particles" in flow on each frame."""
         init_states = self.init_states
         time_vec = self.time_vec
 
@@ -384,7 +355,6 @@ def animate_fates(
     ax=None,
     logspace=False,
     max_time=None,
-    frame_color=None,
     interval=100,
     blit=True,
     save_show_or_return="show",
@@ -395,7 +365,7 @@ def animate_fates(
 
     This class creates necessary components to produce an animation that describes the exact speed of a set of cells
     at each time point, its movement in gene expression and the long range trajectory predicted by the reconstructed
-    vector field. Thus it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
+    vector field. Thus, it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
     fate commitment in action.
 
     This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies on
@@ -403,49 +373,37 @@ def animate_fates(
     the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/ for more
     details.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that already went through the fate prediction.
-        basis: `str` or None (default: `None`)
-            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
-            trajectory will be projected back to high dimensional space via the `inverse_transform` function.
-            space.
-        dims: `list` or `None` (default: `None')
-            The dimensions of low embedding space where cells will be drawn and it should corresponds to the space
+    Args:
+        adata: annData object that already went through the fate prediction.
+        basis: the embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
+            reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
+            function space.
+        dims: the dimensions of low embedding space where cells will be drawn, and it should correspond to the space
             fate prediction take place.
-        n_steps: `int` (default: `100`)
-            The number of times steps (frames) fate prediction will take.
-        cell_states: `int`, `list` or `None` (default: `None`)
-            The number of cells state that will be randomly selected (if `int`), the indices of the cells states (if
-            `list`) or all cell states which fate prediction executed (if `None`)
-        fig: `matplotlib.figure.Figure` or None (default: `None`)
-                The figure that will contain both the background and animated components.
-        ax: `matplotlib.Axis` (optional, default `None`)
-                The matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
-                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
-                to create an axes.
-        logspace: `bool` (default: `False`)
-            Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
-            from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
-        interval: `float` (default: `200`)
-            Delay between frames in milliseconds.
-        blit: `bool` (default: `False`)
-            Whether blitting is used to optimize drawing. Note: when using blitting, any animated artists will be drawn
+        n_steps: the number of times steps (frames) fate prediction will take.
+        cell_states: the number of cells state that will be randomly selected (if `int`), the indices of the cells
+            states (if `list`) or all cell states which fate prediction executed (if `None`)
+        color: the key of the data that will be used to color the embedding.
+        fig: the figure that will contain both the background and animated components.
+        ax: the matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
+            is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
+            to create an axes.
+        logspace: `whether or to sample time points linearly on log space. If not, the sorted unique set of all-time
+            points from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time
+            points.
+        max_time: the maximum time that will be used to scale the time vector.
+        interval: delay between frames in milliseconds.
+        blit: whether blitting is used to optimize drawing. Note: when using blitting, any animated artists will be drawn
             according to their zorder; however, they will be drawn on top of any previous artists, regardless of their
             zorder.
-        save_show_or_return: `str` {'save', 'show', 'return'} (default: `save`)
-            Whether to save, show or return the figure. By default a gif will be used.
-        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the anim.save. By default it is an empty dictionary and the save_fig function
-            will use the {"filename": 'fate_ani.gif', "writer": "imagemagick"} as its parameters. Otherwise you can
-            provide a dictionary that properly modify those keys according to your needs. see
+        save_show_or_return: whether to save, show or return the figure. By default, a gif will be used.
+        save_kwargs: a dictionary that will  be passed to the anim.save. By default, it is an empty dictionary and the
+            save_fig function will use the {"filename": 'fate_ani.gif', "writer": "imagemagick"} as its parameters.
+            Otherwise, you can provide a dictionary that properly modify those keys according to your needs. see
             https://matplotlib.org/api/_as_gen/matplotlib.animation.Animation.save.html for more details.
-        kwargs:
-            Additional arguments passed to animation.FuncAnimation.
+        kwargs: additional arguments passed to animation.FuncAnimation.
 
-    Returns
-    -------
+    Returns:
         Nothing but produce an animation that will be embedded to jupyter notebook or saved to disk.
 
     Examples 1
@@ -474,7 +432,6 @@ def animate_fates(
         ax=ax,
         logspace=logspace,
         max_time=max_time,
-        frame_color=frame_color,
     )
 
     anim = animation.FuncAnimation(
@@ -499,6 +456,7 @@ def animate_fates(
 
 
 class PyvistaAnim(BaseAnim):
+    """The class for animating cell fate commitment prediction with pyvista."""
     def __init__(
         self,
         adata: AnnData,
@@ -512,9 +470,38 @@ class PyvistaAnim(BaseAnim):
         pl=None,
         logspace: bool = False,
         max_time: Optional[float] = None,
-        frame_color=None,
         filename: str = "fate_animation.gif",
     ):
+        """Construct the PyvistaAnim class.
+
+        Args:
+            adata: annData object that already went through the fate prediction.
+            basis: the embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
+                reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
+                function space.
+            fp_basis: the basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis`
+                is different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and
+                used to visualize the position of the fixed point on `basis` embedding.
+            dims: the dimensions of low embedding space where cells will be drawn, and it should correspond to the space
+                fate prediction take place.
+            n_steps: the number of times steps (frames) fate prediction will take.
+            cell_states: the number of cells state that will be randomly selected (if `int`), the indices of the cells
+                states (if `list`) or all cell states which fate prediction executed (if `None`)
+            color: the key of the data that will be used to color the embedding.
+            point_size: the size of the points that will be used to draw the cells.
+            pl: the pyvista plotter object that will be used to draw the cells. If `pl` is None, `topography_3D(adata,
+                basis=basis, fps_basis=fp_basis, color=color, ax=pl, save_show_or_return='return')` will be used to
+                create a plotter.
+            logspace: `whether or to sample time points linearly on log space. If not, the sorted unique set of all-time
+                points from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time
+                points.
+            max_time: the maximum time that will be used to scale the time vector.
+            filename: the name of the gif file that will be saved to disk.
+
+        Returns:
+            A class that contains .animate, that can be used to produce a gif of the prediction of cell fate
+            commitment.
+        """
         try:
             import pyvista as pv
         except ImportError:
@@ -530,7 +517,6 @@ class PyvistaAnim(BaseAnim):
             color=color,
             logspace=logspace,
             max_time=max_time,
-            frame_color=frame_color,
         )
 
         self.filename = filename
@@ -551,6 +537,7 @@ class PyvistaAnim(BaseAnim):
         self.point_size = point_size
 
     def animate(self):
+        """Animate the cell fate commitment prediction."""
         try:
             import pyvista as pv
         except ImportError:
@@ -579,6 +566,7 @@ class PyvistaAnim(BaseAnim):
 
 
 class PlotlyAnim(BaseAnim):
+    """The class for animating cell fate commitment prediction with plotly."""
     def __init__(
         self,
         adata: AnnData,
@@ -591,9 +579,35 @@ class PlotlyAnim(BaseAnim):
         pl=None,
         logspace: bool = False,
         max_time: Optional[float] = None,
-        frame_color=None,
-        filename: str = "fate_animation.gif",
     ):
+        """Construct the PlotlyAnim class.
+
+        Args:
+            adata: annData object that already went through the fate prediction.
+            basis: the embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
+                reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
+                function space.
+            fp_basis: the basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis`
+                is different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and
+                used to visualize the position of the fixed point on `basis` embedding.
+            dims: the dimensions of low embedding space where cells will be drawn, and it should correspond to the space
+                fate prediction take place.
+            n_steps: the number of times steps (frames) fate prediction will take.
+            cell_states: the number of cells state that will be randomly selected (if `int`), the indices of the cells
+                states (if `list`) or all cell states which fate prediction executed (if `None`)
+            color: the key of the data that will be used to color the embedding.
+            pl: the plotly figure object that will be used to draw the cells. If `pl` is None, `topography_3D(adata,
+                basis=basis, fps_basis=fp_basis, color=color, ax=pl, save_show_or_return='return')` will be used to
+                create a plotter.
+            logspace: `whether or to sample time points linearly on log space. If not, the sorted unique set of all-time
+                points from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time
+                points.
+            max_time: the maximum time that will be used to scale the time vector.
+
+        Returns:
+            A class that contains .animate, that can be used to produce a gif of the prediction of cell fate
+            commitment.
+        """
         try:
             import pyvista as pv
         except ImportError:
@@ -609,10 +623,7 @@ class PlotlyAnim(BaseAnim):
             color=color,
             logspace=logspace,
             max_time=max_time,
-            frame_color=frame_color,
         )
-
-        self.filename = filename
 
         if pl is None:
             self.pl = topography_3D(
@@ -631,6 +642,7 @@ class PlotlyAnim(BaseAnim):
         self.pts_history = []
 
     def calculate_pts_history(self):
+        """Calculate the history of the cell states."""
         pts = [i.tolist() for i in self.init_states]
 
         self.pts_history.append(pts)
@@ -642,6 +654,7 @@ class PlotlyAnim(BaseAnim):
             self.pts_history.append(np.asarray(pts))
 
     def animate(self):
+        """Animate the cell fate commitment prediction."""
         try:
             import plotly.graph_objects as go
         except ImportError:
