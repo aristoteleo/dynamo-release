@@ -118,13 +118,17 @@ def plot_dim_reduced_direct_graph(
 
     cells_colors = np.array([v for v in cells_color_map.values()])
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
 
     G = nx.from_numpy_array(graph, create_using=nx.DiGraph)
 
+    center_coordinates = adata.uns["cell_order"]["Y"].T.copy() if center_coordinates is None else center_coordinates
+    pos = _scale_positions(center_coordinates, variance_scale=variance_scale)
+    pos_dict = {}
+    for i in range(len(pos)):
+        pos_dict[i] = pos[i]
+
     if display_piechart:
-        center_coordinates = adata.uns["cell_order"]["Y"].T.copy() if center_coordinates is None else center_coordinates
-        pos = _scale_positions(center_coordinates, variance_scale=variance_scale)
 
         for node in G.nodes:
             attributes = cells_percentage[node]
@@ -144,18 +148,18 @@ def plot_dim_reduced_direct_graph(
                     colors=cells_colors[valid_indices],
                     radius=cells_size[node],
                 )
-
-        for edge in G.edges:
-            centers_vec = pos[edge[1]] - pos[edge[0]]
-            unit_vec = centers_vec / np.linalg.norm(centers_vec)
-            arrow_start = np.array(pos[edge[0]]) + cells_size[edge[0]] * unit_vec
-            arrow_end = np.array(pos[edge[1]]) - cells_size[edge[1]] * unit_vec
-            vec = arrow_end - arrow_start
-            plt.arrow(arrow_start[0], arrow_start[1], vec[0], vec[1], head_width=0.02, length_includes_head=True)
+        g = nx.draw_networkx_edges(
+            G,
+            pos=pos_dict,
+            node_size=[s * len(cells_size) * 300 for s in cells_size],
+            arrows=True,
+            arrowstyle="->",
+            arrowsize=20,
+            ax=ax,
+        )
 
     else:
         dominate_colors = []
-        pos = nx.spring_layout(G)
 
         for node in G.nodes:
             attributes = cells_percentage[node]
@@ -165,10 +169,10 @@ def plot_dim_reduced_direct_graph(
                 max_idx = np.argmax(attributes)
                 dominate_colors.append(cells_colors[max_idx])
 
-        nx.draw_networkx_nodes(G, pos=pos, node_color=dominate_colors, node_size=[s * len(cells_size) * 300 for s in cells_size], ax=ax)
+        nx.draw_networkx_nodes(G, pos=pos_dict, node_color=dominate_colors, node_size=[s * len(cells_size) * 300 for s in cells_size], ax=ax)
         g = nx.draw_networkx_edges(
             G,
-            pos=pos,
+            pos=pos_dict,
             node_size=[s * len(cells_size) * 300 for s in cells_size],
             arrows=True,
             arrowstyle="->",
