@@ -429,7 +429,7 @@ def plot_fixed_points(
     ax: Optional[Axes] = None,
     **kwargs,
 ) -> Optional[Axes]:
-    """Plot fixed points stored in the VectorField2D class.
+    """Plot fixed points stored in the VectorField class.
 
     Args:
         vecfld: an instance of the vector_field class.
@@ -1509,6 +1509,87 @@ def topography_3D(
     s_kwargs_dict: Dict[str, Any] = {},
     n: int = 25,
 ) -> Union[Axes, List[Axes], None]:
+    """Plot the topography of the reconstructed vector field in 3D space.
+
+    Args:
+        adata: AnnData object that contains the reconstructed vector field.
+        basis: The embedding data space that will be used to plot the topography. Defaults to `umap`.
+        fps_basis: The embedding data space that will be used to plot the fixed points. Defaults to `umap`.
+        x: The index of the first dimension of the embedding data space that will be used to plot the topography.
+            Defaults to 0.
+        y: The index of the second dimension of the embedding data space that will be used to plot the topography.
+            Defaults to 1.
+        z: The index of the third dimension of the embedding data space that will be used to plot the topography.
+            Defaults to 2.
+        color: The color of the topography. Defaults to `ntr`.
+        layer: The layer of the data that will be used to plot the topography. Defaults to `X`.
+        plot_method: The method that will be used to plot the topography. Defaults to `matplotlib`.
+        highlights: The list of gene names that will be used to highlight the gene expression on the topography.
+            Defaults to None.
+        labels: The list of gene names that will be used to label the gene expression on the topography. Defaults to
+            None.
+        values: The list of gene names that will be used to color the gene expression on the topography. Defaults to
+            None.
+        theme: The color theme that will be used to plot the topography. Defaults to None.
+        cmap: The name of a matplotlib colormap that will be used to color the topography. Defaults to None.
+        color_key: The color dictionary that will be used to color the topography. Defaults to None.
+        color_key_cmap: The name of a matplotlib colormap that will be used to color the color key. Defaults to None.
+        alpha: The transparency of the topography. Defaults to None.
+        background: The background color of the topography. Defaults to `white`.
+        ncols: The number of columns for the figure. Defaults to 4.
+        pointsize: The scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        figsize: The width and height of a figure. Defaults to (6, 4).
+        show_legend: Whether to display a legend of the labels. Defaults to `on data`.
+        use_smoothed: Whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        xlim: The range of x-coordinate. Defaults to None.
+        ylim: The range of y-coordinate. Defaults to None.
+        zlim: The range of z-coordinate. Defaults to None.
+        t: The length of the time period from which to predict cell state forward or backward over time. This is used
+            by the odeint function. Defaults to None.
+        terms: A list of plotting items to include in the final topography figure. ('streamline', 'nullcline',
+            'fixed_points', 'separatrix', 'trajectory', 'quiver') are all the items that we can support. Defaults to
+            ["streamline", "fixed_points"].
+        init_cells: cell name or indices of the initial cell states for the historical or future cell state prediction
+            with numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be
+            treated as cell indices and must be integers. Defaults to None.
+        init_states: the initial cell states for the historical or future cell state prediction with numerical
+            integration. It can be either a one-dimensional array or N x 2 dimension array. The `init_state` will be
+            replaced to that defined by init_cells if init_cells are not None. Defaults to None.
+        quiver_source: the data source that will be used to draw the quiver plot. If `init_cells` is provided, this will
+            set to be the projected RNA velocity before vector field reconstruction automatically. If `init_cells` is
+            not provided, this will set to be the velocity vectors calculated from the reconstructed vector field
+            function automatically. If quiver_source is `reconstructed`, the velocity vectors calculated from the
+            reconstructed vector field function will be used. Defaults to "raw".
+        approx: whether to use streamplot to draw the integration line from the init_state. Defaults to False.
+        markersize: the size of the marker. Defaults to 200.
+        marker_cmap: the name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If
+            None, the default color map will set to be viridis (inferno) when the background is white (black). Defaults
+            to None.
+        save_show_or_return: Whether to save, show or return the figure. Defaults to `show`.
+        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        aggregate: The column in adata.obs that will be used to aggregate data points. Defaults to None.
+        show_arrowed_spines: Whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        ax: The axis on which to make the plot. Defaults to None.
+        sort: The method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw". Defaults to "raw".
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
+        s_kwargs_dict: The dictionary of the scatter arguments. Defaults to {}.
+        n: Number of samples for calculating the fixed points.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the Axes of the generated
+        subplots would be returned.
+    """
 
     logger = LoggerManager.gen_logger("dynamo-topography-plot")
     logger.log_time()

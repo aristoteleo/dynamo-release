@@ -33,7 +33,7 @@ def plot_3d_streamtube(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
 ):
-    """Plot a interative 3d streamtube plot via plotly.
+    """Plot an interative 3d streamtube plot via plotly.
 
     A streamtube is a tubular region surrounded by streamlines that form a closed loop. It's a continuous version of a
     streamtube plot (3D quiver plot) and can provide insight into flow data from natural systems. The color of tubes is

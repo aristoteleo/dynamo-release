@@ -1023,7 +1023,6 @@ def scatters_interactive(
     color: str = "ntr",
     layer: str = "X",
     plot_method: str = "pv",
-    highlights: Optional[list] = None,
     labels: Optional[list] = None,
     values: Optional[list] = None,
     cmap: Optional[str] = None,
@@ -1054,8 +1053,6 @@ def scatters_interactive(
         z: the column index of the low dimensional embedding for the z-axis. Defaults to 2.
         color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
         layer: the layer of data to use for the scatter plot. Defaults to "X".
-        highlights: the color group that will be highlighted. If highlights is a list of lists, each list is relate to
-            each color element. Defaults to None.
         labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
             coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
             `values` option. Defaults to None.
@@ -1098,6 +1095,11 @@ def scatters_interactive(
             "title": PyVista Export, "raster": True, "painter": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs that would be passed to `Plotter.add_points()`.
+
+    Returns:
+        If `save_show_or_return` is `save`, `show` or `both`, the function will return nothing but show or save the
+        figure. If `save_show_or_return` is `return`, the function will return the axis object(s) that contains the
+        figure.
     """
 
     if plot_method == "pv":
