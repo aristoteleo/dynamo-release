@@ -641,8 +641,8 @@ class MarkovChain:
         check_norm: bool = True,
         sumto: int = 1,
         tol: float = 1e-3
-    ) -> None:
-        """Constructor.
+    ):
+        """Initialize the MarkovChain instance.
 
         Args:
             P: the transition matrix. The elements in the transition matrix P_ij encodes transition probability from j
@@ -653,6 +653,9 @@ class MarkovChain:
             check_norm:  whether to check if the input transition matrix is properly normalized.
             sumto: the value that each column of the transition matrix should sum to if 'check_norm' is True.
             tol: The numerical tolerance used for normalization check.
+
+        Returns:
+            An instance of MarkovChain.
         """
         if check_norm and not self.is_normalized(P, axis=0, sumto=sumto, tol=tol):
             if self.is_normalized(P, axis=1, sumto=sumto, tol=tol):
@@ -777,14 +780,17 @@ class KernelMarkovChain(MarkovChain):
         P: Optional[np.ndarray] = None,
         Idx: Optional[np.ndarray] = None,
         n_recurse_neighbors: Optional[int] = None
-    ) -> None:
-        """Constructor.
+    ):
+        """Initialize the KernelMarkovChain instance.
 
         Args:
             P: the transition matrix of the Markov chain.
             Idx: the neighbor indices used for kernel computation.
             n_recurse_neighbors: number of recursive neighbor searches to improve kernel computation. If not None, it
                 appends the iterative neighbor indices using the function append_iterative_neighbor_indices().
+
+        Returns:
+            An instance of KernelMarkovChain.
         """
 
         super().__init__(P)
@@ -1032,14 +1038,17 @@ class KernelMarkovChain(MarkovChain):
 
 class DiscreteTimeMarkovChain(MarkovChain):
     """DiscreteTimeMarkovChain class represents a discrete-time Markov chain."""
-    def __init__(self, P: Optional[np.ndarray] = None, eignum: Optional[int] = None, sumto: int = 1, **kwargs) -> None:
-        """Constructor.
+    def __init__(self, P: Optional[np.ndarray] = None, eignum: Optional[int] = None, sumto: int = 1, **kwargs):
+        """Initialize the DiscreteTimeMarkovChain instance.
 
         Args:
             P: the transition matrix of the Markov chain.
             eignum: number of eigenvalues/eigenvectors to compute.
             sumto: the value that each column of the transition matrix should sum to.
             **kwargs: additional keyword arguments to be passed to the base class MarkovChain's constructor.
+
+        Returns:
+            An instance of DiscreteTimeMarkovChain.
         """
         super().__init__(P, eignum=eignum, sumto=sumto, **kwargs)
         # self.Kd = None
@@ -1274,13 +1283,16 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
 class ContinuousTimeMarkovChain(MarkovChain):
     """ContinuousTimeMarkovChain class represents a continuous-time Markov chain."""
-    def __init__(self, P: Optional[np.ndarray] = None, eignum: Optional[int] = None, **kwargs) -> None:
-        """Constructor.
+    def __init__(self, P: Optional[np.ndarray] = None, eignum: Optional[int] = None, **kwargs):
+        """Initialize the ContinuousTimeMarkovChain instance.
 
         Args:
             P: the transition matrix of the Markov chain.
             eignum: number of eigenvalues/eigenvectors to compute.
             **kwargs: additional keyword arguments to be passed to the base class MarkovChain's constructor.
+
+        Returns:
+            An instance of ContinuousTimeMarkovChain.
         """
         super().__init__(P, eignum=eignum, sumto=0, **kwargs)
         self.Q = None  # embedded markov chain transition matrix
