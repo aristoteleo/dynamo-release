@@ -9,12 +9,15 @@ from ..csc.utils_velocity import sol_s, sol_u
 
 class LinearODE:
     """A general class for linear odes."""
-    def __init__(self, n_species: int, x0: Optional[np.ndarray] = None) -> None:
+    def __init__(self, n_species: int, x0: Optional[np.ndarray] = None):
         """Initialize the LinearODE object.
 
         Args:
             n_species: the number of species.
             x0: the initial condition of variable x.
+
+        Returns:
+            An instance of LinearODE.
         """
         self.n_species = n_species
         # solution
@@ -32,7 +35,7 @@ class LinearODE:
 
         Args:
             x: the variable.
-            t: the aray of time.
+            t: the array of time.
 
         Returns:
             The derivatives dx.
@@ -134,12 +137,15 @@ class LinearODE:
 
 class MixtureModels:
     """The base class for mixture models."""
-    def __init__(self, models: LinearODE, param_distributor: List) -> None:
+    def __init__(self, models: LinearODE, param_distributor: List):
         """Initialize the MixtureModels class.
 
         Args:
             models: the models to mix.
             param_distributor: the index to assign parameters.
+
+        Returns:
+            An instance of MixtureModels.
         """
         self.n_models = len(models)
         self.models = models
@@ -220,12 +226,15 @@ class LambdaModels_NoSwitching(MixtureModels):
     """Linear ODEs for the lambda mixture model. The order of params is:
             parameter order: alpha, lambda, (beta), gamma
             distributor order: alpha_1, alpha_2, (beta), gamma"""
-    def __init__(self, model1: LinearODE, model2: LinearODE) -> None:
+    def __init__(self, model1: LinearODE, model2: LinearODE):
         """Initialize the LambdaModels_NoSwitching class.
 
         Args:
             model1: the first model to mix.
             model2: the second model to mix.
+
+        Returns:
+            An instance of LambdaModels_NoSwitching.
         """
         models = [model1, model2]
         if type(model1) in nosplicing_models and type(model2) in nosplicing_models:
@@ -261,7 +270,7 @@ class Moments(LinearODE):
         beta: Optional[np.ndarray] = None,
         gamma: Optional[np.ndarray] = None,
         x0: Optional[np.ndarray] = None,
-    ) -> None:
+    ):
         """Initialize the Moments object.
 
         Args:
@@ -272,6 +281,9 @@ class Moments(LinearODE):
             beta: splicing rate.
             gamma: degradation rate.
             x0: the initial conditions.
+
+        Returns:
+            An instance of Moments.
         """
         # species
         self.ua = 0
@@ -301,7 +313,7 @@ class Moments(LinearODE):
 
         Args:
             x: the variable.
-            t: the aray of time.
+            t: the array of time.
 
         Returns:
             The derivatives dx.
@@ -523,7 +535,7 @@ class Moments_Nosplicing(LinearODE):
         alpha_i: Optional[np.ndarray] = None,
         gamma: Optional[np.ndarray] = None,
         x0: Optional[np.ndarray] = None
-    ) -> None:
+    ):
         """Initialize the Moments_Nosplicing object.
 
         Args:
@@ -533,6 +545,9 @@ class Moments_Nosplicing(LinearODE):
             alpha_i: transcription rate for inactive promoter.
             gamma: degradation rate.
             x0: the initial conditions.
+
+        Returns:
+            An instance of Moments_Nosplicing.
         """
         # species
         self.ua = 0
@@ -553,7 +568,7 @@ class Moments_Nosplicing(LinearODE):
 
         Args:
             x: the variable.
-            t: the aray of time.
+            t: the array of time.
 
         Returns:
             The derivatives dx.
@@ -677,7 +692,7 @@ class Moments_NoSwitching(LinearODE):
         beta: Optional[np.ndarray] = None,
         gamma: Optional[np.ndarray] = None,
         x0: Optional[np.ndarray] = None,
-    ) -> None:
+    ):
         """Initialize the Moments_NoSwitching object.
 
         Args:
@@ -685,6 +700,9 @@ class Moments_NoSwitching(LinearODE):
             beta: splicing rate.
             gamma: degradation rate.
             x0: the initial conditions.
+
+        Returns:
+            An instance of Moments_NoSwitching.
         """
         # species
         self.u = 0
@@ -707,7 +725,7 @@ class Moments_NoSwitching(LinearODE):
 
         Args:
             x: the variable.
-            t: the aray of time.
+            t: the array of time.
 
         Returns:
             The derivatives dx.
@@ -862,13 +880,16 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         alpha: Optional[np.ndarray] = None,
         gamma: Optional[np.ndarray] = None,
         x0: Optional[np.ndarray] = None,
-    ) -> None:
+    ):
         """Initialize the Moments_NoSwitchingNoSplicing object.
 
         Args:
             alpha: transcription rate.
             gamma: degradation rate.
             x0: the initial conditions.
+
+        Returns:
+            An instance of Moments_NoSwitchingNoSplicing.
         """
         # species
         self.u = 0
@@ -888,7 +909,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
 
         Args:
             x: the variable.
-            t: the aray of time.
+            t: the array of time.
 
         Returns:
             The derivatives dx.
@@ -982,7 +1003,7 @@ class Deterministic(LinearODE):
         beta: Optional[np.ndarray] = None,
         gamma: Optional[np.ndarray] = None,
         x0: Optional[np.ndarray] = None,
-    ) -> None:
+    ):
         """Initialize the Deterministic object.
 
         Args:
@@ -990,6 +1011,9 @@ class Deterministic(LinearODE):
             beta: the splicing rate.
             gamma: the degradation rate.
             x0: the inital conditions.
+
+        Returns:
+            An instance of Deterministic.
         """
         # species
         self.u = 0
@@ -1112,13 +1136,16 @@ class Deterministic_NoSplicing(LinearODE):
         alpha: Optional[np.ndarray] = None,
         gamma: Optional[np.ndarray] = None,
         x0: Optional[np.ndarray] = None,
-    ) -> None:
+    ):
         """Initialize the Deterministic_NoSplicing object.
 
         Args:
             alpha: the transcription rate.
             gamma: the degradation rate.
             x0: the initial conditions.
+
+        Returns:
+            An instance of Deterministic_NoSplicing.
         """
         # species
         self.u = 0

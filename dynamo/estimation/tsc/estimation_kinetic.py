@@ -77,7 +77,7 @@ def guestimate_p0_kinetic_chase(x_data: np.ndarray, time: np.ndarray) -> Tuple[n
 class kinetic_estimation:
     """A general parameter estimation framework for all types of time-seris data."""
 
-    def __init__(self, param_ranges: np.ndarray, x0_ranges: np.ndarray, simulator: LinearODE) -> None:
+    def __init__(self, param_ranges: np.ndarray, x0_ranges: np.ndarray, simulator: LinearODE):
         """Initialize the kinetic_estimation class.
 
         Args:
@@ -88,6 +88,9 @@ class kinetic_estimation:
             simulator: An instance of python class which solves ODEs. It should have properties 't' (k time points,
                 1d numpy array), 'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m
                 array), as well as two functions: integrate (numerical integration), solve (analytical method).
+
+        Returns:
+            An instance of the kinetic_estimation class.
         """
         self.simulator = simulator
 
@@ -409,13 +412,16 @@ class kinetic_estimation:
 
 class Estimation_Degradation(kinetic_estimation):
     """The base parameters, estimation class for degradation experiments."""
-    def __init__(self, ranges: np.ndarray, x0: np.ndarray, simulator: LinearODE) -> None:
+    def __init__(self, ranges: np.ndarray, x0: np.ndarray, simulator: LinearODE):
         """Initialize the Estimation_Degradation object.
 
         Args:
             ranges: the lower and upper ranges of parameters.
             x0: initial conditions.
             simulator: instance of the Python class to solve ODEs.
+
+        Returns:
+            An instance of the Estimation_Degradation class.
         """
         self.kin_param_keys = np.array(["alpha", "gamma"])
         super().__init__(np.vstack((np.zeros(2), ranges)), x0, simulator)
@@ -493,13 +499,16 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         beta: Optional[np.ndarray] = None,
         gamma: Optional[np.ndarray] = None,
         x0: Optional[np.ndarray] = None,
-    ) -> None:
+    ):
         """Initialize the Estimation_DeterministicDeg object.
 
         Args:
             beta: the splicing rate.
             gamma: the degradation rate.
             x0: the initial conditions.
+
+        Returns:
+            An instance of the Estimation_DeterministicDeg class.
         """
         self.kin_param_keys = np.array(["alpha", "beta", "gamma"])
         if beta is not None and gamma is not None and x0 is not None:
@@ -544,12 +553,15 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
 class Estimation_DeterministicDegNosp(Estimation_Degradation):
     """An estimation class for degradation (without splicing) experiments."""
 
-    def __init__(self, gamma: Optional[np.ndarray] = None, x0: Optional[np.ndarray] = None) -> None:
+    def __init__(self, gamma: Optional[np.ndarray] = None, x0: Optional[np.ndarray] = None):
         """Initialize the Estimation_DeterministicDegNosp object.
 
         Args:
             gamma: the degradation rate.
             x0: the initial conditions.
+
+        Returns:
+            An instance of the Estimation_DeterministicDegNosp class.
         """
         if gamma is not None and x0 is not None:
             self._initialize(gamma, x0)
@@ -619,7 +631,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         gamma: Optional[np.ndarray] = None,
         x0: Optional[np.ndarray] = None,
         include_cov: bool = True,
-    ) -> None:
+    ):
         """Initialize the Estimation_MomentDeg object.
 
         Args:
@@ -627,6 +639,9 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
             gamma: the degradation rate.
             x0: the initial conditions.
             include_cov: whether to consider covariance when estimating.
+
+        Returns:
+            An instance of the Estimation_MomentDeg class.
         """
         self.kin_param_keys = np.array(["alpha", "beta", "gamma"])
         self.include_cov = include_cov
@@ -667,12 +682,15 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
 class Estimation_MomentDegNosp(Estimation_Degradation):
     """An estimation class for degradation (without splicing) experiments. Order of species: <r>, <rr>."""
 
-    def __init__(self, gamma: Optional[np.ndarray] = None, x0: Optional[np.ndarray] = None) -> None:
+    def __init__(self, gamma: Optional[np.ndarray] = None, x0: Optional[np.ndarray] = None):
         """Initialize the Estimation_MomentDeg object.
 
         Args:
             gamma: the degradation rate.
             x0: the initial conditions.
+
+        Returns:
+            An instance of the Estimation_MomentDeg class.
         """
         if gamma is not None and x0 is not None:
             self._initialize(gamma, x0)
@@ -742,6 +760,9 @@ class Estimation_MomentKin(kinetic_estimation):
             beta: splicing rate.
             gamma: degradation rate.
             include_cov: whether to include the covariance when estimating.
+
+        Returns:
+            An instance of the Estimation_MomentKin class.
         """
         self.param_keys = np.array(["a", "b", "alpha_a", "alpha_i", "beta", "gamma"])
         ranges = np.zeros((6, 2))
@@ -832,6 +853,9 @@ class Estimation_MomentKinNosp(kinetic_estimation):
             alpha_a: transcription rate for active promoter.
             alpha_i: transcription rate for inactive promoter.
             gamma: degradation rate.
+
+        Returns:
+            An instance of the Estimation_MomentKinNosp class.
         """
         self.param_keys = np.array(["a", "b", "alpha_a", "alpha_i", "gamma"])
         ranges = np.zeros((5, 2))
@@ -900,6 +924,9 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
             alpha: transcription rate.
             gamma: degradation rate.
             x0: the initial condition.
+
+        Returns:
+            An instance of the Estimation_DeterministicKinNosp class.
         """
         self.param_keys = np.array(["alpha", "gamma"])
         ranges = np.zeros((2, 2))
@@ -952,6 +979,9 @@ class Estimation_DeterministicKin(kinetic_estimation):
             beta: splicing rate.
             gamma: degradation rate.
             x0: the initial condition.
+
+        Returns:
+            An instance of the Estimation_DeterministicKin class.
         """
         self.param_keys = np.array(["alpha", "beta", "gamma"])
         ranges = np.zeros((3, 2))
@@ -1017,6 +1047,9 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
             gamma: degradation rate.
             x0: the initial condition.
             beta: splicing rate.
+
+        Returns:
+            An instance of the Mixture_KinDeg_NoSwitching class.
         """
         self.model1 = model1
         self.model2 = model2
@@ -1171,8 +1204,8 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
 
 
 class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
-    """An estimation class with the mixture model.
-    If beta is None, it is assumed that the data does not have the splicing process.
+    """An estimation class with the mixture model. If beta is None, it is assumed that the data does not have the
+    splicing process.
     """
 
     def __init__(
@@ -1195,6 +1228,9 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
             gamma: degradation rate.
             x0: the initial condition.
             beta: splicing rate.
+
+        Returns:
+            An instance of the Lambda_NoSwitching class.
         """
         self.model1 = model1
         self.model2 = model2
@@ -1265,6 +1301,9 @@ class Estimation_KineticChase(kinetic_estimation):
             alpha: transcription rate.
             gamma: degradation rate.
             x0: the initial condition.
+
+        Returns:
+            An instance of the Estimation_KineticChase class.
         """
         self.kin_param_keys = np.array(["alpha", "gamma"])
         if alpha is not None and gamma is not None and x0 is not None:
@@ -1354,6 +1393,9 @@ class GoodnessOfFit:
             simulator: the linearODE class.
             params: the parameters.
             x0: the initial conditions.
+
+        Returns:
+            An instance of the GoodnessOfFit class.
         """
         self.simulator = simulator
         if params is not None:
