@@ -99,12 +99,12 @@ def compute_markov_trans_prob(
 def compute_kernel_trans_prob(
     x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float], cont_time: bool = False
 ) -> np.ndarray:
-    """Compute the transition probabilities using the kernel method.
+    """Calculate the transition probabilities.
 
     Args:
-        x: the cell data matrix.
+        x: the cell data matrix representing current state.
         v: the velocity data matrix.
-        X: the neighbors data matrix.
+        X: an array of data points representing the neighbors.
         inv_s: the inverse of the diffusion matrix or a scalar value.
         cont_time: whether to use continuous-time kernel computation.
 
@@ -122,12 +122,12 @@ def compute_kernel_trans_prob(
 
 # @jit(nopython=True)
 def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
-    """Compute the drift kernel values for each state in the Markov chain.
+    """Compute the kernal representing the drift based on input data and parameters.
 
     Args:
-        x: the cell data matrix.
+        x: the cell data matrix representing current state.
         v: the velocity data matrix.
-        X: the neighbors data matrix.
+        X: an array of data points representing the neighbors.
         inv_s: the inverse of the diffusion matrix or a scalar value.
 
     Returns:
@@ -170,12 +170,12 @@ def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Uni
 
 # @jit(nopython=True)
 def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
-    """Compute the drift local kernel values.
+    """Compute a local kernel representing the drift based on input data and parameters.
 
     Args:
-        x: the cell data matrix.
+        x: the cell data matrix representing current state.
         v: the velocity data matrix.
-        X: the neighbors data matrix.
+        X: an array of data points representing the neighbors.
         inv_s: the inverse of the diffusion matrix or a scalar value.
 
     Returns:
@@ -215,8 +215,8 @@ def compute_density_kernel(x: np.ndarray, X: np.ndarray, inv_eps: float) -> np.n
     """Compute the density kernel values.
 
     Args:
-        x: the cell data matrix.
-        X: the neighbors data matrix.
+        x: the cell data matrix representing current state.
+        X: an array of data points representing the neighbors.
         inv_eps: The inverse of the epsilon.
 
     Returns:
@@ -232,10 +232,10 @@ def compute_density_kernel(x: np.ndarray, X: np.ndarray, inv_eps: float) -> np.n
 
 @jit(nopython=True)
 def makeTransitionMatrix(Qnn: np.ndarray, I_vec: np.ndarray, tol: float = 0.0) -> np.ndarray:  # Qnn, I, tol=0.0
-    """Create the transition matrix based on the non-negative rate matrix `Qnn` and the indexing vector `I_vec`.
+    """Create the transition matrix based on the transition rate matrix `Qnn` and the indexing vector `I_vec`.
 
     Args:
-        Qnn: the non-negative rate matrix which represents the transition rates between different states.
+        Qnn: the matrix which represents the transition rates between different states.
         I_vec: the indexing vector to map the rows to the appropriate positions in the transition matrix.
         tol: a numerical tolerance value to consider rate matrix elements as zero.
 
@@ -296,7 +296,7 @@ def prepare_velocity_grid_data(
     smooth: Optional[float] = None,
     n_neighbors: Optional[int] = None,
 ) -> Tuple:
-    """Prepare the velocity grid data.
+    """Prepare the grid of data used to calculate the velocity embedding on grid.
 
     Args:
         X_emb: the embedded data matrix.
@@ -750,6 +750,7 @@ class MarkovChain:
             tol: the numerical tolerance.
             sumto: the value that each column/row should sum to.
             axis: 0 - check if the matrix is column normalized; 1 - check if the matrix is row normalized.
+            ignore_nan: whether to ignore NaN values when computing the sum.
 
         Returns:
             True if the matrix is properly normalized.
@@ -782,7 +783,7 @@ class KernelMarkovChain(MarkovChain):
         Args:
             P: the transition matrix of the Markov chain.
             Idx: the neighbor indices used for kernel computation.
-            n_recurse_neighbors: Number of recursive neighbor searches to improve kernel computation. If not None, it
+            n_recurse_neighbors: number of recursive neighbor searches to improve kernel computation. If not None, it
                 appends the iterative neighbor indices using the function append_iterative_neighbor_indices().
         """
 
@@ -812,17 +813,17 @@ class KernelMarkovChain(MarkovChain):
         Args:
             X: the cell data matrix which represents the states of the Markov chain.
             V: the velocity matrix which represents the expected returns of each state in the Markov chain.
-            M_diff: the covariance matrix or scalar value representing the diffussion matrix. It is used for
+            M_diff: the covariance matrix or scalar value representing the diffusion matrix. It is used for
                 computing transition probabilities.
             neighbor_idx: the neighbor indices used for kernel computation. If None, it is computed using k-NN.
             n_recurse_neighbors: number of recursive neighbor searches to improve kernel computation. If not None, it
                 appends the iterative neighbor indices using the function append_iterative_neighbor_indices().
-            k: the number of nearest neighbors used for k-NN downsampling.
+            k: the number of nearest neighbors used for k-NN down sampling.
             epsilon: the bandwidth parameter used for computing density kernel if not None.
             adaptive_local_kernel: whether to use adaptive local kernel computation for transition probabilities.
             tol: the numerical tolerance used for transition probability computation. Default is 1e-4.
             sparse_construct: whether construct sparse matrices for transition matrix and density kernel.
-            sample_fraction: the fraction of neighbors used for k-NN downsampling if not None.
+            sample_fraction: the fraction of neighbors used for k-NN down sampling if not None.
         """
         # compute connectivity
         if neighbor_idx is None:
