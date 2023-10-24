@@ -787,6 +787,7 @@ class Preprocessor:
         self._force_gene_list(adata)
 
         X_copy = adata.X.copy()
+        self._calc_size_factor(adata)
         self._normalize_by_cells(adata)
         adata.X = X_copy
         self._normalize_selected_genes(adata)
