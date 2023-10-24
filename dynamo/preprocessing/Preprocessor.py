@@ -536,7 +536,7 @@ class Preprocessor:
         self._filter_genes_by_outliers(adata)
 
         # The following size factor calculation is a prerequisite for monocle recipe preprocess in preprocessor.
-        # self._calc_size_factor(adata)
+        self._calc_size_factor(adata)
         self._normalize_by_cells(adata)
         self._select_genes(adata)
 
