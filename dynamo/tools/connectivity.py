@@ -192,10 +192,10 @@ def umap_conn_indices_dist_embedding(
             prioritize density preservation over the UMAP objective, and vice versa for values closer to zero. Setting
             this parameter to zero is equivalent to running the original UMAP algorithm. Defaults to 2.0.
         dens_frac: controls the fraction of epochs (between 0 and 1) where the density-augmented objective is used in
-            densMAP. The first (1 - dens_frac) fraction of epochs optimize the original UMAP objective before
+            densMAP. The first (1 - dens_frac) fraction of epochs optimizes the original UMAP objective before
             introducing the density correlation term. Defaults to 0.3.
         dens_var_shift: a small constant added to the variance of local radii in the embedding when calculating the
-            density correlation objective to prevent numerical instability from dividing by a small number Defaults to
+            density correlation objective to prevent numerical instability from dividing by a small number. Defaults to
             0.1.
         output_dens: whether the local radii of the final embedding (an inverse measure of local density) are computed
             and returned in addition to the embedding. If set to True, local radii of the original data are also
@@ -214,7 +214,7 @@ def umap_conn_indices_dist_embedding(
         A tuple ([mapper,] graph, knn_indices, knn_dists, embedding_). `mapper` is the data mapped onto umap space and
         will be returned only if `return_mapper` is true. graph is the sparse matrix representing the graph,
         `knn_indices` is the matrix storing indices of nearest neighbors of each cell, `knn_dists` is the distances to
-        the n_neighbors closest points in knn graph, and `embedding_` is the low dimensional embedding.
+        the n_neighbors' closest points in knn graph, and `embedding_` is the low dimensional embedding.
     """
 
     from sklearn.metrics import pairwise_distances
@@ -372,7 +372,7 @@ CsrOrNdarray = TypeVar("CsrOrNdarray", csr_matrix, np.ndarray)
 
 
 def mnn_from_list(knn_graph_list: List[CsrOrNdarray]) -> CsrOrNdarray:
-    """Apply reduce function to calculate the mutual kNN.
+    """Apply `reduce` function to calculate the mutual kNN.
 
     Args:
         knn_graph_list: a list of ndarray or csr_matrix representing a series of knn graphs.
@@ -689,7 +689,7 @@ def neighbors(
         n_pca_components: number of PCA components. Applicable only if you will use pca `basis` for nearest neighbor
             search. Defaults to 30.
         n_neighbors: number of nearest neighbors. Defaults to 30.
-        method: the methoed used for nearest neighbor search. If `umap` or `pynn`, it relies on `pynndescent` package's
+        method: the method used for nearest neighbor search. If `umap` or `pynn`, it relies on `pynndescent` package's
             NNDescent for fast nearest neighbor search. Defaults to None.
         metric: the distance metric to use for the tree. The default metric is euclidean, and with p=2 is equivalent to
             the standard Euclidean metric. See the documentation of `DistanceMetric` for a list of available metrics. If
@@ -780,7 +780,7 @@ def check_neighbors_completeness(
         adata: an AnnData object.
         conn_key: the key for connectivity matrix. Defaults to "connectivities".
         dist_key: the key for distance matrix. Defaults to "distances".
-        result_prefix: the result prefix in adata.uns for neighbor graph related data. Defaults to "".
+        result_prefix: the result prefix in `adata.uns` for neighbor graph related data. Defaults to "".
         check_nonzero_row: whether to check if row sums of neighbor graph distance or connectivity matrix are nonzero.
             Row sums correspond to out-degrees by convention. Defaults to True.
         check_nonzero_col: whether to check if column sums of neighbor graph distance or connectivity matrix are
@@ -852,7 +852,7 @@ def check_and_recompute_neighbors(adata: AnnData, result_prefix: str = "") -> No
 
     Args:
         adata: an AnnData object.
-        result_prefix: the result prefix in adata.uns for neighbor graph related data. Defaults to "".
+        result_prefix: the result prefix in `adata.uns` for neighbor graph related data. Defaults to "".
     """
 
     if result_prefix is None:

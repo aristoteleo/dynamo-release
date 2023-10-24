@@ -198,7 +198,8 @@ def jaccard(
 ) -> Tuple[np.ndarray, csr_matrix, np.ndarray]:
     """Calculate cell-wise confidence matrix with Jaccard method.
 
-    This method measures how well each velocity vector meets the geometric constraints defined by the local neighborhood structure. Jaccard index is calculated as the fraction of the number of the intersected set of nearest neighbors
+    This method measures how well each velocity vector meets the geometric constraints defined by the local neighborhood
+    structure. Jaccard index is calculated as the fraction of the number of the intersected set of nearest neighbors
     from each cell at current expression state (X) and that from the future expression state (X + V) over the number of
     the union of these two sets.
 
@@ -298,14 +299,14 @@ def gene_wise_confidence(
 
     Note that, this heuristic method requires you provide meaningful `progenitors_groups` and `mature_cells_groups`. In
     particular, the progenitor groups should in principle have cell going out (transcriptomically) while mature groups
-    should end up in a different expression state and there are intermediate cells going to the dead end cells in the
-    each terminal group (or most terminal groups).
+    should end up in a different expression state and there are intermediate cells going to the dead end cells in each
+    terminal group (or most terminal groups).
 
     Args:
         adata: an AnnData object.
         group: the column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
-        lineage_dict: a dictionary describes lineage priors. Keys corresponds to the group name from `group` that
+        lineage_dict: a dictionary describes lineage priors. Keys correspond to the group name from `group` that
             corresponding to the state of one progenitor type while values correspond to the group names from `group`
             that corresponding to the states of one or multiple terminal cell states. The best practice for determining
             terminal cell states are those fully functional cells instead of intermediate cell states. Note that in
@@ -316,7 +317,7 @@ def gene_wise_confidence(
         genes: the list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that
             go through velocity estimation will be used. Defaults to None.
         ekey: the layer that will be used to retrieve data for identifying the gene is in induction or repression phase
-            at each cell state. If `None`, .X is used. Defaults to "M_s".
+            at each cell state. If `None`, `.X` is used. Defaults to "M_s".
         vkey: the layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
             `velocity_S` is used. Defaults to "velocity_S".
         X_data: the user supplied data that will be used for identifying the gene is in induction or repression phase at

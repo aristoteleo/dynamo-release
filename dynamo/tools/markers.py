@@ -176,7 +176,7 @@ def find_group_markers(
     """Find marker genes for each group of cells based on gene expression or velocity values as specified by the layer.
 
     Tests each gene for differential expression between cells in one group to cells from all other groups via
-    Mann-Whitney U test. It also calculates the fraction of cells with non-zero expression, log 2 fold changes as well
+    Mann-Whitney U test. It also calculates the fraction of cells with non-zero expression, log 2-fold changes as well
     as the specificity (calculated as 1 - Jessen-Shannon distance between the distribution of percentage of cells with
     expression across all groups to the hypothetical perfect distribution in which only the test group of cells has
     expression). In addition, Rank-biserial correlation (rbc) and qval are calculated. The rank biserial correlation is
@@ -313,9 +313,9 @@ def two_groups_degs(
     """Find marker genes between two groups of cells based on gene expression or velocity as specified by the layer.
 
     Tests each gene for differential expression between cells in one group to cells from another groups via Mann-Whitney
-    U test. It also calculates the fraction of cells with non-zero expression, log 2 fold changes as well as the
+    U test. It also calculates the fraction of cells with non-zero expression, log 2-fold changes as well as the
     specificity (calculated as 1 - Jessen-Shannon distance between the distribution of percentage of cells with
-    expression across all groups to the hypothetical perfect distribution in which only the current group of cells have
+    expression across all groups to the hypothetical perfect distribution in which only the current group of cells has
     expression). In addition, Rank-biserial correlation (rbc) and qval are calculated. The rank biserial correlation is
     used to assess the relationship between a dichotomous categorical variable and an ordinal variable. The rank
     biserial test is very similar to the non-parametric Mann-Whitney U test that is used to compare two independent
@@ -637,7 +637,8 @@ def glm_degs(
 
     Args:
         adata: an AnnData object.
-        X_data: the user supplied data that will be used for differential expression analysis directly. Defaults to None.
+        X_data: the user supplied data that will be used for differential expression analysis directly. Defaults to
+            None.
         genes: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used. Defaults to None.
         layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
@@ -646,7 +647,7 @@ def glm_degs(
             likelihood ratio tests) for each gene/feature. Defaults to "~cr(integral_time, df=3)".
         reducedModelFormulaStr: a formula string specifying the reduced model in differential expression tests (i.e.
             likelihood ratio tests) for each gene/feature. Defaults to "~1".
-        family: the distribution family used for the expression responses in statsmodels. Currently always uses `NB2`
+        family: the distribution family used for the expression responses in statsmodels. Currently, always uses `NB2`
             and this is ignored. NB model requires us to define a parameter alpha which it uses to express the
             variance in terms of the mean as follows: variance = mean + alpha mean^p. When p=2, it corresponds to
             the NB2 model. In order to obtain the correct parameter alpha (sm.genmod.families.family.NegativeBinomial

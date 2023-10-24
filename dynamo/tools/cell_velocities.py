@@ -87,7 +87,7 @@ def cell_velocities(
         X_embedding: the low expression reduced space (pca, umap, tsne, etc.) of single cells that RNA velocity will be
             projected onto. Note X_embedding, X and V has to have the same cell/sample dimension and X_embedding should
             have less feature dimension comparing that of X or V. Defaults to None.
-        transition_matrix: the set of genes used for projection of hign dimensional velocity vectors. If None,
+        transition_matrix: the set of genes used for projection of high dimensional velocity vectors. If None,
             transition genes are determined based on the R2 of linear regression on phase planes. The argument can be
             either a dictionary key of .var, a list of gene names, or a list of booleans of length .n_vars. Defaults to
             None.
@@ -97,9 +97,10 @@ def cell_velocities(
             expression may be nearest neighbors but far from nearest neighbors on unspliced data. Using mnn assumes your
             data from different layers are reliable (otherwise it will destroy real signals). Defaults to False.
         n_pca_components: the number of pca components to project the high dimensional X, V before calculating
-            transition matrix for velocity visualization. By default it is None and if method is `kmc`, n_pca_components
-            will be reset to 30; otherwise use all high dimensional data for velocity projection. Defaults to None.
-        transition_genes: the set of genes used for projection of hign dimensional velocity vectors. If None, transition
+            transition matrix for velocity visualization. By default, it is None and if method is `kmc`,
+            n_pca_components will be reset to 30; otherwise use all high dimensional data for velocity projection.
+            Defaults to None.
+        transition_genes: the set of genes used for projection of high dimensional velocity vectors. If None, transition
             genes are determined based on the R2 of linear regression on phase planes. The argument can be either a
             dictionary key of .var, a list of gene names, or a list of booleans of length .n_vars. Defaults to None.
         min_r2: the minimal value of r-squared of the parameter fits for selecting transition genes. Defaults to None.
@@ -121,7 +122,7 @@ def cell_velocities(
             either `kmc`, `fp`, `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition
             matrix via diffusion approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the
             original RNA velocity paper or the scvelo paper (Note that scVelo implementation actually centers both dX
-            and V, so its cosine kernel is equivalent to pearson correlation kernel but we also provide the raw cosine
+            and V, so its cosine kernel is equivalent to pearson correlation kernel, but we also provide the raw cosine
             kernel). "kmc" option is arguable better than "correlation" or "cosine" as it not only considers the
             correlation but also the distance of the nearest neighbors to the high dimensional velocity vector. Finally,
             the "transform" method uses umap's transform method to transform new data points to the UMAP space.
@@ -627,7 +628,7 @@ def confident_cell_velocities(
             each with the same terminal cell as value but different progenitor as the key. Value can be either a string
             for one cell group or a list of string for multiple cell groups.
         ekey: the layer that will be used to retrieve data for identifying the gene is in induction or repression phase
-            at each cell state. If `None`, .X is used. Defaults to "M_s".
+            at each cell state. If `None`, `.X` is used. Defaults to "M_s".
         vkey: the layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
             `velocity_S` is used. Defaults to "velocity_S".
         basis: the dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Defaults to "umap".
@@ -775,7 +776,7 @@ def stationary_distribution(
 def generalized_diffusion_map(adata: AnnData, **kwargs) -> None:
     """Apply the diffusion map algorithm on the transition matrix build from Itô kernel.
 
-    Update the AnnData object with X_diffusion_map embedded in obsm attribute.
+    Update the AnnData object with X_diffusion_map embedded in `.obsm` attribute.
 
     Args:
         adata: an AnnData object with the constructed transition matrix.

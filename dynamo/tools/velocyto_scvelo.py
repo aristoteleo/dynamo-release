@@ -27,7 +27,8 @@ def vlm_to_adata(
         vlm (VelocytoLoom): the VelocytoLoom object that will be converted into adata.
         n_comps: the number of pc components that will be stored. Defaults to 30.
         basis: the embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
-            umap as embedding although `umap` as set as default for the convenience of dynamo itself. Defaults to "umap".
+            umap as embedding although `umap` as set as default for the convenience of dynamo itself. Defaults to
+            "umap".
         trans_mats: a dict of all relevant transition matrices. Defaults to None.
         cells_ixs: these are the indices of the subsampled cells. Defaults to None.
 

@@ -47,7 +47,7 @@ def moments(
             labeling time points to be mixed when performing the kNN graph for calculating the moments. Defaults to
             None.
         conn: the connectivity graph that will be used for moment calculations. Defaults to None.
-        use_gaussian_kernel: whether to normalize the kNN graph via a Guasian kernel. Defaults to False.
+        use_gaussian_kernel: whether to normalize the kNN graph via a Gaussian kernel. Defaults to False.
         normalize: whether to normalize the connectivity matrix so that each row sums up to 1. When
             `use_gaussian_kernel` is False, this will be reset to be False because we will already normalize the
             connectivity matrix by dividing each row the total number of connections. Defaults to True.
@@ -953,7 +953,8 @@ def prepare_data_mix_no_splicing(
         layer_t: the layer key for total mRNA count.
         use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
         total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
-        mix_model_indices: the indices for data required by the mixture model. If None, all data would be returned. Defaults to None.
+        mix_model_indices: the indices for data required by the mixture model. If None, all data would be returned.
+            Defaults to None.
 
     Returns:
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
@@ -1146,7 +1147,7 @@ def gaussian_kernel(
         nbr_idx: the indices of nearest neighbors of each cell.
         sigma: the standard deviation for gaussian model.
         k: the number of nearest neighbors to be considered. Defaults to None.
-        dists: the distances to the n_neighbors closest points in knn graph. Defaults to None.
+        dists: the distances to the n_neighbors' closest points in knn graph. Defaults to None.
 
     Returns:
         The normalized connectivity map.
@@ -1176,8 +1177,8 @@ def calc_12_mom_labeling(
         calculate_2_mom: whether to calculate 2nd momentum. Defaults to True.
 
     Returns:
-        A tuple (m, [v], t_uniq) where `m` is the first momentum, `v` is the second momentum which would be returned only
-        if `calculate_2_mom` is true, and `t_uniq` is the unique time stamps.
+        A tuple (m, [v], t_uniq) where `m` is the first momentum, `v` is the second momentum which would be returned
+        only if `calculate_2_mom` is true, and `t_uniq` is the unique time stamps.
     """
 
     t_uniq = np.unique(t)

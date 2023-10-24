@@ -60,8 +60,8 @@ def score_cells(
             Defaults to True.
 
     Raises:
-        ValueError: X_pca unavailable in .obsm.
-        ValueError: basis not available in .obsm.
+        ValueError: X_pca unavailable in `.obsm`.
+        ValueError: basis not available in `.obsm`.
         ValueError: genes not provided and no "use_for_pca" in .obs.
         ValueError: input genes have no overlap with genes in the AnnData object.
 

@@ -365,9 +365,9 @@ def recipe_mix_kin_deg_data(
         adata: an AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
         tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
-            support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
-            in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
-            or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
+            support for conventional scRNA-seq data). Note that `tkey` will be saved to `adata.uns['pp']['tkey']` and
+            used in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2nd
+            moment or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
         reset_X: whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
             critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
             into which the high dimensional RNA velocity vectors will be projected.
@@ -530,9 +530,9 @@ def recipe_one_shot_data(
         adata: AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
         tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
-            support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
-            in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
-            or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
+            support for conventional scRNA-seq data). Note that `tkey` will be saved to `adata.uns['pp']['tkey']` and
+            used in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2nd
+            moment or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
         reset_X: whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
             critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
             into which the high dimensional RNA velocity vectors will be projected.
@@ -687,8 +687,8 @@ def velocity_N(
     Note that currently velocity_N function only considers labeling data and removes splicing data if they exist.
 
     Args:
-        adata: AnnData object that stores data for the the kinetics or one-shot experiment, must include `X_new`,
-            `X_total` layers.
+        adata: AnnData object that stores data for the kinetics or one-shot experiment, must include `X_new`, `X_total`
+            layers.
         group: the cell group that will be used to calculate velocity in each separate group. This is useful if your
             data comes from different labeling condition, etc. Defaults to None.
         recalculate_pca: whether to recalculate pca with the new RNA data. If setting to be False, you need to make sure

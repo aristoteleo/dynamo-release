@@ -210,13 +210,13 @@ def leiden(
             If None then defaults to a singleton partition.
         adj_matrix: the adjacency matrix to use for the cluster_community function.
         adj_matrix_key: the key of the adjacency matrix in adata.obsp used for the cluster_community function.
-        seed: seed for the random number generator. By default uses a random seed if nothing is specified.
-        result_key: the key to use for saving clustering results which will be included in both adata.obs and adata.uns.
+        seed: seed for the random number generator. By default, uses a random seed if nothing is specified.
+        result_key: the key to use for saving clustering results which will be included in both `adata.obs` and adata.uns.
         layer: the adata layer where cluster algorithms will work on.
-        obsm_key: the key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
+        obsm_key: the key of the `obsm` that points to the expression embedding to be used for dyn.tl.neighbors to
             calculate the nearest neighbor graph.
         selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters) filtering cells in adata based on
-            cluster_key in adata.obs and only reserves cells in the allowed clusters.
+            cluster_key in `adata.obs` and only reserves cells in the allowed clusters.
         selected_cell_subset: a list of cell indices to cluster.
         directed: whether the graph is directed.
         copy: return a copy instead of writing to adata.
@@ -224,9 +224,9 @@ def leiden(
 
     Returns:
         adata: An updated AnnData object with the leiden clustering results added. The adata is updated up with the
-        `result_key` key to use for saving clustering results which will be included in both adata.obs and adata.uns.
-        adata.obs[result_key] saves the clustering identify of each cell where the adata.uns[result_key] saves the
-        relevant parameters for the leiden clustering .
+        `result_key` key to use for saving clustering results which will be included in both `adata.obs` and
+        `adata.uns`. adata.obs[result_key] saves the clustering identify of each cell where the `adata.uns[result_key]`
+        saves the relevant parameters for the leiden clustering.
     """
 
     kwargs.update(
@@ -636,7 +636,7 @@ def scc(
     """Spatially constrained clustering (scc) to identify continuous tissue domains.
 
     Args:
-        adata: an normalized AnnData object.
+        adata: a normalized AnnData object.
         min_cells: minimal number of cells the gene expressed. Defaults to 100.
         spatial_key: the key in `.obsm` corresponding to the spatial coordinate of each bucket. Defaults to "spatial".
         e_neigh: the number of nearest neighbor in gene expression space. Defaults to 30.
