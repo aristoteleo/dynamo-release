@@ -452,6 +452,7 @@ class Preprocessor:
         self.standardize_adata(adata, tkey, experiment_type)
         self._filter_cells_by_outliers(adata)
         self._filter_genes_by_outliers(adata)
+        self._calc_size_factor(adata)
         self._normalize_by_cells(adata)
         self._select_genes(adata)
         self._norm_method(adata)

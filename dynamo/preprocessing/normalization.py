@@ -242,6 +242,7 @@ def normalize(
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
+    if np.count_nonzero(adata.obs.columns.str.contains("Size_Factor")) < len(layers):
         calc_sz_factor(
             adata,
             layers=layers,
