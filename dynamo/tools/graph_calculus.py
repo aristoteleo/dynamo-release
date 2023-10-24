@@ -52,8 +52,8 @@ def graphize_velocity(
         scale_by_dist: whether to scale the result by distance. Defaults to False.
         E_func: A variance stabilizing function for reducing the variance of the flows.
             If a string is passed, there are two options:
-                'sqrt': the numpy.sqrt square root function;
-                'exp': the numpy.exp exponential function.
+                'sqrt': the numpy.sqrt() square root function;
+                'exp': the numpy.exp() exponential function.
             Defaults to None.
         use_sparse: whether to use sparse matrix for edge matrix. Defaults to False.
         return_nbrs: whether to return the neighbor object. Defaults to False.
@@ -64,8 +64,8 @@ def graphize_velocity(
     Returns:
         A tuple (E, nbrs_idx, dists, [nbrs]), where E is the edge matrix, could be a sparse matrix or a ndarray
         depending on `use_sparse`; nbrs_idx is the list of neighbor indices for each cell, the type depending on the
-        input type of `nbrs_idx`; dist is the distance matrix; nbrs is the neighbor object and it would be returned when
-        `return_nbrs` is true.
+        input type of `nbrs_idx`; dist is the distance matrix; nbrs is the neighbor object, and it would be returned
+        when `return_nbrs` is true.
     """
 
     n = X.shape[0]
@@ -145,7 +145,7 @@ def graphize_velocity_coopt(
     loss_func: str = "log",
     nonneg: bool = False,
     norm_dist: bool = False,
-):
+) -> np.ndarray:
     """The function generates a graph based on the velocity data by minimizing the loss function:
                     L(w_i) = a |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
     where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j],
@@ -720,7 +720,7 @@ class GraphVectorField:
 
         Args:
             kwargs: currently the only acceptable kwargs is `method: Literal["direct", "operator"]` to determine the
-                method to calculate divergence. By default "operator" method would be used.
+                method to calculate divergence. By default, "operator" method would be used.
 
         Returns:
             The divergence of the graph.
@@ -734,7 +734,7 @@ class GraphVectorField:
         """Calculate the potential of the graph.
 
         Potential is related to the intrinsic time. Note that the returned value from this function is the negative of
-        potential. Thus small potential is related to smaller intrinsic time and vice versa.
+        potential. Thus, small potential is related to smaller intrinsic time and vice versa.
 
         Args:
             mode: whether to use the asym components of the graph matrix or the normal symmetric matrix for calculation.
@@ -766,13 +766,13 @@ class GraphVectorField:
 
     def project_velocity(
         self, X_emb: np.ndarray, mode: Literal["raw", "asym"] = "raw", correct_density=False, norm_dist=False, **kwargs
-    ):
+    ) -> np.ndarray:
         """project the graph's vector field to a low-dimension space provided.
 
         Args:
             X_emb: the low-dimension space to be projected on.
-            mode: whether use the graph's vector field directly ("raw") or use its asym components ("asym"). Defaults to
-            "raw".
+            mode: whether to use the graph's vector field directly ("raw") or use its asym components ("asym"). Defaults
+                to "raw".
             correct_density: whether to correct density of the projected result based on X_emb. Defaults to False.
             norm_dist: whether to normalize the projection based on X_emb. Defaults to False.
 
