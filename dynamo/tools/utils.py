@@ -647,7 +647,18 @@ def condensed_idx_to_squareform_idx(arr_len: int, i: int) -> Tuple[int, int]:
     return x, y
 
 
-def squareform(arr, antisym=False, **kwargs):
+def squareform(arr: npt.ArrayLike, antisym: bool = False, **kwargs) -> npt.ArrayLike:
+    """Convert the input array to a square form matrix.
+
+    Args:
+        arr: the input array.
+        antisym: whether to treat the input array as containing the lower-triangular part of a symmetric matrix, and
+            set the upper-triangular elements to their negative values.
+        **kwargs: additional keyword arguments to be passed to the `spsquare` function.
+
+    Returns:
+        A square form matrix.
+    """
     M = spsquare(arr, **kwargs)
     if antisym:
         tril_idx = np.tril_indices_from(M, k=-1)
@@ -655,12 +666,36 @@ def squareform(arr, antisym=False, **kwargs):
     return M
 
 
-def moms2var(m1, m2):
+def moms2var(
+    m1: Union[np.ndarray, sp.csr_matrix],
+    m2: Union[np.ndarray, sp.csr_matrix],
+) -> Union[np.ndarray, sp.csr_matrix]:
+    """Calculate the variance from the first and second moments of a distribution.
+
+    Args:
+        m1: the first moments of the distribution.
+        m2: the second moments of the distribution.
+
+    Returns:
+        The variance of the distribution.
+    """
     var = m2 - elem_prod(m1, m1)
     return var
 
 
-def var2m2(var, m1):
+def var2m2(
+    var: Union[np.ndarray, sp.csr_matrix],
+    m1: Union[np.ndarray, sp.csr_matrix],
+) -> Union[np.ndarray, sp.csr_matrix]:
+    """Calculate the second moments from the variance and first moments of a distribution.
+
+    Args:
+        var: the variance of the distribution.
+        m1: the first moments of the distribution.
+
+    Returns:
+        The second moments of the distribution.
+    """
     m2 = var + elem_prod(m1, m1)
     return m2
 
@@ -707,15 +742,30 @@ def timeit(method: Callable) -> Callable:
 
 
 def velocity_on_grid(
-    X,
-    V,
-    n_grids,
-    nbrs=None,
-    k=None,
-    smoothness=1,
-    cutoff_coeff=2,
-    margin_coeff=0.025,
-):
+    X: npt.ArrayLike,
+    V: npt.ArrayLike,
+    n_grids: Union[int, np.ndarray],
+    nbrs: Optional[NearestNeighbors] = None,
+    k: Optional[int] = None,
+    smoothness: int = 1,
+    cutoff_coeff: int = 2,
+    margin_coeff: float = 0.025,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Calculate velocity on a grid from a given set of data points and velocities.
+
+    Args:
+        X: an array of shape representing the data points.
+        V: an array of shape representing the velocities associated with the data points.
+        n_grids: number of grid points along each feature dimension.
+        nbrs: a nearest neighbor model or a class that implements a nearest neighbor search.
+        k: the number of nearest neighbors to consider.
+        smoothness: a parameter controlling the smoothness of the velocity estimation.
+        cutoff_coeff: a coefficient to control the cutoff distance for weighting the neighbors.
+        margin_coeff: a coefficient to expand the grid range beyond the data points to avoid edge effects.
+
+    Returns:
+        A tuple containing the grid points X_grid and the estimated velocity on the grid V_grid.
+    """
     # codes adapted from velocyto
     _, D = X.shape
     if np.isscalar(n_grids):
@@ -965,29 +1015,82 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
 
 # ---------------------------------------------------------------------------------------------------
 # kinetic parameters related:
-def one_shot_alpha(labeled, gamma, t):
+def one_shot_alpha(labeled: npt.ArrayLike, gamma: npt.ArrayLike, t: npt.ArrayLike) -> npt.ArrayLike:
+    """Calculate the alpha parameter in one-shot experiment.
+
+    Args:
+        labeled: the array of labeled data.
+        gamma: the degradation rate.
+        t: the time of labeling.
+
+    Returns:
+        The alpha parameter.
+    """
     alpha = labeled * gamma / (1 - np.exp(-gamma * t))
     return alpha
 
 
-def one_shot_alpha_matrix(labeled, gamma, t):
+def one_shot_alpha_matrix(
+    labeled: Union[np.ndarray, sp.csr_matrix],
+    gamma: Union[np.ndarray, sp.csr_matrix],
+    t: Union[np.ndarray, sp.csr_matrix],
+) -> sp.csr_matrix:
+    """Calculate the alpha parameter in one-shot experiment with sparse matrix support.
+
+    Args:
+        labeled: the array of labeled data.
+        gamma: the degradation rate.
+        t: the time of labeling.
+
+    Returns:
+        The alpha parameter.
+    """
     alpha = elem_prod(gamma[:, None], labeled) / (1 - np.exp(-elem_prod(gamma[:, None], t[None, :])))
     return sp.csr_matrix(alpha)
 
 
-def one_shot_gamma_alpha(k, t, labeled):
+def one_shot_gamma_alpha(k: np.ndarray, t: np.ndarray, labeled: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Calculate the gamma and alpha parameters in one-shot experiment.
+
+    Args:
+        k: the slope of labeled and total data under the steady state.
+        t: the time of labeling.
+        labeled: the array of labeled data.
+
+    Returns:
+        A tuple containing the gamma and alpha parameters.
+    """
     gamma = -np.log(1 - k) / t
     alpha = labeled * (gamma / k)[0]
     return gamma, alpha
 
 
-def one_shot_k(gamma, t):
+def one_shot_k(gamma: npt.ArrayLike, t: npt.ArrayLike) -> npt.ArrayLike:
+    """Calculate the slope of labeled and total data from the gamma and time information.
+
+    Args:
+        gamma: the degradation rate.
+        t: the time of labeling.
+
+    Returns:
+        The slope calculated from gamma and t.
+    """
     k = 1 - np.exp(-gamma * t)
     return k
 
 
-def one_shot_gamma_alpha_matrix(k, t, U):
-    """Assume U is a sparse matrix and only tested on one-shot experiment"""
+def one_shot_gamma_alpha_matrix(k: np.ndarray, t: np.ndarray, U: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Calculate the gamma and alpha parameters in one-shot experiment. Assume U is a sparse matrix and only tested on
+    one-shot experiment.
+
+    Args:
+        k: the slope of labeled and total data under the steady state.
+        t: the time of labeling.
+        U: the sparse matrix data.
+
+    Returns:
+        A tuple containing the gamma and alpha parameters.
+    """
     Kc = np.clip(k, 0, 1 - 1e-3)
     gamma = -(np.log(1 - Kc) / t)
     alpha = U.multiply((gamma / k)[:, None])
@@ -995,8 +1098,25 @@ def one_shot_gamma_alpha_matrix(k, t, U):
     return gamma, alpha
 
 
-def _one_shot_gamma_alpha_matrix(K, tau, N, R):
-    """original code from Yan"""
+def _one_shot_gamma_alpha_matrix(
+    K: npt.ArrayLike,
+    tau: Union[float, int, np.ndarray],
+    N: Union[np.ndarray, sp.csr_matrix],
+    R: Union[np.ndarray, sp.csr_matrix],
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Calculate the gamma and alpha parameters in one-shot experiment.
+
+    Supports sparse matrix input. Original code from Yan.
+
+    Args:
+        K: the slope of labeled and total data under the steady state.
+        tau: the time of labeling.
+        N: the sparse matrix of labeled data.
+        R: the sparse matrix of total data.
+
+    Returns:
+        A tuple containing the gamma and alpha parameters.
+    """
     N, R = N.A.T, R.A.T
     K = np.array(K)
     tau = tau[0]
@@ -1008,7 +1128,21 @@ def _one_shot_gamma_alpha_matrix(K, tau, N, R):
     return B, (elem_prod(B, N) / K).T - elem_prod(B, R).T
 
 
-def compute_velocity_labeling_B(B, alpha, R):
+def compute_velocity_labeling_B(
+    B: Union[np.ndarray, sp.csr_matrix],
+    alpha: Union[np.ndarray, sp.csr_matrix],
+    R: Union[np.ndarray, sp.csr_matrix],
+) -> Union[np.ndarray, sp.csr_matrix]:
+    """Calculate the velocity from the alpha and parameter B representing the degradation rate.
+
+    Args:
+        B: the parameter representing the degradation rate.
+        alpha: the alpha parameter.
+        R: the total data.
+
+    Returns:
+        The velocity calculated from the alpha and B parameters.
+    """
     return alpha - elem_prod(B, R.T).T
 
 
@@ -1071,16 +1205,32 @@ def log_unnormalized_data(
 
 
 def get_data_for_kin_params_estimation(
-    subset_adata,
-    has_splicing,
-    has_labeling,
-    model,
-    use_moments,
-    tkey,
-    protein_names,
-    log_unnormalized,
-    NTR_vel,
-):
+    subset_adata: AnnData,
+    has_splicing: bool,
+    has_labeling: bool,
+    model: str,
+    use_moments: bool,
+    tkey: str,
+    protein_names: List[str],
+    log_unnormalized: bool,
+    NTR_vel: bool,
+) -> Tuple:
+    """Get the data for kinetic experiments parameters estimation.
+
+    Args:
+        subset_adata: the AnnData object containing the data.
+        has_splicing: whether the data has splicing information.
+        has_labeling: whether the data has labeling information.
+        model: the model used to estimate kinetic parameters.
+        use_moments: whether to use the moments data instead of the original layer.
+        tkey: the key in `adata.obs` that stores the time information.
+        protein_names: the names of proteins to perform estimation.
+        log_unnormalized: whether the data needs log normalization.
+        NTR_vel: whether to use new / total ratio (NTR) to estimate velocity.
+
+    Returns:
+        A tuple containing the data for kinetic experiments parameters estimation.
+    """
     if not NTR_vel:
         if has_labeling and not has_splicing:
             main_warning(
@@ -1629,7 +1779,27 @@ def update_vel_params(adata: AnnData, params_df: pd.DataFrame, kin_param_pre: st
     adata.uns[kin_param_pre + "vel_params_names"] = list(params_df.columns)
 
 
-def get_U_S_for_velocity_estimation(subset_adata, use_moments, has_splicing, has_labeling, log_unnormalized, NTR):
+def get_U_S_for_velocity_estimation(
+    subset_adata: AnnData,
+    use_moments: bool,
+    has_splicing: bool,
+    has_labeling: bool,
+    log_unnormalized: bool,
+    NTR: bool,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Get the unspliced and spliced matrices for velocity estimation.
+
+    Args:
+        subset_adata: the anndata object which contains the data.
+        use_moments: whether to use the moments data instead of the original data.
+        has_splicing: whether the data has splicing information.
+        has_labeling: whether the data has labeling information.
+        log_unnormalized: whether the data needs log normalization.
+        NTR: whether to use new, total instead of unspliced, spliced.
+
+    Returns:
+        The unspliced and spliced matrices for velocity estimation.
+    """
     mapper = get_mapper()
 
     if has_splicing:
@@ -1747,7 +1917,18 @@ def get_U_S_for_velocity_estimation(subset_adata, use_moments, has_splicing, has
 # retrieving data related
 
 
-def fetch_X_data(adata, genes, layer, basis=None):
+def fetch_X_data(adata: AnnData, genes: List, layer: str, basis: Optional[str] = None) -> Tuple:
+    """Get the X data according to given parameters.
+
+    Args:
+        adata: anndata object containing gene expression data.
+        genes: list of gene names to be fetched. If None, all genes are considered.
+        layer: layer of the data to fetch.
+        basis: dimensionality reduction basis. If provided, the data is fetched from a specific embedding.
+
+    Returns:
+        A tuple containing a list of fetched gene names and the corresponding gene expression data (X data).
+    """
     if basis is not None:
         return None, adata.obsm["X_" + basis]
 
@@ -2117,8 +2298,23 @@ def select(
 # estimation related
 
 
-def calc_R2(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)):
-    """calculate R-square. X, Y: n_species (mu, sigma) x n_obs"""
+def calc_R2(
+    X: np.ndarray,
+    Y: np.ndarray,
+    k: Union[float, np.ndarray],
+    f: Callable = lambda X, k: np.einsum("ij,i -> ij", X, k),
+) -> float:
+    """Calculate R-square. X, Y: n_species (mu, sigma) x n_obs
+
+    Args:
+        X: the input data.
+        Y: the output data observed as the ground truth.
+        k: the parameter(s) used to calculate the output data.
+        f: prediction function that takes X and k as input and returns predicted values.
+
+    Returns:
+        The R-squared value indicating the goodness of fit between observed and predicted values.
+    """
     if X.ndim == 1:
         X = X[None]
     if Y.ndim == 1:
@@ -2137,15 +2333,39 @@ def calc_R2(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)):
     return 1 - SS_res / SS_tot
 
 
-def norm_loglikelihood(x, mu, sig):
-    """Calculate log-likelihood for the data."""
+def norm_loglikelihood(x: np.ndarray, mu: np.ndarray, sig: np.ndarray) -> np.ndarray:
+    """Calculate log-likelihood for the data.
+
+    Args:
+        x: the input data.
+        mu: the mean of the data.
+        sig: the standard deviation of the data.
+
+    Returns:
+        The log-likelihood of the data.
+    """
     err = (x - mu) / sig
     ll = -len(err) / 2 * np.log(2 * np.pi) - 0.5 * len(err) * np.log(sig**2) - 0.5 * err.dot(err.T)
     return np.sum(ll, 0)
 
 
-def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)):
-    """calculate log likelihood based on normal distribution. X, Y: n_species (mu, sigma) x n_obs"""
+def calc_norm_loglikelihood(
+    X: np.ndarray,
+    Y: np.ndarray,
+    k: Union[float, np.ndarray],
+    f: Callable = lambda X, k: np.einsum("ij,i -> ij", X, k),
+) -> float:
+    """Calculate log likelihood based on normal distribution. X, Y: n_species (mu, sigma) x n_obs
+
+    Args:
+        X: the input data.
+        Y: the output data observed as the ground truth.
+        k: the parameter(s) used to calculate the output data.
+        f: prediction function that takes X and k as input and returns predicted values.
+
+    Returns:
+        The log-likelihood value.
+    """
     if X.ndim == 1:
         X = X[None]
     if Y.ndim == 1:
@@ -2170,7 +2390,29 @@ def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k
 # velocity related
 
 
-def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
+def find_extreme(
+    s: Union[np.ndarray, sp.spmatrix],
+    u: Union[np.ndarray, sp.spmatrix],
+    normalize: bool = True,
+    perc_left: Optional[float] = None,
+    perc_right: Optional[float] = None,
+) -> np.ndarray:
+    """Find extreme regions in a combination of two arrays.
+
+    This function combines two arrays `s` and `u` and identifies regions that are considered extreme. The combination is
+    performed by either normalizing each array separately and adding them, or directly adding them without
+    normalization.
+
+    Args:
+        s: the spliced data.
+        u: the unspliced data.
+        normalize: whether to normalize each array before adding them. Default is True.
+        perc_left: the percentile value used to identify the left tail extreme regions.
+        perc_right: the percentile value used to identify the right tail extreme regions.
+
+    Returns:
+        A boolean mask identifying the extreme regions based on the provided percentiles.
+    """
     s, u = (s.A if sp.issparse(s) else s, u.A if sp.issparse(u) else u)
 
     if normalize:
@@ -2190,21 +2432,46 @@ def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
     return mask
 
 
-def get_group_params_indices(adata, param_name):
+def get_group_params_indices(adata: AnnData, param_name: str) -> np.ndarray:
+    """Get the indices of columns in an AnnData object associated with a specific group parameter.
+
+    Args:
+        adata: an AnnData object containing group parameter information.
+        param_name: the name of the group parameter to search for.
+
+    Returns:
+        An array of boolean values representing column indices matching the specified parameter.
+    """
     return adata.var.columns.str.endswith(param_name)
 
 
 def set_transition_genes(
-    adata,
-    vkey="velocity_S",
-    min_r2=None,
-    min_alpha=None,
-    min_gamma=None,
-    min_delta=None,
-    use_for_dynamics=True,
-    store_key="use_for_transition",
-    minimal_gene_num=50,
-):
+    adata: AnnData,
+    vkey: str = "velocity_S",
+    min_r2: float = None,
+    min_alpha: float = None,
+    min_gamma: float = None,
+    min_delta: float = None,
+    use_for_dynamics: bool = True,
+    store_key: str = "use_for_transition",
+    minimal_gene_num: int = 50,
+) -> None:
+    """Set the transition genes in the AnnData object.
+
+    Args:
+        adata: the AnnData object.
+        vkey: the key of estimated velocity.
+        min_r2: the minimum value to filter r2.
+        min_alpha: the minimum value to filter alpha.
+        min_gamma: the minimum value to filter gamma.
+        min_delta: the minimum value to filter delta.
+        use_for_dynamics: whether to save use_for_dynamics.
+        store_key: the key to store transition data.
+        minimal_gene_num: the minimum gene to deal with the situation of too few genes.
+
+    Returns:
+        The updated AnnData object.
+    """
     layer = vkey.split("_")[1]
     vel_params_df = get_vel_params(adata)
 
@@ -2347,11 +2614,17 @@ def set_transition_genes(
     return adata
 
 
-def get_ekey_vkey_from_adata(adata):
-    """
-    ekey: expression from which to extrapolate velocity
-    vkey: velocity key
-    layer: the states cells will be used in velocity embedding.
+def get_ekey_vkey_from_adata(adata: AnnData) -> Tuple[str, str, str]:
+    """Get the corresponding ekey and vkey from anndata.
+
+    Args:
+        adata: the AnnData object.
+
+    Returns:
+        A tuple containing:
+            ekey: expression from which to extrapolate velocity
+            vkey: velocity key
+            layer: the states cells will be used in velocity embedding.
     """
     dynamics_key = [i for i in adata.uns.keys() if i.endswith("dynamics")][0]
     experiment_type, use_smoothed = (
@@ -2482,10 +2755,27 @@ def get_ekey_vkey_from_adata(adata):
 
 # ---------------------------------------------------------------------------------------------------
 # cell velocities related
-def get_neighbor_indices(adjacency_list, source_idx, n_order_neighbors=2, max_neighbors_num=None):
-    """returns a list (np.array) of `n_order_neighbors` neighbor indices of source_idx. If `max_neighbors_num` is set
-    and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list of neighbors will be randomly
-    chosen and returned."""
+def get_neighbor_indices(
+    adjacency_list: np.ndarray,
+    source_idx: int,
+    n_order_neighbors: int = 2,
+    max_neighbors_num: Optional[int] = None,
+) -> np.ndarray:
+    """Get a list (np.array) of `n_order_neighbors` neighbor indices of source_idx.
+
+    If `max_neighbors_num` is set and the n order neighbors of `source_idx` is larger than `max_neighbors_num`, a list
+    of neighbors will be randomly chosen and returned.
+
+    Args:
+        adjacency_list: the adjacency list of the graph.
+        source_idx: the index of the source node.
+        n_order_neighbors: the number of neighbor orders to consider, which controls the depth of iterative neighbor
+            search.
+        max_neighbors_num: the maximum number of neighbors to return.
+
+    Returns:
+        A list of neighbor indices.
+    """
     _indices = [source_idx]
     for _ in range(n_order_neighbors):
         _indices = np.append(_indices, adjacency_list[_indices])
@@ -2497,7 +2787,22 @@ def get_neighbor_indices(adjacency_list, source_idx, n_order_neighbors=2, max_ne
     return _indices
 
 
-def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighbors_num=None):
+def append_iterative_neighbor_indices(
+    indices: np.ndarray,
+    n_recurse_neighbors: int = 2,
+    max_neighbors_num: Optional[int] = None,
+) -> List[np.ndarray]:
+    """Append iterative neighbor indices for each index in the input array.
+
+    Args:
+        indices: the input array of indices as a 1D numpy array.
+        n_recurse_neighbors: the number of neighbor orders to consider, which controls the depth of iterative neighbor
+            search.
+        max_neighbors_num: the maximum number of neighbor indices to be stored for each index.
+
+    Returns:
+        A list of array containing iterative neighbor indices for each index in the input array.
+    """
     indices_rec = []
     for i in range(indices.shape[0]):
         neig = get_neighbor_indices(indices, i, n_recurse_neighbors, max_neighbors_num)
@@ -2505,7 +2810,10 @@ def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighb
     return indices_rec
 
 
-def split_velocity_graph(G, neg_cells_trick=True):
+def split_velocity_graph(
+    G: Union[sp.csr_matrix, npt.ArrayLike],
+    neg_cells_trick: bool = True,
+) -> Union[sp.csr_matrix, Tuple[sp.csr_matrix, sp.csr_matrix]]:
     """split velocity graph (built either with correlation or with cosine kernel
     into one positive graph and one negative graph"""
 
@@ -2590,15 +2898,31 @@ def linear_least_squares(
 
 
 def integrate_vf(
-    init_states,
-    t,
-    args,
-    integration_direction,
-    f,
-    interpolation_num=None,
-    average=True,
+    init_states: np.ndarray,
+    t: np.ndarray,
+    args: Tuple,
+    integration_direction: Literal["forward", "backward", "both"],
+    f: Callable,
+    interpolation_num: Optional[int]=None,
+    average: bool = True,
 ):
-    """integrating along vector field function"""
+    """Integrating along vector field function.
+
+    Args:
+        init_states: the initial states for numerical integration as a 2D numpy array.
+        t: the time points for numerical integration as a 1D numpy array.
+        args: additional arguments to be passed to the vector field function `f`.
+        integration_direction: the direction of integration.
+            - "forward": Integrate the vector field function in the forward direction.
+            - "backward": Integrate the vector field function in the backward direction.
+            - "both": Integrate the vector field function both forward and backward in time.
+        f: the vector field function.
+        interpolation_num: the number of points for interpolation.
+        average: whether to average the integrated states over cells when multiple initial states are provided.
+
+    Returns:
+        A tuple containing the integrated time array `t` and the integrated states `Y`.
+    """
 
     n_cell, n_feature, n_steps = (
         init_states.shape[0],
@@ -2667,7 +2991,39 @@ def integrate_vf(
 
 # ---------------------------------------------------------------------------------------------------
 # fetch states
-def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
+def fetch_states(
+    adata: AnnData,
+    init_states: np.ndarray,
+    init_cells: Union[str, List],
+    basis: str,
+    layer: str,
+    average: Union[str, bool],
+    t_end: float,
+) -> Tuple[np.ndarray, Dict[str, Any], float, Optional[List[str]]]:
+    """Fetch initial states for the vector field modeling of single-cell data.
+
+    This function retrieves the initial states for the vector field modeling of single-cell data from the provided
+    `adata` object. It allows providing either the `init_states` directly or the `init_cells` names and the `basis`
+    (e.g., pca) from which the initial states should be derived.
+
+    Args:
+        adata: an AnnData object containing the single-cell data.
+        init_states: the initial states to use for the vector field modeling. If not provided, `init_cells` and `basis`
+            should be used to derive the initial states.
+        init_cells: the cell names to use for deriving the initial states.
+        basis: the basis to use for deriving the initial states.
+        layer: the layer of the data to use for deriving the initial states.
+        average: determines how to handle multiple initial states when provided. If "origin" or True, the initial states
+            will be averaged to a single state. If "trajectory", the initial states will be kept as separate states.
+        t_end: the end time point for the vector field modeling.
+
+    Returns:
+        A tuple containing the following:
+            - init_states: the derived initial states for the vector field modeling.
+            - VecFld: a dictionary containing information about the vector field.
+            - t_end: the end time point for the vector field modeling.
+            - valid_genes: a list of valid gene names used for the vector field modeling,
+    """
     if basis is not None:
         vf_key = "VecFld_" + basis
     else:
@@ -2732,7 +3088,16 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
     return init_states, VecFld, t_end, valid_genes
 
 
-def getTend(X, V):
+def getTend(X: np.ndarray, V: np.ndarray) -> float:
+    """Compute the end time for the vector field modeling.
+
+    Args:
+        X: the cell embeddings.
+        V: the estimated velocities.
+
+    Returns:
+        The end time (t_end) for the vector field modeling.
+    """
     xmin, xmax = X.min(0), X.max(0)
     V_abs = np.abs(V)
     t_end = np.max(xmax - xmin) / np.percentile(V_abs[V_abs > 0], 1)
@@ -2740,7 +3105,17 @@ def getTend(X, V):
     return t_end
 
 
-def getTseq(init_states, t_end, step_size=None):
+def getTseq(init_states: np.ndarray, t_end: float, step_size: Optional[Union[int, float]] = None) -> np.ndarray:
+    """Generate a time sequence for the vector field modeling.
+
+    Args:
+        init_states: the initial states for the vector field modeling as a 2D numpy array.
+        t_end: the end time for the vector field modeling.
+        step_size: the time step size between each time point in the sequence.
+
+    Returns:
+        An array containing the time sequence for the vector field modeling.
+    """
     if step_size is None:
         max_steps = int(max(7 / (init_states.shape[1] / 300), 4)) if init_states.shape[1] > 300 else 7
         t_linspace = np.linspace(0, t_end, 10 ** (np.min([int(np.log10(t_end)), max_steps])))
@@ -2798,11 +3173,31 @@ def compute_smallest_distance(
 # Pass kwargs to starmap while using Pool
 # https://stackoverflow.com/questions/45718523/pass-kwargs-to-starmap-while-using-pool-in-python
 def starmap_with_kwargs(pool, fn, args_iter, kwargs_iter):
+    """Apply a function with arguments and keyword arguments to an iterable using multiprocessing.
+
+    Args:
+        pool: the multiprocessing pool.
+        fn: the function to apply.
+        args_iter: the iterable of arguments.
+        kwargs_iter: the iterable of keyword arguments.
+
+    Returns:
+        A list of the results of the function applied to the iterable.
+    """
     args_for_starmap = zip(itertools.repeat(fn), args_iter, kwargs_iter)
     return pool.starmap(apply_args_and_kwargs, args_for_starmap)
 
 
 def apply_args_and_kwargs(fn, args, kwargs):
+    """Apply a function with arguments and keyword arguments.
+
+    Args:
+        fn: the function to apply.
+        args: the arguments.
+
+    Returns:
+        The result of the function applied to the arguments.
+    """
     return fn(*args, **kwargs)
 
 
@@ -2889,6 +3284,19 @@ def get_rank_array(
 def projection_with_transition_matrix(
     T: Union[np.ndarray, sp.csr_matrix], X_embedding: np.ndarray, correct_density: bool = True, norm_dist: bool = True
 ) -> np.ndarray:
+    """Project velocity vectors to a low-dimensional embedding using a transition matrix.
+
+    Args:
+        T: the transition matrix representing velocity vectors. It can be a dense numpy array or a sparse csr_matrix.
+        X_embedding: the low-dimensional embedding coordinates as a 2D numpy array. Each row represents the
+            embedding coordinates of a cell in `T`.
+        correct_density: whether to correct the density of the projected velocity vectors.
+        norm_dist: whether to normalize the difference in embedding coordinates between connected cells before
+            projecting the velocity vectors.
+
+    Returns:
+        A numpy array containing the projected velocity vectors for each cell in the embedding.
+    """
     n = T.shape[0]
     delta_X = np.zeros((n, X_embedding.shape[1]))
 
@@ -2914,10 +3322,15 @@ def projection_with_transition_matrix(
 
     return delta_X
 
-def density_corrected_transition_matrix(T):
-    '''
-        Returns the transition matrix with density correction from T
-    '''
+def density_corrected_transition_matrix(T: Union[npt.ArrayLike, sp.csr_matrix]) -> sp.csr_matrix:
+    """Compute the density corrected transition matrix.
+
+    Args:
+        T: the transition matrix to be corrected.
+
+    Returns:
+        The transition matrix with density correction from T.
+    """
     T = sp.csr_matrix(T, copy=True)
 
     for i in range(T.shape[0]):
