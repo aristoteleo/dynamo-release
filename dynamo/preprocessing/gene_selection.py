@@ -527,6 +527,7 @@ def select_genes_by_seurat_recipe(
     nan_replace_val: Union[float, None] = None,
     n_top_genes: int = 2000,
     algorithm: Literal["seurat_dispersion", "fano_dispersion"] = "seurat_dispersion",
+    chunk_size: Optional[int] = None,
     seurat_min_disp: Union[float, None] = None,
     seurat_max_disp: Union[float, None] = None,
     seurat_min_mean: Union[float, None] = None,
@@ -569,25 +570,40 @@ def select_genes_by_seurat_recipe(
 
     if len(pass_filter_genes) != len(set(pass_filter_genes)):
         main_warning("gene names are not unique, please check your preprocessing procedure.")
-    subset_adata = adata[:, pass_filter_genes]
     if n_top_genes is None:
         main_info("n_top_genes is None, reserve all genes and add filter gene information")
         n_top_genes = adata.n_vars
-    layer_mat = DKM.select_layer_data(subset_adata, layer)
-    if nan_replace_val:
-        main_info("replacing nan values with: %s" % (nan_replace_val))
-        _mask = get_nan_or_inf_data_bool_mask(layer_mat)
-        layer_mat[_mask] = nan_replace_val
+
+    chunk_size = chunk_size if chunk_size is not None else adata.n_vars
 
     if algorithm == "seurat_dispersion":
+        chunked_layer_mats = DKM.select_layer_gene_chunked_data(adata[:, pass_filter_genes], layer, chunk_size=chunk_size)
+        mean = np.zeros(len(pass_filter_genes))
+        variance = np.zeros(len(pass_filter_genes))
+
+        for mat_data in chunked_layer_mats:
+            layer_mat = mat_data[0]
+
+            if nan_replace_val:
+                main_info("replacing nan values with: %s" % (nan_replace_val))
+                _mask = get_nan_or_inf_data_bool_mask(layer_mat)
+                layer_mat[_mask] = nan_replace_val
+
+            chunked_mean, chunked_var = seurat_get_mean_var(layer_mat)
+
+            mean[mat_data[1]:mat_data[2]] = chunked_mean
+            variance[mat_data[1]:mat_data[2]] = chunked_var
+
         mean, variance, highly_variable_mask = select_genes_by_seurat_dispersion(
-            layer_mat,
+            mean=mean,
+            variance=variance,
             min_disp=seurat_min_disp,
             max_disp=seurat_max_disp,
             min_mean=seurat_min_mean,
             max_mean=seurat_max_mean,
             n_top_genes=n_top_genes,
         )
+
         main_info_insert_adata_var(DKM.VAR_GENE_MEAN_KEY)
         main_info_insert_adata_var(DKM.VAR_GENE_VAR_KEY)
         main_info_insert_adata_var(DKM.VAR_GENE_HIGHLY_VARIABLE_KEY)
@@ -603,14 +619,6 @@ def select_genes_by_seurat_recipe(
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY][pass_filter_genes] = highly_variable_mask
         adata.var[DKM.VAR_USE_FOR_PCA][pass_filter_genes] = highly_variable_mask
 
-    elif algorithm == "fano_dispersion":
-        select_genes_monocle(adata, layer=layer, sort_by=algorithm)
-        # adata = select_genes_by_svr(
-        #     adata,
-        #     layers=layer,
-        #     algorithm=algorithm,
-        # )
-        # filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
     else:
         raise ValueError(f"The algorithm {algorithm} is not existed")
 
@@ -621,7 +629,8 @@ def select_genes_by_seurat_recipe(
 
 
 def select_genes_by_seurat_dispersion(
-    sparse_layer_mat: csr_matrix,
+    mean: np.ndarray,
+    variance: np.ndarray,
     n_bins: int = 20,
     log_mean_and_dispersion: bool = True,
     min_disp: float = None,
@@ -661,9 +670,6 @@ def select_genes_by_seurat_dispersion(
     if max_mean is None:
         max_mean = 3
 
-    # mean, variance, dispersion = calc_mean_var_dispersion_sparse(sparse_layer_mat) # Dead
-    sc_mean, sc_var = seurat_get_mean_var(sparse_layer_mat)
-    mean, variance = sc_mean, sc_var
     dispersion = variance / mean
 
     if log_mean_and_dispersion:
