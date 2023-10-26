@@ -38,14 +38,21 @@ class DynamoAdataKeyManager:
     PROTEIN_LAYER = "protein"
     X_PCA = "X_pca"
 
-    def _select_layer_chunked_data(adata: AnnData, layer: str, start: int, end: int) -> Tuple[np.ndarray, int, int]:
+    def _select_layer_chunked_data(
+        adata: AnnData,
+        layer: str,
+        cell_start: int,
+        cell_end: int,
+        gene_start: int,
+        gene_end: int,
+    ) -> np.ndarray:
         """This utility is a helper function to select chunked layer data."""
         if layer == DynamoAdataKeyManager.X_LAYER:
-            return (adata.X[start:end], start, end)
+            return adata.X[cell_start:cell_end, gene_start:gene_end]
         elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
-            return (adata.obsm["protein"][start:end], start, end) if "protein" in adata.obsm_keys() else None
+            return adata.obsm["protein"][cell_start:cell_end, gene_start:gene_end] if "protein" in adata.obsm_keys() else None
         else:
-            return (adata.layers[layer][start:end], start, end)
+            return adata.layers[layer][cell_start:cell_end, gene_start:gene_end]
 
     def gen_new_layer_key(layer_name, key, sep="_") -> str:
         """utility function for returning a new key name for a specific layer. By convention layer_name should not have the separator as the last character."""
@@ -92,19 +99,79 @@ class DynamoAdataKeyManager:
             return res_data.copy()
         return res_data
 
-    def select_layer_chunked_data(adata: AnnData, layer: str, chunk_size: int) -> List[Tuple[np.ndarray, int, int]]:
-        """This utility provides a unified interface for selecting chunked layer data."""
+    def select_layer_cell_chunked_data(adata: AnnData, layer: str, chunk_size: int) -> List[Tuple[np.ndarray, int, int]]:
+        """This utility provides a unified interface for selecting cells chunked layer data."""
         if layer is None:
             layer = DynamoAdataKeyManager.X_LAYER
 
+        n_genes = adata.n_vars
         start = 0
         n = adata.n_obs
         for _ in range(int(n // chunk_size)):
             end = start + chunk_size
-            yield DynamoAdataKeyManager._select_layer_chunked_data(adata=adata, layer=layer, start=start, end=end)
+            yield (
+                DynamoAdataKeyManager._select_layer_chunked_data(
+                    adata=adata,
+                    layer=layer,
+                    cell_start=start,
+                    cell_end=end,
+                    gene_start=0,
+                    gene_end=n_genes,
+                ),
+                start,
+                end,
+            )
             start = end
         if start < n:
-            yield DynamoAdataKeyManager._select_layer_chunked_data(adata=adata, layer=layer, start=start, end=n)
+            yield (
+                DynamoAdataKeyManager._select_layer_chunked_data(
+                    adata=adata,
+                    layer=layer,
+                    cell_start=start,
+                    cell_end=n,
+                    gene_start=0,
+                    gene_end=n_genes,
+                ),
+                start,
+                n,
+            )
+
+    def select_layer_gene_chunked_data(adata: AnnData, layer: str, chunk_size: int) -> List[Tuple[np.ndarray, int, int]]:
+        """This utility provides a unified interface for selecting genes chunked layer data."""
+        if layer is None:
+            layer = DynamoAdataKeyManager.X_LAYER
+
+        n_cells = adata.n_obs
+        start = 0
+        n = adata.n_vars
+        for _ in range(int(n // chunk_size)):
+            end = start + chunk_size
+            yield (
+                DynamoAdataKeyManager._select_layer_chunked_data(
+                    adata=adata,
+                    layer=layer,
+                    cell_start=0,
+                    cell_end=n_cells,
+                    gene_start=start,
+                    gene_end=end,
+                ),
+                start,
+                end,
+            )
+            start = end
+        if start < n:
+            yield (
+                DynamoAdataKeyManager._select_layer_chunked_data(
+                    adata=adata,
+                    layer=layer,
+                    cell_start=0,
+                    cell_end=n_cells,
+                    gene_start=start,
+                    gene_end=n,
+                ),
+                start,
+                n,
+            )
 
     def set_layer_data(adata: AnnData, layer: str, vals: np.array, var_indices: np.array = None):
         if var_indices is None:
