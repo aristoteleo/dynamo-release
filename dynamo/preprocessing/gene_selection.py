@@ -546,7 +546,8 @@ def select_genes_by_seurat_recipe(
         layer: the key of a sparse matrix in adata. Defaults to DKM.X_LAYER.
         nan_replace_val: your choice of value to replace values in layer. Defaults to None.
         n_top_genes: number of genes to select as highly variable genes. Defaults to 2000.
-        algorithm: a method for selecting genes; must be one of "seurat_dispersion" or "fano".
+        algorithm: a method for selecting genes; Only support "seurat_dispersion" for now.
+        chunk_size: the size of chunked data. Defaults to None.
         seurat_min_disp: seurat dispersion min cutoff. Defaults to None.
         seurat_max_disp: seurat dispersion max cutoff. Defaults to None.
         seurat_min_mean: seurat mean min cutoff. Defaults to None.
@@ -642,7 +643,8 @@ def select_genes_by_seurat_dispersion(
     """Apply seurat's gene selection recipe by cutoffs.
 
     Args:
-        sparse_layer_mat: the sparse matrix used for gene selection.
+        mean: mean of the columns for each gene.
+        variance: variance of the columns for each gene.
         n_bins: the number of bins for normalization. Defaults to 20.
         log_mean_and_dispersion: whether log the gene expression values before calculating the dispersion values.
             Defaults to True.
