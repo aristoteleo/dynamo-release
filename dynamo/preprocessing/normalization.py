@@ -32,6 +32,7 @@ def calc_sz_factor(
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
     locfunc: Callable = np.nanmean,
+    chunk_size: Optional[int] = None,
     round_exprs: bool = False,
     method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
@@ -117,6 +118,7 @@ def calc_sz_factor(
                 round_exprs,
                 method,
                 locfunc,
+                chunk_size=chunk_size,
                 total_layers=None,
                 scale_to=scale_to,
             )
@@ -127,6 +129,7 @@ def calc_sz_factor(
                 round_exprs,
                 method,
                 locfunc,
+                chunk_size=chunk_size,
                 total_layers=total_layers,
                 scale_to=scale_to,
             )
@@ -351,6 +354,7 @@ def sz_util(
     round_exprs: bool,
     method: Literal["mean-geometric-mean-total", "geometric", "median"],
     locfunc: Callable,
+    chunk_size: Optional[int] = None,
     total_layers: List[str] = None,
     CM: pd.DataFrame = None,
     scale_to: Union[float, None] = None,
@@ -389,19 +393,29 @@ def sz_util(
                 extend_layers=False,
             )
 
-    CM = DKM.select_layer_data(adata, layer) if CM is None else CM
-    if CM is None:
-        return None, None
+    chunk_size = chunk_size if chunk_size is not None else adata.n_obs
+    chunked_CMs = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size) if CM is None else CM
 
-    if round_exprs:
-        main_debug("rounding expression data of layer: %s during size factor calculation" % (layer))
-        if issparse(CM):
-            CM.data = np.round(CM.data, 0)
-        else:
-            CM = CM.round().astype("int")
+    cell_total = np.zeros(adata.n_obs)
 
-    cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
-    cell_total += cell_total == 0  # avoid infinity value after log (0)
+    for CM_data in chunked_CMs:
+        CM = CM_data[0]
+
+        CM = DKM.select_layer_data(adata, layer) if CM is None else CM
+        if CM is None:
+            return None, None
+
+        if round_exprs:
+            main_debug("rounding expression data of layer: %s during size factor calculation" % (layer))
+            if issparse(CM):
+                CM.data = np.round(CM.data, 0)
+            else:
+                CM = CM.round().astype("int")
+
+        chunk_cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
+        chunk_cell_total += chunk_cell_total == 0  # avoid infinity value after log (0)
+
+        cell_total[CM_data[1]:CM_data[2]] = chunk_cell_total
 
     if method in ["mean-geometric-mean-total", "geometric"]:
         sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)
