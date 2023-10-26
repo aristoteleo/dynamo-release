@@ -578,7 +578,12 @@ def select_genes_by_seurat_recipe(
     chunk_size = chunk_size if chunk_size is not None else adata.n_vars
 
     if algorithm == "seurat_dispersion":
-        chunked_layer_mats = DKM.select_layer_gene_chunked_data(adata[:, pass_filter_genes], layer, chunk_size=chunk_size)
+        chunked_layer_mats = DKM.select_layer_chunked_data(
+            adata[:, pass_filter_genes],
+            layer,
+            chunk_size=chunk_size,
+            chunk_mode="gene",
+        )
         mean = np.zeros(len(pass_filter_genes))
         variance = np.zeros(len(pass_filter_genes))
 
