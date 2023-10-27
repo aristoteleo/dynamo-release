@@ -345,9 +345,9 @@ def normalize(
                 main_info_insert_adata_layer("X_" + layer)
 
                 if issparse(adata.layers[layer]):
-                    adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape, dtype=adata.X.dtype))
+                    adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape))
                 else:
-                    adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape, dtype=adata.X.dtype)
+                    adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape)
 
                 for CM_data in CMs_data:
                     CM = CM_data[0]
