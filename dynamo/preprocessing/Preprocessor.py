@@ -364,11 +364,11 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.normalize_selected_genes) and not self.skip_normalize:
+        if self.skip_normalize:
+            main_info("Data already normalized. Skipping gene-wise normalization.")
+        elif callable(self.normalize_selected_genes):
             main_debug("normalizing selected genes...")
             self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
-        else:
-            main_info("Data already normalized. Skipping gene-wise normalization.")
 
     def _normalize_by_cells(self, adata: AnnData) -> None:
         """Performing cell-wise normalization based on method specified as the preprocessor's `normalize_by_cells`.
@@ -377,11 +377,11 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.normalize_by_cells) and not self.skip_normalize:
+        if self.skip_normalize:
+            main_info("Data already normalized. Skipping cell-wise normalization.")
+        elif callable(self.normalize_by_cells):
             main_debug("applying normalize by cells function...")
             self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
-        else:
-            main_info("Data already normalized. Skipping cell-wise normalization.")
 
     def _norm_method(self, adata: AnnData) -> None:
         """Perform a normalization method on the data with args specified in the preprocessor's `norm_method_kwargs`.
@@ -390,11 +390,11 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.norm_method) and not self.skip_normalize:
+        if self.skip_normalize:
+            main_info("Data already normalized. Skipping normalization.")
+        elif callable(self.norm_method):
             main_debug("applying a normalization method transformation on expression matrix data...")
             self.norm_method(adata, **self.norm_method_kwargs)
-        else:
-            main_info("Data already normalized. Skipping normalization.")
 
     def _regress_out(self, adata: AnnData) -> None:
         """Perform regressing out with args specified in the preprocessor's `regress_out_kwargs`.
