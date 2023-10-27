@@ -195,6 +195,41 @@ def get_sz_exprs(
     return szfactors, CM
 
 
+def get_sz_factors(
+    adata: anndata.AnnData, layer: str, total_szfactor: Union[str, None] = None
+) -> Tuple[np.ndarray, npt.ArrayLike]:
+    """Get the size factor from an AnnData object.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer for which to get the size factor.
+        total_szfactor: the key-name for total size factor entry in `adata.obs`. If not None, would override the layer
+            selected. Defaults to None.
+
+    Returns:
+        The queried size factor.
+    """
+
+    if layer == "raw":
+        szfactors = adata.obs[layer + "Size_Factor"].values[:, None]
+    elif layer == "X":
+        szfactors = adata.obs["Size_Factor"].values[:, None]
+    elif layer == "protein":
+        if "protein" in adata.obsm_keys():
+            szfactors = adata.obs["protein_Size_Factor"].values[:, None]
+        else:
+            szfactors = None
+    else:
+        szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
+
+    if total_szfactor is not None and total_szfactor in adata.obs.keys():
+        szfactors = adata.obs[total_szfactor][:, None]
+    elif total_szfactor is not None:
+        main_warning("`total_szfactor` is not `None` and it is not in adata object.")
+
+    return szfactors
+
+
 def normalize(
     adata: anndata.AnnData,
     layers: str = "all",
@@ -202,6 +237,7 @@ def normalize(
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
     keep_filtered: bool = True,
+    chunk_size: Optional[int] = None,
     recalc_sz: bool = False,
     sz_method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
@@ -240,12 +276,15 @@ def normalize(
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
+    chunk_size = chunk_size if chunk_size is not None else adata.n_obs
+
     layers = DKM.get_available_layer_keys(adata, layers)
 
     calc_sz_factor(
         adata,
         layers=layers,
         locfunc=np.nanmean,
+        chunk_size=chunk_size,
         round_exprs=False,
         method=sz_method,
         scale_to=scale_to,
@@ -259,14 +298,17 @@ def normalize(
     main_debug("size factor normalize following layers: " + str(layers))
     for layer in layers:
         if layer in excluded_layers:
-            szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
+            szfactors = get_sz_factors(adata, layer, total_szfactor=None)
         else:
-            szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
+            szfactors = get_sz_factors(adata, layer, total_szfactor=total_szfactor)
 
         if layer == "protein":
             """This normalization implements the centered log-ratio (CLR) normalization from Seurat which is computed
             for each gene (M Stoeckius, 2017).
             """
+            CMs_data = DKM.select_layer_chunked_data(adata, layer, chunk_size=adata.n_obs)
+            CM = next(CMs_data)[0]
+
             CM = CM.T
             n_feature = CM.shape[1]
 
@@ -279,18 +321,33 @@ def normalize(
                 CM[i] = res
 
             CM = CM.T
-        else:
-            CM = size_factor_normalize(CM, szfactors)
 
-        if layer in ["raw", "X"]:
-            main_debug("set adata <X> to normalized data.")
-            adata.X = CM
-        elif layer == "protein" and "protein" in adata.obsm_keys():
-            main_info_insert_adata_obsm("X_protein")
-            adata.obsm["X_protein"] = CM
+            if "protein" in adata.obsm_keys():
+                main_info_insert_adata_obsm("X_protein")
+                adata.obsm["X_protein"] = CM
+            else:
+                main_info_insert_adata_layer("X_" + layer)
+                adata.layers["X_" + layer] = CM
         else:
-            main_info_insert_adata_layer("X_" + layer)
-            adata.layers["X_" + layer] = CM
+            CMs_data = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size)
+
+            if layer in ["raw", "X"]:
+                main_debug("set adata <X> to normalized data.")
+                for CM_data in CMs_data:
+                    CM = CM_data[0]
+                    CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
+                    adata.X[CM_data[1]:CM_data[2]] = CM
+            else:
+                main_info_insert_adata_layer("X_" + layer)
+
+                if issparse(adata.layers[layer]):
+                    adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape))
+                else:
+                    adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape)
+                for CM_data in CMs_data:
+                    CM = CM_data[0]
+                    CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
+                    adata.layers["X_" + layer][CM_data[1]:CM_data[2]] = CM
 
     return adata
 
