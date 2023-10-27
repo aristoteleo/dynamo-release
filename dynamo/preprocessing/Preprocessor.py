@@ -71,6 +71,7 @@ class Preprocessor:
         regress_out_kwargs: Dict[List[str], Any] = {},
         cell_cycle_score_enable: bool = False,
         cell_cycle_score_kwargs: Dict[str, Any] = {},
+        normalized: bool = False
     ) -> None:
         """Preprocessor constructor.
 
@@ -106,6 +107,9 @@ class Preprocessor:
             force_gene_list: use this gene list as selected genes across all the recipe pipeline. Defaults to None.
             sctransform_kwargs: arguments passed into sctransform function. Defaults to {}.
             regress_out_kwargs: arguments passed into regress_out function. Defaults to {}.
+            cell_cycle_score_enable: TBA
+            cell_cycle_score_kwargs: TBA
+            normalized: set true in case data being processed is already normalized
         """
 
         self.basic_stats = basic_stats
@@ -125,6 +129,7 @@ class Preprocessor:
         self.regress_out = regress_out_parallel
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
+        self.skip_normalize = normalized
 
         # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
@@ -359,9 +364,11 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.normalize_selected_genes):
+        if callable(self.normalize_selected_genes) and not self.skip_normalize:
             main_debug("normalizing selected genes...")
             self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
+        else:
+            main_info("Data already normalized. Skipping gene-wise normalization.")
 
     def _normalize_by_cells(self, adata: AnnData) -> None:
         """Performing cell-wise normalization based on method specified as the preprocessor's `normalize_by_cells`.
@@ -370,9 +377,11 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.normalize_by_cells):
+        if callable(self.normalize_by_cells) and not self.skip_normalize:
             main_debug("applying normalize by cells function...")
             self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
+        else:
+            main_info("Data already normalized. Skipping cell-wise normalization.")
 
     def _norm_method(self, adata: AnnData) -> None:
         """Perform a normalization method on the data with args specified in the preprocessor's `norm_method_kwargs`.
@@ -381,9 +390,11 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.norm_method):
+        if callable(self.norm_method) and not self.skip_normalize:
             main_debug("applying a normalization method transformation on expression matrix data...")
             self.norm_method(adata, **self.norm_method_kwargs)
+        else:
+            main_info("Data already normalized. Skipping normalization.")
 
     def _regress_out(self, adata: AnnData) -> None:
         """Perform regressing out with args specified in the preprocessor's `regress_out_kwargs`.
@@ -611,6 +622,7 @@ class Preprocessor:
             self._regress_out(adata)
 
         self._pca(adata)
+        
         temp_logger.finish_progress(progress_name="Preprocessor-seurat")
 
     def config_sctransform_recipe(self, adata: AnnData) -> None:
@@ -678,6 +690,7 @@ class Preprocessor:
         self._normalize_by_cells(adata)
         if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
+
         self._pca(adata)
 
         temp_logger.finish_progress(progress_name="Preprocessor-sctransform")
@@ -793,7 +806,8 @@ class Preprocessor:
         if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
 
-        self.pca(adata, **self.pca_kwargs)
+        self._pca(adata)
+
         temp_logger.finish_progress(progress_name="Preprocessor-monocle-pearson-residual")
 
     def preprocess_adata(
