@@ -1,5 +1,5 @@
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import List, Generator, Optional, Tuple, Union
 
 import colorcet
 import matplotlib
@@ -37,11 +37,12 @@ class DynamoAdataKeyManager:
     X_LAYER = "X"
     PROTEIN_LAYER = "protein"
     X_PCA = "X_pca"
+    RAW = "raw"
 
     def _select_layer_cell_chunked_data(
             mat: np.ndarray,
             chunk_size: int,
-    ) -> np.ndarray:
+    ) -> Generator:
         """Select layer data in cell chunks based on chunk_size."""
         start = 0
         n = mat.shape[0]
@@ -55,7 +56,7 @@ class DynamoAdataKeyManager:
     def _select_layer_gene_chunked_data(
             mat: np.ndarray,
             chunk_size: int,
-    ) -> np.ndarray:
+    ) -> Generator:
         """Select layer data in gene chunks based on chunk_size."""
         start = 0
         n = mat.shape[1]
@@ -116,7 +117,7 @@ class DynamoAdataKeyManager:
         layer: str,
         chunk_size: int,
         chunk_mode: str = "cell",
-    ) -> List[Tuple[np.ndarray, int, int]]:
+    ) -> Generator:
         """This utility provides a unified interface for selecting chunked layer data."""
         if layer is None:
             layer = DynamoAdataKeyManager.X_LAYER
@@ -124,6 +125,8 @@ class DynamoAdataKeyManager:
         if chunk_mode == "cell":
             if layer == DynamoAdataKeyManager.X_LAYER:
                 return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.X, chunk_size=chunk_size)
+            elif layer == DynamoAdataKeyManager.RAW:
+                return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.raw.X, chunk_size=chunk_size)
             elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
                 return DynamoAdataKeyManager._select_layer_cell_chunked_data(
                     adata.obsm["protein"], chunk_size=chunk_size) if "protein" in adata.obsm_keys() else None
@@ -132,6 +135,8 @@ class DynamoAdataKeyManager:
         elif chunk_mode == "gene":
             if layer == DynamoAdataKeyManager.X_LAYER:
                 return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.X, chunk_size=chunk_size)
+            elif layer == DynamoAdataKeyManager.RAW:
+                return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.raw.X, chunk_size=chunk_size)
             elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
                 return DynamoAdataKeyManager._select_layer_gene_chunked_data(
                     adata.obsm["protein"], chunk_size=chunk_size) if "protein" in adata.obsm_keys() else None
