@@ -527,6 +527,14 @@ class Preprocessor:
             experiment_type: the experiment type of the data. If not provided, would be inferred from the data.
         """
 
+        # Check if function was run on data before. If true, then don't normalize already-normalized data
+        # For future reference: recipes "pearson_residuals" and "monocle_pearson_residuals" cannot be run
+        # twice in a row on the same data due to `adata.var.use_for_pca.values` being only filled with `False`
+        # during the 2nd run, which causes adata.X to be set as None and eventually causing a ValueError.
+        if hasattr(adata, "normalized"):
+            main_info("Data already filtered and normalized")
+            return
+
         main_info("Running monocle preprocessing pipeline...")
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle")
         temp_logger.log_time()
@@ -551,6 +559,10 @@ class Preprocessor:
             self._regress_out(adata)
 
         self._pca(adata)
+
+        # Flag data as already-normalized
+        setattr(adata, "normalized", True)
+
         self._calc_ntr(adata)
         self._cell_cycle_score(adata)
 
@@ -588,6 +600,10 @@ class Preprocessor:
             experiment_type: the experiment type of the data. If not provided, would be inferred from the data.
         """
 
+        if hasattr(adata, "normalized"):
+            main_info("Data already filtered and normalized")
+            return
+
         temp_logger = LoggerManager.gen_logger("preprocessor-seurat")
         temp_logger.log_time()
         main_info("Running Seurat recipe preprocessing...")
@@ -611,6 +627,9 @@ class Preprocessor:
             self._regress_out(adata)
 
         self._pca(adata)
+
+        setattr(adata, "normalized", True)
+
         temp_logger.finish_progress(progress_name="Preprocessor-seurat")
 
     def config_sctransform_recipe(self, adata: AnnData) -> None:
@@ -652,6 +671,10 @@ class Preprocessor:
                 would be inferred from the data. Defaults to None.
         """
 
+        if hasattr(adata, "normalized"):
+            main_info("Data already filtered and normalized")
+            return
+
         temp_logger = LoggerManager.gen_logger("preprocessor-sctransform")
         temp_logger.log_time()
         main_info("Running Sctransform recipe preprocessing...")
@@ -678,7 +701,10 @@ class Preprocessor:
         self._normalize_by_cells(adata)
         if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
+        
         self._pca(adata)
+
+        setattr(adata, "normalized", True)
 
         temp_logger.finish_progress(progress_name="Preprocessor-sctransform")
 
@@ -717,6 +743,10 @@ class Preprocessor:
                 would be inferred from the data. Defaults to None.
         """
 
+        if hasattr(adata, "normalized"):
+            main_info("Data already filtered and normalized")
+            return
+
         temp_logger = LoggerManager.gen_logger("Preprocessor-pearson residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
@@ -734,6 +764,8 @@ class Preprocessor:
             self._regress_out(adata)
 
         self._pca(adata)
+
+        setattr(adata, "normalized", True)
 
         temp_logger.finish_progress(progress_name="Preprocessor-pearson residual")
 
@@ -774,6 +806,10 @@ class Preprocessor:
             experiment_type: the experiment type of the data. If not provided, would be inferred from the data.
         """
 
+        if hasattr(adata, "normalized"):
+            main_info("Data already filtered and normalized")
+            return
+
         temp_logger = LoggerManager.gen_logger("preprocessor-monocle-pearson-residual")
         temp_logger.log_time()
         self.standardize_adata(adata, tkey, experiment_type)
@@ -793,7 +829,10 @@ class Preprocessor:
         if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
 
-        self.pca(adata, **self.pca_kwargs)
+        self._pca(adata)
+
+        setattr(adata, "normalized", True)
+
         temp_logger.finish_progress(progress_name="Preprocessor-monocle-pearson-residual")
 
     def preprocess_adata(
