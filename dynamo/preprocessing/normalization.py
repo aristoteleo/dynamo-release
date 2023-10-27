@@ -54,6 +54,7 @@ def calc_sz_factor(
             Defaults to False.
         X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
         locfunc: the function to normalize the data. Defaults to np.nanmean.
+        chunk_size: the number of cells to be processed at a time. Defaults to None.
         round_exprs: whether the gene expression should be rounded into integers. Defaults to False.
         method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
             `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
@@ -257,6 +258,7 @@ def normalize(
         X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
         keep_filtered: whether we will only store feature genes in the adata object. If it is False, size factor will be
             recalculated only for the selected feature genes. Defaults to True.
+        chunk_size: the number of cells to be processed at a time. Defaults to None.
         recalc_sz: whether we need to recalculate size factor based on selected genes before normalization. Defaults to
             False.
         sz_method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
@@ -428,6 +430,7 @@ def sz_util(
             used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
             `np.nanmean`. Defaults to "median".
         locfunc: the function to normalize the data.
+        chunk_size: the number of cells to be processed at a time. Defaults to None.
         total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         CM: the data to operate on, overriding the layer. Defaults to None.
