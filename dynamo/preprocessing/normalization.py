@@ -335,10 +335,12 @@ def normalize(
 
             if layer in ["raw", "X"]:
                 main_debug("set adata <X> to normalized data.")
+
                 for CM_data in CMs_data:
                     CM = CM_data[0]
                     CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
                     adata.X[CM_data[1]:CM_data[2]] = CM
+
             else:
                 main_info_insert_adata_layer("X_" + layer)
 
@@ -346,6 +348,7 @@ def normalize(
                     adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape))
                 else:
                     adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape)
+
                 for CM_data in CMs_data:
                     CM = CM_data[0]
                     CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
@@ -443,8 +446,6 @@ def sz_util(
         A tuple (sfs, cell_total) where sfs is the size factors and cell_total is the initial cell size.
     """
 
-    adata = adata.copy()
-
     if layer == "_total_" and "_total_" not in adata.layers.keys():
         if total_layers is not None:
             total_layers, _ = DKM.aggregate_layers_into_total(
@@ -461,7 +462,6 @@ def sz_util(
     for CM_data in chunked_CMs:
         CM = CM_data[0]
 
-        CM = DKM.select_layer_data(adata, layer) if CM is None else CM
         if CM is None:
             return None, None
 
