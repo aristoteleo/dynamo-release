@@ -345,9 +345,9 @@ def normalize(
                 main_info_insert_adata_layer("X_" + layer)
 
                 if issparse(adata.layers[layer]):
-                    adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape))
+                    adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape, dtype=adata.X.dtype))
                 else:
-                    adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape)
+                    adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape, dtype=adata.X.dtype)
 
                 for CM_data in CMs_data:
                     CM = CM_data[0]
@@ -457,7 +457,7 @@ def sz_util(
     chunk_size = chunk_size if chunk_size is not None else adata.n_obs
     chunked_CMs = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size) if CM is None else CM
 
-    cell_total = np.zeros(adata.n_obs)
+    cell_total = np.zeros(adata.n_obs, dtype=adata.X.dtype)
 
     for CM_data in chunked_CMs:
         CM = CM_data[0]
@@ -476,6 +476,8 @@ def sz_util(
         chunk_cell_total += chunk_cell_total == 0  # avoid infinity value after log (0)
 
         cell_total[CM_data[1]:CM_data[2]] = chunk_cell_total
+
+    cell_total = cell_total.astype(int) if np.all(cell_total % 1 == 0) else cell_total
 
     if method in ["mean-geometric-mean-total", "geometric"]:
         sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)

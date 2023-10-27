@@ -584,8 +584,8 @@ def select_genes_by_seurat_recipe(
             chunk_size=chunk_size,
             chunk_mode="gene",
         )
-        mean = np.zeros(len(pass_filter_genes))
-        variance = np.zeros(len(pass_filter_genes))
+        mean = np.zeros(len(pass_filter_genes), dtype=adata.X.dtype)
+        variance = np.zeros(len(pass_filter_genes), dtype=adata.X.dtype)
 
         for mat_data in chunked_layer_mats:
             layer_mat = mat_data[0]
