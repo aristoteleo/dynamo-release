@@ -7,11 +7,10 @@ from dynamo.pl import space
 
 
 def test_space_plot_simple1(processed_zebra_adata, color=["Cell_type"]):
-    adata = processed_zebra_adata.copy()
-    adata.obsm["spatial"] = adata.obsm["X_umap"]
-    adata.obsm["X_spatial"] = adata.obsm["X_umap"]
-    space(adata, marker="p", save_show_or_return="show")
-    space(adata, color=color, marker="*", save_show_or_return="show")
+    processed_zebra_adata.obsm["spatial"] = processed_zebra_adata.obsm["X_umap"]
+    processed_zebra_adata.obsm["X_spatial"] = processed_zebra_adata.obsm["X_umap"]
+    space(processed_zebra_adata, marker="p", save_show_or_return="show")
+    space(processed_zebra_adata, color=color, marker="*", save_show_or_return="show")
 
 
 @pytest.mark.skip(reason="todo: add test data for spatial genomics")
