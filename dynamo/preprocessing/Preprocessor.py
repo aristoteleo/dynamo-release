@@ -107,8 +107,6 @@ class Preprocessor:
             force_gene_list: use this gene list as selected genes across all the recipe pipeline. Defaults to None.
             sctransform_kwargs: arguments passed into sctransform function. Defaults to {}.
             regress_out_kwargs: arguments passed into regress_out function. Defaults to {}.
-            cell_cycle_score_enable: TBA
-            cell_cycle_score_kwargs: TBA
             normalized: set true in case data being processed is already normalized
         """
 
