@@ -26,7 +26,7 @@ from dynamo.preprocessing.utils import (
 SHOW_FIG = False
 
 
-def processed_zebra_adata():
+def test_processed_zebra_adata():
     adata = dyn.sample_data.zebrafish()
     adata = adata[:, :5000].copy()
     dyn.pp.recipe_monocle(adata, num_dim=10, exprs_frac_for_gene_exclusion=0.005, keep_filtered_cells=False, keep_filtered_genes=False)
