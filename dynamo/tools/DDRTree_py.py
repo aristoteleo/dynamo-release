@@ -153,7 +153,7 @@ def DDRTree(
         iterations. 
     """
 
-    X = np.array(X)
+    X = np.array(X).T
     (D, N) = X.shape
 
     # initialization
