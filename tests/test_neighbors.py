@@ -13,7 +13,7 @@ from dynamo.tools.connectivity import (
 
 
 def test_neighbors_subset():
-    adata = dyn.sample_data.hematopoiesis()
+    adata = dyn.sample_data.zebrafish()
     adata = adata[:1000, :1000].copy()
     dyn.tl.neighbors(adata)
     assert check_neighbors_completeness(adata)
@@ -41,7 +41,7 @@ def test_neighbors_subset():
 
 
 def test_broken_neighbors_check_recompute():
-    adata = dyn.sample_data.hematopoiesis()
+    adata = dyn.sample_data.zebrafish()
     adata = adata[:1000, :1000].copy()
     dyn.tl.neighbors(adata)
     assert check_neighbors_completeness(adata)
