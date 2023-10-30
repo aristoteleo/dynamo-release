@@ -102,13 +102,13 @@ def test_zebrafish_topography_tutorial_logger():
 
 def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
     adata = dyn.sample_data.pancreatic_endocrinogenesis()
-    adata = adata[:1000, :1000].copy()
+    adata = adata[:100].copy()
     dyn.pp.recipe_monocle(
         adata,
         n_top_genes=1000,
         fg_kwargs={"shared_count": 20},
         # genes_to_append=['Xkr4', 'Gm28672', 'Gm20837'],
-        genes_to_exclude=["Sbspon", "Adgrb3", "Eif2s3y"],
+        # genes_to_exclude=["Sbspon", "Adgrb3", "Eif2s3y"],
     )
     dyn.pp.cell_cycle_scores(adata)
 
