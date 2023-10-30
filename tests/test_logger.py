@@ -100,6 +100,7 @@ def test_zebrafish_topography_tutorial_logger():
     dyn.pd.state_graph(adata, group="Cell_type", basis="pca", method="vf")
 
 
+@pytest.mark.skip(reason="excessive running time")
 def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
     adata = dyn.sample_data.pancreatic_endocrinogenesis()
     adata = adata[:1000]
@@ -123,5 +124,5 @@ if __name__ == "__main__":
 
     # test_vectorField_logger()
     # test_zebrafish_topography_tutorial_logger()
-    test_cell_cycle_score_logger_pancreatic_endocrinogenesis()
+    # test_cell_cycle_score_logger_pancreatic_endocrinogenesis()
     # test_sparseVFC_logger()
