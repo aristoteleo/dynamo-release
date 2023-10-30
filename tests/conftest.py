@@ -49,29 +49,29 @@ def utils():
     return TestUtils
 
 
-@pytest.fixture(scope="session")
-def processed_zebra_adata():
-    raw_adata = dyn.sample_data.zebrafish()
-    adata = raw_adata[:, :5000].copy()
-    dyn.pp.recipe_monocle(adata, num_dim=10, exprs_frac_for_gene_exclusion=0.005, keep_filtered_cells=False, keep_filtered_genes=False)
-    dyn.tl.dynamics(adata, model="stochastic", cores=8)
-    dyn.tl.reduceDimension(adata, basis="pca", n_pca_components=10, enforce=True)
-    dyn.tl.cell_velocities(adata, basis="pca")
-    dyn.vf.VectorField(adata, basis="pca", M=100)
-    # dyn.vf.curvature(adata, basis="pca")
-    # dyn.vf.acceleration(adata, basis="pca")
-    # dyn.vf.rank_acceleration_genes(adata, groups="Cell_type", akey="acceleration", prefix_store="rank")
-    # dyn.vf.rank_curvature_genes(adata, groups="Cell_type", ckey="curvature", prefix_store="rank")
-    # dyn.vf.rank_velocity_genes(adata, groups="Cell_type", vkey="velocity_S", prefix_store="rank")
-    # dyn.pp.top_pca_genes(adata, n_top_genes=100)
-    # top_pca_genes = adata.var.index[adata.var.top_pca_genes]
-    # dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
-    dyn.cleanup(adata)
-    # adata.uns.pop("cell_phase_genes")
-    # adata.var = adata.var.drop(columns=['beta', 'gamma', 'half_life', 'alpha_b', 'alpha_r2', 'gamma_b', 'gamma_r2',
-    #                                     'gamma_logLL', 'delta_b', 'delta_r2', 'bs', 'bf', 'uu0', 'ul0', 'su0',
-    #                                     'sl0', 'U0', 'S0', 'total0'], axis=1)
-    return adata
+# @pytest.fixture(scope="session")
+# def processed_zebra_adata():
+#     raw_adata = dyn.sample_data.zebrafish()
+#     adata = raw_adata[:, :5000].copy()
+#     dyn.pp.recipe_monocle(adata, num_dim=10, exprs_frac_for_gene_exclusion=0.005, keep_filtered_cells=False, keep_filtered_genes=False)
+#     dyn.tl.dynamics(adata, model="stochastic", cores=8)
+#     dyn.tl.reduceDimension(adata, basis="pca", n_pca_components=10, enforce=True)
+#     dyn.tl.cell_velocities(adata, basis="pca")
+#     dyn.vf.VectorField(adata, basis="pca", M=100)
+#     # dyn.vf.curvature(adata, basis="pca")
+#     # dyn.vf.acceleration(adata, basis="pca")
+#     # dyn.vf.rank_acceleration_genes(adata, groups="Cell_type", akey="acceleration", prefix_store="rank")
+#     # dyn.vf.rank_curvature_genes(adata, groups="Cell_type", ckey="curvature", prefix_store="rank")
+#     # dyn.vf.rank_velocity_genes(adata, groups="Cell_type", vkey="velocity_S", prefix_store="rank")
+#     # dyn.pp.top_pca_genes(adata, n_top_genes=100)
+#     # top_pca_genes = adata.var.index[adata.var.top_pca_genes]
+#     # dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
+#     dyn.cleanup(adata)
+#     # adata.uns.pop("cell_phase_genes")
+#     # adata.var = adata.var.drop(columns=['beta', 'gamma', 'half_life', 'alpha_b', 'alpha_r2', 'gamma_b', 'gamma_r2',
+#     #                                     'gamma_logLL', 'delta_b', 'delta_r2', 'bs', 'bf', 'uu0', 'ul0', 'su0',
+#     #                                     'sl0', 'U0', 'S0', 'total0'], axis=1)
+#     return adata
 
 
 @pytest.fixture(scope="session")
