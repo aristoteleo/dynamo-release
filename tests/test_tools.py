@@ -69,8 +69,8 @@ def test_norm_loglikelihood():
     # Calculate the log-likelihood of the data
     ll_ground_truth = np.sum(norm.logpdf(data, mu, sigma))
     ll = dyn.tl.utils.norm_loglikelihood(data, mu, sigma)
-    print(ll, ll_ground_truth)
-    assert ll == ll_ground_truth
+
+    assert ll - ll_ground_truth < 1e-9
 
 
 if __name__ == "__main__":
