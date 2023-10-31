@@ -245,6 +245,7 @@ def normalize(
     recalc_sz: bool = False,
     sz_method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
+    transform_int_to_float: bool = True,
 ) -> anndata.AnnData:
     """Normalize the gene expression value for the AnnData object.
 
@@ -270,6 +271,8 @@ def normalize(
             used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
             `np.nanmean`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
+        transform_int_to_float: whether to transform the adata.X from int to float32 for normalization. Defaults to
+            True.
 
     Returns:
         An updated anndata object that are updated with normalized expression values for different layers.
@@ -300,6 +303,11 @@ def normalize(
         X_total_layers=X_total_layers,
         splicing_total_layers=splicing_total_layers,
     )
+
+    if "X" in layers and transform_int_to_float and adata.X.dtype == "int":
+        main_warning("Transforming adata.X from int to float32 for normalization. If you want to disable this, set "
+                     "`transform_int_to_float` to False.")
+        adata.X = adata.X.astype("float32")
 
     main_debug("size factor normalize following layers: " + str(layers))
     for layer in layers:
