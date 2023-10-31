@@ -40,8 +40,8 @@ class TestUtils:
             os.makedirs(path)
             return True
 
-    def read_test_spatial_genomics_data():
-        return dyn.read_h5ad(test_spatial_genomics_path)
+    # def read_test_spatial_genomics_data():
+    #     return dyn.read_h5ad(test_spatial_genomics_path)
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ def utils():
 #     return adata
 
 
-@pytest.fixture(scope="session")
-def raw_zebra_adata():
-    adata = dyn.sample_data.zebrafish()
-    return adata
+# @pytest.fixture(scope="session")
+# def raw_zebra_adata():
+#     adata = dyn.sample_data.zebrafish()
+#     return adata
