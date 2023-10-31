@@ -9,6 +9,7 @@ import numpy as np
 from scipy.cluster.vq import kmeans2
 from sklearn.neighbors import NearestNeighbors
 
+from .connectivity import k_nearest_neighbors
 from ..dynamo_logger import LoggerManager
 from .utils import nearest_neighbors, timeit
 
@@ -165,21 +166,13 @@ def trn(X: np.ndarray, n: int, return_index: bool = True, seed: int = 19491001, 
     if not return_index:
         return trnet.W
     else:
-        if X.shape[0] > 200000 and X.shape[1] > 2:
-            from pynndescent import NNDescent
-
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=1,
-                n_jobs=-1,
-                random_state=seed,
-            )
-            idx, _ = nbrs.query(trnet.W, k=1)
-        else:
-            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=1, algorithm=alg, n_jobs=-1).fit(X)
-            _, idx = nbrs.kneighbors(trnet.W)
+        idx, _ = k_nearest_neighbors(
+            X,
+            query_X=trnet.W,
+            k=0,
+            exclude_self=False,
+            pynn_rand_state=seed,
+        )
 
         return idx[:, 0]
 

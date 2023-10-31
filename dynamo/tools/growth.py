@@ -13,6 +13,7 @@ from anndata import AnnData
 from scipy.sparse import issparse
 from sklearn.neighbors import NearestNeighbors
 
+from .connectivity import k_nearest_neighbors
 
 def score_cells(
     adata: AnnData,
@@ -74,11 +75,11 @@ def score_cells(
     elif basis is not None and "X_" + basis not in adata.obsm.keys():
         raise ValueError(f"Your adata doesn't have the {basis} you inputted in .obsm attribute of your adata.")
 
-    if genes is None and "use_for_pca" not in adata.obs.keys():
-        raise ValueError(f"Your adata doesn't have 'use_for_pca' column in .obs.")
+    if genes is None and "use_for_pca" not in adata.var.keys():
+        raise ValueError(f"Your adata doesn't have 'use_for_pca' column in .var.")
 
     if genes is None:
-        genes = adata.var_names[adata.use_for_pca]
+        genes = adata.var_names[adata.var.use_for_pca]
     else:
         genes = (
             list(adata.var_names.intersection(genes))
@@ -93,23 +94,16 @@ def score_cells(
 
     X_basis = adata.obsm["X_pca"] if basis is None else adata.obsm["X_" + basis]
 
-    if X_basis.shape[0] > 5000 and X_basis.shape[1] > 2:
-        from pynndescent import NNDescent
-
-        nbrs = NNDescent(
-            X_basis,
-            metric=metric,
-            metric_kwds=metric_kwds,
-            n_neighbors=30,
-            n_jobs=cores,
-            random_state=seed,
-            **kwargs,
-        )
-        knn, distances = nbrs.query(X_basis, k=n_neighbors)
-    else:
-        alg = "ball_tree" if X_basis.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores).fit(X_basis)
-        distances, knn = nbrs.kneighbors(X_basis)
+    knn, distances = k_nearest_neighbors(
+        X_basis,
+        k=n_neighbors - 1,
+        metric=metric,
+        metric_kwads=metric_kwds,
+        exclude_self=False,
+        pynn_rand_state=seed,
+        n_jobs=cores,
+        **kwargs,
+    )
 
     X_data = adata[:, genes].X if layer in [None, "X"] else adata[:, genes].layers[layer]
 
@@ -138,9 +132,9 @@ def score_cells(
 
 def cell_growth_rate(
     adata: AnnData,
-    group: Optional[str],
-    source: Optional[str],
-    target: Optional[str],
+    group: str,
+    source: str,
+    target: str,
     L0: float = 0.3,
     L: float = 1.2,
     k: float = 1e-3,
