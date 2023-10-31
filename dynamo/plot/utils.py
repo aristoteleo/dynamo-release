@@ -51,10 +51,12 @@ def is_list_of_lists(list_of_lists):
 
 def get_color_map_from_labels(labels: np.ndarray, color_key_cmap: str = "glasbey_white") -> np.ndarray:
     """Generate a color map according to given labels.
+
     Args:
          labels: the label representing the groups of data.
          color_key_cmap: the cmap used to generate the colors. Recommend 'glasbey_white'/'glasbey_black' for continuous
             data, and 'inferno'/'viridis' for discrete data.
+
     Returns:
         The mapping of colors corresponding to each unique label.
     """
