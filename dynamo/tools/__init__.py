@@ -35,7 +35,10 @@ from .connectivity import (
 )
 
 # Pseudotime related
+from .construct_velocity_tree import construct_velocity_tree, construct_velocity_tree_py
 from .DDRTree_py import DDRTree, cal_ncenter
+from .pseudotime import order_cells
+from .time_series import directed_pg
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension  # , run_umap

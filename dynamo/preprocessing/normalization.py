@@ -172,26 +172,29 @@ def get_sz_exprs(
         corresponding to the size factor.
     """
 
-    if layer == "raw":
-        CM = adata.raw.X
-        szfactors = adata.obs[layer + "Size_Factor"].values[:, None]
-    elif layer == "X":
-        CM = adata.X
-        szfactors = adata.obs["Size_Factor"].values[:, None]
-    elif layer == "protein":
-        if "protein" in adata.obsm_keys():
-            CM = adata.obsm[layer]
-            szfactors = adata.obs["protein_Size_Factor"].values[:, None]
+    try:
+        if layer == "raw":
+            CM = adata.raw.X
+            szfactors = adata.obs[layer + "Size_Factor"].values[:, None]
+        elif layer == "X":
+            CM = adata.X
+            szfactors = adata.obs["Size_Factor"].values[:, None]
+        elif layer == "protein":
+            if "protein" in adata.obsm_keys():
+                CM = adata.obsm[layer]
+                szfactors = adata.obs["protein_Size_Factor"].values[:, None]
+            else:
+                CM, szfactors = None, None
         else:
-            CM, szfactors = None, None
-    else:
-        CM = adata.layers[layer]
-        szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
+            CM = adata.layers[layer]
+            szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
 
-    if total_szfactor is not None and total_szfactor in adata.obs.keys():
-        szfactors = adata.obs[total_szfactor][:, None]
-    elif total_szfactor is not None:
-        main_warning("`total_szfactor` is not `None` and it is not in adata object.")
+        if total_szfactor is not None and total_szfactor in adata.obs.keys():
+            szfactors = adata.obs[total_szfactor][:, None]
+        elif total_szfactor is not None:
+            main_warning("`total_szfactor` is not `None` and it is not in adata object.")
+    except KeyError:
+        raise KeyError(f"Size factor for layer {layer} is not in adata object. Please run `dynamo.tl.calc_sz_factor`.")
 
     return szfactors, CM
 
@@ -272,6 +275,8 @@ def normalize(
         An updated anndata object that are updated with normalized expression values for different layers.
     """
 
+    layers = DKM.get_available_layer_keys(adata, layers)
+
     if recalc_sz:
         if "use_for_pca" in adata.var.columns and keep_filtered is False:
             adata = adata[:, adata.var.loc[:, "use_for_pca"]]
@@ -280,17 +285,16 @@ def normalize(
 
     chunk_size = chunk_size if chunk_size is not None else adata.n_obs
 
-    layers = DKM.get_available_layer_keys(adata, layers)
-
-    calc_sz_factor(
-        adata,
-        layers=layers,
-        locfunc=np.nanmean,
-        chunk_size=chunk_size,
-        round_exprs=False,
-        method=sz_method,
-        scale_to=scale_to,
-    )
+    if np.count_nonzero(adata.obs.columns.str.contains("Size_Factor")) < len(layers):
+        calc_sz_factor(
+            adata,
+            layers=layers,
+            locfunc=np.nanmean,
+            chunk_size=chunk_size,
+            round_exprs=False,
+            method=sz_method,
+            scale_to=scale_to,
+        )
 
     excluded_layers = DKM.get_excluded_layers(
         X_total_layers=X_total_layers,
