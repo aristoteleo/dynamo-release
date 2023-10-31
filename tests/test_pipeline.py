@@ -1,13 +1,11 @@
 from pathlib import Path
 
 import dynamo as dyn
-from memory_profiler import profile
 
 test_data_dir = Path("./test_data/")
 test_zebrafish_data_path = test_data_dir / "test_zebrafish.h5ad"
 
 
-@profile()
 def test_processed_zebra_adata_adata():
     raw_adata = dyn.sample_data.zebrafish()
     adata = raw_adata[:, :5000].copy()
@@ -22,7 +20,6 @@ def test_processed_zebra_adata_adata():
     adata.write_h5ad(test_zebrafish_data_path)
 
 
-@profile()
 def test_dynamcis():
     adata = dyn.read_h5ad(test_zebrafish_data_path)
     adata.uns["pp"]["tkey"] = None
