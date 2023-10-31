@@ -6,8 +6,9 @@ import dynamo as dyn
 from dynamo.pl import space
 
 
-def test_space_plot_simple1(processed_zebra_adata, color=["Cell_type"]):
-    adata = processed_zebra_adata.copy()
+def test_space_plot_simple1(color=["clusters"]):
+    adata = dyn.sample_data.pancreatic_endocrinogenesis()
+    adata = adata[:1000, :1000].copy()
     adata.obsm["spatial"] = adata.obsm["X_umap"]
     adata.obsm["X_spatial"] = adata.obsm["X_umap"]
     space(adata, marker="p", save_show_or_return="show")
