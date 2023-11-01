@@ -843,7 +843,13 @@ def highest_frac_genes(
     gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
 
     # assemble a dataframe
-    selected_gene_X_percents = np.array(gene_X_percents)[:, selected_indices]
+    if issparse(gene_X_percents):
+        selected_gene_X_percents = gene_X_percents.toarray()[:, selected_indices]
+    elif type(gene_X_percents) == np.ndarray:
+        selected_gene_X_percents = gene_X_percents[:, selected_indices]
+    else:
+        selected_gene_X_percents = np.array(gene_X_percents)[:, selected_indices]
+
     selected_gene_X_percents = np.squeeze(selected_gene_X_percents)
 
     top_genes_df = pd.DataFrame(
