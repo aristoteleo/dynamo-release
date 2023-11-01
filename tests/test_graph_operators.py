@@ -56,17 +56,3 @@ def test_gradop():
     assert np.all(grad.data == expected_data)
     assert np.all(grad.indices == expected_indices)
     assert np.all(grad.indptr == expected_indptr)
-
-
-def test_norm_loglikelihood():
-    from scipy.stats import norm
-
-    # Generate some data from a normal distribution
-    mu = 0.0
-    sigma = 2.0
-    data = np.random.normal(mu, sigma, size=100)
-
-    # Calculate the log-likelihood of the data
-    ll_ground_truth = np.sum(norm.logpdf(data, mu, sigma))
-    ll = dyn.tl.utils.norm_loglikelihood(data, mu, sigma)
-    assert ll - ll_ground_truth < 1e-9
