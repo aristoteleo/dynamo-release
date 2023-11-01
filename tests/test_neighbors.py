@@ -55,12 +55,3 @@ def test_broken_neighbors_check_recompute():
 def test_neighbors_no_pca_key():
     adata = dyn.sample_data.zebrafish()
     dyn.tl.neighbors(adata)
-
-
-if __name__ == "__main__":
-    # generate data if needed
-    # adata = utils.gen_or_read_zebrafish_data()
-    # test_neighbors_subset(adata)
-    # test_broken_neighbors_check_recompute(adata)
-    # test_neighbors_no_pca_key()
-    pass

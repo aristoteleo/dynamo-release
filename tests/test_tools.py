@@ -70,11 +70,3 @@ def test_norm_loglikelihood():
     ll_ground_truth = np.sum(norm.logpdf(data, mu, sigma))
     ll = dyn.tl.utils.norm_loglikelihood(data, mu, sigma)
     assert ll - ll_ground_truth < 1e-9
-
-
-if __name__ == "__main__":
-    # test_calc_laplacian()
-    # test_divergence()
-    # test_gradop()
-    # test_norm_loglikelihood()
-    pass

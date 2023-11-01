@@ -32,8 +32,3 @@ def test_smallest_distance_simple_random():
     coords = np.array(coords)
 
     assert abs(smallest_distance_bf(coords) - dynamo.tl.compute_smallest_distance(coords)) < 1e-8
-
-
-if __name__ == "__main__":
-    test_smallest_distance_simple_1()
-    test_smallest_distance_simple_random()

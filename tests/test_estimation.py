@@ -20,8 +20,3 @@ def test_fit_linreg():
     assert np.allclose(b, b_r, rtol=1)
     assert np.allclose(r2, r2_r, rtol=1)
     assert np.allclose(all_r2, all_r2_r, rtol=1)
-
-
-if __name__ == "__main__":
-    # test_fit_linreg()
-    pass

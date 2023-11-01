@@ -96,7 +96,3 @@ def test_run_rpe1_tutorial():
     ax.set_aspect(0.8)
 
     instance = dyn.mv.StreamFuncAnim(adata=rpe1_kinetics, basis="RFP_GFP", color="Cell_cycle_relativePos", ax=ax)
-
-
-if __name__ == "__main__":
-    test_run_rpe1_tutorial()

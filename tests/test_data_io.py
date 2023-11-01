@@ -111,11 +111,3 @@ def test_save_adata():
 
     dyn.vf.rank_jacobian_genes(adata, groups="leiden")
     adata.write_h5ad("debug11.h5ad")
-
-
-if __name__ == "__main__":
-    # test_scEU_seq()
-    # adata = utils.gen_or_read_zebrafish_data()
-    # test_save_rank_info(adata)
-    # test_save_adata()
-    pass

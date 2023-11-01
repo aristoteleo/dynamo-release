@@ -14,8 +14,8 @@ logger = LoggerManager.get_main_logger()
 
 
 @pytest.mark.skip(reason="dependency not installed")
-def test_simple_cluster_community_adata(processed_zebra_adata):
-    adata = processed_zebra_adata.copy()
+def test_simple_cluster_community_adata(adata):
+    adata = adata.copy()
     dyn.tl.louvain(adata)
     dyn.tl.leiden(adata)
 
@@ -37,8 +37,8 @@ def test_simple_cluster_community_adata(processed_zebra_adata):
 
 
 @pytest.mark.skip(reason="umap compatability issue with numpy, pynndescent and pytest")
-def test_simple_cluster_field(processed_zebra_adata):
-    adata = processed_zebra_adata.copy()
+def test_simple_cluster_field(adata):
+    adata = adata.copy()
     dyn.tl.reduceDimension(adata, basis="umap", n_pca_components=30, enforce=True)
     dyn.tl.cell_velocities(adata, basis="umap")
     dyn.vf.VectorField(adata, basis="umap", M=100)
@@ -47,20 +47,11 @@ def test_simple_cluster_field(processed_zebra_adata):
 
 
 @pytest.mark.skip(reason="dependency not installed")
-def test_leiden_membership_input(processed_zebra_adata):
+def test_leiden_membership_input(adata):
+    adata = adata.copy()
     # somehow this initial member ship works before, but not now
-    initial_membership = np.random.randint(low=0, high=min(100, len(processed_zebra_adata)), size=len(processed_zebra_adata), dtype=int)
-    dyn.tl.leiden(processed_zebra_adata, initial_membership=initial_membership)
+    initial_membership = np.random.randint(low=0, high=min(100, len(adata)), size=len(adata), dtype=int)
+    dyn.tl.leiden(adata, initial_membership=initial_membership)
 
-    initial_membership = np.random.randint(low=0, high=100, size=len(processed_zebra_adata), dtype=int)
-    dyn.tl.leiden(processed_zebra_adata, directed=True, initial_membership=initial_membership)
-
-
-if __name__ == "__main__":
-    # adata = utils.gen_or_read_zebrafish_data()
-    # print("tests begin...")
-
-    # ######### testing begins here #########
-    # test_leiden_membership_input(adata)
-    # test_simple_cluster_community_adata(adata)
-    pass
+    initial_membership = np.random.randint(low=0, high=100, size=len(adata), dtype=int)
+    dyn.tl.leiden(adata, directed=True, initial_membership=initial_membership)

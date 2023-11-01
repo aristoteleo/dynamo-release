@@ -9,17 +9,17 @@ import dynamo as dyn
 
 
 @pytest.mark.skip(reason="unhelpful test")
-def test_scatter_contour(processed_zebra_adata):
-    dyn.pl.scatters(processed_zebra_adata, layer="curvature", save_show_or_return="return", contour=True)
-    dyn.pl.scatters(processed_zebra_adata, layer="curvature", save_show_or_return="return", contour=True, calpha=1)
+def test_scatter_contour(adata):
+    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True)
+    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True, calpha=1)
 
 
 @pytest.mark.skip(reason="nxviz old version")
-def test_circosPlot_deprecated(processed_zebra_adata):
+def test_circosPlot_deprecated(adata):
     # genes from top acceleration rank
     selected_genes = ["hmgn2", "hmgb2a", "si:ch211-222l21.1", "mbpb", "h2afvb"]
     edges_list = dyn.vf.build_network_per_cluster(
-        processed_zebra_adata,
+        adata,
         cluster="Cell_type",
         cluster_names=None,
         genes=selected_genes,
@@ -37,7 +37,7 @@ def test_circosPlot_deprecated(processed_zebra_adata):
     )
     _network = copy.deepcopy(network)
     dyn.pl.circosPlotDeprecated(
-        processed_zebra_adata,
+        adata,
         cluster="Cell_type",
         cluster_name="Unknown",
         edges_list=None,
@@ -49,7 +49,7 @@ def test_circosPlot_deprecated(processed_zebra_adata):
     for e in network.edges():
         assert network.edges[e]["weight"] == _network.edges[e]["weight"]
     dyn.pl.circosPlotDeprecated(
-        processed_zebra_adata,
+        adata,
         cluster="Cell_type",
         cluster_name="Unknown",
         edges_list=None,
@@ -74,10 +74,10 @@ def test_scatter_group_gamma(viral_adata, gene_list_df: list):
 
 
 @pytest.mark.skip(reason="unhelpful test")
-def test_nxviz7_circosplot(processed_zebra_adata):
+def test_nxviz7_circosplot(adata):
     selected_genes = ["hmgn2", "hmgb2a", "si:ch211-222l21.1", "mbpb", "h2afvb"]
     edges_list = dyn.vf.build_network_per_cluster(
-        processed_zebra_adata,
+        adata,
         cluster="Cell_type",
         cluster_names=None,
         genes=selected_genes,
@@ -96,19 +96,7 @@ def test_nxviz7_circosplot(processed_zebra_adata):
     adata_layer_key = "M_s"
 
     for node in network.nodes:
-        network.nodes[node][adata_layer_key] = processed_zebra_adata[:, node].layers[adata_layer_key].mean()
+        network.nodes[node][adata_layer_key] = adata[:, node].layers[adata_layer_key].mean()
     dyn.pl.circosPlot(network, node_color_key="M_s", show_colorbar=False, edge_alpha_scale=1, edge_lw_scale=1)
     dyn.pl.circosPlot(network, node_color_key="M_s", show_colorbar=True, edge_alpha_scale=0.5, edge_lw_scale=0.4)
     # plt.show() # show via command line run.
-
-
-if __name__ == "__main__":
-    # generate data if needed
-    # adata = utils.gen_or_read_zebrafish_data()
-
-    # TODO use a fixture in future
-    # test_space_simple1(adata)
-    # test_scatter_contour(adata)
-    # test_circosPlot_deprecated(adata)
-    # test_nxviz7_circosplot()
-    pass
