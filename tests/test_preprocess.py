@@ -13,7 +13,7 @@ import dynamo as dyn
 from dynamo.preprocessing import Preprocessor
 from dynamo.preprocessing.cell_cycle import get_cell_phase
 from dynamo.preprocessing.deprecated import _calc_mean_var_dispersion_sparse_legacy
-from dynamo.preprocessing.normalization import normalize
+from dynamo.preprocessing.normalization import calc_sz_factor, normalize
 from dynamo.preprocessing.transform import log, log1p, log2, Freeman_Tukey, is_log1p_transformed_adata
 from dynamo.preprocessing.utils import (
     convert_layers2csr,
@@ -145,6 +145,7 @@ def test_calc_dispersion_sparse():
     # print("expected var:", expected_var)
     # assert np.all(np.isclose(sc_mean, expected_mean))
     # assert np.all(np.isclose(sc_var, expected_var))
+
 
 
 def test_Preprocessor_monocle_recipe():
@@ -494,6 +495,7 @@ def test_normalize():
     adata.uns["pp"] = dict()
 
     # Call the function
+    calc_sz_factor(adata)
     normalized = normalize(
         adata=adata,
         # norm_method=np.log1p,
