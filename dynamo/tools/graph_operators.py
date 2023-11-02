@@ -110,7 +110,7 @@ def potential(g: Graph, div_neg: Optional[csr_matrix] = None) -> np.ndarray:
 
     Args:
         g: Graph object.
-        div_neg: negative divergence. If None, it will be calculated from the graph.
+        div_neg: Negative divergence. If None, it will be calculated from the graph.
 
     Returns:
         An array representing the potential.
@@ -135,7 +135,7 @@ def grad(g: Graph, div_neg: Optional[csr_matrix] = None) -> np.ndarray:
 
     Args:
         g: Graph object.
-        div_neg: negative divergence. If None, it will be calculated from the graph.
+        div_neg: Negative divergence. If None, it will be calculated from the graph.
 
     Returns:
         An array representing the gradient.
@@ -219,7 +219,7 @@ def build_graph(adj_mat: Union[csr_matrix, np.ndarray]) -> Graph:
     """bBuild sparse diffusion graph. The adjacency matrix need to preserve divergence.
 
     Args:
-        adj_mat: adjacency matrix of the graph.
+        adj_mat: Adjacency matrix of the graph.
 
     Returns:
         Graph object.

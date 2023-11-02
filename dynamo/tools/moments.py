@@ -34,30 +34,30 @@ def moments(
     """Calculate kNN based first and second moments (including uncentered covariance) for different layers of data.
 
     Args:
-        adata: an AnnData object.
-        X_data: the user supplied data that will be used for constructing the nearest neighbor graph directly. Defaults
+        adata: An AnnData object.
+        X_data: The user supplied data that will be used for constructing the nearest neighbor graph directly. Defaults
             to None.
-        genes: the one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is
+        genes: The one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is
              not available). `X` keyname (instead of `X_pca`) was used to enable you use a different set of genes for
              flexible connectivity graph construction. If `None`, by default it will select genes based `use_for_pca`
              key in .var attributes if it exists otherwise it will also all genes stored in adata.X. Defaults to None.
-        group: the column key/name that identifies the grouping information (for example, clusters that correspond to
+        group: The column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used to compute kNN graph for each
             group (i.e. cell-type/time-point). This is important, for example, we don't want cells from different
             labeling time points to be mixed when performing the kNN graph for calculating the moments. Defaults to
             None.
-        conn: the connectivity graph that will be used for moment calculations. Defaults to None.
-        use_gaussian_kernel: whether to normalize the kNN graph via a Gaussian kernel. Defaults to False.
-        normalize: whether to normalize the connectivity matrix so that each row sums up to 1. When
+        conn: The connectivity graph that will be used for moment calculations. Defaults to None.
+        use_gaussian_kernel: Whether to normalize the kNN graph via a Gaussian kernel. Defaults to False.
+        normalize: Whether to normalize the connectivity matrix so that each row sums up to 1. When
             `use_gaussian_kernel` is False, this will be reset to be False because we will already normalize the
             connectivity matrix by dividing each row the total number of connections. Defaults to True.
-        use_mnn: whether to use mutual kNN across different layers as for the moment calculation. Defaults to False.
-        layers: the layers that will be used for calculating the moments. Defaults to "all".
-        n_pca_components: the number of pca components to use for constructing nearest neighbor graph and calculating
+        use_mnn: Whether to use mutual kNN across different layers as for the moment calculation. Defaults to False.
+        layers: The layers that will be used for calculating the moments. Defaults to "all".
+        n_pca_components: The number of pca components to use for constructing nearest neighbor graph and calculating
             1/2-st moments. Defaults to 30.
-        n_neighbors: the number of pca components to use for constructing nearest neighbor graph and calculating 1/2-st
+        n_neighbors: The number of pca components to use for constructing nearest neighbor graph and calculating 1/2-st
             moments. Defaults to 30.
-        copy: whether to return a new updated AnnData object or update inplace. Defaults to False.
+        copy: Whether to return a new updated AnnData object or update inplace. Defaults to False.
 
     Raises:
         Exception: `group` is invalid.
@@ -245,10 +245,10 @@ def time_moment(
     """Calculate time based first and second moments (including uncentered covariance) for different layers of data.
 
     Args:
-        adata: an AnnData object.
+        adata: An AnnData object.
         tkey: The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
-        has_splicing: whether the data has splicing information.
-        has_labeling: whether the data has labeling information. Defaults to True.
+        has_splicing: Whether the data has splicing information.
+        has_labeling: Whether the data has labeling information. Defaults to True.
         t_label_keys: (not used for now) The column key(s) for the labeling time label of cells in .obs. Used for either
             "ss" or "kinetic" model. `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the
             time of the experiment). Defaults to None.
@@ -281,7 +281,7 @@ def get_layer_pair(layer: str) -> Optional[str]:
     """Get the layer in pair for the input layer.
 
     Args:
-        layer: the key for the input layer.
+        layer: The key for the input layer.
 
     Returns:
         The key for corresponding layer in pair.
@@ -301,7 +301,7 @@ def get_layer_group(layer: str) -> Optional[str]:
     """Get the layer group in pair for the input layer group.
 
     Args:
-        layer: the key for the input layer group.
+        layer: The key for the input layer group.
 
     Returns:
         The key for corresponding layer group in pair.
@@ -336,15 +336,15 @@ def prepare_data_deterministic(
     """Prepare the data for kinetic calculation based on deterministic model.
 
     Args:
-        adata: an AnnData object.
-        genes: the genes to be estimated.
-        time: the array containing time stamp.
-        layers: the layer keys in adata object to be processed.
-        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
-        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+        adata: An AnnData object.
+        genes: The genes to be estimated.
+        time: The array containing time stamp.
+        layers: The layer keys in adata object to be processed.
+        use_total_layers: Whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: The layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
             "X_su"].
-        log: whether to perform log1p (i.e. log(1+x)) on result data. Defaults to False.
-        return_ntr: whether to deal with new/total ratio. Defaults to False.
+        log: Whether to perform log1p (i.e. log(1+x)) on result data. Defaults to False.
+        return_ntr: Whether to deal with new/total ratio. Defaults to False.
 
     Returns:
         A tuple [m, v, raw], where `m` is the first momentum, `v` is the second momentum, and `raw` is the normalized
@@ -520,17 +520,17 @@ def prepare_data_has_splicing(
     """Prepare data when assumption is kinetic and data has splicing.
 
     Args:
-        adata: an AnnData object.
-        genes: the genes to be estimated.
-        time: the array containing time stamps.
-        layer_u: the layer key for unspliced data.
-        layer_s: the layer key for spliced data.
-        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
-        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+        adata: An AnnData object.
+        genes: The genes to be estimated.
+        time: The array containing time stamps.
+        layer_u: The layer key for unspliced data.
+        layer_s: The layer key for spliced data.
+        use_total_layers: Whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: The layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
             "X_su"].
-        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
-        return_cov: whether to calculate the covariance between spliced and unspliced data. Defaults to True.
-        return_ntr: whether to return the new to total ratio or original expression data. Defaults to False.
+        total_layer: The layer key for the precalculated total mRNA data. Defaults to "X_total".
+        return_cov: Whether to calculate the covariance between spliced and unspliced data. Defaults to True.
+        return_ntr: Whether to return the new to total ratio or original expression data. Defaults to False.
 
     Returns:
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
@@ -673,15 +673,15 @@ def prepare_data_no_splicing(
     """Prepare the data when assumption is kinetic and data has no splicing.
 
     Args:
-        adata: an AnnData object.
-        genes: the genes to be estimated.
-        time: the array containing time stamps.
-        layer: the layer containing the expression data.
-        use_total_layers: whether to use the total data embedded in the AnnData object. Defaults to True.
-        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
-        return_old: whether to return the old expression data together or the newly expressed gene data only. Defaults
+        adata: An AnnData object.
+        genes: The genes to be estimated.
+        time: The array containing time stamps.
+        layer: The layer containing the expression data.
+        use_total_layers: Whether to use the total data embedded in the AnnData object. Defaults to True.
+        total_layer: The layer key for the precalculated total mRNA data. Defaults to "X_total".
+        return_old: Whether to return the old expression data together or the newly expressed gene data only. Defaults
             to False.
-        return_ntr: whether to return the new to total ratio or the original expression data. Defaults to False.
+        return_ntr: Whether to return the new to total ratio or the original expression data. Defaults to False.
 
     Returns:
         A tuple [res, raw] where `res` is the calculated momentum data and `raw` is the normalized expression data.
@@ -789,17 +789,17 @@ def prepare_data_mix_has_splicing(
     different mixture models.
 
     Args:
-        adata: an AnnData object.
-        genes: the genes to be estimated.
-        time: the array containing time stamps.
-        layer_u: the layer key for unspliced mRNA count data. Defaults to "X_uu".
-        layer_s: the layer key for spliced mRNA count data. Defaults to "X_su".
-        layer_ul: the layer key for unspliced, labeled mRNA count data. Defaults to "X_ul".
-        layer_sl: the layer key for spliced, labeled mRNA count data. Defaults to "X_sl".
-        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
-        total_layers: the layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
+        adata: An AnnData object.
+        genes: The genes to be estimated.
+        time: The array containing time stamps.
+        layer_u: The layer key for unspliced mRNA count data. Defaults to "X_uu".
+        layer_s: The layer key for spliced mRNA count data. Defaults to "X_su".
+        layer_ul: The layer key for unspliced, labeled mRNA count data. Defaults to "X_ul".
+        layer_sl: The layer key for spliced, labeled mRNA count data. Defaults to "X_sl".
+        use_total_layers: Whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layers: The layer(s) that can be summed up to get the total mRNA. Defaults to ["X_ul", "X_sl", "X_uu",
             "X_su"].
-        mix_model_indices: the indices for data required by the mixture model. If None, all data would be returned.
+        mix_model_indices: The indices for data required by the mixture model. If None, all data would be returned.
             Defaults to None.
 
     Returns:
@@ -946,14 +946,14 @@ def prepare_data_mix_no_splicing(
     the data required for different mixture models.
 
     Args:
-        adata: an AnnData object.
-        genes: the genes to be estimated.
-        time: the array containing time stamps.
-        layer_n: the layer key for new mRNA count.
-        layer_t: the layer key for total mRNA count.
-        use_total_layers: whether to use total layers embedded in the AnnData object. Defaults to True.
-        total_layer: the layer key for the precalculated total mRNA data. Defaults to "X_total".
-        mix_model_indices: the indices for data required by the mixture model. If None, all data would be returned.
+        adata: An AnnData object.
+        genes: The genes to be estimated.
+        time: The array containing time stamps.
+        layer_n: The layer key for new mRNA count.
+        layer_t: The layer key for total mRNA count.
+        use_total_layers: Whether to use total layers embedded in the AnnData object. Defaults to True.
+        total_layer: The layer key for the precalculated total mRNA data. Defaults to "X_total".
+        mix_model_indices: The indices for data required by the mixture model. If None, all data would be returned.
             Defaults to None.
 
     Returns:
@@ -1072,9 +1072,9 @@ def strat_mom(arr: Union[np.ndarray, csr_matrix], strata: np.ndarray, fcn_mom: C
     """Stratify the mRNA expression data and calculate its momentum.
 
     Args:
-        arr: the mRNA expression data.
-        strata: the time stamp array used to stratify `arr`.
-        fcn_mom: the function used to calculate the momentum.
+        arr: The mRNA expression data.
+        strata: The time stamp array used to stratify `arr`.
+        fcn_mom: The function used to calculate the momentum.
 
     Returns:
         The momentum for each stratum.
@@ -1091,9 +1091,9 @@ def calc_mom_all_genes(
     """Calculate momentum for all genes in an AnnData object.
 
     Args:
-        T: the time stamp array.
-        adata: an AnnData object.
-        fcn_mom: the function used to calculate momentum.
+        T: The time stamp array.
+        adata: An AnnData object.
+        fcn_mom: The function used to calculate momentum.
 
     Returns:
         A tuple (Mn, Mo, Mt, Mr), where `Mn` is momentum calculated from labeled (new) mRNA count, `Mo` is from
@@ -1143,11 +1143,11 @@ def gaussian_kernel(
     """Normalize connectivity map with Gaussian kernel.
 
     Args:
-        X: the mRNA expression data.
-        nbr_idx: the indices of nearest neighbors of each cell.
-        sigma: the standard deviation for gaussian model.
-        k: the number of nearest neighbors to be considered. Defaults to None.
-        dists: the distances to the n_neighbors' closest points in knn graph. Defaults to None.
+        X: The mRNA expression data.
+        nbr_idx: The indices of nearest neighbors of each cell.
+        sigma: The standard deviation for gaussian model.
+        k: The number of nearest neighbors to be considered. Defaults to None.
+        dists: The distances to the n_neighbors' closest points in knn graph. Defaults to None.
 
     Returns:
         The normalized connectivity map.
@@ -1172,9 +1172,9 @@ def calc_12_mom_labeling(
     """Calculate 1st and 2nd momentum for given data.
 
     Args:
-        data: the normalized mRNA expression data.
-        t: the time stamp array.
-        calculate_2_mom: whether to calculate 2nd momentum. Defaults to True.
+        data: The normalized mRNA expression data.
+        t: The time stamp array.
+        calculate_2_mom: Whether to calculate 2nd momentum. Defaults to True.
 
     Returns:
         A tuple (m, [v], t_uniq) where `m` is the first momentum, `v` is the second momentum which would be returned
@@ -1204,9 +1204,9 @@ def calc_1nd_moment(
     """Calculate first moment for the layers.
 
     Args:
-        X: the layer to calculate the moment.
-        W: the connectivity graph that will be used for moment calculations.
-        normalize_W: whether to normalize W before calculation. Defaults to True.
+        X: The layer to calculate the moment.
+        W: The connectivity graph that will be used for moment calculations.
+        normalize_W: Whether to normalize W before calculation. Defaults to True.
 
     Returns:
         The first moment of the layer.
@@ -1234,13 +1234,13 @@ def calc_2nd_moment(
     """Calculate the 2nd moment for the layers.
 
     Args:
-        X: the first layer to be used.
-        Y: the second layer to be used.
-        W: the connectivity graph that will be used for moment calculations.
-        normalize_W: whether to normalize W before calculation. Defaults to True.
-        center: whether to correct the center. Defaults to False.
-        mX: the moment matrix to correct the center. Defaults to None.
-        mY: the moment matrix to correct the center. Defaults to None.
+        X: The first layer to be used.
+        Y: The second layer to be used.
+        W: The connectivity graph that will be used for moment calculations.
+        normalize_W: Whether to normalize W before calculation. Defaults to True.
+        center: Whether to correct the center. Defaults to False.
+        mX: The moment matrix to correct the center. Defaults to None.
+        mY: The moment matrix to correct the center. Defaults to None.
 
     Returns:
         The second moment of the layers.

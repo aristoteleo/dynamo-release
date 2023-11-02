@@ -33,37 +33,37 @@ def score_cells(
     """Score cells based on a set of genes.
 
     Args:
-        adata: an AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        genes: the gene names whose gene expression will be used for predicting cell fate. By default (when genes is set
+        adata: An AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        genes: The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set
             to None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field
             reconstruction. Note that the genes to be used need to have velocity calculated and corresponds to those
             used in the `dyn.tl.VectorField` function. Defaults to None.
-        layer: which layer of the data will be used for predicting cell fate with the reconstructed vector field
+        layer: Which layer of the data will be used for predicting cell fate with the reconstructed vector field
             function. The layer once provided, will override the `basis` argument and then predicting cell fate in high
             dimensional space. Defaults to None.
-        basis: the embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
+        basis: The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the
             reconstructed trajectory will be projected back to high dimensional space via the `inverse_transform`
             function. Defaults to None.
-        n_neighbors: number of nearest neighbors. Defaults to 30.
-        beta: the weight that will apply to the current query cell. Defaults to 0.1.
-        iteration: number of smooth iterations. Defaults to 5.
-        metric: the distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the
+        n_neighbors: Number of nearest neighbors. Defaults to 30.
+        beta: The weight that will apply to the current query cell. Defaults to 0.1.
+        iteration: Number of smooth iterations. Defaults to 5.
+        metric: The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the
             standard Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics.
             If metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
             `sparse graph`, in which case only "nonzero" elements may be considered neighbors. Defaults to "euclidean".
-        metric_kwds: additional keyword arguments for the metric function. Defaults to None.
-        cores: the number of parallel jobs to run for neighbors search. `None` means 1 unless in a
+        metric_kwds: Additional keyword arguments for the metric function. Defaults to None.
+        cores: The number of parallel jobs to run for neighbors search. `None` means 1 unless in a
             `joblib.parallel_backend` context. `-1` means using all processors. Defaults to 1.
-        seed: random seed to ensure the reproducibility of each run. Defaults to 19491001.
-        return_score: whether to return the score. If False, save the smoothed score to `cell_scores` column in the
+        seed: Random seed to ensure the reproducibility of each run. Defaults to 19491001.
+        return_score: Whether to return the score. If False, save the smoothed score to `cell_scores` column in the
             `.obs` attribute and also to the dictionary corresponding to the `score_cells` key in the .uns attribute.
             Defaults to True.
 
     Raises:
-        ValueError: X_pca unavailable in `.obsm`.
-        ValueError: basis not available in `.obsm`.
-        ValueError: genes not provided and no "use_for_pca" in .obs.
-        ValueError: input genes have no overlap with genes in the AnnData object.
+        ValueError: `X_pca` unavailable in `.obsm`.
+        ValueError: `basis` not available in `.obsm`.
+        ValueError: `genes` not provided and no "use_for_pca" in .obs.
+        ValueError: Input genes have no overlap with genes in the AnnData object.
 
     Returns:
         The calculated cell scores if `return` score is true, otherwise the scores would be updated as annotations of
@@ -146,7 +146,7 @@ def cell_growth_rate(
     """Estimate the growth rate via clone information or logistic equation of population dynamics.
 
     Args:
-        adata: an AnnData object.
+        adata: An AnnData object.
         group: The column key in .obs points to the collection time of each cell, required for calculating growth rate
             with clone information.
         source: The column key in .obs points to the starting point from collection time of each cell, required for
@@ -249,9 +249,9 @@ def n_descentants(birth: npt.ArrayLike, death: npt.ArrayLike, dt: npt.ArrayLike)
     """Calculate the number of descentants for a given cell after some given time.
 
     Args:
-        birth: logged birth number per unit time.
-        death: logged death number per unit time.
-        dt: total time.
+        birth: Logged birth number per unit time.
+        death: Logged death number per unit time.
+        dt: Total time.
 
     Returns:
         The number of descentants for a given cell after some given time.
@@ -263,8 +263,8 @@ def growth_rate(n: npt.ArrayLike, dt: npt.ArrayLike) -> npt.ArrayLike:
     """Calculate the logged growth rate.
 
     Args:
-        n: increased cell number.
-        dt: time interval
+        n: Increased cell number.
+        dt: Time interval.
 
     Returns:
         The growth rate.

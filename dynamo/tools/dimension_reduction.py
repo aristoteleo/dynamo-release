@@ -32,21 +32,21 @@ def reduceDimension(
     dimension reduction methods
 
     Args:
-        adata: an AnnData object.
-        X_data: the user supplied data that will be used for dimension reduction directly. Defaults to None.
-        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+        adata: An AnnData object.
+        X_data: The user supplied data that will be used for dimension reduction directly. Defaults to None.
+        genes: The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
             all genes will be used. Defaults to None.
-        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+        layer: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used. Defaults to None.
-        basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
+        basis: The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
             `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
-        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+        dims: The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
             Defaults to None.
         n_pca_components: Number of input PCs (principal components) that will be used for further non-linear dimension
             reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
             corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
-        n_components: the dimension of the space to embed into. Defaults to 2.
-        n_neighbors: the number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
+        n_components: The dimension of the space to embed into. Defaults to 2.
+        n_neighbors: The number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
         reduction_method: Non-linear dimension reduction method to further reduce dimension based on the top
             n_pca_components PCA components. Currently, PSL (probabilistic structure learning, a new dimension reduction
             by us), tSNE (fitsne instead of traditional tSNE used) or umap are supported. Defaults to "umap".
@@ -56,11 +56,11 @@ def reduceDimension(
         neighbor_key: The str in .uns that will be used as the key to save the nearest neighbor graph. By default it is
             None and neighbor_key key is set as layer + "_neighbors". If layer is None, it will be "X_neighbors".
             Defaults to None.
-        enforce: whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
+        enforce: Whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
             Defaults to False.
-        cores: the number of cores used for calculation. Used only when tSNE reduction_method is used. Defaults to 1.
-        copy: whether to return a copy of the AnnData object or update the object in place. Defaults to False.
-        kwargs: other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
+        cores: The number of cores used for calculation. Used only when tSNE reduction_method is used. Defaults to 1.
+        copy: Whether to return a copy of the AnnData object or update the object in place. Defaults to False.
+        kwargs: Other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
             significantly influence the reduction result.
 
     Returns:
@@ -149,33 +149,33 @@ def run_umap(
     This is a wrap for reduce Dimension, with the important min_dist value specified straightforwardly.
 
     Args:
-        adata: an AnnData object.
-        X_data: the user supplied data that will be used for dimension reduction directly. Defaults to None.
-        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+        adata: An AnnData object.
+        X_data: The user supplied data that will be used for dimension reduction directly. Defaults to None.
+        genes: The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
             all genes will be used. Defaults to None.
-        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+        layer: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used. Defaults to None.
-        basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
+        basis: The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
             `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
-        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+        dims: The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
             Defaults to None.
         n_pca_components: Number of input PCs (principal components) that will be used for further non-linear dimension
             reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
             corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
-        n_components: the dimension of the space to embed into. Defaults to 2.
-        n_neighbors: the number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
+        n_components: The dimension of the space to embed into. Defaults to 2.
+        n_neighbors: The number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
         embedding_key: The str in .obsm that will be used as the key to save the reduced embedding space. By default, it
             is None and embedding key is set as layer + reduction_method. If layer is None, it will be "X_neighbors".
             Defaults to None.
         neighbor_key: The str in .uns that will be used as the key to save the nearest neighbor graph. By default, it is
             None and neighbor_key key is set as layer + "_neighbors". If layer is None, it will be "X_neighbors".
             Defaults to None.
-        enforce: whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
+        enforce: Whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
             Defaults to False.
-        cores: the number of cores used for calculation. Used only when tSNE reduction_method is used. Defaults to 1.
-        copy: whether to return a copy of the AnnData object or update the object in place. Defaults to False.
-        min_dist: the min_dist arg passed to umap.UMAP.
-        kwargs: other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
+        cores: The number of cores used for calculation. Used only when tSNE reduction_method is used. Defaults to 1.
+        copy: Whether to return a copy of the AnnData object or update the object in place. Defaults to False.
+        min_dist: The min_dist arg passed to umap.UMAP.
+        kwargs: Other kwargs that will be passed to umap.UMAP. for umap, min_dist is a noticeable kwargs that would
             significantly influence the reduction result.
 
     Returns:

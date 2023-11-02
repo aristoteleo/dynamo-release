@@ -40,42 +40,42 @@ def recipe_kin_data(
     splicing or only labeling data.
 
     Args:
-        adata: an AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
+        adata: An AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
-        tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+        tkey: The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
             support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
             in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
             or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
-        reset_X: whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+        reset_X: Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
             critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
             into which the high dimensional RNA velocity vectors will be projected.
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to True.
-        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
+        X_total_layers: Whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
             function. Defaults to False.
-        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        splicing_total_layers: Whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Parameter to `recipe_monocle` function. Defaults to False.
-        n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
+        n_top_genes: The number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Arguments required by the `recipe_monocle` function. Defaults to 1000.
-        keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object. Used in
+        keep_filtered_cells: Whether to keep genes that don't pass the filtering in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        keep_filtered_genes: whether to keep genes that don't pass the filtering in the returned adata object. Used in
+        keep_filtered_genes: Whether to keep genes that don't pass the filtering in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        keep_raw_layers: whether to keep layers with raw measurements in the returned adata object. Used in
+        keep_raw_layers: Whether to keep layers with raw measurements in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        del_2nd_moments: whether to remove second moments or covariances. Argument used for `dynamics` function. If
+        del_2nd_moments: Whether to remove second moments or covariances. Argument used for `dynamics` function. If
             None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        ekey: the dictionary key that corresponds to the gene expression in the layer attribute. ekey and vkey will be
+        ekey: The dictionary key that corresponds to the gene expression in the layer attribute. ekey and vkey will be
             automatically detected from the adata object. Parameters required by `cell_velocities`. Defaults to "M_t".
-        vkey: the dictionary key that corresponds to the estimated velocity values in the layers attribute. Parameters
+        vkey: The dictionary key that corresponds to the estimated velocity values in the layers attribute. Parameters
             required by `cell_velocities` Defaults to "velocity_T".
-        basis: the dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
+        basis: The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
             `X_spliced_umap` or `X_total_umap`, etc. Parameters required by `cell_velocities`. Defaults to "umap".
-        rm_kwargs: other kwargs passed into the pp.recipe_monocle function. Defaults to {}.
+        rm_kwargs: Other kwargs passed into the pp.recipe_monocle function. Defaults to {}.
 
     Raises:
-        Exception: the recipe is only applicable to kinetics experiment datasets with labeling data.
+        Exception: The recipe is only applicable to kinetics experiment datasets with labeling data.
 
     Returns:
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
@@ -195,44 +195,44 @@ def recipe_deg_data(
     labeling and splicing data or only labeling. Functions need to be updated.
 
     Args:
-        adata: an AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
+        adata: An AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
-        tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+        tkey: The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
             support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
             in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
             or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
-        reset_X: whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+        reset_X: Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
             critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
             into which the high dimensional RNA velocity vectors will be projected.
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to True.
-        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
+        X_total_layers: Whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
             function. Defaults to False.
-        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        splicing_total_layers: Whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Parameter to `recipe_monocle` function. Defaults to False.
-        n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
+        n_top_genes: The number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Arguments required by the `recipe_monocle` function. Defaults to 1000.
-        keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object. Used in
+        keep_filtered_cells: Whether to keep genes that don't pass the filtering in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        keep_filtered_genes: whether to keep genes that don't pass the filtering in the returned adata object. Used in
+        keep_filtered_genes: Whether to keep genes that don't pass the filtering in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        keep_raw_layers: whether to keep layers with raw measurements in the returned adata object. Used in
+        keep_raw_layers: Whether to keep layers with raw measurements in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        del_2nd_moments: whether to remove second moments or covariances. Argument used for `dynamics` function. If
+        del_2nd_moments: Whether to remove second moments or covariances. Argument used for `dynamics` function. If
             None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        fraction_for_deg: whether to use the fraction of labeled RNA instead of the raw labeled RNA to estimate the
+        fraction_for_deg: Whether to use the fraction of labeled RNA instead of the raw labeled RNA to estimate the
             degradation parameter. Defaults to False.
-        ekey: the dictionary key that corresponds to the gene expression in the layer attribute. ekey and vkey will be
+        ekey: The dictionary key that corresponds to the gene expression in the layer attribute. ekey and vkey will be
             automatically detected from the adata object. Parameters required by `cell_velocities`. Defaults to "M_s".
-        vkey: the dictionary key that corresponds to the estimated velocity values in the layers attribute. Parameters
+        vkey: The dictionary key that corresponds to the estimated velocity values in the layers attribute. Parameters
             required by `cell_velocities` Defaults to "velocity_S".
-        basis: the dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
+        basis: The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
             `X_spliced_umap` or `X_total_umap`, etc. Parameters required by `cell_velocities`. Defaults to "umap".
-        rm_kwargs: other kwargs passed into the pp.recipe_monocle function. Defaults to {}.
+        rm_kwargs: Other kwargs passed into the pp.recipe_monocle function. Defaults to {}.
 
     Raises:
-        Exception: the recipe is only applicable to kinetics experiment datasets with labeling data.
+        Exception: The recipe is only applicable to kinetics experiment datasets with labeling data.
 
     Returns:
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
@@ -362,39 +362,39 @@ def recipe_mix_kin_deg_data(
     experiment with both labeling and splicing or only labeling data.
 
     Args:
-        adata: an AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
+        adata: An AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
-        tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+        tkey: The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
             support for conventional scRNA-seq data). Note that `tkey` will be saved to `adata.uns['pp']['tkey']` and
             used in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2nd
             moment or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
-        reset_X: whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+        reset_X: Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
             critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
             into which the high dimensional RNA velocity vectors will be projected.
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to True.
-        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
+        X_total_layers: Whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
             function. Defaults to False.
-        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        splicing_total_layers: Whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Parameter to `recipe_monocle` function. Defaults to False.
-        n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
+        n_top_genes: The number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Arguments required by the `recipe_monocle` function. Defaults to 1000.
-        keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object. Used in
+        keep_filtered_cells: Whether to keep genes that don't pass the filtering in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        keep_filtered_genes: whether to keep genes that don't pass the filtering in the returned adata object. Used in
+        keep_filtered_genes: Whether to keep genes that don't pass the filtering in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        keep_raw_layers: whether to keep layers with raw measurements in the returned adata object. Used in
+        keep_raw_layers: Whether to keep layers with raw measurements in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        del_2nd_moments: whether to remove second moments or covariances. Argument used for `dynamics` function. If
+        del_2nd_moments: Whether to remove second moments or covariances. Argument used for `dynamics` function. If
             None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        ekey: the dictionary key that corresponds to the gene expression in the layer attribute. ekey and vkey will be
+        ekey: The dictionary key that corresponds to the gene expression in the layer attribute. ekey and vkey will be
             automatically detected from the adata object. Parameters required by `cell_velocities`. Defaults to "M_t".
-        vkey: the dictionary key that corresponds to the estimated velocity values in the layers attribute. Parameters
+        vkey: The dictionary key that corresponds to the estimated velocity values in the layers attribute. Parameters
             required by `cell_velocities` Defaults to "velocity_T".
-        basis: the dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
+        basis: The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
             `X_spliced_umap` or `X_total_umap`, etc. Parameters required by `cell_velocities`. Defaults to "umap".
-        rm_kwargs: other kwargs passed into the pp.recipe_monocle function. Defaults to {}.
+        rm_kwargs: Other kwargs passed into the pp.recipe_monocle function. Defaults to {}.
 
     Raises:
         Exception: the recipe is only applicable to kinetics experiment datasets with labeling data.
@@ -529,39 +529,39 @@ def recipe_one_shot_data(
     Args:
         adata: AnnData object that stores data for the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
-        tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+        tkey: The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
             support for conventional scRNA-seq data). Note that `tkey` will be saved to `adata.uns['pp']['tkey']` and
             used in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2nd
             moment or covariance. We recommend to use hour as the unit of `time`. Defaults to None.
-        reset_X: whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+        reset_X: Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
             critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
             into which the high dimensional RNA velocity vectors will be projected.
             (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
             (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
             Set `reset_X` to `True` to set those default values if you are not sure. Defaults to True.
-        X_total_layers: whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
+        X_total_layers: Whether to also normalize adata.X by size factor from total RNA. Parameter to `recipe_monocle`
             function. Defaults to False.
-        splicing_total_layers: whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        splicing_total_layers: Whether to also normalize spliced / unspliced layers by size factor from total RNA.
             Parameter to `recipe_monocle` function. Defaults to False.
-        n_top_genes: the number of top genes based on scoring method (specified by sort_by) will be selected as feature
+        n_top_genes: The number of top genes based on scoring method (specified by sort_by) will be selected as feature
             genes. Arguments required by the `recipe_monocle` function. Defaults to 1000.
-        keep_filtered_cells: whether to keep genes that don't pass the filtering in the returned adata object. Used in
+        keep_filtered_cells: Whether to keep genes that don't pass the filtering in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        keep_filtered_genes: whether to keep genes that don't pass the filtering in the returned adata object. Used in
+        keep_filtered_genes: Whether to keep genes that don't pass the filtering in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        keep_raw_layers: whether to keep layers with raw measurements in the returned adata object. Used in
+        keep_raw_layers: Whether to keep layers with raw measurements in the returned adata object. Used in
             `recipe_monocle`. If None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        one_shot_method: the method to use for calculate the absolute labeling and splicing velocity for the one-shot
+        one_shot_method: The method to use for calculate the absolute labeling and splicing velocity for the one-shot
             data of use. Defaults to "sci-fate".
-        del_2nd_moments: whether to remove second moments or covariances. Argument used for `dynamics` function. If
+        del_2nd_moments: Whether to remove second moments or covariances. Argument used for `dynamics` function. If
             None, would be set according to `DynamoAdataConfig`. Defaults to None.
-        ekey: the dictionary key that corresponds to the gene expression in the layer attribute. ekey and vkey will be
+        ekey: The dictionary key that corresponds to the gene expression in the layer attribute. ekey and vkey will be
             automatically detected from the adata object. Parameters required by `cell_velocities`. Defaults to "M_t".
-        vkey: the dictionary key that corresponds to the estimated velocity values in the layers attribute. Parameters
+        vkey: The dictionary key that corresponds to the estimated velocity values in the layers attribute. Parameters
             required by `cell_velocities` Defaults to "velocity_T".
-        basis: the dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
+        basis: The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be
             `X_spliced_umap` or `X_total_umap`, etc. Parameters required by `cell_velocities`. Defaults to "umap".
-        rm_kwargs: other kwargs passed into the pp.recipe_monocle function. Defaults to {}.
+        rm_kwargs: Other kwargs passed into the pp.recipe_monocle function. Defaults to {}.
 
     Raises:
         Exception: the recipe is only applicable to kinetics experiment datasets with labeling data.
@@ -689,13 +689,13 @@ def velocity_N(
     Args:
         adata: AnnData object that stores data for the kinetics or one-shot experiment, must include `X_new`, `X_total`
             layers.
-        group: the cell group that will be used to calculate velocity in each separate group. This is useful if your
+        group: The cell group that will be used to calculate velocity in each separate group. This is useful if your
             data comes from different labeling condition, etc. Defaults to None.
-        recalculate_pca: whether to recalculate pca with the new RNA data. If setting to be False, you need to make sure
+        recalculate_pca: Whether to recalculate pca with the new RNA data. If setting to be False, you need to make sure
             the pca is already generated via new RNA. Defaults to True.
-        recalculate_umap: whether to recalculate umap with the new RNA data. If setting to be False, you need to make
+        recalculate_umap: Whether to recalculate umap with the new RNA data. If setting to be False, you need to make
             sure the umap is already generated via new RNA. Defaults to True.
-        del_2nd_moments: whether to remove second moments or covariances. If None, would be set according to
+        del_2nd_moments: Whether to remove second moments or covariances. If None, would be set according to
             `DynamoAdataConfig`. Defaults to None.
 
     Raises:

@@ -23,9 +23,9 @@ def markov_combination(x: np.ndarray, v: np.ndarray, X: np.ndarray) -> Tuple:
         subject to  G*x <= h
 
     Args:
-        x: the cell data matrix.
-        v: the velocity data matrix.
-        X: the neighbors data matrix.
+        x: The cell data matrix.
+        v: The velocity data matrix.
+        X: The neighbors data matrix.
 
     Returns:
         A tuple containing the results of QP problem.
@@ -53,11 +53,11 @@ def compute_markov_trans_prob(
         subject to  G*x <= h
 
     Args:
-        x: the cell data matrix.
-        v: the velocity data matrix.
-        X: the neighbors data matrix.
-        s: extra constraints added to the `q` in QP problem.
-        cont_time: whether is continuous-time or not.
+        x: The cell data matrix.
+        v: The velocity data matrix.
+        X: The neighbors data matrix.
+        s: Extra constraints added to the `q` in QP problem.
+        cont_time: Whether is continuous-time or not.
 
     Returns:
         An array containing the optimal Markov transition probabilities computed by QP problem.
@@ -102,11 +102,11 @@ def compute_kernel_trans_prob(
     """Calculate the transition probabilities.
 
     Args:
-        x: the cell data matrix representing current state.
-        v: the velocity data matrix.
-        X: an array of data points representing the neighbors.
-        inv_s: the inverse of the diffusion matrix or a scalar value.
-        cont_time: whether to use continuous-time kernel computation.
+        x: The cell data matrix representing current state.
+        v: The velocity data matrix.
+        X: An array of data points representing the neighbors.
+        inv_s: The inverse of the diffusion matrix or a scalar value.
+        cont_time: Whether to use continuous-time kernel computation.
 
     Returns:
         The computed transition probabilities for each state in the Markov chain.
@@ -125,10 +125,10 @@ def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Uni
     """Compute the kernal representing the drift based on input data and parameters.
 
     Args:
-        x: the cell data matrix representing current state.
-        v: the velocity data matrix.
-        X: an array of data points representing the neighbors.
-        inv_s: the inverse of the diffusion matrix or a scalar value.
+        x: The cell data matrix representing current state.
+        v: The velocity data matrix.
+        X: An array of data points representing the neighbors.
+        inv_s: The inverse of the diffusion matrix or a scalar value.
 
     Returns:
         The computed drift kernel values for each state in the Markov chain.
@@ -173,10 +173,10 @@ def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_
     """Compute a local kernel representing the drift based on input data and parameters.
 
     Args:
-        x: the cell data matrix representing current state.
-        v: the velocity data matrix.
-        X: an array of data points representing the neighbors.
-        inv_s: the inverse of the diffusion matrix or a scalar value.
+        x: The cell data matrix representing current state.
+        v: The velocity data matrix.
+        X: An array of data points representing the neighbors.
+        inv_s: The inverse of the diffusion matrix or a scalar value.
 
     Returns:
         The computed drift kernel values.
@@ -215,8 +215,8 @@ def compute_density_kernel(x: np.ndarray, X: np.ndarray, inv_eps: float) -> np.n
     """Compute the density kernel values.
 
     Args:
-        x: the cell data matrix representing current state.
-        X: an array of data points representing the neighbors.
+        x: The cell data matrix representing current state.
+        X: An array of data points representing the neighbors.
         inv_eps: The inverse of the epsilon.
 
     Returns:
@@ -235,9 +235,9 @@ def makeTransitionMatrix(Qnn: np.ndarray, I_vec: np.ndarray, tol: float = 0.0) -
     """Create the transition matrix based on the transition rate matrix `Qnn` and the indexing vector `I_vec`.
 
     Args:
-        Qnn: the matrix which represents the transition rates between different states.
-        I_vec: the indexing vector to map the rows to the appropriate positions in the transition matrix.
-        tol: a numerical tolerance value to consider rate matrix elements as zero.
+        Qnn: The matrix which represents the transition rates between different states.
+        I_vec: The indexing vector to map the rows to the appropriate positions in the transition matrix.
+        tol: A numerical tolerance value to consider rate matrix elements as zero.
 
     Returns:
         The computed transition matrix based on `Qnn` and `I_vec`.
@@ -258,10 +258,10 @@ def compute_tau(X: np.ndarray, V: np.ndarray, k: int = 100, nbr_idx: Optional[np
     """Compute the tau values for each state in `X` based on the local density and velocity magnitudes.
 
     Args:
-        X: the data matrix which represents the states of the system.
-        V: the velocity matrix which represents the velocity vectors associated with each state in `X`.
-        k: the number of neighbors to consider when estimating local density. Default is 100.
-        nbr_idx: the indices of neighbors for each state in `X`.
+        X: The data matrix which represents the states of the system.
+        V: The velocity matrix which represents the velocity vectors associated with each state in `X`.
+        k: The number of neighbors to consider when estimating local density. Default is 100.
+        nbr_idx: The indices of neighbors for each state in `X`.
 
     Returns:
         The computed tau values representing the timescale of transitions for each state in `X`. The computed velocity
@@ -299,11 +299,11 @@ def prepare_velocity_grid_data(
     """Prepare the grid of data used to calculate the velocity embedding on grid.
 
     Args:
-        X_emb: the embedded data matrix.
-        xy_grid_nums: the number of grid points along each dimension for the velocity grid.
-        density: the density of grid points relative to the number of points in each dimension.
-        smooth: the smoothing factor for grid points relative to the range of each dimension.
-        n_neighbors: the number of neighbors to consider when estimating grid velocities.
+        X_emb: The embedded data matrix.
+        xy_grid_nums: The number of grid points along each dimension for the velocity grid.
+        density: The density of grid points relative to the number of points in each dimension.
+        smooth: The smoothing factor for grid points relative to the range of each dimension.
+        n_neighbors: The number of neighbors to consider when estimating grid velocities.
 
     Returns:
         A tuple containing:
@@ -362,15 +362,15 @@ def grid_velocity_filter(
     """Filter the grid velocities, adjusting for streamlines if needed.
 
     Args:
-        V_emb: the velocity matrix which represents the velocity vectors associated with each data point in the embedding.
-        neighs: the indices of neighbors for each grid point.
-        p_mass: the estimated probability mass for each grid point based on grid velocities.
-        X_grid: the grid points for the velocity.
-        V_grid: the estimated grid velocities.
-        min_mass: the minimum probability mass threshold to filter grid points based on p_mass.
-        autoscale: whether to autoscale the grid velocities based on the grid points and their velocities.
-        adjust_for_stream: whether to adjust the grid velocities to show streamlines.
-        V_threshold: the velocity threshold to filter grid points based on velocity magnitude.
+        V_emb: The velocity matrix which represents the velocity vectors associated with each data point in the embedding.
+        neighs: The indices of neighbors for each grid point.
+        p_mass: The estimated probability mass for each grid point based on grid velocities.
+        X_grid: The grid points for the velocity.
+        V_grid: The estimated grid velocities.
+        min_mass: The minimum probability mass threshold to filter grid points based on p_mass.
+        autoscale: Whether to autoscale the grid velocities based on the grid points and their velocities.
+        adjust_for_stream: Whether to adjust the grid velocities to show streamlines.
+        V_threshold: The velocity threshold to filter grid points based on velocity magnitude.
 
     Returns:
         The filtered grid points and the filtered estimated grid velocities.
@@ -429,17 +429,17 @@ def velocity_on_grid(
     from scVelo.
 
     Args:
-        X_emb: the low-dimensional embedding which represents the coordinates of the data points in the embedding space.
-        V_emb: the velocity matrix which represents the velocity vectors associated with each data point in the embedding.
-        xy_grid_nums: the number of grid points along each dimension of the embedding space.
-        density: the number of density grid points for each dimension.
-        smooth: the smoothing parameter for grid points along each dimension.
-        n_neighbors: the number of neighbors to consider for estimating grid velocities.
-        min_mass: the minimum probability mass threshold to filter grid points based on p_mass.
-        autoscale: whether to autoscale the grid velocities based on the grid points and their velocities.
-        adjust_for_stream: whether to adjust the grid velocities to show streamlines.
-        V_threshold: the velocity threshold to filter grid points based on velocity magnitude.
-        cut_off_velocity: whether to cut off the grid velocities or return the entire grid.
+        X_emb: The low-dimensional embedding which represents the coordinates of the data points in the embedding space.
+        V_emb: The velocity matrix which represents the velocity vectors associated with each data point in the embedding.
+        xy_grid_nums: The number of grid points along each dimension of the embedding space.
+        density: The number of density grid points for each dimension.
+        smooth: The smoothing parameter for grid points along each dimension.
+        n_neighbors: The number of neighbors to consider for estimating grid velocities.
+        min_mass: The minimum probability mass threshold to filter grid points based on p_mass.
+        autoscale: Whether to autoscale the grid velocities based on the grid points and their velocities.
+        adjust_for_stream: Whether to adjust the grid velocities to show streamlines.
+        V_threshold: The velocity threshold to filter grid points based on velocity magnitude.
+        cut_off_velocity: Whether to cut off the grid velocities or return the entire grid.
 
     Returns:
         A tuple containing the grid points, the filtered estimated grid velocities, the diffusion matrix D of shape.
@@ -501,15 +501,15 @@ def graphize_velocity(
     node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
 
     Args:
-        V: the velocities for all cells.
-        X: the coordinates for all cells.
-        nbrs_idx: a list of neighbor indices for each cell. If None a KNN will be performed instead.
-        k: the number of neighbors for the KNN search.
-        normalize_v: whether to normalize the velocity vectors.
-        E_func: a variance stabilizing function for reducing the variance of the flows.
+        V: The velocities for all cells.
+        X: The coordinates for all cells.
+        nbrs_idx: A list of neighbor indices for each cell. If None a KNN will be performed instead.
+        k: The number of neighbors for the KNN search.
+        normalize_v: Whether to normalize the velocity vectors.
+        E_func: A variance stabilizing function for reducing the variance of the flows.
             If a string is passed, there are two options:
-                'sqrt': the numpy.sqrt square root function;
-                'exp': the numpy.exp exponential function.
+                'sqrt': the `numpy.sqrt` square root function;
+                'exp': the `numpy.exp` exponential function.
 
     Returns:
         The edge matrix and the neighbor indices.
@@ -573,8 +573,8 @@ def calc_Laplacian(E: np.ndarray, convention: str = "graph") -> np.ndarray:
     """Calculate the Laplacian matrix of a given matrix of edge weights.
 
     Args:
-        E: the matrix of edge weights which represents the weights of edges in a graph.
-        convention: the convention used to compute the Laplacian matrix.
+        E: The matrix of edge weights which represents the weights of edges in a graph.
+        convention: The convention used to compute the Laplacian matrix.
             If "graph", the Laplacian matrix will be calculated as the diagonal matrix of node degrees minus the adjacency matrix.
             If "diffusion", the Laplacian matrix will be calculated as the negative of the graph Laplacian.
             Default is "graph".
@@ -595,8 +595,8 @@ def fp_operator(E: np.ndarray, D: Union[int, float]) -> np.ndarray:
     """Calculate the Fokker-Planck operator based on the given matrix of edge weights (E) and diffusion coefficient (D).
 
     Args:
-        E: the matrix of edge weights.
-        D: the diffusion coefficient used in the Fokker-Planck operator.
+        E: The matrix of edge weights.
+        D: The diffusion coefficient used in the Fokker-Planck operator.
 
     Returns:
         The Fokker-Planck operator matrix.
@@ -615,8 +615,8 @@ def divergence(E: np.ndarray, tol: float = 1e-5) -> np.ndarray:
     """Calculate the divergence for each node in a given matrix of edge weights.
 
     Args:
-        E: the matrix of edge weights.
-        tol: the tolerance value. Edge weights below this value will be treated as zero.
+        E: The matrix of edge weights.
+        tol: The tolerance value. Edge weights below this value will be treated as zero.
 
     Returns:
         The divergence values for each node.
@@ -645,13 +645,13 @@ class MarkovChain:
         """Initialize the MarkovChain instance.
 
         Args:
-            P: the transition matrix. The elements in the transition matrix P_ij encodes transition probability from j
+            P: The transition matrix. The elements in the transition matrix P_ij encodes transition probability from j
                 to i, i.e.:
                     P_ij = P(j -> i)
                 Consequently, each column of P should sum to `sumto`.
-            eignum: number of eigenvalues/eigenvectors to compute. If None, all are solved.
-            check_norm:  whether to check if the input transition matrix is properly normalized.
-            sumto: the value that each column of the transition matrix should sum to if 'check_norm' is True.
+            eignum: Number of eigenvalues/eigenvectors to compute. If None, all are solved.
+            check_norm:  Whether to check if the input transition matrix is properly normalized.
+            sumto: The value that each column of the transition matrix should sum to if 'check_norm' is True.
             tol: The numerical tolerance used for normalization check.
 
         Returns:
@@ -682,7 +682,7 @@ class MarkovChain:
         descending order, and the eigenvectors are arranged accordingly.
 
         Args:
-            eignum: number of eigenvalues/eigenvectors to compute.
+            eignum: Number of eigenvalues/eigenvectors to compute.
         """
         if eignum is not None:
             self.eignum = eignum
@@ -706,8 +706,8 @@ class MarkovChain:
         """Transform right eigenvectors into left eigenvectors.
 
         Args:
-            W: the matrix containing right eigenvectors.
-            p_st: a probability distribution vector.
+            W: The matrix containing right eigenvectors.
+            p_st: A probability distribution vector.
 
         Returns:
             The matrix containing left eigenvectors.
@@ -728,7 +728,7 @@ class MarkovChain:
         """Create an initial probability distribution vector with probabilities set to 1 at specified initial states.
 
         Args:
-            init_states: a list or array of initial states.
+            init_states: A list or array of initial states.
 
         Returns:
             The initial probability distribution vector.
@@ -749,11 +749,11 @@ class MarkovChain:
         """check if the matrix is properly normalized up to `tol`.
 
         Args:
-            P: the transition matrix. If None, self.P is checked instead.
-            tol: the numerical tolerance.
-            sumto: the value that each column/row should sum to.
-            axis: 0 - check if the matrix is column normalized; 1 - check if the matrix is row normalized.
-            ignore_nan: whether to ignore NaN values when computing the sum.
+            P: The transition matrix. If None, self.P is checked instead.
+            tol: The numerical tolerance.
+            sumto: The value that each column/row should sum to.
+            axis: 0 - Check if the matrix is column normalized; 1 - check if the matrix is row normalized.
+            ignore_nan: Whether to ignore NaN values when computing the sum.
 
         Returns:
             True if the matrix is properly normalized.
@@ -784,9 +784,9 @@ class KernelMarkovChain(MarkovChain):
         """Initialize the KernelMarkovChain instance.
 
         Args:
-            P: the transition matrix of the Markov chain.
-            Idx: the neighbor indices used for kernel computation.
-            n_recurse_neighbors: number of recursive neighbor searches to improve kernel computation. If not None, it
+            P: The transition matrix of the Markov chain.
+            Idx: The neighbor indices used for kernel computation.
+            n_recurse_neighbors: Number of recursive neighbor searches to improve kernel computation. If not None, it
                 appends the iterative neighbor indices using the function append_iterative_neighbor_indices().
 
         Returns:
@@ -817,19 +817,19 @@ class KernelMarkovChain(MarkovChain):
         """Fit the KernelMarkovChain model to the given data.
 
         Args:
-            X: the cell data matrix which represents the states of the Markov chain.
-            V: the velocity matrix which represents the expected returns of each state in the Markov chain.
-            M_diff: the covariance matrix or scalar value representing the diffusion matrix. It is used for
+            X: The cell data matrix which represents the states of the Markov chain.
+            V: The velocity matrix which represents the expected returns of each state in the Markov chain.
+            M_diff: The covariance matrix or scalar value representing the diffusion matrix. It is used for
                 computing transition probabilities.
-            neighbor_idx: the neighbor indices used for kernel computation. If None, it is computed using k-NN.
-            n_recurse_neighbors: number of recursive neighbor searches to improve kernel computation. If not None, it
+            neighbor_idx: The neighbor indices used for kernel computation. If None, it is computed using k-NN.
+            n_recurse_neighbors: Number of recursive neighbor searches to improve kernel computation. If not None, it
                 appends the iterative neighbor indices using the function append_iterative_neighbor_indices().
-            k: the number of nearest neighbors used for k-NN down sampling.
-            epsilon: the bandwidth parameter used for computing density kernel if not None.
-            adaptive_local_kernel: whether to use adaptive local kernel computation for transition probabilities.
-            tol: the numerical tolerance used for transition probability computation. Default is 1e-4.
-            sparse_construct: whether construct sparse matrices for transition matrix and density kernel.
-            sample_fraction: the fraction of neighbors used for k-NN down sampling if not None.
+            k: The number of nearest neighbors used for k-NN down sampling.
+            epsilon: The bandwidth parameter used for computing density kernel if not None.
+            adaptive_local_kernel: Whether to use adaptive local kernel computation for transition probabilities.
+            tol: The numerical tolerance used for transition probability computation. Default is 1e-4.
+            sparse_construct: Whether construct sparse matrices for transition matrix and density kernel.
+            sample_fraction: The fraction of neighbors used for k-NN down sampling if not None.
         """
         # compute connectivity
         if neighbor_idx is None:
@@ -911,7 +911,7 @@ class KernelMarkovChain(MarkovChain):
         """Propagate the transition matrix 'P' for a given number of steps.
 
         Args:
-            num_prop: the number of propagation steps.
+            num_prop: The number of propagation steps.
 
         Returns:
             The propagated transition matrix after 'num_prop' steps.
@@ -925,9 +925,9 @@ class KernelMarkovChain(MarkovChain):
         """Compute the drift for each state in the Markov chain.
 
         Args:
-            X: the cell data matrix which represents the states of the Markov chain.
-            num_prop: the number of propagation steps used for drift computation. Default is 1.
-            scale: whether to scale the result.
+            X: The cell data matrix which represents the states of the Markov chain.
+            num_prop: The number of propagation steps used for drift computation. Default is 1.
+            scale: Whether to scale the result.
 
         Returns:
             The computed drift values for each state in the Markov chain.
@@ -952,13 +952,13 @@ class KernelMarkovChain(MarkovChain):
         """Compute density-corrected drift for each state in the Markov chain.
 
         Args:
-            X: the cell data matrix which represents the states of the Markov chain.
-            neighbor_idx: the neighbor indices used for density-corrected drift computation.
-            k: the number of nearest neighbors used for computing the mean of kernel probabilities.
-            num_prop: the number of propagation steps used for drift computation. Default is 1.
-            normalize_vector: whether to normalize the drift vector for each state.
-            correct_by_mean: whether to correct the drift by subtracting the mean kernel probability from each state's drift.
-            scale: whether to scale the result.
+            X: The cell data matrix which represents the states of the Markov chain.
+            neighbor_idx: The neighbor indices used for density-corrected drift computation.
+            k: The number of nearest neighbors used for computing the mean of kernel probabilities.
+            num_prop: The number of propagation steps used for drift computation. Default is 1.
+            normalize_vector: Whether to normalize the drift vector for each state.
+            correct_by_mean: Whether to correct the drift by subtracting the mean kernel probability from each state's drift.
+            scale: Whether to scale the result.
 
         Returns:
             The computed density-corrected drift values for each state in the Markov chain.
@@ -1002,8 +1002,8 @@ class KernelMarkovChain(MarkovChain):
         """Perform diffusion map embedding for the Markov chain.
 
         Args:
-            n_dims: the number of dimensions for the diffusion map embedding.
-            t: the diffusion time parameter used in the embedding.
+            n_dims: The number of dimensions for the diffusion map embedding.
+            t: The diffusion time parameter used in the embedding.
 
         Returns:
             The diffusion map embedding of the Markov chain as a matrix.
@@ -1042,10 +1042,10 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Initialize the DiscreteTimeMarkovChain instance.
 
         Args:
-            P: the transition matrix of the Markov chain.
-            eignum: number of eigenvalues/eigenvectors to compute.
-            sumto: the value that each column of the transition matrix should sum to.
-            **kwargs: additional keyword arguments to be passed to the base class MarkovChain's constructor.
+            P: The transition matrix of the Markov chain.
+            eignum: Number of eigenvalues/eigenvectors to compute.
+            sumto: The value that each column of the transition matrix should sum to.
+            **kwargs: Additional keyword arguments to be passed to the base class MarkovChain's constructor.
 
         Returns:
             An instance of DiscreteTimeMarkovChain.
@@ -1108,7 +1108,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Propagate the transition matrix 'P' for a given number of steps.
 
         Args:
-            num_prop: the number of propagation steps.
+            num_prop: The number of propagation steps.
 
         Returns:
             The propagated transition matrix after 'num_prop' steps.
@@ -1122,8 +1122,8 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Compute the drift for each state in the Markov chain.
 
         Args:
-            X: the data matrix which represents the states of the Markov chain.
-            num_prop: the number of propagation steps used for drift computation. Default is 1.
+            X: The data matrix which represents the states of the Markov chain.
+            num_prop: The number of propagation steps used for drift computation. Default is 1.
 
         Returns:
             The computed drift values for each state in the Markov chain.
@@ -1141,8 +1141,8 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Compute density-corrected drift for each state in the Markov chain.
 
         Args:
-            X: the data matrix whicj represents the states of the Markov chain.
-            k: the number of nearest neighbors used for computing the mean of kernel probabilities.
+            X: The data matrix whicj represents the states of the Markov chain.
+            k: The number of nearest neighbors used for computing the mean of kernel probabilities.
             normalize_vector: whether to normalize the drift vector for each state.
 
         Returns:
@@ -1163,9 +1163,9 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Solve the distribution for the Markov chain.
 
         Args:
-            p0: the initial probability distribution vector.
-            n: the number of steps for distribution propagation.
-            method: the method used for solving the distribution.
+            p0: The initial probability distribution vector.
+            n: The number of steps for distribution propagation.
+            method: The method used for solving the distribution.
 
         Returns:
             The computed probability distribution vector after 'n' steps.
@@ -1184,7 +1184,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Compute the stationary distribution of the Markov chain.
 
         Args:
-            method: the method used for computing the stationary distribution.
+            method: The method used for computing the stationary distribution.
 
         Returns:
             The computed stationary distribution as a probability vector.
@@ -1203,8 +1203,8 @@ class DiscreteTimeMarkovChain(MarkovChain):
             K. Hoffmanna and P. Salamon, Bounding the lumping error in Markov chain dynamics, Appl Math Lett, (2009)
 
         Args:
-            labels: the lumping labels.
-            M_weight: the weighting matrix. If None, it is computed using the stationary distribution.
+            labels: The lumping labels.
+            M_weight: The weighting matrix. If None, it is computed using the stationary distribution.
 
         Returns:
             The lumped transition matrix after the lumping operation.
@@ -1228,8 +1228,8 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Perform naive Markov chain lumping based on given data and group labels.
 
         Args:
-            x: the data matrix.
-            grp: the group labels.
+            x: The data matrix.
+            grp: The group labels.
 
         Returns:
             The lumped transition matrix after the lumping operation.
@@ -1246,8 +1246,8 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Perform diffusion map embedding for the Markov chain.
 
         Args:
-            n_dims: the number of dimensions for the diffusion map embedding.
-            t: the diffusion time parameter used in the embedding.
+            n_dims: The number of dimensions for the diffusion map embedding.
+            t: The diffusion time parameter used in the embedding.
 
         Returns:
             The diffusion map embedding of the Markov chain as a matrix of shape (n_states, n_dims).
@@ -1263,8 +1263,8 @@ class DiscreteTimeMarkovChain(MarkovChain):
         """Simulate a random walk on the Markov chain from a given initial state.
 
         Args:
-            init_idx: the index of the initial state for the random walk.
-            num_steps: the number of steps for the random walk.
+            init_idx: The index of the initial state for the random walk.
+            num_steps: The number of steps for the random walk.
 
         Returns:
             The sequence of state indices resulting from the random walk.
@@ -1287,9 +1287,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Initialize the ContinuousTimeMarkovChain instance.
 
         Args:
-            P: the transition matrix of the Markov chain.
-            eignum: number of eigenvalues/eigenvectors to compute.
-            **kwargs: additional keyword arguments to be passed to the base class MarkovChain's constructor.
+            P: The transition matrix of the Markov chain.
+            eignum: Number of eigenvalues/eigenvectors to compute.
+            **kwargs: Additional keyword arguments to be passed to the base class MarkovChain's constructor.
 
         Returns:
             An instance of ContinuousTimeMarkovChain.
@@ -1303,8 +1303,8 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Check if the input matrix is a valid transition rate matrix.
 
         Args:
-            P: the transition rate matrix to be checked.
-            tol: tolerance threshold for zero row- or column-sum check.
+            P: The transition rate matrix to be checked.
+            tol: Tolerance threshold for zero row- or column-sum check.
 
         Returns:
             The checked transition rate matrix.
@@ -1323,10 +1323,10 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Compute the drift for each state in the continuous-time Markov chain.
 
         Args:
-            X: the data matrix of shape which represents the states of the Markov chain.
-            t: the time at which the drift is computed.
-            n_top: the number of top states to consider for drift computation.
-            normalize_vector: whether to normalize the drift vector for each state.
+            X: The data matrix of shape which represents the states of the Markov chain.
+            t: The time at which the drift is computed.
+            n_top: The number of top states to consider for drift computation.
+            normalize_vector: Whether to normalize the drift vector for each state.
 
         Returns:
             The computed drift values for each state in the continuous-time Markov chain.
@@ -1357,10 +1357,10 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Compute density-corrected drift for each state in the continuous-time Markov chain.
 
         Args:
-            X: the data matrix of shape which represents the states of the Markov chain.
-            t: the time at which the density-corrected drift is computed.
-            k: the number of nearest neighbors used for computing the correction term.
-            normalize_vector: whether to normalize the drift vector for each state.
+            X: The data matrix of shape which represents the states of the Markov chain.
+            t: The time at which the density-corrected drift is computed.
+            k: The number of nearest neighbors used for computing the correction term.
+            normalize_vector: Whether to normalize the drift vector for each state.
 
         Returns:
             The computed density-corrected drift values for each state in the continuous-time Markov chain.
@@ -1382,7 +1382,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Compute the transition matrix for a given time.
 
         Args:
-            t: the time at which the transition matrix is computed.
+            t: The time at which the transition matrix is computed.
 
         Returns:
             The computed transition matrix.
@@ -1409,8 +1409,8 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Solve the distribution for the continuous-time Markov chain at a given time.
 
         Args:
-            p0: the initial probability distribution vector.
-            t: the time at which the distribution is solved.
+            p0: The initial probability distribution vector.
+            t: The time at which the distribution is solved.
 
         Returns:
             The computed probability distribution vector at time.
@@ -1424,7 +1424,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Compute the stationary distribution of the continuous-time Markov chain.
 
         Args:
-            method: the method used for computing the stationary distribution.
+            method: The method used for computing the stationary distribution.
 
         Returns:
             The computed stationary distribution of the continuous-time Markov chain.
@@ -1446,8 +1446,8 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Simulate a random walk on the continuous-time Markov chain from a given initial state.
 
         Args:
-            init_idx: the index of the initial state for the random walk.
-            tspan: the time span for the random walk as a 1D array.
+            init_idx: The index of the initial state for the random walk.
+            tspan: The time span for the random walk as a 1D array.
 
         Returns:
             A tuple containing two arrays:
@@ -1475,8 +1475,8 @@ class ContinuousTimeMarkovChain(MarkovChain):
         and p0_ the initial distribution w/o the sinks.
 
         Args:
-            p0: the initial probability distribution vector.
-            sinks: the indices of the sink nodes.
+            p0: The initial probability distribution vector.
+            sinks: The indices of the sink nodes.
 
         Returns:
             The computed mean exit time.
@@ -1494,9 +1494,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Compute the mean first passage time given an initial distribution, a target node, and a set of sink nodes.
 
         Args:
-            p0: the initial probability distribution vector of shape (n_states,).
-            target: the index of the target node.
-            sinks: the indices of the sink nodes.
+            p0: The initial probability distribution vector of shape (n_states,).
+            target: The index of the target node.
+            sinks: The indices of the sink nodes.
 
         Returns:
             The computed mean first passage time.
@@ -1522,8 +1522,8 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Compute the hitting time of the continuous-time Markov chain.
 
         Args:
-            p_st: the stationary distribution of the continuous-time Markov chain.
-            return_Z: whether to return the matrix Z in addition to the hitting time matrix.
+            p_st: The stationary distribution of the continuous-time Markov chain.
+            return_Z: Whether to return the matrix Z in addition to the hitting time matrix.
 
         Returns:
             The computed hitting time matrix.
@@ -1544,9 +1544,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         """Perform diffusion map embedding for the continuous-time Markov chain.
 
         Args:
-            n_dims: the number of dimensions for the diffusion map embedding.
-            t: the diffusion time parameter used in the embedding.
-            n_pca_dims: the number of dimensions for PCA before diffusion map embedding.
+            n_dims: The number of dimensions for the diffusion map embedding.
+            t: The diffusion time parameter used in the embedding.
+            n_pca_dims: The number of dimensions for PCA before diffusion map embedding.
 
         Returns:
             The diffusion map embedding of the continuous-time Markov chain.
