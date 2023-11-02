@@ -15,8 +15,8 @@ def guestimate_alpha(x_data: np.ndarray, time: np.ndarray) -> np.ndarray:
     """Roughly estimate alpha for kinetics data, which is simply the averaged ratio of new RNA and labeling time.
 
     Args:
-        x_data: a matrix representing RNA data.
-        time: a matrix of labeling time.
+        x_data: A matrix representing RNA data.
+        time: A matrix of labeling time.
 
     Returns:
         The estimated alpha.
@@ -30,8 +30,8 @@ def guestimate_gamma(x_data: np.ndarray, time: np.ndarray) -> np.ndarray:
     """Roughly estimate gamma0 with the assumption that time starts at 0.
 
     Args:
-        x_data: a matrix representing RNA data.
-        time: a matrix of labeling time.
+        x_data: A matrix representing RNA data.
+        time: A matrix of labeling time.
 
     Returns:
         The estimated gamma.
@@ -44,7 +44,7 @@ def guestimate_init_cond(x_data: np.ndarray) -> np.ndarray:
     """Roughly estimate x0 for degradation data.
 
     Args:
-        x_data: a matrix representing RNA data.
+        x_data: A matrix representing RNA data.
 
     Returns:
         The estimated x0.
@@ -58,8 +58,8 @@ def guestimate_p0_kinetic_chase(x_data: np.ndarray, time: np.ndarray) -> Tuple[n
     the average abundance of labeled RNAs across all cells belonging to the initial labeling time point.
 
     Args:
-        x_data: a matrix representing RNA data.
-        time: a matrix of labeling time.
+        x_data: A matrix representing RNA data.
+        time: A matrix of labeling time.
 
     Returns:
         The estimated alpha0, gamma0 and x0.
@@ -118,8 +118,8 @@ class kinetic_estimation:
         """Sample the initial parameters with either Latin Hypercube Sampling or random method.
 
         Args:
-            samples: the number of samples.
-            method: the sampling method. Only support "lhs" and random sampling.
+            samples: The number of samples.
+            method: The sampling method. Only support "lhs" and random sampling.
 
         Returns:
             The sampled array.
@@ -140,7 +140,7 @@ class kinetic_estimation:
         """Run the Latin Hypercube Sampling function.
 
         Args:
-            samples: the number of samples.
+            samples: The number of samples.
 
         Returns:
             The sampled data array.
@@ -156,7 +156,7 @@ class kinetic_estimation:
         """Get the bounds of the specified axis for all parameters.
 
         Args:
-            axis: the index of axis.
+            axis: The index of axis.
 
         Returns:
             An array containing the bounds of the specified axis for all parameters.
@@ -170,7 +170,7 @@ class kinetic_estimation:
         """Perform log1p normalization on the data.
 
         Args:
-            X: target data to normalize.
+            X: Target data to normalize.
 
         Returns:
             The normalized data.
@@ -181,8 +181,8 @@ class kinetic_estimation:
         """Extract data from the ODE simulator.
 
         Args:
-            t: the time information. If provided, the data will be integrated with time information.
-            kwargs: additional keyword arguments.
+            t: The time information. If provided, the data will be integrated with time information.
+            kwargs: Additional keyword arguments.
 
         Returns:
             The variable from ODE simulator.
@@ -197,7 +197,7 @@ class kinetic_estimation:
         """Assemble the kinetic parameters array.
 
         Args:
-            unfixed_params: array of unfixed parameters.
+            unfixed_params: Array of unfixed parameters.
 
         Returns:
             The assembled kinetic parameters.
@@ -210,7 +210,7 @@ class kinetic_estimation:
         """Assemble the initial conditions array.
 
         Args:
-            unfixed_params: array of unfixed parameters.
+            unfixed_params: Array of unfixed parameters.
 
         Returns:
             The assembled initial conditions.
@@ -223,7 +223,7 @@ class kinetic_estimation:
         """Set the parameters of the simulator using assembled kinetic parameters.
 
         Args:
-            params: array of assembled kinetic parameters.
+            params: Array of assembled kinetic parameters.
         """
         self.simulator.set_params(*self.assemble_kin_params(params))
 
@@ -260,11 +260,11 @@ class kinetic_estimation:
         """Calculate the difference between simulated and observed data for least squares fitting.
 
         Args:
-            params: array of parameters for the simulation.
-            t: array of time values.
-            x_data: the input array.
-            method: method for integration.
-            normalize: whether to normalize data.
+            params: Array of parameters for the simulation.
+            t: Array of time values.
+            x_data: The input array.
+            method: Method for integration.
+            normalize: Whether to normalize data.
 
         Returns:
             Residuals representing the differences between simulated and observed data (flattened).
@@ -294,16 +294,16 @@ class kinetic_estimation:
         the optimized parameters and associated cost.
 
         Args:
-            t: a numpy array of n time points.
-            x_data: an m-by-n numpy array of m species, each having n values for the n time points.
-            p0: initial guesses of parameters. If None, a random number is generated within the bounds.
-            n_p0: number of initial guesses.
-            bounds: lower and upper bounds for parameters.
-            sample_method: method used for sampling initial guesses of parameters:
-                `lhs`: latin hypercube sampling;
-                `uniform`: uniform random sampling.
-            method: method used for solving ODEs. See options in simulator classes.
-            normalize: whether to normalize values in x_data across species, so that large values do
+            t: A numpy array of n time points.
+            x_data: An m-by-n numpy array of m species, each having n values for the n time points.
+            p0: Initial guesses of parameters. If None, a random number is generated within the bounds.
+            n_p0: Number of initial guesses.
+            bounds: Lower and upper bounds for parameters.
+            sample_method: Method used for sampling initial guesses of parameters:
+                `lhs`: Latin hypercube sampling;
+                `uniform`: Uniform random sampling.
+            method: Method used for solving ODEs. See options in simulator classes.
+            normalize: Whether to normalize values in x_data across species, so that large values do
                 not dominate the optimizer.
 
         Returns:
@@ -348,7 +348,7 @@ class kinetic_estimation:
         """Export the simulator model.
 
         Args:
-            reinstantiate: whether to reinstantiate the model class (default: True).
+            reinstantiate: Whether to reinstantiate the model class (default: True).
 
         Returns:
             Exported simulator model.
@@ -416,9 +416,9 @@ class Estimation_Degradation(kinetic_estimation):
         """Initialize the Estimation_Degradation object.
 
         Args:
-            ranges: the lower and upper ranges of parameters.
-            x0: initial conditions.
-            simulator: instance of the Python class to solve ODEs.
+            ranges: The lower and upper ranges of parameters.
+            x0: Initial conditions.
+            simulator: Instance of the Python class to solve ODEs.
 
         Returns:
             An instance of the Estimation_Degradation class.
@@ -430,7 +430,7 @@ class Estimation_Degradation(kinetic_estimation):
         """Roughly estimate initial conditions for parameter estimation.
 
         Args:
-            x_data: a matrix representing RNA data.
+            x_data: A matrix representing RNA data.
 
         Returns:
             Estimated initial conditions.
@@ -441,8 +441,8 @@ class Estimation_Degradation(kinetic_estimation):
         """Roughly estimate initial conditions for parameter estimation.
 
         Args:
-            x_data: a matrix representing RNA data.
-            time: a matrix of time information.
+            x_data: A matrix representing RNA data.
+            time: A matrix of time information.
 
         Returns:
             Estimated gamma.
@@ -453,7 +453,7 @@ class Estimation_Degradation(kinetic_estimation):
         """Get the estimated parameter value by key.
 
         Args:
-            key: the key of parameter.
+            key: The key of parameter.
 
         Returns:
             The estimated parameter value.
@@ -464,7 +464,7 @@ class Estimation_Degradation(kinetic_estimation):
         """Calculate half-life of a parameter.
 
         Args:
-            key: the key of parameter.
+            key: The key of parameter.
 
         Returns:
             The half-life value.
@@ -503,9 +503,9 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         """Initialize the Estimation_DeterministicDeg object.
 
         Args:
-            beta: the splicing rate.
-            gamma: the degradation rate.
-            x0: the initial conditions.
+            beta: The splicing rate.
+            gamma: The degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of the Estimation_DeterministicDeg class.
@@ -518,9 +518,9 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         """Initialize the parameters to the default value.
 
         Args:
-            beta: the splicing rate.
-            gamma: the degradation rate.
-            x0: the initial conditions.
+            beta: The splicing rate.
+            gamma: The degradation rate.
+            x0: The initial conditions.
         """
         ranges = np.zeros((2, 2))
         ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
@@ -531,9 +531,9 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         """Estimate the parameters.
 
         Args:
-            time: the time information.
-            x_data: a matrix representing RNA data.
-            kwargs: the additional keyword arguments.
+            time: The time information.
+            x_data: A matrix representing RNA data.
+            kwargs: The additional keyword arguments.
 
         Returns:
             The optimized parameters and the cost.
@@ -557,8 +557,8 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
         """Initialize the Estimation_DeterministicDegNosp object.
 
         Args:
-            gamma: the degradation rate.
-            x0: the initial conditions.
+            gamma: The degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of the Estimation_DeterministicDegNosp class.
@@ -570,8 +570,8 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
         """Initialize the parameters to the default value.
 
         Args:
-            gamma: the degradation rate.
-            x0: the initial conditions.
+            gamma: The degradation rate.
+            x0: The initial conditions.
         """
         ranges = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         if np.isscalar(x0) or x0.ndim > 1:
@@ -591,13 +591,13 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
         """Estimate the parameters.
 
         Args:
-            time: the time information.
-            x_data: a matrix representing RNA data.
-            sample_method: method used for sampling initial guesses of parameters:
-                `lhs`: latin hypercube sampling;
-                `uniform`: uniform random sampling.
-            method: method used for solving ODEs. See options in simulator classes.
-            normalize: whether to normalize the data.
+            time: The time information.
+            x_data: A matrix representing RNA data.
+            sample_method: Method used for sampling initial guesses of parameters:
+                `lhs`: Latin hypercube sampling;
+                `uniform`: Uniform random sampling.
+            method: Method used for solving ODEs. See options in simulator classes.
+            normalize: Whether to normalize the data.
 
         Returns:
             The optimized parameters and the cost.
@@ -635,10 +635,10 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         """Initialize the Estimation_MomentDeg object.
 
         Args:
-            beta: the splicing rate.
-            gamma: the degradation rate.
-            x0: the initial conditions.
-            include_cov: whether to consider covariance when estimating.
+            beta: The splicing rate.
+            gamma: The degradation rate.
+            x0: The initial conditions.
+            include_cov: Whether to consider covariance when estimating.
 
         Returns:
             An instance of the Estimation_MomentDeg class.
@@ -652,9 +652,9 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         """Initialize the parameters to the default value.
 
         Args:
-            beta: the splicing rate.
-            gamma: the degradation rate.
-            x0: the initial conditions.
+            beta: The splicing rate.
+            gamma: The degradation rate.
+            x0: The initial conditions.
         """
         ranges = np.zeros((2, 2))
         ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
@@ -686,8 +686,8 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         """Initialize the Estimation_MomentDeg object.
 
         Args:
-            gamma: the degradation rate.
-            x0: the initial conditions.
+            gamma: The degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of the Estimation_MomentDeg class.
@@ -699,8 +699,8 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         """Initialize the parameters to the default value.
 
         Args:
-            gamma: the degradation rate.
-            x0: the initial conditions.
+            gamma: The degradation rate.
+            x0: The initial conditions.
         """
         ranges = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, x0, Moments_NoSwitchingNoSplicing())
@@ -716,13 +716,13 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         """Estimate the parameters.
 
         Args:
-            time: the time information.
-            x_data: a matrix representing RNA data.
-            sample_method: method used for sampling initial guesses of parameters:
-                `lhs`: latin hypercube sampling;
-                `uniform`: uniform random sampling.
-            method: method used for solving ODEs. See options in simulator classes.
-            normalize: whether to normalize the data.
+            time: The time information.
+            x_data: A matrix representing RNA data.
+            sample_method: Method used for sampling initial guesses of parameters:
+                `lhs`: Latin hypercube sampling;
+                `uniform`: Uniform random sampling.
+            method: Method used for solving ODEs. See options in simulator classes.
+            normalize: Whether to normalize the data.
 
         Returns:
             The optimized parameters and the cost.
@@ -753,13 +753,13 @@ class Estimation_MomentKin(kinetic_estimation):
         """Initialize the Estimation_MomentKin object.
 
         Args:
-            a: switching rate from active promoter state to inactive promoter state.
-            b: switching rate from inactive promoter state to active promoter state.
-            alpha_a: transcription rate for active promoter.
-            alpha_i: transcription rate for inactive promoter.
-            beta: splicing rate.
-            gamma: degradation rate.
-            include_cov: whether to include the covariance when estimating.
+            a: Switching rate from active promoter state to inactive promoter state.
+            b: Switching rate from inactive promoter state to active promoter state.
+            alpha_a: Transcription rate for active promoter.
+            alpha_i: Transcription rate for inactive promoter.
+            beta: Splicing rate.
+            gamma: Degradation rate.
+            include_cov: Whether to include the covariance when estimating.
 
         Returns:
             An instance of the Estimation_MomentKin class.
@@ -848,11 +848,11 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         """Initialize the Estimation_MomentKinNosp object.
 
         Args:
-            a: switching rate from active promoter state to inactive promoter state.
-            b: switching rate from inactive promoter state to active promoter state.
-            alpha_a: transcription rate for active promoter.
-            alpha_i: transcription rate for inactive promoter.
-            gamma: degradation rate.
+            a: Switching rate from active promoter state to inactive promoter state.
+            b: Switching rate from inactive promoter state to active promoter state.
+            alpha_a: Transcription rate for active promoter.
+            alpha_i: Transcription rate for inactive promoter.
+            gamma: Degradation rate.
 
         Returns:
             An instance of the Estimation_MomentKinNosp class.
@@ -921,9 +921,9 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
         """Initialize the Estimation_DeterministicKinNosp object.
 
         Args:
-            alpha: transcription rate.
-            gamma: degradation rate.
-            x0: the initial condition.
+            alpha: Transcription rate.
+            gamma: Degradation rate.
+            x0: The initial condition.
 
         Returns:
             An instance of the Estimation_DeterministicKinNosp class.
@@ -975,10 +975,10 @@ class Estimation_DeterministicKin(kinetic_estimation):
         """Initialize the Estimation_DeterministicKin object.
 
         Args:
-            alpha: transcription rate.
-            beta: splicing rate.
-            gamma: degradation rate.
-            x0: the initial condition.
+            alpha: Transcription rate.
+            beta: Splicing rate.
+            gamma: Degradation rate.
+            x0: The initial condition.
 
         Returns:
             An instance of the Estimation_DeterministicKin class.
@@ -1041,12 +1041,12 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         """Initialize the Mixture_KinDeg_NoSwitching object.
 
         Args:
-            model1: the first model to mix.
-            model2: the second model to mix.
-            alpha: transcription rate.
-            gamma: degradation rate.
-            x0: the initial condition.
-            beta: splicing rate.
+            model1: The first model to mix.
+            model2: The second model to mix.
+            alpha: Transcription rate.
+            gamma: Degradation rate.
+            x0: The initial condition.
+            beta: Splicing rate.
 
         Returns:
             An instance of the Mixture_KinDeg_NoSwitching class.
@@ -1061,10 +1061,10 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         """Initialize the parameters to the default value.
 
         Args:
-            alpha: transcription rate.
-            gamma: degradation rate.
-            x0: the initial condition.
-            beta: splicing rate.
+            alpha: Transcription rate.
+            gamma: Degradation rate.
+            x0: The initial condition.
+            beta: Splicing rate.
         """
         if type(self.model1) in nosplicing_models:
             self.param_distributor = [[0, 2], [1, 2]]
@@ -1090,8 +1090,8 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         scaling factors to ensure the data's range remains within a certain limit.
 
         Args:
-            x_data: a matrix representing RNA data.
-            weight: weight for scaling.
+            x_data: A matrix representing RNA data.
+            weight: Weight for scaling.
 
         Returns:
             A tuple containing the normalized degradation data and the scaling factor.
@@ -1111,14 +1111,14 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         """Estimate the parameters.
 
         Args:
-            time: the time information.
-            x_data: a matrix representing RNA data.
-            alpha_min: the minimum limitation on transcription rate.
-            beta_min: the minimum limitation on splicing rate.
-            gamma_min: the minimum limitation on degradation rate.
-            kin_weight: weight for scaling during normalization.
-            use_p0: whether to use initial parameters when estimating.
-            kwargs: the additional keyword arguments.
+            time: The time information.
+            x_data: A matrix representing RNA data.
+            alpha_min: The minimum limitation on transcription rate.
+            beta_min: The minimum limitation on splicing rate.
+            gamma_min: The minimum limitation on degradation rate.
+            kin_weight: Weight for scaling during normalization.
+            use_p0: Whether to use initial parameters when estimating.
+            kwargs: The additional keyword arguments.
 
         Returns:
             The optimized parameters and the cost.
@@ -1163,7 +1163,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         """Export the mixture model.
 
         Args:
-            reinstantiate: whether to reinstantiate the model.
+            reinstantiate: Whether to reinstantiate the model.
 
         Returns:
             MixtureModels or LinearODE.
@@ -1221,13 +1221,13 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         """Initialize the Lambda_NoSwitching object.
 
         Args:
-            model1: the first model to mix.
-            model2: the second model to mix.
-            alpha: transcription rate.
-            lambd: the lambd value.
-            gamma: degradation rate.
-            x0: the initial condition.
-            beta: splicing rate.
+            model1: The first model to mix.
+            model2: The second model to mix.
+            alpha: Transcription rate.
+            lambd: The lambd value.
+            gamma: Degradation rate.
+            x0: The initial condition.
+            beta: Splicing rate.
 
         Returns:
             An instance of the Lambda_NoSwitching class.
@@ -1242,10 +1242,10 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         """Initialize the parameters to the default value.
 
         Args:
-            alpha: transcription rate.
-            gamma: degradation rate.
-            x0: the initial condition.
-            beta: splicing rate.
+            alpha: Transcription rate.
+            gamma: Degradation rate.
+            x0: The initial condition.
+            beta: Splicing rate.
         """
         if type(self.model1) in nosplicing_models and type(self.model2) in nosplicing_models:
             self.param_keys = ["alpha", "lambda", "gamma"]
@@ -1268,9 +1268,9 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         """Estimate the parameters.
 
         Args:
-            time: the time information.
-            x_data: a matrix representing RNA data.
-            kwargs: the additional keyword arguments.
+            time: The time information.
+            x_data: A matrix representing RNA data.
+            kwargs: The additional keyword arguments.
 
         Returns:
             The optimized parameters and the cost.
@@ -1281,7 +1281,7 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         """Export the mixture model.
 
         Args:
-            reinstantiate: whether to reinstantiate the model.
+            reinstantiate: Whether to reinstantiate the model.
 
         Returns:
             MixtureModels or LinearODE.
@@ -1298,9 +1298,9 @@ class Estimation_KineticChase(kinetic_estimation):
         """Initialize the Estimation_KineticChase object.
 
         Args:
-            alpha: transcription rate.
-            gamma: degradation rate.
-            x0: the initial condition.
+            alpha: Transcription rate.
+            gamma: Degradation rate.
+            x0: The initial condition.
 
         Returns:
             An instance of the Estimation_KineticChase class.
@@ -1313,9 +1313,9 @@ class Estimation_KineticChase(kinetic_estimation):
         """Initialize the parameters to the default value.
 
         Args:
-            alpha: transcription rate.
-            gamma: degradation rate.
-            x0: the initial condition.
+            alpha: Transcription rate.
+            gamma: Degradation rate.
+            x0: The initial condition.
         """
         ranges = np.zeros((2, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
@@ -1326,9 +1326,9 @@ class Estimation_KineticChase(kinetic_estimation):
         """Estimate the parameters.
 
         Args:
-            time: the time information.
-            x_data: a matrix representing RNA data.
-            kwargs: the additional keyword arguments.
+            time: The time information.
+            x_data: A matrix representing RNA data.
+            kwargs: The additional keyword arguments.
 
         Returns:
             The optimized parameters and the cost.
@@ -1390,9 +1390,9 @@ class GoodnessOfFit:
         """Initialize the GoodnessOfFit object.
 
         Args:
-            simulator: the linearODE class.
-            params: the parameters.
-            x0: the initial conditions.
+            simulator: The linearODE class.
+            params: The parameters.
+            x0: The initial conditions.
 
         Returns:
             An instance of the GoodnessOfFit class.
@@ -1411,7 +1411,7 @@ class GoodnessOfFit:
         """Extract data from the simulator's results.
 
         Args:
-            species: index of the species to extract.
+            species: Index of the species to extract.
 
         Returns:
             Extracted data from the simulator's results.
@@ -1433,12 +1433,12 @@ class GoodnessOfFit:
         """Prepare data for evaluation.
 
         Args:
-            t: the time information.
-            x_data: the RNA data.
-            species: index of the species to consider.
-            method: integration method.
-            normalize: whether to normalize data.
-            reintegrate: whether to reintegrate the model.
+            t: The time information.
+            x_data: The RNA data.
+            species: Index of the species to consider.
+            method: Integration method.
+            normalize: Whether to normalize data.
+            reintegrate: Whether to reintegrate the model.
         """
         if reintegrate:
             self.simulator.integrate(t, method=method)
@@ -1461,8 +1461,8 @@ class GoodnessOfFit:
         """Normalize data and model predictions.
 
         Args:
-            x_data: the RNA data.
-            x_model: predictions from model.
+            x_data: The RNA data.
+            x_model: Predictions from model.
             scale: Scaling factors for normalization.
 
         Returns:
@@ -1505,7 +1505,7 @@ class GoodnessOfFit:
         """Calculate the mean squared deviation between model predictions and observations.
 
         Args:
-            weighted: whether to weight the output.
+            weighted: Whether to weight the output.
 
         Returns:
             Mean squared deviation.

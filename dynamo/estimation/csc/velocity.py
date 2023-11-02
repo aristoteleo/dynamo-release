@@ -36,13 +36,13 @@ class Velocity:
         """Initialize the velocity class.
 
         Args:
-            alpha: a matrix of transcription rate.
-            beta: a vector of splicing rate constant for each gene.
-            gamma: a vector of spliced mRNA degradation rate constant for each gene.
-            eta: a vector of protein synthesis rate constant for each gene.
-            delta: a vector of protein degradation rate constant for each gene.
-            t: a vector of the measured time points for cells
-            estimation: a ss_estimation instance of the estimation class. If this not None, the parameters will be
+            alpha: A matrix of transcription rate.
+            beta: A vector of splicing rate constant for each gene.
+            gamma: A vector of spliced mRNA degradation rate constant for each gene.
+            eta: A vector of protein synthesis rate constant for each gene.
+            delta: A vector of protein degradation rate constant for each gene.
+            t: A vector of the measured time points for cells
+            estimation: A ss_estimation instance of the estimation class. If this not None, the parameters will be
                 taken from this class instead of the input arguments.
 
         Returns:
@@ -75,8 +75,8 @@ class Velocity:
         """Calculate the unspliced mRNA velocity.
 
         Args:
-            U: a matrix of unspliced mRNA count. Dimension: genes x cells.
-            repeat: whether to use average alpha or cell-wise alpha with the formula:
+            U: A matrix of unspliced mRNA count. Dimension: genes x cells.
+            repeat: Whether to use average alpha or cell-wise alpha with the formula:
                 $a = \frac{n \gamma}{1 - e^{-\gamma t}}$.
 
         Returns:
@@ -167,8 +167,8 @@ class Velocity:
         """Calculate the unspliced mRNA velocity.
 
         Args:
-            U: a matrix of unspliced mRNA counts. Dimension: genes x cells.
-            S: a matrix of spliced mRNA counts. Dimension: genes x cells.
+            U: A matrix of unspliced mRNA counts. Dimension: genes x cells.
+            S: A matrix of spliced mRNA counts. Dimension: genes x cells.
 
         Returns:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
@@ -231,8 +231,8 @@ class Velocity:
         """Calculate the protein velocity.
 
         Args:
-            S: a matrix of spliced mRNA counts. Dimension: genes x cells.
-            P: a matrix of protein counts. Dimension: genes x cells.
+            S: A matrix of spliced mRNA counts. Dimension: genes x cells.
+            P: A matrix of protein counts. Dimension: genes x cells.
 
         Returns:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.

@@ -14,10 +14,10 @@ def sol_u(t: np.ndarray, u0: float, alpha: float, beta: float) -> np.ndarray:
     """The analytical solution of unspliced mRNA kinetics.
 
     Args:
-        t: a vector of time points.
-        u0: initial value of u.
-        alpha: transcription rate.
-        beta: splicing rate constant.
+        t: A vector of time points.
+        u0: Initial value of u.
+        alpha: Transcription rate.
+        beta: Splicing rate constant.
 
     Returns:
         Unspliced mRNA counts at given time points.
@@ -29,12 +29,12 @@ def sol_u_2p(t: np.ndarray, u0: float, t1: np.ndarray, alpha0: float, alpha1: fl
     """The combined 2-piece analytical solution of unspliced mRNA kinetics.
 
     Args:
-        t: a vector of time points for both steady state and stimulation labeling.
-        u0: initial value of u.
-        t1: the time point when the cells switch from steady state to stimulation.
-        alpha0: transcription rate for steady state labeling.
-        alpha1: transcription rate for stimulation based labeling.
-        beta: splicing rate constant.
+        t: A vector of time points for both steady state and stimulation labeling.
+        u0: Initial value of u.
+        t1: The time point when the cells switch from steady state to stimulation.
+        alpha0: Transcription rate for steady state labeling.
+        alpha1: Transcription rate for stimulation based labeling.
+        beta: Splicing rate constant.
 
     Returns:
         Unspliced mRNA counts at given time points.
@@ -50,12 +50,12 @@ def sol_s(t: np.ndarray, s0: float, u0: float, alpha: float, beta: float, gamma:
     """The analytical solution of spliced mRNA kinetics.
 
     Args:
-        t: a vector of time points.
-        s0: initial value of s.
-        u0: initial value of u.
-        alpha: transcription rate.
-        beta: splicing rate constant.
-        gamma: degradation rate constant for spliced mRNA.
+        t: A vector of time points.
+        s0: Initial value of s.
+        u0: Initial value of u.
+        alpha: Transcription rate.
+        beta: Splicing rate constant.
+        gamma: Degradation rate constant for spliced mRNA.
 
     Returns:
         Spliced mRNA counts at given time points.
@@ -86,15 +86,15 @@ def sol_p(
     """The analytical solution of protein kinetics.
 
     Args:
-        t: a vector of time points.
-        p0: initial value of p.
-        s0: initial value of s.
-        u0: initial value of u.
-        alpha: transcription rate.
-        beta: splicing rate constant.
-        gamma: degradation rate constant for spliced mRNA.
-        eta: synthesis rate constant for protein.
-        delta: degradation rate constant for protein.
+        t: A vector of time points.
+        p0: Initial value of p.
+        s0: Initial value of s.
+        u0: Initial value of u.
+        alpha: Transcription rate.
+        beta: Splicing rate constant.
+        gamma: Degradation rate constant for spliced mRNA.
+        eta: Synthesis rate constant for protein.
+        delta: Degradation rate constant for protein.
 
     Returns:
         Protein counts at given time points (p), spliced mRNA counts at given time points (s) and unspliced mRNA counts
@@ -113,9 +113,9 @@ def solve_gamma(t: float, old: np.ndarray, total: np.ndarray) -> np.ndarray:
     """Analytical solution to calculate gamma (degradation rate) using first-order degradation kinetics.
 
     Args:
-        t: metabolic labeling time period.
-        old: a vector of old RNA amount in each cell
-        total: a vector of total RNA amount in each cell
+        t: Metabolic labeling time period.
+        old: A vector of old RNA amount in each cell
+        total: A vector of total RNA amount in each cell
 
     Returns:
         The degradation rate (gamma).
@@ -132,11 +132,11 @@ def solve_alpha_2p(t0: float, t1: float, alpha0: float, beta: float, u1: Union[c
     labeling experiment.
 
     Args:
-        t0: time period for steady state labeling.
-        t1: time period for stimulation labeling.
-        alpha0: steady state transcription rate calculated from one-shot experiment mode.
-        beta: steady state (and simulation) splicing rate calculated from one-shot experiment mode.
-        u1: a vector of labeled RNA amount in each cell observed at time t0 + t1.
+        t0: Time period for steady state labeling.
+        t1: Time period for stimulation labeling.
+        alpha0: Steady state transcription rate calculated from one-shot experiment mode.
+        beta: Steady state (and simulation) splicing rate calculated from one-shot experiment mode.
+        u1: A vector of labeled RNA amount in each cell observed at time t0 + t1.
 
     Returns:
         The transcription rate (alpha1) for the stimulation period in the data.
@@ -165,11 +165,11 @@ def solve_alpha_2p_mat(
     labeling experiment in a matrix form.
 
     Args:
-        t0: time period for steady state labeling for each cell.
-        t1: time period for stimulation labeling for each cell.
-        alpha0: steady state transcription rate calculated from one-shot experiment mode for each gene.
-        beta: steady state (and simulation) splicing rate calculated from one-shot experiment mode for each gene.
-        u1: a vector of labeled RNA amount in each cell observed at time t0 + t1.
+        t0: Time period for steady state labeling for each cell.
+        t1: Time period for stimulation labeling for each cell.
+        alpha0: Steady state transcription rate calculated from one-shot experiment mode for each gene.
+        beta: Steady state (and simulation) splicing rate calculated from one-shot experiment mode for each gene.
+        u1: A vector of labeled RNA amount in each cell observed at time t0 + t1.
 
     Returns:
         The transcription rate (alpha1) for the stimulation period in the data.
@@ -202,13 +202,13 @@ def fit_linreg(
     """Simple linear regression: y = kx + b.
 
     Args:
-        x: a vector of independent variables.
-        y: a vector of dependent variables.
-        mask: the index to filter the data before regression.
-        intercept: if using steady state assumption for fitting, then:
+        x: A vector of independent variables.
+        y: A vector of dependent variables.
+        mask: The index to filter the data before regression.
+        intercept: If using steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regression is performed with a fixed zero intercept.
-        r2: the R squared value calculated from the regression.
+        r2: The R squared value calculated from the regression.
 
     Returns:
         The estimated slope (k) , the estimated intercept (b), coefficient of determination or r square calculated with
@@ -266,12 +266,12 @@ def fit_linreg_robust(
     """Apply robust linear regression of y w.r.t x.
 
     Args:
-        x: a vector of independent variables.
-        y: a vector of dependent variables.
-        intercept: if using steady state assumption for fitting, then:
+        x: A vector of independent variables.
+        y: A vector of dependent variables.
+        intercept: If using steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regression is performed with a fixed zero intercept.
-        est_method: the linear regression estimation method that will be used.
+        est_method: The linear regression estimation method that will be used.
 
     Returns:
         The estimated slope (k), the estimated intercept (b), coefficient of determination or r square calculated with
@@ -345,10 +345,10 @@ def fit_stochastic_linreg(
     """Generalized method of moments: [u, 2*us + u] = gamma * [s, 2*ss - s].
 
     Args:
-        u: a vector of first moments (mean) of unspliced (or new) RNA expression.
-        s: a vector of first moments (mean) of spliced (or total) RNA expression.
-        us: a vector of second moments (uncentered co-variance) of unspliced/spliced (or new/total) RNA expression.
-        ss: a vector of second moments (uncentered variance) of spliced (or total) RNA expression.
+        u: A vector of first moments (mean) of unspliced (or new) RNA expression.
+        s: A vector of first moments (mean) of spliced (or total) RNA expression.
+        us: A vector of second moments (uncentered co-variance) of unspliced/spliced (or new/total) RNA expression.
+        ss: A vector of second moments (uncentered variance) of spliced (or total) RNA expression.
 
     Returns:
         The estimated gamma.
@@ -395,12 +395,12 @@ def fit_first_order_deg_lsq(
     """Estimate beta with degradation data using least squares method.
 
     Args:
-        t: a vector of time points.
-        l: a vector of unspliced, labeled mRNA counts for each time point.
-        bounds: the bound for beta. The default is beta > 0.
-        fix_l0: whether to used fixed l0. If ture, l0 will be calculated by averaging the first column of l;
+        t: A vector of time points.
+        l: A vector of unspliced, labeled mRNA counts for each time point.
+        bounds: The bound for beta. The default is beta > 0.
+        fix_l0: Whether to used fixed l0. If ture, l0 will be calculated by averaging the first column of l;
             If false, l0 is a parameter that will be estimated all together with beta using lsq.
-        beta_0: initial guess for beta.
+        beta_0: Initial guess for beta.
 
     Returns:
         The estimated value for beta (beta) and the estimated value for the initial spliced, labeled mRNA count (l0).
@@ -427,8 +427,8 @@ def solve_first_order_deg(t: np.ndarray, l: Union[csr_matrix, np.ndarray]) -> Tu
     under first-order degradation kinetics model.
 
     Args:
-        t: a vector of time points.
-        l: a vector of labeled mRNA counts for each time point.
+        t: A vector of time points.
+        l: A vector of labeled mRNA counts for each time point.
 
     Returns:
         The initial counts of the species (for example, labeled mRNA), degradation rate constant and half-life the species.
@@ -457,12 +457,12 @@ def fit_gamma_lsq(
     """Estimate gamma with degradation data using least squares method.
 
     Args:
-        t: a vector of time points.
-        s: a vector of spliced, labeled mRNA counts for each time point.
-        beta: the value of beta.
-        u0: initial number of unspliced mRNA.
-        bounds: the bound for gamma. The default is gamma > 0.
-        fix_s0: whether to use fixed s0. If true, s0 will be calculated by averaging the first column of s;
+        t: A vector of time points.
+        s: A vector of spliced, labeled mRNA counts for each time point.
+        beta: The value of beta.
+        u0: Initial number of unspliced mRNA.
+        bounds: The bound for gamma. The default is gamma > 0.
+        fix_s0: Whether to use fixed s0. If true, s0 will be calculated by averaging the first column of s;
             If false, s0 is a parameter that will be estimated all together with gamma using lsq.
 
     Returns:
@@ -494,9 +494,9 @@ def fit_alpha_synthesis(t: np.ndarray, u: Union[csr_matrix, np.ndarray], beta: f
     It is assumed that u(0) = 0.
 
     Args:
-        t: a vector of time points.
-        u: a matrix of unspliced mRNA counts. Dimension: cells x time points.
-        beta: the value of beta.
+        t: A vector of time points.
+        u: A matrix of unspliced mRNA counts. Dimension: cells x time points.
+        beta: The value of beta.
 
     Returns:
         The estimated value for alpha.
@@ -522,10 +522,10 @@ def fit_alpha_degradation(
     constrains u0 to be larger than 0.
 
     Args:
-        t: a vector of time points.
-        u: a matrix of unspliced mRNA counts. Dimension: cells x time points.
-        beta: the value of beta.
-        intercept: whether to steady state assumption for fitting, then:
+        t: A vector of time points.
+        u: A matrix of unspliced mRNA counts. Dimension: cells x time points.
+        beta: The value of beta.
+        intercept: Whether to steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regression is performed with a fixed zero intercept.
 
@@ -558,10 +558,10 @@ def solve_alpha_degradation(
     """Estimate alpha with degradation data using linear regression.
 
     Args:
-        t: a vector of time points.
-        u: a matrix of unspliced mRNA counts. Dimension: cells x time points.
-        beta: the value of beta.
-        intercept: if using steady state assumption for fitting, then:
+        t: A vector of time points.
+        u: A matrix of unspliced mRNA counts. Dimension: cells x time points.
+        beta: The value of beta.
+        intercept: If using steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regression is performed with a fixed zero intercept.
 
@@ -608,11 +608,11 @@ def fit_alpha_beta_synthesis(
     It is assumed that u(0) = 0.
 
     Args:
-        t: a vector of time points.
-        l: a matrix of labeled mRNA counts. Dimension: cells x time points.
-        bounds: the bound for alpha and beta. The default is alpha / beta > 0.
-        alpha_0: initial guess for alpha.
-        beta_0: initial guess for beta.
+        t: A vector of time points.
+        l: A matrix of labeled mRNA counts. Dimension: cells x time points.
+        bounds: The bound for alpha and beta. The default is alpha / beta > 0.
+        alpha_0: Initial guess for alpha.
+        beta_0: Initial guess for beta.
 
     Returns:
         The estimated value for alpha and the estimated value for beta.
@@ -639,12 +639,12 @@ def fit_all_synthesis(
     It is assumed that u(0) = 0 and s(0) = 0.
 
     Args:
-        t: a vector of time points.
-        l: a matrix of labeled mRNA counts. Dimension: cells x time points.
-        bounds: the bound for alpha and beta. The default is alpha / beta > 0.
-        alpha_0: initial guess for alpha.
-        beta_0: initial guess for beta.
-        gamma_0: initial guess for gamma.
+        t: A vector of time points.
+        l: A matrix of labeled mRNA counts. Dimension: cells x time points.
+        bounds: The bound for alpha and beta. The default is alpha / beta > 0.
+        alpha_0: Initial guess for alpha.
+        beta_0: Initial guess for beta.
+        gamma_0: Initial guess for gamma.
 
     Returns:
         The estimated value for alpha, beta and gamma.
@@ -666,8 +666,8 @@ def concat_time_series_matrices(
     """Concatenate a list of gene x cell matrices into a single matrix.
 
     Args:
-        mats: a list of gene x cell matrices. The length of the list equals the number of time points
-        t: a vector or list of time points.
+        mats: A list of gene x cell matrices. The length of the list equals the number of time points
+        t: A vector or list of time points.
 
     Returns:
         Concatenated gene x cell matrix (ret_mat) and a vector of time point for each cell (ret_t).
@@ -687,8 +687,8 @@ def compute_dispersion(mX: Union[np.ndarray, csr_matrix], varX: Union[np.ndarray
         variance = mean + phi * mean^2
 
     Args:
-        mX: the mean of variable X.
-        varX: the variance of variable X.
+        mX: The mean of variable X.
+        varX: The variance of variable X.
 
     Returns:
         The dispersion parameter.
@@ -710,12 +710,12 @@ def fit_k_negative_binomial(
         k^2 * variance(r) = k * n - phi * n * 2
 
     Args:
-        n: unspliced mRNA or new/labeled mRNA of one gene.
-        r: spliced mRNA or total mRNA of one gene.
-        var: the variance of r.
-        phi: the dispersion parameter of the negative binomial distribution of one gene.
-        k0: the initial guess for k.
-        return_k0: whether to return k0.
+        n: Unspliced mRNA or new/labeled mRNA of one gene.
+        r: Spliced mRNA or total mRNA of one gene.
+        var: The variance of r.
+        phi: The dispersion parameter of the negative binomial distribution of one gene.
+        k0: The initial guess for k.
+        return_k0: Whether to return k0.
 
     Returns:
         The resolution from the least squares optimizer.
@@ -744,12 +744,12 @@ def fit_K_negbin(
     """Fit parameter K of negative binomial distribution to each gene.
 
     Args:
-        N: unspliced mRNA or new/labeled mRNA.
-        R: spliced mRNA or total mRNA.
-        varR: the variance of R.
-        perc_left: left percentile for selecting extreme data points.
-        perc_right: right percentile for selecting extreme data points.
-        return_phi: whether to return dispersion parameter Phi.
+        N: Unspliced mRNA or new/labeled mRNA.
+        R: Spliced mRNA or total mRNA.
+        varR: The variance of R.
+        perc_left: Left percentile for selecting extreme data points.
+        perc_right: Right percentile for selecting extreme data points.
+        return_phi: Whether to return dispersion parameter Phi.
 
     Returns:
         Fitted parameter K for each gene.
@@ -782,10 +782,10 @@ def compute_velocity_labeling(
     """Compute velocity for labeling data by: velocity = gamma / k * new - gamma * total.
 
     Args:
-        N: new or labeled mRNA.
-        R: total mRNA.
-        K: fitted slope k.
-        tau: time information.
+        N: New or labeled mRNA.
+        R: Total mRNA.
+        K: Fitted slope k.
+        tau: Time information.
 
     Returns:
         Computed velocity.
@@ -807,14 +807,13 @@ def compute_bursting_properties(
         Anton J.M. Larsson et al. Genomic encoding of transcriptional burst kinetics, Nature volume 565, pages251–254(2019)
 
     Args:
-        M_t: the first moment of the number of total mRNA. If an array is passed, a cell-wise bursting size will be
+        M_t: The first moment of the number of total mRNA. If an array is passed, a cell-wise bursting size will be
             calculated.
-        phi: the reciprocal dispersion parameter.
-        gamma: degradation rate constant.
+        phi: The reciprocal dispersion parameter.
+        gamma: Degradation rate constant.
 
     Returns:
-        bs: bursting size
-        bf: bursting frequency
+        Bursting size and bursting frequency
     """
     bs = M_t * phi
     bf = gamma / phi

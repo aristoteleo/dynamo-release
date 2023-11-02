@@ -13,8 +13,8 @@ class LinearODE:
         """Initialize the LinearODE object.
 
         Args:
-            n_species: the number of species.
-            x0: the initial condition of variable x.
+            n_species: The number of species.
+            x0: The initial condition of variable x.
 
         Returns:
             An instance of LinearODE.
@@ -34,8 +34,8 @@ class LinearODE:
         """ODE functions to be implemented in the derived class such that dx=f(x, t).
 
         Args:
-            x: the variable.
-            t: the array of time.
+            x: The variable.
+            t: The array of time.
 
         Returns:
             The derivatives dx.
@@ -47,9 +47,9 @@ class LinearODE:
         """Integrate the ODE using the given time values.
 
         Args:
-            t: array of time values.
-            x0: array of initial conditions.
-            method: the method to integrate, including "matrix" and "numerical".
+            t: Array of time values.
+            x0: Array of initial conditions.
+            method: The method to integrate, including "matrix" and "numerical".
 
         Returns:
             Array containing the integrated solution over the specified time values.
@@ -69,8 +69,8 @@ class LinearODE:
         """Numerically integrate the ODE using the given time values.
 
         Args:
-            t: array of time values.
-            x0: array of initial conditions.
+            t: Array of time values.
+            x0: Array of initial conditions.
 
         Returns:
             Array containing the integrated solution over the specified time values.
@@ -100,8 +100,8 @@ class LinearODE:
         """Integrate the system of ordinary differential equations (ODEs) using matrix exponential.
 
         Args:
-            t: array of time values.
-            x0: array of initial conditions.
+            t: Array of time values.
+            x0: Array of initial conditions.
 
         Returns:
             Array containing the integrated solution over the specified time values.
@@ -141,8 +141,8 @@ class MixtureModels:
         """Initialize the MixtureModels class.
 
         Args:
-            models: the models to mix.
-            param_distributor: the index to assign parameters.
+            models: The models to mix.
+            param_distributor: The index to assign parameters.
 
         Returns:
             An instance of MixtureModels.
@@ -162,9 +162,9 @@ class MixtureModels:
         """Integrate with time values for all models.
 
         Args:
-            t: array of time values.
-            x0: array of initial conditions.
-            method: the method or methods to integrate, including "matrix" and "numerical".
+            t: Array of time values.
+            x0: Array of initial conditions.
+            method: The method or methods to integrate, including "matrix" and "numerical".
         """
         self.x = np.zeros((len(t), np.sum(self.n_species)))
         for i, mdl in enumerate(self.models):
@@ -178,7 +178,7 @@ class MixtureModels:
         """Get the indices of species associated with the specified model.
 
         Args:
-            model_index: index of the model.
+            model_index: Index of the model.
 
         Returns:
             Array containing the indices of species associated with the specified model.
@@ -199,7 +199,7 @@ class MixtureModels:
         """Unpack the given parameters.
 
         Args:
-            params: tuple of parameters.
+            params: Tuple of parameters.
 
         Returns:
             The unpacked tuple.
@@ -210,7 +210,7 @@ class MixtureModels:
         """Set parameters for all models.
 
         Args:
-            params: tuple of parameters.
+            params: Tuple of parameters.
         """
         params = self.param_mixer(*params)
         for i, mdl in enumerate(self.models):
@@ -230,8 +230,8 @@ class LambdaModels_NoSwitching(MixtureModels):
         """Initialize the LambdaModels_NoSwitching class.
 
         Args:
-            model1: the first model to mix.
-            model2: the second model to mix.
+            model1: The first model to mix.
+            model2: The second model to mix.
 
         Returns:
             An instance of LambdaModels_NoSwitching.
@@ -249,7 +249,7 @@ class LambdaModels_NoSwitching(MixtureModels):
         """Set parameters for all models.
 
         Args:
-            params: tuple of parameters.
+            params: Tuple of parameters.
         """
         lam = params[1]
         alp_1 = params[0] * lam
@@ -274,13 +274,13 @@ class Moments(LinearODE):
         """Initialize the Moments object.
 
         Args:
-            a: switching rate from active promoter state to inactive promoter state.
-            b: switching rate from inactive promoter state to active promoter state.
-            alpha_a: transcription rate for active promoter.
-            alpha_i: transcription rate for inactive promoter.
-            beta: splicing rate.
-            gamma: degradation rate.
-            x0: the initial conditions.
+            a: Switching rate from active promoter state to inactive promoter state.
+            b: Switching rate from inactive promoter state to active promoter state.
+            alpha_a: Transcription rate for active promoter.
+            alpha_i: Transcription rate for inactive promoter.
+            beta: Splicing rate.
+            gamma: Degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of Moments.
@@ -312,8 +312,8 @@ class Moments(LinearODE):
         The second moments is calculated from the variance and covariance of variable u and x.
 
         Args:
-            x: the variable.
-            t: the array of time.
+            x: The variable.
+            t: The array of time.
 
         Returns:
             The derivatives dx.
@@ -344,8 +344,8 @@ class Moments(LinearODE):
         """Calculate the count of a variable by averaging active and inactive states.
 
         Args:
-            x_a: the variable x under the active state.
-            x_i: the variable x under the inactive state.
+            x_a: The variable x under the active state.
+            x_i: The variable x under the inactive state.
 
         Returns:
             The count of variable x.
@@ -364,12 +364,12 @@ class Moments(LinearODE):
         """Set the parameters.
 
         Args:
-            a: switching rate from active promoter state to inactive promoter state.
-            b: switching rate from inactive promoter state to active promoter state.
-            alpha_a: transcription rate for active promoter.
-            alpha_i: transcription rate for inactive promoter.
-            beta: splicing rate.
-            gamma: degradation rate.
+            a: Switching rate from active promoter state to inactive promoter state.
+            b: Switching rate from inactive promoter state to active promoter state.
+            alpha_a: Transcription rate for active promoter.
+            alpha_i: Transcription rate for inactive promoter.
+            beta: Splicing rate.
+            gamma: Degradation rate.
         """
         self.a = a
         self.b = b
@@ -539,12 +539,12 @@ class Moments_Nosplicing(LinearODE):
         """Initialize the Moments_Nosplicing object.
 
         Args:
-            a: switching rate from active promoter state to inactive promoter state.
-            b: switching rate from inactive promoter state to active promoter state.
-            alpha_a: transcription rate for active promoter.
-            alpha_i: transcription rate for inactive promoter.
-            gamma: degradation rate.
-            x0: the initial conditions.
+            a: Switching rate from active promoter state to inactive promoter state.
+            b: Switching rate from inactive promoter state to active promoter state.
+            alpha_a: Transcription rate for active promoter.
+            alpha_i: Transcription rate for inactive promoter.
+            gamma: Degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of Moments_Nosplicing.
@@ -567,8 +567,8 @@ class Moments_Nosplicing(LinearODE):
         """ODE functions to solve. Ignore the splicing part in the base class.
 
         Args:
-            x: the variable.
-            t: the array of time.
+            x: The variable.
+            t: The array of time.
 
         Returns:
             The derivatives dx.
@@ -594,8 +594,8 @@ class Moments_Nosplicing(LinearODE):
         """Calculate the count of a variable by averaging active and inactive states.
 
         Args:
-            x_a: the variable x under the active state.
-            x_i: the variable x under the inactive state.
+            x_a: The variable x under the active state.
+            x_i: The variable x under the inactive state.
 
         Returns:
             The count of variable x.
@@ -606,11 +606,11 @@ class Moments_Nosplicing(LinearODE):
         """Set the parameters.
 
         Args:
-            a: switching rate from active promoter state to inactive promoter state.
-            b: switching rate from inactive promoter state to active promoter state.
-            alpha_a: transcription rate for active promoter.
-            alpha_i: transcription rate for inactive promoter.
-            gamma: degradation rate.
+            a: Switching rate from active promoter state to inactive promoter state.
+            b: Switching rate from inactive promoter state to active promoter state.
+            alpha_a: Transcription rate for active promoter.
+            alpha_i: Transcription rate for inactive promoter.
+            gamma: Degradation rate.
         """
         self.a = a
         self.b = b
@@ -696,10 +696,10 @@ class Moments_NoSwitching(LinearODE):
         """Initialize the Moments_NoSwitching object.
 
         Args:
-            alpha: transcription rate.
-            beta: splicing rate.
-            gamma: degradation rate.
-            x0: the initial conditions.
+            alpha: Transcription rate.
+            beta: Splicing rate.
+            gamma: Degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of Moments_NoSwitching.
@@ -724,8 +724,8 @@ class Moments_NoSwitching(LinearODE):
         """ODE functions to solve. Ignore the switching part in the base class.
 
         Args:
-            x: the variable.
-            t: the array of time.
+            x: The variable.
+            t: The array of time.
 
         Returns:
             The derivatives dx.
@@ -751,9 +751,9 @@ class Moments_NoSwitching(LinearODE):
         """Set the parameters.
 
         Args:
-            alpha: transcription rate.
-            beta: splicing rate.
-            gamma: degradation rate.
+            alpha: Transcription rate.
+            beta: Splicing rate.
+            gamma: Degradation rate.
         """
         self.al = alpha
         self.be = beta
@@ -884,9 +884,9 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         """Initialize the Moments_NoSwitchingNoSplicing object.
 
         Args:
-            alpha: transcription rate.
-            gamma: degradation rate.
-            x0: the initial conditions.
+            alpha: Transcription rate.
+            gamma: Degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of Moments_NoSwitchingNoSplicing.
@@ -908,8 +908,8 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         """ODE functions to solve. Both splicing and switching part in the base class are ignored.
 
         Args:
-            x: the variable.
-            t: the array of time.
+            x: The variable.
+            t: The array of time.
 
         Returns:
             The derivatives dx.
@@ -931,8 +931,8 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         """Set the parameters.
 
         Args:
-            alpha: transcription rate.
-            gamma: degradation rate.
+            alpha: Transcription rate.
+            gamma: Degradation rate.
         """
         self.al = alpha
         self.ga = gamma
@@ -1007,10 +1007,10 @@ class Deterministic(LinearODE):
         """Initialize the Deterministic object.
 
         Args:
-            alpha: the transcription rate.
-            beta: the splicing rate.
-            gamma: the degradation rate.
-            x0: the inital conditions.
+            alpha: The transcription rate.
+            beta: The splicing rate.
+            gamma: The degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of Deterministic.
@@ -1037,8 +1037,8 @@ class Deterministic(LinearODE):
             dx[v] = beta * u - gamma * s
 
         Args:
-            x: the x variable.
-            t: the time information.
+            x: The x variable.
+            t: The time information.
 
         Returns:
             An array containing the ODEs' output.
@@ -1059,9 +1059,9 @@ class Deterministic(LinearODE):
         """Set the parameters.
 
         Args:
-            alpha: the transcription rate.
-            beta: the splicing rate.
-            gamma: the degradation rate.
+            alpha: The transcription rate.
+            beta: The splicing rate.
+            gamma: The degradation rate.
         """
         self.al = alpha
         self.be = beta
@@ -1074,9 +1074,9 @@ class Deterministic(LinearODE):
         """Integrate the ODE using the given time values.
 
         Args:
-            t: array of time values.
-            x0: array of initial conditions.
-            method: the method to integrate, including "matrix" and "numerical".
+            t: Array of time values.
+            x0: Array of initial conditions.
+            method: The method to integrate, including "matrix" and "numerical".
         """
         method = self.default_method if method is None else method
         if method == "analytical":
@@ -1114,8 +1114,8 @@ class Deterministic(LinearODE):
         """Integrate the odes with the analytical solution.
 
         Args:
-            t: the time information.
-            x0: the initial conditions.
+            t: The time information.
+            x0: The initial conditions.
 
         Returns:
             The solution of unspliced and splcied mRNA wrapped in an array.
@@ -1140,9 +1140,9 @@ class Deterministic_NoSplicing(LinearODE):
         """Initialize the Deterministic_NoSplicing object.
 
         Args:
-            alpha: the transcription rate.
-            gamma: the degradation rate.
-            x0: the initial conditions.
+            alpha: The transcription rate.
+            gamma: The degradation rate.
+            x0: The initial conditions.
 
         Returns:
             An instance of Deterministic_NoSplicing.
@@ -1167,8 +1167,8 @@ class Deterministic_NoSplicing(LinearODE):
             dx[u] = alpha - gamma * u
 
         Args:
-            x: the x variable.
-            t: the time information.
+            x: The x variable.
+            t: The time information.
 
         Returns:
             An array containing the ODEs' output.
@@ -1187,8 +1187,8 @@ class Deterministic_NoSplicing(LinearODE):
         """Set the parameters.
 
         Args:
-            alpha: the transcription rate.
-            gamma: the degradation rate.
+            alpha: The transcription rate.
+            gamma: The degradation rate.
         """
         self.al = alpha
         self.ga = gamma
@@ -1200,9 +1200,9 @@ class Deterministic_NoSplicing(LinearODE):
         """Integrate the ODE using the given time values.
 
         Args:
-            t: array of time values.
-            x0: array of initial conditions.
-            method: the method to integrate, including "matrix" and "numerical".
+            t: Array of time values.
+            x0: Array of initial conditions.
+            method: The method to integrate, including "matrix" and "numerical".
         """
         method = self.default_method if method is None else method
         if method == "analytical":
@@ -1235,8 +1235,8 @@ class Deterministic_NoSplicing(LinearODE):
         """Integrate the odes with the analytical solution.
 
         Args:
-            t: the time information.
-            x0: the initial conditions.
+            t: The time information.
+            x0: The initial conditions.
 
         Returns:
             The solution of unspliced mRNA as an array.

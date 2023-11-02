@@ -20,12 +20,12 @@ def fit_slope_stochastic(
     answer is denoted as gamma_k most of the time, which equals gamma/beta under steady state.
 
     Args:
-        S: a matrix of the first moments of the spliced RNA.
-        U: a matrix of the first moments of the unspliced RNA.
-        US: a matrix of the cross moments of unspliced/spliced RNA.
-        S2: a matrix of the second moments of spliced RNA.
-        perc_left: the left percentile limitation to find extreme data points.
-        perc_right: the right percentile limitation to find extreme data points.
+        S: A matrix of the first moments of the spliced RNA.
+        U: A matrix of the first moments of the unspliced RNA.
+        US: A matrix of the cross moments of unspliced/spliced RNA.
+        S2: A matrix of the second moments of spliced RNA.
+        perc_left: The left percentile limitation to find extreme data points.
+        perc_right: The right percentile limitation to find extreme data points.
 
     Returns:
         The slope, intercept, R squared and log likelihood.
@@ -62,12 +62,12 @@ def fit_labeling_synthesis(
     """Calculate the slope of total and new RNA under steady-state assumption.
 
     Args:
-        new: a matrix representing new RNA. Can be expression or the first moments.
-        total: a matrix representing total RNA. Can be expression or the first moments.
-        t: a matrix of time information.
-        intercept: whether to perform the linear regression with intercept.
-        perc_left: the left percentile limitation to find extreme data points.
-        perc_right: the right percentile limitation to find extreme data points.
+        new: A matrix representing new RNA. Can be expression or the first moments.
+        total: A matrix representing total RNA. Can be expression or the first moments.
+        t: A matrix of time information.
+        intercept: Whether to perform the linear regression with intercept.
+        perc_left: The left percentile limitation to find extreme data points.
+        perc_right: The right percentile limitation to find extreme data points.
 
     Returns:
         The slope K and R squared of linear regression.
@@ -90,8 +90,8 @@ def compute_gamma_synthesis(
     """Calculate gamma as the linear regression results of given time and log(1 - slope k).
 
     Args:
-        K: a matrix of the slope k.
-        T: a matrix of time information.
+        K: A matrix of the slope k.
+        T: A matrix of time information.
 
     Returns:
         The gamma and R squared of linear regression.
@@ -109,10 +109,10 @@ def compute_velocity_synthesis(
     """Calculate the velocity of total RNA with a physical time unit: velocity = (gamma / k) N - gamma * R.
 
     Args:
-        N: a matrix representing new RNA.
-        R: a matrix representing total RNA.
-        gamma: a matrix of degradation rate.
-        t: a matrix of time information.
+        N: A matrix representing new RNA.
+        R: A matrix representing total RNA.
+        gamma: A matrix of degradation rate.
+        t: A matrix of time information.
 
     Returns:
         The velocity.
@@ -133,10 +133,10 @@ def lin_reg_gamma_synthesis(
         l(t) = (1 - exp(- gamma * t)) alpha / gamma
 
     Args:
-        R: a matrix representing total RNA. Can be expression or the first moments.
-        N: a matrix representing new RNA. Can be expression or the first moments.
-        time: a matrix with time information.
-        perc_right: the percentile limitation to find extreme data points.
+        R: A matrix representing total RNA. Can be expression or the first moments.
+        N: A matrix representing new RNA. Can be expression or the first moments.
+        time: A matrix with time information.
+        perc_right: The percentile limitation to find extreme data points.
 
     Returns:
         Gamma, R squared, the slope k, the mean of R squared and the fitted k by time and gamma.

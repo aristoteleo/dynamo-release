@@ -16,11 +16,11 @@ def hill_inh_func(
     """The inhibitory Hill equation function.
 
     Args:
-        x: the input transcription factor.
-        A: the maximum transcription rate.
-        K: is the ligand concentration producing half occupation.
-        n: the Hill coefficient.
-        g: the degradation constant as the offset.
+        x: The input transcription factor.
+        A: The maximum transcription rate.
+        K: Is the ligand concentration producing half occupation.
+        n: The Hill coefficient.
+        g: The degradation constant as the offset.
 
     Returns:
         The output of the Hill equation representing the inhibitory effect of the transcription factor.
@@ -39,11 +39,11 @@ def hill_inh_grad(
     """The gradient function of the inhibitory Hill equation.
 
     Args:
-        x: the input transcription factor.
-        A: the maximum transcription rate.
-        K: is the ligand concentration producing half occupation.
-        n: the Hill coefficient.
-        g: the degradation constant as the offset.
+        x: The input transcription factor.
+        A: The maximum transcription rate.
+        K: Is the ligand concentration producing half occupation.
+        n: The Hill coefficient.
+        g: The degradation constant as the offset.
 
     Returns:
         The gradient of the Hill equation.
@@ -62,11 +62,11 @@ def hill_act_func(
     """The activation Hill equation function.
 
     Args:
-        x: the input transcription factor.
-        A: the maximum transcription rate.
-        K: is the ligand concentration producing half occupation.
-        n: the Hill coefficient.
-        g: the degradation constant as the offset.
+        x: The input transcription factor.
+        A: The maximum transcription rate.
+        K: Is the ligand concentration producing half occupation.
+        n: The Hill coefficient.
+        g: The degradation constant as the offset.
 
     Returns:
         The output of the Hill equation representing the activation effect of the transcription factor.
@@ -85,11 +85,11 @@ def hill_act_grad(
     """The gradient function of the activation Hill equation.
 
     Args:
-        x: the input transcription factor.
-        A: the maximum transcription rate.
-        K: is the ligand concentration producing half occupation.
-        n: the Hill coefficient.
-        g: the degradation constant as the offset.
+        x: The input transcription factor.
+        A: The maximum transcription rate.
+        K: Is the ligand concentration producing half occupation.
+        n: The Hill coefficient.
+        g: The degradation constant as the offset.
 
     Returns:
         The gradient of the Hill equation.
@@ -108,11 +108,11 @@ def calc_mean_squared_deviation(
     """Calculate the mean squared deviation of the fit.
 
     Args:
-        func: the function to evaluate.
-        x_data: an array of the x data.
-        y_mean: an array of the mean of y data.
-        y_sigm: an array of the standard deviation of the y data.
-        weighted: whether to use weighted mean squared deviation.
+        func: The function to evaluate.
+        x_data: An array of the x data.
+        y_mean: An array of the mean of y data.
+        y_sigm: An array of the standard deviation of the y data.
+        weighted: Whether to use weighted mean squared deviation.
 
     Returns:
         The mean squared deviation.
@@ -143,14 +143,14 @@ def fit_hill_grad(
     fitting the derivatives of inhibitory or activation Hill equations to the corresponding Jacobian elements.
 
     Args:
-        x_data: an array of the x data.
-        y_mean: an array of the mean of y data.
-        type: the type of the Hill equation, either `act` or `inh`.
-        y_sigm: an array of the standard deviation of the y data.
-        fix_g: the degradation constant as the offset.
-        n_num: the number of Hill coefficients to try.
-        x_tol: the tolerance of the x data.
-        x_shift: the shift of the x data.
+        x_data: An array of the x data.
+        y_mean: An array of the mean of y data.
+        type: The type of the Hill equation, either `act` or `inh`.
+        y_sigm: An array of the standard deviation of the y data.
+        fix_g: The degradation constant as the offset.
+        n_num: The number of Hill coefficients to try.
+        x_tol: The tolerance of the x data.
+        x_shift: The shift of the x data.
 
     Returns:
         The fitted parameters and the mean squared deviation.
@@ -222,12 +222,12 @@ def fit_hill_inh_grad(
     """Fit the inhibitory Hill equation to the data.
 
     Args:
-        x_data: an array of the x data.
-        y_mean: an array of the mean of y data.
-        y_sigm: an array of the standard deviation of the y data.
-        n_num: the number of Hill coefficients to try.
-        x_tol: the tolerance of the x data.
-        x_shift: the shift of the x data.
+        x_data: An array of the x data.
+        y_mean: An array of the mean of y data.
+        y_sigm: An array of the standard deviation of the y data.
+        n_num: The number of Hill coefficients to try.
+        x_tol: The tolerance of the x data.
+        x_shift: The shift of the x data.
 
     Returns:
         The fitted parameters and the mean squared deviation.
@@ -282,12 +282,12 @@ def fit_hill_act_grad(
     """Fit the activation Hill equation to the data.
 
     Args:
-        x_data: an array of the x data.
-        y_mean: an array of the mean of y data.
-        y_sigm: an array of the standard deviation of the y data.
-        n_num: the number of Hill coefficients to try.
-        x_tol: the tolerance of the x data.
-        x_shift: the shift of the x data.
+        x_data: An array of the x data.
+        y_mean: An array of the mean of y data.
+        y_sigm: An array of the standard deviation of the y data.
+        n_num: The number of Hill coefficients to try.
+        x_tol: The tolerance of the x data.
+        x_shift: The shift of the x data.
 
     Returns:
         The fitted parameters and the mean squared deviation.
