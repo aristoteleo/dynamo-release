@@ -12,7 +12,7 @@ from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DKM
 from ..dynamo_logger import main_info
-from ..preprocessing.normalization import normalize
+from ..preprocessing.normalization import calc_sz_factor, normalize
 from ..preprocessing.QC import filter_genes_by_outliers as filter_genes
 from ..preprocessing.pca import pca
 from ..preprocessing.transform import log1p
@@ -651,6 +651,7 @@ def scc(
 
     filter_genes(adata, min_cell_s=min_cells)
     adata.uns["pp"] = {}
+    calc_sz_factor(adata, layers="X")
     normalize(adata, layers="X")
     log1p(adata)
     pca(adata, n_pca_components=30, pca_key="X_pca")
