@@ -32,9 +32,14 @@ def test_calc_2nd_moment():
     assert np.array_equal(result, expected_result)
 
 
-def test_cell_growth_rate(processed_zebra_adata):
-    adata = processed_zebra_adata.copy()
-    dyn.tl.cell_growth_rate(adata, group="Cell_type")
+def test_cell_growth_rate(adata):
+    dyn.tl.cell_growth_rate(
+        adata,
+        group="Cell_type",
+        source="Unknown",
+        target="Unknown",
+        clone_column="batch",
+    )
     assert "growth_rate" in adata.obs.keys()
 
 
@@ -91,7 +96,6 @@ def test_sampling():
     assert samples[1] in arr
 
 
-def test_score_cells(processed_zebra_adata):
-    adata = processed_zebra_adata.copy()
+def test_score_cells(adata):
     scores = dyn.tl.score_cells(adata)
     assert scores.shape[0] == adata.n_obs

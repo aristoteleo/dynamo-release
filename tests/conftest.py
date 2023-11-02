@@ -42,7 +42,7 @@ class TestUtils:
 
     def gen_zebrafish_test_data():
         raw_adata = dyn.sample_data.zebrafish()
-        adata = raw_adata[:, :2000].copy()
+        adata = raw_adata[:, :5000].copy()
         del raw_adata
 
         preprocessor = dyn.pp.Preprocessor(cell_cycle_score_enable=True)
