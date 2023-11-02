@@ -11,13 +11,13 @@ from scipy.linalg import qr
 from scipy.optimize import lsq_linear, minimize
 from sklearn.neighbors import NearestNeighbors
 
+from .connectivity import k_nearest_neighbors
 from ..dynamo_logger import main_info, main_warning
 from ..tools.utils import projection_with_transition_matrix
 from .utils import (
     elem_prod,
     flatten,
     index_condensed_matrix,
-    k_nearest_neighbors,
     nbrs_to_dists,
     symmetrize_symmetric_matrix,
 )
@@ -78,7 +78,7 @@ def graphize_velocity(
 
     if nbrs_idx is None or return_nbrs:
         main_info("calculating neighbor indices...", indent_level=2)
-        nbrs_idx, dists, nbrs = k_nearest_neighbors(X, k, exclude_self=True, return_nbrs=True)
+        nbrs_idx, dists, nbrs, _ = k_nearest_neighbors(X, k, exclude_self=True, return_nbrs=True)
 
     if dists is None:
         dists = nbrs_to_dists(X, nbrs_idx)
@@ -136,8 +136,9 @@ def graphize_velocity(
 def graphize_velocity_coopt(
     X: np.ndarray,
     V: np.ndarray,
-    C: np.ndarray,
     nbrs: list,
+    C: np.ndarray = None,
+    U: np.ndarray = None,
     a: float = 1.0,
     b: float = 1.0,
     r: float = 1.0,
@@ -145,167 +146,109 @@ def graphize_velocity_coopt(
     nonneg: bool = False,
     norm_dist: bool = False,
 ):
-    # TODO: merge with graphize_velocity
-    """
-    The function generates a graph based on the velocity data by minimizing the loss function:
-                    L(w_i) = a |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
-    where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j],
-    and E[i, j] = -E[j, i].
-
-    Arguments
-    ---------
-        X: :class:`~numpy.ndarray`
-            The coordinates of cells in the expression space.
-        V: :class:`~numpy.ndarray`
-            The velocity vectors in the expression space.
-        C: :class:`~numpy.ndarray`
-            The transition matrix of cells based on the correlation/cosine kernel.
-        nbrs: list
-            List of neighbor indices for each cell.
-        a: float (default 1.0)
-            The weight for preserving the velocity length.
-        b: float (default 1.0)
-            The weight for the cosine similarity.
-        r: float (default 1.0)
-            The weight for the regularization.
-        nonneg: bool (default False)
-            Whether to ensure the resultant transition matrix to have non-negative values.
-        norm_dist: bool (defauilt False)
-            norm_dist should be False so that the resulting graph vector field penalizes long jumps.
-
-    Returns
-    -------
-        E: :class:`~numpy.ndarray`
-            The edge matrix.
-    """
-    E = np.zeros((X.shape[0], X.shape[0]))
-
-    for i, x in enumerate(X):
-        v, c, idx = V[i], C[i], nbrs[i]
-        c = c[idx]
-
-        # normalized differences
-        D = X[idx] - x
-        if norm_dist:
-            dist = np.linalg.norm(D, axis=1)
-            dist[dist == 0] = 1
-            D /= dist[:, None]
-
-        # co-optimization
-        c_norm = np.linalg.norm(c)
-
-        def func(w):
-            v_ = w @ D
-
-            # cosine similarity between w and c
-            if b == 0:
-                sim = 0
-            else:
-                cw = c_norm * np.linalg.norm(w)
-                if cw > 0:
-                    sim = c.dot(w) / cw
-                else:
-                    sim = 0
-
-            # reconstruction error between v_ and v
-            rec = v_ - v
-            rec = rec.dot(rec)
-            if loss_func is None or loss_func == "linear":
-                rec = rec
-            elif loss_func == "log":
-                rec = np.log(rec)
-            else:
-                raise NotImplementedError(
-                    f"The function {loss_func} is not supported. Choose either `linear` or `log`."
-                )
-
-            # regularization
-            reg = 0 if r == 0 else w.dot(w)
-
-            ret = a * rec - b * sim + r * reg
-            return ret
-
-        def fjac(w):
-            v_ = w @ D
-
-            # reconstruction error
-            jac_con = 2 * a * D @ (v_ - v)
-
-            if loss_func is None or loss_func == "linear":
-                jac_con = jac_con
-            elif loss_func == "log":
-                jac_con = jac_con / (v_ - v).dot(v_ - v)
-
-            # cosine similarity
-            w_norm = np.linalg.norm(w)
-            if w_norm == 0 or b == 0 or c_norm==0:
-                jac_sim = 0
-            else:
-                jac_sim = b * (c / (w_norm * c_norm) - w.dot(c) / (w_norm**3 * c_norm) * w)
-
-            # regularization
-            if r == 0:
-                jac_reg = 0
-            else:
-                jac_reg = 2 * r * w
-
-            return jac_con - jac_sim + jac_reg
-
-        if nonneg:
-            bounds = [(0, np.inf)] * D.shape[0]
-        else:
-            bounds = None
-
-        res = minimize(func, x0=D @ v, jac=fjac, bounds=bounds)
-        E[i][idx] = res["x"]
-    return E
-
-
-def _graphize_velocity_coopt(
-    X: np.ndarray,
-    V: np.ndarray,
-    U: np.ndarray,
-    nbrs: list,
-    a: float = 1.0,
-    b: float = 1.0,
-    r: float = 1.0,
-    loss_func: Literal["linear", "log"] = "log",
-    nonneg: bool = False,
-    norm_dist: bool = False,
-):
     """The function generates a graph based on the velocity data by minimizing the loss function:
                     L(w_i) = a |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
     where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j],
-    and E[i, j] = -E[j, i].
+    and E[i, j] = -E[j, i]. Two modes are supported
 
     Args:
         X: the coordinates of cells in the expression space.
         V: the velocity vectors in the expression space.
+        nbrs: list of neighbor indices for each cell.
+        C: the transition matrix of cells based on the correlation/cosine kernel.
         U: the correlation kernel-projected velocity vectors, must be in the original expression space, can be
             calculated as `adata.obsm['velocity_pca'] @ adata.uns['PCs'].T` where velocity_pca is the kernel projected
             velocity vector in PCA space.
-        nbrs: list of neighbor indices for each cell.
-        a: the weight for preserving the velocity length. Defaults to 1.0.
-        b: the weight for the cosine similarity. Defaults to 1.0.
-        r: the weight for the regularization. Defaults to 1.0.
-        loss_func: the function used to reconstruct the loss. Defaults to "log".
-        nonneg: whether to ensure the resultant transition matrix to have non-negative values.. Defaults to False.
-        norm_dist: normally this value should only be False so that the resulting graph vector field penalizes long
-            jumps. Defaults to False.
-
-    Raises:
-        NotImplementedError: `loss_func` is invalid.
+        a: the weight for preserving the velocity length.
+        b: the weight for the cosine similarity.
+        r: the weight for the regularization.
+        loss_func: the function to calculate the loss.
+        nonneg: whether to ensure the resultant transition matrix to have non-negative values.
+        norm_dist: whether to normalize distance. Should be False to penalize long jumps in the resulting graph vector
+            field.
 
     Returns:
         The edge matrix.
     """
-    # TODO: merge with graphize_velocity
-
     E = np.zeros((X.shape[0], X.shape[0]))
 
-    for i, x in enumerate(X):
-        v, u, idx = V[i], U[i], nbrs[i]
+    def cosine_similarity(mat_a, mat_b, mat_a_norm):
+        """Helper function to calculate cosine similarity."""
+        ab = mat_a_norm * np.linalg.norm(mat_b)
+        if ab > 0:
+            sim = mat_a.dot(mat_b) / ab
+        else:
+            sim = 0
+        return sim
+    def func(w, v, D, kernel, mat, mat_norm):
+        """Wrap up main operations in the object function to minimize."""
+        v_ = w @ D
 
+        # cosine similarity between w and c
+        if b == 0:
+            sim = 0
+        else:
+            if kernel == "C":
+                sim = cosine_similarity(mat, w, mat_norm)
+            elif kernel == "U":
+                sim = cosine_similarity(mat, v_, mat_norm)
+
+        # reconstruction error between v_ and v
+        rec = v_ - v
+        rec = rec.dot(rec)
+        if loss_func is None or loss_func == "linear":
+            rec = rec
+        elif loss_func == "log":
+            rec = np.log(rec)
+        else:
+            raise NotImplementedError(
+                f"The function {loss_func} is not supported. Choose either `linear` or `log`."
+            )
+
+        # regularization
+        reg = 0 if r == 0 else w.dot(w)
+
+        ret = a * rec - b * sim + r * reg
+        return ret
+
+    def fjac(w, v, D, kernel, mat, mat_norm):
+        """Wrap up main operations to calculate the gradient vector."""
+        v_ = w @ D
+        if kernel == "U":
+            v_norm = np.linalg.norm(v_)
+            mat_ = mat/mat_norm
+
+        # reconstruction error
+        jac_con = 2 * a * D @ (v_ - v)
+
+        if loss_func is None or loss_func == "linear":
+            jac_con = jac_con
+        elif loss_func == "log":
+            jac_con = jac_con / (v_ - v).dot(v_ - v)
+
+        # cosine similarity
+        if kernel == "C":
+            w_norm = np.linalg.norm(w)
+            if w_norm == 0 or b == 0 or c_norm==0:
+                jac_sim = 0
+            else:
+                jac_sim = b * (mat / (w_norm * mat_norm) - w.dot(mat) / (w_norm ** 3 * mat_norm) * w)
+        elif kernel == "U":
+            if v_norm == 0 or b == 0:
+                jac_sim = 0
+            else:
+                jac_sim = b / v_norm**2 * (v_norm * D @ mat_ - v_.dot(mat_) * v_ @ D.T / v_norm)
+
+        # regularization
+        if r == 0:
+            jac_reg = 0
+        else:
+            jac_reg = 2 * r * w
+
+        return jac_con - jac_sim + jac_reg
+
+    def prepare_minimize(mat):
+        """Helper function to perform normalization and calculate bounds."""
         # normalized differences
         D = X[idx] - x
         if norm_dist:
@@ -314,73 +257,44 @@ def _graphize_velocity_coopt(
             D /= dist[:, None]
 
         # co-optimization
-        u_norm = np.linalg.norm(u)
-
-        def func(w):
-            v_ = w @ D
-
-            # cosine similarity between v_ and u
-            if b == 0:
-                sim = 0
-            else:
-                uv = u_norm * np.linalg.norm(v_)
-                if uv > 0:
-                    sim = u.dot(v_) / uv
-                else:
-                    sim = 0
-
-            # reconstruction error between v_ and v
-            rec = v_ - v
-            rec = rec.dot(rec)
-            if loss_func is None or loss_func == "linear":
-                rec = rec
-            elif loss_func == "log":
-                rec = np.log(rec)
-            else:
-                raise NotImplementedError(
-                    f"The function {loss_func} is not supported. Choose either `linear` or `log`."
-                )
-
-            # regularization
-            reg = 0 if r == 0 else w.dot(w)
-
-            ret = a * rec - b * sim + r * reg
-            return ret
-
-        def fjac(w):
-            v_ = w @ D
-            v_norm = np.linalg.norm(v_)
-            u_ = u / u_norm
-
-            # reconstruction error
-            jac_con = 2 * a * D @ (v_ - v)
-
-            if loss_func is None or loss_func == "linear":
-                jac_con = jac_con
-            elif loss_func == "log":
-                jac_con = jac_con / (v_ - v).dot(v_ - v)
-
-            # cosine similarity
-            if v_norm == 0 or b == 0:
-                jac_sim = 0
-            else:
-                jac_sim = b / v_norm**2 * (v_norm * D @ u_ - v_.dot(u_) * v_ @ D.T / v_norm)
-
-            # regularization
-            if r == 0:
-                jac_reg = 0
-            else:
-                jac_reg = 2 * r * w
-
-            return jac_con - jac_sim + jac_reg
-
+        mat_norm = np.linalg.norm(mat)
         if nonneg:
             bounds = [(0, np.inf)] * D.shape[0]
         else:
             bounds = None
+        return D, mat_norm, bounds
 
-        res = minimize(func, x0=D @ v, jac=fjac, bounds=bounds)
-        E[i][idx] = res["x"]
+    if C is not None and U is None:
+        for i, x in enumerate(X):
+            v, c, idx = V[i], C[i], nbrs[i]
+            c = c[idx]
+            D, c_norm, bounds = prepare_minimize(c)
+
+            def func_c(w):
+                return func(w, v, D, "C", c, c_norm)
+
+            def fjac_c(w):
+                return fjac(w, v, D, "C", c, c_norm)
+
+            res = minimize(func_c, x0=D @ v, jac=fjac_c, bounds=bounds)
+            E[i][idx] = res["x"]
+    elif U is not None and C is None:
+        for i, x in enumerate(X):
+            v, u, idx = V[i], U[i], nbrs[i]
+            D, u_norm, bounds = prepare_minimize(u)
+
+            def func_u(w):
+                return func(w, v, D, "U", u, u_norm)
+
+            def fjac_u(w):
+                return fjac(w, v, D, "U", u, u_norm)
+
+            res = minimize(func_u, x0=D @ v, jac=fjac_u, bounds=bounds)
+            E[i][idx] = res["x"]
+    else:
+        raise NotImplementedError(
+            f"Optimization method is not supported. Please provide one of U or C."
+        )
     return E
 
 
@@ -506,11 +420,11 @@ def calc_laplacian(
     """
 
     if weight_mode == "naive":
-        A = np.abs(np.sign(W))
+        A = abs(W.sign()) if sp.issparse(W) else np.abs(np.sign(W))
     elif weight_mode == "asymmetric":
-        A = np.array(W, copy=True)
+        A = W.copy() if sp.issparse(W) else np.array(W, copy=True)
     elif weight_mode == "symmetric":
-        A = np.array(W, copy=True)
+        A = W.copy() if sp.issparse(W) else np.array(W, copy=True)
         A = 0.5 * (A + A.T)
     else:
         raise NotImplementedError(f"Unidentified weight mode: `{weight_mode}`")
@@ -518,16 +432,16 @@ def calc_laplacian(
     if E is not None:
         E_ = np.zeros(E.shape)
         # E_[np.where(E > 0)] = 1 / E[np.where(E > 0)] ** 2
-        E_[E.nonzero()] = 1 / E[E.nonzero()] ** 2
+        E_[E.nonzero()] = 1 / E[E.nonzero()].A1 ** 2 if sp.issparse(E) else 1 / E[E.nonzero()] ** 2
         # A *= E_
         A = elem_prod(A, E_)
 
-    L = np.diag(np.sum(A, 1)) - A
+    L = np.diag(A.sum(1).A1) - A if sp.issparse(A) else np.diag(np.sum(A, 1)) - A
 
     if convention == "diffusion":
         L = -L
 
-    return L
+    return np.asarray(L) if type(L) == np.matrix else L
 
 
 def fp_operator(
@@ -572,7 +486,7 @@ def fp_operator(
         if E is not None:
             L = calc_laplacian(E, E=E, convention="diffusion", weight_mode="naive")
         else:
-            L = calc_laplacian(F, E=E, convention="diffusion", weight_mode="naive")
+            L =  calc_laplacian(F, E=E, convention="diffusion", weight_mode="naive")
     else:
         L = calc_laplacian(W, E=E, convention="diffusion", weight_mode=weight_mode)
 
@@ -587,7 +501,7 @@ def fp_operator(
 
 
 def divergence(
-    E: np.ndarray, W: Optional[np.ndarray] = None, method: Literal["direct", "operator"] = "operator"
+    E: np.ndarray, W: Optional[np.ndarray] = None, method: Literal["direct", "operator"] = "operator", weighted: bool = False
 ) -> np.ndarray:
     """Calculate the divergence of a weighted graph.
 
@@ -598,6 +512,7 @@ def divergence(
             the function to calculate the divergence from the edge length matrix directly while "operator" would make
             the functions to calculate required operators first and then apply the operators to the matrix. Defaults to
             "operator".
+        weighted: whether to enable weighted mode.
 
     Raises:
         NotImplementedError: `method` is invalid.
@@ -605,8 +520,6 @@ def divergence(
     Returns:
         The divergence of a weighted graph.
     """
-
-    # TODO: support weight in the future
     if method == "direct":
         n = E.shape[0]
         div = np.zeros(n)
@@ -614,15 +527,22 @@ def divergence(
             div[i] += np.sum(E[i, :]) - np.sum(E[:, i])
         div *= 0.5
     elif method == "operator":
-        W = np.abs(np.sign(E)) if W is None else W
-        div = divop(W) @ E[W.nonzero()]
+        if W is None:
+            W = abs(E.sign()) if sp.issparse(E) else np.abs(np.sign(E))
+        # W = np.abs(np.sign(E)) if W is None else W
+        if weighted:
+            div = (divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()].A1
+                   if sp.issparse(E)
+                   else divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()])
+        else:
+            div = divop(W) @ E[W.nonzero()].A1 if sp.issparse(E) else divop(W) @ E[W.nonzero()]
     else:
         raise NotImplementedError(f"Unsupported method `{method}`")
 
     return div
 
 
-def gradop(adj: np.ndarray) -> sp.csr_matrix:
+def gradop(adj: Union[sp.csr_matrix, np.ndarray]) -> sp.csr_matrix:
     """Return the gradient operator of a weighted graph in matrix form.
 
     Args:
@@ -640,7 +560,7 @@ def gradop(adj: np.ndarray) -> sp.csr_matrix:
     return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
 
 
-def gradient(E: np.ndarray, p: np.ndarray) -> np.ndarray:
+def gradient(E: Union[sp.csr_matrix, np.ndarray], p: np.ndarray) -> np.ndarray:
     """Calculate gradient of a weighted graph.
 
     Args:
@@ -650,14 +570,10 @@ def gradient(E: np.ndarray, p: np.ndarray) -> np.ndarray:
     Returns:
         The gradient of the weighted graph.
     """
-
-    adj = np.abs(np.sign(E))
-    F_pot = np.array(adj, copy=True, dtype=float)
-    F_pot[F_pot.nonzero()] = gradop(adj) * p / E[E.nonzero()] ** 2
-    return F_pot
+    return gradop(E).dot(p)
 
 
-def divop(W: np.ndarray) -> np.ndarray:
+def divop(W: Union[sp.csr_matrix, np.ndarray]) -> np.ndarray:
     """Return the divergence operator in matrix form.
 
     Args:
@@ -671,9 +587,9 @@ def divop(W: np.ndarray) -> np.ndarray:
 
 
 def potential(
-    F: np.ndarray,
-    E: Optional[np.ndarray] = None,
-    W: Optional[np.ndarray] = None,
+    F: Union[sp.csr_matrix, np.ndarray],
+    E: Optional[Union[sp.csr_matrix, np.ndarray]] = None,
+    W: Optional[Union[sp.csr_matrix, np.ndarray]] = None,
     div: Optional[np.ndarray] = None,
     method: Literal["inv", "pinv", "qr_pinv", "lsq"] = "lsq",
 ) -> np.ndarray:
@@ -699,7 +615,8 @@ def potential(
         Potential of this graph.
     """
 
-    W = np.abs(np.sign(F)) if W is None else W
+    if W is None:
+        W = abs(F.sign()) if sp.issparse(F) else np.abs(np.sign(F))
     div_neg = -divergence(F, W=W) if div is None else -div
     L = calc_laplacian(W, E=E, weight_mode="naive")
 

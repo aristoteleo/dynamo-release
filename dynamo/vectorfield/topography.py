@@ -14,6 +14,7 @@ from scipy.optimize import fsolve
 from sklearn.neighbors import NearestNeighbors
 
 from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..tools.connectivity import k_nearest_neighbors
 from ..tools.utils import gaussian_1d, inverse_norm, nearest_neighbors, update_dict
 from ..utils import copy_adata
 from .FixedPoints import FixedPoints
@@ -491,21 +492,13 @@ class VectorField2D:
         Xref = np.median(X, 0)
         Xss = np.vstack((Xss, Xref))
 
-        if X.shape[0] > 200000 and X.shape[1] > 2:
-            from pynndescent import NNDescent
-
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=min(k, X.shape[0] - 1),
-                n_jobs=-1,
-                random_state=19491001,
-            )
-            _, dist = nbrs.query(Xss, k=min(k, X.shape[0] - 1))
-        else:
-            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=min(k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
-            dist, _ = nbrs.kneighbors(Xss)
+        _, dist = k_nearest_neighbors(
+            X,
+            query_X=Xss,
+            k=min(k, X.shape[0] - 1) - 1,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+        )
 
         dist_m = dist.mean(1)
         # confidence = 1 - dist_m / dist_m.max()

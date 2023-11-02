@@ -35,7 +35,10 @@ from .connectivity import (
 )
 
 # Pseudotime related
+from .construct_velocity_tree import construct_velocity_tree, construct_velocity_tree_py
 from .DDRTree_py import DDRTree, cal_ncenter
+from .pseudotime import order_cells
+from .time_series import directed_pg
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension  # , run_umap
@@ -93,6 +96,7 @@ from .utils import (
     AnnDataPredicate,
     cell_norm,
     compute_smallest_distance,
+    get_vel_params,
     index_gene,
     select,
     select_cell,
@@ -105,5 +109,6 @@ from .velocyto_scvelo import (
     mean_var_by_time,
     run_scvelo,
     run_velocyto,
+    scv_dyn_convertor,
     vlm_to_adata,
 )

@@ -30,6 +30,7 @@ from .preprocess import (
     show_fraction,
     variance_explained,
 )
+from .pseudotime import plot_dim_reduced_direct_graph
 from .scatters import scatters
 from .scPotential import show_landscape
 from .sctransform import sctransform_plot_fit, plot_residual_var
@@ -153,4 +154,5 @@ __all__ = [
     "hessian",
     "sctransform_plot_fit",
     "plot_residual_var",
+    "plot_dim_reduced_direct_graph",
 ]
