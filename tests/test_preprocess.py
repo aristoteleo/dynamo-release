@@ -13,7 +13,7 @@ import dynamo as dyn
 from dynamo.preprocessing import Preprocessor
 from dynamo.preprocessing.cell_cycle import get_cell_phase
 from dynamo.preprocessing.deprecated import _calc_mean_var_dispersion_sparse_legacy
-from dynamo.preprocessing.normalization import normalize
+from dynamo.preprocessing.normalization import calc_sz_factor, normalize
 from dynamo.preprocessing.transform import log1p, is_log1p_transformed_adata
 from dynamo.preprocessing.utils import (
     convert_layers2csr,
@@ -145,14 +145,15 @@ def test_calc_dispersion_sparse():
     # assert np.all(np.isclose(sc_var, expected_var))
 
 
-def test_Preprocessor_simple_run(raw_zebra_adata):
-    adata = raw_zebra_adata.copy()
+def test_Preprocessor_simple_run():
+    adata = dyn.sample_data.zebrafish()
+    adata = adata[:2000, :5000].copy()
     preprocess_worker = Preprocessor()
     preprocess_worker.preprocess_adata(adata, recipe="monocle")
 
 
-def test_is_log_transformed(raw_zebra_adata):
-    adata = raw_zebra_adata.copy()
+def test_is_log_transformed():
+    adata = dyn.sample_data.zebrafish()
     adata.uns["pp"] = {}
     assert not is_log1p_transformed_adata(adata)
     log1p(adata)
@@ -185,8 +186,9 @@ def test_compute_gene_exp_fraction():
     assert np.all(np.isclose(frac.flatten(), [2 / 5, 3 / 5]))
 
 
-def test_pca(raw_zebra_adata):
-    adata = raw_zebra_adata.copy()
+def test_pca():
+    adata = dyn.sample_data.zebrafish()
+    adata = adata[:2000, :5000].copy()
     preprocessor = Preprocessor()
     preprocessor.preprocess_adata_seurat_wo_pca(adata)
     adata = dyn.pp.pca(adata, n_pca_components=30)
@@ -449,6 +451,7 @@ def test_normalize():
     adata.uns["pp"] = dict()
 
     # Call the function
+    calc_sz_factor(adata)
     normalized = normalize(
         adata=adata,
         # norm_method=np.log1p,
@@ -466,11 +469,11 @@ def test_normalize():
     assert np.allclose(normalized.layers["X_spliced"].toarray(), (X / adata.obs["spliced_Size_Factor"].values[:, None]))
 
 
-def test_regress_out(raw_zebra_adata):
+def test_regress_out():
     starttime = timeit.default_timer()
     celltype_key = "Cell_type"
     figsize = (10, 10)
-    adata = raw_zebra_adata.copy()  # dyn.sample_data.hematopoiesis_raw()
+    adata = dyn.sample_data.zebrafish() # dyn.sample_data.hematopoiesis_raw()
     # dyn.pl.basic_stats(adata)
     # dyn.pl.highest_frac_genes(adata)
 

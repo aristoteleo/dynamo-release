@@ -676,7 +676,7 @@ def glm_degs(
                 if adata.uns["pp"][norm_method_key] == "log2"
                 else np.exp(X_data.data) - 1
                 if adata.uns["pp"][norm_method_key] == "log"
-                else _Freeman_Tukey(X_data.data + 1, inverse=True)
+                else _Freeman_Tukey(X_data.data + 1, inverse=True) - 1
                 if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
                 else X_data.data
             )
