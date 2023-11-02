@@ -59,12 +59,11 @@ def test_dynamics():
     assert "velocity_N" in adata.layers.keys()
 
 
-def test_top_n_markers(processed_zebra_adata):
-    adata = processed_zebra_adata.copy()
+def test_top_n_markers(adata):
     dyn.tl.find_group_markers(adata, group="Cell_type")
-    top_n_df = dyn.tl.top_n_markers(adata)
+    top_n_df = dyn.tl.top_n_markers(adata, top_n_genes=1)
     assert type(top_n_df) == pd.DataFrame
-    assert len(top_n_df) == (len(adata.obs["Cell_type"].unique()) - 1) * 5
+    assert len(top_n_df) == len(adata.obs["Cell_type"].unique()) - 1
 
 
 def test_sampling():

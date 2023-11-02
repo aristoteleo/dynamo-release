@@ -91,6 +91,7 @@ def test_highest_frac_genes_plot_prefix_list(processed_zebra_adata):
         raise AssertionError("Expected ValueError to be raised")
 
 
+@pytest.mark.skip(reason="optional dependency mygene not installed")
 def test_recipe_monocle_feature_selection_layer_simple0():
     rpe1 = dyn.sample_data.scEU_seq_rpe1()
     # show results
@@ -184,6 +185,7 @@ def test_Preprocessor_monocle_pearson_residuals_recipe():
     assert "X_pca" in adata.obsm.keys()
 
 
+@pytest.mark.skip(reason="optional dependency KDEpy not installed")
 def test_Preprocessor_sctransform_recipe():
     raw_zebra_adata = dyn.sample_data.zebrafish()
     adata = raw_zebra_adata[:1000, :1000].copy()
