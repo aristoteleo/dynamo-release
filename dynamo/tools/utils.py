@@ -46,7 +46,7 @@ def get_mapper(smoothed: bool = True) -> Dict[str, str]:
     """Return the mapper for layers depending on whether the data is smoothed.
 
     Args:
-        smoothed: whether the data is smoothed. Defaults to True.
+        smoothed: Whether the data is smoothed. Defaults to True.
 
     Returns:
         The mapper dictionary for layers.
@@ -72,7 +72,7 @@ def get_mapper_inverse(smoothed: bool = True) -> Dict[str, str]:
     """Return the inverse mapper for layers depending on whether the data is smoothed.
 
     Args:
-        smoothed: whether the data is smoothed. Defaults to True.
+        smoothed: Whether the data is smoothed. Defaults to True.
 
     Returns:
         The inverse mapper dictionary for layers.
@@ -87,8 +87,8 @@ def get_finite_inds(X: Union[np.ndarray, sp.csr_matrix], ax: int = 0) -> np.ndar
     """Find the indices of finite elements in an array.
 
     Args:
-        X: the matrix to be inspected.
-        ax: the axis for indexing. Defaults to 0.
+        X: The matrix to be inspected.
+        ax: The axis for indexing. Defaults to 0.
 
     Returns:
         The indices of finite elements.
@@ -108,9 +108,9 @@ def get_pd_row_column_idx(
     https://stackoverflow.com/questions/13021654/get-column-index-from-column-name-in-python-pandas
 
     Args:
-        df: the dataframe to be inspected.
-        queries: a list of either column names or index of the dataframe that will be used for finding indices.
-        type: the type of the queries/search, either `column` (list of queries are from column names) or "row" (list of
+        df: The dataframe to be inspected.
+        queries: A list of either column names or index of the dataframe that will be used for finding indices.
+        type: The type of the queries/search, either `column` (list of queries are from column names) or "row" (list of
             queries are from index names). Defaults to "column".
 
     Returns:
@@ -128,8 +128,8 @@ def update_dict(dict1: dict, dict2: dict) -> dict:
     """Update the values of dict 1 with the values of dict 2. The keys of dict 1 would not be modified.
 
     Args:
-        dict1: the dict to be updated.
-        dict2: the dict to provide new values.
+        dict1: The dict to be updated.
+        dict2: The dict to provide new values.
 
     Returns:
         The updated dict.
@@ -145,8 +145,8 @@ def update_n_merge_dict(dict1: dict, dict2: dict) -> dict:
     For overlapping keys, the values in dict 2 would replace values in dict 1.
 
     Args:
-        dict1: the dict to be merged into and overwritten.
-        dict2: the dict to be merged.
+        dict1: The dict to be merged into and overwritten.
+        dict2: The dict to be merged.
 
     Returns:
         The updated dict.
@@ -164,8 +164,8 @@ def subset_dict_with_key_list(dict: dict, list: list) -> dict:
     """Subset the dict with keys provided.
 
     Args:
-        dict: the dict to be subset.
-        list: the keys that should be left in dict.
+        dict: The dict to be subset.
+        list: The keys that should be left in dict.
 
     Returns:
         The subset dict.
@@ -178,9 +178,9 @@ def nearest_neighbors(coord: np.ndarray, coords: Union[np.ndarray, sp.csr_matrix
     """Find the nearest neighbors in a given space for a given point.
 
     Args:
-        coord: the point for which nearest neighbors are searched.
-        coords: the space to search neighbors.
-        k: the number of neighbors to be searched. Defaults to 5.
+        coord: The point for which nearest neighbors are searched.
+        coords: The space to search neighbors.
+        k: The number of neighbors to be searched. Defaults to 5.
 
     Returns:
         The indices of the nearest neighbors.
@@ -195,8 +195,8 @@ def nbrs_to_dists(X: np.ndarray, nbrs_idx: np.ndarray) -> List[np.ndarray]:
     """Calculate the distances between neighbors of a given space.
 
     Args:
-        X: the space to find nearest neighbors on.
-        nbrs_idx: the indices of nearest neighbors found for each point.
+        X: The space to find nearest neighbors on.
+        nbrs_idx: The indices of nearest neighbors found for each point.
 
     Returns:
         The distances between neighbors and the point.
@@ -216,7 +216,7 @@ def symmetrize_symmetric_matrix(W: Union[np.ndarray, sp.csr_matrix]) -> sp.csr_m
     Symmetrize a supposedly symmetric matrix W, so that W_ij == Wji strictly.
 
     Args:
-        W: the matrix supposed to be symmetric.
+        W: The matrix supposed to be symmetric.
 
     Returns:
         The matrix that is now strictly symmetric.
@@ -248,12 +248,12 @@ def create_layer(
     """Create a new layer with data supplied.
 
     Args:
-        adata: an AnnData object to insert the layer into.
-        data: the main data of the new layer.
-        layer_key: the key of the layer when gets inserted into the adata object. If None, the layer would be returned.
+        adata: An AnnData object to insert the layer into.
+        data: The main data of the new layer.
+        layer_key: The key of the layer when gets inserted into the adata object. If None, the layer would be returned.
             Defaults to None.
-        genes: the genes for the provided data. If None, genes from the adata object would be used. Defaults to None.
-        cells: the cells for the provided data. If None, cells from the adata object would be used. Defaults to None.
+        genes: The genes for the provided data. If None, genes from the adata object would be used. Defaults to None.
+        cells: The cells for the provided data. If None, cells from the adata object would be used. Defaults to None.
 
     Returns:
         If the layer key is provided, nothing would be returned. Otherwise, the layer itself would be returned.
@@ -288,16 +288,16 @@ def index_gene(adata: AnnData, arr: np.ndarray, genes: List[str]) -> np.ndarray:
     The function is designed to have good memory efficiency especially when `.uns` contains large data.
 
     Args:
-        adata: an AnnData object.
-        arr: the array to be indexed.
+        adata: An AnnData object.
+        arr: The array to be indexed.
             If 1d, the length of the array has to be equal to `adata.n_vars`.
             If 2d, the second dimension of the array has to be equal to `adata.n_vars`.
-        genes: a list of gene names or boolean flags for indexing.
+        genes: A list of gene names or boolean flags for indexing.
 
     Raises:
-        ValueError: gene in `genes` not found in adata.
-        Exception: the lengths of arr does not match the number of genes.
-        Exception: the dimension of arr does not match the number of genes.
+        ValueError: Gene in `genes` not found in adata.
+        Exception: The lengths of arr does not match the number of genes.
+        Exception: The dimension of arr does not match the number of genes.
 
     Returns:
         The indexed array.
@@ -331,9 +331,9 @@ def reserve_minimal_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minima
     """Select given number of minimal genes.
 
     Args:
-        adata: an AnnData object.
-        var_store_key: the key in adata.var for the gene count data.
-        minimal_gene_num: the number of minimal genes to select. Defaults to 50.
+        adata: An AnnData object.
+        var_store_key: The key in adata.var for the gene count data.
+        minimal_gene_num: The number of minimal genes to select. Defaults to 50.
 
     Raises:
         ValueError: `adata.var[var_store_key]` invalid.
@@ -373,18 +373,18 @@ def select_cell(
     """Select cells based on `grep_keys` in .obs.
 
     Args:
-        adata: an AnnData object.
-        grp_keys: the key(s) in `.obs` to be used for selecting cells. If a list, each element is a key in .obs that
+        adata: An AnnData object.
+        grp_keys: The key(s) in `.obs` to be used for selecting cells. If a list, each element is a key in .obs that
             corresponds to an element in `grps`.
-        grps: the value(s) in `.obs[grp_keys]` to be used for selecting cells. If a list, each element is a value that
+        grps: The value(s) in `.obs[grp_keys]` to be used for selecting cells. If a list, each element is a value that
             corresponds to an element in `grp_keys`.
-        presel: an array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
+        presel: An array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
             `grp_keys` and `grps` according to `mode`. Defaults to None.
-        mode: the mode to select cells.
+        mode: The mode to select cells.
             "union" - the selected cells are the union of the groups specified in `grp_keys` and `grps`;
             "intersection" - the selected cells are the intersection of the groups specified in `grp_keys` and `grps`.
             Defaults to "union".
-        output_format: whether to output a mask of selection or selected items' indices.
+        output_format: Whether to output a mask of selection or selected items' indices.
             "index" - returns a list of indices of selected cells;
             "mask" - returns an array of booleans. Defaults to "index".
 
@@ -449,7 +449,7 @@ def flatten(arr: Union[pd.Series, sp.csr_matrix, np.ndarray]) -> np.ndarray:
     """Flatten the given array-like object.
 
     Args:
-        arr: the array-like object to be flattened.
+        arr: The array-like object to be flattened.
 
     Returns:
         The flatten result.
@@ -467,8 +467,8 @@ def closest_cell(coord: np.ndarray, cells: np.ndarray) -> int:
     """Find the closest cell to the specified coord.
 
     Args:
-        coord: the target coordination.
-        cells: an array containing cells.
+        coord: The target coordination.
+        cells: An array containing cells.
 
     Returns:
         The column index of the cell that closest to the coordination specified.
@@ -485,8 +485,8 @@ def elem_prod(
     """Calculate element-wise production between 2 arrays.
 
     Args:
-        X: the first array.
-        Y: the second array.
+        X: The first array.
+        Y: The second array.
 
     Returns:
         The resulted array.
@@ -503,8 +503,8 @@ def norm(x: Union[sp.csr_matrix, np.ndarray], **kwargs) -> np.ndarray:
     """Calculate the norm of an array or matrix
 
     Args:
-        x: the array.
-        kwargs: other kwargs passed to `sp.linalg.norm` or `np.linalg.norm`.
+        x: The array.
+        kwargs: Other kwargs passed to `sp.linalg.norm` or `np.linalg.norm`.
     """
     if sp.issparse(x):
         return sp.linalg.norm(x, **kwargs)
@@ -516,9 +516,9 @@ def cell_norm(adata: AnnData, key: str, prefix_store: Optional[str] = None, **no
     """Calculate the norm of vectors of each cell.
 
     Args:
-        adata: an AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        key: the key of the vectors stored in either .obsm or .layers.
-        prefix_store: the prefix used in the key for storing the returned in adata.obs. Defaults to None.
+        adata: An AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        key: The key of the vectors stored in either .obsm or .layers.
+        prefix_store: The prefix used in the key for storing the returned in adata.obs. Defaults to None.
 
     Raises:
         ValueError: `key` not found in .obsm or .layers.
@@ -545,9 +545,9 @@ def einsum_correlation(X: np.ndarray, Y_i: np.ndarray, type: str = "pearson") ->
     """Calculate pearson or cosine correlation between gene expression data and the velocity vectors.
 
     Args:
-        X: the gene expression data (genes x cells).
-        Y_i: the velocity vector.
-        type: the type of correlation to be calculated. Defaults to "pearson".
+        X: The gene expression data (genes x cells).
+        Y_i: The velocity vector.
+        type: The type of correlation to be calculated. Defaults to "pearson".
 
     Returns:
         The correlation matrix.
@@ -580,10 +580,10 @@ def einsum_correlation(X: np.ndarray, Y_i: np.ndarray, type: str = "pearson") ->
 
 def form_triu_matrix(arr: np.ndarray) -> np.ndarray:
     """
-    Construct upper triangle matrix from an 1d array.
+    Construct upper triangle matrix from a 1d array.
 
     Args:
-        arr: the array used to generate the upper triangle matrix.
+        arr: The array used to generate the upper triangle matrix.
 
     Returns:
         The generated upper triangle matrix.
@@ -607,9 +607,9 @@ def index_condensed_matrix(n: int, i: int, j: int) -> int:
     square form.
 
     Args:
-        n: size of the square form.
-        i: row index of the element in the square form.
-        j: column index of the element in the square form.
+        n: Size of the square form.
+        i: Row index of the element in the square form.
+        j: Column index of the element in the square form.
 
     Returns:
         The index of the element in the condensed matrix.
@@ -628,8 +628,8 @@ def condensed_idx_to_squareform_idx(arr_len: int, i: int) -> Tuple[int, int]:
     condensed form.
 
     Args:
-        arr_len: the size of the array in condensed form.
-        i: the index of the element in the condensed array.
+        arr_len: The size of the array in condensed form.
+        i: The index of the element in the condensed array.
 
     Returns:
         A tuple (x, y) of the row and column index of the element in sqaure form of the matrix.
@@ -651,10 +651,10 @@ def squareform(arr: npt.ArrayLike, antisym: bool = False, **kwargs) -> npt.Array
     """Convert the input array to a square form matrix.
 
     Args:
-        arr: the input array.
-        antisym: whether to treat the input array as containing the lower-triangular part of a symmetric matrix, and
+        arr: The input array.
+        antisym: Whether to treat the input array as containing the lower-triangular part of a symmetric matrix, and
             set the upper-triangular elements to their negative values.
-        **kwargs: additional keyword arguments to be passed to the `spsquare` function.
+        **kwargs: Additional keyword arguments to be passed to the `spsquare` function.
 
     Returns:
         A square form matrix.
@@ -673,8 +673,8 @@ def moms2var(
     """Calculate the variance from the first and second moments of a distribution.
 
     Args:
-        m1: the first moments of the distribution.
-        m2: the second moments of the distribution.
+        m1: The first moments of the distribution.
+        m2: The second moments of the distribution.
 
     Returns:
         The variance of the distribution.
@@ -690,8 +690,8 @@ def var2m2(
     """Calculate the second moments from the variance and first moments of a distribution.
 
     Args:
-        var: the variance of the distribution.
-        m1: the first moments of the distribution.
+        var: The variance of the distribution.
+        m1: The first moments of the distribution.
 
     Returns:
         The second moments of the distribution.
@@ -704,10 +704,10 @@ def gaussian_1d(x: npt.ArrayLike, mu: float = 0, sigma: float = 1) -> npt.ArrayL
     """Calculate the probability density at x with given mean and standard deviation.
 
     Args:
-        x: the x to calculate probability density. If x is an array, the probability density would be calculated
+        x: The x to calculate probability density. If x is an array, the probability density would be calculated
         element-wisely.
-        mu: the mean of the distribution. Defaults to 0.
-        sigma: the standard deviation of the distribution. Defaults to 1.
+        mu: The mean of the distribution. Defaults to 0.
+        sigma: The standard deviation of the distribution. Defaults to 1.
 
     Returns:
         The probability density of the distribution at x.
@@ -721,7 +721,7 @@ def timeit(method: Callable) -> Callable:
     """Wrap a Callable that if its kwargs contains "timeit" = True, measures how much time the function takes to finish.
 
     Args:
-        method: the Callable to be measured.
+        method: The Callable to be measured.
 
     Returns:
         The wrapped Callable.
@@ -754,14 +754,14 @@ def velocity_on_grid(
     """Calculate velocity on a grid from a given set of data points and velocities.
 
     Args:
-        X: an array of shape representing the data points.
-        V: an array of shape representing the velocities associated with the data points.
-        n_grids: number of grid points along each feature dimension.
-        nbrs: a nearest neighbor model or a class that implements a nearest neighbor search.
-        k: the number of nearest neighbors to consider.
-        smoothness: a parameter controlling the smoothness of the velocity estimation.
-        cutoff_coeff: a coefficient to control the cutoff distance for weighting the neighbors.
-        margin_coeff: a coefficient to expand the grid range beyond the data points to avoid edge effects.
+        X: An array of shape representing the data points.
+        V: An array of shape representing the velocities associated with the data points.
+        n_grids: Number of grid points along each feature dimension.
+        nbrs: A nearest neighbor model or a class that implements a nearest neighbor search.
+        k: The number of nearest neighbors to consider.
+        smoothness: A parameter controlling the smoothness of the velocity estimation.
+        cutoff_coeff: A coefficient to control the cutoff distance for weighting the neighbors.
+        margin_coeff: A coefficient to expand the grid range beyond the data points to avoid edge effects.
 
     Returns:
         A tuple containing the grid points X_grid and the estimated velocity on the grid V_grid.
@@ -822,8 +822,8 @@ def argsort_mat(mat: np.ndarray, order: Literal[-1, 1] = 1) -> List[Tuple[int, i
     """Sort a 2D array and return the index of sorted elements.
 
     Args:
-        mat: the 2D array to be sort.
-        order: sort the array ascending if set to 1 and descending if set to -1. Defaults to 1.
+        mat: The 2D array to be sort.
+        order: Sort the array ascending if set to 1 and descending if set to -1. Defaults to 1.
 
     Returns:
         A list containing 2D index of sorted elements.
@@ -846,12 +846,12 @@ def list_top_genes(
     """List top genes in a set gene data.
 
     Args:
-        arr: an 1D array containing expression value of a set of genes.
-        gene_names: the gene name corresponding to each value in `arr`.
-        n_top_genes: the number of top genes to be selected. Defaults to 30.
-        order: coule be 1 or -1. If set to 1, most expressed genes are selected; otherwise, least expressed genes are
+        arr: An 1D array containing expression value of a set of genes.
+        gene_names: The gene name corresponding to each value in `arr`.
+        n_top_genes: The number of top genes to be selected. Defaults to 30.
+        order: Could be 1 or -1. If set to 1, most expressed genes are selected; otherwise, least expressed genes are
             selected. Defaults to -1.
-        return_sorted_array: whether to return the sorted expression array together with sorted gene names. Defaults to
+        return_sorted_array: Whether to return the sorted expression array together with sorted gene names. Defaults to
             False.
 
     Returns:
@@ -871,10 +871,10 @@ def list_top_interactions(
     """Sort a 2D array with raw and column names in specified order.
 
     Args:
-        mat: the array to be sorted.
-        row_names: the name for each row of `mat`.
-        column_names: the name for each column of `mat`.
-        order: coule be 1 or -1. If set to 1, sort ascending. Otherwise, sort descending. Defaults to -1.
+        mat: The array to be sorted.
+        row_names: The name for each row of `mat`.
+        column_names: The name for each column of `mat`.
+        order: Could be 1 or -1. If set to 1, sort ascending. Otherwise, sort descending. Defaults to -1.
 
     Returns:
         A tuple (ints, sorted_mat) where `ints` is a sorted list whose elements are pairs of row name and column name
@@ -900,11 +900,11 @@ def table_top_genes(
     """Sort gene expressions for multiple items (cells) and save the result in a dict or a DataFrame.
 
     Args:
-        arrs: a 2D array with each row corresponding to an item and each column corresponding to a gene.
-        item_names: the names of items corresponding to the rows of `arrs`.
-        gene_names: the names of genes corresponding to the columns of `arrs`.
-        return_df: whether to return the result in DataFrame or dict. Defaults to True.
-        output_values: whether to return the genes expression value together with sorted gene names. Defaults to False.
+        arrs: A 2D array with each row corresponding to an item and each column corresponding to a gene.
+        item_names: The names of items corresponding to the rows of `arrs`.
+        gene_names: The names of genes corresponding to the columns of `arrs`.
+        return_df: Whether to return the result in DataFrame or dict. Defaults to True.
+        output_values: Whether to return the genes expression value together with sorted gene names. Defaults to False.
 
     Returns:
         A DataFrame or a dict containing sorted genes for each item.
@@ -930,11 +930,11 @@ def table_rank_dict(
     based on which the genes are sorted, for each group of cells.
 
     Args:
-        rank_dict: the rank dictionary.
-        n_top_genes: the number of top genes put into the Dataframe. Defaults to 30.
-        order: the order of picking the top genes from the rank dictionary.
+        rank_dict: The rank dictionary.
+        n_top_genes: The number of top genes put into the Dataframe. Defaults to 30.
+        order: The order of picking the top genes from the rank dictionary.
             1: ascending, -1: descending. Defaults to 1.
-        output_values: whether output the values along with gene names. Defaults to False.
+        output_values: Whether output the values along with gene names. Defaults to False.
 
     Returns:
         The table of top genes of each group.
@@ -956,8 +956,8 @@ def log1p_(adata: AnnData, X_data: np.ndarray) -> np.ndarray:
     """Perform log(1+x) X_data if adata.uns["pp"]["layers_norm_method"] is None.
 
     Args:
-        adata: the AnnData that has been preprocessed.
-        X_data: the data to perform log1p on.
+        adata: The AnnData that has been preprocessed.
+        X_data: The data to perform log1p on.
 
     Returns:
         The log1p result data if "layers_norm_method" in adata is None; otherwise, X_data would be returned unchanged.
@@ -978,8 +978,8 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
     """Perform inverse normalization on the given data. The normalization method is stored in adata after preprocessing.
 
     Args:
-        adata: an AnnData object that has been preprocessed.
-        layer_x: the data to perform inverse normalization on.
+        adata: An AnnData object that has been preprocessed.
+        layer_x: The data to perform inverse normalization on.
 
     Returns:
         The inverse normalized data.
@@ -1019,9 +1019,9 @@ def one_shot_alpha(labeled: npt.ArrayLike, gamma: npt.ArrayLike, t: npt.ArrayLik
     """Calculate the alpha parameter in one-shot experiment.
 
     Args:
-        labeled: the array of labeled data.
-        gamma: the degradation rate.
-        t: the time of labeling.
+        labeled: The array of labeled data.
+        gamma: The degradation rate.
+        t: The time of labeling.
 
     Returns:
         The alpha parameter.
@@ -1038,9 +1038,9 @@ def one_shot_alpha_matrix(
     """Calculate the alpha parameter in one-shot experiment with sparse matrix support.
 
     Args:
-        labeled: the array of labeled data.
-        gamma: the degradation rate.
-        t: the time of labeling.
+        labeled: The array of labeled data.
+        gamma: The degradation rate.
+        t: The time of labeling.
 
     Returns:
         The alpha parameter.
@@ -1053,9 +1053,9 @@ def one_shot_gamma_alpha(k: np.ndarray, t: np.ndarray, labeled: np.ndarray) -> T
     """Calculate the gamma and alpha parameters in one-shot experiment.
 
     Args:
-        k: the slope of labeled and total data under the steady state.
-        t: the time of labeling.
-        labeled: the array of labeled data.
+        k: The slope of labeled and total data under the steady state.
+        t: The time of labeling.
+        labeled: The array of labeled data.
 
     Returns:
         A tuple containing the gamma and alpha parameters.
@@ -1069,8 +1069,8 @@ def one_shot_k(gamma: npt.ArrayLike, t: npt.ArrayLike) -> npt.ArrayLike:
     """Calculate the slope of labeled and total data from the gamma and time information.
 
     Args:
-        gamma: the degradation rate.
-        t: the time of labeling.
+        gamma: The degradation rate.
+        t: The time of labeling.
 
     Returns:
         The slope calculated from gamma and t.
@@ -1084,9 +1084,9 @@ def one_shot_gamma_alpha_matrix(k: np.ndarray, t: np.ndarray, U: np.ndarray) -> 
     one-shot experiment.
 
     Args:
-        k: the slope of labeled and total data under the steady state.
-        t: the time of labeling.
-        U: the sparse matrix data.
+        k: The slope of labeled and total data under the steady state.
+        t: The time of labeling.
+        U: The sparse matrix data.
 
     Returns:
         A tuple containing the gamma and alpha parameters.
@@ -1109,10 +1109,10 @@ def _one_shot_gamma_alpha_matrix(
     Supports sparse matrix input. Original code from Yan.
 
     Args:
-        K: the slope of labeled and total data under the steady state.
-        tau: the time of labeling.
-        N: the sparse matrix of labeled data.
-        R: the sparse matrix of total data.
+        K: The slope of labeled and total data under the steady state.
+        tau: The time of labeling.
+        N: The sparse matrix of labeled data.
+        R: The sparse matrix of total data.
 
     Returns:
         A tuple containing the gamma and alpha parameters.
@@ -1136,9 +1136,9 @@ def compute_velocity_labeling_B(
     """Calculate the velocity from the alpha and parameter B representing the degradation rate.
 
     Args:
-        B: the parameter representing the degradation rate.
-        alpha: the alpha parameter.
-        R: the total data.
+        B: The parameter representing the degradation rate.
+        alpha: The alpha parameter.
+        R: The total data.
 
     Returns:
         The velocity calculated from the alpha and B parameters.
@@ -1152,7 +1152,7 @@ def remove_2nd_moments(adata: AnnData) -> None:
     """Delete layers of 2nd moments.
 
     Args:
-        adata: the AnnData object from which 2nd moment layers are deleted.
+        adata: The AnnData object from which 2nd moment layers are deleted.
     """
     layers = list(adata.layers.keys())
     for layer in layers:
@@ -1164,11 +1164,11 @@ def get_valid_bools(adata: AnnData, filter_gene_mode: Literal["final", "basic", 
     """Get a boolean array showing the gene passing the filter specified.
 
     Args:
-        adata: an AnnData object.
-        filter_gene_mode: the gene filter. Could be one of "final", "basic", and "no".
+        adata: An AnnData object.
+        filter_gene_mode: The gene filter. Could be one of "final", "basic", and "no".
 
     Raises:
-        NotImplementedError: invalid `filter_gene_mode`.
+        NotImplementedError: Invalid `filter_gene_mode`.
 
     Returns:
         A boolean array showing the gene passing the filter specified.
@@ -1190,8 +1190,8 @@ def log_unnormalized_data(
     """Perform log1p on unnormalized data.
 
     Args:
-        raw: the matrix to be operated on.
-        log_unnormalized: whether the matrix is unnormalized and log1p should be performed.
+        raw: The matrix to be operated on.
+        log_unnormalized: Whether the matrix is unnormalized and log1p should be performed.
 
     Returns:
         Updated matrix with log1p if it is unormalized; otherwise, return original `raw`.
@@ -1719,11 +1719,11 @@ def get_vel_params(
     """Get the velocity parameters based on input names.
 
     Args:
-        adata: the anndata object which contains the parameters.
-        params: the names of parameters to query. If set to None, the entire velocity parameters DataFrame from `.varm`
+        adata: The anndata object which contains the parameters.
+        params: The names of parameters to query. If set to None, the entire velocity parameters DataFrame from `.varm`
             will be returned.
-        kin_param_pre: the prefix used to kinetic parameters related to RNA dynamics.
-        skip_cell_wise: whether to skip the detected cell wise parameters. If set to True, the mean will be returned
+        kin_param_pre: The prefix used to kinetic parameters related to RNA dynamics.
+        skip_cell_wise: Whether to skip the detected cell wise parameters. If set to True, the mean will be returned
             instead of cell wise parameters.
 
     Returns:
@@ -1768,9 +1768,9 @@ def update_vel_params(adata: AnnData, params_df: pd.DataFrame, kin_param_pre: st
     """Update the kinetic parameters related to RNA velocity calculation.
 
     Args:
-        adata: the AnnData object whose kinetic parameters related to RNA velocity calculation will be updated.
-        params_df: the dataframe of kinetic parameters related to RNA velocity calculation.
-        kin_param_pre: the prefix used to kinetic parameters related to RNA dynamics.
+        adata: The AnnData object whose kinetic parameters related to RNA velocity calculation will be updated.
+        params_df: The dataframe of kinetic parameters related to RNA velocity calculation.
+        kin_param_pre: The prefix used to kinetic parameters related to RNA dynamics.
 
     Returns:
         The anndata object will be updated with parameters and columns names from given dataframe.
@@ -1790,12 +1790,12 @@ def get_U_S_for_velocity_estimation(
     """Get the unspliced and spliced matrices for velocity estimation.
 
     Args:
-        subset_adata: the anndata object which contains the data.
-        use_moments: whether to use the moments data instead of the original data.
-        has_splicing: whether the data has splicing information.
-        has_labeling: whether the data has labeling information.
-        log_unnormalized: whether the data needs log normalization.
-        NTR: whether to use new, total instead of unspliced, spliced.
+        subset_adata: The anndata object which contains the data.
+        use_moments: Whether to use the moments data instead of the original data.
+        has_splicing: Whether the data has splicing information.
+        has_labeling: Whether the data has labeling information.
+        log_unnormalized: Whether the data needs log normalization.
+        NTR: Whether to use new, total instead of unspliced, spliced.
 
     Returns:
         The unspliced and spliced matrices for velocity estimation.
@@ -1921,10 +1921,10 @@ def fetch_X_data(adata: AnnData, genes: List, layer: str, basis: Optional[str] =
     """Get the X data according to given parameters.
 
     Args:
-        adata: anndata object containing gene expression data.
-        genes: list of gene names to be fetched. If None, all genes are considered.
-        layer: layer of the data to fetch.
-        basis: dimensionality reduction basis. If provided, the data is fetched from a specific embedding.
+        adata: Anndata object containing gene expression data.
+        genes: List of gene names to be fetched. If None, all genes are considered.
+        layer: Layer of the data to fetch.
+        basis: Dimensionality reduction basis. If provided, the data is fetched from a specific embedding.
 
     Returns:
         A tuple containing a list of fetched gene names and the corresponding gene expression data (X data).
@@ -1969,7 +1969,7 @@ class AnnDataPredicate(object):
     Attributes:
         key: The key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
         value: The value that will be used based on `op` to select items.
-        op: operators for selection.
+        op: Operators for selection.
     """
 
     def __init__(
@@ -1988,9 +1988,9 @@ class AnnDataPredicate(object):
         """Initialize an AnnDataPredicate object.
 
         Args:
-            key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
-            value: the value that will be used based on `op` to select items.
-            op: operators for selection:
+            key: The key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
+            value: The value that will be used based on `op` to select items.
+            op: Operators for selection:
                 '==' - equal to `value`; '!=' - unequal to; '>' - greater than; '<' - smaller than;
                 '>=' - greater than or equal to; '<=' - less than or equal to. Defaults to "==".
         """
@@ -2004,10 +2004,10 @@ class AnnDataPredicate(object):
         AnnDataPredicate's `value` and `op` attr.
 
         Args:
-            data: the AnnData object to be tested.
+            data: The AnnData object to be tested.
 
         Raises:
-            NotImplementedError: invalid `op`.
+            NotImplementedError: Invalid `op`.
 
         Returns:
             A boolean array with `True` at positions where the element pass the check.
@@ -2032,7 +2032,7 @@ class AnnDataPredicate(object):
         elements that pass at least one requirement from the AnnDataPredicate objects.
 
         Args:
-            other (AnnDataPredicate): another AnnDataPredicate object containing requirement for "or" test.
+            other (AnnDataPredicate): Another AnnDataPredicate object containing requirement for "or" test.
 
         Returns:
             PredicateUnion: the updated Predicates object.
@@ -2044,7 +2044,7 @@ class AnnDataPredicate(object):
         elements that pass all requirements from the AnnDataPredicate objects.
 
         Args:
-            other (AnnDataPredicate): another AnnDataPredicate object containing requirement for "and" test.
+            other (AnnDataPredicate): Another AnnDataPredicate object containing requirement for "and" test.
 
         Returns:
             PredicateIntersection: the updated Predicates object.
@@ -2055,7 +2055,7 @@ class AnnDataPredicate(object):
         """Inverse the current requirement.
 
         Raises:
-            NotImplementedError: invalid `op`.
+            NotImplementedError: Invalid `op`.
 
         Returns:
             AnnDataPredicate: the updated Predicate object.
@@ -2082,14 +2082,14 @@ class AlwaysTrue(AnnDataPredicate):
     """A class inherited from AnnDataPredicate. Will return true for all elements under any requirement.
 
     Attributes:
-        key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
+        key: The key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
     """
 
     def __init__(self, key: Optional[str] = None) -> None:
         """Initialize an AlwaysTrue object.
 
         Args:
-            key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection. If
+            key: The key in the AnnData object (specified as `data` in `.check()`) that will be used for selection. If
                 None, the first layer of the AnnData for comparison would be used. Defaults to None.
         """
         self.key = key
@@ -2098,7 +2098,7 @@ class AlwaysTrue(AnnDataPredicate):
         """Return an all-true boolean array with the shape of the layer.
 
         Args:
-            data: the AnnData object to be tested.
+            data: The AnnData object to be tested.
 
         Returns:
             An all-true boolean array with the shape of the layer.
@@ -2119,14 +2119,14 @@ class AlwaysFalse(AnnDataPredicate):
     """A class inherited from AnnDataPredicate. Will return false for all elements under any requirement.
 
     Attributes:
-        key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
+        key: The key in the AnnData object (specified as `data` in `.check()`) that will be used for selection.
     """
 
     def __init__(self, key=None):
         """Initialize an AlwaysTrue object.
 
         Args:
-            key: the key in the AnnData object (specified as `data` in `.check()`) that will be used for selection. If
+            key: The key in the AnnData object (specified as `data` in `.check()`) that will be used for selection. If
                 None, the first layer of the AnnData for comparison would be used. Defaults to None.
         """
         self.key = key
@@ -2135,7 +2135,7 @@ class AlwaysFalse(AnnDataPredicate):
         """Return an all-false boolean array with the shape of the layer.
 
         Args:
-            data: the AnnData object to be tested.
+            data: The AnnData object to be tested.
 
         Returns:
             An all-false boolean array with the shape of the layer.
@@ -2163,7 +2163,7 @@ class AnnDataPredicates(object):
         """Initialize an AnnDataPredicates object.
 
         Args:
-            *predicates: one or more AnnDataPredicate objects.
+            *predicates: One or more AnnDataPredicate objects.
         """
         self.predicates = predicates
 
@@ -2171,8 +2171,8 @@ class AnnDataPredicates(object):
         """Bind two Predicate(s) objects together with given operation type.
 
         Args:
-            other: another Predicate(s) object to bind with.
-            op: how to bind the requirement of Predicates (Union or Intersection).
+            other: Another Predicate(s) object to bind with.
+            op: How to bind the requirement of Predicates (Union or Intersection).
 
         Raises:
             NotImplementedError: `other` is not an Predcate(s) instance.
@@ -2197,7 +2197,7 @@ class PredicateUnion(AnnDataPredicates):
         """Check whether the data could fulfill at least 1 requirement by all Predicates.
 
         Args:
-            data (AnnData): an AnnData object.
+            data (AnnData): An AnnData object.
 
         Returns:
             np.ndarray: A boolean array with `True` at positions where the element can pass at least one check.
@@ -2211,7 +2211,7 @@ class PredicateUnion(AnnDataPredicates):
         """Bind with other Predicate(s) with union.
 
         Args:
-            other: another Predicate(s) object to bind with.
+            other: Another Predicate(s) object to bind with.
 
         Returns:
             PredicateUnion: the binded predicates.
@@ -2222,7 +2222,7 @@ class PredicateUnion(AnnDataPredicates):
         """Bind with other Predicate(s) with intersection.
 
         Args:
-            other: another Predicate(s) object to bind with.
+            other: Another Predicate(s) object to bind with.
 
         Returns:
             PredicateIntersection: the binded predicates.
@@ -2239,7 +2239,7 @@ class PredicateIntersection(AnnDataPredicates):
         """Check whether the data could fulfill all requirements by all Predicates.
 
         Args:
-            data (AnnData): an AnnData object.
+            data (AnnData): An AnnData object.
 
         Returns:
             np.ndarray: A boolean array with `True` at positions where the element can pass all checks.
@@ -2253,7 +2253,7 @@ class PredicateIntersection(AnnDataPredicates):
         """Bind with other Predicate(s) with union.
 
         Args:
-            other: another Predicate(s) object to bind with.
+            other: Another Predicate(s) object to bind with.
 
         Returns:
             PredicateUnion: the binded predicates.
@@ -2264,7 +2264,7 @@ class PredicateIntersection(AnnDataPredicates):
         """Bind with other Predicate(s) with intersection.
 
         Args:
-            other: another Predicate(s) object to bind with.
+            other: Another Predicate(s) object to bind with.
 
         Returns:
             PredicateIntersection: the binded predicates.
@@ -2278,9 +2278,9 @@ def select(
     """Select part of the array based on the condition provided by the used.
 
     Args:
-        array: the original data to be selected from.
-        pred: the condition provided by the user. Defaults to AlwaysTrue().
-        output_format: whether to output a mask of selection or selected items' indices. Defaults to "mask".
+        array: The original data to be selected from.
+        pred: The condition provided by the user. Defaults to AlwaysTrue().
+        output_format: Whether to output a mask of selection or selected items' indices. Defaults to "mask".
 
     Returns:
         A mask of selection or selected items' indices.
@@ -2307,10 +2307,10 @@ def calc_R2(
     """Calculate R-square. X, Y: n_species (mu, sigma) x n_obs
 
     Args:
-        X: the input data.
-        Y: the output data observed as the ground truth.
-        k: the parameter(s) used to calculate the output data.
-        f: prediction function that takes X and k as input and returns predicted values.
+        X: The input data.
+        Y: The output data observed as the ground truth.
+        k: The parameter(s) used to calculate the output data.
+        f: Prediction function that takes X and k as input and returns predicted values.
 
     Returns:
         The R-squared value indicating the goodness of fit between observed and predicted values.
@@ -2337,9 +2337,9 @@ def norm_loglikelihood(x: np.ndarray, mu: np.ndarray, sig: np.ndarray) -> np.nda
     """Calculate log-likelihood for the data.
 
     Args:
-        x: the input data.
-        mu: the mean of the data.
-        sig: the standard deviation of the data.
+        x: The input data.
+        mu: The mean of the data.
+        sig: The standard deviation of the data.
 
     Returns:
         The log-likelihood of the data.
@@ -2358,10 +2358,10 @@ def calc_norm_loglikelihood(
     """Calculate log likelihood based on normal distribution. X, Y: n_species (mu, sigma) x n_obs
 
     Args:
-        X: the input data.
-        Y: the output data observed as the ground truth.
-        k: the parameter(s) used to calculate the output data.
-        f: prediction function that takes X and k as input and returns predicted values.
+        X: The input data.
+        Y: The output data observed as the ground truth.
+        k: The parameter(s) used to calculate the output data.
+        f: Prediction function that takes X and k as input and returns predicted values.
 
     Returns:
         The log-likelihood value.
@@ -2404,11 +2404,11 @@ def find_extreme(
     normalization.
 
     Args:
-        s: the spliced data.
-        u: the unspliced data.
-        normalize: whether to normalize each array before adding them. Default is True.
-        perc_left: the percentile value used to identify the left tail extreme regions.
-        perc_right: the percentile value used to identify the right tail extreme regions.
+        s: The spliced data.
+        u: The unspliced data.
+        normalize: Whether to normalize each array before adding them. Default is True.
+        perc_left: The percentile value used to identify the left tail extreme regions.
+        perc_right: The percentile value used to identify the right tail extreme regions.
 
     Returns:
         A boolean mask identifying the extreme regions based on the provided percentiles.
@@ -2436,8 +2436,8 @@ def get_group_params_indices(adata: AnnData, param_name: str) -> np.ndarray:
     """Get the indices of columns in an AnnData object associated with a specific group parameter.
 
     Args:
-        adata: an AnnData object containing group parameter information.
-        param_name: the name of the group parameter to search for.
+        adata: An AnnData object containing group parameter information.
+        param_name: The name of the group parameter to search for.
 
     Returns:
         An array of boolean values representing column indices matching the specified parameter.
@@ -2459,15 +2459,15 @@ def set_transition_genes(
     """Set the transition genes in the AnnData object.
 
     Args:
-        adata: the AnnData object.
-        vkey: the key of estimated velocity.
-        min_r2: the minimum value to filter r2.
-        min_alpha: the minimum value to filter alpha.
-        min_gamma: the minimum value to filter gamma.
-        min_delta: the minimum value to filter delta.
-        use_for_dynamics: whether to save use_for_dynamics.
-        store_key: the key to store transition data.
-        minimal_gene_num: the minimum gene to deal with the situation of too few genes.
+        adata: The AnnData object.
+        vkey: The key of estimated velocity.
+        min_r2: The minimum value to filter r2.
+        min_alpha: The minimum value to filter alpha.
+        min_gamma: The minimum value to filter gamma.
+        min_delta: The minimum value to filter delta.
+        use_for_dynamics: Whether to save use_for_dynamics.
+        store_key: The key to store transition data.
+        minimal_gene_num: The minimum gene to deal with the situation of too few genes.
 
     Returns:
         The updated AnnData object.
@@ -2618,7 +2618,7 @@ def get_ekey_vkey_from_adata(adata: AnnData) -> Tuple[str, str, str]:
     """Get the corresponding ekey and vkey from anndata.
 
     Args:
-        adata: the AnnData object.
+        adata: The AnnData object.
 
     Returns:
         A tuple containing:
@@ -2767,11 +2767,11 @@ def get_neighbor_indices(
     of neighbors will be randomly chosen and returned.
 
     Args:
-        adjacency_list: the adjacency list of the graph.
-        source_idx: the index of the source node.
-        n_order_neighbors: the number of neighbor orders to consider, which controls the depth of iterative neighbor
+        adjacency_list: The adjacency list of the graph.
+        source_idx: The index of the source node.
+        n_order_neighbors: The number of neighbor orders to consider, which controls the depth of iterative neighbor
             search.
-        max_neighbors_num: the maximum number of neighbors to return.
+        max_neighbors_num: The maximum number of neighbors to return.
 
     Returns:
         A list of neighbor indices.
@@ -2795,10 +2795,10 @@ def append_iterative_neighbor_indices(
     """Append iterative neighbor indices for each index in the input array.
 
     Args:
-        indices: the input array of indices as a 1D numpy array.
-        n_recurse_neighbors: the number of neighbor orders to consider, which controls the depth of iterative neighbor
+        indices: The input array of indices as a 1D numpy array.
+        n_recurse_neighbors: The number of neighbor orders to consider, which controls the depth of iterative neighbor
             search.
-        max_neighbors_num: the maximum number of neighbor indices to be stored for each index.
+        max_neighbors_num: The maximum number of neighbor indices to be stored for each index.
 
     Returns:
         A list of array containing iterative neighbor indices for each index in the input array.
@@ -2814,7 +2814,7 @@ def split_velocity_graph(
     G: Union[sp.csr_matrix, npt.ArrayLike],
     neg_cells_trick: bool = True,
 ) -> Union[sp.csr_matrix, Tuple[sp.csr_matrix, sp.csr_matrix]]:
-    """split velocity graph (built either with correlation or with cosine kernel
+    """Split velocity graph (built either with correlation or with cosine kernel
     into one positive graph and one negative graph"""
 
     if not sp.issparse(G):
@@ -2872,9 +2872,9 @@ def linear_least_squares(
     rank, then `x` (but for round-off error) is the "exact" solution of the equation.
 
     Args:
-        a: the coefficient matrix.
-        b: the ordinate or "dependent variable" values.
-        residuals: whether to compute the residuals associated with the least-squares solution. Defaults to False.
+        a: The coefficient matrix.
+        b: The ordinate or "dependent variable" values.
+        residuals: Whether to compute the residuals associated with the least-squares solution. Defaults to False.
 
     Returns:
         The least-squares solution. If `residuals` is True, the sum of residuals (squared Euclidean 2-norm for each
@@ -2909,16 +2909,16 @@ def integrate_vf(
     """Integrating along vector field function.
 
     Args:
-        init_states: the initial states for numerical integration as a 2D numpy array.
-        t: the time points for numerical integration as a 1D numpy array.
-        args: additional arguments to be passed to the vector field function `f`.
-        integration_direction: the direction of integration.
+        init_states: The initial states for numerical integration as a 2D numpy array.
+        t: The time points for numerical integration as a 1D numpy array.
+        args: Additional arguments to be passed to the vector field function `f`.
+        integration_direction: The direction of integration.
             - "forward": Integrate the vector field function in the forward direction.
             - "backward": Integrate the vector field function in the backward direction.
             - "both": Integrate the vector field function both forward and backward in time.
-        f: the vector field function.
-        interpolation_num: the number of points for interpolation.
-        average: whether to average the integrated states over cells when multiple initial states are provided.
+        f: The vector field function.
+        interpolation_num: The number of points for interpolation.
+        average: Whether to average the integrated states over cells when multiple initial states are provided.
 
     Returns:
         A tuple containing the integrated time array `t` and the integrated states `Y`.
@@ -3007,15 +3007,15 @@ def fetch_states(
     (e.g., pca) from which the initial states should be derived.
 
     Args:
-        adata: an AnnData object containing the single-cell data.
-        init_states: the initial states to use for the vector field modeling. If not provided, `init_cells` and `basis`
+        adata: An AnnData object containing the single-cell data.
+        init_states: The initial states to use for the vector field modeling. If not provided, `init_cells` and `basis`
             should be used to derive the initial states.
-        init_cells: the cell names to use for deriving the initial states.
-        basis: the basis to use for deriving the initial states.
-        layer: the layer of the data to use for deriving the initial states.
-        average: determines how to handle multiple initial states when provided. If "origin" or True, the initial states
+        init_cells: The cell names to use for deriving the initial states.
+        basis: The basis to use for deriving the initial states.
+        layer: The layer of the data to use for deriving the initial states.
+        average: Determines how to handle multiple initial states when provided. If "origin" or True, the initial states
             will be averaged to a single state. If "trajectory", the initial states will be kept as separate states.
-        t_end: the end time point for the vector field modeling.
+        t_end: The end time point for the vector field modeling.
 
     Returns:
         A tuple containing the following:
@@ -3092,8 +3092,8 @@ def getTend(X: np.ndarray, V: np.ndarray) -> float:
     """Compute the end time for the vector field modeling.
 
     Args:
-        X: the cell embeddings.
-        V: the estimated velocities.
+        X: The cell embeddings.
+        V: The estimated velocities.
 
     Returns:
         The end time (t_end) for the vector field modeling.
@@ -3109,9 +3109,9 @@ def getTseq(init_states: np.ndarray, t_end: float, step_size: Optional[Union[int
     """Generate a time sequence for the vector field modeling.
 
     Args:
-        init_states: the initial states for the vector field modeling as a 2D numpy array.
-        t_end: the end time for the vector field modeling.
-        step_size: the time step size between each time point in the sequence.
+        init_states: The initial states for the vector field modeling as a 2D numpy array.
+        t_end: The end time for the vector field modeling.
+        step_size: The time step size between each time point in the sequence.
 
     Returns:
         An array containing the time sequence for the vector field modeling.
@@ -3136,12 +3136,12 @@ def compute_smallest_distance(
 
     Args:
         coords: NxM matrix. N is the number of data points and M is the dimension of each point's feature.
-        leaf_size: the leaf size parameter for building Kd-tree. Defaults to 40.
-        sample_num: the number of cells to be sampled. Defaults to None.
-        use_unique_coords: whether to remove duplicate coordinates. Defaults to True.
+        leaf_size: The leaf size parameter for building Kd-tree. Defaults to 40.
+        sample_num: The number of cells to be sampled. Defaults to None.
+        use_unique_coords: Whether to remove duplicate coordinates. Defaults to True.
 
     Raises:
-        ValueError: the dimension of coords is not 2x2
+        ValueError: The dimension of coords is not 2x2
 
     Returns:
         The minimum distance between points.
@@ -3176,10 +3176,10 @@ def starmap_with_kwargs(pool, fn, args_iter, kwargs_iter):
     """Apply a function with arguments and keyword arguments to an iterable using multiprocessing.
 
     Args:
-        pool: the multiprocessing pool.
-        fn: the function to apply.
-        args_iter: the iterable of arguments.
-        kwargs_iter: the iterable of keyword arguments.
+        pool: The multiprocessing pool.
+        fn: The function to apply.
+        args_iter: The iterable of arguments.
+        kwargs_iter: The iterable of keyword arguments.
 
     Returns:
         A list of the results of the function applied to the iterable.
@@ -3192,8 +3192,8 @@ def apply_args_and_kwargs(fn, args, kwargs):
     """Apply a function with arguments and keyword arguments.
 
     Args:
-        fn: the function to apply.
-        args: the arguments.
+        fn: The function to apply.
+        args: The arguments.
 
     Returns:
         The result of the function applied to the arguments.
@@ -3213,14 +3213,14 @@ def get_rank_array(
     """Get the data array that will be used for gene-wise or cell-wise ranking.
 
     Args:
-        adata: annData object that contains the array to be sorted in `.var` or `.layer`.
-        arr_key: the key of the to-be-ranked array stored in `.var` or or `.layer`. If the array is found in `.var`, the
+        adata: AnnData object that contains the array to be sorted in `.var` or `.layer`.
+        arr_key: The key of the to-be-ranked array stored in `.var` or or `.layer`. If the array is found in `.var`, the
             `groups` argument will be ignored. If a numpy array is passed, it is used as the array to be ranked and must
-            be either an 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
-        genes: the gene list that speed will be ranked. If provided, they must overlap the dynamics genes. Defaults to
+            be either a 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
+        genes: The gene list that speed will be ranked. If provided, they must overlap the dynamics genes. Defaults to
             None.
-        abs: when pooling the values in the array (see below), whether to take the absolute values. Defaults to False.
-        dtype: the dtype the the result array would be formated into. Defaults to None.
+        abs: When pooling the values in the array (see below), whether to take the absolute values. Defaults to False.
+        dtype: The dtype of the result array would be formated into. Defaults to None.
 
     Raises:
         TypeError: invalid `arr_key`.
@@ -3287,11 +3287,11 @@ def projection_with_transition_matrix(
     """Project velocity vectors to a low-dimensional embedding using a transition matrix.
 
     Args:
-        T: the transition matrix representing velocity vectors. It can be a dense numpy array or a sparse csr_matrix.
-        X_embedding: the low-dimensional embedding coordinates as a 2D numpy array. Each row represents the
+        T: The transition matrix representing velocity vectors. It can be a dense numpy array or a sparse csr_matrix.
+        X_embedding: The low-dimensional embedding coordinates as a 2D numpy array. Each row represents the
             embedding coordinates of a cell in `T`.
-        correct_density: whether to correct the density of the projected velocity vectors.
-        norm_dist: whether to normalize the difference in embedding coordinates between connected cells before
+        correct_density: Whether to correct the density of the projected velocity vectors.
+        norm_dist: Whether to normalize the difference in embedding coordinates between connected cells before
             projecting the velocity vectors.
 
     Returns:
@@ -3326,7 +3326,7 @@ def density_corrected_transition_matrix(T: Union[npt.ArrayLike, sp.csr_matrix]) 
     """Compute the density corrected transition matrix.
 
     Args:
-        T: the transition matrix to be corrected.
+        T: The transition matrix to be corrected.
 
     Returns:
         The transition matrix with density correction from T.

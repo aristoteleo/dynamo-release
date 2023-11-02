@@ -17,8 +17,8 @@ def remove_velocity_points(G: np.ndarray, n: int) -> np.ndarray:
     """Modify a tree graph to remove the nodes themselves and recalculate the weights.
 
     Args:
-        G: a smooth tree graph embedded in the low dimension space.
-        n: the number of genes (column num of the original data)
+        G: A smooth tree graph embedded in the low dimension space.
+        n: The number of genes (column num of the original data)
 
     Returns:
         The tree graph with a node itself removed and weight recalculated.
@@ -56,9 +56,9 @@ def calculate_angle(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
     """Calculate the angle between two vectors.
 
     Args:
-        o: coordination of the origin.
-        y: end point of the first vector.
-        x: end point of the second vector.
+        o: Coordination of the origin.
+        y: End point of the first vector.
+        x: End point of the second vector.
 
     Returns:
         The angle between the two vectors.
@@ -76,8 +76,8 @@ def _compute_center_transition_matrix(transition_matrix: Union[csr_matrix, np.nd
     """Calculate the transition matrix for DDRTree centers.
 
     Args:
-        transition_matrix: the array representing the transition matrix of cells.
-        R: the matrix that assigns cells to the centers.
+        transition_matrix: The array representing the transition matrix of cells.
+        R: The matrix that assigns cells to the centers.
 
     Returns:
         The transition matrix for centers.
@@ -118,8 +118,8 @@ def _calculate_segment_probability(transition_matrix: np.ndarray, segments: np.n
     """Calculate the probability of	the	segment	by first order Markov assumption.
 
     Args:
-        transition_matrix: the transition matrix for DDRTree centers.
-        segments: the segments of the minimum spanning tree.
+        transition_matrix: The transition matrix for DDRTree centers.
+        segments: The segments of the minimum spanning tree.
 
     Returns:
         The probability for each segment.
@@ -137,8 +137,8 @@ def _get_edges(orders: Union[np.ndarray, List], parents: Optional[Union[np.ndarr
     """Get m segments pairs from the minimum spanning tree.
 
     Args:
-        orders: the order to traverse the minimum spanning tree.
-        parents: the parent node for each node. If not provided, will construct the segments with orders[i-1] and
+        orders: The order to traverse the minimum spanning tree.
+        parents: The parent node for each node. If not provided, will construct the segments with orders[i-1] and
             orders[i].
 
     Returns:
@@ -207,8 +207,8 @@ def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearso
     """Integrate pseudotime ordering with velocity to automatically assign the direction of the learned trajectory.
 
     Args:
-        adata: the anndata object containing the single-cell data.
-        transition_matrix_key (str, optional): key to the transition matrix in the `adata.obsp` object that represents
+        adata: The anndata object containing the single-cell data.
+        transition_matrix_key (str, optional): Key to the transition matrix in the `adata.obsp` object that represents
             the transition probabilities between cells. Defaults to "pearson".
 
     Raises:
@@ -264,8 +264,8 @@ def construct_velocity_tree_py(X1: np.ndarray, X2: np.ndarray) -> None:
     """Save a velocity tree graph with given data.
 
     Args:
-        X1: epxression matrix.
-        X2: velocity matrix.
+        X1: Expression matrix.
+        X2: Velocity matrix.
     """
     if issparse(X1):
         X1 = X1.toarray()

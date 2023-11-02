@@ -14,8 +14,8 @@ def cal_ncenter(ncells: int, ncells_limit: int=100) -> int:
     """Calculate the number of cells to be most significant in the reduced space.
 
     Args:
-        ncells: total number of cells. 
-        ncells_limit: the max number of cells to be considered. Defaults to 100.
+        ncells: Total number of cells.
+        ncells_limit: The max number of cells to be considered. Defaults to 100.
 
     Returns:
         The number of cells to be most significant in the reduced space. 
@@ -32,8 +32,8 @@ def pca_projection(C: np.ndarray, L: int) -> np.ndarray:
     """Solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I	
 
     Args:
-        C: the matrix to calculate eigenvalues. 
-        L: the number of Eigenvalues. 
+        C: The matrix to calculate eigenvalues.
+        L: The number of Eigenvalues.
 
     Returns:
         The L largest Eigenvalues. 
@@ -50,8 +50,8 @@ def sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Calculate the square distance between `a` and `b`. 
 
     Args:
-        a: a matrix with dimension D x N
-        b: a matrix with dimension D x N
+        a: A matrix with dimension D x N
+        b: A matrix with dimension D x N
 
     Returns:
         A numeric value for the difference between a and b. 
@@ -75,9 +75,9 @@ def repmat(X: np.ndarray, m: int, n: int) -> np.ndarray:
     The size of B is size(A)*n when A is a matrix. For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix. 
 
     Args:
-        X: an array like matrix. 
-        m: number of copies on row dimension. 
-        n: number of copies on column dimension. 
+        X: An array like matrix.
+        m: Number of copies on row dimension.
+        n: Number of copies on column dimension.
 
     Returns:
         The constructed repmat. 
@@ -94,8 +94,8 @@ def eye(m: int, n: int) -> np.ndarray:
     Return a m x n matrix with 0th diagonal to be 1 and the rest to be 0.
 
     Args:
-        m: number of rows.
-        n: number of columns.
+        m: Number of rows.
+        n: Number of columns.
 
     Returns:
         The m x n eye matrix.
@@ -133,15 +133,15 @@ def DDRTree(
     (https://cran.r-project.org/web/packages/DDRTree/DDRTree.pdf)
 
     Args:
-        X: the matrix on which DDRTree would be implemented. 
-        maxIter: the max number of iterations. 
-        sigma: the bandwidth parameter. 
-        gamma: regularization parameter for k-means. 
-        eps: the threshold of convergency to stop the iteration. Defaults to 0.
-        dim: the number of dimensions reduced to. Defaults to 2.
-        Lambda: regularization parameter for inverse praph embedding. Defaults to 1.0.
-        ncenter: the number of center genes to be considered. If None, all genes would be considered. Defaults to None.
-        keep_history: wether to keep relative parameters during each iteration and return. Defaults to False.
+        X: The matrix on which DDRTree would be implemented.
+        maxIter: The max number of iterations.
+        sigma: The bandwidth parameter.
+        gamma: Regularization parameter for k-means.
+        eps: The threshold of convergency to stop the iteration. Defaults to 0.
+        dim: The number of dimensions reduced to. Defaults to 2.
+        Lambda: Regularization parameter for inverse praph embedding. Defaults to 1.0.
+        ncenter: The number of center genes to be considered. If None, all genes would be considered. Defaults to None.
+        keep_history: Whether to keep relative parameters during each iteration and return. Defaults to False.
 
     Returns:
         A dataframe containing `W`, `Z`, `Y`, `stree`, `R`, `objs` for each iterations if `keep_history` is True. 
