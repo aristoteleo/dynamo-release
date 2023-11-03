@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 from scipy.optimize import least_squares
+from scipy.sparse import csr_matrix
 from scipy.stats import chi2
 
 from ...dynamo_logger import main_warning
@@ -749,7 +750,16 @@ class Estimation_MomentKin(kinetic_estimation):
     Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
     """
 
-    def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=True):
+    def __init__(
+        self,
+        a: np.ndarray,
+        b: np.ndarray,
+        alpha_a: np.ndarray,
+        alpha_i: np.ndarray,
+        beta: np.ndarray,
+        gamma: np.ndarray,
+        include_cov: bool = True,
+    ):
         """Initialize the Estimation_MomentKin object.
 
         Args:
@@ -775,8 +785,12 @@ class Estimation_MomentKin(kinetic_estimation):
         super().__init__(ranges, np.zeros((7, 2)), Moments())
         self.include_cov = include_cov
 
-    def extract_data_from_simulator(self):
-        """Get corresponding data from the LinearODE class."""
+    def extract_data_from_simulator(self) -> np.ndarray:
+        """Get corresponding data from the LinearODE class.
+
+        Returns:
+            The variable from ODE simulator as an array.
+        """
         if self.include_cov:
             ret = np.zeros((5, len(self.simulator.t)))
             ret[0] = self.simulator.get_nu()
@@ -792,36 +806,64 @@ class Estimation_MomentKin(kinetic_estimation):
             ret[3] = self.simulator.x[:, self.simulator.xx]
         return ret
 
-    def get_alpha_a(self):
-        """Get the transcription rate for active promoter."""
+    def get_alpha_a(self) -> np.ndarray:
+        """Get the transcription rate for active promoter.
+
+        Returns:
+            The transcription rate for active promoter.
+        """
         return self.popt[2]
 
-    def get_alpha_i(self):
-        """Get the transcription rate for inactive promoter."""
+    def get_alpha_i(self) -> np.ndarray:
+        """Get the transcription rate for inactive promoter.
+
+        Returns:
+            The transcription rate for inactive promoter.
+        """
         return self.popt[3]
 
-    def get_alpha(self):
-        """Get all transcription rates."""
+    def get_alpha(self) -> np.ndarray:
+        """Get all transcription rates.
+
+        Returns:
+            All transcription rates.
+        """
         alpha = self.simulator.fbar(self.get_alpha_a(), self.get_alpha_i())
         return alpha
 
-    def get_beta(self):
-        """Get the splicing rate."""
+    def get_beta(self) -> np.ndarray:
+        """Get the splicing rate.
+
+        Returns:
+            The splicing rate.
+        """
         return self.popt[4]
 
-    def get_gamma(self):
-        """Get the degradation rate."""
+    def get_gamma(self) -> np.ndarray:
+        """Get the degradation rate.
+
+        Returns:
+            The degradation rate.
+        """
         return self.popt[5]
 
-    def calc_spl_half_life(self):
-        """Calculate the half life of splicing."""
+    def calc_spl_half_life(self) -> np.ndarray:
+        """Calculate the half life of splicing.
+
+        Returns:
+            The half life of splicing.
+        """
         return np.log(2) / self.get_beta()
 
-    def calc_deg_half_life(self):
-        """Calculate the half life of degradation."""
+    def calc_deg_half_life(self) -> np.ndarray:
+        """Calculate the half life of degradation.
+
+        Returns:
+            The half life of degradation.
+        """
         return np.log(2) / self.get_gamma()
 
-    def export_dictionary(self):
+    def export_dictionary(self) -> Dict:
         """Export parameter estimation results as a dictionary.
 
         Returns:
@@ -844,7 +886,14 @@ class Estimation_MomentKinNosp(kinetic_estimation):
     Order of species: <r>, <rr>
     """
 
-    def __init__(self, a, b, alpha_a, alpha_i, gamma):
+    def __init__(
+        self,
+        a: np.ndarray,
+        b: np.ndarray,
+        alpha_a: np.ndarray,
+        alpha_i: np.ndarray,
+        gamma: np.ndarray,
+    ):
         """Initialize the Estimation_MomentKinNosp object.
 
         Args:
@@ -866,35 +915,59 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         ranges[4] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, np.zeros((3, 2)), Moments_Nosplicing())
 
-    def extract_data_from_simulator(self):
-        """Get corresponding data from the LinearODE class."""
+    def extract_data_from_simulator(self) -> np.ndarray:
+        """Get corresponding data from the LinearODE class.
+
+        Returns:
+            The variable from ODE simulator as an array.
+        """
         ret = np.zeros((2, len(self.simulator.t)))
         ret[0] = self.simulator.get_nu()
         ret[1] = self.simulator.x[:, self.simulator.uu]
         return ret
 
-    def get_alpha_a(self):
-        """Get the transcription rate for active promoter."""
+    def get_alpha_a(self) -> np.ndarray:
+        """Get the transcription rate for active promoter.
+
+        Returns:
+            The transcription rate for active promoter.
+        """
         return self.popt[2]
 
-    def get_alpha_i(self):
-        """Get the transcription rate for inactive promoter."""
+    def get_alpha_i(self) -> np.ndarray:
+        """Get the transcription rate for inactive promoter.
+
+        Returns:
+            The transcription rate for inactive promoter.
+        """
         return self.popt[3]
 
-    def get_alpha(self):
-        """Get all transcription rates."""
+    def get_alpha(self) -> np.ndarray:
+        """Get all transcription rates.
+
+        Returns:
+            All transcription rates.
+        """
         alpha = self.simulator.fbar(self.get_alpha_a().self.get_alpha_i())
         return alpha
 
-    def get_gamma(self):
-        """Get the degradation rate."""
+    def get_gamma(self) -> np.ndarray:
+        """Get the degradation rate.
+
+        Returns:
+            The degradation rate.
+        """
         return self.popt[4]
 
-    def calc_deg_half_life(self):
-        """Calculate the half life of degradation."""
+    def calc_deg_half_life(self) -> np.ndarray:
+        """Calculate the half life of degradation.
+
+        Returns:
+            The half life of degradation.
+        """
         return np.log(2) / self.get_gamma()
 
-    def export_dictionary(self):
+    def export_dictionary(self) -> Dict:
         """Export parameter estimation results as a dictionary.
 
         Returns:
@@ -917,7 +990,12 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
     Order of species: <unspliced>, <spliced>
     """
 
-    def __init__(self, alpha, gamma, x0=0):
+    def __init__(
+        self,
+        alpha: np.ndarray,
+        gamma: np.ndarray,
+        x0: Union[int, np.ndarray] = 0,
+    ):
         """Initialize the Estimation_DeterministicKinNosp object.
 
         Args:
@@ -936,19 +1014,27 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
             x0 = np.ones((1, 2)) * x0
         super().__init__(ranges, x0, Deterministic_NoSplicing())
 
-    def get_alpha(self):
-        """Get the transcription rate."""
+    def get_alpha(self) -> np.ndarray:
+        """Get the transcription rate.
+
+        Returns:
+            The transcription rate.
+        """
         return self.popt[0]
 
-    def get_gamma(self):
-        """Get the degradation rate."""
+    def get_gamma(self) -> np.ndarray:
+        """Get the degradation rate.
+
+        Returns:
+            The degradation rate.
+        """
         return self.popt[1]
 
-    def calc_half_life(self, key):
+    def calc_half_life(self, key: str) -> np.ndarray:
         """Calculate the half life."""
         return np.log(2) / self.get_param(key)
 
-    def export_dictionary(self):
+    def export_dictionary(self) -> Dict:
         """Export parameter estimation results as a dictionary.
 
         Returns:
@@ -971,7 +1057,13 @@ class Estimation_DeterministicKin(kinetic_estimation):
     Order of species: <unspliced>, <spliced>
     """
 
-    def __init__(self, alpha, beta, gamma, x0=np.zeros(2)):
+    def __init__(
+        self,
+        alpha: np.ndarray,
+        beta: np.ndarray,
+        gamma: np.ndarray,
+        x0: Union[int, np.ndarray] = np.zeros(2),
+    ):
         """Initialize the Estimation_DeterministicKin object.
 
         Args:
@@ -994,27 +1086,47 @@ class Estimation_DeterministicKin(kinetic_estimation):
 
         super().__init__(ranges, x0, Deterministic())
 
-    def get_alpha(self):
-        """Get the transcription rate."""
+    def get_alpha(self) -> np.ndarray:
+        """Get the transcription rate.
+
+        Returns:
+            The transcription rate.
+        """
         return self.popt[0]
 
-    def get_beta(self):
-        """Get the splicing rate."""
+    def get_beta(self) -> np.ndarray:
+        """Get the splicing rate.
+
+        Returns:
+            The splicing rate.
+        """
         return self.popt[1]
 
-    def get_gamma(self):
-        """Get the degradation rate."""
+    def get_gamma(self) -> np.ndarray:
+        """Get the degradation rate.
+
+        Returns:
+            The degradation rate.
+        """
         return self.popt[2]
 
-    def calc_spl_half_life(self):
-        """Calculate the half life of splicing."""
+    def calc_spl_half_life(self) -> np.ndarray:
+        """Calculate the half life of splicing.
+
+        Returns:
+            The half life of splicing.
+        """
         return np.log(2) / self.get_beta()
 
-    def calc_deg_half_life(self):
-        """Calculate the half life of degradation."""
+    def calc_deg_half_life(self) -> np.ndarray:
+        """Calculate the half life of degradation.
+
+        Returns:
+            The half life of degradation.
+        """
         return np.log(2) / self.get_gamma()
 
-    def export_dictionary(self):
+    def export_dictionary(self) -> Dict:
         """Export parameter estimation results as a dictionary.
 
         Returns:
@@ -1037,7 +1149,15 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
     If beta is None, it is assumed that the data does not have the splicing process.
     """
 
-    def __init__(self, model1, model2, alpha=None, gamma=None, x0=None, beta=None):
+    def __init__(
+        self,
+        model1: LinearODE,
+        model2: LinearODE,
+        alpha: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[Union[int, np.ndarray]] = None,
+        beta: Optional[np.ndarray] = None,
+    ):
         """Initialize the Mixture_KinDeg_NoSwitching object.
 
         Args:
@@ -1057,7 +1177,13 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         if alpha is not None and gamma is not None:
             self._initialize(alpha, gamma, x0, beta)
 
-    def _initialize(self, alpha, gamma, x0, beta=None):
+    def _initialize(
+        self,
+        alpha: np.ndarray,
+        gamma: np.ndarray,
+        x0: Union[int, np.ndarray],
+        beta: Optional[np.ndarray] = None,
+    ):
         """Initialize the parameters to the default value.
 
         Args:
@@ -1065,6 +1191,9 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
             gamma: Degradation rate.
             x0: The initial condition.
             beta: Splicing rate.
+
+        Returns:
+            An instance of the Mixture_KinDeg_NoSwitching class.
         """
         if type(self.model1) in nosplicing_models:
             self.param_distributor = [[0, 2], [1, 2]]
@@ -1085,7 +1214,9 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         x0_ = np.vstack((np.zeros((self.model1.n_species, 2)), x0))
         super().__init__(ranges, x0_, model)
 
-    def normalize_deg_data(self, x_data, weight):
+    def normalize_deg_data(
+        self, x_data: Union[csr_matrix, np.ndarray], weight: Union[float, int]
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Normalize the degradation data while preserving the relative proportions between species. It calculates
         scaling factors to ensure the data's range remains within a certain limit.
 
@@ -1107,7 +1238,17 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
 
         return x_data_norm, scale
 
-    def auto_fit(self, time, x_data, alpha_min=0.1, beta_min=50, gamma_min=10, kin_weight=2, use_p0=True, **kwargs):
+    def auto_fit(
+        self,
+        time: np.ndarray,
+        x_data: Union[csr_matrix, np.ndarray],
+        alpha_min: Union[float, int] = 0.1,
+        beta_min: Union[float, int] = 50,
+        gamma_min: Union[float, int] = 10,
+        kin_weight: Union[float, int] = 2,
+        use_p0: bool = True,
+        **kwargs,
+    ) -> Tuple[np.ndarray, float]:
         """Estimate the parameters.
 
         Args:
@@ -1159,7 +1300,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
             popt, cost = self.fit_lsq(time, x_data_norm, **kwargs)
         return popt, cost
 
-    def export_model(self, reinstantiate=True):
+    def export_model(self, reinstantiate: bool = True) -> Union[MixtureModels, LinearODE]:
         """Export the mixture model.
 
         Args:
@@ -1173,7 +1314,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         else:
             return self.simulator
 
-    def export_x0(self):
+    def export_x0(self) -> Optional[np.ndarray]:
         """Export optimized initial conditions for the mixture of models analysis.
 
         Returns:
@@ -1183,7 +1324,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         x[self.model1.n_species :] *= self.scale
         return x
 
-    def export_dictionary(self):
+    def export_dictionary(self) -> Dict:
         """Export parameter estimation results as a dictionary.
 
         Returns:
@@ -1210,13 +1351,13 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
 
     def __init__(
         self,
-        model1,
-        model2,
-        alpha=None,
-        lambd=None,
-        gamma=None,
-        x0=None,
-        beta=None,
+        model1: LinearODE,
+        model2: LinearODE,
+        alpha: Optional[np.ndarray] = None,
+        lambd: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[Union[int, np.ndarray]] = None,
+        beta: Optional[np.ndarray] = None,
     ):
         """Initialize the Lambda_NoSwitching object.
 
@@ -1238,7 +1379,13 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         if alpha is not None and gamma is not None:
             self._initialize(alpha, gamma, x0, beta)
 
-    def _initialize(self, alpha, gamma, x0, beta=None):
+    def _initialize(
+        self,
+        alpha: np.ndarray,
+        gamma: np.ndarray,
+        x0: Union[int, np.ndarray],
+        beta: Optional[np.ndarray] = None,
+    ):
         """Initialize the parameters to the default value.
 
         Args:
@@ -1246,6 +1393,9 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
             gamma: Degradation rate.
             x0: The initial condition.
             beta: Splicing rate.
+
+         Returns:
+            An instance of the Lambda_NoSwitching class.
         """
         if type(self.model1) in nosplicing_models and type(self.model2) in nosplicing_models:
             self.param_keys = ["alpha", "lambda", "gamma"]
@@ -1264,7 +1414,7 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         x0_ = np.vstack((np.zeros((self.model1.n_species, 2)), x0))
         super(Mixture_KinDeg_NoSwitching, self).__init__(ranges, x0_, model)
 
-    def auto_fit(self, time, x_data, **kwargs):
+    def auto_fit(self, time: np.ndarray, x_data: Union[csr_matrix, np.ndarray], **kwargs) -> Tuple[np.ndarray, float]:
         """Estimate the parameters.
 
         Args:
@@ -1277,7 +1427,7 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         """
         return super().auto_fit(time, x_data, kin_weight=None, use_p0=False, **kwargs)
 
-    def export_model(self, reinstantiate=True):
+    def export_model(self, reinstantiate: bool = True) -> Union[LambdaModels_NoSwitching, LinearODE]:
         """Export the mixture model.
 
         Args:
@@ -1294,7 +1444,12 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
 
 class Estimation_KineticChase(kinetic_estimation):
     """An estimation class for kinetic chase experiment."""
-    def __init__(self, alpha=None, gamma=None, x0=None):
+    def __init__(
+        self,
+        alpha: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        x0: Optional[Union[int, np.ndarray]] = None,
+    ):
         """Initialize the Estimation_KineticChase object.
 
         Args:
@@ -1309,20 +1464,28 @@ class Estimation_KineticChase(kinetic_estimation):
         if alpha is not None and gamma is not None and x0 is not None:
             self._initialize(alpha, gamma, x0)
 
-    def _initialize(self, alpha, gamma, x0):
+    def _initialize(
+        self,
+        alpha: np.ndarray,
+        gamma: np.ndarray,
+        x0: Union[int, np.ndarray],
+    ):
         """Initialize the parameters to the default value.
 
         Args:
             alpha: Transcription rate.
             gamma: Degradation rate.
             x0: The initial condition.
+
+        Returns:
+            An instance of the Estimation_KineticChase class.
         """
         ranges = np.zeros((2, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, np.atleast_2d(x0), KineticChase())
 
-    def auto_fit(self, time, x_data, **kwargs):
+    def auto_fit(self, time: np.ndarray, x_data: Union[csr_matrix, np.ndarray], **kwargs) -> Tuple[np.ndarray, float]:
         """Estimate the parameters.
 
         Args:
@@ -1346,23 +1509,39 @@ class Estimation_KineticChase(kinetic_estimation):
         popt, cost = self.fit_lsq(time, x_data, p0=np.hstack((al0, ga0, x0)), normalize=False, **kwargs)
         return popt, cost
 
-    def get_param(self, key):
-        """Get corresponding parameter according to the key."""
+    def get_param(self, key: str) -> np.ndarray:
+        """Get corresponding parameter according to the key.
+
+        Returns:
+            The corresponding parameter.
+        """
         return self.popt[np.where(self.kin_param_keys == key)[0][0]]
 
-    def get_alpha(self):
-        """Get the transcription rate."""
+    def get_alpha(self) -> np.ndarray:
+        """Get the transcription rate.
+
+        Returns:
+            The transcription rate.
+        """
         return self.popt[0]
 
-    def get_gamma(self):
-        """Get the degradation rate."""
+    def get_gamma(self) -> np.ndarray:
+        """Get the degradation rate.
+
+        Returns:
+            The degradation rate.
+        """
         return self.popt[1]
 
-    def calc_half_life(self, key):
-        """Calculate the half life."""
+    def calc_half_life(self, key: str) -> np.ndarray:
+        """Calculate the half life.
+
+        Returns:
+            The half life.
+        """
         return np.log(2) / self.get_param(key)
 
-    def export_dictionary(self):
+    def export_dictionary(self) -> Dict:
         """Export parameter estimation results as a dictionary.
 
         Returns:
@@ -1386,7 +1565,12 @@ class GoodnessOfFit:
     This class provides methods for assessing the quality of predictions, using various metrics including Gaussian
     likelihood, Gaussian log-likelihood, and mean squared deviation.
     """
-    def __init__(self, simulator, params=None, x0=None):
+    def __init__(
+        self,
+        simulator: LinearODE,
+        params: Optional[Tuple] = None,
+        x0: Optional[Union[int, np.ndarray]] = None,
+    ):
         """Initialize the GoodnessOfFit object.
 
         Args:
@@ -1407,7 +1591,7 @@ class GoodnessOfFit:
         self.sigm = None
         self.pred = None
 
-    def extract_data_from_simulator(self, species=None):
+    def extract_data_from_simulator(self, species: Optional[int] = None) -> np.ndarray:
         """Extract data from the simulator's results.
 
         Args:
@@ -1423,13 +1607,13 @@ class GoodnessOfFit:
 
     def prepare_data(
         self,
-        t,
-        x_data,
-        species=None,
-        method=None,
-        normalize=True,
-        reintegrate=True,
-    ):
+        t: np.ndarray,
+        x_data: Union[csr_matrix, np.ndarray],
+        species: Optional[int] = None,
+        method: Optional[str] = None,
+        normalize: bool = True,
+        reintegrate: bool = True,
+    ) -> None:
         """Prepare data for evaluation.
 
         Args:
@@ -1457,7 +1641,12 @@ class GoodnessOfFit:
         self.sigm = strat_mom(x_data_norm.T, t, np.std)
         self.pred = strat_mom(x_model_norm.T, t, np.mean)
 
-    def normalize(self, x_data, x_model, scale=None):
+    def normalize(
+        self,
+        x_data: Union[csr_matrix, np.ndarray],
+        x_model: np.ndarray,
+        scale: Optional[Union[float, int, np.ndarray]] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Normalize data and model predictions.
 
         Args:
@@ -1473,7 +1662,7 @@ class GoodnessOfFit:
         x_model_norm = (x_model.T / scale).T
         return x_data_norm, x_model_norm
 
-    def calc_gaussian_likelihood(self):
+    def calc_gaussian_likelihood(self) -> float:
         """ Calculate the Gaussian likelihood between model predictions and observations.
 
         Returns:
@@ -1487,7 +1676,7 @@ class GoodnessOfFit:
         ret = 1 / (np.sqrt((2 * np.pi) ** len(err)) * np.prod(sig)) * np.exp(-0.5 * (err).dot(err))
         return ret
 
-    def calc_gaussian_loglikelihood(self):
+    def calc_gaussian_loglikelihood(self) -> float:
         """Calculate the Gaussian log-likelihood between model predictions and observations.
 
         Returns:
@@ -1501,7 +1690,7 @@ class GoodnessOfFit:
         ret = -len(err) / 2 * np.log(2 * np.pi) - np.sum(np.log(sig)) - 0.5 * err.dot(err)
         return ret
 
-    def calc_mean_squared_deviation(self, weighted=True):
+    def calc_mean_squared_deviation(self, weighted: bool = True) -> float:
         """Calculate the mean squared deviation between model predictions and observations.
 
         Args:
