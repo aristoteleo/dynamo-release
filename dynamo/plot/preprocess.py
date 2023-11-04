@@ -20,7 +20,7 @@ from ..preprocessing import gene_selection
 from ..preprocessing.gene_selection import get_prediction_by_svr
 from ..preprocessing.utils import detect_experiment_datatype
 from ..tools.utils import get_mapper, update_dict
-from .utils import save_fig
+from .utils import save_fig, save_show_ret
 
 
 def basic_stats(
@@ -39,8 +39,8 @@ def basic_stats(
         figsize: the size of each panel in the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the plots. Could be one of 'save', 'show', or 'return'.
             Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -103,25 +103,7 @@ def basic_stats(
     g.set_ylabels("")
     g.set(ylim=(0, None))
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "basic_stats",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
+    return save_show_ret("basic_stats", save_show_or_return, save_kwargs, g)
 
 
 def show_fraction(
@@ -142,8 +124,8 @@ def show_fraction(
         figsize: the size of each panel in the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the plots. Could be one of 'save', 'show', or 'return'.
             Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -339,27 +321,7 @@ def show_fraction(
     g.set_ylabels("Fraction")
     g.set(ylim=(0, None))
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "show_fraction",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
+    return save_show_ret("show_fraction", save_show_or_return, save_kwargs, g)
 
 
 def variance_explained(
@@ -382,8 +344,8 @@ def variance_explained(
         figsize: the size of each panel of the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'variance_explained', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -403,27 +365,7 @@ def variance_explained(
     ax.set_xticks(list(ax.get_xticks()) + [n_comps])
     ax.set_xlim(0, len(var_))
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "variance_explained",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("variance_explained", save_show_or_return, save_kwargs, ax)
 
 
 def biplot(
@@ -461,8 +403,8 @@ def biplot(
         draw_pca_embedding: whether to draw the pca embedding. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the function will use the {"path": None, "prefix": 'variance_explained', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -515,27 +457,7 @@ def biplot(
             ax.plot(xs[i] * scalex, ys[i] * scaley, "b", alpha=0.1)
             ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "biplot",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("biplot", save_show_or_return, save_kwargs, ax)
 
 
 def loading(
@@ -561,8 +483,8 @@ def loading(
         figsize: the size of each panel of the figure. Defaults to (6, 4).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -605,27 +527,7 @@ def loading(
 
         axes[cur_row, cur_col].set_title("PC " + str(i))
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "loading",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return axes
+    return save_show_ret("loading", save_show_or_return, save_kwargs, axes)
 
 
 def feature_genes(
@@ -645,8 +547,8 @@ def feature_genes(
         figsize: the size of each panel of the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -722,27 +624,7 @@ def feature_genes(
     plt.xlabel("Mean (log)")
     plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "feature_genes",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("feature_genes", save_show_or_return, save_kwargs, ax)
 
 
 def exp_by_groups(
@@ -779,8 +661,8 @@ def exp_by_groups(
         figsize: the size of each panel of the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -906,27 +788,7 @@ def exp_by_groups(
     g.set_xlabels("")
     g.set(ylim=(0, None))
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "exp_by_groups",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
+    return save_show_ret("exp_by_groups", save_show_or_return, save_kwargs, g)
 
 
 def highest_frac_genes(

@@ -25,7 +25,7 @@ from .utils import (
     is_cell_anno_column,
     is_gene_name,
     is_layer_keys,
-    save_fig,
+    save_show_ret,
 )
 
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c")
@@ -396,8 +396,8 @@ def jacobian(
         stacked_fraction: whether the jacobian will be represented as a stacked fraction in the title or a linear
             fraction style will be used. Defaults to False.
         save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
         **kwargs: any other kwargs that would be passed to `plt._matplotlib_points`.
@@ -579,27 +579,7 @@ def jacobian(
                 despline_all(ax)
                 deaxis_all(ax)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": jkey,
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return gs
+    return save_show_ret(jkey, save_show_or_return, save_kwargs, gs)
 
 
 def jacobian_heatmap(
@@ -638,8 +618,8 @@ def jacobian_heatmap(
         cmap: the mapping from data values to color space. If not provided, the default will depend on whether center is
             set. Defaults to "bwr".
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs passed to `sns.heatmap`.
@@ -738,27 +718,7 @@ def jacobian_heatmap(
             )
             ax.title(name)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": jkey + "_heatmap",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return gs
+    return save_show_ret(jkey + "_heatmap", save_show_or_return, save_kwargs, gs)
 
 
 @docstrings.with_indent(4)
@@ -828,8 +788,8 @@ def sensitivity(
         stacked_fraction: whether to represent the jacobianas a stacked fraction in the title or a linear fraction style
             will be used. Defaults to False.
         save_show_or_return: whether to save, show, or return the fugure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs passed to `plt._matplotlib_points`.
@@ -1008,27 +968,7 @@ def sensitivity(
                 despline_all(ax)
                 deaxis_all(ax)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": skey,
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return gs
+    return save_show_ret(skey, save_show_or_return, save_kwargs, gs)
 
 
 def sensitivity_heatmap(
@@ -1065,8 +1005,8 @@ def sensitivity_heatmap(
         cmap: the mapping from data values to color space. If not provided, the default will depend on whether center is
             set. Defaults to "bwr".
         save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
         **kwargs: any other kwargs passed to `sns.heatmap`.
@@ -1151,24 +1091,4 @@ def sensitivity_heatmap(
         )
         plt.title(name)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": skey + "_heatmap",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return gs
+    return save_show_ret(skey + "_heatmap", save_show_or_return, save_kwargs, gs)

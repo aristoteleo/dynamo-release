@@ -884,11 +884,11 @@ def scatters(
             "verbose": True,
         }
 
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
         # prevent the plot from being closed if the plot need to be shown or returned.
         if save_show_or_return in ["both", "all"]:
             s_kwargs["close"] = False
-
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
         if background is not None:

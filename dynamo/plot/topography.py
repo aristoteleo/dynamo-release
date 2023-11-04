@@ -33,6 +33,7 @@ from .utils import (
     default_quiver_args,
     quiver_autoscaler,
     save_fig,
+    save_show_ret,
     set_arrow_alpha,
     set_stream_line_alpha,
 )
@@ -76,8 +77,8 @@ def plot_flow_field(
         streamline_alpha: the alpha value applied to the vector field streamlines. Defaults to 0.4.
         color_start_points: the color of the starting point that will be used to predict cell fates. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'plot_flow_field', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'plot_flow_field', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the Axis on which to make the plot. Defaults to None.
@@ -175,27 +176,7 @@ def plot_flow_field(
         set_arrow_alpha(ax, streamline_alpha)
         set_stream_line_alpha(s, streamline_alpha)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_flow_field",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("plot_flow_field", save_show_or_return, save_kwargs, ax)
 
 
 def plot_nullclines(
@@ -215,8 +196,8 @@ def plot_nullclines(
         lw: the linewidth of the nullcline. Defaults to 3.
         background: the background color of the plot. Defaults to None.
         save_show_or_return: whether to save, show, or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'plot_nullclines', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'plot_nullclines', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the matplotlib axes used for plotting. Default is to use the current axis. Defaults to None.
@@ -276,27 +257,7 @@ def plot_nullclines(
         for ncy in NCy:
             ax.plot(*ncy.T, c=colors[1], lw=lw)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_nullclines",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("plot_nullclines", save_show_or_return, save_kwargs, ax)
 
 
 def plot_fixed_points_2d(
@@ -323,8 +284,8 @@ def plot_fixed_points_2d(
             respectively. Defaults to ["full", "top", "none"].
         background: the background color of the plot. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the matplotlib axes used for plotting. Default is to use the current axis. Defaults to None.
@@ -388,27 +349,7 @@ def plot_fixed_points_2d(
             ]
         )
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_fixed_points",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("plot_fixed_points", save_show_or_return, save_kwargs, ax)
 
 
 def plot_fixed_points(
@@ -440,8 +381,8 @@ def plot_fixed_points(
             respectively. Defaults to ["full", "top", "none"].
         background: the background color of the plot. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the matplotlib axes used for plotting. Default is to use the current axis. Defaults to None.
@@ -544,27 +485,7 @@ def plot_fixed_points(
             ]
         )
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_fixed_points",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("plot_fixed_points", save_show_or_return, save_kwargs, ax)
 
 
 def plot_traj(
@@ -594,8 +515,8 @@ def plot_traj(
         integration_direction: Determines whether to integrate the trajectory in the forward, backward, or both
             direction. Default to "both".
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'plot_traj', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'plot_traj', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the axis on which to make the plot. If None, new axis would be created. Defaults to None.
@@ -626,27 +547,7 @@ def plot_traj(
             cur_y0 = y0[i, None]  # don't drop dimension
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_traj",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("plot_traj", save_show_or_return, save_kwargs, ax)
 
 
 def plot_separatrix(
@@ -674,8 +575,8 @@ def plot_separatrix(
         vecfld_dict: a dict with entries to create a `VectorField2D` instance. Defaults to None.
         background: the background color of the plot. Defaults to None.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "return".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'plot_separatrix', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'plot_separatrix', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         ax: the axis on which to make the plot. Defaults to None.
@@ -758,27 +659,7 @@ def plot_separatrix(
                     all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
                     all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_separatrix",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("plot_separatrix", save_show_or_return, save_kwargs, ax)
 
 
 @docstrings.with_indent(4)

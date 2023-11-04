@@ -12,7 +12,7 @@ from anndata import AnnData
 from matplotlib.axes import Axes
 
 from ..tools.utils import flatten, index_gene, update_dict
-from .utils import save_fig, set_colorbar
+from .utils import save_fig, save_show_ret, set_colorbar
 from .utils_graph import ArcPlot
 
 
@@ -583,24 +583,4 @@ def hivePlot(
     # ax.legend(custom_lines, reg_groups, loc='upper left', bbox_to_anchor=(0.37, 0.35),
     #           title="Regulatory network based on Jacobian analysis")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "hiveplot",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("hiveplot", save_show_or_return, save_kwargs, ax)
