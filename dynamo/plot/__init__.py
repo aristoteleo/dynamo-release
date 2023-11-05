@@ -31,7 +31,7 @@ from .preprocess import (
     variance_explained,
 )
 from .pseudotime import plot_dim_reduced_direct_graph
-from .scatters import scatters
+from .scatters import scatters, scatters_interactive
 from .scPotential import show_landscape
 from .sctransform import sctransform_plot_fit, plot_residual_var
 from .scVectorField import (  # , plot_LIC_gray
@@ -61,6 +61,7 @@ from .topography import (
     plot_separatrix,
     plot_traj,
     topography,
+    topography_3D,
 )
 
 # from .theme import points
@@ -81,6 +82,7 @@ __all__ = [
     "quiver_autoscaler",
     "save_fig",
     "scatters",
+    "scatters_interactive",
     "basic_stats",
     "show_fraction",
     "feature_genes",
@@ -116,6 +118,7 @@ __all__ = [
     "plot_separatrix",
     "plot_traj",
     "topography",
+    "topography_3D",
     "speed",
     "acceleration",
     "curl",
