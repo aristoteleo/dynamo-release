@@ -408,7 +408,7 @@ def action(
 
     # sp.optimize.least_squares(lambda_f, initpath[:, 1:n_points].flatten())
     res = sp.optimize.minimize(
-        lambda_f, initpath[:, 1:n_points], tol=1e-12
+        lambda_f, initpath[:, 1:n_points].flatten(), tol=1e-12
     )  # , bounds=Bounds , options={"maxiter": 250}
     fval, output_path = (
         res["fun"],
@@ -685,7 +685,7 @@ class Pot:
                     LAP[ind] = lap
                 print(retmat)
 
-            # adata.uns['grid_Pot_' + basis] = {'Xgrid': Xgrid, "Ygrid": Ygrid, 'Zgrid': Zgrid}
+            adata.uns['grid_Pot_' + basis] = {'Xgrid': X, "Ygrid": Y, 'Zgrid': retmat}
 
             return adata
             # return retmat, LAP
