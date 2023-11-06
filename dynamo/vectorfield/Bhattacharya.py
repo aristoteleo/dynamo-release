@@ -247,15 +247,15 @@ def path_integral(
                         if prev_attr_new == 1:
                             # check if start points of current and previous paths are "adjacent"  - if so, assign separatrix
                             if startPt_dist_sqr < (2 * (xyGridSpacing**2)):
-                                curr_sepx = [
-                                    path_tag[path_counter - 1],
-                                    path_tag[path_counter],
+                                curr_sepx = np.array([
+                                    path_tag[path_counter - 1][0],
+                                    path_tag[path_counter][0],
                                     (path_counter - 1),
-                                ]  # create array
+                                ])  # create array
                                 sepx_old_new_pathNum = (
                                     np.vstack((sepx_old_new_pathNum, curr_sepx))
                                     if sepx_old_new_pathNum is not None
-                                    else np.array([curr_sepx])
+                                    else [curr_sepx]
                                 )  # append array (vertically)
                                 # attractors_pot = np.vstack((attractors_pot, pot_p_lastPath)) # append attractor potentials to array vertically) #????????????????????????????????????????????????????????????????????????????????????
                                 num_sepx = num_sepx + 1  # increment no. of separatrices
