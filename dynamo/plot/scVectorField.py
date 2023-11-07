@@ -1044,7 +1044,7 @@ def cell_wise_vectors(
             )
         ax.set_facecolor(background)
 
-    return save_show_ret("cell_wise_vector", save_show_or_return, save_kwargs, axes_list, projection != "3d")
+    return save_show_ret("cell_wise_vector", save_show_or_return, save_kwargs, axes_list, tight = projection != "3d")
 
 
 @docstrings.with_indent(4)
@@ -1734,7 +1734,7 @@ def streamline_plot(
             ax = axes_list[i]
             streamplot_2d(ax)
 
-    return save_show_ret("stream_plot", save_show_or_return, save_kwargs, axes_list)
+    return save_show_ret("streamline_plot", save_show_or_return, save_kwargs, axes_list)
 
 
 # refactor line_conv_integration

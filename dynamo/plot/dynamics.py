@@ -2709,7 +2709,7 @@ def dynamics(
                 elif experiment_type == "coassay":
                     pass  # show protein velocity (steady state and the Gamma distribution model)
     # g.autofmt_xdate(rotation=-30, ha='right')
-    return save_show_ret("dynamic", save_show_or_return, save_kwargs, g)
+    return save_show_ret("dynamics", save_show_or_return, save_kwargs, g)
 
 
 def dynamics_(

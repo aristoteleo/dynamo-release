@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
-from matplotlib.axes import Axes
 from scipy.spatial import Delaunay
 
 from ..configuration import _themes, reset_rcParams
@@ -1693,10 +1692,10 @@ def save_show_ret(
             as its parameters. save_kwargs modifies those keys according to your needs. Defaults to {}.
         ret_value: value to be returned if save_show_or_return equals "return" or "all".
             - Note that functions in heatmaps.py don't use save_show_or_return to determine if anything's returned.
-        tight: because cell_wise_vectors_3d() and cell_wise_vectors() in scVectorField.py do not call plt.tight_layout()
-        adjust: because scatters.py, state_graph.py, and time_series.py potentially call plt.subplots_adjust()
+        tight: because cell_wise_vectors_3d() and cell_wise_vectors() in scVectorField.py do not call plt.tight_layout().
+        adjust: scatters.py, state_graph.py, and time_series.py potentially call plt.subplots_adjust().
             - Note that some functions, such as scatters(), pass in a string rather than a boolean.
-        background: because bubble() in markers.py and scatters() in scatters.py use this to see if reset_rcParams() is called
+        background: bubble() in markers.py/scatters() in scatters.py use this to see if reset_rcParams() is called.
 
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be `"return"` or `"all"`, the matplotlib
@@ -1704,7 +1703,7 @@ def save_show_ret(
 
     Notes regarding save_show_or_return sections in functions that are not replaced with save_show_ret(): 
         - arcPlot()/nxvizPlot() in networks.py: uses plt.autoscale() or nv_ax.draw() in the first 2 IF statements.
-        - plot_3d_streamtube() in streamtube.py/animate_fates() in fate.py uses a different dictionary format than s_kwargs
+        - plot_3d_streamtube() in streamtube.py/animate_fates() in fate.py uses a different dictionary format than s_kwargs.
     """
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
@@ -1744,11 +1743,9 @@ def save_show_ret(
             reset_rcParams()
         return ret_value
     else:
-        #Functionally this is unnecessary but adding it is better for readability.
         return None
         #Unnessary because type hint handles cases where save_show_or_return is not accepted options.
         #raise NotImplementedError('Invalid "save_show_or_return".') (connectivity.py)
-
 
 
 def retrieve_plot_save_path(
