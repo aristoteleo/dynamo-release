@@ -27,12 +27,15 @@ from ..tools.Markov import (
 from ..tools.utils import update_dict
 from ..vectorfield.topography import VectorField
 from ..vectorfield.utils import vecfld_from_adata
-from .scatters import docstrings, scatters
+from .scatters import docstrings, scatters, scatters_interactive
 from .utils import (
     _get_adata_color_vec,
     default_quiver_args,
     quiver_autoscaler,
+    retrieve_plot_save_path,
     save_show_ret,
+    save_plotly_figure,
+    save_pyvista_plotter,
     set_arrow_alpha,
     set_stream_line_alpha,
 )
@@ -61,6 +64,7 @@ def cell_wise_vectors_3d(
     V: Union[np.ndarray, spmatrix] = None,
     color: Union[str, List[str]] = None,
     layer: str = "X",
+    plot_method: Literal["pv", "matplotlib"] = "pv",
     background: Optional[str] = "white",
     ncols: int = 4,
     figsize: Tuple[float] = (6, 4),
@@ -71,10 +75,11 @@ def cell_wise_vectors_3d(
     save_show_or_return: str = "show",
     save_kwargs: Dict[str, Any] = {},
     quiver_3d_kwargs: Dict[str, Any] = {
-        "zorder": 3,
-        "length": 2,
-        "linewidth": 5,
-        "arrow_length_ratio": 5,
+         "linewidth": 1,
+        "edgecolors": "white",
+        "alpha": 1,
+        "length": 8,
+        "arrow_length_ratio": 1,
         "norm": cm.colors.Normalize(),
         "cmap": cm.PRGn,
     },
@@ -84,8 +89,35 @@ def cell_wise_vectors_3d(
     elev: Optional[float] = None,
     azim: Optional[float] = None,
     alpha: Optional[float] = None,
-    show_magnitude: bool = False,
+    show_magnitude: bool = True,
     titles: Optional[List[str]] = None,
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
+    plotly_color: str = "Reds",
+    cmap: Optional[str] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
+    color_key_cmap: Optional[str] = None,
+    pointsize: Optional[float] = None,
+    use_smoothed: bool = True,
+    sort: Literal["raw", "abs", "neg"] = "raw",
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = False,
+    frontier: bool = False,
+    s_kwargs_dict: Dict[str, Any] = {},
     **cell_wise_kwargs,
 ) -> np.ndarray:
     """Plot the velocity or acceleration vector of each cell.
@@ -105,6 +137,7 @@ def cell_wise_vectors_3d(
         V: the velocity array. If None, the array would be determined by `vkey` provided. Defaults to None.
         color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
         layer: the layer of data to use for the scatter plot. Defaults to "X".
+        plot_method: the method to plot 3D vectors. Options include `pv` (pyvista) and `matplotlib`.
         background: the background color of the figure. Defaults to "white".
         ncols: the number of sub-plot columns. Defaults to 4.
         figsize: the size of each sub-plot panel. Defaults to (6, 4).
@@ -132,6 +165,47 @@ def cell_wise_vectors_3d(
         alpha: the transparency of the colors. Defaults to None.
         show_magnitude: whether to show original values or normalize the data. Defaults to False.
         titles: the titles of the subplots. Defaults to None.
+        highlights: the color group that will be highlighted. If highligts is a list of lists, each list is relate to
+            each color element. Defaults to None.
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Available themes are: {'blue', 'red', 'green', 'inferno', 'fire', 'viridis', 'darkblue',
+            'darkred', 'darkgreen'}. Defaults to None.
+        plotly_color: the color of the Plotly Cone plot. It must be an array containing arrays mapping a normalized
+            value to a rgb, rgba, hex, hsl, hsv, or named color string.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw".
+        aggregate: the column in adata.obs that will be used to aggregate data points. Defaults to None.
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
+        s_kwargs_dict: any other kwargs that will be passed to `dynamo.pl.scatters`. Defaults to {}.
 
     Raises:
         ValueError: invalid `x`, `y`, or `z`.
@@ -248,46 +322,176 @@ def cell_wise_vectors_3d(
         nrows += 1
     ncols = min(ncols, len(color))
 
-    figure, axes = plt.subplots(nrows, ncols, figsize=figsize, subplot_kw=dict(projection="3d"))
-    axes = np.array(axes)
-    axes_flatten = axes.flatten()
+    if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
 
-    for i in range(len(color)):
-        ax = axes_flatten[i]
-        ax.set_title(color[i])
-        norm = quiver_3d_kwargs["norm"]
-        cmap = quiver_3d_kwargs["cmap"]
-        color_vec = _get_adata_color_vec(adata, layer=layer, col=color[i])
-        assert len(color_vec) > 0, "color vector or data vector size is 0"
-
-        # convet categorical string data colors to labels
-        if type(color_vec[0]) is str:
-            unique_vals, color_vec = np.unique(color_vec, return_inverse=True)
-
-        color_vec = cmap(norm(color_vec))
-
-        # TODO due to matplotlib quiver3 impl, we need to add colors for arrow head segments
-        # TODO if matplotlib changes its detailed impl, we may not need the following line
-        color_vec = list(color_vec) + [element for element in list(color_vec) for _ in range(2)]
-        # color_vec = matplotlib.colors.to_rgba(color_vec, alpha=alpha)
-        main_debug("color vec len: " + str(len(color_vec)))
-        ax.view_init(elev=elev, azim=azim)
-        ax.quiver(
-            x0,
-            x1,
-            x2,
-            v0,
-            v1,
-            v2,
-            color=color_vec,
-            # facecolors=color_vec,
-            **quiver_3d_kwargs,
+        pl, colors_list = scatters_interactive(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            labels=labels,
+            values=values,
+            cmap=cmap,
+            theme=theme,
+            background=background,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            use_smoothed=use_smoothed,
+            save_show_or_return="return",
+            render_points_as_spheres=True,
         )
-        ax.set_title(titles[i])
-        ax.set_facecolor(background)
-        add_axis_label(ax, axis_labels)
 
-    return save_show_ret("cell_wise_vectors_3d", save_show_or_return, save_kwargs, axes, False)
+        point_cloud = pv.PolyData(np.column_stack((x0.values, x1.values, x2.values)))
+        point_cloud['vectors'] = np.column_stack((v0.values, v1.values, v2.values))
+
+        r, c = pl.shape[0], pl.shape[1]
+        subplot_indices = [[i, j] for i in range(r) for j in range(c)]
+        cur_subplot = 0
+
+        for i in range(len(color)):
+            point_cloud.point_data["colors"] = np.stack(colors_list[i])
+
+            arrows = point_cloud.glyph(
+                orient='vectors',
+                factor=3.5,
+            )
+
+            if r * c != 1:
+                pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
+                cur_subplot += 1
+
+            pl.add_mesh(arrows, scalars="colors", preference='point', rgb=True)
+
+        return save_pyvista_plotter(
+            pl=pl,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+
+    elif plot_method == "plotly":
+        try:
+            import plotly.graph_objects as go
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+
+        pl, colors_list = scatters_interactive(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            plot_method="plotly",
+            labels=labels,
+            values=values,
+            cmap=cmap,
+            theme=theme,
+            background=background,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            use_smoothed=use_smoothed,
+            save_show_or_return="return",
+            opacity=0.5,
+        )
+
+        r, c = pl._get_subplot_rows_columns()
+        subplot_indices = [[i, j] for i in range(list(r)[-1]) for j in range(list(c)[-1])]
+        cur_subplot = 0
+
+        for i in range(len(color)):
+            # colors = [[index, "rgb({},{},{})".format(int(row[0] * 255), int(row[1] * 255), int(row[2] * 255))] for index, row in enumerate(colors_list[i])]
+
+            pl.add_trace(
+                go.Cone(
+                    x=x0.values,
+                    y=x1.values,
+                    z=x2.values,
+                    u=v0.values,
+                    v=v1.values,
+                    w=v2.values,
+                    colorscale=plotly_color,
+                    # colorscale=colors,
+                    sizemode="absolute",
+                    sizeref=1,
+                ),
+                row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+            )  # TODO: implement customized color for individual cone
+
+            cur_subplot += 1
+
+        return save_plotly_figure(
+            pl=pl,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+
+    else:
+        axes_list, color_list, _ = scatters(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            highlights=highlights,
+            labels=labels,
+            values=values,
+            theme=theme,
+            cmap=cmap,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            background=background,
+            ncols=ncols,
+            pointsize=pointsize,
+            figsize=figsize,
+            show_legend=None,
+            use_smoothed=use_smoothed,
+            aggregate=aggregate,
+            show_arrowed_spines=show_arrowed_spines,
+            ax=ax,
+            sort=sort,
+            save_show_or_return="return",
+            frontier=frontier,
+            projection="3d",
+            **s_kwargs_dict,
+            return_all=True,
+        )
+
+        if type(axes_list) != list:
+            axes_list = [axes_list]
+            color_list = [color_list]
+
+        for i in range(len(color)):
+            ax = axes_list[i]
+            ax.set_title(color[i])
+            cmap_3d = [element for element in color_list[i]] + [element for element in color_list[i] for _ in range(2)]
+            main_debug("color vec len: " + str(len(cmap_3d)))
+            ax.view_init(elev=elev, azim=azim)
+            ax.quiver(
+                x0,
+                x1,
+                x2,
+                v0,
+                v1,
+                v2,
+                color=cmap_3d,
+                # facecolors=color_vec,
+                **quiver_3d_kwargs,
+            )
+            ax.set_title(titles[i])
+            ax.set_facecolor(background)
+            add_axis_label(ax, axis_labels)
+
+        return save_show_ret("cell_wise_vectors_3d", save_show_or_return, save_kwargs, axes_list, tight=False)
 
 
 def grid_vectors_3d():
@@ -715,6 +919,7 @@ def cell_wise_vectors(
         df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
     elif projection == "3d":
         df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "z": X[:, 2], "u": V[:, 0], "v": V[:, 1], "w": V[:, 2]})
+        show_legend = None
     else:
         raise NotImplementedError("Projection method %s is not implemented" % projection)
 
@@ -760,7 +965,14 @@ def cell_wise_vectors(
         "zorder": 10,
     }
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
-    quiver_3d_kwargs = {"arrow_length_ratio": scale}
+    quiver_3d_kwargs = {
+        "linewidth": 1,
+        "edgecolors": "white",
+        "alpha": 1,
+        "length": 8,
+        "arrow_length_ratio": scale,
+
+    }
 
     axes_list, color_list, _ = scatters(
         adata=adata,
@@ -818,6 +1030,7 @@ def cell_wise_vectors(
                 **quiver_kwargs,
             )
         elif projection == "3d":
+            cmap_3d = [element for element in color_list[i]] + [element for element in color_list[i] for _ in range(2)]
             ax.quiver(
                 x0,
                 x1,
@@ -825,7 +1038,7 @@ def cell_wise_vectors(
                 v0,
                 v1,
                 v2,
-                # color=color_list[i],
+                color=cmap_3d,
                 # facecolors=color_list[i],
                 **quiver_3d_kwargs,
             )

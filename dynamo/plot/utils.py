@@ -4,7 +4,7 @@ import os
 
 # import matplotlib.tri as tri
 import warnings
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 from warnings import warn
 
 import matplotlib
@@ -75,6 +75,214 @@ def _get_adata_color_vec(adata, layer, col):
     else:
         _color = adata.obs_vector(col, layer=layer)
     return np.array(_color).flatten()
+
+
+def calculate_colors(
+    points,
+    ax=None,
+    labels=None,
+    values=None,
+    highlights=None,
+    cmap="Blues",
+    color_key=None,
+    color_key_cmap="Spectral",
+    background="white",
+    width=7,
+    height=5,
+    vmin=2,
+    vmax=98,
+    sort="raw",
+    sym_c=False,
+    projection=None,  # default in matplotlib
+    **kwargs,
+):
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
+
+    dpi = plt.rcParams["figure.dpi"]
+    width, height = width * dpi, height * dpi
+    rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
+    # """Use matplotlib to plot points"""
+    # point_size = 500.0 / np.sqrt(points.shape[0])
+
+    legend_elements = None
+
+    if ax is None:
+        dpi = plt.rcParams["figure.dpi"]
+        fig = plt.figure(figsize=(width / dpi, height / dpi))
+        ax = fig.add_subplot(111, projection=projection)
+
+    ax.set_facecolor(background)
+
+    # Color by labels
+    if labels is not None:
+        main_debug("labels are not None, drawing by labels")
+        color_type = "labels"
+
+        if labels.shape[0] != points.shape[0]:
+            raise ValueError(
+                "Labels must have a label for "
+                "each sample (size mismatch: {} {})".format(labels.shape[0], points.shape[0])
+            )
+        if color_key is None:
+            main_debug("color_key is None")
+            cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
+            cmap.set_bad("lightgray")
+            colors = None
+
+            if highlights is None:
+                unique_labels = np.unique(labels)
+                num_labels = unique_labels.shape[0]
+                color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+            else:
+                if type(highlights) is str:
+                    highlights = [highlights]
+                highlights.append("other")
+                unique_labels = np.array(highlights)
+                num_labels = unique_labels.shape[0]
+                color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
+                color_key[-1] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
+
+                labels[[i not in highlights[:-1] for i in labels]] = "other"
+                points = pd.DataFrame(points)
+                points["label"] = pd.Categorical(labels)
+
+                # reorder data so that highlighting points will be on top of background points
+                highlight_ids, background_ids = (
+                    points["label"] != "other",
+                    points["label"] == "other",
+                )
+                # reorder_data = points.copy(deep=True)
+                # (
+                #     reorder_data.loc[:(sum(background_ids) - 1), :],
+                #     reorder_data.loc[sum(background_ids):, :],
+                # ) = (points.loc[background_ids, :].values, points.loc[highlight_ids, :].values)
+                points = pd.concat(
+                    (
+                        points.loc[background_ids, :],
+                        points.loc[highlight_ids, :],
+                    )
+                ).values
+                labels = points[:, 2]
+
+        # WARNING: do not change the following line to "elif" during refactor
+        # This if-else branch is not logically parallel to the previous one. The following branch sets `colors`.
+        if isinstance(color_key, dict):
+            main_debug("color_key is a dict")
+            colors = pd.Series(labels).map(color_key).values
+            unique_labels = np.unique(labels)
+            legend_elements = [
+                # Patch(facecolor=color_key[k], label=k) for k in unique_labels
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color=color_key[k],
+                    label=k,
+                    linestyle="None",
+                )
+                for k in unique_labels
+            ]
+        else:
+            main_debug("color_key is not None and not a dict")
+            unique_labels = np.unique(labels)
+            if len(color_key) < unique_labels.shape[0]:
+                raise ValueError("Color key must have enough colors for the number of labels")
+
+            new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
+            legend_elements = [
+                # Patch(facecolor=color_key[i], label=k)
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color=color_key[i],
+                    label=k,
+                    linestyle="None",
+                )
+                for i, k in enumerate(unique_labels)
+            ]
+            colors = pd.Series(labels).map(new_color_key)
+
+    # Color by values
+    elif values is not None:
+        main_debug("drawing points by values")
+        color_type = "values"
+        cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
+        cmap_.set_bad("lightgray")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            matplotlib.cm.register_cmap(name=cmap_.name, cmap=cmap_, override_builtin=True)
+
+        if values.shape[0] != points.shape[0]:
+            raise ValueError(
+                "Values must have a value for "
+                "each sample (size mismatch: {} {})".format(values.shape[0], points.shape[0])
+            )
+        # reorder data so that high values points will be on top of background points
+        sorted_id = (
+            np.argsort(abs(values)) if sort == "abs" else np.argsort(-values) if sort == "neg" else np.argsort(values)
+        )
+        values, points = values[sorted_id], points[sorted_id, :]
+
+        # if there are very few cells have expression, set the vmin/vmax only based on positive values to
+        # get rid of outliers
+        if np.nanmin(values) == 0:
+            n_pos_cells = sum(values > 0)
+            if 0 < n_pos_cells / len(values) < 0.02:
+                vmin = 0 if n_pos_cells == 1 else np.percentile(values[values > 0], 2)
+                vmax = np.nanmax(values) if n_pos_cells == 1 else np.percentile(values[values > 0], 98)
+                if vmin + vmax in [1, 100]:
+                    vmin += 1e-12
+                    vmax += 1e-12
+
+        # if None: min/max from data
+        # if positive and sum up to 1, take fraction
+        # if positive and sum up to 100, take percentage
+        # otherwise take the data
+        _vmin = (
+            np.nanmin(values)
+            if vmin is None
+            else np.nanpercentile(values, vmin * 100)
+            if (vmin + vmax == 1 and 0 <= vmin < vmax)
+            else np.nanpercentile(values, vmin)
+            if (vmin + vmax == 100 and 0 <= vmin < vmax)
+            else vmin
+        )
+        _vmax = (
+            np.nanmax(values)
+            if vmax is None
+            else np.nanpercentile(values, vmax * 100)
+            if (vmin + vmax == 1 and 0 <= vmin < vmax)
+            else np.nanpercentile(values, vmax)
+            if (vmin + vmax == 100 and 0 <= vmin < vmax)
+            else vmax
+        )
+
+        if sym_c and _vmin < 0 and _vmax > 0:
+            bounds = np.nanmax([np.abs(_vmin), _vmax])
+            bounds = bounds * np.array([-1, 1])
+            _vmin, _vmax = bounds
+
+
+        if "norm" in kwargs:
+            norm = kwargs["norm"]
+        else:
+            norm = matplotlib.colors.Normalize(vmin=_vmin, vmax=_vmax)
+
+        mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+        mappable.set_array(values)
+
+        cmap = matplotlib.cm.get_cmap(cmap)
+        colors = cmap(values)
+    # No color (just pick the midpoint of the cmap)
+    else:
+        main_debug("drawing points without color passed in args, using midpoint of the cmap")
+        color_type = "midpoint"
+        colors = plt.get_cmap(cmap)(0.5)
+
+    return (colors, color_type, None) if color_type != "labels" else (colors.values, color_type, legend_elements)
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -217,7 +425,9 @@ def _matplotlib_points(
     if ax is None:
         dpi = plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
-        ax = fig.add_subplot(111, projection=projection)
+        ax = fig.add_subplot(
+            111, projection=projection, computed_zorder=False,
+        ) if projection == "3d" else fig.add_subplot(111, projection=projection)
 
     ax.set_facecolor(background)
 
@@ -611,10 +821,12 @@ def _matplotlib_points(
             for i in unique_labels:
                 if i == "other":
                     continue
-                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype("float"), 0)
+                if projection == "3d":
+                    color_cnt = np.nanmedian(points[np.where(labels == i)[0], :3].astype("float"), 0)
+                else:
+                    color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype("float"), 0)
                 txt = ax.text(
-                    color_cnt[0],
-                    color_cnt[1],
+                    *color_cnt,
                     str(i),
                     color=_select_font_color(font_color),
                     zorder=1000,
@@ -1536,6 +1748,142 @@ def save_show_ret(
         return None
         #Unnessary because type hint handles cases where save_show_or_return is not accepted options.
         #raise NotImplementedError('Invalid "save_show_or_return".') (connectivity.py)
+
+
+
+def retrieve_plot_save_path(
+    path: Optional[str] = None,
+    prefix: Optional[str] = None,
+    ext: str = "pdf",
+) -> str:
+    """Retrieve the path to save dynamo plots.
+
+    Args:
+        path: the path (and filename, without the extension) to save_fig the figure to. Defaults to None.
+        prefix: the prefix added to the figure name. This will be automatically set accordingly to the plotting function
+            used. Defaults to None.
+        ext: the file extension. This must be supported by the active matplotlib or pyvista backend. Most backends
+            support 'png', 'pdf', 'ps', 'eps', and 'svg'. Defaults to "pdf".
+    Returns:
+        The saving path.
+    """
+    prefix = os.path.normpath(prefix)
+    if path is None:
+        path = os.getcwd() + "/"
+
+    # Extract the directory and filename from the given path
+    directory = os.path.split(path)[0]
+    filename = os.path.split(path)[1]
+    if directory == "":
+        directory = "."
+    if filename == "":
+        filename = "dyn_savefig"
+
+    # If the directory does not exist, create it
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # The final path to save_fig to
+    savepath = (
+        os.path.join(directory, filename + "." + ext)
+        if prefix is None
+        else os.path.join(directory, prefix + "_" + filename + "." + ext)
+    )
+
+    return savepath
+
+
+def save_pyvista_plotter(
+    pl,
+    colors_list: Optional[List] = None,
+    save_show_or_return: str = "show",
+    save_kwargs: Optional[Dict] = None,
+) -> Optional[Tuple]:
+    """Save, show or return the pyvista.Plotter.
+
+    Args:
+        pl: target plotter object.
+        colors_list: corresponding the list of colors mapping.
+        save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
+            the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
+            be return. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the saving function. By default, it is an empty dictionary
+            and the saving function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "title": PyVista Export, "raster": True, "painter": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+
+    Returns:
+        If `save_show_or_return` is `return` or `all`, the plotter object and list of color mapping will be returned.
+    """
+    try:
+        import pyvista as pv
+    except ImportError:
+        raise ImportError("Please install pyvista first.")
+
+    main_debug("show, return or save...")
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "scatters_pv",
+            "ext": "pdf",
+            "title": 'PyVista Export',
+            "raster": True,
+            "painter": True,
+        }
+
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
+        pl.save_graphic(saving_path, title=s_kwargs["title"], raster=s_kwargs["raster"], painter=s_kwargs["painter"])
+
+    if save_show_or_return in ["show", "both", "all"]:
+        pl.show()
+
+    if save_show_or_return in ["return", "all"]:
+        return (pl, colors_list) if colors_list else pl
+
+
+def save_plotly_figure(
+    pl,
+    colors_list: Optional[List] = None,
+    save_show_or_return: str = "show",
+    save_kwargs: Optional[Dict] = None,
+) -> Optional[Tuple]:
+    """Save, show or return the plotly figure.
+
+    Args:
+        pl: target plotly object.
+        colors_list: corresponding the list of colors mapping.
+        save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
+            the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
+            be return. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the saving function. By default, it is an empty dictionary
+            and the saving function will use the {"path": None, "prefix": 'scatter', "ext": 'html'} as its parameters.
+            Otherwise, you can provide a dictionary that properly modify those keys according to your needs. Defaults
+            to {}.
+
+    Returns:
+        If `save_show_or_return` is `return` or `all`, the figure and list of color mapping will be returned.
+    """
+
+    main_debug("show, return or save...")
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "scatters_plotly",
+            "ext": "html",
+        }
+
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        saving_path = retrieve_plot_save_path(path=s_kwargs["path"], prefix=s_kwargs["prefix"], ext=s_kwargs["ext"])
+        pl.write_html(saving_path)
+
+    if save_show_or_return in ["show", "both", "all"]:
+        pl.show()
+
+    if save_show_or_return in ["return", "all"]:
+        return (pl, colors_list) if colors_list else pl
 
 
 # ---------------------------------------------------------------------------------------------------
