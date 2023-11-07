@@ -26,13 +26,16 @@ from ..vectorfield.topography import (  # , compute_separatrices
 from ..vectorfield.topography import topography as _topology  # , compute_separatrices
 from ..vectorfield.utils import vecfld_from_adata
 from ..vectorfield.vector_calculus import curl, divergence
-from .scatters import docstrings, scatters
+from .scatters import docstrings, scatters, scatters_interactive
 from .utils import (
     _plot_traj,
     _select_font_color,
     default_quiver_args,
     quiver_autoscaler,
+    retrieve_plot_save_path,
     save_fig,
+    save_plotly_figure,
+    save_pyvista_plotter,
     set_arrow_alpha,
     set_stream_line_alpha,
 )
@@ -422,10 +425,11 @@ def plot_fixed_points(
     background: Optional[str] = None,
     save_show_or_return: Literal["save", "show", "return"] = "return",
     save_kwargs: Dict[str, Any] = {},
+    plot_method: Literal["pv", "matplotlib"] = "matplotlib",
     ax: Optional[Axes] = None,
     **kwargs,
 ) -> Optional[Axes]:
-    """Plot fixed points stored in the VectorField2D class.
+    """Plot fixed points stored in the VectorField class.
 
     Args:
         vecfld: an instance of the vector_field class.
@@ -444,7 +448,9 @@ def plot_fixed_points(
             and the save_fig function will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
-        ax: the matplotlib axes used for plotting. Default is to use the current axis. Defaults to None.
+        plot_method: the method to plot 3D points. Options include `pv` (pyvista) and `matplotlib`.
+        ax: the matplotlib axes or pyvista plotter used for plotting. Default is to use the current axis. Defaults to
+            None.
 
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the Axes of the generated
@@ -510,61 +516,144 @@ def plot_fixed_points(
             vecfld_dict["confidence"],
         )
 
-    if ax is None:
-        ax = plt.gca()
-
     cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
-    for i in range(len(Xss)):
-        cur_ftype = ftype[i]
-        marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
-        ax.scatter(
-            *Xss[i],
-            marker=marker_,
-            s=markersize,
-            c=c if confidence is None else np.array(cm(confidence[i])).reshape(1, -1),
-            edgecolor=_select_font_color(_background),
-            linewidths=1,
-            cmap=_cmap,
-            vmin=0,
-            zorder=5,
-        )
-        txt = ax.text(
-            *Xss[i],
-            repr(i),
-            c=("black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red"),
-            horizontalalignment="center",
-            verticalalignment="center",
-            zorder=6,
-            weight="bold",
-        )
-        txt.set_path_effects(
-            [
-                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
-                PathEffects.Normal(),
-            ]
-        )
+    colors = [c if confidence is None else np.array(cm(confidence[i])) for i in range(len(confidence))]
+    text_colors = ["black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red" for cur_ftype in ftype]
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_fixed_points",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
+    if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
 
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
+        emitting_indices = [index for index, color in enumerate(text_colors) if color == "red"]
+        unstable_indices = [index for index, color in enumerate(text_colors) if color == "blue"]
+        absorbing_indices = [index for index, color in enumerate(text_colors) if color == "black"]
+        fps_type_indices = [emitting_indices, unstable_indices, absorbing_indices]
 
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+        r, c = ax.shape[0], ax.shape[1]
+        subplot_indices = [[i, j] for i in range(r) for j in range(c)]
+        cur_subplot = 0
+
+        for i in range(r * c):
+
+            if r * c != 1:
+                ax.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
+                cur_subplot += 1
+
+            for indices in fps_type_indices:
+                points = pv.PolyData(Xss[indices])
+                points.point_data["colors"] = np.array(colors)[indices]
+                points["Labels"] = [str(idx) for idx in indices]
+
+                ax.add_points(points, render_points_as_spheres=True, rgba=True, point_size=15)
+                ax.add_point_labels(
+                    points,
+                    "Labels",
+                    text_color=text_colors[indices[0]],
+                    font_size=24,
+                    shape_opacity=0,
+                    show_points=False,
+                    always_visible=True,
+                )
+
+        return save_pyvista_plotter(
+            pl=ax,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+    elif plot_method == "plotly":
+        try:
+            import plotly.graph_objects as go
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+
+        r, c = ax._get_subplot_rows_columns()
+        r, c = list(r)[-1], list(c)[-1]
+        subplot_indices = [[i, j] for i in range(r) for j in range(c)]
+        cur_subplot = 0
+
+        for i in range(r * c):
+            ax.add_trace(
+                go.Scatter3d(
+                    x=Xss[:, 0],
+                    y=Xss[:, 1],
+                    z=Xss[:, 2],
+                    mode="markers+text",
+                    marker=dict(
+                        color=colors,
+                        size=15,
+                    ),
+                    text=[str(i) for i in range(len(Xss))],
+                    textfont=dict(
+                        color=text_colors,
+                        size=15,
+                    ),
+                    **kwargs,
+                ),
+                row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+            )
+
+        return save_plotly_figure(
+            pl=ax,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+    else:
+        if ax is None:
+            ax = plt.gca()
+
+        for i in range(len(Xss)):
+            cur_ftype = ftype[i]
+            marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
+            ax.scatter(
+                *Xss[i],
+                marker=marker_,
+                s=markersize,
+                c=c if confidence is None else np.array(cm(confidence[i])).reshape(1, -1),
+                edgecolor=_select_font_color(_background),
+                linewidths=1,
+                cmap=_cmap,
+                vmin=0,
+                zorder=5,
+            )  # TODO: Figure out the user warning that no data for colormapping provided via 'c'.
+            txt = ax.text(
+                *Xss[i],
+                repr(i),
+                c=("black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red"),
+                horizontalalignment="center",
+                verticalalignment="center",
+                zorder=6,
+                weight="bold",
+            )
+            txt.set_path_effects(
+                [
+                    PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
+                    PathEffects.Normal(),
+                ]
+            )
+
+        if save_show_or_return in ["save", "both", "all"]:
+            s_kwargs = {
+                "path": None,
+                "prefix": "plot_fixed_points",
+                "dpi": None,
+                "ext": "pdf",
+                "transparent": True,
+                "close": True,
+                "verbose": True,
+            }
+            s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+            if save_show_or_return in ["both", "all"]:
+                s_kwargs["close"] = False
+
+            save_fig(**s_kwargs)
+        if save_show_or_return in ["show", "both", "all"]:
+            plt.tight_layout()
+            plt.show()
+        if save_show_or_return in ["return", "all"]:
+            return ax
 
 
 def plot_traj(
@@ -1359,3 +1448,472 @@ def topography(
         plt.show()
     if save_show_or_return in ["return", "all"]:
         return axes_list if len(axes_list) > 1 else axes_list[0]
+
+
+# TODO: Implement more `terms` like streamline and trajectory for 3D topography
+@docstrings.with_indent(4)
+def topography_3D(
+    adata: AnnData,
+    basis: str = "umap",
+    fps_basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    z: int = 2,
+    color: str = "ntr",
+    layer: str = "X",
+    plot_method: Literal["pv", "matplotlib"] = "matplotlib",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
+    color_key_cmap: Optional[str] = None,
+    alpha: Optional[float] = None,
+    background: Optional[str] = "white",
+    ncols: int = 4,
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float, float] = (6, 4),
+    show_legend: str = True,
+    use_smoothed: bool = True,
+    xlim: np.ndarray = None,
+    ylim: np.ndarray = None,
+    zlim: np.ndarray = None,
+    t: Optional[npt.ArrayLike] = None,
+    terms: List[str] = ["fixed_points"],
+    init_cells: List[int] = None,
+    init_states: np.ndarray = None,
+    quiver_source: Literal["raw", "reconstructed"] = "raw",
+    approx: bool = False,
+    markersize: float = 200,
+    marker_cmap: Optional[str] = None,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = False,
+    ax: Optional[Axes] = None,
+    sort: Literal["raw", "abs", "neg"] = "raw",
+    frontier: bool = False,
+    s_kwargs_dict: Dict[str, Any] = {},
+    n: int = 25,
+) -> Union[Axes, List[Axes], None]:
+    """Plot the topography of the reconstructed vector field in 3D space.
+
+    Args:
+        adata: AnnData object that contains the reconstructed vector field.
+        basis: The embedding data space that will be used to plot the topography. Defaults to `umap`.
+        fps_basis: The embedding data space that will be used to plot the fixed points. Defaults to `umap`.
+        x: The index of the first dimension of the embedding data space that will be used to plot the topography.
+            Defaults to 0.
+        y: The index of the second dimension of the embedding data space that will be used to plot the topography.
+            Defaults to 1.
+        z: The index of the third dimension of the embedding data space that will be used to plot the topography.
+            Defaults to 2.
+        color: The color of the topography. Defaults to `ntr`.
+        layer: The layer of the data that will be used to plot the topography. Defaults to `X`.
+        plot_method: The method that will be used to plot the topography. Defaults to `matplotlib`.
+        highlights: The list of gene names that will be used to highlight the gene expression on the topography.
+            Defaults to None.
+        labels: The list of gene names that will be used to label the gene expression on the topography. Defaults to
+            None.
+        values: The list of gene names that will be used to color the gene expression on the topography. Defaults to
+            None.
+        theme: The color theme that will be used to plot the topography. Defaults to None.
+        cmap: The name of a matplotlib colormap that will be used to color the topography. Defaults to None.
+        color_key: The color dictionary that will be used to color the topography. Defaults to None.
+        color_key_cmap: The name of a matplotlib colormap that will be used to color the color key. Defaults to None.
+        alpha: The transparency of the topography. Defaults to None.
+        background: The background color of the topography. Defaults to `white`.
+        ncols: The number of columns for the figure. Defaults to 4.
+        pointsize: The scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        figsize: The width and height of a figure. Defaults to (6, 4).
+        show_legend: Whether to display a legend of the labels. Defaults to `on data`.
+        use_smoothed: Whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        xlim: The range of x-coordinate. Defaults to None.
+        ylim: The range of y-coordinate. Defaults to None.
+        zlim: The range of z-coordinate. Defaults to None.
+        t: The length of the time period from which to predict cell state forward or backward over time. This is used
+            by the odeint function. Defaults to None.
+        terms: A list of plotting items to include in the final topography figure. ('streamline', 'nullcline',
+            'fixed_points', 'separatrix', 'trajectory', 'quiver') are all the items that we can support. Defaults to
+            ["streamline", "fixed_points"].
+        init_cells: cell name or indices of the initial cell states for the historical or future cell state prediction
+            with numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be
+            treated as cell indices and must be integers. Defaults to None.
+        init_states: the initial cell states for the historical or future cell state prediction with numerical
+            integration. It can be either a one-dimensional array or N x 2 dimension array. The `init_state` will be
+            replaced to that defined by init_cells if init_cells are not None. Defaults to None.
+        quiver_source: the data source that will be used to draw the quiver plot. If `init_cells` is provided, this will
+            set to be the projected RNA velocity before vector field reconstruction automatically. If `init_cells` is
+            not provided, this will set to be the velocity vectors calculated from the reconstructed vector field
+            function automatically. If quiver_source is `reconstructed`, the velocity vectors calculated from the
+            reconstructed vector field function will be used. Defaults to "raw".
+        approx: whether to use streamplot to draw the integration line from the init_state. Defaults to False.
+        markersize: the size of the marker. Defaults to 200.
+        marker_cmap: the name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If
+            None, the default color map will set to be viridis (inferno) when the background is white (black). Defaults
+            to None.
+        save_show_or_return: Whether to save, show or return the figure. Defaults to `show`.
+        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
+            and the save_fig function will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        aggregate: The column in adata.obs that will be used to aggregate data points. Defaults to None.
+        show_arrowed_spines: Whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        ax: The axis on which to make the plot. Defaults to None.
+        sort: The method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw". Defaults to "raw".
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
+        s_kwargs_dict: The dictionary of the scatter arguments. Defaults to {}.
+        n: Number of samples for calculating the fixed points.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return', the Axes of the generated
+        subplots would be returned.
+    """
+
+    logger = LoggerManager.gen_logger("dynamo-topography-plot")
+    logger.log_time()
+
+    from matplotlib import rcParams
+    from matplotlib.colors import to_hex
+
+    if type(color) == str:
+        color = [color]
+
+    if alpha is None:
+        alpha = 0.8 if plot_method in ["pv", "plotly"] else 0.1
+
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _background = background
+
+    terms = list(terms) if type(terms) is tuple else [terms] if type(terms) is str else terms
+    if approx:
+        if "streamline" not in terms:
+            terms.append("streamline")
+        if "trajectory" in terms:
+            terms = list(set(terms).difference("trajectory"))
+
+    if init_cells is not None or init_states is not None:
+        terms.extend("trajectory")
+
+    uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
+    fps_uns_key = "VecFld" if fps_basis == "X" else "VecFld_" + fps_basis
+
+    if uns_key not in adata.uns.keys():
+
+        if "velocity_" + basis not in adata.obsm_keys():
+            logger.info(
+                f"velocity_{basis} is computed yet. " f"Projecting the velocity vector to {basis} basis now ...",
+                indent_level=1,
+            )
+            cell_velocities(adata, basis=basis)
+
+        logger.info(
+            f"Vector field for {basis} is not constructed. Constructing it now ...",
+            indent_level=1,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            if basis == fps_basis:
+                logger.info(
+                    f"`basis` and `fps_basis` are all {basis}. Will also map topography ...",
+                    indent_level=2,
+                )
+                VectorField(adata, basis, map_topography=True, n=n)
+            else:
+                VectorField(adata, basis)
+    if fps_uns_key not in adata.uns.keys():
+        if "velocity_" + basis not in adata.obsm_keys():
+            logger.info(
+                f"velocity_{basis} is computed yet. " f"Projecting the velocity vector to {basis} basis now ...",
+                indent_level=1,
+            )
+            cell_velocities(adata, basis=basis)
+
+        logger.info(
+            f"Vector field for {fps_basis} is not constructed. " f"Constructing it and mapping its topography now ...",
+            indent_level=1,
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            VectorField(adata, fps_basis, map_topography=True, n=n)
+
+    vecfld_dict, vecfld = vecfld_from_adata(adata, basis)
+
+    fps_vecfld_dict, fps_vecfld = vecfld_from_adata(adata, fps_basis)
+
+    # need to use "X_basis" to plot on the scatter point space
+    if "Xss" not in fps_vecfld_dict:
+        # if topology is not mapped for this basis, calculate it now.
+        logger.info(
+            f"Vector field for {fps_basis} is but its topography is not mapped. " f"Mapping topography now ...",
+            indent_level=1,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _topology(adata, fps_basis, VecFld=None, n=n)
+    else:
+        if fps_vecfld_dict["Xss"].size > 0 and fps_vecfld_dict["Xss"].shape[1] > 3:
+            fps_vecfld_dict["X_basis"], fps_vecfld_dict["Xss"] = (
+                vecfld_dict["X"][:, :3],
+                vecfld_dict["X"][fps_vecfld_dict["fp_ind"], :3],
+            )
+
+    xlim, ylim, zlim = (
+        adata.uns[fps_uns_key]["xlim"] if xlim is None else xlim,
+        adata.uns[fps_uns_key]["ylim"] if ylim is None else ylim,
+        adata.uns[fps_uns_key]["zlim"] if zlim is None else zlim,
+    )
+
+    if xlim is None or ylim is None or zlim is None:
+        X_basis = vecfld_dict["X"][:, :3]
+        min_, max_ = X_basis.min(0), X_basis.max(0)
+
+        xlim = [
+            min_[0] - (max_[0] - min_[0]) * 0.1,
+            max_[0] + (max_[0] - min_[0]) * 0.1,
+        ]
+        ylim = [
+            min_[1] - (max_[1] - min_[1]) * 0.1,
+            max_[1] + (max_[1] - min_[1]) * 0.1,
+        ]
+        zlim = [
+            min_[2] - (max_[2] - min_[2]) * 0.1,
+            max_[2] + (max_[2] - min_[2]) * 0.1,
+        ]
+
+
+    if init_cells is not None:
+        if init_states is None:
+            intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
+            _init_states = (
+                adata.obsm["X_" + basis][init_cells, :]
+                if len(intersect_cell_names) == 0
+                else adata[intersect_cell_names].obsm["X_" + basis].copy()
+            )
+            V = (
+                adata.obsm["velocity_" + basis][init_cells, :]
+                if len(intersect_cell_names) == 0
+                else adata[intersect_cell_names].obsm["velocity_" + basis].copy()
+            )
+
+            init_states = _init_states
+
+    if quiver_source == "reconstructed" or (init_states is not None and init_cells is None):
+        from ..tools.utils import vector_field_function
+
+        V = vector_field_function(init_states, vecfld_dict, [0, 1])
+
+    if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+
+        pl, colors_list = scatters_interactive(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            labels=labels,
+            values=values,
+            cmap=cmap,
+            theme=theme,
+            background=background,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            use_smoothed=use_smoothed,
+            save_show_or_return="return",
+            # style='points_gaussian',
+            opacity=alpha,
+        )
+
+        if "fixed_points" in terms:
+            pl = plot_fixed_points(
+                fps_vecfld,
+                fps_vecfld_dict,
+                background=_background,
+                ax=pl,
+                markersize=markersize,
+                cmap=marker_cmap,
+                plot_method="pv",
+            )
+
+        return save_pyvista_plotter(
+            pl=pl,
+            colors_list=colors_list,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+    elif plot_method == "plotly":
+        try:
+            import plotly.graph_objects as go
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+
+        pl, colors_list = scatters_interactive(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            plot_method="plotly",
+            labels=labels,
+            values=values,
+            cmap=cmap,
+            theme=theme,
+            background=background,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            use_smoothed=use_smoothed,
+            save_show_or_return="return",
+            opacity=alpha,
+        )
+
+        if "fixed_points" in terms:
+            pl = plot_fixed_points(
+                fps_vecfld,
+                fps_vecfld_dict,
+                background=_background,
+                ax=pl,
+                markersize=markersize,
+                cmap=marker_cmap,
+                plot_method="plotly",
+            )
+
+        return save_plotly_figure(
+            pl=pl,
+            colors_list=colors_list,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+    else:
+        # plt.figure(facecolor=_background)
+        axes_list, color_list, font_color = scatters(
+            adata=adata,
+            basis=basis,
+            x=x,
+            y=y,
+            z=z,
+            color=color,
+            layer=layer,
+            highlights=highlights,
+            labels=labels,
+            values=values,
+            theme=theme,
+            cmap=cmap,
+            color_key=color_key,
+            color_key_cmap=color_key_cmap,
+            alpha=alpha,
+            background=_background,
+            ncols=ncols,
+            pointsize=pointsize,
+            figsize=figsize,
+            show_legend=show_legend,
+            use_smoothed=use_smoothed,
+            aggregate=aggregate,
+            show_arrowed_spines=show_arrowed_spines,
+            ax=ax,
+            sort=sort,
+            save_show_or_return="return",
+            frontier=frontier,
+            projection="3d",
+            **s_kwargs_dict,
+            return_all=True,
+        )
+
+        if type(axes_list) != list:
+            axes_list, color_list, font_color = (
+                [axes_list],
+                [color_list],
+                [font_color],
+            )
+        for i in range(len(axes_list)):
+            # ax = axes_list[i]
+
+            axes_list[i].set_xlabel(basis + "_1")
+            axes_list[i].set_ylabel(basis + "_2")
+            axes_list[i].set_zlabel(basis + "_3")
+            # axes_list[i].set_aspect("equal")
+
+            # Build the plot
+            axes_list[i].set_xlim(xlim)
+            axes_list[i].set_ylim(ylim)
+            axes_list[i].set_zlim(zlim)
+
+            axes_list[i].set_facecolor(background)
+
+            if t is None:
+                if vecfld_dict["grid_V"] is None:
+                    max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["V"][:, :2]))
+                else:
+                    max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["grid_V"]))
+
+                t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
+
+            if "fixed_points" in terms:
+                axes_list[i] = plot_fixed_points(
+                    fps_vecfld,
+                    fps_vecfld_dict,
+                    background=_background,
+                    ax=axes_list[i],
+                    markersize=markersize,
+                    cmap=marker_cmap,
+                )
+
+        if save_show_or_return in ["save", "both", "all"]:
+            s_kwargs = {
+                "path": None,
+                "prefix": "topography",
+                "dpi": None,
+                "ext": "pdf",
+                "transparent": True,
+                "close": True,
+                "verbose": True,
+            }
+            s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+            if save_show_or_return in ["both", "all"]:
+                s_kwargs["close"] = False
+
+            save_fig(**s_kwargs)
+        if save_show_or_return in ["show", "both", "all"]:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                plt.tight_layout()
+
+            plt.show()
+        if save_show_or_return in ["return", "all"]:
+            return axes_list if len(axes_list) > 1 else axes_list[0]

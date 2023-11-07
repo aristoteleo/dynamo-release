@@ -2,7 +2,7 @@
 import datetime
 import os
 import warnings
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -603,6 +603,105 @@ class VectorField2D:
         return dict_vf
 
 
+class VectorField3D(VectorField2D):
+    """A class that represents a 3D vector field, which is a type of mathematical object that assigns a 3D vector to
+    each point in a 3D space.
+
+    The class is derived from the VectorField2D class. This vector field can be defined using a function that returns
+    the vector at each point, or by separate functions for the x and y components of the vector. Nullclines calculation
+    are not supported for 3D vector space because of the computational complexity.
+    """
+    def __init__(
+        self,
+        func: Callable,
+        func_vx: Optional[Callable] = None,
+        func_vy: Optional[Callable] = None,
+        func_vz: Optional[Callable] = None,
+        X_data: Optional[np.ndarray] = None,
+    ) -> None:
+        """Initialize the VectorField3D object.
+
+        Args:
+            func: a function that takes an (n, 3) array of coordinates and returns an (n, 3) array of vectors
+            func_vx: a function that takes an (n, 3) array of coordinates and returns an (n,) array of x components of
+                the vectors, Defaults to None.
+            func_vy: a function that takes an (n, 3) array of coordinates and returns an (n,) array of y components of
+                the vectors, Defaults to None.
+            func_vz: a function that takes an (n, 3) array of coordinates and returns an (n,) array of z components of
+                the vectors, Defaults to None.
+            X_data: Defaults to None.
+        """
+        super().__init__(func, func_vx, func_vy, X_data)
+
+        def func_dim(x, func, dim):
+            y = func(x)
+            if y.ndim == 1:
+                y = y[dim]
+            else:
+                y = y[:, dim].flatten()
+            return y
+
+        if func_vz is None:
+            self.fz = lambda x: func_dim(x, self.func, 2)
+        else:
+            self.fz = func_vz
+
+        self.NCz = None
+
+    def find_fixed_points_by_sampling(
+        self,
+        n: int,
+        x_range: Tuple[float, float],
+        y_range: Tuple[float, float],
+        z_range: Tuple[float, float],
+        lhs: Optional[bool] = True,
+        tol_redundant: float = 1e-4,
+    ) -> None:
+        """Find fixed points by sampling the vector field within a specified range of coordinates.
+
+        Args:
+            n: the number of samples to take.
+            x_range: a tuple of two floats specifying the range of x coordinates to sample.
+            y_range: a tuple of two floats specifying the range of y coordinates to sample.
+            z_range: a tuple of two floats specifying the range of z coordinates to sample.
+            lhs: whether to use Latin Hypercube Sampling to generate the samples. Defaults to `True`.
+            tol_redundant: the tolerance for removing redundant fixed points. Defaults to 1e-4.
+        """
+        if lhs:
+            from ..tools.sampling import lhsclassic
+
+            X0 = lhsclassic(n, 3)
+        else:
+            X0 = np.random.rand(n, 3)
+        X0[:, 0] = X0[:, 0] * (x_range[1] - x_range[0]) + x_range[0]
+        X0[:, 1] = X0[:, 1] * (y_range[1] - y_range[0]) + y_range[0]
+        X0[:, 2] = X0[:, 2] * (z_range[1] - z_range[0]) + z_range[0]
+        X, J, _ = find_fixed_points(
+            X0,
+            self.func,
+            domain=[x_range, y_range, z_range],
+            tol_redundant=tol_redundant,
+        )
+        if X is None:
+            raise ValueError(f"No fixed points found. Try to increase the number of samples n.")
+        self.Xss.add_fixed_points(X, J, tol_redundant)
+
+
+    def output_to_dict(self, dict_vf) -> Dict:
+        """Output the vector field as a dictionary.
+
+        Returns:
+            A dictionary containing nullclines, fixed points, confidence and jacobians.
+        """
+        dict_vf["NCx"] = self.NCx
+        dict_vf["NCy"] = self.NCy
+        dict_vf["NCz"] = self.NCz
+        dict_vf["Xss"] = self.Xss.get_X()
+        dict_vf["confidence"] = self.get_Xss_confidence()
+        dict_vf["J"] = self.Xss.get_J()
+        return dict_vf
+
+
 def util_topology(
     adata: AnnData,
     basis: str,
@@ -620,17 +719,24 @@ def util_topology(
         basis: A string specifying the reduced dimension embedding  to use for the computation.
         dims: A tuple of two integers specifying the dimensions of X to consider.
         func: A vector-valued function taking in coordinates and returning the vector field.
-        VecFld: `VecFldDict` TypedDict storing information about the vector field and SparseVFC-related parameters and computations.
-        X: an alternative to providing an `AnnData` object. Provide an np.ndarray from which `dims` are accessed, Defaults to None.
+        VecFld: `VecFldDict` TypedDict storing information about the vector field and SparseVFC-related parameters and
+            computations.
+        X: an alternative to providing an `AnnData` object. Provide a np.ndarray from which `dims` are accessed,
+            Defaults to None.
         n: An optional integer specifying the number of points to use for computing fixed points. Defaults to 25.
 
     Returns:
         A tuple consisting of the following elements:
-            - X_basis: an array of shape (n, 2) where n is the number of points in X. This is the subset of X consisting of the first two dimensions specified by dims. If X is not provided, X_basis is taken from the obsm attribute of adata using the key "X_" + basis.
-            - xlim, ylim: a tuple of floats specifying the limits of the x and y axes, respectively. These are computed based on the minimum and maximum values of X_basis.
+            - X_basis: an array of shape (n, 2) where n is the number of points in X. This is the subset of X consisting
+                of the first two dimensions specified by dims. If X is not provided, X_basis is taken from the obsm
+                attribute of adata using the key "X_" + basis.
+            - xlim, ylim, zlim: a tuple of floats specifying the limits of the x, y and z axes, respectively. These are
+                computed based on the minimum and maximum values of X_basis.
             - confidence: an array of shape (n, ) containing the confidence scores of the fixed points.
-            - NCx, NCy: arrays of shape (n, ) containing the x and y coordinates of the nullclines (lines where the derivative of the system is zero), respectively.
-            - Xss: an array of shape (n, k) where k is the number of dimensions of the system, containing the fixed points.
+            - NCx, NCy: arrays of shape (n, ) containing the x and y coordinates of the nullclines (lines where the
+                derivative of the system is zero), respectively.
+            - Xss: an array of shape (n, k) where k is the number of dimensions of the system, containing the fixed
+                points.
             - ftype: an array of shape (n, ) containing the types of fixed points (attractor, repeller, or saddle).
             - an array of shape (n, ) containing the indices of the fixed points in the original data.
     """
@@ -648,6 +754,7 @@ def util_topology(
             min_[1] - (max_[1] - min_[1]) * 0.1,
             max_[1] + (max_[1] - min_[1]) * 0.1,
         ]
+        zlim = None
 
         vecfld = VectorField2D(func, X_data=X_basis)
         vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
@@ -657,9 +764,33 @@ def util_topology(
 
         Xss, ftype = vecfld.get_fixed_points(get_types=True)
         confidence = vecfld.get_Xss_confidence()
+    elif X_basis.shape[1] == 3:
+        fp_ind = None
+        min_, max_ = X_basis.min(0), X_basis.max(0)
+
+        xlim = [
+            min_[0] - (max_[0] - min_[0]) * 0.1,
+            max_[0] + (max_[0] - min_[0]) * 0.1,
+        ]
+        ylim = [
+            min_[1] - (max_[1] - min_[1]) * 0.1,
+            max_[1] + (max_[1] - min_[1]) * 0.1,
+        ]
+        zlim = [
+            min_[2] - (max_[2] - min_[2]) * 0.1,
+            max_[2] + (max_[2] - min_[2]) * 0.1,
+        ]
+
+        vecfld = VectorField3D(func, X_data=X_basis)
+        vecfld.find_fixed_points_by_sampling(n, xlim, ylim, zlim)
+
+        NCx, NCy = None, None
+
+        Xss, ftype = vecfld.get_fixed_points(get_types=True)
+        confidence = vecfld.get_Xss_confidence()
     else:
         fp_ind = None
-        xlim, ylim, confidence, NCx, NCy = None, None, None, None, None
+        xlim, ylim, zlim, confidence, NCx, NCy = None, None, None, None, None, None
         vecfld = BaseVectorField(
             X=VecFld["X"][VecFld["valid_ind"], :],
             V=VecFld["Y"][VecFld["valid_ind"], :],
@@ -671,7 +802,7 @@ def util_topology(
             fp_ind = nearest_neighbors(Xss, vecfld.data["X"], 1).flatten()
             Xss = vecfld.data["X"][fp_ind]
 
-    return X_basis, xlim, ylim, confidence, NCx, NCy, Xss, ftype, fp_ind
+    return X_basis, xlim, ylim, zlim, confidence, NCx, NCy, Xss, ftype, fp_ind
 
 
 def topography(
@@ -684,12 +815,13 @@ def topography(
     VecFld: Optional[VecFldDict] = None,
     **kwargs,
 ) -> AnnData:
-    """Map the topography of the single cell vector field in (first) two dimensions.
+    """Map the topography of the single cell vector field in (first) two or three dimensions.
 
     Args:
         adata: an AnnData object.
         basis: The reduced dimension embedding of cells to visualize.
-        layer: Which layer of the data will be used for vector field function reconstruction. This will be used in conjunction with X.
+        layer: Which layer of the data will be used for vector field function reconstruction. This will be used in
+            conjunction with X.
         X: Original data. Not used
         dims: The dimensions that will be used for vector field reconstruction.
         n: Number of samples for calculating the fixed points.
@@ -699,7 +831,8 @@ def topography(
 
     Returns:
         `AnnData` object that is updated with the `VecFld` or 'VecFld_' + basis dictionary in the `uns` attribute.
-        The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline, separatrix, computed and stored.
+        The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline,
+            separatrix, computed and stored.
     """
 
     if VecFld is None:
@@ -722,6 +855,7 @@ def topography(
         X_basis,
         xlim,
         ylim,
+        zlim,
         confidence,
         NCx,
         NCy,
@@ -743,6 +877,7 @@ def topography(
             {
                 "xlim": xlim,
                 "ylim": ylim,
+                "zlim": zlim,
                 "X_data": X_basis,
                 "Xss": Xss,
                 "ftype": ftype,
@@ -756,6 +891,7 @@ def topography(
         adata.uns[vf_key] = {
             "xlim": xlim,
             "ylim": ylim,
+            "zlim": zlim,
             "X_data": X_basis,
             "Xss": Xss,
             "ftype": ftype,
