@@ -32,7 +32,6 @@ from .utils import (
     _select_font_color,
     default_quiver_args,
     quiver_autoscaler,
-    save_fig,
     save_show_ret,
     set_arrow_alpha,
     set_stream_line_alpha,
@@ -856,8 +855,8 @@ def topography(
             None, the default color map will set to be viridis (inferno) when the background is white (black). Defaults
             to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         aggregate: the column in adata.obs that will be used to aggregate data points. Defaults to None.
@@ -1215,28 +1214,4 @@ def topography(
                 **quiver_kwargs,
             )  # color='red',  facecolors='gray'
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "topography",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-
-            plt.tight_layout()
-
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return axes_list if len(axes_list) > 1 else axes_list[0]
+    save_show_ret("topography", save_show_or_return, save_kwargs, axes_list if len(axes_list) > 1 else axes_list[0])

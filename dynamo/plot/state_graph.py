@@ -10,7 +10,6 @@ import pandas as pd
 from anndata import AnnData
 from matplotlib.axes import Axes
 
-from ..tools.utils import update_dict
 from .scatters import docstrings, scatters
 from .utils import save_show_ret
 

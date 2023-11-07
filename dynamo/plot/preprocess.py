@@ -19,7 +19,7 @@ from ..dynamo_logger import main_warning
 from ..preprocessing import gene_selection
 from ..preprocessing.gene_selection import get_prediction_by_svr
 from ..preprocessing.utils import detect_experiment_datatype
-from ..tools.utils import get_mapper, update_dict
+from ..tools.utils import get_mapper
 from .utils import save_fig, save_show_ret
 
 

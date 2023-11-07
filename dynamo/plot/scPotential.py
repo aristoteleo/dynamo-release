@@ -9,7 +9,6 @@ import numpy as np
 from anndata import AnnData
 from matplotlib.axes import Axes
 
-from ..tools.utils import update_dict
 from .utils import save_show_ret
 
 

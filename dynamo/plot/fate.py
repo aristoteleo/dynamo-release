@@ -12,9 +12,8 @@ from anndata import AnnData
 from matplotlib.axes import Axes
 
 from ..prediction.fate import fate_bias as fate_bias_pd
-from ..tools.utils import update_dict
-from .scatters import save_show_ret, scatters
-from .utils import map2color
+from .scatters import scatters
+from .utils import map2color, save_show_ret
 
 
 def fate_bias(

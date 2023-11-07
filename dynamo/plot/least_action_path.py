@@ -14,7 +14,6 @@ from ..prediction.utils import (
     interp_second_derivative,
     kneedle_difference,
 )
-from ..tools.utils import update_dict
 from ..utils import denormalize, normalize
 from .ezplots import plot_X, zscatter
 from .scatters import save_show_ret, scatters

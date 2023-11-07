@@ -13,7 +13,6 @@ import numpy as np
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
-from ..tools.utils import update_dict
 from .utils import get_color_map_from_labels, save_show_ret
 
 

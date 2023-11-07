@@ -32,7 +32,6 @@ from matplotlib.figure import Figure
 from ..configuration import _themes
 from ..docrep import DocstringProcessor
 from ..tools.connectivity import check_and_recompute_neighbors
-from ..tools.utils import update_dict
 from .utils import is_list_of_lists  # is_gene_name
 from .utils import (
     _datashade_points,
@@ -203,7 +202,6 @@ def connectivity_base(
         ImportError: `datashader` is not installed.
         NotImplementedError: invalid `theme`.
         ValueError: invalid `edge_bundling`.
-        NotImplementedError: invalid `save_show_or_return`.
 
     Returns:
         The matplotlib axis with the relevant plot displayed by default. If `save_show_or_return` is set to be `"show"`
@@ -424,7 +422,6 @@ def nneighbors(
 
     Raises:
         TypeError: wrong type of `x` and `y`.
-        NotImplementedError: invalid `save_show_or_return`.
 
     Returns:
         The matplotlib axis with the plotted knn graph by default. If `save_show_or_return` is set to be `"show"`
