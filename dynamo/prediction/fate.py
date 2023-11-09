@@ -247,6 +247,12 @@ def _fate(
         prediction: Predicted cells states at different time points. Row order corresponds to the element order in t. If init_states corresponds to multiple cells, the expression dynamics over time for each cell is concatenated by rows. That is, the final dimension of prediction is (len(t) * n_cells, n_features). n_cells: number of cells; n_features: number of genes or number of low dimensional embeddings. Of note, if the average is set to be True, the average cell state at each time point is calculated for all cells.
     """
 
+    if sampling == "uniform_indices":
+        main_warning(
+            f"Uniform_indices method sample data points from all time points. The multiprocessing will be disabled."
+        )
+        cores = 1
+
     t_linspace = getTseq(init_states, t_end, step_size)
 
     if cores == 1:
