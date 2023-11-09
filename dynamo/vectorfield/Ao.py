@@ -142,3 +142,34 @@ def Ao_pot_map_jac(fjac, X, D=None, **kwargs):
         U[i] = -0.5 * X_s.dot(H).dot(X_s)
 
     return U.flatten()
+
+
+def construct_Ao_potential_grid(
+    X: np.ndarray,
+    U: np.ndarray,
+    interpolation_method: str = "linear",
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Construct a grid of potential landscape from the given coordinates and potential values.
+
+    Args:
+        X: A matrix storing the x-coordinates on the two-dimesional grid.
+        U: A matrix storing the potential value at each position.
+        interpolation_method: The method of interpolation. Defaults to "linear".
+
+    Returns:
+        A tuple containing matrices storing the x, y ,z coordinates on the 3-dimensional grid.
+    """
+    from scipy.interpolate import griddata
+
+    xi, yi = np.linspace(X[:, 0].min(), X[:, 0].max(), 100), np.linspace(X[:, 1].min(), X[:, 1].max(), 100)
+    Xgrid, Ygrid = np.meshgrid(xi, yi)
+
+    Zgrid = griddata(
+        X,
+        U,
+        np.vstack((Xgrid.flatten(), Ygrid.flatten())).T,
+        method=interpolation_method,
+    )
+    Zgrid = Zgrid.reshape(Xgrid.shape)
+
+    return Xgrid, Ygrid, Zgrid

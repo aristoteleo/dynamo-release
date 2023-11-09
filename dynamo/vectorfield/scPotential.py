@@ -7,7 +7,7 @@ import scipy.optimize
 from typing import Callable, List, Optional, Tuple, Union
 
 from ..tools.sampling import lhsclassic
-from .Ao import Ao_pot_map
+from .Ao import Ao_pot_map, construct_Ao_potential_grid
 from .Bhattacharya import alignment, path_integral
 from .topography import FixedPoints
 from .utils import is_outside_domain, vecfld_from_adata
@@ -570,10 +570,13 @@ class Pot:
             X = adata.obsm["X_" + basis]
             X, U, P, vecMat, S, A = Ao_pot_map(self.VecFld["Function"], X, D=self.VecFld["DiffusionMatrix"](X.T))
 
+            Xgrid, Ygrid, Zgrid = construct_Ao_potential_grid(X=X, U=U)
+
             adata.uns["grid_Pot_" + basis] = {
-                "Xgrid": X,
-                "Ygrid": U,
-                "Zgrid": P,
+                "Xgrid": Xgrid,
+                "Ygrid": Ygrid,
+                "Zgrid": Zgrid,
+                "P": P,
                 "S": S,
                 "A": A,
             }
