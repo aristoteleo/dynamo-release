@@ -133,8 +133,8 @@ def score_cells(
 def cell_growth_rate(
     adata: AnnData,
     group: str,
-    source: str,
-    target: str,
+    source: Optional[str] = None,
+    target: Optional[str] = None,
     L0: float = 0.3,
     L: float = 1.2,
     k: float = 1e-3,
@@ -149,10 +149,10 @@ def cell_growth_rate(
         adata: an AnnData object.
         group: The column key in .obs points to the collection time of each cell, required for calculating growth rate
             with clone information.
-        source: The column key in .obs points to the starting point from collection time of each cell, required for
-            calculating growth rate with clone information.
-        target: The column key in .obs points to the end point from collection time of each cell, required for
-            calculating growth rate with clone information.
+        source: The value in the `group` column representing the starting point from collection time of each cell,
+            required for calculating growth rate with clone information.
+        target: The value in the `group` column representing the end point from collection time of each cell, required
+            for calculating growth rate with clone information.
         L0: The base growth/death rate. Defaults to 0.3.
         L: The maximum growth/death rate. Defaults to 1.2.
         k: The steepness of the curve. Defaults to 1e-3.
@@ -189,7 +189,7 @@ def cell_growth_rate(
                 f"At least one of your input clone information {clone_column}, {group} "
                 f"is not in your adata .obs attribute."
             )
-        if any(i not in adata.obs[group] for i in all_clone_info[2:]):
+        if any(i not in adata.obs[group].values for i in all_clone_info[2:]):
             raise ValueError(
                 f"At least one of your input source/target information {source}, {target} "
                 f"is not in your adata.obs[{group}] column."
