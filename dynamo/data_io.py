@@ -373,6 +373,15 @@ def export_h5ad(adata: AnnData, path: str = "data/processed_data.h5ad") -> None:
     if "kmc" in adata.uns.keys():
         export_kmc(adata)
 
+    fate_keys = [i if i.startswith("fate") else None for i in adata.uns_keys()]
+    for i in fate_keys:
+        if i is not None:
+            if "prediction" in adata.uns[i].keys():
+                adata.uns[i]["prediction"] = {str(index): array for index, array in
+                                              enumerate(adata.uns[i]["prediction"])}
+            if "t" in adata.uns[i].keys():
+                adata.uns[i]["t"] = {str(index): array for index, array in enumerate(adata.uns[i]["t"])}
+
     adata.write_h5ad(path)
 
 
@@ -382,6 +391,14 @@ def import_h5ad(path: str ="data/processed_data.h5ad") -> AnnData:
     adata = read_h5ad(path)
     if "kmc_params" in adata.uns.keys():
         import_kmc(adata)
+
+    fate_keys = [i if i.startswith("fate") else None for i in adata.uns_keys()]
+    for i in fate_keys:
+        if i is not None:
+            if "prediction" in adata.uns[i].keys():
+                adata.uns[i]["prediction"] = [adata.uns[i]["prediction"][index] for index in adata.uns[i]["prediction"]]
+            if "t" in adata.uns[i].keys():
+                adata.uns[i]["t"] = [adata.uns[i]["t"][index] for index in adata.uns[i]["t"]]
 
     return adata
 
