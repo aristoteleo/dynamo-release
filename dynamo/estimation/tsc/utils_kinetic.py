@@ -1118,7 +1118,7 @@ class Deterministic(LinearODE):
             x0: The initial conditions.
 
         Returns:
-            The solution of unspliced and splcied mRNA wrapped in an array.
+            The solution of unspliced and spliced mRNA wrapped in an array.
         """
         if x0 is None:
             x0 = self.x0
