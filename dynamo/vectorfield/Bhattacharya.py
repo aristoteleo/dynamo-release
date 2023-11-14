@@ -30,17 +30,18 @@ def path_integral(
         numTimeSteps: A high-enough number for convergence with given dt.
 
     Returns:
-        numAttractors: Number of attractors identified by the path integral approach.
-        attractors_num_X_Y: Attractor number and the corresponding x, y coordinates.
-        sepx_old_new_pathNum: The IDs of the two attractors for each separaxis per row.
-        numPaths_att: Number of paths per attractor
-        numPaths: Total Number of paths for defined grid spacing.
-        numTimeSteps: A high-enough number for convergence with given dt.
-        pot_path: Potential along the path. (dimension: numPaths x numTimeSteps)
-        path_tag: Tag for given path (to denote basin of attraction). (dimension: numPaths x 1)
-        attractors_pot: Potential value of each identified attractors by the path integral approach.
-        x_path: x-coord along path.
-        y_path: y-coord along path.
+        A tuple containing:
+            numAttractors: Number of attractors identified by the path integral approach.
+            attractors_num_X_Y: Attractor number and the corresponding x, y coordinates.
+            sepx_old_new_pathNum: The IDs of the two attractors for each separaxis per row.
+            numPaths_att: Number of paths per attractor
+            numPaths: Total Number of paths for defined grid spacing.
+            numTimeSteps: A high-enough number for convergence with given dt.
+            pot_path: Potential along the path. (dimension: numPaths x numTimeSteps)
+            path_tag: Tag for given path (to denote basin of attraction). (dimension: numPaths x 1)
+            attractors_pot: Potential value of each identified attractors by the path integral approach.
+            x_path: x-coord along path.
+            y_path: y-coord along path.
     """
 
     # -- First, generate potential surface from deterministic rate equations –
@@ -335,9 +336,10 @@ def alignment(
             `CloughTocher2DInterpolator` for more details.
 
     Returns:
-        Xgrid: x-coordinates of the Grid produced from the meshgrid function.
-        Ygrid: y-coordinates of the Grid produced from the meshgrid function.
-        Zgrid: z-coordinates or potential at each of the x/y coordinate.
+        A tuple containing:
+            Xgrid: x-coordinates of the Grid produced from the meshgrid function.
+            Ygrid: y-coordinates of the Grid produced from the meshgrid function.
+            Zgrid: z-coordinates or potential at each of the x/y coordinate.
     """
 
     # -- need 1-D "lists" (vectors) to plot all x,y, Pot values along paths --

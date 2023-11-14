@@ -16,10 +16,7 @@ def f_left(X: np.ndarray, F: np.ndarray) -> np.ndarray:
 
 
 def f_left_jac(q: np.ndarray, F: np.ndarray) -> np.ndarray:
-    """
-    Analytical Jacobian of f(Q) = F.Q - (F.Q)^T, where Q is
-    an anti-symmetric matrix s.t. Q^T = -Q.
-    """
+    """Analytical Jacobian of f(Q) = F.Q - (F.Q)^T, where Q is an anti-symmetric matrix s.t. Q^T = -Q."""
     J = np.zeros((np.prod(F.shape), len(q)))
     for i in range(len(q)):
         jac = np.zeros(F.shape)
@@ -48,12 +45,13 @@ def solveQ(
     Args:
         D: A symmetric diffusion matrix.
         F: Jacobian of the vector field function evaluated at a particular point.
-        q0: Initial guess of the solution Q
+        q0: Initial guess of the solution Q.
         debug: Whether additional info of the solution is returned.
         precompute_jac: Whether the analytical Jacobian is precomputed for the optimizer.
 
     Returns:
-        The solved anti-symmetric Q matrix and the value of the right-hand side of the equation to be solved, optionally along with the value of the left-hand side of the equation and the cost of the solution if debug is True.
+        The solved anti-symmetric Q matrix and the value of the right-hand side of the equation to be solved, optionally
+        along with the value of the left-hand side of the equation and the cost of the solution if debug is True.
     """
 
     n = D.shape[0]
@@ -79,24 +77,25 @@ def Ao_pot_map(
     vecFunc: Callable, X: np.ndarray, fjac: Optional[Callable] = None, D: Optional[np.ndarray] = None, **kwargs
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List, List, List]:
     """Mapping potential landscape with the algorithm developed by Ao method.
-    References: Potential in stochastic differential equations: novel construction. Journal of physics A: mathematical and
-        general, Ao Ping, 2004
+    References: Potential in stochastic differential equations: novel construction. Journal of physics A: mathematical
+        and general, Ao Ping, 2004
 
     Args:
         vecFunc: The vector field function.
         X: A (n_cell x n_dim) matrix of coordinates where the potential function is evaluated.
         fjac: function that returns the Jacobian of the vector field function evaluated at a particular point.
-        D: Diffusion matrix. It must be a square matrix with size corresponds to the number of columns (features) in the X matrix.
+        D: Diffusion matrix. It must be a square matrix with size corresponds to the number of columns (features) in the
+            X matrix.
 
     Returns:
-        X: A matrix storing the x-coordinates on the two-dimesional grid.
+        X: A matrix storing the x-coordinates on the two-dimensional grid.
         U: A matrix storing the potential value at each position.
         P: Steady state distribution or the Boltzmann-Gibbs distribution for the state variable.
         vecMat: List velocity vector at each position from X.
-        S: List of constant symmetric and semi-positive matrix or friction (dissipative) matrix, corresponding to the divergence part,
+        S: List of constant symmetric and semi-positive matrix or friction (dissipative) matrix, corresponding to the
+            divergence part, at each position from X.
+        A: List of constant antisymmetric matrix or transverse (non-dissipative) matrix, corresponding to the curl part,
             at each position from X.
-        A: List of constant antisymmetric matrix or transverse (non-dissipative) matrix, corresponding to the curl part, at each position
-            from X.
     """
 
     import numdifftools as nda
@@ -152,7 +151,7 @@ def construct_Ao_potential_grid(
     """Construct a grid of potential landscape from the given coordinates and potential values.
 
     Args:
-        X: A matrix storing the x-coordinates on the two-dimesional grid.
+        X: A matrix storing the x-coordinates on the two-dimensional grid.
         U: A matrix storing the potential value at each position.
         interpolation_method: The method of interpolation. Defaults to "linear".
 

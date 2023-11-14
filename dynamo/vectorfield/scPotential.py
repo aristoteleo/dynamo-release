@@ -442,18 +442,17 @@ def Potential(
 
     This function implements the Ao, Bhattacharya method and Ying method and will also support other methods shortly.
 
-    Parameters
-    ----------
+    Args:
         adata: AnnData object that contains embedding and velocity data.
         basis: the basis of vector field function.
         x_lim: lower or upper limit of x-axis.
         y_lim: lower or upper limit of y-axis.
         DiffMat: The function which returns the diffusion matrix which can variable (for example, gene) dependent.
         method: Method to map the potential landscape.
+        kwargs: Additional parameters for the method.
 
-    Returns
-    -------
-        adata: `AnnData` object that is updated with the `Pot` dictionary in the `uns` attribute.
+    Returns:
+        The `AnnData` object that is updated with the `Pot` dictionary in the `uns` attribute.
 
     """
 
@@ -478,10 +477,11 @@ class Pot:
         stable: Optional[np.ndarray] = None,
         saddle: Optional[np.ndarray] = None,
     ):
-        """It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
-        differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
-        on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
-        large noise. Y Tang, R Yuan, G Wang, X Zhu, P Ao - Scientific reports, 2017
+        """It implements the least action method to calculate the potential values of fixed points for a given SDE
+        (stochastic differential equation) model. The function requires the vector field function and a diffusion
+        matrix. This code is based on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high
+        dimensional nonlinear stochastic dynamics with large noise. Y Tang, R Yuan, G Wang, X Zhu, P Ao - Scientific
+        reports, 2017
 
         Args:
             Function: The (reconstructed) vector field function.
@@ -556,14 +556,19 @@ class Pot:
 
         Returns:
             The AnnData object updated with the following values:
-                if Bhattacharya is used:
+                for all methods:
                     Xgrid: The X grid to visualize "potential surface"
                     Ygrid: The Y grid to visualize "potential surface"
-                    Zgrid: The interpolate potential corresponding to the X,Y grids.
-
+                    Zgrid: The interpolated potential corresponding to the X,Y grids. In Tang method, this is the action
+                        value for the learned least action path.
+                if Ao method is used:
+                    P: Steady state distribution or the Boltzmann-Gibbs distribution for the state variable.
+                    S: List of constant symmetric and semi-positive matrix or friction (dissipative) matrix,
+                        corresponding to the divergence part, at each position from X.
+                    A: List of constant antisymmetric matrix or transverse (non-dissipative) matrix, corresponding to
+                        the curl part, at each position from X.
                 if Tang method is used:
-                    retmat: The action value for the learned least action path.
-                    LAP: The least action path learned
+                    LAP: The least action path learned.
         """
 
         if method == "Ao":
