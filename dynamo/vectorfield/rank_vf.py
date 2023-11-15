@@ -106,71 +106,6 @@ def rank_genes(
     return pd.DataFrame(data=ret_dict)
 
 
-def rank_cells(
-    adata: AnnData,
-    arr_key: Union[str, np.ndarray],
-    groups: Optional[str] = None,
-    genes: Optional[List] = None,
-    abs: bool = False,
-    fcn_pool: Callable = lambda x: np.mean(x, axis=0),
-    dtype: Optional[DTypeLike] = None,
-    output_values: bool = False,
-) -> pd.DataFrame:
-    """Rank cell's absolute, positive, negative vector field metrics by different gene groups.
-
-    Args:
-        adata: AnnData object that contains the array to be sorted in `.var` or `.layer`.
-        arr_key: The key of the to-be-ranked array stored in `.var` or or `.layer`.
-            If the array is found in `.var`, the `groups` argument will be ignored.
-            If a numpy array is passed, it is used as the array to be ranked and must
-            be either an 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
-        groups: Gene groups used to group the array.
-        genes: The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
-        abs: When pooling the values in the array (see below), whether to take the absolute values.
-        fcn_pool: The function used to pool values in the to-be-ranked array if the array is 2d.
-
-    Returns:
-        A dataframe of cells names and values based on which the genes are sorted for each gene group.
-    """
-
-    genes, arr = get_rank_array(
-        adata,
-        arr_key,
-        genes=genes,
-        abs=abs,
-        dtype=dtype,
-    )
-    arr = arr.T
-
-    if arr.ndim > 1:
-        if groups is not None:
-            if type(groups) is str and groups in adata.var.keys():
-                grps = np.array(adata.var[groups])  # check this
-            elif isarray(groups):
-                grps = np.array(groups)
-            else:
-                raise Exception(f"The group information {groups} you provided is not in your adata object.")
-            arr_dict = {}
-            for g in np.unique(grps):
-                arr_dict[g] = fcn_pool(arr[grps == g])
-        else:
-            arr_dict = {"all": fcn_pool(arr)}
-    else:
-        arr_dict = {"all": arr}
-
-    ret_dict = {}
-    cell_names = np.array(adata.obs_names)
-    for g, arr in arr_dict.items():
-        if ismatrix(arr):
-            arr = arr.A.flatten()
-        glst, sarr = list_top_genes(arr, cell_names, None, return_sorted_array=True)
-        # ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
-        ret_dict[g] = glst
-        if output_values:
-            ret_dict[g + "_values"] = sarr
-    return pd.DataFrame(data=ret_dict)
-
-
 def rank_cell_groups(
     adata: AnnData,
     arr_key: Union[str, np.ndarray],
@@ -186,17 +121,18 @@ def rank_cell_groups(
     Args:
         adata: AnnData object that contains the array to be sorted in `.var` or `.layer`.
         arr_key: str or :class:`~numpy.ndarray`
-            The key of the to-be-ranked array stored in `.var` or or `.layer`.
+            The key of the to-be-ranked array stored in `.var` or `.layer`.
             If the array is found in `.var`, the `groups` argument will be ignored.
             If a numpy array is passed, it is used as the array to be ranked and must
-            be either an 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
+            be either a 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
         groups: Gene groups used to group the array.
         genes: The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
         abs: When pooling the values in the array (see below), whether to take the absolute values.
         fcn_pool: The function used to pool values in the to-be-ranked array if the array is 2d.
-        output_values: hether output the values along with the rankings.
+        dtype: The data type of the array to be ranked.
+        output_values: Whether output the values along with the rankings.
 
-    Returns
+    Returns:
         A dataframe of cells names and values based on which the genes are sorted for each gene group.
     """
 
