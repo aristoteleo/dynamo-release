@@ -54,18 +54,22 @@ def lambda_correction(
     logger.info("identify the data type..", indent_level=1)
     all_layers = adata.layers.keys()
 
-    has_ul = np.any([i.contains("ul_") for i in all_layers])
-    has_un = np.any([i.contains("un_") for i in all_layers])
-    has_sl = np.any([i.contains("sl_") for i in all_layers])
-    has_sn = np.any([i.contains("sn_") for i in all_layers])
+    has_ul = np.any(["ul_" in i for i in all_layers])
+    has_un = np.any(["un_" in i for i in all_layers])
+    has_sl = np.any(["sl_" in i for i in all_layers])
+    has_sn = np.any(["sn_" in i for i in all_layers])
 
-    has_l = np.any([i.contains("_l_") for i in all_layers])
-    has_n = np.any([i.contains("_n_") for i in all_layers])
+    has_l = np.any(["_l_" in i for i in all_layers])
+    has_n = np.any(["_n_" in i for i in all_layers])
 
-    if sum(has_ul + has_un + has_sl + has_sn) == 4:
+    if np.count_nonzero([has_ul, has_un, has_sl, has_sn]) == 4:
         datatype = "splicing_labeling"
-    elif sum(has_l + has_n):
+    elif np.count_nonzero([has_l, has_n]):
         datatype = "labeling"
+    else:
+        raise ValueError(
+            "the adata object has to include labeling layers."
+        )
 
     logger.info(f"the data type identified is {datatype}", indent_level=2)
 
@@ -74,44 +78,44 @@ def lambda_correction(
         layers, match_tot_layer = [], []
         for layer in all_layers:
             if "ul_" in layer:
-                layers += layer
-                match_tot_layer += "unspliced"
+                layers.append(layer)
+                match_tot_layer.append("unspliced")
             elif "un_" in layer:
-                layers += layer
-                match_tot_layer += "unspliced"
+                layers.append(layer)
+                match_tot_layer.append("unspliced")
             elif "sl_" in layer:
-                layers += layer
-                match_tot_layer += "spliced"
+                layers.append(layer)
+                match_tot_layer.append("spliced")
             elif "sn_" in layer:
-                layers += layer
-                match_tot_layer += "spliced"
+                layers.append(layer)
+                match_tot_layer.append("spliced")
             elif "spliced" in layer:
-                layers += layer
+                layers.append(layer)
             elif "unspliced" in layer:
-                layers += layer
+                layers.append(layer)
 
-            if len(layers) != 6:
-                raise ValueError(
-                    "the adata object has to include ul, un, sl, sn, unspliced, spliced, "
-                    "six relevant layers for splicing and labeling quantified datasets."
-                )
+        if len(layers) != 6:
+            raise ValueError(
+                "the adata object has to include ul, un, sl, sn, unspliced, spliced, "
+                "six relevant layers for splicing and labeling quantified datasets."
+            )
     elif datatype == "labeling":
         layers, match_tot_layer = [], []
         for layer in all_layers:
             if "_l_" in layer:
-                layers += layer
-                match_tot_layer += ["total"]
+                layers.append(layer)
+                match_tot_layer.append("total")
             elif "_n_" in layer:
-                layers += layer
-                match_tot_layer += ["total"]
+                layers.append(layer)
+                match_tot_layer.append("total")
             elif "total" in layer:
-                layers += layer
+                layers.append(layer)
 
-            if len(layers) != 3:
-                raise ValueError(
-                    "the adata object has to include labeled, unlabeled, three relevant layers for labeling quantified "
-                    "datasets."
-                )
+        if len(layers) != 3:
+            raise ValueError(
+                "the adata object has to include labeled, unlabeled, three relevant layers for labeling quantified "
+                "datasets."
+            )
 
     logger.info("detection rate correction starts", indent_level=1)
     for i, layer in enumerate(main_tqdm(layers, desc="iterating all relevant layers")):
@@ -133,9 +137,9 @@ def lambda_correction(
 
             else:
                 if inplace:
-                    adata.layers[layer] = cur_total - adata.layers[layer[i - 1]]
+                    adata.layers[layer] = cur_total - adata.layers[layers[i - 1]]
                 else:
-                    adata.layers[layer + "_corrected"] = cur_total - adata.layers[layer[i - 1]]
+                    adata.layers[layer + "_corrected"] = cur_total - adata.layers[layers[i - 1]]
 
     logger.finish_progress(progress_name="lambda_correction")
 
@@ -157,6 +161,6 @@ def sparse_mimmax(A: csr_matrix, B: csr_matrix, type="min") -> csr_matrix:
     """
 
     AgtB = (A < B).astype(int) if type == "min" else (A > B).astype(int)
-    M = AgtB.multiply(A - B) + B
+    M = np.multiply(AgtB, A - B) + B
 
     return M
