@@ -384,6 +384,69 @@ def test_filter_cells_by_outliers():
         pass
 
 
+def test_filter_genes_by_patterns():
+    adata = anndata.AnnData(
+        X=np.array([[1, 0, 3], [4, 0, 0], [7, 8, 9], [10, 11, 12]]))
+    adata.var_names = ["MT-1", "RPS", "GATA1"]
+    adata.obs_names = ["cell1", "cell2", "cell3", "cell4"]
+
+    matched_genes = dyn.pp.filter_genes_by_pattern(adata, drop_genes=False)
+    dyn.pp.filter_genes_by_pattern(adata, drop_genes=True)
+
+    assert matched_genes == [True, True, False]
+    assert np.array_equal(
+        adata.var_names.values,
+        ["GATA1"],
+    )
+
+
+def test_lambda_correction():
+    adata = anndata.AnnData(
+        X=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]),
+        obs={"lambda": [0.1, 0.2, 0.3]},
+        layers={
+            "ul_layer": np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]),
+            "un_layer": np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]),
+            "sl_layer": np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]),
+            "sn_layer": np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]),
+            "unspliced": np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]),
+            "spliced": np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]),
+        },
+    )
+    # adata = dyn.sample_data.zebrafish()
+    # adata.obs["lambda"] = [0.1 for i in range(adata.shape[0])]
+
+    dyn.pp.lambda_correction(adata, lambda_key="lambda", inplace=False)
+
+    assert "ul_layer_corrected" in adata.layers.keys()
+
+
+def test_top_pca_genes():
+    adata = anndata.AnnData(
+        X=np.random.rand(10, 5),  # 10 cells, 5 genes
+        uns={"PCs": np.random.rand(5, 5)},  # Random PC matrix for testing
+        varm={"PCs": np.random.rand(5, 5)},
+        var={"gene_names": ["Gene1", "Gene2", "Gene3", "Gene4", "Gene5"]},
+    )
+
+    dyn.pp.top_pca_genes(adata, pc_key="PCs", n_top_genes=3, pc_components=2, adata_store_key="top_pca_genes")
+
+    assert "top_pca_genes" in adata.var.keys()
+    assert sum(adata.var["top_pca_genes"]) >= 3
+
+
+def test_vst_exprs():
+    adata = anndata.AnnData(
+        X=np.random.rand(10, 5),  # 10 cells, 5 genes
+        uns={"dispFitInfo": {"coefs": np.array([0.1, 0.2])}},  # Random dispersion coefficients for testing
+    )
+
+    result_exprs = dyn.preprocessing.transform.vstExprs(adata)
+
+    assert result_exprs.shape == (10, 5)
+    assert np.all(np.isfinite(result_exprs))
+
+
 def test_cell_cycle_scores():
     adata = anndata.AnnData(
         X=pd.DataFrame(
