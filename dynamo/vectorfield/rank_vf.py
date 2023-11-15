@@ -120,8 +120,7 @@ def rank_cell_groups(
 
     Args:
         adata: AnnData object that contains the array to be sorted in `.var` or `.layer`.
-        arr_key: str or :class:`~numpy.ndarray`
-            The key of the to-be-ranked array stored in `.var` or `.layer`.
+        arr_key: The key of the to-be-ranked array stored in `.var` or `.layer`.
             If the array is found in `.var`, the `groups` argument will be ignored.
             If a numpy array is passed, it is used as the array to be ranked and must
             be either a 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
