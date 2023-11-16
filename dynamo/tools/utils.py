@@ -3337,3 +3337,23 @@ def density_corrected_transition_matrix(T: Union[npt.ArrayLike, sp.csr_matrix]) 
         T[i, idx] = T_i
 
     return T
+
+
+# ---------------------------------------------------------------------------------------------------
+# differential gene expression test related
+def fdr(p_vals: np.ndarray) -> np.ndarray:
+    """Calculate False Discovery Rate using Benjamini–Hochberg (non-negative) method.
+
+    Args:
+        p_vals: The p-values describes the likelihood of an observation based on a probability distribution.
+
+    Returns:
+        The corrected False Discovery Rate.
+    """
+    from scipy.stats import rankdata
+
+    ranked_p_values = rankdata(p_vals)
+    fdr = p_vals * len(p_vals) / ranked_p_values
+    fdr[fdr > 1] = 1
+
+    return fdr
