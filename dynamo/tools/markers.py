@@ -52,14 +52,14 @@ def moran_i(
     total, new, unspliced or velocity, etc. for the Moran's I analysis.
 
     Args:
-        adata: an AnnData object.
-        X_data: the user supplied data that will be used for Moran's I calculation directly. Defaults to None.
-        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+        adata: An AnnData object.
+        X_data: The user supplied data that will be used for Moran's I calculation directly. Defaults to None.
+        genes: The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
             all genes will be used. Defaults to None.
-        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+        layer: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used. Defaults to None.
-        weighted: whether to consider edge weights in the spatial weights graph. Defaults to True.
-        assumption: assumption of the Moran's I test. Inference for Moran's I is based on a null hypothesis of spatial
+        weighted: Whether to consider edge weights in the spatial weights graph. Defaults to True.
+        assumption: Assumption of the Moran's I test. Inference for Moran's I is based on a null hypothesis of spatial
             randomness. The distribution of the statistic under the null can be derived using either an assumption of
             normality (independent normal random variates), or so-called randomization (i.e., each value is equally
             likely to occur at any location). An alternative to an analytical derivation is a computational approach
@@ -67,10 +67,10 @@ def moran_i(
             of spatial randomness by randomly permuting the observed values over the locations. The statistic is
             computed for each of these randomly reshuffled data sets, which yields a reference distribution. Defaults to
             "permutation".
-        local_moran: whether to also calculate local Moran's I. Defaults to False.
+        local_moran: Whether to also calculate local Moran's I. Defaults to False.
 
     Raises:
-        ImportError: pysal not installed.
+        ImportError: Package pysal not installed.
         ValueError: `X_data` is provided but `genes` does not correspond to its columns.
 
     Returns:
@@ -176,7 +176,7 @@ def find_group_markers(
     """Find marker genes for each group of cells based on gene expression or velocity values as specified by the layer.
 
     Tests each gene for differential expression between cells in one group to cells from all other groups via
-    Mann-Whitney U test. It also calculates the fraction of cells with non-zero expression, log 2 fold changes as well
+    Mann-Whitney U test. It also calculates the fraction of cells with non-zero expression, log 2-fold changes as well
     as the specificity (calculated as 1 - Jessen-Shannon distance between the distribution of percentage of cells with
     expression across all groups to the hypothetical perfect distribution in which only the test group of cells has
     expression). In addition, Rank-biserial correlation (rbc) and qval are calculated. The rank biserial correlation is
@@ -192,31 +192,31 @@ def find_group_markers(
     This function is adapted from https://github.com/KarlssonG/nabo/blob/master/nabo/_marker.py and Monocle 3alpha.
 
     Args:
-        adata: an AnnData object.
-        group: the column key/name that identifies the grouping information (for example, clusters that correspond to
+        adata: An AnnData object.
+        group: The column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used for calculating group-specific
             genes.
-        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+        genes: The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
             all genes will be used. Defaults to None.
-        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+        layer: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used. Defaults to None.
-        exp_frac_thresh: the minimum percentage of cells with expression for a gene to proceed differential expression
+        exp_frac_thresh: The minimum percentage of cells with expression for a gene to proceed differential expression
             test. If `layer` is not `velocity` related (i.e. `velocity_S`), `exp_frac_thresh` by default is set to be
             0.1, otherwise 0. Defaults to None.
-        log2_fc_thresh: the minimal threshold of log2 fold change for a gene to proceed differential expression test. If
+        log2_fc_thresh: The minimal threshold of log2 fold change for a gene to proceed differential expression test. If
             `layer` is not `velocity` related (i.e. `velocity_S`), `log2_fc_thresh` by default is set to be 1, otherwise
             0. Defaults to None.
-        qval_thresh: the minimal threshold of qval to be considered as significant genes. Defaults to 0.05.
-        de_frequency: minimum number of clusters against a gene should be significantly differentially expressed for it
+        qval_thresh: The minimal threshold of qval to be considered as significant genes. Defaults to 0.05.
+        de_frequency: Minimum number of clusters against a gene should be significantly differentially expressed for it
             to qualify as a marker. Defaults to 1.
-        subset_control_vals: whether to subset the top ranked control values. When `subset_control_vals = None`, this is
+        subset_control_vals: Whether to subset the top ranked control values. When `subset_control_vals = None`, this is
             subset to be `True` when layer is not related to either `velocity` related or `acceleration` or `curvature`
             related layers and `False` otherwise. When layer is not related to either `velocity` related or
             `acceleration` or `curvature` related layers used, the control values will be sorted by absolute values.
             Defaults to None.
 
     Raises:
-        ValueError: gene list does not overlap with genes in adata.
+        ValueError: Gene list does not overlap with genes in adata.
         ValueError: `group` is invalid.
         ValueError: .obs[group] does not contain enough number of groups.
 
@@ -315,9 +315,9 @@ def two_groups_degs(
     """Find marker genes between two groups of cells based on gene expression or velocity as specified by the layer.
 
     Tests each gene for differential expression between cells in one group to cells from another groups via Mann-Whitney
-    U test. It also calculates the fraction of cells with non-zero expression, log 2 fold changes as well as the
+    U test. It also calculates the fraction of cells with non-zero expression, log 2-fold changes as well as the
     specificity (calculated as 1 - Jessen-Shannon distance between the distribution of percentage of cells with
-    expression across all groups to the hypothetical perfect distribution in which only the current group of cells have
+    expression across all groups to the hypothetical perfect distribution in which only the current group of cells has
     expression). In addition, Rank-biserial correlation (rbc) and qval are calculated. The rank biserial correlation is
     used to assess the relationship between a dichotomous categorical variable and an ordinal variable. The rank
     biserial test is very similar to the non-parametric Mann-Whitney U test that is used to compare two independent
@@ -326,25 +326,25 @@ def two_groups_degs(
     qval is calculated using Benjamini-Hochberg adjustment.
 
     Args:
-        adata: an AnnData object.
-        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+        adata: An AnnData object.
+        genes: The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
             all genes will be used.
-        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+        layer: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used.
-        group: the column key/name that identifies the grouping information (for example, clusters that correspond to
+        group: The column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used for calculating group-specific
             genes.
-        test_group: the group name from `group` for which markers has to be found.
-        control_groups: the list of group name(s) from `group` for which markers has to be tested against.
+        test_group: The group name from `group` for which markers has to be found.
+        control_groups: The list of group name(s) from `group` for which markers has to be tested against.
         X_data: the user supplied data that will be used for marker gene detection directly. Defaults to None.
         exp_frac_thresh: the minimum percentage of cells with expression for a gene to proceed differential expression
             test. If `layer` is not `velocity` related (i.e. `velocity_S`), `exp_frac_thresh` by default is set to be
             0.1, otherwise 0. Defaults to None.
-        log2_fc_thresh: the minimal threshold of log2 fold change for a gene to proceed differential expression test. If
+        log2_fc_thresh: The minimal threshold of log2 fold change for a gene to proceed differential expression test. If
             `layer` is not `velocity` related (i.e. `velocity_S`), `log2_fc_thresh` by default is set to be 1, otherwise
             0. Defaults to None.
-        qval_thresh: the maximal threshold of qval to be considered as significant genes. Defaults to 0.05.
-        subset_control_vals: whether to subset the top ranked control values. When `subset_control_vals = None`, this is
+        qval_thresh: The maximal threshold of qval to be considered as significant genes. Defaults to 0.05.
+        subset_control_vals: Whether to subset the top ranked control values. When `subset_control_vals = None`, this is
             subset to be `True` when layer is not related to either `velocity` related or `acceleration` or `curvature`
             related layers and `False` otherwise. When layer is not related to either `velocity` related or
             `acceleration` or `curvature` related layers used, the control values will be sorted by absolute values.
@@ -517,23 +517,23 @@ def top_n_markers(
     """Filter cluster deg (Moran's I test) results and retrieve top markers for each cluster.
 
     Args:
-        adata: an AnnData object.
-        with_moran_i: whether to include Moran's I test results for selecting top marker genes. Defaults to False.
-        group_by: column name or names to group by. Defaults to "test_group".
-        sort_by: column name or names to sort by. Defaults to "specificity".
-        sort_order: whether to sort the data frame with `increasing` or `decreasing` order. Defaults to "decreasing".
-        top_n_genes: the number of top sorted markers. Defaults to 5.
-        exp_frac_thresh: the minimum percentage of cells with expression for a gene to proceed selection of top markers.
+        adata: An AnnData object.
+        with_moran_i: Whether to include Moran's I test results for selecting top marker genes. Defaults to False.
+        group_by: Column name or names to group by. Defaults to "test_group".
+        sort_by: Column name or names to sort by. Defaults to "specificity".
+        sort_order: Whether to sort the data frame with `increasing` or `decreasing` order. Defaults to "decreasing".
+        top_n_genes: The number of top sorted markers. Defaults to 5.
+        exp_frac_thresh: The minimum percentage of cells with expression for a gene to proceed selection of top markers.
             Defaults to 0.1.
-        log2_fc_thresh: the minimal threshold of log2 fold change for a gene to proceed selection of top markers.
+        log2_fc_thresh: The minimal threshold of log2 fold change for a gene to proceed selection of top markers.
             Applicable to none `velocity`, `acceleration` or `curvature` layers based DEGs. Defaults to None.
-        qval_thresh: the maximal threshold of qval to be considered as top markers. Defaults to 0.05.
-        specificity_thresh: the minimum threshold of specificity to be considered as top markers. Defaults to 0.3.
-        only_gene_list: whether to only return the gene list for each cluster. Defaults to False.
-        display: whether to print the data frame for the top marker genes after the filtering. Defaults to True.
+        qval_thresh: The maximal threshold of qval to be considered as top markers. Defaults to 0.05.
+        specificity_thresh: The minimum threshold of specificity to be considered as top markers. Defaults to 0.3.
+        only_gene_list: Whether to only return the gene list for each cluster. Defaults to False.
+        display: Whether to print the data frame for the top marker genes after the filtering. Defaults to True.
 
     Raises:
-        ValueError: threshold too extreme that no genes passed the filter.
+        ValueError: Threshold too extreme that no genes passed the filter.
 
     Returns:
         If `only_gene_list` is false, a data frame that stores the top marker for each group would be returned.
@@ -638,17 +638,18 @@ def glm_degs(
     either use the total, new, unspliced or velocity, etc. for the differential expression analysis.
 
     Args:
-        adata: an AnnData object.
-        X_data: the user supplied data that will be used for differential expression analysis directly. Defaults to None.
-        genes: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+        adata: An AnnData object.
+        X_data: The user supplied data that will be used for differential expression analysis directly. Defaults to
+            None.
+        genes: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used. Defaults to None.
-        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+        layer: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used. Defaults to None.
-        fullModelFormulaStr: a formula string specifying the full model in differential expression tests (i.e.
+        fullModelFormulaStr: A formula string specifying the full model in differential expression tests (i.e.
             likelihood ratio tests) for each gene/feature. Defaults to "~cr(integral_time, df=3)".
-        reducedModelFormulaStr: a formula string specifying the reduced model in differential expression tests (i.e.
+        reducedModelFormulaStr: A formula string specifying the reduced model in differential expression tests (i.e.
             likelihood ratio tests) for each gene/feature. Defaults to "~1".
-        family: the distribution family used for the expression responses in statsmodels. Currently always uses `NB2`
+        family: The distribution family used for the expression responses in statsmodels. Currently, always uses `NB2`
             and this is ignored. NB model requires us to define a parameter alpha which it uses to express the
             variance in terms of the mean as follows: variance = mean + alpha mean^p. When p=2, it corresponds to
             the NB2 model. In order to obtain the correct parameter alpha (sm.genmod.families.family.NegativeBinomial
@@ -658,7 +659,7 @@ def glm_degs(
 
     Raises:
         ValueError: `X_data` is provided but `genes` does not correspond to its columns.
-        Exception: factors from the model formula `fullModelFormulaStr` invalid.
+        Exception: Factors from the model formula `fullModelFormulaStr` invalid.
     """
 
     if X_data is None:
@@ -725,10 +726,10 @@ def diff_test_helper(
     """A helper function to generate required data fields for differential gene expression test.
 
     Args:
-        data: the original dataframe containing expression data.
-        fullModelFormulaStr: a formula string specifying the full model in differential expression tests (i.e.
+        data: The original dataframe containing expression data.
+        fullModelFormulaStr: A formula string specifying the full model in differential expression tests (i.e.
             likelihood ratio tests) for each gene/feature. Defaults to "~cr(integral_time, df=3)".
-        reducedModelFormulaStr: a formula string specifying the reduced model in differential expression tests (i.e.
+        reducedModelFormulaStr: A formula string specifying the reduced model in differential expression tests (i.e.
             likelihood ratio tests) for each gene/feature. Defaults to "~1".
     Returns:
         A tuple [parseResult, family, pval], where `parseResult` should be "ok" or "fail", showing whether the provided
@@ -768,7 +769,7 @@ def get_all_variables(formula: str) -> List[str]:
     """A helper function to get all variable names for a formula string.
 
     Args:
-        formula: the formula string specifying the model in differential expression data.
+        formula: The formula string specifying the model in differential expression data.
 
     Returns:
         A list of variable names.
@@ -788,8 +789,8 @@ def lrt(full: GLMResultsWrapper, restr: GLMResultsWrapper) -> np.float64:
     """Perform likelihood-ratio test on the full model and constrained model.
 
     Args:
-        full: the regression model without constraint.
-        restr: the regression model after constraint.
+        full: The regression model without constraint.
+        restr: The regression model after constraint.
 
     Returns:
         The survival probability (1-cumulative probability) to observe the likelihood ratio for the constrained
