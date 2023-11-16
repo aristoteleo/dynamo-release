@@ -246,7 +246,7 @@ def plot_nullclines(
     NCx, NCy = None, None
 
     # if nullcline is not previously calculated, calculate and plot them
-    if vecfld_dict is None or "nullcline" not in vecfld_dict.keys():
+    if vecfld_dict is None or "NCx" not in vecfld_dict.keys() or "NCy" not in vecfld_dict.keys():
         if vecfld_dict is not None:
             X_basis = vecfld_dict["X"][:, :2]
             min_, max_ = X_basis.min(0), X_basis.max(0)
@@ -268,7 +268,10 @@ def plot_nullclines(
 
                 NCx, NCy = vecfld2d.NCx, vecfld.NCy
     else:
-        NCx, NCy = vecfld_dict["nullcline"][0], vecfld_dict["nullcline"][1]
+        NCx, NCy = (
+            [vecfld_dict["NCx"][index] for index in vecfld_dict["NCx"]],
+            [vecfld_dict["NCy"][index] for index in vecfld_dict["NCy"]],
+        )
 
     if ax is None:
         ax = plt.gca()

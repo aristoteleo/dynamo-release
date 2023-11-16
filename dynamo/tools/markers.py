@@ -292,7 +292,9 @@ def find_group_markers(
     de_table = pd.concat(de_tables).reset_index().drop(columns=["index"])
     de_table["log2_fc"] = de_table["log2_fc"].astype("float")
 
-    adata.uns["cluster_markers"] = {"deg_table": de_table, "de_genes": de_genes}
+    adata.uns["cluster_markers"] = {"deg_table": de_table}
+    for key, value in de_genes.items():
+        adata.uns["cluster_markers"]["de_genes" + str(key)] = value
 
     return adata
 
@@ -430,7 +432,7 @@ def two_groups_degs(
                 log_fc = test_vals.mean() - control_vals.mean()  # for curvature, acceleration, log fc is meaningless
 
             try:
-                u, mw_p = mannwhitneyu(test_vals, control_vals)
+                u, mw_p = map(float, mannwhitneyu(test_vals, control_vals))
             except ValueError:
                 pass
             else:

@@ -15,8 +15,8 @@ from sklearn.utils import sparsefuncs
 
 from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_info, main_warning
-from ..utils import areinstance
-from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors
+from ..utils import areinstance, expr_to_pca
+from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors, construct_mapper_umap
 from .dimension_reduction import reduceDimension
 from .graph_calculus import calc_gaussian_weight, fp_operator, graphize_velocity
 from .Markov import ContinuousTimeMarkovChain, KernelMarkovChain, velocity_on_grid
@@ -519,23 +519,33 @@ def cell_velocities(
             adata.obsp["discrete_vector_field"] = E
 
     elif method == "transform":
-        umap_trans, n_pca_components = (
-            adata.uns["umap_fit"]["fit"],
-            adata.uns["umap_fit"]["n_pca_components"],
+        params = adata.uns["umap_fit"]
+        umap_trans = construct_mapper_umap(
+            params["X_data"],
+            n_components=params["umap_kwargs"]["n_components"],
+            metric=params["umap_kwargs"]["metric"],
+            min_dist=params["umap_kwargs"]["min_dist"],
+            spread=params["umap_kwargs"]["spread"],
+            max_iter=params["umap_kwargs"]["max_iter"],
+            alpha=params["umap_kwargs"]["alpha"],
+            gamma=params["umap_kwargs"]["gamma"],
+            negative_sample_rate=params["umap_kwargs"]["negative_sample_rate"],
+            init_pos=params["umap_kwargs"]["init_pos"],
+            random_state=params["umap_kwargs"]["random_state"],
+            umap_kwargs=params["umap_kwargs"],
         )
 
-        if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
-            CM = adata.X[:, adata.var.use_for_dynamics.values]
+        CM = adata.X[:, adata.var.use_for_dynamics.values]
+        if "PCs" not in adata.uns_keys():
             from ..preprocessing.pca import pca
 
-            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X", return_all=True)
-            adata.uns["pca_fit"] = pca_fit
+            adata, pca_fit, X_pca = pca(adata, CM, params["n_pca_components"], "X", return_all=True)
 
-        X_pca, pca_fit = adata.obsm[DKM.X_PCA], adata.uns["pca_fit"]
+        X_pca, pca_PCs = adata.obsm[DKM.X_PCA], adata.uns["PCs"]
         V = adata[:, adata.var.use_for_dynamics.values].layers[vkey] if vkey in adata.layers.keys() else None
         CM, V = CM.A if sp.issparse(CM) else CM, V.A if sp.issparse(V) else V
         V[np.isnan(V)] = 0
-        Y_pca = pca_fit.transform(CM + V)
+        Y_pca = expr_to_pca(CM + V, PCs=pca_PCs, mean=(CM + V).mean(0))
 
         Y = umap_trans.transform(Y_pca)
 

@@ -16,7 +16,8 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_warning,
 )
-from ..tools.connectivity import correct_hnsw_neighbors, k_nearest_neighbors
+from ..utils import pca_to_expr
+from ..tools.connectivity import construct_mapper_umap, correct_hnsw_neighbors, k_nearest_neighbors
 from ..tools.utils import fetch_states, getTseq
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vecfld_from_adata, vector_transformation
@@ -167,9 +168,23 @@ def fate(
             if prediction.ndim == 1:
                 prediction = prediction[None, :]
 
-        umap_fit = adata.uns["umap_fit"]["fit"]
-        PCs = adata.uns["PCs"].T
+        params = adata.uns["umap_fit"]
+        umap_fit = construct_mapper_umap(
+            params["X_data"],
+            n_components=params["umap_kwargs"]["n_components"],
+            metric=params["umap_kwargs"]["metric"],
+            min_dist=params["umap_kwargs"]["min_dist"],
+            spread=params["umap_kwargs"]["spread"],
+            max_iter=params["umap_kwargs"]["max_iter"],
+            alpha=params["umap_kwargs"]["alpha"],
+            gamma=params["umap_kwargs"]["gamma"],
+            negative_sample_rate=params["umap_kwargs"]["negative_sample_rate"],
+            init_pos=params["umap_kwargs"]["init_pos"],
+            random_state=params["umap_kwargs"]["random_state"],
+            umap_kwargs=params["umap_kwargs"],
+        )
 
+        PCs = adata.uns["PCs"].T
         exprs = []
 
         for cur_pred in prediction:
@@ -193,12 +208,12 @@ def fate(
 
     adata.uns[fate_key] = {
         "init_states": init_states,
-        "init_cells": init_cells,
+        "init_cells": list(init_cells),
         "average": average,
         "t": t,
         "prediction": prediction,
         # "VecFld": VecFld,
-        "VecFld_true": VecFld_true,
+        # "VecFld_true": VecFld_true,
         "genes": valid_genes,
     }
     if exprs is not None:
