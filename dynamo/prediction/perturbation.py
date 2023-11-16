@@ -7,6 +7,7 @@ from scipy.sparse import csr_matrix
 
 from ..dynamo_logger import LoggerManager
 from ..tools.cell_velocities import cell_velocities
+from ..utils import expr_to_pca, pca_to_expr
 from ..vectorfield import SvcVectorField
 from ..vectorfield.scVectorField import KOVectorField, vector_field_function_knockout
 from ..vectorfield.vector_calculus import (
@@ -15,7 +16,7 @@ from ..vectorfield.vector_calculus import (
     vector_transformation,
 )
 from ..vectorfield.rank_vf import rank_cell_groups, rank_cells, rank_genes
-from .utils import expr_to_pca, pca_to_expr, z_score, z_score_inv
+from .utils import z_score, z_score_inv
 
 
 def KO(

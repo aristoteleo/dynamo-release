@@ -50,24 +50,24 @@ def hdbscan(
     The hdbscan package from Leland McInnes, John Healy, Steve Astels Revision is used.
 
     Args:
-        adata: an AnnData object.
-        X_data: the user supplied data that will be used for clustering directly. Defaults to None.
-        genes: the list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+        adata: An AnnData object.
+        X_data: The user supplied data that will be used for clustering directly. Defaults to None.
+        genes: The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
             all genes will be used. Defaults to None.
-        layer: the layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+        layer: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
             used. Defaults to None.
-        basis: the space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
+        basis: The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
             `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
-        dims: the list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+        dims: The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
             Defaults to None.
-        n_pca_components: the number of pca components that will be used. Defaults to 30.
-        n_components: the number of dimension that non-linear dimension reduction will be projected to. Defaults to 2.
-        result_key: the key for storing clustering results in .obs and .uns. Defaults to None.
-        copy: whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
+        n_pca_components: The number of pca components that will be used. Defaults to 30.
+        n_components: The number of dimension that non-linear dimension reduction will be projected to. Defaults to 2.
+        result_key: The key for storing clustering results in .obs and .uns. Defaults to None.
+        copy: Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
             Defaults to False.
 
     Raises:
-        ImportError: hdbscan not installed.
+        ImportError: Package hdbscan not installed.
 
     Returns:
         An updated AnnData object with the clustering updated. `hdbscan` and `hdbscan_prob` are two newly added columns
@@ -201,32 +201,32 @@ def leiden(
     original leidenalg package.
 
     Args:
-        adata: an adata object
-        resolution: the resolution of the clustering that determines the level of detail in the clustering process.
+        adata: An adata object
+        resolution: The resolution of the clustering that determines the level of detail in the clustering process.
             An increase in this value will result in the generation of a greater number of clusters.
-        use_weight: whether to use the weight of the edges in the clustering process. Default False.
-        weights: weights of edges. Can be either an iterable (list of double) or an edge attribute.
-        initial_membership: list of int. Initial membership for the partition.
+        use_weight: Whether to use the weight of the edges in the clustering process. Default False.
+        weights: Weights of edges. Can be either an iterable (list of double) or an edge attribute.
+        initial_membership: List of int. Initial membership for the partition.
             If None then defaults to a singleton partition.
-        adj_matrix: the adjacency matrix to use for the cluster_community function.
-        adj_matrix_key: the key of the adjacency matrix in adata.obsp used for the cluster_community function.
-        seed: seed for the random number generator. By default uses a random seed if nothing is specified.
-        result_key: the key to use for saving clustering results which will be included in both adata.obs and adata.uns.
-        layer: the adata layer where cluster algorithms will work on.
-        obsm_key: the key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
+        adj_matrix: The adjacency matrix to use for the cluster_community function.
+        adj_matrix_key: The key of the adjacency matrix in adata.obsp used for the cluster_community function.
+        seed: Seed for the random number generator. By default, uses a random seed if nothing is specified.
+        result_key: The key to use for saving clustering results which will be included in both `adata.obs` and adata.uns.
+        layer: The adata layer where cluster algorithms will work on.
+        obsm_key: The key of the `obsm` that points to the expression embedding to be used for dyn.tl.neighbors to
             calculate the nearest neighbor graph.
-        selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters) filtering cells in adata based on
-            cluster_key in adata.obs and only reserves cells in the allowed clusters.
-        selected_cell_subset: a list of cell indices to cluster.
-        directed: whether the graph is directed.
-        copy: return a copy instead of writing to adata.
-        **kwargs: additional arguments to pass to the cluster_community function.
+        selected_cluster_subset: A tuple of 2 elements (cluster_key, allowed_clusters) filtering cells in adata based on
+            cluster_key in `adata.obs` and only reserves cells in the allowed clusters.
+        selected_cell_subset: A list of cell indices to cluster.
+        directed: Whether the graph is directed.
+        copy: Return a copy instead of writing to adata.
+        **kwargs: Additional arguments to pass to the cluster_community function.
 
     Returns:
         adata: An updated AnnData object with the leiden clustering results added. The adata is updated up with the
-        `result_key` key to use for saving clustering results which will be included in both adata.obs and adata.uns.
-        adata.obs[result_key] saves the clustering identify of each cell where the adata.uns[result_key] saves the
-        relevant parameters for the leiden clustering .
+        `result_key` key to use for saving clustering results which will be included in both `adata.obs` and
+        `adata.uns`. adata.obs[result_key] saves the clustering identify of each cell where the `adata.uns[result_key]`
+        saves the relevant parameters for the leiden clustering.
     """
 
     kwargs.update(
@@ -290,26 +290,27 @@ def louvain(
     original louvain package.
 
     Args:
-        adata: an adata object
-        resolution: the resolution of the clustering that determines the level of detail in the clustering process.
+        adata: An adata object
+        resolution: The resolution of the clustering that determines the level of detail in the clustering process.
             An increase in this value will result in the generation of a greater number of clusters.
-        use_weight: whether to use the weight of the edges in the clustering process. Default False
-        weights: weights of edges. Can be either an iterable (list of double) or an edge attribute.
-        initial_membership: list of int. Initial membership for the partition.
+        use_weight: Whether to use the weight of the edges in the clustering process. Default False
+        weights: Weights of edges. Can be either an iterable (list of double) or an edge attribute.
+        initial_membership: List of int. Initial membership for the partition.
             If None then defaults to a singleton partition.
-        adj_matrix: the adjacency matrix to use for the cluster_community function. Default None
-        adj_matrix_key: adj_matrix_key in adata.obsp used for the cluster_community function. Default None
-        seed: seed for the random number generator. By default uses a random seed if nothing is specified.
-        result_key: the key to use for saving clustering results which will be included in both adata.obs and adata.uns.
-        layer: the adata layer where cluster algorithms will work on.
-        obsm_key: the key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
+        adj_matrix: The adjacency matrix to use for the cluster_community function. Default None.
+        adj_matrix_key: The adjacency matrix key in adata.obsp used for the cluster_community function. Default None.
+        seed: Seed for the random number generator. By default, uses a random seed if nothing is specified.
+        result_key: the key to use for saving clustering results which will be included in both `adata.obs` and
+            `adata.uns`.
+        layer: The adata layer where cluster algorithms will work on.
+        obsm_key: The key of the obsm that points to the expression embedding to be used for dyn.tl.neighbors to
             calculate the nearest neighbor graph.
-        selected_cluster_subset: a tuple of 2 elements (cluster_key, allowed_clusters) filtering cells in adata based on
-            cluster_key in adata.obs and only reserves cells in the allowed clusters.
-        selected_cell_subset: a list of cell indices to cluster.
-        directed: whether the graph is directed.
-        copy: return a copy instead of writing to adata.
-        **kwargs: additional arguments to pass to the clustering function.
+        selected_cluster_subset: A tuple of 2 elements (cluster_key, allowed_clusters) filtering cells in adata based on
+            cluster_key in `adata.obs` and only reserves cells in the allowed clusters.
+        selected_cell_subset: A list of cell indices to cluster.
+        directed: Whether the graph is directed.
+        copy: Return a copy instead of writing to adata.
+        **kwargs: Additional arguments to pass to the clustering function.
 
     Returns:
         adata: An updated AnnData object with the leiden clustering results added. The adata is updated up with the
@@ -408,27 +409,27 @@ def cluster_community(
     passed in. Adjacent matrix retrieval priority: adj_matrix > adj_matrix_key > others
 
     Args:
-        adata: an AnnData object.
-        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain". Defaults
+        adata: An AnnData object.
+        method: The algorithm to cluster the AnnData object. Can be one of "leiden", "louvain". Defaults
             to "leiden".
-        result_key: the key where the results will be stored in obs. Defaults to None.
-        adj_matrix: adj_matrix used for clustering. Defaults to None.
-        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
-        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
+        result_key: The key where the results will be stored in obs. Defaults to None.
+        adj_matrix: The adjacency matrix key used for clustering. Defaults to None.
+        adj_matrix_key: The key for adj_matrix stored in adata.obsp. Defaults to None.
+        use_weight: Whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
             Defaults to True.
-        no_community_label: the label value used for nodes not contained in any community. Defaults to -1.
-        layer: the adata layer on which cluster algorithms will work. Defaults to None.
-        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
-        cell_subsets: a subset of cells in adata that would be clustered. Could be a list of indices or a list
+        no_community_label: The label value used for nodes not contained in any community. Defaults to -1.
+        layer: The adata layer on which cluster algorithms will work. Defaults to None.
+        obsm_key: The key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
+        cell_subsets: A subset of cells in adata that would be clustered. Could be a list of indices or a list
             of cell names. Defaults to None.
-        cluster_and_subsets: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
-            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
-        directed: whether the edges in the graph should be directed. Defaults to False.
-        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
+        cluster_and_subsets: A tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
+            cluster_key in `adata.obs` and only reserve cells in the allowed clusters. Defaults to None.
+        directed: Whether the edges in the graph should be directed. Defaults to False.
+        copy: Whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
 
     Raises:
         ValueError: `adj_matrix_key` and `layer` conflicted.
-        ValueError: `adj_matrix_key` not found in .obsp.
+        ValueError: `adj_matrix_key` not found in `.obsp`.
 
     Returns:
         An updated AnnData object if `copy` is set to be true.
@@ -545,20 +546,20 @@ def cluster_community_from_graph(
     Leiden, Louvain.
 
     Args:
-        graph (nx.Graph): the input graph that would be directly used for clustering. Defaults to None.
-        graph_sparse_matrix: a sparse matrix that would be converted to a graph if `graph` is not supplied.
-        method: the algorithm to cluster the AnnData object. Can be one of "leiden", "louvain".
-        directed: whether the edges in the graph should be directed. Defaults to False. Defaults to False.
+        graph (nx.Graph): The input graph that would be directly used for clustering. Defaults to None.
+        graph_sparse_matrix: A sparse matrix that would be converted to a graph if `graph` is not supplied.
+        method: The algorithm to cluster the AnnData object. Can be one of "leiden", "louvain".
+        directed: Whether the edges in the graph should be directed. Defaults to False. Defaults to False.
 
     Raises:
-        ImportError: networkx not installed.
-        ValueError: neither graph nor graph_sparse_matrix is valid.
-        KeyError: resolution is not found in kwargs for louvain algorithm.
-        KeyError: randomize is not found in kwargs for louvain algorithm.
-        NotImplementedError: `method` is invalid.
+        ImportError: Networkx not installed.
+        ValueError: Neither graph nor graph_sparse_matrix is valid.
+        KeyError: Resolution is not found in kwargs for louvain algorithm.
+        KeyError: Randomize is not found in kwargs for louvain algorithm.
+        NotImplementedError: The `method` is invalid.
 
     Returns:
-        NodeClustering: a NodeClustering object that contains the communities detected by the chosen algorithm.
+        An NodeClustering object that contains the communities detected by the chosen algorithm.
     """
 
     logger = LoggerManager.get_main_logger()
@@ -636,13 +637,13 @@ def scc(
     """Spatially constrained clustering (scc) to identify continuous tissue domains.
 
     Args:
-        adata: an normalized AnnData object.
-        min_cells: minimal number of cells the gene expressed. Defaults to 100.
-        spatial_key: the key in `.obsm` corresponding to the spatial coordinate of each bucket. Defaults to "spatial".
-        e_neigh: the number of nearest neighbor in gene expression space. Defaults to 30.
-        s_neigh: the number of nearest neighbor in physical space. Defaults to 6.
-        resolution: the resolution parameter of the leiden clustering algorithm. Defaults to None.
-        copy: whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
+        adata: A normalized AnnData object.
+        min_cells: Minimal number of cells the gene expressed. Defaults to 100.
+        spatial_key: The key in `.obsm` corresponding to the spatial coordinate of each bucket. Defaults to "spatial".
+        e_neigh: The number of nearest neighbor in gene expression space. Defaults to 30.
+        s_neigh: The number of nearest neighbor in physical space. Defaults to 6.
+        resolution: The resolution parameter of the leiden clustering algorithm. Defaults to None.
+        copy: Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
             Defaults to False.
 
     Returns:

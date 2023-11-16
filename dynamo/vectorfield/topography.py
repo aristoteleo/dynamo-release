@@ -882,7 +882,8 @@ def topography(
                 "Xss": Xss,
                 "ftype": ftype,
                 "confidence": confidence,
-                "nullcline": [NCx, NCy],
+                "NCx": {str(index): array for index, array in enumerate(NCx)},
+                "NCy": {str(index): array for index, array in enumerate(NCy)},
                 "separatrices": None,
                 "fp_ind": fp_ind,
             }
@@ -896,7 +897,8 @@ def topography(
             "Xss": Xss,
             "ftype": ftype,
             "confidence": confidence,
-            "nullcline": [NCx, NCy],
+            "NCx": {str(index): array for index, array in enumerate(NCx)},
+            "NCy": {str(index): array for index, array in enumerate(NCy)},
             "separatrices": None,
             "fp_ind": fp_ind,
         }
