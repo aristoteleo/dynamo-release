@@ -133,8 +133,8 @@ def score_cells(
 def cell_growth_rate(
     adata: AnnData,
     group: str,
-    source: str,
-    target: str,
+    source: Optional[str] = None,
+    target: Optional[str] = None,
     L0: float = 0.3,
     L: float = 1.2,
     k: float = 1e-3,
@@ -189,7 +189,7 @@ def cell_growth_rate(
                 f"At least one of your input clone information {clone_column}, {group} "
                 f"is not in your adata .obs attribute."
             )
-        if any(i not in adata.obs[group] for i in all_clone_info[2:]):
+        if any(i not in adata.obs[group].values for i in all_clone_info[2:]):
             raise ValueError(
                 f"At least one of your input source/target information {source}, {target} "
                 f"is not in your adata.obs[{group}] column."

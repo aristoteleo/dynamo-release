@@ -415,6 +415,13 @@ def get_svr_filter(
     valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
 
     valid_table = adata.var.iloc[valid_idx, :]
+    if len(valid_table) == 0:
+        main_warning("No gene with valid svr scores")
+        if return_adata:
+            return adata
+        else:
+            return np.zeros(adata.n_vars, dtype=bool)
+
     nth_score = np.sort(valid_table.loc[:, score_name])[::-1][np.min((n_top_genes - 1, valid_table.shape[0] - 1))]
 
     feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][:n_top_genes]

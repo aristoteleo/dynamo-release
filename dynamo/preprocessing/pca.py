@@ -16,7 +16,7 @@ from sklearn.utils.extmath import svd_flip
 from sklearn.utils.sparsefuncs import mean_variance_axis
 
 from ..configuration import DKM
-from ..dynamo_logger import main_info_insert_adata_obsm, main_info_insert_adata_var
+from ..dynamo_logger import main_info_insert_adata_obsm, main_info_insert_adata_var, main_warning
 
 
 def _truncatedSVD_with_center(
@@ -46,7 +46,9 @@ def _truncatedSVD_with_center(
     random_state = check_random_state(random_state)
     np.random.set_state(random_state.get_state())
     v0 = random_state.uniform(-1, 1, np.min(X.shape))
-    n_components = min(n_components, X.shape[1] - 1)
+    # svds() requires 0 < k < min(X.shape)
+    # min(X.shape) or X[0] <= 30 when adata.obs is pruned to <= 30 rows
+    n_components = min(n_components, min(X.shape) - 1)
 
     mean = X.mean(0)
     X_H = X.T.conj()
@@ -241,7 +243,13 @@ def pca(
         adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
         X_data = X_data[:, valid_ind]
 
-    if use_incremental_PCA:
+    if 0 in X_data.shape:
+        main_warning("No genes passed filter, aborting preprocessing.")
+        if return_all:
+            return adata, None, None
+        else:
+            return adata
+    elif use_incremental_PCA:
         from sklearn.decomposition import IncrementalPCA
 
         fit, X_pca = _pca_fit(
