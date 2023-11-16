@@ -284,7 +284,9 @@ def integrate_vf_ivp(
                 avg[:, i] = np.mean(Y[:, np.arange(n_cell) * t_len + i], 1)
             Y = avg
 
-        Y = Y.T
+        t = [t] * n_cell
+        subarray_width = Y.shape[1] // n_cell
+        Y = [Y[:, i * subarray_width: (i + 1) * subarray_width] for i in range(n_cell)]
 
     return t, Y
 
