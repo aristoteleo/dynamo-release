@@ -244,7 +244,7 @@ def pca(
         X_data = X_data[:, valid_ind]
 
     if 0 in X_data.shape:
-        main_warning("No genes passed filter, aborting preprocessing.")
+        main_warning("No genes passed filter, ABORTING PCA REDUCTION.")
         if return_all:
             return adata, None, None
         else:

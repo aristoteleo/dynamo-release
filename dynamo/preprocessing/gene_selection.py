@@ -237,9 +237,6 @@ def calc_dispersion_by_svr(
         # This is not picked up via None checks. (Empty valid_CM leads to a divide by 0 error in get_prediction_by_svr())
         # Note that simply doing `not valid_CM.toarray()` results in "truth value of array..." error due to numpy array
         # `not valid_CM.toarray().tolist()` doesn't work either because a list of empty lists still gives False
-        print(valid_CM.shape)
-        print(adata)
-        print(adata_ori)
         if valid_CM is None or valid_CM.shape[1] == 0:
             main_warning("No valid_CM for layer " + layer)
             
