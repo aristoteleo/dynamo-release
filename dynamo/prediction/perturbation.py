@@ -17,7 +17,8 @@ from ..vectorfield.vector_calculus import (
 )
 
 from ..vectorfield.rank_vf import rank_cell_groups, rank_genes
-from .utils import expr_to_pca, pca_to_expr, z_score, z_score_inv
+from ..utils import expr_to_pca, pca_to_expr
+from .utils import z_score, z_score_inv
 
 
 def KO(
