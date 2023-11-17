@@ -43,20 +43,20 @@ def graphize_velocity(
     matrix E[i, j], and E[i, j] = -E[j, i].
 
     Args:
-        V: the velocities for all cells.
-        X: the coordinates for all cells.
-        nbrs_idx: a list of neighbor indices for each cell. If None a KNN will be performed instead. Defaults to None.
-        dists: the distance matrix. Defaults to None.
-        k: the number of neighbors for the KNN search. Defaults to 30.
-        normalize_v: whether to normalize the velocity vectors. Defaults to False.
-        scale_by_dist: whether to scale the result by distance. Defaults to False.
+        V: The velocities for all cells.
+        X: The coordinates for all cells.
+        nbrs_idx: A list of neighbor indices for each cell. If None a KNN will be performed instead. Defaults to None.
+        dists: The distance matrix. Defaults to None.
+        k: The number of neighbors for the KNN search. Defaults to 30.
+        normalize_v: Whether to normalize the velocity vectors. Defaults to False.
+        scale_by_dist: Whether to scale the result by distance. Defaults to False.
         E_func: A variance stabilizing function for reducing the variance of the flows.
             If a string is passed, there are two options:
-                'sqrt': the numpy.sqrt square root function;
-                'exp': the numpy.exp exponential function.
+                'sqrt': the numpy.sqrt() square root function;
+                'exp': the numpy.exp() exponential function.
             Defaults to None.
-        use_sparse: whether to use sparse matrix for edge matrix. Defaults to False.
-        return_nbrs: whether to return the neighbor object. Defaults to False.
+        use_sparse: Whether to use sparse matrix for edge matrix. Defaults to False.
+        return_nbrs: Whether to return the neighbor object. Defaults to False.
 
     Raises:
         NotImplementedError: `E_func` is invalid.
@@ -64,8 +64,8 @@ def graphize_velocity(
     Returns:
         A tuple (E, nbrs_idx, dists, [nbrs]), where E is the edge matrix, could be a sparse matrix or a ndarray
         depending on `use_sparse`; nbrs_idx is the list of neighbor indices for each cell, the type depending on the
-        input type of `nbrs_idx`; dist is the distance matrix; nbrs is the neighbor object and it would be returned when
-        `return_nbrs` is true.
+        input type of `nbrs_idx`; dist is the distance matrix; nbrs is the neighbor object, and it would be returned
+        when `return_nbrs` is true.
     """
 
     n = X.shape[0]
@@ -145,26 +145,26 @@ def graphize_velocity_coopt(
     loss_func: str = "log",
     nonneg: bool = False,
     norm_dist: bool = False,
-):
+) -> np.ndarray:
     """The function generates a graph based on the velocity data by minimizing the loss function:
                     L(w_i) = a |v_ - v|^2 - b cos(u, v_) + lambda * \sum_j |w_ij|^2
     where v_ = \sum_j w_ij*d_ij. The flow from i- to j-th node is returned as the edge matrix E[i, j],
     and E[i, j] = -E[j, i]. Two modes are supported
 
     Args:
-        X: the coordinates of cells in the expression space.
-        V: the velocity vectors in the expression space.
-        nbrs: list of neighbor indices for each cell.
-        C: the transition matrix of cells based on the correlation/cosine kernel.
-        U: the correlation kernel-projected velocity vectors, must be in the original expression space, can be
+        X: The coordinates of cells in the expression space.
+        V: The velocity vectors in the expression space.
+        nbrs: List of neighbor indices for each cell.
+        C: The transition matrix of cells based on the correlation/cosine kernel.
+        U: The correlation kernel-projected velocity vectors, must be in the original expression space, can be
             calculated as `adata.obsm['velocity_pca'] @ adata.uns['PCs'].T` where velocity_pca is the kernel projected
             velocity vector in PCA space.
-        a: the weight for preserving the velocity length.
-        b: the weight for the cosine similarity.
-        r: the weight for the regularization.
-        loss_func: the function to calculate the loss.
-        nonneg: whether to ensure the resultant transition matrix to have non-negative values.
-        norm_dist: whether to normalize distance. Should be False to penalize long jumps in the resulting graph vector
+        a: The weight for preserving the velocity length.
+        b: The weight for the cosine similarity.
+        r: The weight for the regularization.
+        loss_func: The function to calculate the loss.
+        nonneg: Whether to ensure the resultant transition matrix to have non-negative values.
+        norm_dist: Whether to normalize distance. Should be False to penalize long jumps in the resulting graph vector
             field.
 
     Returns:
@@ -302,8 +302,8 @@ def symmetrize_discrete_vector_field(F: np.ndarray, mode: Literal["asym", "sym"]
     """Calculate the symmetric or asymmetric components of an array.
 
     Args:
-        F: the input array.
-        mode: whether to calculate the symmetric or asymmetric component. Defaults to "asym".
+        F: The input array.
+        mode: Whether to calculate the symmetric or asymmetric component. Defaults to "asym".
 
     Returns:
         The calculated components.
@@ -325,8 +325,8 @@ def dist_mat_to_gaussian_weight(dist: np.ndarray, sigma: float) -> np.ndarray:
     """Calculate the corresponding Gaussian weight for each distance element in a distance matrix.
 
     Args:
-        dist: the distance matrix. Each element represents a distance to the mean.
-        sigma: the standard deviation of the gaussian distribution.
+        dist: The distance matrix. Each element represents a distance to the mean.
+        sigma: The standard deviation of the gaussian distribution.
 
     Returns:
         A matrix with each element corresponding to the Gaussian weight of the distance matrix.
@@ -350,18 +350,18 @@ def calc_gaussian_weight(
     """Calculate the gaussian weight corresponding to the distance of each neighbor.
 
     Args:
-        nbrs_idx: a list containing the indices of neighbors.
-        dists: the distance matrix.
-        sig: the standard deviation of the distances. If None, auto_sig_func would be called to calculate the standard
+        nbrs_idx: A list containing the indices of neighbors.
+        dists: The distance matrix.
+        sig: The standard deviation of the distances. If None, auto_sig_func would be called to calculate the standard
             deviation. Defaults to None.
-        auto_sig_func: the function used to calculate standard deviation if `sig` is None. If set to None, `np.median`
+        auto_sig_func: The function used to calculate standard deviation if `sig` is None. If set to None, `np.median`
             would be used. Defaults to None.
-        auto_sig_multiplier: the auto calculated standard deviation would be multiplied with this value. Defaults to 2.
-        format: the matrix format of the output. Can be one of {"sparse", "squareform", "condense"}. Defaults to
+        auto_sig_multiplier: The auto calculated standard deviation would be multiplied with this value. Defaults to 2.
+        format: The matrix format of the output. Can be one of {"sparse", "squareform", "condense"}. Defaults to
             "squareform".
 
     Raises:
-        NotImplementedError: the `format` specified is invalid.
+        NotImplementedError: The `format` specified is invalid.
 
     Returns:
         The gaussian weight corresponding to the distance of each neighbor.
@@ -405,15 +405,15 @@ def calc_laplacian(
     """Calculate the laplacian matrix for a given graph.
 
     Args:
-        W: the weight matrix for each edge e_ij of the graph.
-        E: the length of the edges. If None, all edges are assumed to have length of 1. Defaults to None.
-        weight_mode: the method to apply the weight on the graph. Can be one of {"naive", "asymmetric", "symmetric"}.
+        W: The weight matrix for each edge e_ij of the graph.
+        E: The length of the edges. If None, all edges are assumed to have length of 1. Defaults to None.
+        weight_mode: The method to apply the weight on the graph. Can be one of {"naive", "asymmetric", "symmetric"}.
             Defaults to "asymmetric".
-        convention: the convention used to represent the result. Can be one of {"graph", "diffusion"}. Defaults to
+        convention: The convention used to represent the result. Can be one of {"graph", "diffusion"}. Defaults to
             "graph".
 
     Raises:
-        NotImplementedError: the weight mode is invalid.
+        NotImplementedError: The weight mode is invalid.
 
     Returns:
         The laplacian matrix for the given graph
@@ -458,15 +458,15 @@ def fp_operator(
     in Q_ij.
 
     Args:
-        F: the graph vector field. F_ij encodes the flow on edge e_ij (from vector i to j).
-        D: the diffusion coefficient corresponding to F.
-        E: the length of the edges. If None, all edges are assumed to have length of 1. Defaults to None.
-        W: the edge weight. W_ij is the weight of edge e_ij. Defaults to None.
-        symmetrize_E: whether to forcefully symmetrize `F`. Defaults to True.
-        drift_weight: whether to drift with the weight . Defaults to False.
-        weight_mode: the method to apply the weight on the graph. Can be one of {"naive", "asymmetric", "symmetric"}.
+        F: The graph vector field. F_ij encodes the flow on edge e_ij (from vector i to j).
+        D: The diffusion coefficient corresponding to F.
+        E: The length of the edges. If None, all edges are assumed to have length of 1. Defaults to None.
+        W: The edge weight. W_ij is the weight of edge e_ij. Defaults to None.
+        symmetrize_E: Whether to forcefully symmetrize `F`. Defaults to True.
+        drift_weight: Whether to drift with the weight . Defaults to False.
+        weight_mode: The method to apply the weight on the graph. Can be one of {"naive", "asymmetric", "symmetric"}.
             Defaults to "asymmetric".
-        renormalize: whether to renormalize the resulted transition rate matrix. Defaults to False.
+        renormalize: Whether to renormalize the resulted transition rate matrix. Defaults to False.
 
     Returns:
         The transition rate matrix Q for a graph vector field.
@@ -506,13 +506,13 @@ def divergence(
     """Calculate the divergence of a weighted graph.
 
     Args:
-        E: the length of the edges.
-        W: the weight of the edges. If None, assume all edges to have weight of 1. Defaults to None.
-        method: the method used to calculate the divergence. Can be one of {"operator", "direct"}. "direct" would make
+        E: The length of the edges.
+        W: The weight of the edges. If None, assume all edges to have weight of 1. Defaults to None.
+        method: The method used to calculate the divergence. Can be one of {"operator", "direct"}. "direct" would make
             the function to calculate the divergence from the edge length matrix directly while "operator" would make
             the functions to calculate required operators first and then apply the operators to the matrix. Defaults to
             "operator".
-        weighted: whether to enable weighted mode.
+        weighted: Whether to enable weighted mode.
 
     Raises:
         NotImplementedError: `method` is invalid.
@@ -546,7 +546,7 @@ def gradop(adj: Union[sp.csr_matrix, np.ndarray]) -> sp.csr_matrix:
     """Return the gradient operator of a weighted graph in matrix form.
 
     Args:
-        adj: the adjacency matrix of the graph
+        adj: The adjacency matrix of the graph
 
     Returns:
         The gradient operator used to calculate gradient of a weighted graph.
@@ -564,8 +564,8 @@ def gradient(E: Union[sp.csr_matrix, np.ndarray], p: np.ndarray) -> np.ndarray:
     """Calculate gradient of a weighted graph.
 
     Args:
-        E: the length of the edges of the graph.
-        p: the potential of the graph.
+        E: The length of the edges of the graph.
+        p: The potential of the graph.
 
     Returns:
         The gradient of the weighted graph.
@@ -577,7 +577,7 @@ def divop(W: Union[sp.csr_matrix, np.ndarray]) -> np.ndarray:
     """Return the divergence operator in matrix form.
 
     Args:
-        W: the edge weight of the graph.
+        W: The edge weight of the graph.
 
     Returns:
         The operator used to calculate the divergence of the graph.
@@ -599,12 +599,12 @@ def potential(
     potential. Thus, small potential is related to smaller intrinsic time and vice versa.
 
     Args:
-        F: the graph vector field. F_ij encodes the flow on edge e_ij (from vector i to j).
-        E: the length of edges of the graph. If None, all edges are assumed to have length of 1. Defaults to None.
-        W: the edge weight of the graph. If None, all edges are assumed to have weight of 1. Defaults to None.
-        div: the divergence of the graph. If None, it would be calculated based on the graph's vector field and weight.
+        F: The graph vector field. F_ij encodes the flow on edge e_ij (from vector i to j).
+        E: The length of edges of the graph. If None, all edges are assumed to have length of 1. Defaults to None.
+        W: The edge weight of the graph. If None, all edges are assumed to have weight of 1. Defaults to None.
+        div: The divergence of the graph. If None, it would be calculated based on the graph's vector field and weight.
             Defaults to None.
-        method: the method to be used to calculate the potential. Can be following:
+        method: The method to be used to calculate the potential. Can be following:
             1. inv: using inverse of the laplacian matrix.
             2. pinv: using pseudo inverse of the laplacian matrix.
             3. qr_pinv: perform QR decomposition of the laplacian matrix first, then perform pinv.
@@ -640,10 +640,10 @@ class GraphVectorField:
     """An object representing a graph vector field, storing its edges, edge lengths, and edge weights.
 
     Attributes:
-        F: graph vector field. F_ij encodes the flow on edge e_ij (from vertex i to j).
-        E: length of edges. If None, all edges are assumed to have lengths of one. Defaults to None.
-        W: edge weight. W_ij is the weight on edge e_ij. Defaults to None.
-        E_tol: the tolerance of minimum edge length. Edges with length smaller than this value would be set to have
+        F: Graph vector field. F_ij encodes the flow on edge e_ij (from vertex i to j).
+        E: Length of edges. If None, all edges are assumed to have lengths of one. Defaults to None.
+        W: Edge weight. W_ij is the weight on edge e_ij. Defaults to None.
+        E_tol: The tolerance of minimum edge length. Edges with length smaller than this value would be set to have
             this length. Defaults to 1e-5.
     """
 
@@ -653,15 +653,15 @@ class GraphVectorField:
         """Initialize GraphVectorField.
 
         Args:
-            F: graph vector field. F_ij encodes the flow on edge e_ij (from vertex i to j).
-            E: length of edges. If None, all edges are assumed to have lengths of one. Defaults to None.
-            W: edge weight. W_ij is the weight on edge e_ij. Defaults to None.
-            E_tol: the tolerance of minimum edge length. Edges with length smaller than this value would be set to have
+            F: Graph vector field. F_ij encodes the flow on edge e_ij (from vertex i to j).
+            E: Length of edges. If None, all edges are assumed to have lengths of one. Defaults to None.
+            W: Edge weight. W_ij is the weight on edge e_ij. Defaults to None.
+            E_tol: The tolerance of minimum edge length. Edges with length smaller than this value would be set to have
                 this length. Defaults to 1e-5.
 
         Raises:
-            Exception: edge length and graph vector field dimensions do not match.
-            Exception: edge weight and graph vector field dimensions do not match.
+            Exception: Edge length and graph vector field dimensions do not match.
+            Exception: Edge weight and graph vector field dimensions do not match.
         """
         # TODO: sparse matrix support
         self.F = F
@@ -719,8 +719,8 @@ class GraphVectorField:
         """Calculate the divergence of the graph.
 
         Args:
-            kwargs: currently the only acceptable kwargs is `method: Literal["direct", "operator"]` to determine the
-                method to calculate divergence. By default "operator" method would be used.
+            kwargs: Currently the only acceptable kwargs is `method: Literal["direct", "operator"]` to determine the
+                method to calculate divergence. By default, "operator" method would be used.
 
         Returns:
             The divergence of the graph.
@@ -734,12 +734,12 @@ class GraphVectorField:
         """Calculate the potential of the graph.
 
         Potential is related to the intrinsic time. Note that the returned value from this function is the negative of
-        potential. Thus small potential is related to smaller intrinsic time and vice versa.
+        potential. Thus, small potential is related to smaller intrinsic time and vice versa.
 
         Args:
-            mode: whether to use the asym components of the graph matrix or the normal symmetric matrix for calculation.
+            mode: Whether to use the asym components of the graph matrix or the normal symmetric matrix for calculation.
                 Defaults to "asym".
-            kwargs: other kwargs passed to `potential` func, currently only `method` is acceptable.
+            kwargs: Other kwargs passed to `potential` func, currently only `method` is acceptable.
 
         Returns:
             Potential of this graph.
@@ -755,8 +755,8 @@ class GraphVectorField:
         """Calculate the transition rate matrix Q, encoding the transition rate from node i to j in Q_ji.
 
         Args:
-            D: the diffusion coefficient.
-            kwargs: other kwargs passed to `fp_operator`, include `drift_weight`, `weight_mode`, and `renormalize`.
+            D: The diffusion coefficient.
+            kwargs: Other kwargs passed to `fp_operator`, include `drift_weight`, `weight_mode`, and `renormalize`.
 
         Returns:
             The transition rate matrix Q.
@@ -766,15 +766,15 @@ class GraphVectorField:
 
     def project_velocity(
         self, X_emb: np.ndarray, mode: Literal["raw", "asym"] = "raw", correct_density=False, norm_dist=False, **kwargs
-    ):
-        """project the graph's vector field to a low-dimension space provided.
+    ) -> np.ndarray:
+        """Project the graph's vector field to a low-dimension space provided.
 
         Args:
-            X_emb: the low-dimension space to be projected on.
-            mode: whether use the graph's vector field directly ("raw") or use its asym components ("asym"). Defaults to
-            "raw".
-            correct_density: whether to correct density of the projected result based on X_emb. Defaults to False.
-            norm_dist: whether to normalize the projection based on X_emb. Defaults to False.
+            X_emb: The low-dimension space to be projected on.
+            mode: Whether to use the graph's vector field directly ("raw") or use its asym components ("asym"). Defaults
+                to "raw".
+            correct_density: Whether to correct density of the projected result based on X_emb. Defaults to False.
+            norm_dist: Whether to normalize the projection based on X_emb. Defaults to False.
 
         Raises:
             NotImplementedError: `mode` invalid.

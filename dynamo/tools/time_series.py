@@ -12,8 +12,8 @@ def cal_ncenter(ncells: int, ncells_limit: int = 100) -> int:
     """Calculate number of centers to be considered.
 
     Args:
-        ncells: the number of cells.
-        ncells_limit: the limitation of number of cells to be considered. Defaults to 100.
+        ncells: The number of cells.
+        ncells_limit: The limitation of number of cells to be considered. Defaults to 100.
 
     Returns:
         The number of centers to be considered
@@ -35,17 +35,17 @@ def directed_pg(
     """A function that learns a direct principal graph by integrating the transition matrix between and DDRTree.
 
     Args:
-        adata: an AnnData object,
-        basis: the dimension reduction method utilized. Defaults to "umap".
-        transition_method: the method to calculate the transition matrix and project high dimensional vector to low
+        adata: An AnnData object,
+        basis: The dimension reduction method utilized. Defaults to "umap".
+        transition_method: The method to calculate the transition matrix and project high dimensional vector to low
             dimension.
-        maxIter: the max iteration numbers. Defaults to 10.
-        sigma: the bandwidth parameter. Defaults to 0.001.
-        Lambda: the regularization parameter for inverse graph embedding. Defaults to None.
-        gamma: the regularization parameter for k-means. Defaults to 10.
-        ncenter: the number of centers to be considered. If None, number of centers would be calculated automatically.
+        maxIter: The max iteration numbers. Defaults to 10.
+        sigma: The bandwidth parameter. Defaults to 0.001.
+        Lambda: The regularization parameter for inverse graph embedding. Defaults to None.
+        gamma: The regularization parameter for k-means. Defaults to 10.
+        ncenter: The number of centers to be considered. If None, number of centers would be calculated automatically.
             Defaults to None.
-        raw_embedding: whether to project the nodes on the principal graph into the original embedding. Defaults to
+        raw_embedding: Whether to project the nodes on the principal graph into the original embedding. Defaults to
             True.
 
     Raises:
@@ -53,7 +53,7 @@ def directed_pg(
         Exception: adata.uns["transition_matrix"] not defined.
 
     Returns:
-        An updated AnnData object that is updated with principal_g_transition, X__DDRTree and and X_DDRTree_pg keys.
+        An updated AnnData object that is updated with principal_g_transition, X__DDRTree and X_DDRTree_pg keys.
     """
 
     X = adata.obsm["X_" + basis] if "X_" + basis in adata.obsm.keys() else None

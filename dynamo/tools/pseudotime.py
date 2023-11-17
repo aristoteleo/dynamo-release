@@ -16,9 +16,9 @@ def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> p
     """Calculates the order of cells based on a minimum spanning tree and a distance matrix.
 
     Args:
-        dp: the distance matrix representing the pairwise distances between cells.
-        mst: the minimum spanning tree matrix.
-        root_cell: the index of the root cell.
+        dp: The distance matrix representing the pairwise distances between cells.
+        mst: The minimum spanning tree matrix.
+        root_cell: The index of the root cell.
 
     Returns:
         A pandas DataFrame containing the cell ordering information.
@@ -70,8 +70,8 @@ def find_cell_proj_closest_vertex(Z: np.ndarray, Y: np.ndarray) -> np.ndarray:
     """Find the closest vertex of each cell's projection to the nearest in the graph.
 
     Args:
-        Z: a matrix representing cell projection points.
-        Y: a matrix representing target points in the graph.
+        Z: A matrix representing cell projection points.
+        Y: A matrix representing target points in the graph.
 
     Returns:
         Array of indices indicating the closest vertex.
@@ -125,8 +125,8 @@ def proj_point_on_line(point: np.ndarray, line: np.ndarray) -> np.ndarray:
     """Default method to project a point onto a line defined by two points.
 
     Args:
-        point: the point to be projected onto the line.
-        line: an array representing the line.
+        point: The point to be projected onto the line.
+        line: An array representing the line.
 
     Returns:
         The projected point on the line.
@@ -142,10 +142,10 @@ def project2MST(mst: np.ndarray, Z: np.ndarray, Y: np.ndarray, Projection_Method
     """Project cell projection points onto the minimum spanning tree (MST) of the principal graph.
 
     Args:
-        mst: the adjacency matrix representing the minimum spanning tree (MST).
-        Z: the matrix representing points to project.
-        Y: the matrix representing target centers on the principal graph.
-        Projection_Method: callable function for projection method.
+        mst: The adjacency matrix representing the minimum spanning tree (MST).
+        Z: The matrix representing points to project.
+        Y: The matrix representing target centers on the principal graph.
+        Projection_Method: Callable function for projection method.
 
     Returns:
         A tuple containing the following elements:
@@ -206,12 +206,12 @@ def select_root_cell(
     a root state as an additional constraint.
 
     Args:
-        adata: the anndata object.
-        Z: a matrix representing cell projection points.
-        root_state: the specific state for selecting the root cell.
-        init_cells: the index to search for root cells. If provided, root_state will be ignored.
-        reverse: whether to reverse the selection of the root cell.
-        map_to_tree: whether to map the root in all cells to the tree after dimension reduction.
+        adata: The anndata object.
+        Z: A matrix representing cell projection points.
+        root_state: The specific state for selecting the root cell.
+        init_cells: The index to search for root cells. If provided, root_state will be ignored.
+        reverse: Whether to reverse the selection of the root cell.
+        map_to_tree: Whether to map the root in all cells to the tree after dimension reduction.
 
     Raises:
         ValueError: If the state has not yet been set or if there are no cells for the specified state.
@@ -304,20 +304,20 @@ def order_cells(
     increasingly large values of pseudotime based on distance.
 
     Args:
-        adata: the anndata object.
-        layer: the layer used to order the cells.
-        basis: the basis that indicates the data after dimension reduction.
-        root_state: the specific state for selecting the root cell.
-        init_cells: the index to search for root cells. If provided, root_state will be ignored.
-        reverse: whether to reverse the selection of the root cell.
-        maxIter: the max number of iterations.
-        sigma: the bandwidth parameter.
-        gamma: regularization parameter for k-means.
-        eps: the threshold of convergency to stop the iteration. Defaults to 0.
-        dim: the number of dimensions reduced to. Defaults to 2.
-        Lambda: regularization parameter for inverse praph embedding. Defaults to 1.0.
-        ncenter: the number of center genes to be considered. If None, all genes would be considered. Defaults to None.
-        kwargs: additional keyword arguments.
+        adata: The anndata object.
+        layer: The layer used to order the cells.
+        basis: The basis that indicates the data after dimension reduction.
+        root_state: The specific state for selecting the root cell.
+        init_cells: The index to search for root cells. If provided, root_state will be ignored.
+        reverse: Whether to reverse the selection of the root cell.
+        maxIter: The max number of iterations.
+        sigma: The bandwidth parameter.
+        gamma: Regularization parameter for k-means.
+        eps: The threshold of convergency to stop the iteration. Defaults to 0.
+        dim: The number of dimensions reduced to. Defaults to 2.
+        Lambda: Regularization parameter for inverse praph embedding. Defaults to 1.0.
+        ncenter: The number of center genes to be considered. If None, all genes would be considered. Defaults to None.
+        kwargs: Additional keyword arguments.
 
     Returns:
         The anndata object updated with pseudotime, cell order state and other necessary information.
@@ -411,8 +411,8 @@ def _cal_ncenter(ncells, ncells_limit=100):
     """Calculate the number of centers genes to be considered.
 
     Parameters:
-        ncells: total number of cells.
-        ncells_limit: upper limit of number of cells to be considered. Default is 100.
+        ncells: Total number of cells.
+        ncells_limit: Upper limit of number of cells to be considered. Default is 100.
 
     Returns:
         Number of centers to use. Returns None if `ncells` is less than or equal to `ncells_limit`.
@@ -428,11 +428,11 @@ def compute_partition(adata, transition_matrix, cell_membership, principal_g, gr
     """Compute a partition of cells based on a minimum spanning tree and cell membership.
 
     Args:
-        adata: the anndata object containing the single-cell data.
-        transition_matrix: the matrix representing the transition probabilities between cells.
-        cell_membership: the matrix representing the cell membership information.
-        principal_g: the principal graph information saved as array.
-        group: the name of a categorical group in `adata.obs`. If provided, it is used to construct the
+        adata: The anndata object containing the single-cell data.
+        transition_matrix: The matrix representing the transition probabilities between cells.
+        cell_membership: The matrix representing the cell membership information.
+        principal_g: The principal graph information saved as array.
+        group: The name of a categorical group in `adata.obs`. If provided, it is used to construct the
             `cell_membership` matrix based on the specified group membership. Defaults to None.
 
     Returns:
