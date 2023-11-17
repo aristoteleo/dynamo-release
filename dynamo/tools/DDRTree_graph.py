@@ -93,7 +93,17 @@ def _get_path(
     parents_dict: Dict,
     start: int,
     end_nodes: List,
-):
+) -> List:
+    """Get the path from the start node to the end node.
+
+    Args:
+        parents_dict: The dictionary that maps each node to its parent node.
+        start: The start node.
+        end_nodes: The end nodes.
+
+    Returns:
+        The path from the start node to the end node.
+    """
     if parents_dict[start] == -1:
         return None
     cur = parents_dict[start]
@@ -104,7 +114,18 @@ def _get_path(
     return path
 
 
-def _get_all_segments(orders: Union[np.ndarray, List], parents: Union[np.ndarray, List]):
+def _get_all_segments(orders: Union[np.ndarray, List], parents: Union[np.ndarray, List]) -> List:
+    """Get all segments from the minimum spanning tree.
+
+    Segments is defined as a path without any bifurcations.
+
+    Args:
+        orders: The order to traverse the minimum spanning tree.
+        parents: The parent node for each node.
+
+    Returns:
+        A list of segments.
+    """
     from collections import Counter
 
     leaf_nodes = [node for node in orders if node not in parents]

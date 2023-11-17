@@ -35,7 +35,7 @@ from .connectivity import (
 )
 
 # Pseudotime related
-from .pseudotime_graph import construct_velocity_tree, directed_pg
+from .DDRTree_graph import construct_velocity_tree, directed_pg
 from .DDRTree import DDRTree, cal_ncenter
 from .pseudotime import order_cells
 
