@@ -2469,7 +2469,7 @@ def set_transition_genes(
     use_for_dynamics: bool = True,
     store_key: str = "use_for_transition",
     minimal_gene_num: int = 50,
-) -> None:
+) -> AnnData:
     """Set the transition genes in the AnnData object.
 
     Args:

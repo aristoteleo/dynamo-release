@@ -1,7 +1,10 @@
-# YEAR: 2019
-# COPYRIGHT HOLDER: ddhodge
+""" This file implements graph operators using Graph object from iGraph as input.
 
-# Code adapted from https://github.com/kazumits/ddhodge.
+YEAR: 2019
+COPYRIGHT HOLDER: ddhodge
+
+Code adapted from https://github.com/kazumits/ddhodge.
+"""
 from typing import List, Optional, Union
 
 from itertools import combinations

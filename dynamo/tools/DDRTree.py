@@ -10,7 +10,7 @@ from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.sparse.linalg import inv
 
 
-def cal_ncenter(ncells: int, ncells_limit: int=100) -> int:
+def cal_ncenter(ncells: int, ncells_limit: int = 100) -> int:
     """Calculate the number of cells to be most significant in the reduced space.
 
     Args:
@@ -105,15 +105,15 @@ def eye(m: int, n: int) -> np.ndarray:
 
 
 def DDRTree(
-        X: np.ndarray, 
-        maxIter: int, 
-        sigma: float, 
-        gamma: float, 
-        eps: int=0, 
-        dim: int=2, 
-        Lambda: float=1.0, 
-        ncenter: Optional[int]=None, 
-        keep_history: bool=False
+    X: np.ndarray,
+    maxIter: int,
+    sigma: float,
+    gamma: float,
+    eps: int = 0,
+    dim: int = 2,
+    Lambda: float = 1.0,
+    ncenter: Optional[int] = None,
+    keep_history: bool = False,
 ) -> Union[
         pd.DataFrame, 
         Tuple[

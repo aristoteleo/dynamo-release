@@ -1,3 +1,4 @@
+"""This file implements the graph calculus functions using matrix as input."""
 from typing import Callable, List, Optional, Tuple, Union
 
 try:
