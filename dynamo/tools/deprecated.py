@@ -19,7 +19,7 @@ from scipy.sparse import issparse
 from scipy.sparse.csgraph import shortest_path
 
 from ..dynamo_logger import main_info, main_warning
-from .DDRTree_py import DDRTree
+from .DDRTree import DDRTree
 from .moments import moment_model
 from .utils import (
     get_data_for_kin_params_estimation,

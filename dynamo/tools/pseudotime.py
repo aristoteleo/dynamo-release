@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.spatial import distance
 from scipy.sparse.csgraph import minimum_spanning_tree
 
-from .DDRTree_py import DDRTree
+from .DDRTree import DDRTree
 from .utils import log1p_
 
 from ..dynamo_logger import main_info, main_info_insert_adata_obs

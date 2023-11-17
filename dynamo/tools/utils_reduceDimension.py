@@ -18,7 +18,7 @@ from .connectivity import (
     knn_to_adj,
     umap_conn_indices_dist_embedding,
 )
-from .psl_py import psl
+from .psl import psl
 from .utils import log1p_, update_dict
 
 

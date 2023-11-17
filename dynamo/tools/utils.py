@@ -496,6 +496,23 @@ def elem_prod(
         return np.multiply(X, Y)
 
 
+def logdet(A: np.ndarray) -> float:
+    """Calculate log(det(A)).
+
+    Compared with calculating log(det(A)) directly, this function avoid the overflow/underflow problems that are likely
+    to happen when applying det to large matrices.
+
+    Args:
+        A: An square matrix.
+
+    Returns:
+        log(det(A)).
+    """
+
+    v = 2 * sum(np.log(np.diag(np.linalg.cholesky(A))))
+    return v
+
+
 def norm(x: Union[sp.csr_matrix, np.ndarray], **kwargs) -> np.ndarray:
     """Calculate the norm of an array or matrix
 
