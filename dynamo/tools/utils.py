@@ -279,6 +279,47 @@ def create_layer(
         return new
 
 
+def AddAssay(adata: AnnData, data: pd.DataFrame, key: str, slot: str = "obsm") -> AnnData:
+    """Add a new data as a key to the specified slot.
+
+    Args:
+        adata: An AnnData object.
+        data: The data (in pandas DataFrame format) that will be added to adata.
+        key: The key name to be used for the new data.
+        slot: The slot of adata to store the new data. Defaults to "obsm".
+
+    Returns:
+        An updated anndata object that are updated with a new data as a key to the specified slot.
+    """
+
+    if slot == "uns":
+        adata.uns[key] = data.loc[adata.obs.index, set(adata.var.index).intersection(data.columns)]
+    elif slot == "obsm":
+        adata.obsm[key] = data.loc[adata.obs.index, set(adata.var.index).intersection(data.columns)]
+
+    return adata
+
+
+def getAssay(adata: AnnData, key: str, slot: str = "obsm") -> pd.DataFrame:
+    """Retrieve a key named data from the specified slot.
+
+    Args:
+        adata: An AnnData object.
+        key: The key name of the data to be retrieved. .
+        slot: The slot of adata to be retrieved from. Defaults to "obsm".
+
+    Returns:
+        The data (in pd.DataFrame) that will be retrieved from adata.
+    """
+
+    if slot == "uns":
+        data = adata.uns[key]
+    elif slot == "obsm":
+        data = adata.obsm[key]
+
+    return data
+
+
 def index_gene(adata: AnnData, arr: np.ndarray, genes: List[str]) -> np.ndarray:
     """A lightweight method for indexing adata arrays by genes.
 

@@ -16,7 +16,7 @@ from anndata import AnnData
 from numpy import *
 from scipy.integrate import odeint
 from scipy.optimize import curve_fit, least_squares
-from scipy.sparse import issparse
+from scipy.sparse import csr_matrix, issparse
 from scipy.sparse.csgraph import shortest_path
 from tqdm import tqdm
 
@@ -1864,3 +1864,49 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
         Est = Estimation(Moment, time_key=tkey, normalize=True)  # # data is already normalized
 
     return adata, Est, t_ind
+
+
+#---------------------------------------------------------------------------------------------------
+# deprecated clustering.py
+def infomap(
+    adata: AnnData,
+    use_weight: bool = True,
+    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
+    adj_matrix_key: Optional[str] = None,
+    result_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    obsm_key: Optional[str] = None,
+    selected_cluster_subset: Optional[Tuple[str, str]] = None,
+    selected_cell_subset: Union[List[int], List[str], None] = None,
+    directed: bool = False,
+    copy: bool = False,
+    **kwargs
+) -> AnnData:
+    """Apply infomap community detection algorithm to cluster adata.
+
+    For other community detection general parameters, please refer to `dynamo`'s `tl.cluster_community` function.
+    "Infomap is based on ideas of information theory. The algorithm uses the probability flow of random walks on a
+    network as a proxy for information flows in the real system and it decomposes the network into modules by
+    compressing a description of the probability flow." - cdlib
+
+    Args:
+        adata: an AnnData object.
+        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
+            Defaults to True.
+        adj_matrix: adj_matrix used for clustering. Defaults to None.
+        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
+        result_key: the key where the results will be stored in obs. Defaults to None.
+        layer: the adata layer on which cluster algorithms will work. Defaults to None.
+        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
+        selected_cluster_subset: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
+            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
+        selected_cell_subset: a subset of cells in adata that would be clustered. Could be a list of indices or a list
+            of cell names. Defaults to None.
+        directed: whether the edges in the graph should be directed. Defaults to False.
+        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
+
+    Returns:
+        An updated AnnData object if `copy` is set to be true.
+    """
+
+    raise NotImplementedError("infomap algorithm has been deprecated.")
