@@ -12,15 +12,17 @@ import functools
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from anndata import AnnData
 from numpy import *
 from scipy.integrate import odeint
 from scipy.optimize import curve_fit, least_squares
 from scipy.sparse import issparse
 from scipy.sparse.csgraph import shortest_path
+from tqdm import tqdm
 
 from ..dynamo_logger import main_info, main_warning
 from .DDRTree import DDRTree
-from .moments import moment_model
+from .moments import calc_1nd_moment, strat_mom
 from .utils import (
     get_data_for_kin_params_estimation,
     get_mapper,
@@ -1599,3 +1601,266 @@ def _compute_partition_legacy(adata, transition_matrix, cell_membership, princip
     # diag(sig_links) < - 0
 
     return direct_principal_g
+
+
+# ---------------------------------------------------------------------------------------------------
+# deprecated moments.py
+@deprecated
+def _calc_1nd_moment(*args, **kwargs):
+    return _calc_1nd_moment_legacy(*args, **kwargs)
+
+
+def _calc_1nd_moment_legacy(X, W, normalize_W=True):
+    """deprecated"""
+    if normalize_W:
+        d = np.sum(W, 1)
+        W = np.diag(1 / d) @ W
+    return W @ X
+
+
+@deprecated
+def _calc_2nd_moment(*args, **kwargs):
+    return _calc_2nd_moment_legacy(*args, **kwargs)
+
+
+def _calc_2nd_moment_legacy(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
+    """deprecated"""
+    if normalize_W:
+        d = np.sum(W, 1)
+        W = np.diag(1 / d) @ W
+    XY = np.multiply(W @ Y, X)
+    if center:
+        mX = calc_1nd_moment(X, W, False) if mX is None else mX
+        mY = calc_1nd_moment(Y, W, False) if mY is None else mY
+        XY = XY - np.multiply(mX, mY)
+    return XY
+
+
+# old moment estimation code
+class MomData(AnnData):
+    """deprecated"""
+
+    def __init__(self, adata, time_key="Time", has_nan=False):
+        # self.data = adata
+        self.__dict__ = adata.__dict__
+        # calculate first and second moments from data
+        self.times = np.array(self.obs[time_key].values, dtype=float)
+        self.uniq_times = np.unique(self.times)
+        nT = self.get_n_times()
+        ng = self.get_n_genes()
+        self.M = np.zeros((ng, nT))  # first moments (data)
+        self.V = np.zeros((ng, nT))  # second moments (data)
+        for g in tqdm(range(ng), desc="calculating 1/2 moments"):
+            tmp = self[:, g].layers["new"]
+            L = (
+                np.array(tmp.A, dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)
+            )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
+            if has_nan:
+                self.M[g] = strat_mom(L, self.times, np.nanmean)
+                self.V[g] = strat_mom(L, self.times, np.nanvar)
+            else:
+                self.M[g] = strat_mom(L, self.times, np.mean)
+                self.V[g] = strat_mom(L, self.times, np.var)
+
+    def get_n_genes(self):
+        return self.var.shape[0]
+
+    def get_n_cell(self):
+        return self.obs.shape[0]
+
+    def get_n_times(self):
+        return len(self.uniq_times)
+
+
+class Estimation:
+    """deprecated"""
+
+    def __init__(
+        self,
+        adata,
+        adata_u=None,
+        time_key="Time",
+        normalize=True,
+        param_ranges=None,
+        has_nan=False,
+    ):
+        # initialize Estimation
+        self.data = MomData(adata, time_key, has_nan)
+        self.data_u = MomData(adata_u, time_key, has_nan) if adata_u is not None else None
+        if param_ranges is None:
+            param_ranges = {
+                "a": [0, 10],
+                "b": [0, 10],
+                "alpha_a": [10, 1000],
+                "alpha_i": [0, 10],
+                "beta": [0, 10],
+                "gamma": [0, 10],
+            }
+        self.normalize = normalize
+        self.param_ranges = param_ranges
+        self.n_params = len(param_ranges)
+
+    def param_array2dict(self, parr):
+        if parr.ndim == 1:
+            return {
+                "a": parr[0],
+                "b": parr[1],
+                "alpha_a": parr[2],
+                "alpha_i": parr[3],
+                "beta": parr[4],
+                "gamma": parr[5],
+            }
+        else:
+            return {
+                "a": parr[:, 0],
+                "b": parr[:, 1],
+                "alpha_a": parr[:, 2],
+                "alpha_i": parr[:, 3],
+                "beta": parr[:, 4],
+                "gamma": parr[:, 5],
+            }
+
+    def fit_gene(self, gene_no, n_p0=10):
+        from ..estimation.tsc.utils_moments import estimation
+
+        estm = estimation(list(self.param_ranges.values()))
+        if self.data_u is None:
+            m = self.data.M[gene_no, :].T
+            v = self.data.V[gene_no, :].T
+            x_data = np.vstack((m, v))
+            popt, cost = estm.fit_lsq(
+                self.data.uniq_times,
+                x_data,
+                p0=None,
+                n_p0=n_p0,
+                normalize=self.normalize,
+                experiment_type="nosplice",
+            )
+        else:
+            mu = self.data_u.M[gene_no, :].T
+            ms = self.data.M[gene_no, :].T
+            vu = self.data_u.V[gene_no, :].T
+            vs = self.data.V[gene_no, :].T
+            x_data = np.vstack((mu, ms, vu, vs))
+            popt, cost = estm.fit_lsq(
+                self.data.uniq_times,
+                x_data,
+                p0=None,
+                n_p0=n_p0,
+                normalize=self.normalize,
+                experiment_type=None,
+            )
+        return popt, cost
+
+    def fit(self, n_p0=10):
+        ng = self.data.get_n_genes()
+        params = np.zeros((ng, self.n_params))
+        costs = np.zeros(ng)
+        for i in tqdm(range(ng), desc="fitting genes"):
+            params[i], costs[i] = self.fit_gene(i, n_p0)
+        return params, costs
+
+
+# use for kinetic assumption with full data, deprecated
+def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
+    """deprecated"""
+    # a few hard code to set up data for moment mode:
+    if "uu" in subset_adata.layers.keys() or "X_uu" in subset_adata.layers.keys():
+        if log_unnormalized and "X_uu" not in subset_adata.layers.keys():
+            if issparse(subset_adata.layers["uu"]):
+                (
+                    subset_adata.layers["uu"].data,
+                    subset_adata.layers["ul"].data,
+                    subset_adata.layers["su"].data,
+                    subset_adata.layers["sl"].data,
+                ) = (
+                    np.log1p(subset_adata.layers["uu"].data),
+                    np.log1p(subset_adata.layers["ul"].data),
+                    np.log1p(subset_adata.layers["su"].data),
+                    np.log1p(subset_adata.layers["sl"].data),
+                )
+            else:
+                (
+                    subset_adata.layers["uu"],
+                    subset_adata.layers["ul"],
+                    subset_adata.layers["su"],
+                    subset_adata.layers["sl"],
+                ) = (
+                    np.log1p(subset_adata.layers["uu"]),
+                    np.log1p(subset_adata.layers["ul"]),
+                    np.log1p(subset_adata.layers["su"]),
+                    np.log1p(subset_adata.layers["sl"]),
+                )
+
+        subset_adata_u, subset_adata_s = (
+            subset_adata.copy(),
+            subset_adata.copy(),
+        )
+        del (
+            subset_adata_u.layers["su"],
+            subset_adata_u.layers["sl"],
+            subset_adata_s.layers["uu"],
+            subset_adata_s.layers["ul"],
+        )
+        (
+            subset_adata_u.layers["new"],
+            subset_adata_u.layers["old"],
+            subset_adata_s.layers["new"],
+            subset_adata_s.layers["old"],
+        ) = (
+            subset_adata_u.layers.pop("ul"),
+            subset_adata_u.layers.pop("uu"),
+            subset_adata_s.layers.pop("sl"),
+            subset_adata_s.layers.pop("su"),
+        )
+        Moment, Moment_ = MomData(subset_adata_s, tkey), MomData(subset_adata_u, tkey)
+        if cur_grp == _group[0]:
+            t_ind = 0
+            g_len, t_len = len(_group), len(np.unique(adata.obs[tkey]))
+            (adata.uns["M_sl"], adata.uns["V_sl"], adata.uns["M_ul"], adata.uns["V_ul"]) = (
+                np.zeros((Moment.M.shape[0], g_len * t_len)),
+                np.zeros((Moment.M.shape[0], g_len * t_len)),
+                np.zeros((Moment.M.shape[0], g_len * t_len)),
+                np.zeros((Moment.M.shape[0], g_len * t_len)),
+            )
+
+        inds = np.arange((t_len * t_ind), (t_len * (t_ind + 1)))
+        (
+            adata.uns["M_sl"][:, inds],
+            adata.uns["V_sl"][:, inds],
+            adata.uns["M_ul"][:, inds],
+            adata.uns["V_ul"][:, inds],
+        ) = (Moment.M, Moment.V, Moment_.M, Moment_.V)
+
+        del Moment_
+        Est = Estimation(Moment, adata_u=subset_adata_u, time_key=tkey, normalize=True)  # # data is already normalized
+    else:
+        if log_unnormalized and "X_total" not in subset_adata.layers.keys():
+            if issparse(subset_adata.layers["total"]):
+                (subset_adata.layers["new"].data, subset_adata.layers["total"].data,) = (
+                    np.log1p(subset_adata.layers["new"].data),
+                    np.log1p(subset_adata.layers["total"].data),
+                )
+            else:
+                subset_adata.layers["total"], subset_adata.layers["total"] = (
+                    np.log1p(subset_adata.layers["new"]),
+                    np.log1p(subset_adata.layers["total"]),
+                )
+
+        Moment = MomData(subset_adata, tkey)
+        if cur_grp == _group[0]:
+            t_ind = 0
+            g_len, t_len = len(_group), len(np.unique(adata.obs[tkey]))
+            adata.uns["M"], adata.uns["V"] = (
+                np.zeros((adata.shape[1], g_len * t_len)),
+                np.zeros((adata.shape[1], g_len * t_len)),
+            )
+
+        inds = np.arange((t_len * t_ind), (t_len * (t_ind + 1)))
+        (
+            adata.uns["M"][:, inds],
+            adata.uns["V"][:, inds],
+        ) = (Moment.M, Moment.V)
+        Est = Estimation(Moment, time_key=tkey, normalize=True)  # # data is already normalized
+
+    return adata, Est, t_ind
