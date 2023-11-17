@@ -35,7 +35,7 @@ from .connectivity import (
 )
 
 # Pseudotime related
-from .construct_velocity_tree import construct_velocity_tree, construct_velocity_tree_py
+from .construct_velocity_tree import construct_velocity_tree
 from .DDRTree_py import DDRTree, cal_ncenter
 from .pseudotime import order_cells
 from .time_series import directed_pg
@@ -111,4 +111,9 @@ from .velocyto_scvelo import (
     run_velocyto,
     scv_dyn_convertor,
     vlm_to_adata,
+)
+
+# deprecated functions
+from .deprecated import (
+    construct_velocity_tree_py,
 )

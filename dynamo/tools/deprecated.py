@@ -1,3 +1,4 @@
+import re
 import warnings
 from typing import Callable, Iterable, List, Optional, Tuple, Union
 
@@ -8,12 +9,17 @@ except ImportError:
 
 import functools
 
+import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 from numpy import *
 from scipy.integrate import odeint
 from scipy.optimize import curve_fit, least_squares
+from scipy.sparse import issparse
+from scipy.sparse.csgraph import shortest_path
 
 from ..dynamo_logger import main_info, main_warning
+from .DDRTree_py import DDRTree
 from .moments import moment_model
 from .utils import (
     get_data_for_kin_params_estimation,
@@ -24,8 +30,8 @@ from .utils import (
     set_param_ss,
     set_velocity,
 )
-from .utils_moments import moments
-from .velocity import ss_estimation, velocity
+from ..estimation.tsc.utils_moments import moments
+from ..estimation.csc.velocity import ss_estimation, Velocity
 
 
 def deprecated(func):
@@ -241,7 +247,7 @@ def _dynamics_legacy(
                 log_unnormalized,
                 NTR_vel,
             )
-            vel = velocity(estimation=est)
+            vel = Velocity(estimation=est)
             vel_U = vel.vel_u(U)
             vel_S = vel.vel_s(U, S)
             vel_P = vel.vel_p(S, P)
@@ -294,7 +300,7 @@ def _dynamics_legacy(
             alpha = fbar(alpha_a, alpha_i, a, b)[:, None]
 
             params = {"alpha": alpha, "beta": beta, "gamma": gamma, "t": t}
-            vel = velocity(**params)
+            vel = Velocity(**params)
 
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
@@ -1286,3 +1292,310 @@ class estimation:
             X.append(ret.x)
         i_min = argmin(costs)
         return X[i_min], costs[i_min]
+
+
+# ---------------------------------------------------------------------------------------------------
+# deprecated construct_velocity_tree.py
+@deprecated
+def remove_velocity_points(*args, **kwargs):
+    return _remove_velocity_points_legacy(*args, **kwargs)
+
+
+def _remove_velocity_points_legacy(G: np.ndarray, n: int) -> np.ndarray:
+    """Modify a tree graph to remove the nodes themselves and recalculate the weights.
+
+    Args:
+        G: A smooth tree graph embedded in the low dimension space.
+        n: The number of genes (column num of the original data)
+
+    Returns:
+        The tree graph with a node itself removed and weight recalculated.
+    """
+    for nodeid in range(n, 2 * n):
+        nb_ids = []
+        for nb_id in range(len(G[0])):
+            if G[nodeid][nb_id] != 0:
+                nb_ids = nb_ids + [nb_id]
+        num_nbs = len(nb_ids)
+
+        if num_nbs == 1:
+            G[nodeid][nb_ids[0]] = 0
+            G[nb_ids[0]][nodeid] = 0
+        else:
+            min_val = np.inf
+            for i in range(len(G[0])):
+                if G[nodeid][i] != 0:
+                    if G[nodeid][i] < min_val:
+                        min_val = G[nodeid][i]
+                        min_ind = i
+            for i in nb_ids:
+                if i != min_ind:
+                    new_weight = G[nodeid][i] + min_val
+                    G[i][min_ind] = new_weight
+                    G[min_ind][i] = new_weight
+            # print('Add ege %s, %s\n',G.Nodes.Name {nb_ids(i)}, G.Nodes.Name {nb_ids(min_ind)});
+            G[nodeid][nb_ids[0]] = 0
+            G[nb_ids[0]][nodeid] = 0
+
+    return G
+
+
+@deprecated
+def calculate_angle(*args, **kwargs):
+    return _calculate_angle_legacy(*args, **kwargs)
+
+
+def _calculate_angle_legacy(o: np.ndarray, y: np.ndarray, x: np.ndarray) -> float:
+    """Calculate the angle between two vectors.
+
+    Args:
+        o: Coordination of the origin.
+        y: End point of the first vector.
+        x: End point of the second vector.
+
+    Returns:
+        The angle between the two vectors.
+    """
+
+    yo = y - o
+    norm_yo = yo / scipy.linalg.norm(yo)
+    xo = x - o
+    norm_xo = xo / scipy.linalg.norm(xo)
+    angle = np.arccos(norm_yo.T * norm_xo)
+    return angle
+
+
+@deprecated
+def construct_velocity_tree_py(*args, **kwargs):
+    return _construct_velocity_tree_py_legacy(*args, **kwargs)
+
+
+def _construct_velocity_tree_py_legacy(X1: np.ndarray, X2: np.ndarray) -> None:
+    """Save a velocity tree graph with given data.
+
+    Args:
+        X1: Expression matrix.
+        X2: Velocity matrix.
+    """
+    if issparse(X1):
+        X1 = X1.toarray()
+    if issparse(X2):
+        X2 = X2.toarray()
+    n = X1.shape[1]
+
+    # merge two data with a given time
+    t = 0.5
+    X_all = np.hstack((X1, X1 + t * X2))
+
+    # parameter settings
+    maxIter = 20
+    eps = 1e-3
+    sigma = 0.001
+    gamma = 10
+
+    # run DDRTree algorithm
+    Z, Y, stree, R, W, Q, C, objs = DDRTree(X_all, maxIter=maxIter, eps=eps, sigma=sigma, gamma=gamma)
+
+    # draw velocity figure
+
+    # quiver(Z(1, 1: 100), Z(2, 1: 100), Z(1, 101: 200)-Z(1, 1: 100), Z(2, 101: 200)-Z(2, 1: 100));
+    # plot(Z(1, 1: 100), Z(2, 1: 100), 'ob');
+    # plot(Z(1, 101: 200), Z(2, 101: 200), 'sr');
+    G = stree
+
+    sG = _remove_velocity_points_legacy(G, n)
+    tree = sG
+    row = []
+    col = []
+    val = []
+    for i in range(sG.shape[0]):
+        for j in range(sG.shape[1]):
+            if sG[i][j] != 0:
+                row = row + [i]
+                col = col + [j]
+                val = val + [sG[1][j]]
+    tree_fname = "tree.csv"
+    # write sG data to tree.csv
+    #######
+    branch_fname = "branch.txt"
+    cmd = "python extract_branches.py" + tree_fname + branch_fname
+
+    branch_cell = []
+    fid = open(branch_fname, "r")
+    tline = next(fid)
+    while isinstance(tline, str):
+        path = re.regexp(tline, "\d*", "Match")  ############
+        branch_cell = branch_cell + [path]  #################
+        tline = next(fid)
+    fid.close()
+
+    dG = np.zeros((n, n))
+    for p in range(len(branch_cell)):
+        path = branch_cell[p]
+        pos_direct = 0
+        for bp in range(len(path)):
+            u = path(bp)
+            v = u + n
+
+            # find the shorest path on graph G(works for trees)
+            nodeid = u
+            ve_nodeid = v
+            shortest_mat = shortest_path(
+                csgraph=G,
+                directed=False,
+                indices=nodeid,
+                return_predecessors=True,
+            )
+            velocity_path = []
+            while ve_nodeid != nodeid:
+                velocity_path = [shortest_mat[nodeid][ve_nodeid]] + velocity_path
+                ve_nodeid = shortest_mat[nodeid][ve_nodeid]
+            velocity_path = [shortest_mat[nodeid][ve_nodeid]] + velocity_path
+            ###v_path = G.Nodes.Name(velocity_path)
+
+            # check direction consistency between path and v_path
+            valid_idx = []
+            for i in velocity_path:
+                if i <= n:
+                    valid_idx = valid_idx + [i]
+            if len(valid_idx) == 1:
+                # compute direction matching
+                if bp < len(path):
+                    tree_next_point = Z[:, path(bp)]
+                    v_point = Z[:, v]
+                    u_point = Z[:, u]
+                    angle = _calculate_angle_legacy(u_point, tree_next_point, v_point)
+                    angle = angle / 3.14 * 180
+                    if angle < 90:
+                        pos_direct = pos_direct + 1
+
+                else:
+                    tree_pre_point = Z[:, path(bp - 1)]
+                    v_point = Z[:, v]
+                    u_point = Z[:, u]
+                    angle = _calculate_angle_legacy(u_point, tree_pre_point, v_point)
+                    angle = angle / 3.14 * 180
+                    if angle > 90:
+                        pos_direct = pos_direct + 1
+
+            else:
+
+                if bp < len(path):
+                    if path[bp + 1] == valid_idx[2]:
+                        pos_direct = pos_direct + 1
+
+                else:
+                    if path[bp - 1] != valid_idx[2]:
+                        pos_direct = pos_direct + 1
+
+        neg_direct = len(path) - pos_direct
+        print(
+            "branch="
+            + str(p)
+            + ", ("
+            + path[0]
+            + "->"
+            + path[-1]
+            + "), pos="
+            + pos_direct
+            + ", neg="
+            + neg_direct
+            + "\n"
+        )
+        print(path)
+        print("\n")
+
+        if pos_direct > neg_direct:
+            for bp in range(len(path) - 1):
+                dG[path[bp], path[bp + 1]] = 1
+
+        else:
+            for bp in range(len(path) - 1):
+                dG[path(bp + 1), path(bp)] = 1
+
+    # figure;
+    # plot(digraph(dG));
+    # title('directed graph') figure; hold on;
+    row = []
+    col = []
+    for i in range(dG.shape[0]):
+        for j in range(dG.shape[1]):
+            if dG[i][j] != 0:
+                row = row + [i]
+                col = col + [j]
+    for tn in range(len(row)):
+        p1 = Y[:, row[tn]]
+        p2 = Y[:, col[tn]]
+        dp = p2 - p1
+        h = plt.quiver(p1(1), p1(2), dp(1), dp(2), "LineWidth", 5)  ###############need to plot it
+        set(h, "MaxHeadSize", 1e3, "AutoScaleFactor", 1)  #############
+
+    for i in range(n):
+        plt.text(Y(1, i), Y(2, i), str(i))  ##############
+    plt.savefig("./results/t01_figure3.fig")  ##################
+
+
+# ---------------------------------------------------------------------------------------------------
+# deprecated pseudotime.py
+@deprecated
+def compute_partition(*args, **kwargs):
+    return _compute_partition_legacy(*args, **kwargs)
+
+
+def _compute_partition_legacy(adata, transition_matrix, cell_membership, principal_g, group=None):
+    """Compute a partition of cells based on a minimum spanning tree and cell membership.
+
+    Args:
+        adata: The anndata object containing the single-cell data.
+        transition_matrix: The matrix representing the transition probabilities between cells.
+        cell_membership: The matrix representing the cell membership information.
+        principal_g: The principal graph information saved as array.
+        group: The name of a categorical group in `adata.obs`. If provided, it is used to construct the
+            `cell_membership` matrix based on the specified group membership. Defaults to None.
+
+    Returns:
+        A partition of cells represented as a matrix.
+    """
+
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import minimum_spanning_tree
+
+    # http://active-analytics.com/blog/rvspythonwhyrisstillthekingofstatisticalcomputing/
+    if group is not None and group in adata.obs.columns:
+        from patsy import dmatrix  # dmatrices, dmatrix, demo_data
+
+        data = adata.obs
+        data.columns[data.columns == group] = "group_"
+
+        cell_membership = csr_matrix(dmatrix("~group_+0", data=data))
+
+    X = csr_matrix(principal_g > 0)
+    Tcsr = minimum_spanning_tree(X)
+    principal_g = Tcsr.toarray().astype(int)
+
+    membership_matrix = cell_membership.T.dot(transition_matrix).dot(cell_membership)
+
+    direct_principal_g = principal_g * membership_matrix
+
+    # get the data:
+    # edges_per_module < - Matrix::rowSums(num_links)
+    # total_edges < - sum(num_links)
+    #
+    # theta < - (as.matrix(edges_per_module) / total_edges) % * %
+    # Matrix::t(edges_per_module / total_edges)
+    #
+    # var_null_num_links < - theta * (1 - theta) / total_edges
+    # num_links_ij < - num_links / total_edges - theta
+    # cluster_mat < - pnorm_over_mat(as.matrix(num_links_ij), var_null_num_links)
+    #
+    # num_links < - num_links_ij / total_edges
+    #
+    # cluster_mat < - matrix(stats::p.adjust(cluster_mat),
+    #                               nrow = length(louvain_modules),
+    #                                      ncol = length(louvain_modules))
+    #
+    # sig_links < - as.matrix(num_links)
+    # sig_links[cluster_mat > qval_thresh] = 0
+    # diag(sig_links) < - 0
+
+    return direct_principal_g
