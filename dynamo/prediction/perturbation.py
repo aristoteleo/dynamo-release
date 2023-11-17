@@ -15,7 +15,8 @@ from ..vectorfield.vector_calculus import (
     vecfld_from_adata,
     vector_transformation,
 )
-from ..vectorfield.rank_vf import rank_cell_groups, rank_cells, rank_genes
+
+from ..vectorfield.rank_vf import rank_cell_groups, rank_genes
 from .utils import z_score, z_score_inv
 
 
@@ -381,8 +382,8 @@ def rank_perturbation_cells(
     Returns:
         adata: AnnData object which has the rank dictionary for perturbation effects in `.uns`.
     """
-    rdict = rank_cells(adata, pkey, **kwargs)
-    rdict_abs = rank_cells(adata, pkey, abs=True, **kwargs)
+    rdict = rank_cell_groups(adata, pkey, **kwargs)
+    rdict_abs = rank_cell_groups(adata, pkey, abs=True, **kwargs)
     adata.uns[prefix_store + "_" + pkey + "_cells"] = rdict
     adata.uns[prefix_store + "_abs_" + pkey + "_cells"] = rdict_abs
     return adata
