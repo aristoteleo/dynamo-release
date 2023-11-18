@@ -1669,17 +1669,16 @@ def save_show_ret(
     background: Optional[str] = None,
 ):
     """
-    Helper function to replace often repeated portion of code found in .py files in the plot folder that 
-    performs actions based on the variable save_show_or_return. 
-    Should always have at least 3 inputs (prefix, save_show__or_return, save_kwargs)
+    Helper function that performs actions based on the variable save_show_or_return. 
+    Should always have at least 3 inputs (prefix, save_show__or_return, save_kwargs).
 
-    args:
-        prefix: prefix added to name of figure that will be saved. See the dictionary s_kwargs.
-        save_show_or_return: whether the figure should be saved, show, or return. Can be one of "save", "show",
-            "return", "both", "all". "both" means that the figure would be shown and saved but not returned. Defaults to
-            "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. 
-            The save_fig function will use
+    Args:
+        prefix: Prefix added to name of figure that will be saved. See the `s_kwargs` variable.
+        save_show_or_return: Whether the figure should be saved, shown, or returned. 
+            "both" means that the figure would be shown and saved but not returned. Defaults
+            to "show".
+        save_kwargs: A dictionary that will be passed to the save_fig() function. 
+            The save_fig() function will use
                 {
                     "path": None, 
                     "prefix": [prefix input], 
@@ -1689,21 +1688,15 @@ def save_show_ret(
                     "close": True, 
                     "verbose": True
                 } 
-            as its parameters. save_kwargs modifies those keys according to your needs. Defaults to {}.
-        ret_value: value to be returned if save_show_or_return equals "return" or "all".
-            - Note that functions in heatmaps.py don't use save_show_or_return to determine if anything's returned.
-        tight: because cell_wise_vectors_3d() and cell_wise_vectors() in scVectorField.py do not call plt.tight_layout().
-        adjust: scatters.py, state_graph.py, and time_series.py potentially call plt.subplots_adjust().
-            - Note that some functions, such as scatters(), pass in a string rather than a boolean.
-        background: bubble() in markers.py/scatters() in scatters.py use this to see if reset_rcParams() is called.
+            as its parameters. `save_kwargs` modifies those keys according to your needs. Defaults to {}.
+        ret_value: Value to be returned if `save_show_or_return` equals "return" or "all".
+        tight: Toggles whether plt.tight_layout() is called.
+        adjust: Toggles whether plt.subplots_adjust() is called. Some functions, such as scatters(), pass
+            in a string rather than a boolean.
+        background: Toggles whether reset_rcParams() is called.
 
     Returns:
-        None would be returned by default. If `save_show_or_return` is set to be `"return"` or `"all"`, the matplotlib
-        axis of the generated figure would be returned.
-
-    Notes regarding save_show_or_return sections in functions that are not replaced with save_show_ret(): 
-        - arcPlot()/nxvizPlot() in networks.py: uses plt.autoscale() or nv_ax.draw() in the first 2 IF statements.
-        - plot_3d_streamtube() in streamtube.py/animate_fates() in fate.py uses a different dictionary format than s_kwargs.
+        If `save_show_or_return` is set as "return" or "all", returns `ret_value`.
     """
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
@@ -1723,13 +1716,12 @@ def save_show_ret(
         save_fig(**s_kwargs)
         if background is not None:
             reset_rcParams()
+
     if save_show_or_return in ["show", "both", "all"]:
         if adjust:
             plt.subplots_adjust(right=0.85)
 
         if tight:
-            #topography() in topography.py, scatters() in scatters.py, phase_portraits() in dynamics.py, 
-            #and bubble() in markers.py all use ignore warnings with tight_layout()
             #Do note that warnings should not be ignored in the future.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -1738,14 +1730,11 @@ def save_show_ret(
         plt.show()
         if background is not None:
             reset_rcParams()
+
     if save_show_or_return in ["return", "all"]:
         if background is not None:
             reset_rcParams()
         return ret_value
-    else:
-        return None
-        #Unnessary because type hint handles cases where save_show_or_return is not accepted options.
-        #raise NotImplementedError('Invalid "save_show_or_return".') (connectivity.py)
 
 
 def retrieve_plot_save_path(
