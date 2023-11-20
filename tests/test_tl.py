@@ -126,12 +126,9 @@ def test_simple_cluster_community_adata(adata):
     # dyn.pl.infomap(adata, basis="pca")
 
 
-@pytest.mark.skip(reason="umap compatability issue with numpy, pynndescent and pytest")
+@pytest.mark.skip(reason="dependency not installed")
 def test_simple_cluster_field(adata):
     adata = adata.copy()
-    dyn.tl.reduceDimension(adata, basis="umap", n_pca_components=30, enforce=True)
-    dyn.tl.cell_velocities(adata, basis="umap")
-    dyn.vf.VectorField(adata, basis="umap", M=100)
     dyn.vf.cluster_field(adata, basis="umap", method="louvain")
     dyn.vf.cluster_field(adata, basis="umap", method="leiden")
     assert np.all(adata.obs["louvain"] != -1)
@@ -149,3 +146,30 @@ def test_leiden_membership_input(adata):
     initial_membership = np.random.randint(low=0, high=100, size=len(adata), dtype=int)
     dyn.tl.leiden(adata, directed=True, initial_membership=initial_membership)
     assert np.all(adata.obs["leiden"] != -1)
+
+
+def test_DDRTree_pseudotime(adata):
+    adata = adata.copy()
+    dyn.tl.order_cells(adata, basis="umap", maxIter=3, ncenter=10)
+    assert "Pseudotime" in adata.obs.keys()
+
+    tree = dyn.tl.construct_velocity_tree(adata)
+    assert tree.shape == (10, 10)
+
+    # TODO: enable or delete this after debugging
+    # dyn.tl.directed_pg(adata, basis="umap", maxIter=3, ncenter=10)
+    # assert np.all(adata.uns["X_DDRTree_pg"] != -1)
+
+    dyn.tl.glm_degs(adata, fullModelFormulaStr="cr(Pseudotime, df=3)")
+    assert "glm_degs" in adata.uns.keys()
+
+    dyn.tl.pseudotime_velocity(adata, pseudotime="Pseudotime")
+    assert "velocity_S" in adata.layers.keys()
+
+
+def test_psl():
+    arr = np.random.rand(20, 10)
+    S, Z = dyn.tl.psl(arr, maxIter=3)
+
+    assert S.shape == (20, 20)
+    assert Z.shape == (20, 2)
