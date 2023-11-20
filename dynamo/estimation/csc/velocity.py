@@ -22,36 +22,32 @@ from .utils_velocity import *
 
 
 class Velocity:
-    """The class that computes RNA/protein velocity given unknown parameters.
-
-    Arguments
-    ---------
-        alpha: :class:`~numpy.ndarray`
-            A matrix of transcription rate.
-        beta: :class:`~numpy.ndarray`
-            A vector of splicing rate constant for each gene.
-        gamma: :class:`~numpy.ndarray`
-            A vector of spliced mRNA degradation rate constant for each gene.
-        eta: :class:`~numpy.ndarray`
-            A vector of protein synthesis rate constant for each gene.
-        delta: :class:`~numpy.ndarray`
-            A vector of protein degradation rate constant for each gene.
-        t: :class:`~numpy.ndarray` or None (default: None)
-            A vector of the measured time points for cells
-        estimation: :class:`~ss_estimation`
-            An instance of the estimation class. If this not None, the parameters will be taken from this class instead of the input arguments.
-    """
-
+    """The class that computes RNA/protein velocity given unknown parameters."""
     def __init__(
         self,
-        alpha=None,
-        beta=None,
-        gamma=None,
-        eta=None,
-        delta=None,
-        t=None,
+        alpha: Optional[np.ndarray] = None,
+        beta: Optional[np.ndarray] = None,
+        gamma: Optional[np.ndarray] = None,
+        eta: Optional[np.ndarray] = None,
+        delta: Optional[np.ndarray] = None,
+        t: Optional[np.ndarray] = None,
         estimation=None,
     ):
+        """Initialize the velocity class.
+
+        Args:
+            alpha: A matrix of transcription rate.
+            beta: A vector of splicing rate constant for each gene.
+            gamma: A vector of spliced mRNA degradation rate constant for each gene.
+            eta: A vector of protein synthesis rate constant for each gene.
+            delta: A vector of protein degradation rate constant for each gene.
+            t: A vector of the measured time points for cells
+            estimation: A ss_estimation instance of the estimation class. If this not None, the parameters will be
+                taken from this class instead of the input arguments.
+
+        Returns:
+            A velocity instance.
+        """
         if estimation is not None:
             self.parameters = {}
             self.parameters["alpha"] = estimation.parameters["alpha"]
@@ -70,21 +66,21 @@ class Velocity:
                 "t": t,
             }
 
-    def vel_u(self, U, repeat=None, update_alpha=True):
+    def vel_u(
+        self,
+        U: Union[csr_matrix, np.ndarray],
+        repeat: Optional[bool] = None,
+        update_alpha: bool = True,
+    ) -> Union[csr_matrix, np.ndarray]:
         """Calculate the unspliced mRNA velocity.
 
-        Arguments
-        ---------
-            U: :class:`~numpy.ndarray` or sparse `csr_matrix`
-                A matrix of unspliced mRNA count. Dimension: genes x cells.
-            repeat: bool or None
-                Whether to use average alpha or cell-wise alpha with the formula:
+        Args:
+            U: A matrix of unspliced mRNA count. Dimension: genes x cells.
+            repeat: Whether to use average alpha or cell-wise alpha with the formula:
                 $a = \frac{n \gamma}{1 - e^{-\gamma t}}$.
 
-        Returns
-        -------
-            V: :class:`~numpy.ndarray` or sparse `csr_matrix`
-                Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
+        Returns:
+            Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
 
         t = self.parameters["t"]
@@ -167,20 +163,15 @@ class Velocity:
 
         return V
 
-    def vel_s(self, U, S):
+    def vel_s(self, U: Union[csr_matrix, np.ndarray], S: Union[csr_matrix, np.ndarray]) -> Union[csr_matrix, np.ndarray]:
         """Calculate the unspliced mRNA velocity.
 
-        Arguments
-        ---------
-            U: :class:`~numpy.ndarray` or sparse `csr_matrix`
-                A matrix of unspliced mRNA counts. Dimension: genes x cells.
-            S: :class:`~numpy.ndarray` or sparse `csr_matrix`
-                A matrix of spliced mRNA counts. Dimension: genes x cells.
+        Args:
+            U: A matrix of unspliced mRNA counts. Dimension: genes x cells.
+            S: A matrix of spliced mRNA counts. Dimension: genes x cells.
 
-        Returns
-        -------
-            V: :class:`~numpy.ndarray` or sparse `csr_matrix`
-                Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
+        Returns:
+            Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
 
         t = self.parameters["t"]
@@ -236,20 +227,15 @@ class Velocity:
             V = np.nan
         return V
 
-    def vel_p(self, S, P):
+    def vel_p(self, S: Union[csr_matrix, np.ndarray], P: Union[csr_matrix, np.ndarray]) -> Union[csr_matrix, np.ndarray]:
         """Calculate the protein velocity.
 
-        Arguments
-        ---------
-            S: :class:`~numpy.ndarray` or sparse `csr_matrix`
-                A matrix of spliced mRNA counts. Dimension: genes x cells.
-            P: :class:`~numpy.ndarray` or sparse `csr_matrix`
-                A matrix of protein counts. Dimension: genes x cells.
+        Args:
+            S: A matrix of spliced mRNA counts. Dimension: genes x cells.
+            P: A matrix of protein counts. Dimension: genes x cells.
 
-        Returns
-        -------
-            V: :class:`~numpy.ndarray` or sparse `csr_matrix`
-                Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
+        Returns:
+            Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
 
         t = self.parameters["t"]
@@ -292,13 +278,11 @@ class Velocity:
             V = np.nan
         return V
 
-    def get_n_cells(self):
+    def get_n_cells(self) -> int:
         """Get the number of cells if the parameter alpha is given.
 
-        Returns
-        -------
-            n_cells: int
-                The second dimension of the alpha matrix, if alpha is given.
+        Returns:
+            The second dimension of the alpha matrix, if alpha is given.
         """
         if self.parameters["alpha"] is not None:
             n_cells = self.parameters["alpha"].shape[1]
@@ -306,13 +290,12 @@ class Velocity:
             n_cells = np.nan
         return n_cells
 
-    def get_n_genes(self):
+    def get_n_genes(self) -> int:
         """Get the number of genes.
 
-        Returns
-        -------
-            n_genes: int
-                The first dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or delta, if they are given.
+        Returns:
+            The first dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or delta,
+            if they are given.
         """
         if self.parameters["alpha"] is not None:
             n_genes = self.parameters["alpha"].shape[0]

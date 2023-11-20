@@ -11,7 +11,7 @@ from .networks import adj_list_to_matrix, build_network_per_cluster
 from .rank_vf import (
     aggregateRegEffs,
     rank_acceleration_genes,
-    rank_cells,
+    rank_cell_groups,
     rank_curvature_genes,
     rank_divergence_genes,
     rank_expression_genes,

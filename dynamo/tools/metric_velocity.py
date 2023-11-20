@@ -36,18 +36,18 @@ def cell_wise_confidence(
     """Calculate the cell-wise velocity confidence metric.
 
     Args:
-        adata: an AnnData object.
-        X_data: the expression states of single cells (or expression states in reduced dimension, like pca, of single
+        adata: An AnnData object.
+        X_data: The expression states of single cells (or expression states in reduced dimension, like pca, of single
             cells). Defaults to None.
-        V_data: the RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of
+        V_data: The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of
             single cells). Note that X, V_mat need to have the exact dimensionalities. Defaults to None.
-        ekey: the dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the
+        ekey: The dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the
             smoothed expression `M_s`. Defaults to "M_s".
-        vkey: the dictionary key that corresponds to the estimated velocity values in layers attribute. Defaults to
+        vkey: The dictionary key that corresponds to the estimated velocity values in layers attribute. Defaults to
             "velocity_S".
-        neighbors_from_basis: whether to construct nearest neighbors from low dimensional space as defined by the
+        neighbors_from_basis: Whether to construct nearest neighbors from low dimensional space as defined by the
             `basis`, instead of using that calculated during UMAP process. Defaults to False.
-        method: which method will be used for calculating the cell wise velocity confidence metric. Defaults to
+        method: Which method will be used for calculating the cell wise velocity confidence metric. Defaults to
             "jaccard", which measures how well each velocity vector meets the geometric constraints defined by the
             local neighborhood structure. Jaccard index is calculated as the fraction of the number of the intersected
             set of nearest neighbors from each cell at current expression state (X) and that from the future expression
@@ -198,17 +198,18 @@ def jaccard(
 ) -> Tuple[np.ndarray, csr_matrix, np.ndarray]:
     """Calculate cell-wise confidence matrix with Jaccard method.
 
-    This method measures how well each velocity vector meets the geometric constraints defined by the local neighborhood structure. Jaccard index is calculated as the fraction of the number of the intersected set of nearest neighbors
+    This method measures how well each velocity vector meets the geometric constraints defined by the local neighborhood
+    structure. Jaccard index is calculated as the fraction of the number of the intersected set of nearest neighbors
     from each cell at current expression state (X) and that from the future expression state (X + V) over the number of
     the union of these two sets.
 
     Args:
-        X: the expression states of single cells (or expression states in reduced dimension, like pca, of single cells).
-        V: the RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+        X: The expression states of single cells (or expression states in reduced dimension, like pca, of single cells).
+        V: The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
             cells). Note that X, V_mat need to have the exact dimensionalities.
-        n_pca_components: the number of PCA components of the expression data.
-        n_neigh: the number of neighbors to be found.
-        X_neighbors: the neighbor matrix.
+        n_pca_components: The number of PCA components of the expression data.
+        n_neigh: The number of neighbors to be found.
+        X_neighbors: The neighbor matrix.
 
     Returns:
         The cell wise velocity confidence metric.
@@ -242,8 +243,8 @@ def consensus(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Calculate the consensus with expression matrix and velocity matrix.
 
     Args:
-        x: expression matrix (genes x cells).
-        y: velocity vectors y_i for gene i.
+        x: Expression matrix (genes x cells).
+        y: Velocity vectors y_i for gene i.
 
     Returns:
         The consensus matrix.
@@ -298,14 +299,14 @@ def gene_wise_confidence(
 
     Note that, this heuristic method requires you provide meaningful `progenitors_groups` and `mature_cells_groups`. In
     particular, the progenitor groups should in principle have cell going out (transcriptomically) while mature groups
-    should end up in a different expression state and there are intermediate cells going to the dead end cells in the
-    each terminal group (or most terminal groups).
+    should end up in a different expression state and there are intermediate cells going to the dead end cells in each
+    terminal group (or most terminal groups).
 
     Args:
-        adata: an AnnData object.
-        group: the column key/name that identifies the cell state grouping information of cells. This will be used for
+        adata: An AnnData object.
+        group: The column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
-        lineage_dict: a dictionary describes lineage priors. Keys corresponds to the group name from `group` that
+        lineage_dict: A dictionary describes lineage priors. Keys correspond to the group name from `group` that
             corresponding to the state of one progenitor type while values correspond to the group names from `group`
             that corresponding to the states of one or multiple terminal cell states. The best practice for determining
             terminal cell states are those fully functional cells instead of intermediate cell states. Note that in
@@ -313,22 +314,22 @@ def gene_wise_confidence(
             cell state, you need to create two records each with the same terminal cell as value but different
             progenitor as the key. Value can be either a string for one cell group or a list of string for multiple cell
             groups. Defaults to None.
-        genes: the list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that
+        genes: The list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that
             go through velocity estimation will be used. Defaults to None.
-        ekey: the layer that will be used to retrieve data for identifying the gene is in induction or repression phase
-            at each cell state. If `None`, .X is used. Defaults to "M_s".
-        vkey: the layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
+        ekey: The layer that will be used to retrieve data for identifying the gene is in induction or repression phase
+            at each cell state. If `None`, `.X` is used. Defaults to "M_s".
+        vkey: The layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
             `velocity_S` is used. Defaults to "velocity_S".
-        X_data: the user supplied data that will be used for identifying the gene is in induction or repression phase at
+        X_data: The user supplied data that will be used for identifying the gene is in induction or repression phase at
             each cell state directly. Defaults to None.
-        V_data: the user supplied data that will be used for calculating gene-wise confidence directly. Defaults to None.
-        V_threshold: the threshold of velocity to calculate the gene wise confidence. Defaults to 1.
+        V_data: The user supplied data that will be used for calculating gene-wise confidence directly. Defaults to None.
+        V_threshold: The threshold of velocity to calculate the gene wise confidence. Defaults to 1.
 
     Raises:
         ValueError: `X_data` is provided but `genes` does not correspond to its columns.
         ValueError: `X_data` is provided but `genes` does not correspond to its columns.
-        Exception: progenitor cell extracted from lineage_dict is not in `adata.obs[group]`.
-        Exception: terminal cell extracted from lineage_dict is not in `adata.obs[group]`.
+        Exception: The progenitor cell extracted from lineage_dict is not in `adata.obs[group]`.
+        Exception: The terminal cell extracted from lineage_dict is not in `adata.obs[group]`.
     """
 
     logger = LoggerManager.gen_logger("gene_wise_confidence")

@@ -24,12 +24,13 @@ def vlm_to_adata(
     """Conversion function from the velocyto world to the dynamo world. Code original from scSLAM-seq repository.
 
     Args:
-        vlm (VelocytoLoom): the VelocytoLoom object that will be converted into adata.
-        n_comps: the number of pc components that will be stored. Defaults to 30.
-        basis: the embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
-            umap as embedding although `umap` as set as default for the convenience of dynamo itself. Defaults to "umap".
-        trans_mats: a dict of all relevant transition matrices. Defaults to None.
-        cells_ixs: these are the indices of the subsampled cells. Defaults to None.
+        vlm (VelocytoLoom): The VelocytoLoom object that will be converted into adata.
+        n_comps: The number of pc components that will be stored. Defaults to 30.
+        basis: The embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
+            umap as embedding although `umap` as set as default for the convenience of dynamo itself. Defaults to
+            "umap".
+        trans_mats: A dict of all relevant transition matrices. Defaults to None.
+        cells_ixs: These are the indices of the subsampled cells. Defaults to None.
 
     Returns:
         The updated AnnData object.
@@ -181,13 +182,13 @@ def converter(
     """Convert adata to loom object or vice versa.
 
     Args:
-        data_in (Union[vcy.VelocytoLoom, anndata.AnnData]): the object to be converted.
-        from_type: the type of data_in. Defaults to "adata".
-        to_type: convert to which type. Defaults to "vlm".
-        dir: the path to save the loom file. Defaults to ".".
+        data_in (Union[vcy.VelocytoLoom, anndata.AnnData]): The object to be converted.
+        from_type: The type of data_in. Defaults to "adata".
+        to_type: Convert to which type. Defaults to "vlm".
+        dir: The path to save the loom file. Defaults to ".".
 
     Raises:
-        ImportError: velocyto not installed.
+        ImportError: Package velocyto not installed.
 
     Returns:
         the converted object.
@@ -239,10 +240,10 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dy
     `adata.uns["pp"]["model"]`, `adata.uns["pp"]["est_method"]`.
 
     Args:
-        adata: the adata object to be converted.
-        mode: the string indicates the mode. Mode `to_dyn` will convert Scvelo anndata object to Dynamo anndata object.
+        adata: The adata object to be converted.
+        mode: The string indicates the mode. Mode `to_dyn` will convert Scvelo anndata object to Dynamo anndata object.
             mode `to_scv` will convert Dynamo anndata to Scvelo anndata.
-        kin_param_pre: the prefix to specify the velocity parameters names and values.
+        kin_param_pre: The prefix to specify the velocity parameters names and values.
 
     Returns:
         The adata object after conversion.
@@ -387,7 +388,7 @@ def run_velocyto(adata: anndata.AnnData) -> anndata.AnnData:
     3. estimate the gamma parameter
 
     Args:
-        adata: an AnnData object.
+        adata: An AnnData object.
 
     Returns:
         The updated AnnData object.
@@ -435,10 +436,10 @@ def run_scvelo(adata: anndata.AnnData) -> anndata.AnnData:
     3. Return results (adata.var['velocity_gamma'])
 
     Args:
-        adata: an AnnData object.
+        adata: An AnnData object.
 
     Raises:
-        ImportError: scvelo not installed.
+        ImportError: Package scvelo not installed.
 
     Returns:
         The updated AnnData object.
@@ -463,8 +464,8 @@ def mean_var_by_time(X: np.ndarray, Time: np.ndarray) -> np.ndarray:
     """Group the data based on time and find the group's mean and var.
 
     Args:
-        X: the data to be grouped.
-        Time: the corresponding time.
+        X: The data to be grouped.
+        Time: The corresponding time.
 
     Returns:
         The mean and var of each group.

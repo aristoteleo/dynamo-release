@@ -599,10 +599,10 @@ class BaseVectorField:
         self,
         n_x0: int = 100,
         X0: Optional[np.ndarray] = None,
-        domain=None,
-        sampling_method=Literal["random", "velocity", "trn", "kmeans"],
+        domain: Optional[np.ndarray] = None,
+        sampling_method: Literal["random", "velocity", "trn", "kmeans"] = "random",
         **kwargs,
-    ):
+    ) -> None:
         """
         Search for fixed points of the vector field function.
 
@@ -610,7 +610,7 @@ class BaseVectorField:
             n_x0: Number of sampling points
             X0: An array of shape (n_samples, n_dim)
             domain: Domain in which to search for fixed points
-            sampling_method:
+            sampling_method: Method for sampling initial points. Can be one of `random`, `velocity`, `trn`, or `kmeans`.
         """
         if domain is not None:
             domain = np.atleast_2d(domain)
