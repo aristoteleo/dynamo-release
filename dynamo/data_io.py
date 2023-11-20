@@ -3,7 +3,6 @@
 import os
 from functools import reduce
 
-import pandas as pd
 from anndata import (
     AnnData,
     read,
