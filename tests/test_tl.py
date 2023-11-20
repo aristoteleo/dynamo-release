@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
+import scipy.sparse as sp
+from scipy.sparse import csr_matrix
 
 import dynamo as dyn
 
@@ -173,3 +175,133 @@ def test_psl():
 
     assert S.shape == (20, 20)
     assert Z.shape == (20, 2)
+
+
+def test_graph_calculus_and_operators():
+    adj = csr_matrix(np.random.rand(10, 10))
+    graph = dyn.tools.graph_operators.build_graph(adj)
+
+    res_op = dyn.tools.graph_operators.gradop(graph)
+    res_calc = dyn.tools.graph_calculus.gradop(adj)
+    assert np.allclose(res_op.A, res_calc.A)
+
+    res_op = dyn.tools.graph_operators.divop(graph)
+    res_calc = dyn.tools.graph_calculus.divop(adj)
+    assert np.allclose(res_op.A, 2 * res_calc.A)
+
+    res_op = dyn.tools.graph_operators.potential(graph)
+    res_calc = dyn.tools.graph_calculus.potential(adj.A, method="lsq")
+    assert np.allclose(res_op, res_calc * 2)
+
+    potential_lsq = dyn.tools.graph_calculus.potential(adj.A, method="lsq")
+    res_op = dyn.tools.graph_operators.grad(graph)
+    res_calc = dyn.tools.graph_calculus.gradient(adj.A, p=potential_lsq)
+    assert np.allclose(res_op, 2 * res_calc)
+
+    res_op = dyn.tools.graph_operators.div(graph)
+    res_calc = dyn.tools.graph_calculus.divergence(adj.A)
+    assert np.allclose(res_op, 2 * res_calc)
+
+
+def test_calc_laplacian():
+    # Test naive weight mode
+    W = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+    expected_result = np.array([[1, -1, 0], [-1, 2, -1], [0, -1, 1]])
+    assert np.allclose(dyn.tl.graph_calculus.calc_laplacian(W, convention="graph"), expected_result)
+
+    # Test E argument
+    W = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+    E = np.array([[0, 2, 0], [2, 0, 1], [0, 1, 0]])
+    expected_result = np.array([[0.25, -0.25, 0], [-0.25, 1.25, -1], [0, -1, 1]])
+    assert np.allclose(
+        dyn.tl.graph_calculus.calc_laplacian(W, E=E, weight_mode="asymmetric", convention="graph"),
+        expected_result,
+    )
+
+
+def test_divergence():
+    # Create a test adjacency matrix
+    adj = np.array([[0, 0, 0], [1, 0, 1], [0, 0, 0]])
+    M = np.array([[0, 0, 0], [9, 0, 4], [0, 0, 0]])
+
+    # Compute the divergence matrix
+    div = dyn.tl.graph_calculus.divergence(adj)
+    div_direct = dyn.tl.graph_calculus.divergence(adj, method="direct")
+    div_weighted = dyn.tl.graph_calculus.divergence(adj, M, weighted=True)
+
+    # Check that the matrix has the expected shape values
+    assert np.all(div == div_direct)
+    assert div.shape[0] == 3
+    expected_data = np.array([-0.5, 1, -0.5])
+    expected_data_weighted = np.array([-1.5, 2.5, -1])
+    assert np.all(div == expected_data)
+    assert np.all(div_weighted == expected_data_weighted)
+
+
+def test_gradop():
+    # Create a test adjacency matrix
+    adj = sp.csr_matrix(np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]]))
+
+    # Compute the gradient operator
+    grad = dyn.tl.graph_calculus.gradop(adj)
+    grad_dense = dyn.tl.graph_calculus.gradop(adj.toarray())
+
+    # Check that the matrix has the expected shape values
+    assert np.all(grad.A == grad_dense.A)
+    assert grad.shape == (4, 3)
+    expected_data = np.array([-1, 1, 1, -1, -1, 1, 1, -1])
+    expected_indices = np.array([0, 1, 0, 1, 1, 2, 1, 2])
+    expected_indptr = np.array([0, 2, 4, 6, 8])
+    assert np.all(grad.data == expected_data)
+    assert np.all(grad.indices == expected_indices)
+    assert np.all(grad.indptr == expected_indptr)
+
+
+def test_graphize_velocity_coopt(adata):
+    E, _, _ = dyn.tools.graph_calculus.graphize_velocity(
+        X=adata.X.A,
+        V=adata.layers["velocity_S"],
+    )
+    assert E.shape == (adata.n_obs, adata.n_obs)
+
+    E = dyn.tools.graph_calculus.graphize_velocity_coopt(
+        X=adata.X.A,
+        V=adata.layers["velocity_S"].A,
+        nbrs=adata.uns["neighbors"]["indices"],
+        C=adata.obsp["pearson_transition_matrix"].A,
+    )
+    assert E.shape == (adata.n_obs, adata.n_obs)
+
+    E = dyn.tools.graph_calculus.graphize_velocity_coopt(
+        X=adata.X.A,
+        V=adata.layers["velocity_S"].A,
+        nbrs=adata.uns["neighbors"]["indices"],
+        U=np.random.random((adata.n_obs, adata.n_vars)),
+    )
+    assert E.shape == (adata.n_obs, adata.n_obs)
+
+
+def test_symmetrize_discrete_vector_field():
+    F = np.array([[1.0, 2.0], [3.0, 4.0]])
+
+    result = dyn.tools.graph_calculus.symmetrize_discrete_vector_field(F)
+    assert np.all(result == np.array([[1.0, -0.5], [0.5, 4.0]]))
+
+    result = dyn.tools.graph_calculus.symmetrize_discrete_vector_field(F, mode="sym")
+    assert np.all(result == np.array([[1.0, 2.5], [2.5, 4.0]]))
+
+
+def test_fp_operator():
+    Q = dyn.tools.graph_calculus.fp_operator(F=np.random.rand(10, 10), D=50)
+    assert Q.shape == (10, 10)
+
+
+def test_triangles():
+    import igraph as ig
+    g = ig.Graph(edges=[(0, 1), (1, 2), (2, 0), (2, 3), (3, 0)])
+
+    result = dyn.tools.graph_operators.triangles(g)
+    assert result == [2, 1, 2, 1]
+
+    result = dyn.tools.graph_operators._triangles(g)
+    assert result == [2, 1, 2, 1]
