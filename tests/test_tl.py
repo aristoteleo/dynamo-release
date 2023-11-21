@@ -5,6 +5,11 @@ import scipy.sparse as sp
 from scipy.sparse import csr_matrix
 
 import dynamo as dyn
+from dynamo.tools.connectivity import (
+    _gen_neighbor_keys,
+    check_and_recompute_neighbors,
+    check_neighbors_completeness,
+)
 
 
 def test_calc_1nd_moment():
@@ -305,3 +310,113 @@ def test_triangles():
 
     result = dyn.tools.graph_operators._triangles(g)
     assert result == [2, 1, 2, 1]
+
+
+def test_cell_and_gene_confidence(adata):
+    adata.uns["pp"]["layers_norm_method"] = None
+    methods = ["cosine", "consensus", "correlation", "jaccard", "hybrid"]
+
+    for method in methods:
+        dyn.tl.cell_wise_confidence(adata, method=method)
+        assert method + "_velocity_confidence" in adata.obs.keys()
+
+    dyn.tl.confident_cell_velocities(adata, group="Cell_type", lineage_dict={'Proliferating Progenitor': ['Schwann Cell']})
+    assert "gene_wise_confidence" in adata.uns.keys()
+
+
+def test_stationary_distribution(adata):
+    adata = adata.copy()
+    adata.obsp["transition_matrix"] = adata.obsp["pearson_transition_matrix"].toarray()
+
+    dyn.tl.stationary_distribution(adata, method="other", calc_rnd=False)
+    dyn.tl.stationary_distribution(adata, calc_rnd=False)
+
+    assert "sink_steady_state_distribution" in adata.obs.keys()
+    assert "source_steady_state_distribution" in adata.obs.keys()
+
+
+def test_neighbors_subset():
+    adata = dyn.sample_data.zebrafish()
+    adata = adata[:1000, :1000].copy()
+    dyn.tl.neighbors(adata)
+    assert check_neighbors_completeness(adata)
+    indices = np.random.randint(0, len(adata), size=100)
+    _adata = adata[indices].copy()
+    assert not check_neighbors_completeness(_adata)
+
+    # check obsp keys subsetting by AnnData Obj
+    neighbor_result_prefix = ""
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+    check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
+    expected_conn_mat = adata.obsp[conn_key][indices][:, indices]
+    expected_dist_mat = adata.obsp[dist_key][indices][:, indices]
+
+    print("expected_conn_mat:", expected_conn_mat.shape)
+    conn_mat = _adata.obsp[conn_key]
+    dist_mat = _adata.obsp[dist_key]
+
+    assert np.all(np.abs(expected_conn_mat - conn_mat.toarray()) < 1e-7)
+    assert np.all(expected_dist_mat == dist_mat.toarray())
+
+    # recompute and neighbor graph should be fine
+    dyn.tl.neighbors(_adata)
+    assert check_neighbors_completeness(_adata)
+
+
+def test_broken_neighbors_check_recompute():
+    adata = dyn.sample_data.zebrafish()
+    adata = adata[:1000, :1000].copy()
+    dyn.tl.neighbors(adata)
+    assert check_neighbors_completeness(adata)
+    indices = np.random.randint(0, len(adata), size=100)
+    _adata = adata[indices].copy()
+    assert not check_neighbors_completeness(_adata)
+    check_and_recompute_neighbors(_adata)
+    assert check_neighbors_completeness(_adata)
+
+
+# ----------------------------------- #
+# Test for utils
+def smallest_distance_bf(coords):
+    res = float("inf")
+    for (i, c1) in enumerate(coords):
+        for (j, c2) in enumerate(coords):
+            if i == j:
+                continue
+            else:
+                dist = np.linalg.norm(c1 - c2)
+                res = min(res, dist)
+    return res
+
+
+def test_smallest_distance_simple_1():
+    input_mat = np.array([[1, 2], [3, 4], [5, 6], [0, 0]])
+    dist = dyn.tl.compute_smallest_distance(input_mat)
+    assert abs(dist - 2.23606797749979) < 1e-7
+    input_mat = np.array([[0, 0], [3, 4], [5, 6], [0, 0]])
+    dist = dyn.tl.compute_smallest_distance(input_mat, use_unique_coords=False)
+    assert dist == 0
+
+
+def test_smallest_distance_simple_random():
+    n_pts = 100
+    coords = []
+    for i in range(n_pts):
+        coords.append(np.random.rand(2) * 1000)
+    coords = np.array(coords)
+
+    assert abs(smallest_distance_bf(coords) - dyn.tl.compute_smallest_distance(coords)) < 1e-8
+
+
+def test_norm_loglikelihood():
+    from scipy.stats import norm
+
+    # Generate some data from a normal distribution
+    mu = 0.0
+    sigma = 2.0
+    data = np.random.normal(mu, sigma, size=100)
+
+    # Calculate the log-likelihood of the data
+    ll_ground_truth = np.sum(norm.logpdf(data, mu, sigma))
+    ll = dyn.tl.utils.norm_loglikelihood(data, mu, sigma)
+    assert ll - ll_ground_truth < 1e-9
