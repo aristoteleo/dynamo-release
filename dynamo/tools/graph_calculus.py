@@ -606,6 +606,19 @@ def divop(W: Union[sp.csr_matrix, np.ndarray]) -> np.ndarray:
     return -0.5 * gradop(W).T
 
 
+def gradient(E: Union[sp.csr_matrix, np.ndarray], p: np.ndarray) -> np.ndarray:
+    """Calculate gradient of a weighted graph.
+
+    Args:
+        E: The length of the edges of the graph.
+        p: The potential of the graph.
+
+    Returns:
+        The gradient of the weighted graph.
+    """
+    return gradop(E).dot(p)
+
+
 def gradop(adj: Union[sp.csr_matrix, np.ndarray]) -> sp.csr_matrix:
     """Return the gradient operator of a weighted graph in matrix form.
 
@@ -622,19 +635,6 @@ def gradop(adj: Union[sp.csr_matrix, np.ndarray]) -> sp.csr_matrix:
     i, j, x = np.tile(range(ne), 2), e.flatten(), np.repeat([-1, 1], ne)
 
     return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
-
-
-def gradient(E: Union[sp.csr_matrix, np.ndarray], p: np.ndarray) -> np.ndarray:
-    """Calculate gradient of a weighted graph.
-
-    Args:
-        E: The length of the edges of the graph.
-        p: The potential of the graph.
-
-    Returns:
-        The gradient of the weighted graph.
-    """
-    return gradop(E).dot(p)
 
 
 class GraphVectorField:
