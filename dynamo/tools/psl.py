@@ -14,22 +14,6 @@ from .DDRTree import repmat
 # from scikits.sparse.cholmod import cholesky
 
 
-def diag_mat(values: List[int]):
-    """Returns a diagonal matrix with the given values on the diagonal.
-
-    Args:
-        values: A list of values to place on the diagonal of the matrix.
-
-    Returns:
-        A diagonal matrix with the given values on the diagonal.
-    """
-
-    mat = np.zeros((len(values), len(values)))
-    np.fill_diagonal(mat, values)
-
-    return mat
-
-
 def psl(
     Y: np.ndarray,
     sG: Optional[csr_matrix] = None,
@@ -200,3 +184,19 @@ def psl(
             Z = np.dot(U, tmp)
 
     return (S, Z)
+
+
+def diag_mat(values: List[int]):
+    """Returns a diagonal matrix with the given values on the diagonal.
+
+    Args:
+        values: A list of values to place on the diagonal of the matrix.
+
+    Returns:
+        A diagonal matrix with the given values on the diagonal.
+    """
+
+    mat = np.zeros((len(values), len(values)))
+    np.fill_diagonal(mat, values)
+
+    return mat

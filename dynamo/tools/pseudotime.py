@@ -12,6 +12,135 @@ from .utils import log1p_
 from ..dynamo_logger import main_info, main_info_insert_adata_obs
 
 
+def order_cells(
+    adata: anndata.AnnData,
+    layer: str = "X",
+    basis: Optional[str] = None,
+    root_state: Optional[int] = None,
+    init_cells: Optional[Union[List, np.ndarray, pd.Index]] = None,
+    reverse: bool = False,
+    maxIter: int = 10,
+    sigma: float = 0.001,
+    gamma: float = 10.0,
+    eps: int = 0,
+    dim: int = 2,
+    Lambda: Optional[float] = None,
+    ncenter: Optional[int] = None,
+    **kwargs,
+) -> anndata.AnnData:
+    """Order the cells based on the calculated pseudotime derived from the principal graph.
+
+    Learns a "trajectory" describing the biological process the cells are going through, and calculates where each cell
+    falls within that trajectory. The trajectory will be composed of segments. The cells from a segment will share the
+    same value of state. One of these segments will be selected as the root of the trajectory. The most distal cell on
+    that segment will be chosen as the "first" cell in the trajectory, and will have a pseudotime value of zero. Then
+    the function will then "walk" along the trajectory, and as it encounters additional cells, it will assign them
+    increasingly large values of pseudotime based on distance.
+
+    Args:
+        adata: The anndata object.
+        layer: The layer used to order the cells.
+        basis: The basis that indicates the data after dimension reduction.
+        root_state: The specific state for selecting the root cell.
+        init_cells: The index to search for root cells. If provided, root_state will be ignored.
+        reverse: Whether to reverse the selection of the root cell.
+        maxIter: The max number of iterations.
+        sigma: The bandwidth parameter.
+        gamma: Regularization parameter for k-means.
+        eps: The threshold of convergency to stop the iteration. Defaults to 0.
+        dim: The number of dimensions reduced to. Defaults to 2.
+        Lambda: Regularization parameter for inverse praph embedding. Defaults to 1.0.
+        ncenter: The number of center genes to be considered. If None, all genes would be considered. Defaults to None.
+        kwargs: Additional keyword arguments.
+
+    Returns:
+        The anndata object updated with pseudotime, cell order state and other necessary information.
+    """
+    import igraph as ig
+
+    main_info("Ordering cells based on pseudotime...")
+    if basis is None:
+        X = adata.layers["X_" + layer].T if layer != "X" else adata.X.T
+        X = log1p_(adata, X)
+    else:
+        X = adata.obsm["X_" + basis]
+
+    if "cell_order" not in adata.uns.keys():
+        adata.uns["cell_order"] = {}
+        adata.uns["cell_order"]["root_cell"] = None
+
+    DDRTree_kwargs = {
+        "maxIter": maxIter,
+        "sigma": sigma,
+        "gamma": gamma,
+        "eps": eps,
+        "dim": dim,
+        "Lambda": Lambda if Lambda else 5 * X.shape[1],
+        "ncenter": ncenter if ncenter else _cal_ncenter(X.shape[1]),
+    }
+    DDRTree_kwargs.update(kwargs)
+
+    Z, Y, stree, R, W, Q, C, objs = DDRTree(X, **DDRTree_kwargs)
+
+    principal_graph = stree
+    dp = distance.squareform(distance.pdist(Y.T))
+    mst = minimum_spanning_tree(principal_graph)
+
+    adata.uns["cell_order"]["cell_order_method"] = "DDRTree"
+    adata.uns["cell_order"]["Z"] = Z
+    adata.uns["cell_order"]["Y"] = Y
+    adata.uns["cell_order"]["stree"] = stree
+    adata.uns["cell_order"]["R"] = R
+    adata.uns["cell_order"]["W"] = W
+    adata.uns["cell_order"]["minSpanningTree"] = mst
+    adata.uns["cell_order"]["centers_minSpanningTree"] = mst
+
+    root_cell = select_root_cell(adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse)
+    cc_ordering = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)
+
+    (
+        cellPairwiseDistances,
+        pr_graph_cell_proj_dist,
+        pr_graph_cell_proj_closest_vertex,
+        pr_graph_cell_proj_tree
+    ) = project2MST(mst, Z, Y, project_point_to_line_segment)
+
+    adata.uns["cell_order"]["root_cell"] = root_cell
+    adata.uns["cell_order"]["centers_order"] = cc_ordering["orders"].values
+    adata.uns["cell_order"]["centers_parent"] = cc_ordering["parent"].values
+    adata.uns["cell_order"]["minSpanningTree"] = pr_graph_cell_proj_tree
+    adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"] = pr_graph_cell_proj_closest_vertex
+
+    cells_mapped_to_graph_root = np.where(pr_graph_cell_proj_closest_vertex == root_cell)[0]
+    # avoid the issue of multiple cells projected to the same point on the principal graph
+    if len(cells_mapped_to_graph_root) == 0:
+        cells_mapped_to_graph_root = [root_cell]
+
+    pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=pr_graph_cell_proj_tree)
+    tip_leaves = [v.index for v in pr_graph_cell_proj_tree_graph.vs.select(_degree=1)]
+    root_cell_candidates = np.intersect1d(cells_mapped_to_graph_root, tip_leaves)
+
+    if len(root_cell_candidates) == 0:
+        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse, map_to_tree=False)
+    else:
+        root_cell = root_cell_candidates[0]
+
+    cc_ordering_new_pseudotime = get_order_from_DDRTree(dp=cellPairwiseDistances, mst=pr_graph_cell_proj_tree, root_cell=root_cell)  # re-calculate the pseudotime again
+
+    adata.uns["cell_order"]["root_cell"] = root_cell
+    adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"].values
+    adata.uns["cell_order"]["parent"] = cc_ordering_new_pseudotime["parent"]
+    adata.uns["cell_order"]["branch_points"] = np.array(pr_graph_cell_proj_tree_graph.vs.select(_degree_gt=2))
+    main_info_insert_adata_obs("Pseudotime")
+
+    if root_state is None:
+        closest_vertex = pr_graph_cell_proj_closest_vertex
+        adata.obs["cell_pseudo_state"] = cc_ordering.loc[closest_vertex, "cell_pseudo_state"].values
+        main_info_insert_adata_obs("cell_pseudo_state")
+
+    return adata
+
+
 def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> pd.DataFrame:
     """Calculates the order of cells based on a minimum spanning tree and a distance matrix.
 
@@ -276,135 +405,6 @@ def select_root_cell(
             root_cell = diameter[0]
 
     return root_cell
-
-
-def order_cells(
-    adata: anndata.AnnData,
-    layer: str = "X",
-    basis: Optional[str] = None,
-    root_state: Optional[int] = None,
-    init_cells: Optional[Union[List, np.ndarray, pd.Index]] = None,
-    reverse: bool = False,
-    maxIter: int = 10,
-    sigma: float = 0.001,
-    gamma: float = 10.0,
-    eps: int = 0,
-    dim: int = 2,
-    Lambda: Optional[float] = None,
-    ncenter: Optional[int] = None,
-    **kwargs,
-) -> anndata.AnnData:
-    """Order the cells based on the calculated pseudotime derived from the principal graph.
-
-    Learns a "trajectory" describing the biological process the cells are going through, and calculates where each cell
-    falls within that trajectory. The trajectory will be composed of segments. The cells from a segment will share the
-    same value of state. One of these segments will be selected as the root of the trajectory. The most distal cell on
-    that segment will be chosen as the "first" cell in the trajectory, and will have a pseudotime value of zero. Then
-    the function will then "walk" along the trajectory, and as it encounters additional cells, it will assign them
-    increasingly large values of pseudotime based on distance.
-
-    Args:
-        adata: The anndata object.
-        layer: The layer used to order the cells.
-        basis: The basis that indicates the data after dimension reduction.
-        root_state: The specific state for selecting the root cell.
-        init_cells: The index to search for root cells. If provided, root_state will be ignored.
-        reverse: Whether to reverse the selection of the root cell.
-        maxIter: The max number of iterations.
-        sigma: The bandwidth parameter.
-        gamma: Regularization parameter for k-means.
-        eps: The threshold of convergency to stop the iteration. Defaults to 0.
-        dim: The number of dimensions reduced to. Defaults to 2.
-        Lambda: Regularization parameter for inverse praph embedding. Defaults to 1.0.
-        ncenter: The number of center genes to be considered. If None, all genes would be considered. Defaults to None.
-        kwargs: Additional keyword arguments.
-
-    Returns:
-        The anndata object updated with pseudotime, cell order state and other necessary information.
-    """
-    import igraph as ig
-
-    main_info("Ordering cells based on pseudotime...")
-    if basis is None:
-        X = adata.layers["X_" + layer].T if layer != "X" else adata.X.T
-        X = log1p_(adata, X)
-    else:
-        X = adata.obsm["X_" + basis]
-
-    if "cell_order" not in adata.uns.keys():
-        adata.uns["cell_order"] = {}
-        adata.uns["cell_order"]["root_cell"] = None
-
-    DDRTree_kwargs = {
-        "maxIter": maxIter,
-        "sigma": sigma,
-        "gamma": gamma,
-        "eps": eps,
-        "dim": dim,
-        "Lambda": Lambda if Lambda else 5 * X.shape[1],
-        "ncenter": ncenter if ncenter else _cal_ncenter(X.shape[1]),
-    }
-    DDRTree_kwargs.update(kwargs)
-
-    Z, Y, stree, R, W, Q, C, objs = DDRTree(X, **DDRTree_kwargs)
-
-    principal_graph = stree
-    dp = distance.squareform(distance.pdist(Y.T))
-    mst = minimum_spanning_tree(principal_graph)
-
-    adata.uns["cell_order"]["cell_order_method"] = "DDRTree"
-    adata.uns["cell_order"]["Z"] = Z
-    adata.uns["cell_order"]["Y"] = Y
-    adata.uns["cell_order"]["stree"] = stree
-    adata.uns["cell_order"]["R"] = R
-    adata.uns["cell_order"]["W"] = W
-    adata.uns["cell_order"]["minSpanningTree"] = mst
-    adata.uns["cell_order"]["centers_minSpanningTree"] = mst
-
-    root_cell = select_root_cell(adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse)
-    cc_ordering = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)
-
-    (
-        cellPairwiseDistances,
-        pr_graph_cell_proj_dist,
-        pr_graph_cell_proj_closest_vertex,
-        pr_graph_cell_proj_tree
-    ) = project2MST(mst, Z, Y, project_point_to_line_segment)
-
-    adata.uns["cell_order"]["root_cell"] = root_cell
-    adata.uns["cell_order"]["centers_order"] = cc_ordering["orders"].values
-    adata.uns["cell_order"]["centers_parent"] = cc_ordering["parent"].values
-    adata.uns["cell_order"]["minSpanningTree"] = pr_graph_cell_proj_tree
-    adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"] = pr_graph_cell_proj_closest_vertex
-
-    cells_mapped_to_graph_root = np.where(pr_graph_cell_proj_closest_vertex == root_cell)[0]
-    # avoid the issue of multiple cells projected to the same point on the principal graph
-    if len(cells_mapped_to_graph_root) == 0:
-        cells_mapped_to_graph_root = [root_cell]
-
-    pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=pr_graph_cell_proj_tree)
-    tip_leaves = [v.index for v in pr_graph_cell_proj_tree_graph.vs.select(_degree=1)]
-    root_cell_candidates = np.intersect1d(cells_mapped_to_graph_root, tip_leaves)
-
-    if len(root_cell_candidates) == 0:
-        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse, map_to_tree=False)
-    else:
-        root_cell = root_cell_candidates[0]
-
-    cc_ordering_new_pseudotime = get_order_from_DDRTree(dp=cellPairwiseDistances, mst=pr_graph_cell_proj_tree, root_cell=root_cell)  # re-calculate the pseudotime again
-
-    adata.uns["cell_order"]["root_cell"] = root_cell
-    adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"].values
-    adata.uns["cell_order"]["parent"] = cc_ordering_new_pseudotime["parent"]
-    adata.uns["cell_order"]["branch_points"] = np.array(pr_graph_cell_proj_tree_graph.vs.select(_degree_gt=2))
-    main_info_insert_adata_obs("Pseudotime")
-
-    if root_state is None:
-        closest_vertex = pr_graph_cell_proj_closest_vertex
-        adata.obs["cell_pseudo_state"] = cc_ordering.loc[closest_vertex, "cell_pseudo_state"].values
-        main_info_insert_adata_obs("cell_pseudo_state")
-
-    return adata
 
 
 def _cal_ncenter(ncells, ncells_limit=100):

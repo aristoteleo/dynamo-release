@@ -1050,133 +1050,6 @@ def prepare_data_mix_no_splicing(
 
 # ---------------------------------------------------------------------------------------------------
 # moment related:
-
-
-def stratify(arr: np.ndarray, strata: np.ndarray) -> List[np.ndarray]:
-    """Stratify the given array with the given reference strata.
-
-    Args:
-        arr: The array to be stratified.
-        strata: The reference strata vector.
-
-    Returns:
-        A list containing the strata from the array, with each element of the list to be the components with line index
-        corresponding to the reference strata vector's unique elements' index.
-    """
-
-    s = np.unique(strata)
-    return [arr[strata == s[i]] for i in range(len(s))]
-
-
-def strat_mom(arr: Union[np.ndarray, csr_matrix], strata: np.ndarray, fcn_mom: Callable) -> np.ndarray:
-    """Stratify the mRNA expression data and calculate its momentum.
-
-    Args:
-        arr: The mRNA expression data.
-        strata: The time stamp array used to stratify `arr`.
-        fcn_mom: The function used to calculate the momentum.
-
-    Returns:
-        The momentum for each stratum.
-    """
-
-    arr = arr.A if issparse(arr) else arr
-    x = stratify(arr, strata)
-    return np.array([fcn_mom(y) for y in x])
-
-
-def calc_mom_all_genes(
-    T: np.ndarray, adata: AnnData, fcn_mom: Callable
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Calculate momentum for all genes in an AnnData object.
-
-    Args:
-        T: The time stamp array.
-        adata: An AnnData object.
-        fcn_mom: The function used to calculate momentum.
-
-    Returns:
-        A tuple (Mn, Mo, Mt, Mr), where `Mn` is momentum calculated from labeled (new) mRNA count, `Mo` is from
-        unlabeled (old) mRNA count, `Mt` is from total mRNA count, and `Mr` is from new to total ratio.
-    """
-    ng = adata.var.shape[0]
-    nT = len(np.unique(T))
-    Mn = np.zeros((ng, nT))
-    Mo = np.zeros((ng, nT))
-    Mt = np.zeros((ng, nT))
-    Mr = np.zeros((ng, nT))
-    for g in tqdm(range(ng), desc="calculating 1/2 moments"):
-        L = np.array(adata[:, g].layers["X_new"], dtype=float)
-        U = np.array(adata[:, g].layers["X_total"], dtype=float) - L
-        rho = L / (L + U + 0.01)
-        Mn[g] = strat_mom(L, T, fcn_mom)
-        Mo[g] = strat_mom(U, T, fcn_mom)
-        Mt[g] = strat_mom(L + U, T, fcn_mom)
-        Mr[g] = strat_mom(rho, T, fcn_mom)
-    return Mn, Mo, Mt, Mr
-
-
-def gaussian_kernel(
-    X: np.ndarray, nbr_idx: np.ndarray, sigma: int, k: Optional[int] = None, dists: Optional[np.ndarray] = None
-) -> csr_matrix:
-    """Normalize connectivity map with Gaussian kernel.
-
-    Args:
-        X: The mRNA expression data.
-        nbr_idx: The indices of nearest neighbors of each cell.
-        sigma: The standard deviation for gaussian model.
-        k: The number of nearest neighbors to be considered. Defaults to None.
-        dists: The distances to the n_neighbors' closest points in knn graph. Defaults to None.
-
-    Returns:
-        The normalized connectivity map.
-    """
-    n = X.shape[0]
-    if dists is None:
-        dists = []
-        for i in range(n):
-            d = X[nbr_idx[i][:k]] - X[i]
-            dists.append(np.sum(elem_prod(d, d), 1).flatten())
-    W = lil_matrix((n, n))
-    s2_inv = 1 / (2 * sigma**2)
-    for i in range(n):
-        W[i, nbr_idx[i][:k]] = np.exp(-s2_inv * dists[i][:k] ** 2)
-
-    return csr_matrix(W)
-
-
-def calc_12_mom_labeling(
-    data: np.ndarray, t: np.ndarray, calculate_2_mom: bool = True
-) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]:
-    """Calculate 1st and 2nd momentum for given data.
-
-    Args:
-        data: The normalized mRNA expression data.
-        t: The time stamp array.
-        calculate_2_mom: Whether to calculate 2nd momentum. Defaults to True.
-
-    Returns:
-        A tuple (m, [v], t_uniq) where `m` is the first momentum, `v` is the second momentum which would be returned
-        only if `calculate_2_mom` is true, and `t_uniq` is the unique time stamps.
-    """
-
-    t_uniq = np.unique(t)
-
-    m = np.zeros((data.shape[0], len(t_uniq)))
-    if calculate_2_mom:
-        v = np.zeros((data.shape[0], len(t_uniq)))
-
-    for i in range(data.shape[0]):
-        data_ = (
-            np.array(data[i].A.flatten(), dtype=float) if issparse(data) else np.array(data[i], dtype=float)
-        )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
-        m[i] = strat_mom(data_, t, np.nanmean)
-        if calculate_2_mom:
-            v[i] = strat_mom(data_, t, np.nanvar)
-
-    return (m, v, t_uniq) if calculate_2_mom else (m, t_uniq)
-
-
 def calc_1nd_moment(
     X: np.ndarray, W: np.ndarray, normalize_W: bool = True
 ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
@@ -1239,3 +1112,128 @@ def calc_2nd_moment(
         XY = XY - elem_prod(mX, mY)
 
     return XY
+
+
+def calc_12_mom_labeling(
+    data: np.ndarray, t: np.ndarray, calculate_2_mom: bool = True
+) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]:
+    """Calculate 1st and 2nd momentum for given data.
+
+    Args:
+        data: The normalized mRNA expression data.
+        t: The time stamp array.
+        calculate_2_mom: Whether to calculate 2nd momentum. Defaults to True.
+
+    Returns:
+        A tuple (m, [v], t_uniq) where `m` is the first momentum, `v` is the second momentum which would be returned
+        only if `calculate_2_mom` is true, and `t_uniq` is the unique time stamps.
+    """
+
+    t_uniq = np.unique(t)
+
+    m = np.zeros((data.shape[0], len(t_uniq)))
+    if calculate_2_mom:
+        v = np.zeros((data.shape[0], len(t_uniq)))
+
+    for i in range(data.shape[0]):
+        data_ = (
+            np.array(data[i].A.flatten(), dtype=float) if issparse(data) else np.array(data[i], dtype=float)
+        )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
+        m[i] = strat_mom(data_, t, np.nanmean)
+        if calculate_2_mom:
+            v[i] = strat_mom(data_, t, np.nanvar)
+
+    return (m, v, t_uniq) if calculate_2_mom else (m, t_uniq)
+
+
+def calc_mom_all_genes(
+    T: np.ndarray, adata: AnnData, fcn_mom: Callable
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate momentum for all genes in an AnnData object.
+
+    Args:
+        T: The time stamp array.
+        adata: An AnnData object.
+        fcn_mom: The function used to calculate momentum.
+
+    Returns:
+        A tuple (Mn, Mo, Mt, Mr), where `Mn` is momentum calculated from labeled (new) mRNA count, `Mo` is from
+        unlabeled (old) mRNA count, `Mt` is from total mRNA count, and `Mr` is from new to total ratio.
+    """
+    ng = adata.var.shape[0]
+    nT = len(np.unique(T))
+    Mn = np.zeros((ng, nT))
+    Mo = np.zeros((ng, nT))
+    Mt = np.zeros((ng, nT))
+    Mr = np.zeros((ng, nT))
+    for g in tqdm(range(ng), desc="calculating 1/2 moments"):
+        L = np.array(adata[:, g].layers["X_new"], dtype=float)
+        U = np.array(adata[:, g].layers["X_total"], dtype=float) - L
+        rho = L / (L + U + 0.01)
+        Mn[g] = strat_mom(L, T, fcn_mom)
+        Mo[g] = strat_mom(U, T, fcn_mom)
+        Mt[g] = strat_mom(L + U, T, fcn_mom)
+        Mr[g] = strat_mom(rho, T, fcn_mom)
+    return Mn, Mo, Mt, Mr
+
+
+def strat_mom(arr: Union[np.ndarray, csr_matrix], strata: np.ndarray, fcn_mom: Callable) -> np.ndarray:
+    """Stratify the mRNA expression data and calculate its momentum.
+
+    Args:
+        arr: The mRNA expression data.
+        strata: The time stamp array used to stratify `arr`.
+        fcn_mom: The function used to calculate the momentum.
+
+    Returns:
+        The momentum for each stratum.
+    """
+
+    arr = arr.A if issparse(arr) else arr
+    x = stratify(arr, strata)
+    return np.array([fcn_mom(y) for y in x])
+
+
+def stratify(arr: np.ndarray, strata: np.ndarray) -> List[np.ndarray]:
+    """Stratify the given array with the given reference strata.
+
+    Args:
+        arr: The array to be stratified.
+        strata: The reference strata vector.
+
+    Returns:
+        A list containing the strata from the array, with each element of the list to be the components with line index
+        corresponding to the reference strata vector's unique elements' index.
+    """
+
+    s = np.unique(strata)
+    return [arr[strata == s[i]] for i in range(len(s))]
+
+
+def gaussian_kernel(
+    X: np.ndarray, nbr_idx: np.ndarray, sigma: int, k: Optional[int] = None, dists: Optional[np.ndarray] = None
+) -> csr_matrix:
+    """Normalize connectivity map with Gaussian kernel.
+
+    Args:
+        X: The mRNA expression data.
+        nbr_idx: The indices of nearest neighbors of each cell.
+        sigma: The standard deviation for gaussian model.
+        k: The number of nearest neighbors to be considered. Defaults to None.
+        dists: The distances to the n_neighbors' closest points in knn graph. Defaults to None.
+
+    Returns:
+        The normalized connectivity map.
+    """
+    n = X.shape[0]
+    if dists is None:
+        dists = []
+        for i in range(n):
+            d = X[nbr_idx[i][:k]] - X[i]
+            dists.append(np.sum(elem_prod(d, d), 1).flatten())
+    W = lil_matrix((n, n))
+    s2_inv = 1 / (2 * sigma**2)
+    for i in range(n):
+        W[i, nbr_idx[i][:k]] = np.exp(-s2_inv * dists[i][:k] ** 2)
+
+    return csr_matrix(W)
