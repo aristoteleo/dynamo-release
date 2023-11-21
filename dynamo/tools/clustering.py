@@ -17,7 +17,7 @@ from ..preprocessing.QC import filter_genes_by_outliers as filter_genes
 from ..preprocessing.pca import pca
 from ..preprocessing.transform import log1p
 from ..utils import LoggerManager, copy_adata
-from .connectivity import _gen_neighbor_keys, neighbors
+from .connectivity import generate_neighbor_keys, neighbors
 from .utils import update_dict
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
@@ -102,7 +102,7 @@ def hdbscan(
             reduction_method = basis.split("_")[-1]
             embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
             neighbor_result_prefix = "" if layer is None else layer
-            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+            conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
 
             adata = run_reduce_dim(
                 adata,

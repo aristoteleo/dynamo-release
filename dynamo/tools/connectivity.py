@@ -594,7 +594,7 @@ def mnn(
     return adata
 
 
-def _gen_neighbor_keys(result_prefix: str = "") -> Tuple[str, str, str]:
+def generate_neighbor_keys(result_prefix: str = "") -> Tuple[str, str, str]:
     """Generate neighbor keys for other functions to store/access info in adata.
 
     Args:
@@ -845,7 +845,7 @@ def neighbors(
         **kwargs,
     )
 
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(result_prefix)
     logger.info_insert_adata(conn_key, adata_attr="obsp")
     logger.info_insert_adata(dist_key, adata_attr="obsp")
     adata.obsp[dist_key], adata.obsp[conn_key] = get_conn_dist_graph(knn, distances)
@@ -890,7 +890,7 @@ def check_neighbors_completeness(
     """
 
     is_valid = True
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(result_prefix)
     keys = [conn_key, dist_key, neighbor_key]
 
     # Old anndata version version
@@ -956,7 +956,7 @@ def check_and_recompute_neighbors(adata: AnnData, result_prefix: str = "") -> No
 
     if result_prefix is None:
         result_prefix = ""
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(result_prefix)
 
     if not check_neighbors_completeness(adata, conn_key=conn_key, dist_key=dist_key, result_prefix=result_prefix):
         main_info("Neighbor graph is broken, recomputing....")

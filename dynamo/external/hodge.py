@@ -21,7 +21,7 @@ from ..vectorfield.utils import vecfld_from_adata, vector_field_function
     div,
     potential,
 )"""
-from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
+from ..tools.connectivity import generate_neighbor_keys, check_and_recompute_neighbors
 
 
 def ddhodge(
@@ -136,7 +136,7 @@ def ddhodge(
             main_info("graphizing vectorfield...")
             V_data = func(X_data)
             neighbor_result_prefix = "" if layer is None else layer
-            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+            conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
             if neighbor_key not in adata_.uns_keys() or to_downsample:
                 existing_nbrs_idx = None
             else:

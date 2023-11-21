@@ -30,7 +30,7 @@ from ..dynamo_logger import (
     main_warning,
 )
 from ..preprocessing.transform import _Freeman_Tukey
-from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors
+from ..tools.connectivity import generate_neighbor_keys, check_and_recompute_neighbors
 from .utils import fdr, fetch_X_data
 
 
@@ -98,7 +98,7 @@ def moran_i(
 
     embedding_key = "X_umap" if layer is None else layer + "_umap"
     neighbor_result_prefix = "" if layer is None else layer
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
 
     if neighbor_key not in adata.uns.keys():
         main_warning(
