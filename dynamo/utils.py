@@ -1,5 +1,7 @@
 """General utility functions
 """
+from typing import Callable, Dict, List, Optional, Tuple, Union
+
 import anndata
 import numpy as np
 import scipy.sparse as sp
@@ -78,3 +80,61 @@ def normalize(x):
 
 def denormalize(y, x_min, x_max):
     return y * (x_max - x_min) + x_min
+
+
+# ---------------------------------------------------------------------------------------------------
+# trajectory related
+def pca_to_expr(
+    X: Union[np.ndarray, sp.csr_matrix],
+    PCs: np.ndarray,
+    mean: Union[int, np.ndarray] = 0,
+    func: Optional[Callable] = None,
+) -> np.ndarray:
+    """Inverse transform the data with given principal components.
+
+    Args:
+        X: raw data to transform.
+        PCs: the principal components.
+        mean: the mean used to fit the PCA.
+        func: additional function to transform the output.
+
+    Returns:
+        The inverse transformed data.
+    """
+    # reverse project from PCA back to raw expression space
+    X = X.toarray() if sp.issparse(X) else X
+    if PCs.shape[1] == X.shape[1]:
+        exprs = X @ PCs.T + mean
+        if func is not None:
+            exprs = func(exprs)
+    else:
+        raise Exception("PCs dim 1 (%d) does not match X dim 1 (%d)." % (PCs.shape[1], X.shape[1]))
+    return exprs
+
+
+def expr_to_pca(
+    expr: Union[np.ndarray, sp.csr_matrix],
+    PCs: np.ndarray,
+    mean: Union[int, np.ndarray] = 0,
+    func: Optional[Callable] = None,
+) -> np.ndarray:
+    """Transform the data with given principal components.
+
+    Args:
+        expr: raw data to transform.
+        PCs: the principal components.
+        mean: the mean of expr.
+        func: additional function to transform the output.
+
+    Returns:
+        The transformed data.
+    """
+    # project from raw expression space to PCA
+    expr = expr.toarray() if sp.issparse(expr) else expr
+    if PCs.shape[0] == expr.shape[1]:
+        X = (expr - mean) @ PCs
+        if func is not None:
+            X = func(X)
+    else:
+        raise Exception("PCs dim 1 (%d) does not match X dim 1 (%d)." % (PCs.shape[0], expr.shape[1]))
+    return X
