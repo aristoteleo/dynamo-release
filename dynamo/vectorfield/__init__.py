@@ -45,12 +45,12 @@ from .scVectorField import (  # , evaluate, con_K_div_cur_free
 from .stochastic_process import diffusionMatrix
 from .topography import (
     FixedPoints,
-    VectorField,
     VectorField2D,
     assign_fixedpoints,
     topography,
 )
 from .utils import get_jacobian, parse_int_df, vector_field_function
+from .VectorField import VectorField
 from .vector_calculus import (
     acceleration,
     curl,
