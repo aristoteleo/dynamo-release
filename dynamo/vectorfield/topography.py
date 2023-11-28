@@ -393,9 +393,7 @@ def dup_osc_idx_iter(x: np.ndarray, max_iter: int = 5, **kwargs) -> Tuple[int, n
     return idx, D
 
 
-# TODO: This should be inherited from the BaseVectorField/DifferentiatiableVectorField class,
-#       and BifurcationTwoGenes should be inherited from this class.
-class VectorField2D:
+class Topography2D:
     """
     The VectorField2D class is a class that represents a 2D vector field, which is a type of mathematical object that assigns a 2D vector to each point in a 2D space. This vector field can be defined using a function that returns the vector at each point, or by separate functions for the x and y components of the vector.
 
@@ -603,7 +601,7 @@ class VectorField2D:
         return dict_vf
 
 
-class VectorField3D(VectorField2D):
+class Topography3D(Topography2D):
     """A class that represents a 3D vector field, which is a type of mathematical object that assigns a 3D vector to
     each point in a 3D space.
 
@@ -756,7 +754,7 @@ def util_topology(
         ]
         zlim = None
 
-        vecfld = VectorField2D(func, X_data=X_basis)
+        vecfld = Topography2D(func, X_data=X_basis)
         vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
         if vecfld.get_num_fixed_points() > 0:
             vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
@@ -781,7 +779,7 @@ def util_topology(
             max_[2] + (max_[2] - min_[2]) * 0.1,
         ]
 
-        vecfld = VectorField3D(func, X_data=X_basis)
+        vecfld = Topography3D(func, X_data=X_basis)
         vecfld.find_fixed_points_by_sampling(n, xlim, ylim, zlim)
 
         NCx, NCy = None, None

@@ -45,7 +45,7 @@ from .scVectorField import (  # , evaluate, con_K_div_cur_free
 from .stochastic_process import diffusionMatrix
 from .topography import (
     FixedPoints,
-    VectorField2D,
+    Topography2D,
     assign_fixedpoints,
     topography,
 )
