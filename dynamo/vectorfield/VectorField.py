@@ -139,10 +139,6 @@ def VectorField(
     elif method.lower() == "dynode":
         try:
             from dynode.vectorfield import Dynode  # networkModels,
-
-            # from dynode.vectorfield.losses_weighted import MAD, BinomialChannel, WassersteinDistance, CosineDistance
-            from dynode.vectorfield.losses_weighted import MSE
-            from dynode.vectorfield.samplers import VelocityDataSampler
             from .scVectorField import dynode_vectorfield
         except ImportError:
             raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
@@ -310,6 +306,12 @@ def _get_dynode_default_arguments(
     **kwargs,
 ) -> Tuple[Dict, Dict]:
     """Get default arguments for vector field learning with dynode method."""
+    try:
+        from dynode.vectorfield import networkModels
+        from dynode.vectorfield.losses_weighted import MSE
+        from dynode.vectorfield.samplers import VelocityDataSampler
+    except ImportError:
+        raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
 
     velocity_data_sampler = VelocityDataSampler(adata={"X": X, "V": V}, normalize_velocity=normalize)
     max_iter = 2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
