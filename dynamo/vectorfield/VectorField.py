@@ -157,141 +157,27 @@ def VectorField(
         raise Exception("V is None. Make sure you passed the correct V.")
 
     logger.info("Learning vector field with method: %s." % (method.lower()))
+
     if method.lower() == "sparsevfc":
-        vf_kwargs = {
-            "M": None,
-            "a": 5,
-            "beta": None,
-            "ecr": 1e-5,
-            "gamma": 0.9,
-            "lambda_": 3,
-            "minP": 1e-5,
-            "MaxIter": 30,
-            "theta": 0.75,
-            "div_cur_free_kernels": False,
-            "velocity_based_sampling": True,
-            "sigma": 0.8,
-            "eta": 0.5,
-            "seed": 0,
-        }
-    elif method.lower() == "dynode_old":
-        try:
-            from dynode.vectorfield import networkModels
-
-            # from dynode.vectorfield.losses_weighted import MAD, BinomialChannel, WassersteinDistance, CosineDistance
-            from dynode.vectorfield.losses_weighted import MSE
-            from dynode.vectorfield.samplers import VelocityDataSampler
-
-            from .scVectorField import dynode_vectorfield
-        except ImportError:
-            raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
-
-        velocity_data_sampler = VelocityDataSampler(adata={"X": X, "V": V}, normalize_velocity=normalize)
-        max_iter = 2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
-
-        cwd, cwt = os.getcwd(), datetime.datetime.now()
-
-        if model_buffer_path is None:
-            model_buffer_path = cwd + "/" + basis + "_" + str(cwt.year) + "_" + str(cwt.month) + "_" + str(cwt.day)
-            main_warning("the buffer path saving the dynode model is in %s" % (model_buffer_path))
-
-        vf_kwargs = {
-            "model": networkModels,
-            "sirens": False,
-            "enforce_positivity": False,
-            "velocity_data_sampler": velocity_data_sampler,
-            "time_course_data_sampler": None,
-            "network_dim": X.shape[1],
-            "velocity_loss_function": MSE(),  # CosineDistance(), # #MSE(), MAD()
-            # BinomialChannel(p=0.1, alpha=1)
-            "time_course_loss_function": None,
-            "velocity_x_initialize": X,
-            "time_course_x0_initialize": None,
-            "smoothing_factor": None,
-            "stability_factor": None,
-            "load_model_from_buffer": False,
-            "buffer_path": model_buffer_path,
-            "hidden_features": 256,
-            "hidden_layers": 3,
-            "first_omega_0": 30.0,
-            "hidden_omega_0": 30.0,
-        }
-        train_kwargs = {
-            "max_iter": int(max_iter),
-            "velocity_batch_size": 50,
-            "time_course_batch_size": 100,
-            "autoencoder_batch_size": 50,
-            "velocity_lr": 1e-4,
-            "velocity_x_lr": 0,
-            "time_course_lr": 1e-4,
-            "time_course_x0_lr": 1e4,
-            "autoencoder_lr": 1e-4,
-            "velocity_sample_fraction": 1,
-            "time_course_sample_fraction": 1,
-            "iter_per_sample_update": None,
-        }
+        vf_kwargs = _get_svc_default_arguments(**kwargs)
+        VecFld = SvcVectorField(X, V, Grid, normalize=normalize, **vf_kwargs)
+        train_kwargs = kwargs
     elif method.lower() == "dynode":
-        try:
-            from dynode.vectorfield import Dynode  # networkModels,
-
-            # from dynode.vectorfield.losses_weighted import MAD, BinomialChannel, WassersteinDistance, CosineDistance
-            # from dynode.vectorfield.losses_weighted import MSE
-            # from dynode.vectorfield.samplers import VelocityDataSampler
-            from .scVectorField import dynode_vectorfield
-        except ImportError:
-            raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
-
         if not ("Dynode" in kwargs and type(kwargs["Dynode"]) == Dynode):
-            velocity_data_sampler = VelocityDataSampler(adata={"X": X, "V": V}, normalize_velocity=normalize)
-            max_iter = 2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
-
-            cwd, cwt = os.getcwd(), datetime.datetime.now()
-
-            if model_buffer_path is None:
-                model_buffer_path = cwd + "/" + basis + "_" + str(cwt.year) + "_" + str(cwt.month) + "_" + str(cwt.day)
-                main_warning("the buffer path saving the dynode model is in %s" % (model_buffer_path))
-
-            vf_kwargs = {
-                "model": networkModels,
-                "sirens": False,
-                "enforce_positivity": False,
-                "velocity_data_sampler": velocity_data_sampler,
-                "time_course_data_sampler": None,
-                "network_dim": X.shape[1],
-                "velocity_loss_function": MSE(),  # CosineDistance(), # #MSE(), MAD()
-                # BinomialChannel(p=0.1, alpha=1)
-                "time_course_loss_function": None,
-                "velocity_x_initialize": X,
-                "time_course_x0_initialize": None,
-                "smoothing_factor": None,
-                "stability_factor": None,
-                "load_model_from_buffer": False,
-                "buffer_path": model_buffer_path,
-                "hidden_features": 256,
-                "hidden_layers": 3,
-                "first_omega_0": 30.0,
-                "hidden_omega_0": 30.0,
-            }
-            train_kwargs = {
-                "max_iter": int(max_iter),
-                "velocity_batch_size": 50,
-                "time_course_batch_size": 100,
-                "autoencoder_batch_size": 50,
-                "velocity_lr": 1e-4,
-                "velocity_x_lr": 0,
-                "time_course_lr": 1e-4,
-                "time_course_x0_lr": 1e4,
-                "autoencoder_lr": 1e-4,
-                "velocity_sample_fraction": 1,
-                "time_course_sample_fraction": 1,
-                "iter_per_sample_update": None,
-            }
+            vf_kwargs, train_kwargs = _get_dynode_default_arguments(
+                X,
+                V,
+                basis=basis,
+                normalize=normalize,
+                model_buffer_path=model_buffer_path,
+                **kwargs,
+            )
+            VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
         else:
-            vf_kwargs, train_kwargs = {}, {}
+            Dynode_obj = kwargs["Dynode"]
+            VecFld = dynode_vectorfield.fromDynode(Dynode_obj)
     else:
         raise ValueError("current only support two methods, SparseVFC and dynode")
-
-    vf_kwargs = update_dict(vf_kwargs, kwargs)
 
     if restart_num > 0:
         if len(restart_seed) != restart_num:
@@ -301,36 +187,23 @@ def VectorField(
             restart_seed = np.arange(restart_num) * 100
         restart_counter, cur_vf_list, res_list = 0, [], []
         while True:
-            if method.lower() == "sparsevfc":
-                kwargs.update({"seed": restart_seed[restart_counter]})
-                VecFld = SvcVectorField(X, V, Grid, **vf_kwargs)
-                cur_vf_dict = VecFld.train(normalize=normalize, **kwargs)
-            elif method.lower() == "dynode_old":
-                train_kwargs = update_dict(train_kwargs, kwargs)
-                VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
-                # {"VecFld": VecFld.train(**kwargs)}
+            if not ("Dynode" in kwargs and type(kwargs["Dynode"]) == Dynode):
+                if method.lower() == "sparsevfc":
+                    train_kwargs.update({"seed": restart_seed[restart_counter]})
                 cur_vf_dict = VecFld.train(**train_kwargs)
-            elif method.lower() == "dynode":
-                if not ("Dynode" in kwargs and type(kwargs["Dynode"]) == Dynode):
-                    train_kwargs = update_dict(train_kwargs, kwargs)
-                    VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
-                    # {"VecFld": VecFld.train(**kwargs)}
-                    cur_vf_dict = VecFld.train(**train_kwargs)
-                else:
-                    Dynode_obj = kwargs["Dynode"]
-                    VecFld = dynode_vectorfield.fromDynode(Dynode_obj)
-                    X, Y = Dynode_obj.Velocity["sampler"].X_raw, Dynode_obj.Velocity["sampler"].V_raw
-                    cur_vf_dict = {
-                        "X": X,
-                        "Y": Y,
-                        "V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].X_raw),
-                        "grid_V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].Grid),
-                        "valid_ind": Dynode_obj.Velocity["sampler"].valid_ind
-                        if hasattr(Dynode_obj.Velocity["sampler"], "valid_ind")
-                        else np.arange(X.shape[0]),
-                        "parameters": Dynode_obj.Velocity,
-                        "dynode_object": VecFld,
-                    }
+            else:
+                X, Y = Dynode_obj.Velocity["sampler"].X_raw, Dynode_obj.Velocity["sampler"].V_raw
+                cur_vf_dict = {
+                    "X": X,
+                    "Y": Y,
+                    "V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].X_raw),
+                    "grid_V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].Grid),
+                    "valid_ind": Dynode_obj.Velocity["sampler"].valid_ind
+                    if hasattr(Dynode_obj.Velocity["sampler"], "valid_ind")
+                    else np.arange(X.shape[0]),
+                    "parameters": Dynode_obj.Velocity,
+                    "dynode_object": VecFld,
+                }
 
             # consider refactor with .simulation.evaluation.py
             reference, prediction = (
@@ -363,14 +236,7 @@ def VectorField(
 
                 break
     else:
-        if method.lower() == "sparsevfc":
-            VecFld = SvcVectorField(X, V, Grid, **vf_kwargs)
-            vf_dict = VecFld.train(normalize=normalize, **kwargs)
-        elif method.lower() == "dynode":
-            train_kwargs = update_dict(train_kwargs, kwargs)
-            VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
-            # {"VecFld": VecFld.train(**kwargs)}
-            vf_dict = VecFld.train(**train_kwargs)
+        vf_dict = VecFld.train(**train_kwargs)
 
     if result_key is None:
         vf_key = "VecFld" if basis is None else "VecFld_" + basis
@@ -471,3 +337,97 @@ def VectorField(
     elif copy:
         return adata
     return None
+
+
+def _get_svc_default_arguments(**kwargs) -> Dict:
+    vf_kwargs = {
+        "M": None,
+        "a": 5,
+        "beta": None,
+        "ecr": 1e-5,
+        "gamma": 0.9,
+        "lambda_": 3,
+        "minP": 1e-5,
+        "MaxIter": 30,
+        "theta": 0.75,
+        "div_cur_free_kernels": False,
+        "velocity_based_sampling": True,
+        "sigma": 0.8,
+        "eta": 0.5,
+        "seed": 0,
+    }
+    vf_kwargs = update_dict(vf_kwargs, kwargs)
+
+    return vf_kwargs
+
+
+def _get_dynode_default_arguments(
+    X: np.ndarray,
+    V: np.ndarray,
+    basis: Optional[str] = None,
+    normalize: Optional[bool] = False,
+    model_buffer_path: Optional[str] = None,
+    **kwargs,
+) -> Tuple[Dict, Dict]:
+    try:
+        from dynode.vectorfield import Dynode  # networkModels,
+
+        # from dynode.vectorfield.losses_weighted import MAD, BinomialChannel, WassersteinDistance, CosineDistance
+        # from dynode.vectorfield.losses_weighted import MSE
+        # from dynode.vectorfield.samplers import VelocityDataSampler
+        from .scVectorField import dynode_vectorfield
+    except ImportError:
+        raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
+
+    if not ("Dynode" in kwargs and type(kwargs["Dynode"]) == Dynode):
+        velocity_data_sampler = VelocityDataSampler(adata={"X": X, "V": V}, normalize_velocity=normalize)
+        max_iter = 2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
+
+        cwd, cwt = os.getcwd(), datetime.datetime.now()
+
+        if model_buffer_path is None:
+            model_buffer_path = cwd + "/" + basis + "_" + str(cwt.year) + "_" + str(cwt.month) + "_" + str(cwt.day)
+            main_warning("the buffer path saving the dynode model is in %s" % (model_buffer_path))
+
+        vf_kwargs = {
+            "model": networkModels,
+            "sirens": False,
+            "enforce_positivity": False,
+            "velocity_data_sampler": velocity_data_sampler,
+            "time_course_data_sampler": None,
+            "network_dim": X.shape[1],
+            "velocity_loss_function": MSE(),  # CosineDistance(), # #MSE(), MAD()
+            # BinomialChannel(p=0.1, alpha=1)
+            "time_course_loss_function": None,
+            "velocity_x_initialize": X,
+            "time_course_x0_initialize": None,
+            "smoothing_factor": None,
+            "stability_factor": None,
+            "load_model_from_buffer": False,
+            "buffer_path": model_buffer_path,
+            "hidden_features": 256,
+            "hidden_layers": 3,
+            "first_omega_0": 30.0,
+            "hidden_omega_0": 30.0,
+        }
+        train_kwargs = {
+            "max_iter": int(max_iter),
+            "velocity_batch_size": 50,
+            "time_course_batch_size": 100,
+            "autoencoder_batch_size": 50,
+            "velocity_lr": 1e-4,
+            "velocity_x_lr": 0,
+            "time_course_lr": 1e-4,
+            "time_course_x0_lr": 1e4,
+            "autoencoder_lr": 1e-4,
+            "velocity_sample_fraction": 1,
+            "time_course_sample_fraction": 1,
+            "iter_per_sample_update": None,
+        }
+    else:
+        vf_kwargs, train_kwargs = {}, {}
+
+    vf_kwargs = update_dict(vf_kwargs, kwargs)
+    train_kwargs = update_dict(train_kwargs, kwargs)
+
+    return vf_kwargs, train_kwargs
