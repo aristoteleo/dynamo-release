@@ -92,64 +92,19 @@ def VectorField(
     logger.log_time()
     adata = copy_adata(adata) if copy else adata
 
-    if basis is not None:
-        logger.info(
-            "Retrieve X and V based on basis: %s. \n "
-            "       Vector field will be learned in the %s space." % (basis.upper(), basis.upper())
-        )
-        X = adata.obsm["X_" + basis].copy()
-        V = adata.obsm["velocity_" + basis].copy()
-
-        if np.isscalar(dims):
-            X, V = X[:, :dims], V[:, :dims]
-        elif type(dims) is list:
-            X, V = X[:, dims], V[:, dims]
-    else:
-        logger.info(
-            "Retrieve X and V based on `genes`, layer: %s. \n "
-            "       Vector field will be learned in the gene expression space." % layer
-        )
-        valid_genes = (
-            list(set(genes).intersection(adata.var.index))
-            if genes is not None
-            else adata.var_names[adata.var.use_for_transition]
-        )
-        if layer == "X":
-            X = adata[:, valid_genes].X.copy()
-            X = np.expm1(X)
-        else:
-            X = inverse_norm(adata, adata.layers[layer])
-
-        V = adata[:, valid_genes].layers[velocity_key].copy()
-
-        if sp.issparse(X):
-            X, V = X.A, V.A
-
-        # keep only genes with finite velocity and expression values, useful when learning vector field in the original
-        # gene expression space.
-        finite_genes = np.logical_and(np.isfinite(X).all(axis=0), np.isfinite(V).all(axis=0))
-        X, V = X[:, finite_genes], V[:, finite_genes]
-        valid_genes = np.array(valid_genes)[np.where(finite_genes)[0]].tolist()
-        if sum(finite_genes) < len(finite_genes):
-            logger.warning(
-                f"There are {(len(finite_genes) - sum(finite_genes))} genes with infinite expression or velocity "
-                f"values. These genes will be excluded from vector field reconstruction. Please make sure the genes you "
-                f"selected has no non-infinite values"
-            )
+    X, V, valid_genes = _get_X_V_for_VectorField(
+        adata,
+        basis=basis,
+        layer=layer,
+        dims=dims,
+        genes=genes,
+        velocity_key=velocity_key,
+        logger=logger,
+    )
 
     Grid = None
     if X.shape[1] < 4 or grid_velocity:
-        logger.info("Generating high dimensional grids and convert into a row matrix.")
-        # smart way for generating high dimensional grids and convert into a row matrix
-        min_vec, max_vec = (
-            X.min(0),
-            X.max(0),
-        )
-        min_vec = min_vec - 0.01 * np.abs(max_vec - min_vec)
-        max_vec = max_vec + 0.01 * np.abs(max_vec - min_vec)
-
-        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)])
-        Grid = np.array([i.flatten() for i in Grid_list]).T
+        Grid = _generate_grid(X, grid_num=grid_num, logger=logger)
 
     if X is None:
         raise Exception(f"X is None. Make sure you passed the correct X or {basis} dimension reduction method.")
@@ -158,6 +113,7 @@ def VectorField(
 
     logger.info("Learning vector field with method: %s." % (method.lower()))
 
+    Dynode_obj = None
     if method.lower() == "sparsevfc":
         vf_kwargs = _get_svc_default_arguments(**kwargs)
         VecFld = SvcVectorField(X, V, Grid, normalize=normalize, **vf_kwargs)
@@ -180,61 +136,15 @@ def VectorField(
         raise ValueError("current only support two methods, SparseVFC and dynode")
 
     if restart_num > 0:
-        if len(restart_seed) != restart_num:
-            main_warning(
-                f"the length of {restart_seed} is different from {restart_num}, " f"using `np.range(restart_num) * 100"
-            )
-            restart_seed = np.arange(restart_num) * 100
-        restart_counter, cur_vf_list, res_list = 0, [], []
-        while True:
-            if not ("Dynode" in kwargs and type(kwargs["Dynode"]) == Dynode):
-                if method.lower() == "sparsevfc":
-                    train_kwargs.update({"seed": restart_seed[restart_counter]})
-                cur_vf_dict = VecFld.train(**train_kwargs)
-            else:
-                X, Y = Dynode_obj.Velocity["sampler"].X_raw, Dynode_obj.Velocity["sampler"].V_raw
-                cur_vf_dict = {
-                    "X": X,
-                    "Y": Y,
-                    "V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].X_raw),
-                    "grid_V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].Grid),
-                    "valid_ind": Dynode_obj.Velocity["sampler"].valid_ind
-                    if hasattr(Dynode_obj.Velocity["sampler"], "valid_ind")
-                    else np.arange(X.shape[0]),
-                    "parameters": Dynode_obj.Velocity,
-                    "dynode_object": VecFld,
-                }
-
-            # consider refactor with .simulation.evaluation.py
-            reference, prediction = (
-                cur_vf_dict["Y"][cur_vf_dict["valid_ind"]],
-                cur_vf_dict["V"][cur_vf_dict["valid_ind"]],
-            )
-            true_normalized = reference / (np.linalg.norm(reference, axis=1).reshape(-1, 1) + 1e-20)
-            predict_normalized = prediction / (np.linalg.norm(prediction, axis=1).reshape(-1, 1) + 1e-20)
-            res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
-
-            cur_vf_list += [cur_vf_dict]
-            res_list += [res]
-            if res < min_vel_corr:
-                restart_counter += 1
-                main_info(
-                    f"current cosine correlation between input velocities and learned velocities is less than "
-                    f"{min_vel_corr}. Make a {restart_counter}-th vector field reconstruction trial.",
-                    indent_level=2,
-                )
-            else:
-                vf_dict = cur_vf_dict
-                break
-
-            if restart_counter > restart_num - 1:
-                main_warning(
-                    f"Cosine correlation between input velocities and learned velocities is less than"
-                    f" {min_vel_corr} after {restart_num} trials of vector field reconstruction."
-                )
-                vf_dict = cur_vf_list[np.argmax(np.array(res_list))]
-
-                break
+        vf_dict = _resume_training(
+            VecFld=VecFld,
+            train_kwargs=train_kwargs,
+            method=method,
+            min_vel_corr=min_vel_corr,
+            restart_num=restart_num,
+            restart_seed=restart_seed,
+            Dynode_obj=Dynode_obj,
+        )
     else:
         vf_dict = VecFld.train(**train_kwargs)
 
@@ -431,3 +341,151 @@ def _get_dynode_default_arguments(
     train_kwargs = update_dict(train_kwargs, kwargs)
 
     return vf_kwargs, train_kwargs
+
+
+def _get_X_V_for_VectorField(
+    adata: anndata.AnnData,
+    basis: Optional[str] = None,
+    layer: Optional[str] = None,
+    dims: Optional[Union[int, list]] = None,
+    genes: Optional[list] = None,
+    velocity_key: str = "velocity_S",
+    logger: Optional[LoggerManager] = None,
+) -> Tuple[np.ndarray, np.ndarray, list]:
+    if basis is not None:
+        logger.info(
+            "Retrieve X and V based on basis: %s. \n "
+            "       Vector field will be learned in the %s space." % (basis.upper(), basis.upper())
+        )
+        X = adata.obsm["X_" + basis].copy()
+        V = adata.obsm["velocity_" + basis].copy()
+
+        if np.isscalar(dims):
+            X, V = X[:, :dims], V[:, :dims]
+        elif type(dims) is list:
+            X, V = X[:, dims], V[:, dims]
+
+        valid_genes = adata.var.index
+
+    else:
+        logger.info(
+            "Retrieve X and V based on `genes`, layer: %s. \n "
+            "       Vector field will be learned in the gene expression space." % layer
+        )
+        valid_genes = (
+            list(set(genes).intersection(adata.var.index))
+            if genes is not None
+            else adata.var_names[adata.var.use_for_transition]
+        )
+        if layer == "X":
+            X = adata[:, valid_genes].X.copy()
+            X = np.expm1(X)
+        else:
+            X = inverse_norm(adata, adata.layers[layer])
+
+        V = adata[:, valid_genes].layers[velocity_key].copy()
+
+        if sp.issparse(X):
+            X, V = X.A, V.A
+
+        # keep only genes with finite velocity and expression values, useful when learning vector field in the original
+        # gene expression space.
+        finite_genes = np.logical_and(np.isfinite(X).all(axis=0), np.isfinite(V).all(axis=0))
+        X, V = X[:, finite_genes], V[:, finite_genes]
+        valid_genes = np.array(valid_genes)[np.where(finite_genes)[0]].tolist()
+        if sum(finite_genes) < len(finite_genes):
+            logger.warning(
+                f"There are {(len(finite_genes) - sum(finite_genes))} genes with infinite expression or velocity "
+                f"values. These genes will be excluded from vector field reconstruction. Please make sure the genes you "
+                f"selected has no non-infinite values"
+            )
+
+    return X, V, valid_genes
+
+
+def _generate_grid(
+    X: np.ndarray,
+    grid_num: int = 50,
+    logger: Optional[LoggerManager] = None,
+) -> np.ndarray:
+    logger.info("Generating high dimensional grids and convert into a row matrix.")
+    # smart way for generating high dimensional grids and convert into a row matrix
+    min_vec, max_vec = (
+        X.min(0),
+        X.max(0),
+    )
+    min_vec = min_vec - 0.01 * np.abs(max_vec - min_vec)
+    max_vec = max_vec + 0.01 * np.abs(max_vec - min_vec)
+
+    Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)])
+    Grid = np.array([i.flatten() for i in Grid_list]).T
+
+    return Grid
+
+
+def _resume_training(
+    VecFld: BaseVectorField,
+    train_kwargs: Dict,
+    method: str,
+    min_vel_corr: float,
+    restart_num: int,
+    restart_seed: Optional[list] = [0, 100, 200, 300, 400],
+    Dynode_obj: Optional[BaseVectorField] = None,
+) -> Dict:
+    if len(restart_seed) != restart_num:
+        main_warning(
+            f"the length of {restart_seed} is different from {restart_num}, " f"using `np.range(restart_num) * 100"
+        )
+        restart_seed = np.arange(restart_num) * 100
+    restart_counter, cur_vf_list, res_list = 0, [], []
+    while True:
+        if Dynode_obj is None:
+            if method.lower() == "sparsevfc":
+                train_kwargs.update({"seed": restart_seed[restart_counter]})
+            cur_vf_dict = VecFld.train(**train_kwargs)
+        else:
+            X, Y = Dynode_obj.Velocity["sampler"].X_raw, Dynode_obj.Velocity["sampler"].V_raw
+            cur_vf_dict = {
+                "X": X,
+                "Y": Y,
+                "V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].X_raw),
+                "grid_V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].Grid),
+                "valid_ind": Dynode_obj.Velocity["sampler"].valid_ind
+                if hasattr(Dynode_obj.Velocity["sampler"], "valid_ind")
+                else np.arange(X.shape[0]),
+                "parameters": Dynode_obj.Velocity,
+                "dynode_object": VecFld,
+            }
+
+        # consider refactor with .simulation.evaluation.py
+        reference, prediction = (
+            cur_vf_dict["Y"][cur_vf_dict["valid_ind"]],
+            cur_vf_dict["V"][cur_vf_dict["valid_ind"]],
+        )
+        true_normalized = reference / (np.linalg.norm(reference, axis=1).reshape(-1, 1) + 1e-20)
+        predict_normalized = prediction / (np.linalg.norm(prediction, axis=1).reshape(-1, 1) + 1e-20)
+        res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
+
+        cur_vf_list += [cur_vf_dict]
+        res_list += [res]
+        if res < min_vel_corr:
+            restart_counter += 1
+            main_info(
+                f"current cosine correlation between input velocities and learned velocities is less than "
+                f"{min_vel_corr}. Make a {restart_counter}-th vector field reconstruction trial.",
+                indent_level=2,
+            )
+        else:
+            vf_dict = cur_vf_dict
+            break
+
+        if restart_counter > restart_num - 1:
+            main_warning(
+                f"Cosine correlation between input velocities and learned velocities is less than"
+                f" {min_vel_corr} after {restart_num} trials of vector field reconstruction."
+            )
+            vf_dict = cur_vf_list[np.argmax(np.array(res_list))]
+
+            break
+
+    return vf_dict
