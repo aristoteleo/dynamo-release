@@ -46,33 +46,50 @@ def VectorField(
 
     Args:
         adata: AnnData object that contains embedding and velocity data
-        basis: The embedding data to use. The vector field function will be learned on the low  dimensional embedding and can be then projected
-            back to the high dimensional space.
-        layer: Which layer of the data will be used for vector field function reconstruction. The layer once provided, will override the `basis`
-            argument and then learn the vector field function in high dimensional space.
-        dims: The dimensions that will be used for reconstructing vector field functions. If it is an `int` all     dimension from the first
-            dimension to `dims` will be used; if it is a list, the dimensions in the list will be used.
-        genes: The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is set to None), the genes
-            used for velocity embedding (var.use_for_transition) will be used for vector field reconstruction. Note that the genes to be used need to have velocity calculated.
-        normalize: Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is often required for raw
-            dataset (for example, raw UMI counts and RNA velocity values in high dimension). But it is normally not required for low dimensional embeddings by PCA or other non-linear dimension reduction methods.
-        grid_velocity: Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding dimension
-            less than 4, the grid velocity will still be generated. Please note that number of total grids in the space increases exponentially as the number of dimensions increases. So it may quickly lead to lack of memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6 (50^6 total grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field function can still be learned for thousands of dimensions and we can still predict the transcriptomic cell states over long time period.
+        basis: The embedding data to use. The vector field function will be learned on the low  dimensional embedding
+            and can be then projected back to the high dimensional space.
+        layer: Which layer of the data will be used for vector field function reconstruction. The layer once provided,
+            will override the `basis` argument and then learn the vector field function in high dimensional space.
+        dims: The dimensions that will be used for reconstructing vector field functions. If it is an `int` all
+            dimension from the first dimension to `dims` will be used; if it is a list, the dimensions in the list will
+            be used.
+        genes: The gene names whose gene expression will be used for vector field reconstruction. By default, (when
+            genes is set to None), the genes used for velocity embedding (var.use_for_transition) will be used for
+            vector field reconstruction. Note that the genes to be used need to have velocity calculated.
+        normalize: Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is
+            often required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension). But
+            it is normally not required for low dimensional embeddings by PCA or other non-linear dimension reduction
+            methods.
+        grid_velocity: Whether to generate grid velocity. Note that by default it is set to be False, but for datasets
+            with embedding dimension less than 4, the grid velocity will still be generated. Please note that number of
+            total grids in the space increases exponentially as the number of dimensions increases. So it may quickly
+            lead to lack of memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension
+            is 6 (50^6 total grids) on 32 G memory computer. Although grid velocity may not be generated, the vector
+            field function can still be learned for thousands of dimensions and we can still predict the transcriptomic
+            cell states over long time period.
         grid_num: The number of grids in each dimension for generating the grid velocity.
         velocity_key: The key from the adata layer that corresponds to the velocity matrix.
-        method: Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other improved approaches
-            are under development.
-        min_vel_corr: The minimal threshold for the cosine correlation between input velocities and learned velocities to consider as a successful
-            vector field reconstruction procedure. If the cosine correlation is less than this threshold and restart_num > 1, `restart_num` trials will be attempted with different seeds to reconstruct the vector field function. This can avoid some reconstructions to be trapped in some local optimal.
+        method: Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but
+            other improved approaches are under development.
+        min_vel_corr: The minimal threshold for the cosine correlation between input velocities and learned velocities
+            to consider as a successful vector field reconstruction procedure. If the cosine correlation is less than
+            this threshold and restart_num > 1, `restart_num` trials will be attempted with different seeds to
+            reconstruct the vector field function. This can avoid some reconstructions to be trapped in some local
+            optimal.
         restart_num: The number of retrials for vector field reconstructions.
         restart_seed: A list of seeds for each retrial. Must be the same length as `restart_num` or None.
-        buffer_path: The directory address keeping all the saved/to-be-saved torch variables and NN modules. When `method` is set to be `dynode`,
-            buffer_path will set to be
-        return_vf_object: Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`attribute.
-        map_topography: Whether to quantify the topography of vector field. Note that for higher than 2D vector     field, we can only identify
-            fixed points as high-dimensional nullcline and separatrices are mathematically difficult to be identified. Nullcline and separatrices will also be a surface or manifold in high-dimensional vector field.
-        pot_curl_div: Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis while curl and
-            divergence is by default only applied to 2D basis. However, divergence is applicable for any dimension while curl is generally only defined for 2/3 D systems.
+        model_buffer_path: The directory address keeping all the saved/to-be-saved torch variables and NN
+            modules. When `method` is set to be `dynode`, buffer_path will be constructed with working directory,
+            `basis` and datetime.
+        return_vf_object: Whether to include an instance of a vectorfield class in the `VecFld` dictionary in the
+            `uns`attribute.
+        map_topography: Whether to quantify the topography of vector field. Note that for higher than 2D vector field,
+            we can only identify fixed points as high-dimensional nullcline and separatrices are mathematically
+            difficult to be identified. Nullcline and separatrices will also be a surface or manifold in
+            high-dimensional vector field.
+        pot_curl_div: Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for
+            any basis while curl and divergence is by default only applied to 2D basis. However, divergence is
+            applicable for any dimension while curl is generally only defined for 2/3 D systems.
         cores: Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to
             parallel the ddhodge calculation.
         result_key:
@@ -83,7 +100,8 @@ def VectorField(
         kwargs: Other additional parameters passed to the vectorfield class.
 
     Returns:
-        If `copy` and `return_vf_object` arguments are set to False, `annData` object is updated with the `VecFld`dictionary in the `uns` attribute.
+        If `copy` and `return_vf_object` arguments are set to False, `annData` object is updated with the
+            `VecFld`dictionary in the `uns` attribute.
         If `return_vf_object` is set to True, then a vector field class object is returned.
         If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
@@ -250,6 +268,7 @@ def VectorField(
 
 
 def _get_svc_default_arguments(**kwargs) -> Dict:
+    """Get default arguments for vector field learning with SparseVFC method."""
     vf_kwargs = {
         "M": None,
         "a": 5,
@@ -279,6 +298,7 @@ def _get_dynode_default_arguments(
     model_buffer_path: Optional[str] = None,
     **kwargs,
 ) -> Tuple[Dict, Dict]:
+    """Get default arguments for vector field learning with dynode method."""
     try:
         from dynode.vectorfield import Dynode  # networkModels,
 
@@ -352,6 +372,7 @@ def _get_X_V_for_VectorField(
     velocity_key: str = "velocity_S",
     logger: Optional[LoggerManager] = None,
 ) -> Tuple[np.ndarray, np.ndarray, list]:
+    """Get X and V for vector field reconstruction."""
     if basis is not None:
         logger.info(
             "Retrieve X and V based on basis: %s. \n "
@@ -408,8 +429,9 @@ def _generate_grid(
     grid_num: int = 50,
     logger: Optional[LoggerManager] = None,
 ) -> np.ndarray:
+    """Generate high dimensional grids and convert into a row matrix for vector field reconstruction."""
     logger.info("Generating high dimensional grids and convert into a row matrix.")
-    # smart way for generating high dimensional grids and convert into a row matrix
+
     min_vec, max_vec = (
         X.min(0),
         X.max(0),
@@ -432,6 +454,7 @@ def _resume_training(
     restart_seed: Optional[list] = [0, 100, 200, 300, 400],
     Dynode_obj: Optional[BaseVectorField] = None,
 ) -> Dict:
+    """Resume vector field reconstruction from given restart_num and restart_seed."""
     if len(restart_seed) != restart_num:
         main_warning(
             f"the length of {restart_seed} is different from {restart_num}, " f"using `np.range(restart_num) * 100"
