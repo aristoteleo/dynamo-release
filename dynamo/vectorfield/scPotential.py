@@ -14,181 +14,6 @@ from .topography import FixedPoints
 from .utils import is_outside_domain, vecfld_from_adata
 from .Wang import Wang_action, Wang_LAP
 
-# import autograd.numpy as autonp
-# from autograd import grad, jacobian # calculate gradient and jacobian
-
-
-# the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
-
-
-def search_fixed_points(
-    func: Callable,
-    domain: np.ndarray,
-    x0: np.ndarray,
-    x0_method: str = "lhs",
-    reverse: bool = False,
-    return_x0: bool = False,
-    fval_tol: float = 1e-8,
-    remove_outliers: bool = True,
-    ignore_fsolve_err: bool = False,
-    **fsolve_kwargs
-) -> Union[FixedPoints, Tuple[FixedPoints, np.ndarray]]:
-    """Search the fixed points of (learned) vector field function in a given domain.
-
-    The initial points are sampled by given methods. Then the function uses the fsolve function
-    from SciPy to find the fixed points and Numdifftools to compute the Jacobian matrix of the function.
-
-    Args:
-        func: The function of the (learned) vector field function that are required to fixed points for.
-        domain: The domain to search in.
-        x0: The initial point to start with.
-        x0_method: The method to sample initial points.
-        reverse: Whether to reverse the sign (direction) of vector field (VF).
-        return_x0: Whether to return the initial points used in the search.
-        fval_tol: The tolerance for the function value at the fixed points.
-        remove_outliers: Whether to remove the outliers.
-        ignore_fsolve_err: Whether to ignore the fsolve error.
-
-    Returns:
-        The fixed points found with their Jacobian matrix of the function. The sampled initial points
-        will be returned as well if return_x0 == True.
-    """
-    import numdifftools as nda
-
-    func_ = (lambda x: -func(x)) if reverse else func
-    k = domain.shape[1]
-
-    if np.isscalar(x0):
-        n = x0
-
-        if k > 2 and x0_method == "grid":
-            warn("The dimensionality is too high (%dD). Using lhs instead..." % k)
-            x0_method = "lhs"
-
-        if x0_method == "lhs":
-            print("Sampling initial points using latin hypercube sampling...")
-            x0 = lhsclassic(n, k)
-        elif x0_method == "grid":
-            print("Sampling initial points on a grid...")
-            pass
-        else:
-            print("Sampling initial points randomly (uniform distribution)...")
-            x0 = np.random.rand(n, k)
-
-        x0 = x0 * (domain[1] - domain[0]) + domain[0]
-
-    fp = FixedPoints()
-    succeed = 0
-    for i in range(len(x0)):
-        x, fval_dict, ier, mesg = sp.optimize.fsolve(func_, x0[i], full_output=True, **fsolve_kwargs)
-
-        if ignore_fsolve_err:
-            ier = 1
-        if fval_dict["fvec"].dot(fval_dict["fvec"]) > fval_tol and ier == 1:
-            ier = -1
-            mesg = "Function evaluated at the output is larger than the tolerance."
-        elif remove_outliers and is_outside_domain(x, domain) and ier == 1:
-            ier = -2
-            mesg = "The output is outside the domain."
-
-        if ier == 1:
-            jacobian_mat = nda.Jacobian(func_)(np.array(x))
-            fp.add_fixed_points([x], [jacobian_mat])
-            succeed += 1
-        else:
-            # jacobian_mat = nda.Jacobian(func_)(np.array(x))
-            # fp.add_fixed_points([x], [jacobian_mat])
-            print("Solution not found: " + mesg)
-
-    print("%d/%d solutions found." % (succeed, len(x0)))
-
-    if return_x0:
-        return fp, x0
-    else:
-        return fp
-
-
-def gen_gradient(
-    dim: int,
-    N: int,
-    Function: Callable,
-    DiffusionMatrix: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Calculate the gradient of the (learned) vector field function for the least action path (LAP) symbolically
-
-    Args:
-        dim: The number of dimension of the system.
-        N: The number of the points on the discretized path of the LAP.
-        Function: The function of the (learned) vector field function that is needed to calculate the Jacobian matrix.
-        DiffusionMatrix: The function that returns the diffusion matrix which can be variable (e.g. gene) dependent
-
-    Returns:
-        ret: The symbolic function that calculates the gradient of the LAP based on the Jacobian of the vector field function.
-        V: A matrix consists of the coordinates of the unstable steady state.
-    """
-
-    from StringFunction import StringFunction
-    from sympy import Identity, Matrix, MatrixSymbol, simplify, symbols
-
-    N = N + 1
-    X = MatrixSymbol("x", dim, N)
-    X2 = MatrixSymbol("y", dim, N)
-
-    # for i in range(dim):
-    #     for j in range(N):
-    #         X2[i, j] = symbols('x[' + str(i) + ', ' + str(j) + ']')
-
-    S = 0 * Identity(1)
-
-    dt = symbols("dt")
-    for k in np.arange(1, N):  # equation 18
-        k
-        # S+1/4*dt*((X(:,k)-X(:,k-1))/dt-ODE(X(:,k-1))).'*(DiffusionMatrix(X(:,k-1)))^(-1)*((X(:,k)-X(:,k-1))/dt-ODE(X(:,k-1)));
-        t1 = 1 / 4 * dt * ((X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))).T
-
-        t2 = Matrix(np.linalg.inv(DiffusionMatrix(X[:, k - 1])))
-        t3 = (X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))
-        S = S + t1 * t2 * t3
-
-    J_res = Matrix(S).jacobian(Matrix(X).reshape(Matrix(X).shape[1] * 2, 1))
-    ret = simplify(J_res)  #
-    # ret=simplify(jacobian(S,reshape(X,[],1)));
-    ret = ret.reshape(X.shape[0], X.shape[1])
-    # ret=reshape(ret,2,[]);
-    V = ret.reshape(X.shape[0], X.shape[1])  # retsubs(X, X2)
-
-    # convert the result into a function by st.StringFunction
-    str_V = str(V)
-    str_V_processed = str_V.replace("transpose", "").replace("Matrix", "np.array")
-
-    f_str = """
-    def graident(dt, x):
-        ret = %s
-        
-        return ret
-                
-            """ % str(
-        str_V_processed
-    )
-    # ret = StringFunction(f_str, independent_variable=x, dt=dt, x=x)
-
-    return ret, V
-
-
-def DiffusionMatrix(x: np.ndarray) -> np.ndarray:
-    """Diffusion matrix can be variable dependent
-
-    Args:
-        x: The matrix of sampled points (cells) in the (gene expression) state space. A
-
-    Returns:
-        out: The diffusion matrix. By default, it is a diagonal matrix.
-    """
-    out = np.zeros((x.shape[0], x.shape[0]))
-    np.fill_diagonal(out, 1)
-
-    return out
-
 
 def Potential(
     adata: AnnData,
@@ -417,3 +242,172 @@ class Pot:
 
             return adata
             # return retmat, LAP
+
+
+def search_fixed_points(
+        func: Callable,
+        domain: np.ndarray,
+        x0: np.ndarray,
+        x0_method: str = "lhs",
+        reverse: bool = False,
+        return_x0: bool = False,
+        fval_tol: float = 1e-8,
+        remove_outliers: bool = True,
+        ignore_fsolve_err: bool = False,
+        **fsolve_kwargs
+) -> Union[FixedPoints, Tuple[FixedPoints, np.ndarray]]:
+    """Search the fixed points of (learned) vector field function in a given domain.
+
+    The initial points are sampled by given methods. Then the function uses the fsolve function
+    from SciPy to find the fixed points and Numdifftools to compute the Jacobian matrix of the function.
+
+    Args:
+        func: The function of the (learned) vector field function that are required to fixed points for.
+        domain: The domain to search in.
+        x0: The initial point to start with.
+        x0_method: The method to sample initial points.
+        reverse: Whether to reverse the sign (direction) of vector field (VF).
+        return_x0: Whether to return the initial points used in the search.
+        fval_tol: The tolerance for the function value at the fixed points.
+        remove_outliers: Whether to remove the outliers.
+        ignore_fsolve_err: Whether to ignore the fsolve error.
+
+    Returns:
+        The fixed points found with their Jacobian matrix of the function. The sampled initial points
+        will be returned as well if return_x0 == True.
+    """
+    import numdifftools as nda
+
+    func_ = (lambda x: -func(x)) if reverse else func
+    k = domain.shape[1]
+
+    if np.isscalar(x0):
+        n = x0
+
+        if k > 2 and x0_method == "grid":
+            warn("The dimensionality is too high (%dD). Using lhs instead..." % k)
+            x0_method = "lhs"
+
+        if x0_method == "lhs":
+            print("Sampling initial points using latin hypercube sampling...")
+            x0 = lhsclassic(n, k)
+        elif x0_method == "grid":
+            print("Sampling initial points on a grid...")
+            pass
+        else:
+            print("Sampling initial points randomly (uniform distribution)...")
+            x0 = np.random.rand(n, k)
+
+        x0 = x0 * (domain[1] - domain[0]) + domain[0]
+
+    fp = FixedPoints()
+    succeed = 0
+    for i in range(len(x0)):
+        x, fval_dict, ier, mesg = sp.optimize.fsolve(func_, x0[i], full_output=True, **fsolve_kwargs)
+
+        if ignore_fsolve_err:
+            ier = 1
+        if fval_dict["fvec"].dot(fval_dict["fvec"]) > fval_tol and ier == 1:
+            ier = -1
+            mesg = "Function evaluated at the output is larger than the tolerance."
+        elif remove_outliers and is_outside_domain(x, domain) and ier == 1:
+            ier = -2
+            mesg = "The output is outside the domain."
+
+        if ier == 1:
+            jacobian_mat = nda.Jacobian(func_)(np.array(x))
+            fp.add_fixed_points([x], [jacobian_mat])
+            succeed += 1
+        else:
+            # jacobian_mat = nda.Jacobian(func_)(np.array(x))
+            # fp.add_fixed_points([x], [jacobian_mat])
+            print("Solution not found: " + mesg)
+
+    print("%d/%d solutions found." % (succeed, len(x0)))
+
+    if return_x0:
+        return fp, x0
+    else:
+        return fp
+
+
+def gen_gradient(
+        dim: int,
+        N: int,
+        Function: Callable,
+        DiffusionMatrix: Callable,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Calculate the gradient of the (learned) vector field function for the least action path (LAP) symbolically
+
+    Args:
+        dim: The number of dimension of the system.
+        N: The number of the points on the discretized path of the LAP.
+        Function: The function of the (learned) vector field function that is needed to calculate the Jacobian matrix.
+        DiffusionMatrix: The function that returns the diffusion matrix which can be variable (e.g. gene) dependent
+
+    Returns:
+        ret: The symbolic function that calculates the gradient of the LAP based on the Jacobian of the vector field function.
+        V: A matrix consists of the coordinates of the unstable steady state.
+    """
+
+    from StringFunction import StringFunction
+    from sympy import Identity, Matrix, MatrixSymbol, simplify, symbols
+
+    N = N + 1
+    X = MatrixSymbol("x", dim, N)
+    X2 = MatrixSymbol("y", dim, N)
+
+    # for i in range(dim):
+    #     for j in range(N):
+    #         X2[i, j] = symbols('x[' + str(i) + ', ' + str(j) + ']')
+
+    S = 0 * Identity(1)
+
+    dt = symbols("dt")
+    for k in np.arange(1, N):  # equation 18
+        k
+        # S+1/4*dt*((X(:,k)-X(:,k-1))/dt-ODE(X(:,k-1))).'*(DiffusionMatrix(X(:,k-1)))^(-1)*((X(:,k)-X(:,k-1))/dt-ODE(X(:,k-1)));
+        t1 = 1 / 4 * dt * ((X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))).T
+
+        t2 = Matrix(np.linalg.inv(DiffusionMatrix(X[:, k - 1])))
+        t3 = (X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))
+        S = S + t1 * t2 * t3
+
+    J_res = Matrix(S).jacobian(Matrix(X).reshape(Matrix(X).shape[1] * 2, 1))
+    ret = simplify(J_res)  #
+    # ret=simplify(jacobian(S,reshape(X,[],1)));
+    ret = ret.reshape(X.shape[0], X.shape[1])
+    # ret=reshape(ret,2,[]);
+    V = ret.reshape(X.shape[0], X.shape[1])  # retsubs(X, X2)
+
+    # convert the result into a function by st.StringFunction
+    str_V = str(V)
+    str_V_processed = str_V.replace("transpose", "").replace("Matrix", "np.array")
+
+    f_str = """
+    def graident(dt, x):
+        ret = %s
+
+        return ret
+
+            """ % str(
+        str_V_processed
+    )
+    # ret = StringFunction(f_str, independent_variable=x, dt=dt, x=x)
+
+    return ret, V
+
+
+def DiffusionMatrix(x: np.ndarray) -> np.ndarray:
+    """Diffusion matrix can be variable dependent
+
+    Args:
+        x: The matrix of sampled points (cells) in the (gene expression) state space. A
+
+    Returns:
+        out: The diffusion matrix. By default, it is a diagonal matrix.
+    """
+    out = np.zeros((x.shape[0], x.shape[0]))
+    np.fill_diagonal(out, 1)
+
+    return out

@@ -3,8 +3,11 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 import scipy as sp
 import scipy.optimize
+# import autograd.numpy as autonp
+# from autograd import grad, jacobian # calculate gradient and jacobian
 
 
+# the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
 def Tang_action(
     Function: Callable,
     DiffusionMatrix: Callable,
