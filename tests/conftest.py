@@ -49,12 +49,16 @@ class TestUtils:
         preprocessor.config_monocle_recipe(adata, n_top_genes=100)
         preprocessor.filter_genes_by_outliers_kwargs["inplace"] = True
         preprocessor.select_genes_kwargs["keep_filtered"] = False
+        preprocessor.pca_kwargs["n_pca_components"] = 5
         preprocessor.preprocess_adata_monocle(adata)
 
         dyn.tl.dynamics(adata, model="stochastic")
         dyn.tl.reduceDimension(adata)
         dyn.tl.cell_velocities(adata)
         dyn.vf.VectorField(adata, basis="umap")
+
+        dyn.tl.cell_velocities(adata, basis="pca")
+        dyn.vf.VectorField(adata, basis="pca")
 
         TestUtils.mkdirs_wrapper(test_data_dir, abort=False)
         adata.write_h5ad(test_zebrafish_data_path)
