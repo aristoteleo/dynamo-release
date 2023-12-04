@@ -15,8 +15,8 @@ from ..vectorfield.utils import (
     vector_field_function_transformation,
     vector_transformation,
 )
-from .trajectory import GeneTrajectory, Trajectory
-from .utils import arclength_sampling_n, find_elbow
+from .trajectory import arclength_sampling_n, GeneTrajectory, Trajectory
+from .utils import find_elbow
 
 
 class LeastActionPath(Trajectory):

@@ -8,7 +8,6 @@ from ..tools.utils import flatten
 from ..utils import expr_to_pca, pca_to_expr
 from ..vectorfield.scVectorField import DifferentiableVectorField
 from ..vectorfield.utils import angle, normalize_vectors
-from .utils import arclength_sampling_n
 
 
 class Trajectory:
@@ -427,3 +426,16 @@ class GeneTrajectory(Trajectory):
             raise Exception("Cannot select genes since `self.genes` is `None`.")
 
         return np.array(y)
+
+
+def arclength_sampling_n(X, num, t=None):
+    arclen = np.cumsum(np.linalg.norm(np.diff(X, axis=0), axis=1))
+    arclen = np.hstack((0, arclen))
+
+    z = np.linspace(arclen[0], arclen[-1], num)
+    X_ = interp1d(arclen, X, axis=0)(z)
+    if t is not None:
+        t_ = interp1d(arclen, t)(z)
+        return X_, arclen[-1], t_
+    else:
+        return X_, arclen[-1]

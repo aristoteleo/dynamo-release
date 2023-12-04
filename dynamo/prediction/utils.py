@@ -484,19 +484,6 @@ def arclength_sampling(X, step_length, n_steps: int, t=None):
         return np.array(Y), arclength
 
 
-def arclength_sampling_n(X, num, t=None):
-    arclen = np.cumsum(np.linalg.norm(np.diff(X, axis=0), axis=1))
-    arclen = np.hstack((0, arclen))
-
-    z = np.linspace(arclen[0], arclen[-1], num)
-    X_ = interpolate.interp1d(arclen, X, axis=0)(z)
-    if t is not None:
-        t_ = interpolate.interp1d(arclen, t)(z)
-        return X_, arclen[-1], t_
-    else:
-        return X_, arclen[-1]
-
-
 # ---------------------------------------------------------------------------------------------------
 # fate related
 def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim, traj_ind):
