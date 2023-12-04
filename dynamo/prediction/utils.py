@@ -6,6 +6,7 @@ from scipy import interpolate
 from scipy.integrate import solve_ivp
 from tqdm import tqdm
 
+from .trajectory import Trajectory
 from ..dynamo_logger import main_warning
 from ..tools.utils import log1p_, nearest_neighbors
 from ..utils import isarray, normalize
@@ -58,10 +59,6 @@ def init_l0_chase(
 
 # ---------------------------------------------------------------------------------------------------
 # integration related
-
-# TODO – a majority of the code below can be rewritten with the Trajectory class
-
-
 def integrate_vf_ivp(
     init_states,
     t,
@@ -154,81 +151,34 @@ def integrate_vf_ivp(
         if verbose:
             print("\nintegration time: ", len(t_trans))
 
+    trajs = [Trajectory(X=Y[i], t=T[i], sort=False) for i in range(n_cell)]
+
     if sampling == "arc_length":
-        Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(
             range(n_cell),
             desc="uniformly sampling points along a trajectory",
             disable=disable,
         ):
-            tau, x = T[i], Y[i].T
-
-            idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
-
-            # idx = dup_osc_idx_iter(x)
-            x = x[:idx]
-            _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
-            arc_stepsize = arclen / interpolation_num
-            cur_Y, alen, t_[i] = arclength_sampling(x, step_length=arc_stepsize, n_steps=interpolation_num, t=tau[:idx])
-
-            if integration_direction == "both":
-                neg_t_len = sum(np.array(t_[i]) < 0)
-
-            odeint_cur_Y = (
-                SOL[i](t_[i])
-                if integration_direction != "both"
-                else np.hstack(
-                    (
-                        SOL[i][0](t_[i][:neg_t_len]),
-                        SOL[i][1](t_[i][neg_t_len:]),
-                    )
-                )
+            trajs[i].archlength_sampling(
+                SOL[i],
+                interpolation_num=interpolation_num,
+                integration_direction=integration_direction,
             )
-            Y_[i] = odeint_cur_Y
 
-        Y, t = Y_, t_
+        t, Y = [traj.t for traj in trajs], [traj.X for traj in trajs]
     elif sampling == "logspace":
-        Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(
             range(n_cell),
             desc="sampling points along a trajectory in logspace",
             disable=disable,
         ):
-            tau, x = T[i], Y[i].T
-            neg_tau, pos_tau = tau[tau < 0], tau[tau >= 0]
-
-            if len(neg_tau) > 0:
-                t_0, t_1 = (
-                    -(
-                        np.logspace(
-                            0,
-                            np.log10(abs(min(neg_tau)) + 1),
-                            interpolation_num,
-                        )
-                    )
-                    - 1,
-                    np.logspace(0, np.log10(max(pos_tau) + 1), interpolation_num) - 1,
-                )
-                t_[i] = np.hstack((t_0[::-1], t_1))
-            else:
-                t_[i] = np.logspace(0, np.log10(max(tau) + 1), interpolation_num) - 1
-
-            if integration_direction == "both":
-                neg_t_len = sum(np.array(t_[i]) < 0)
-
-            odeint_cur_Y = (
-                SOL[i](t_[i])
-                if integration_direction != "both"
-                else np.hstack(
-                    (
-                        SOL[i][0](t_[i][:neg_t_len]),
-                        SOL[i][1](t_[i][neg_t_len:]),
-                    )
-                )
+            trajs[i].logspace_sampling(
+                SOL[i],
+                interpolation_num=interpolation_num,
+                integration_direction=integration_direction,
             )
-            Y_[i] = odeint_cur_Y
 
-        Y, t = Y_, t_
+        t, Y = [traj.t for traj in trajs], [traj.X for traj in trajs]
     elif sampling == "uniform_indices":
         t_uniq = np.unique(np.hstack(T))
         if len(t_uniq) > interpolation_num:
@@ -401,87 +351,6 @@ def integrate_streamline(
     plt.close()
 
     return t_linspace, res
-
-
-# ---------------------------------------------------------------------------------------------------
-# arc curve related
-def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
-    """remove consecutive data points that are too close to each other."""
-    X = np.atleast_2d(X)
-    discard = np.zeros(len(X), dtype=bool)
-    if X.shape[0] > 1:
-        for i in range(len(X) - 1):
-            dist = np.linalg.norm(X[i + 1] - X[i])
-            if dist < tol:
-                discard[i + 1] = True
-        X = X[~discard]
-
-    arclength = 0
-
-    x0 = X[0]
-    for i in range(1, len(X)):
-        tangent = X[i] - x0 if i == 1 else X[i] - X[i - 1]
-        d = np.linalg.norm(tangent)
-
-        arclength += d
-
-    if output_discard:
-        return (X, arclength, discard)
-    else:
-        return (X, arclength)
-
-
-def arclength_sampling(X, step_length, n_steps: int, t=None):
-    """uniformly sample data points on an arc curve that generated from vector field predictions."""
-    Y = []
-    x0 = X[0]
-    T = [] if t is not None else None
-    t0 = t[0] if t is not None else None
-    i = 1
-    terminate = False
-    arclength = 0
-
-    def _calculate_new_point():
-        x = x0 if j == i else X[j - 1]
-        cur_y = x + (step_length - L) * tangent / d
-
-        if t is not None:
-            cur_tau = t0 if j == i else t[j - 1]
-            cur_tau += (step_length - L) / d * (t[j] - cur_tau)
-            T.append(cur_tau)
-        else:
-            cur_tau = None
-
-        Y.append(cur_y)
-
-        return cur_y, cur_tau
-
-    while i < len(X) - 1 and not terminate:
-        L = 0
-        for j in range(i, len(X)):
-            tangent = X[j] - x0 if j == i else X[j] - X[j - 1]
-            d = np.linalg.norm(tangent)
-            if L + d >= step_length:
-                y, tau = _calculate_new_point()
-                t0 = tau if t is not None else None
-                x0 = y
-                i = j
-                break
-            else:
-                L += d
-        if j == len(X) - 1:
-            i += 1
-        arclength += step_length
-        if L + d < step_length:
-            terminate = True
-
-    if len(Y) < n_steps:
-        _, _ = _calculate_new_point()
-
-    if T is not None:
-        return np.array(Y), arclength, T
-    else:
-        return np.array(Y), arclength
 
 
 # ---------------------------------------------------------------------------------------------------
