@@ -297,7 +297,7 @@ def state_graph(
                 # assign the transition matrix and average transition time
                 if len(confident_pass_check) > 0:
                     ind_other_cell_type = [uniq_grp.index(k) for k in np.array(pass_groups)[confident_pass_check]]
-                    grp_graph[i, ind_other_cell_type] += 1
+                    grp_graph[i, ind_other_cell_type] += 1 / len(ind_other_cell_type)
                     grp_avg_time[i, ind_other_cell_type] += (
                         pass_df.groupby("group")["t"].mean()[confident_pass_check].values
                     )
