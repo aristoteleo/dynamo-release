@@ -290,8 +290,8 @@ def connectivity_base(
             color_key,
             color_key_cmap,
             None,
-            figsize[0] * dpi,
-            figsize[1] * dpi,
+            figsize[0],
+            figsize[1],
             True,
             sort=sort,
         )
@@ -549,22 +549,25 @@ def nneighbors(
                 i += 1
 
                 # if highligts is a list of lists - each list is relate to each color element
-                if is_list_of_lists(highlights):
-                    _highlights = highlights[color.index(cur_c)]
-                    _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                if highlights is not None:
+                    if is_list_of_lists(highlights):
+                        _highlights = highlights[color.index(cur_c)]
+                        _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                    else:
+                        _highlights = highlights if all([i in _color for i in highlights]) else None
                 else:
-                    _highlights = highlights if all([i in _color for i in highlights]) else None
+                    _highlights = None
 
-                connectivity_base(
+                ax = connectivity_base(
                     x_,
                     y_,
                     edge_df,
+                    _highlights,
                     edge_bundling,
                     edge_cmap,
                     show_points,
                     labels,
                     values,
-                    _highlights,
                     theme,
                     cmap,
                     color_key,
@@ -601,8 +604,6 @@ def nneighbors(
         plt.show()
     if save_show_or_return in ["return", "all"]:
         return g
-    else:
-        raise NotImplementedError('Invalid "save_show_or_return".')
 
 
 def pgraph():
