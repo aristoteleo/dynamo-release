@@ -538,7 +538,7 @@ def nneighbors(
                 if is_not_continous:
                     labels = _color
                     if theme is None:
-                        theme = "glasbey_dark"
+                        theme = "viridis"
                 else:
                     values = _color
                     if theme is None:

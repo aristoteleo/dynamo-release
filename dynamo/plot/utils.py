@@ -930,8 +930,8 @@ def _datashade_points(
                 )
                 reorder_data = data.copy(deep=True)
                 (reorder_data.iloc[: sum(background_ids), :], reorder_data.iloc[sum(background_ids) :, :],) = (
-                    data.iloc[background_ids, :],
-                    data.iloc[highlight_ids, :],
+                    data.loc[background_ids, :],
+                    data.loc[highlight_ids, :],
                 )
                 aggregation = canvas.points(reorder_data, "x", "y", agg=ds.count_cat("label"))
 
