@@ -18,6 +18,7 @@ from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.colors import rgb2hex, to_hex
 from pandas.api.types import is_categorical_dtype
+from scipy.sparse import issparse
 
 from ..configuration import _themes, reset_rcParams
 from ..docrep import DocstringProcessor
@@ -1365,6 +1366,280 @@ def scatters_interactive(
     )
 
 
+def scatters2(
+    adata: AnnData,
+    basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    z: int = 2,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[
+        Literal[
+            "blue",
+            "red",
+            "green",
+            "inferno",
+            "fire",
+            "viridis",
+            "darkblue",
+            "darkred",
+            "darkgreen",
+        ]
+    ] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = None,
+    ncols: int = 4,
+    pointsize: Optional[float] = None,
+    figsize: Tuple[float, float] = (6, 4),
+    show_legend: str = "on data",
+    use_smoothed: bool = True,
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = False,
+    ax: Optional[Axes] = None,
+    sort: Literal["raw", "abs", "neg"] = "raw",
+    save_show_or_return: Literal["save", "show", "return", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    return_all: bool = False,
+    add_gamma_fit: bool = False,
+    frontier: bool = False,
+    contour: bool = False,
+    ccmap: Optional[str] = None,
+    alpha: float = 0.1,
+    calpha: float = 0.4,
+    sym_c: bool = False,
+    smooth: bool = False,
+    dpi: int = 100,
+    inset_dict: Dict[str, Any] = {},
+    marker: Optional[str] = None,
+    group: Optional[str] = None,
+    add_group_gamma_fit: bool = False,
+    affine_transform_degree: Optional[int] = None,
+    affine_transform_A: Optional[float] = None,
+    affine_transform_b: Optional[float] = None,
+    stack_colors: bool = False,
+    stack_colors_threshold: float = 0.001,
+    stack_colors_title: str = "stacked colors",
+    stack_colors_legend_size: float = 2,
+    stack_colors_cmaps: Optional[List[str]] = None,
+    despline: bool = True,
+    deaxis: bool = True,
+    despline_sides: Optional[List[str]] = None,
+    projection: str = "2d",
+    **kwargs,
+) -> Union[
+    Axes,
+    List[Axes],
+    Tuple[Axes, List[str], Literal["white", "black"]],
+    Tuple[List[Axes], List[str], Literal["white", "black"]],
+    None,
+]:
+    import matplotlib.pyplot as plt
+
+    if projection == "2d":
+        projection = None
+
+    if calpha < 0 or calpha > 1:
+        main_warning(
+            "calpha=%f is invalid (smaller than 0 or larger than 1) and may cause potential issues. Please check."
+            % calpha
+        )
+
+    if background is None:
+        background = rcParams.get("figure.facecolor")
+        background = to_hex(background) if type(background) is tuple else background
+        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
+
+    if not (affine_transform_degree is None):
+        affine_transform_A = gen_rotation_2d(affine_transform_degree)
+        affine_transform_b = 0
+
+    if contour:
+        frontier = False
+
+    if pointsize is None:
+        point_size = 16000.0 / np.sqrt(adata.shape[0])
+    else:
+        point_size = 16000.0 / np.sqrt(adata.shape[0]) * pointsize
+
+    scatter_kwargs = dict(
+        alpha=alpha,
+        s=point_size,
+        edgecolor=None,
+        linewidth=0,
+        rasterized=True,
+        marker=marker,
+    )  # (0, 0, 0, 1)
+    if kwargs is not None:
+        scatter_kwargs.update(kwargs)
+
+    if figsize is None:
+        figsize = plt.rcParams["figsize"]
+
+    if type(x) in [int, str]:
+        x = [x]
+    if type(y) in [int, str]:
+        y = [y]
+    if type(z) in [int, str]:
+        z = [z]
+
+    if type(color) is str:
+        color = [color]
+    if type(layer) is str:
+        layer = [layer]
+    if type(basis) is str:
+        basis = [basis]
+
+    n_c, n_l, n_b, n_x, n_y = (
+        1 if color is None else len(color),
+        1 if layer is None else len(layer),
+        1 if basis is None else len(basis),
+        1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x),
+        # check whether it is an array
+        1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
+        # check whether it is an array
+    )
+
+    total_panels, ncols = (
+        n_c * n_l * n_b * n_x * n_y,
+        min(max([n_c, n_l, n_b, n_x, n_y]), ncols),
+    )
+    nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
+
+    if total_panels > 1 and ax is None:
+        figure = plt.figure(
+            None,
+            (figsize[0] * ncol, figsize[1] * nrow),
+            facecolor=background,
+            dpi=dpi,
+        )
+        gs = plt.GridSpec(nrow, ncol, wspace=0.12)
+
+    ax_index = 0
+    axes_list, color_list = [], []
+    color_out = None
+
+    for cur_b in basis:
+        for cur_l in layer:
+            main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
+            main_debug("colors: %s" % (str(color)))
+
+            for cur_c in color:
+                x, y, z = _standardize_dimensions(x, y, z, adata.n_obs, projection)
+
+                for cur_x, cur_y, cur_z in zip(x, y, z):  # here x / y are arrays
+
+                    if total_panels > 1 and not stack_colors:
+                        ax = plt.subplot(gs[ax_index], projection=projection)
+                    ax_index += 1
+
+                    ax, color_out, font_color = scatters_single_input(
+                        adata=adata,
+                        basis=cur_b,
+                        x=cur_x,
+                        y=cur_y,
+                        z=cur_z,
+                        color=cur_c,
+                        layer=cur_l,
+                        highlights=highlights,
+                        labels=labels,
+                        values=values,
+                        theme=theme,
+                        cmap=cmap,
+                        color_key=color_key,
+                        color_key_cmap=color_key_cmap,
+                        background=background,
+                        ncols=ncols,
+                        pointsize=pointsize,
+                        figsize=figsize,
+                        show_legend=show_legend,
+                        use_smoothed=use_smoothed,
+                        aggregate=aggregate,
+                        show_arrowed_spines=show_arrowed_spines,
+                        ax=ax,
+                        sort=sort,
+                        save_show_or_return=save_show_or_return,
+                        save_kwargs=save_kwargs,
+                        return_all=return_all,
+                        add_gamma_fit=add_gamma_fit,
+                        frontier=frontier,
+                        contour=contour,
+                        ccmap=ccmap,
+                        alpha=alpha,
+                        calpha=calpha,
+                        sym_c=sym_c,
+                        smooth=smooth,
+                        dpi=dpi,
+                        inset_dict=inset_dict,
+                        marker=marker,
+                        group=group,
+                        add_group_gamma_fit=add_group_gamma_fit,
+                        affine_transform_degree=affine_transform_degree,
+                        affine_transform_A=affine_transform_A,
+                        affine_transform_b=affine_transform_b,
+                        stack_colors=stack_colors,
+                        stack_colors_threshold=stack_colors_threshold,
+                        stack_colors_title=stack_colors_title,
+                        stack_colors_legend_size=stack_colors_legend_size,
+                        stack_colors_cmaps=stack_colors_cmaps,
+                        despline=despline,
+                        deaxis=deaxis,
+                        despline_sides=despline_sides,
+                        projection=projection,
+                        scatter_kwargs=scatter_kwargs,
+                        ** kwargs,
+                    )
+
+                    axes_list.append(ax)
+                    color_list.append(color_out)
+
+    main_debug("show, return or save...")
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": "scatters",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+
+        # prevent the plot from being closed if the plot need to be shown or returned.
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+        if background is not None:
+            reset_rcParams()
+    if save_show_or_return in ["show", "both", "all"]:
+        if show_legend:
+            plt.subplots_adjust(right=0.85)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+
+        plt.show()
+        if background is not None:
+            reset_rcParams()
+    if save_show_or_return in ["return", "all"]:
+        if background is not None:
+            reset_rcParams()
+
+        if return_all:
+            return (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
+        else:
+            return axes_list if total_panels > 1 else ax
+
+
 def scatters_single_input(
     adata: AnnData,
     basis: str = "umap",
@@ -1430,6 +1705,7 @@ def scatters_single_input(
     deaxis: bool = True,
     despline_sides: Optional[List[str]] = None,
     projection: str = "2d",
+    scatter_kwargs: Optional[Dict[str, Any]] = None,
     **kwargs,
 ) -> Union[
     Axes,
@@ -1584,24 +1860,7 @@ def scatters_single_input(
         object of the generated plots would be returned. If `return_all` is set to be true, the list of colors used and
         the font color would also be returned.
     """
-
     import matplotlib.pyplot as plt
-
-    # 2d is not a projection in matplotlib, default is None (rectilinear)
-    if projection == "2d":
-        projection = None
-    if calpha < 0 or calpha > 1:
-        main_warning(
-            "calpha=%f is invalid (smaller than 0 or larger than 1) and may cause potential issues. Please check."
-            % (calpha)
-        )
-
-    if not (affine_transform_degree is None):
-        affine_transform_A = gen_rotation_2d(affine_transform_degree)
-        affine_transform_b = 0
-
-    if contour:
-        frontier = False
 
     if is_gene_name(adata, basis):
         if x not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y not in [
@@ -1635,25 +1894,6 @@ def scatters_single_input(
     if use_smoothed:
         mapper = get_mapper()
 
-    if pointsize is None:
-        point_size = 16000.0 / np.sqrt(adata.shape[0])
-    else:
-        point_size = 16000.0 / np.sqrt(adata.shape[0]) * pointsize
-
-    scatter_kwargs = dict(
-        alpha=alpha,
-        s=point_size,
-        edgecolor=None,
-        linewidth=0,
-        rasterized=True,
-        marker=marker,
-    )  # (0, 0, 0, 1)
-    if kwargs is not None:
-        scatter_kwargs.update(kwargs)
-
-    if figsize is None:
-        figsize = plt.rcParams["figsize"]
-
     # if #total_panel is 1, `_matplotlib_points` will create a figure. No need to create a figure here and generate a blank figure.
     if ax is None:
         figure, ax = plt.subplots()
@@ -1675,6 +1915,8 @@ def scatters_single_input(
         prefix = "X_"
     elif basis in adata.obsm.keys():
         # special case for spatial for compatibility with other packages
+        prefix = ""
+    elif is_gene_name(adata, basis):
         prefix = ""
     else:
         raise ValueError("Please check if basis=%s exists in adata.obsm" % basis)
@@ -1905,14 +2147,10 @@ def scatters_single_input(
                     "_adata does not seem to have %s column. Velocity estimation is required "
                     "before running this function." % group_k_name
                 )
-    return ax
+    return ax, color_out, font_color
 
 
 def _get_color_parameters(adata, color, layer, labels, values, theme, cmap, color_key_cmap, background, title):
-    if background is None:
-        background = rcParams.get("figure.facecolor")
-        background = to_hex(background) if type(background) is tuple else background
-        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
 
     font_color = _select_font_color(background)
 
@@ -1989,6 +2227,8 @@ def _standardize_dimensions(x, y, z, n_obs, projection):
         z = [np.nan] * len(x)
 
     assert len(x) == len(y) and len(x) == len(z), "bug: x, y, z does not have the same shape."
+
+    return x, y, z
 
 
 def _standardize_dimension(dim, n_obs):
@@ -2127,11 +2367,13 @@ def _map_to_points(
         else:
             x_points_df_data, x_points_column = _map_cur_axis_to_title(axis_x, _adata, cur_b, cur_l_smoothed)
             y_points_df_data, y_points_column = _map_cur_axis_to_title(axis_y, _adata, cur_b, cur_l_smoothed)
+            x_points_df_data = x_points_df_data.A.flatten() if issparse(x_points_df_data) else x_points_df_data
+            y_points_df_data = y_points_df_data.A.flatten() if issparse(y_points_df_data) else y_points_df_data
             points = pd.DataFrame({
                 axis_x: x_points_df_data,
                 axis_y: y_points_df_data,
-            })
-            points.columns = [x_points_column, y_points_column]
+            }, index=_adata.obs_names)
+            points.columns = [axis_x, axis_y]
 
         if len(gene_title) != 0:
             cur_title = " VS ".join(gene_title)
