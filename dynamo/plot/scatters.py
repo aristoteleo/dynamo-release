@@ -1595,33 +1595,6 @@ def scatters_single_input(
             "calpha=%f is invalid (smaller than 0 or larger than 1) and may cause potential issues. Please check."
             % (calpha)
         )
-    group_colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
-
-    if stack_colors and stack_colors_cmaps is None:
-        main_info("using default stack colors")
-        stack_colors_cmaps = [
-            "Greys",
-            "Purples",
-            "Blues",
-            "Greens",
-            "Oranges",
-            "Reds",
-            "YlOrBr",
-            "YlOrRd",
-            "OrRd",
-            "PuRd",
-            "RdPu",
-            "BuPu",
-            "GnBu",
-            "PuBu",
-            "YlGnBu",
-            "PuBuGn",
-            "BuGn",
-            "YlGn",
-        ]
-    stack_legend_handles = []
-    if stack_colors:
-        color_key = None
 
     if not (affine_transform_degree is None):
         affine_transform_A = gen_rotation_2d(affine_transform_degree)
@@ -1629,14 +1602,6 @@ def scatters_single_input(
 
     if contour:
         frontier = False
-
-    if background is None:
-        _background = rcParams.get("figure.facecolor")
-        _background = to_hex(_background) if type(_background) is tuple else _background
-        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
-    else:
-        _background = background
-        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
 
     if is_gene_name(adata, basis):
         if x not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y not in [
@@ -1686,16 +1651,12 @@ def scatters_single_input(
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    font_color = _select_font_color(_background)
-
     if figsize is None:
         figsize = plt.rcParams["figsize"]
 
-    figure = None  # possible as argument in future
-
     # if #total_panel is 1, `_matplotlib_points` will create a figure. No need to create a figure here and generate a blank figure.
     if ax is None:
-        fig, ax = plt.subplots()
+        figure, ax = plt.subplots()
 
     color_out = None
 
@@ -1719,26 +1680,9 @@ def scatters_single_input(
         raise ValueError("Please check if basis=%s exists in adata.obsm" % basis)
 
     basis_key = prefix + basis
+
     main_info("plotting with basis key=%s" % basis_key, indent_level=2)
-
-    if stack_colors:
-        _stack_background_adata_indices = np.ones(len(adata), dtype=bool)
-
     main_debug("coloring scatter of cur_c: %s" % str(color))
-    if not stack_colors:
-        cur_title = color
-    else:
-        cur_title = stack_colors_title
-    _color = _get_adata_color_vec(adata, layer, color)
-
-    is_numeric_color = np.issubdtype(_color.dtype, np.number)
-    if not is_numeric_color:
-        main_info(
-            "skip filtering %s by stack threshold when stacking color because it is not a numeric type"
-            % (color),
-            indent_level=2,
-        )
-    _values = values
 
     points, cur_title = _map_to_points(
         adata,
@@ -1750,6 +1694,30 @@ def scatters_single_input(
         cur_b=basis,
         cur_l_smoothed=cur_l_smoothed,
         projection=projection,
+    )
+
+    (
+        _color,
+        labels,
+        values,
+        _theme_,
+        cmap,
+        color_key_cmap,
+        background,
+        font_color,
+        is_not_continuous,
+        cur_title,
+    ) = _get_color_parameters(
+        adata=adata,
+        color=color,
+        layer=layer,
+        labels=labels,
+        values=values,
+        theme=theme,
+        cmap=cmap,
+        color_key_cmap=color_key_cmap,
+        background=background,
+        title=cur_title,
     )
 
     if aggregate is not None:
@@ -1788,34 +1756,10 @@ def scatters_single_input(
             group_color,
         )
 
-    is_not_continuous = not isinstance(_color[0], Number) or _color.dtype.name == "category"
-
-    if is_not_continuous:
-        labels = np.asarray(_color) if is_categorical_dtype(_color) else _color
-        if theme is None:
-            if _background in ["#ffffff", "black"]:
-                _theme_ = "glasbey_dark"
-            else:
-                _theme_ = "glasbey_white"
+        if is_not_continuous:
+            labels = _color
         else:
-            _theme_ = theme
-    else:
-        _values = _color
-        if theme is None:
-            if _background in ["#ffffff", "black"]:
-                _theme_ = "inferno" if layer != "velocity" else "div_blue_black_red"
-            else:
-                _theme_ = "viridis" if not layer.startswith("velocity") else "div_blue_red"
-        else:
-            _theme_ = theme
-
-    _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
-
-    _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
-    _background = _themes[_theme_]["background"] if _background is None else _background
-
-    if labels is not None and values is not None:
-        raise ValueError("Conflicting options; only one of labels or values should be set")
+            values = _color
 
     if highlights is not None:
         _highlights = highlights if all([i in _color for i in highlights]) else None
@@ -1841,12 +1785,12 @@ def scatters_single_input(
             point_coords,
             ax,
             labels,
-            _values,
+            values,
             highlights,
-            _cmap,
+            cmap,
             color_key,
-            _color_key_cmap,
-            _background,
+            color_key_cmap,
+            background,
             figsize[0],
             figsize[1],
             show_legend,
@@ -1876,10 +1820,10 @@ def scatters_single_input(
             labels,
             values,
             highlights,
-            _cmap,
+            cmap,
             color_key,
-            _color_key_cmap,
-            _background,
+            color_key_cmap,
+            background,
             figsize[0],
             figsize[1],
             show_legend,
@@ -1893,7 +1837,7 @@ def scatters_single_input(
         )
 
     if show_arrowed_spines:
-        arrowed_spines(ax, points.columns[:2], _background)
+        arrowed_spines(ax, points.columns[:2], background)
     else:
         if despline:
             despline_all(ax, despline_sides)
@@ -1926,6 +1870,7 @@ def scatters_single_input(
                 "before running this function." % k_name
             )
     if group is not None and add_group_gamma_fit and basis in adata.var_names[adata.var.use_for_dynamics]:
+        group_colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
         cell_groups = adata.obs[group]
         unique_groups = np.unique(cell_groups)
         k_suffix = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
@@ -1961,6 +1906,75 @@ def scatters_single_input(
                     "before running this function." % group_k_name
                 )
     return ax
+
+
+def _get_color_parameters(adata, color, layer, labels, values, theme, cmap, color_key_cmap, background, title):
+    if background is None:
+        background = rcParams.get("figure.facecolor")
+        background = to_hex(background) if type(background) is tuple else background
+        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
+
+    font_color = _select_font_color(background)
+
+    def _get_theme_for_labels():
+        if theme is None:
+            if background in ["#ffffff", "black"]:
+                _theme_ = "glasbey_dark"
+            else:
+                _theme_ = "glasbey_white"
+        else:
+            _theme_ = theme
+
+        return _theme_
+
+    def _get_theme_for_values():
+        if theme is None:
+            if background in ["#ffffff", "black"]:
+                _theme_ = "inferno" if layer != "velocity" else "div_blue_black_red"
+            else:
+                _theme_ = "viridis" if not layer.startswith("velocity") else "div_blue_red"
+        else:
+            _theme_ = theme
+
+        return _theme_
+
+    if labels is not None and values is not None:
+        raise ValueError("Conflicting options; only one of labels or values should be set")
+
+    if labels is not None:
+        main_info("labels input will disable the color by %s" % color)
+        _color = labels
+        title = "customized labels" if title == color else title
+    elif values is not None:
+        main_info("values input will disable the color by %s" % color)
+        _color = values
+        title = "customized values" if title == color else title
+    else:
+        _color = _get_adata_color_vec(adata, layer, color)
+
+        is_numeric_color = np.issubdtype(_color.dtype, np.number)
+        if not is_numeric_color:
+            main_info(
+                "skip filtering %s by stack threshold when stacking color because it is not a numeric type"
+                % color,
+                indent_level=2,
+            )
+
+    is_not_continuous = not isinstance(_color[0], Number) or _color.dtype.name == "category"
+
+    if is_not_continuous:
+        labels = np.asarray(_color) if is_categorical_dtype(_color) else _color
+        _theme_ = _get_theme_for_labels()
+    else:
+        values = _color
+        _theme_ = _get_theme_for_values()
+
+    cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
+
+    color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
+    background = _themes[_theme_]["background"] if background is None else background
+
+    return _color, labels, values, _theme_, cmap, color_key_cmap, background, font_color, is_not_continuous, title
 
 
 def _standardize_dimensions(x, y, z, n_obs, projection):
