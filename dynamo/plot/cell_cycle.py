@@ -8,8 +8,7 @@ except ImportError:
 from anndata import AnnData
 from matplotlib.axes import Axes
 
-from ..tools.utils import update_dict
-from .utils import save_fig
+from .utils import save_show_ret
 
 
 def cell_cycle_scores(
@@ -25,8 +24,8 @@ def cell_cycle_scores(
         cells: a list of cell ids used to subset the AnnData object. If None, all cells would be used. Defaults to None.
         save_show_or_return: whether to save, show, or return the figure. Available flags are `"save"`, `"show"`, and
             `"return"`. Defaults to "show".
-        save_kwargs: A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
-            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
             True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
             properly modify those keys according to your needs. Defaults to {}.
 
@@ -72,25 +71,4 @@ def cell_cycle_scores(
     # Heatmap returns an axes obj but you need to get a mappable obj (get_children)
     colorbar(ax.get_children()[0], cax=cax, ticks=[-0.9, 0, 0.9])
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_direct_graph",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("plot_direct_graph", save_show_or_return, save_kwargs, ax)
