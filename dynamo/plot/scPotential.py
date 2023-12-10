@@ -9,8 +9,7 @@ import numpy as np
 from anndata import AnnData
 from matplotlib.axes import Axes
 
-from ..tools.utils import update_dict
-from .utils import save_fig
+from .utils import save_show_ret
 
 
 def show_landscape(
@@ -32,8 +31,8 @@ def show_landscape(
         basis: the method of dimension reduction. By default, it is trimap. Currently, it is not checked with Xgrid and
             Ygrid. Defaults to "umap".
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'show_landscape', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'show_landscape', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your need. Defaults to {}.
 
@@ -87,27 +86,7 @@ def show_landscape(
     ax.set_ylabel(basis + "_2")
     ax.set_zlabel("U")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "show_landscape",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("show_landscape", save_show_or_return, save_kwargs, ax)
 
 
 # show_pseudopot(Xgrid, Ygrid, Zgrid)

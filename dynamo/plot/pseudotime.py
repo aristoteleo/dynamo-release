@@ -13,8 +13,7 @@ import numpy as np
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
-from ..tools.utils import update_dict
-from .utils import get_color_map_from_labels, save_fig
+from .utils import get_color_map_from_labels, save_show_ret
 
 
 def _calculate_cells_mapping(
@@ -187,27 +186,7 @@ def plot_dim_reduced_direct_graph(
                fontsize="medium",
                )
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_dim_reduced_direct_graph",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
+    return save_show_ret("plot_dim_reduced_direct_graph", save_show_or_return, save_kwargs, g)
 
 
 def plot_direct_graph(
@@ -266,24 +245,4 @@ def plot_direct_graph(
     else:
         raise Exception("layout", layout, " is not supported.")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "plot_direct_graph",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
+    return save_show_ret("plot_direct_graph", save_show_or_return, save_kwargs, g)
