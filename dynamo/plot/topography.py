@@ -1109,17 +1109,17 @@ def topography(
             prefix = "" if basis is None else basis + "_"
             color = [prefix + "ddhodge_potential"]
         else:
-            color = np.array(obs_keys)[[key.endswith("potential") for key in obs_keys]][0]
+            color = [np.array(obs_keys)[[key.endswith("potential") for key in obs_keys]][0]]
         if np.array([key.endswith("curl") for key in obs_keys]).sum() == 0:
             curl(adata, basis=basis)
-            color.extend("curl_" + basis)
+            color.append("curl_" + basis)
         else:
-            color.extend(np.array(obs_keys)[[key.endswith("curl") for key in obs_keys]][0])
+            color.append(np.array(obs_keys)[[key.endswith("curl") for key in obs_keys]][0])
         if np.array([key.endswith("divergence") for key in obs_keys]).sum() == 0:
             divergence(adata, basis=basis)
-            color.extend("divergence_" + basis)
+            color.append("divergence_" + basis)
         else:
-            color.extend(np.array(obs_keys)[[key.endswith("divergence") for key in obs_keys]][0])
+            color.append(np.array(obs_keys)[[key.endswith("divergence") for key in obs_keys]][0])
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
@@ -1135,7 +1135,7 @@ def topography(
             terms = list(set(terms).difference("trajectory"))
 
     if init_cells is not None or init_states is not None:
-        terms.extend("trajectory")
+        terms.append("trajectory")
 
     uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
     fps_uns_key = "VecFld" if fps_basis == "X" else "VecFld_" + fps_basis
@@ -1377,7 +1377,7 @@ def topography(
         if init_states is not None and "trajectory" in terms:
             if not approx:
                 axes_list[i] = plot_traj(
-                    vecfld.func,
+                    vecfld,
                     init_states,
                     t,
                     background=_background,
@@ -1620,7 +1620,7 @@ def topography_3D(
             terms = list(set(terms).difference("trajectory"))
 
     if init_cells is not None or init_states is not None:
-        terms.extend("trajectory")
+        terms.append("trajectory")
 
     uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
     fps_uns_key = "VecFld" if fps_basis == "X" else "VecFld_" + fps_basis
