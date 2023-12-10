@@ -758,7 +758,7 @@ class MarkovChain:
         Returns:
             True if the matrix is properly normalized.
         """
-        if not P:
+        if P is None:
             main_warning("No transition matrix input. Normalization check is skipped.")
             return True
         else:
