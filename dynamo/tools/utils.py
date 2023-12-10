@@ -3073,7 +3073,7 @@ def fetch_states(
                 VecFld = adata.uns["VecFld_" + layer]
                 X = log1p_(adata, adata[:, valid_genes].layers[layer])
 
-    if init_states.shape[0] > 1 and average in ["origin", "trajectory", True]:
+    if init_states.shape[0] > 1 and average in ["origin", True]:
         init_states = init_states.mean(0).reshape((1, -1))
 
     if t_end is None:

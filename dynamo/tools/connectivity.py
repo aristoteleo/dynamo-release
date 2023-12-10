@@ -735,7 +735,11 @@ def k_nearest_neighbors(
         ).fit(X)
         dists, nbrs_idx = nbrs.kneighbors(query_X)
     elif method == "hnswlib":
-        import hnswlib
+        try:
+            import hnswlib
+        except ImportError:
+            raise ImportError("hnswlib is not installed, please install it first")
+
         space = "l2" if metric == "euclidean" else metric
         if space not in ["l2", "cosine", "ip"]:
             raise ImportError(f"hnswlib nearest neighbors with space {space} is not supported")
