@@ -5,7 +5,7 @@ from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from ..tools.connectivity import _gen_neighbor_keys, check_and_recompute_neighbors, k_nearest_neighbors
+from ..tools.connectivity import generate_neighbor_keys, check_and_recompute_neighbors, k_nearest_neighbors
 from ..tools.utils import log1p_
 from .utils import VecFldDict, vecfld_from_adata, vector_field_function
 
@@ -140,7 +140,7 @@ def diffusionMatrix(
         X_data, V_data = X_data[:, dims], V_data[:, dims]
 
     neighbor_result_prefix = "" if layer is None else layer
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
     if neighbor_key not in adata.uns_keys() or (X_data is not None and V_data is not None):
         Idx, _ = k_nearest_neighbors(
             X_data,

@@ -1,3 +1,4 @@
+"""This file implements the graph calculus functions using matrix as input."""
 from typing import Callable, List, Optional, Tuple, Union
 
 try:
@@ -321,24 +322,6 @@ def symmetrize_discrete_vector_field(F: np.ndarray, mode: Literal["asym", "sym"]
     return E_
 
 
-def dist_mat_to_gaussian_weight(dist: np.ndarray, sigma: float) -> np.ndarray:
-    """Calculate the corresponding Gaussian weight for each distance element in a distance matrix.
-
-    Args:
-        dist: The distance matrix. Each element represents a distance to the mean.
-        sigma: The standard deviation of the gaussian distribution.
-
-    Returns:
-        A matrix with each element corresponding to the Gaussian weight of the distance matrix.
-    """
-
-    dist = symmetrize_symmetric_matrix(dist)
-    W = elem_prod(dist, dist) / sigma**2
-    W[W.nonzero()] = np.exp(-0.5 * W.data)
-
-    return W
-
-
 def calc_gaussian_weight(
     nbrs_idx: list,
     dists: np.ndarray,
@@ -444,6 +427,24 @@ def calc_laplacian(
     return np.asarray(L) if type(L) == np.matrix else L
 
 
+def dist_mat_to_gaussian_weight(dist: np.ndarray, sigma: float) -> np.ndarray:
+    """Calculate the corresponding Gaussian weight for each distance element in a distance matrix.
+
+    Args:
+        dist: The distance matrix. Each element represents a distance to the mean.
+        sigma: The standard deviation of the gaussian distribution.
+
+    Returns:
+        A matrix with each element corresponding to the Gaussian weight of the distance matrix.
+    """
+
+    dist = symmetrize_symmetric_matrix(dist)
+    W = elem_prod(dist, dist) / sigma**2
+    W[W.nonzero()] = np.exp(-0.5 * W.data)
+
+    return W
+
+
 def fp_operator(
     F: np.ndarray,
     D: np.ndarray,
@@ -500,92 +501,6 @@ def fp_operator(
     return Q
 
 
-def divergence(
-    E: np.ndarray, W: Optional[np.ndarray] = None, method: Literal["direct", "operator"] = "operator", weighted: bool = False
-) -> np.ndarray:
-    """Calculate the divergence of a weighted graph.
-
-    Args:
-        E: The length of the edges.
-        W: The weight of the edges. If None, assume all edges to have weight of 1. Defaults to None.
-        method: The method used to calculate the divergence. Can be one of {"operator", "direct"}. "direct" would make
-            the function to calculate the divergence from the edge length matrix directly while "operator" would make
-            the functions to calculate required operators first and then apply the operators to the matrix. Defaults to
-            "operator".
-        weighted: Whether to enable weighted mode.
-
-    Raises:
-        NotImplementedError: `method` is invalid.
-
-    Returns:
-        The divergence of a weighted graph.
-    """
-    if method == "direct":
-        n = E.shape[0]
-        div = np.zeros(n)
-        for i in range(n):
-            div[i] += np.sum(E[i, :]) - np.sum(E[:, i])
-        div *= 0.5
-    elif method == "operator":
-        if W is None:
-            W = abs(E.sign()) if sp.issparse(E) else np.abs(np.sign(E))
-        # W = np.abs(np.sign(E)) if W is None else W
-        if weighted:
-            div = (divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()].A1
-                   if sp.issparse(E)
-                   else divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()])
-        else:
-            div = divop(W) @ E[W.nonzero()].A1 if sp.issparse(E) else divop(W) @ E[W.nonzero()]
-    else:
-        raise NotImplementedError(f"Unsupported method `{method}`")
-
-    return div
-
-
-def gradop(adj: Union[sp.csr_matrix, np.ndarray]) -> sp.csr_matrix:
-    """Return the gradient operator of a weighted graph in matrix form.
-
-    Args:
-        adj: The adjacency matrix of the graph
-
-    Returns:
-        The gradient operator used to calculate gradient of a weighted graph.
-    """
-
-    e = np.array(adj.nonzero())
-    ne = e.shape[1]
-    nv = adj.shape[0]
-    i, j, x = np.tile(range(ne), 2), e.flatten(), np.repeat([-1, 1], ne)
-
-    return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
-
-
-def gradient(E: Union[sp.csr_matrix, np.ndarray], p: np.ndarray) -> np.ndarray:
-    """Calculate gradient of a weighted graph.
-
-    Args:
-        E: The length of the edges of the graph.
-        p: The potential of the graph.
-
-    Returns:
-        The gradient of the weighted graph.
-    """
-    return gradop(E).dot(p)
-
-
-def divop(W: Union[sp.csr_matrix, np.ndarray]) -> np.ndarray:
-    """Return the divergence operator in matrix form.
-
-    Args:
-        W: The edge weight of the graph.
-
-    Returns:
-        The operator used to calculate the divergence of the graph.
-    """
-
-    return -0.5 * gradop(W).T
-
-
 def potential(
     F: Union[sp.csr_matrix, np.ndarray],
     E: Optional[Union[sp.csr_matrix, np.ndarray]] = None,
@@ -634,6 +549,92 @@ def potential(
 
     p -= p.min()
     return p
+
+
+def divergence(
+    E: np.ndarray, W: Optional[np.ndarray] = None, method: Literal["direct", "operator"] = "operator", weighted: bool = False
+) -> np.ndarray:
+    """Calculate the divergence of a weighted graph.
+
+    Args:
+        E: The length of the edges.
+        W: The weight of the edges. If None, assume all edges to have weight of 1. Defaults to None.
+        method: The method used to calculate the divergence. Can be one of {"operator", "direct"}. "direct" would make
+            the function to calculate the divergence from the edge length matrix directly while "operator" would make
+            the functions to calculate required operators first and then apply the operators to the matrix. Defaults to
+            "operator".
+        weighted: Whether to enable weighted mode.
+
+    Raises:
+        NotImplementedError: `method` is invalid.
+
+    Returns:
+        The divergence of a weighted graph.
+    """
+    if method == "direct":
+        n = E.shape[0]
+        div = np.zeros(n)
+        for i in range(n):
+            div[i] += np.sum(E[i, :]) - np.sum(E[:, i])
+        div *= 0.5
+    elif method == "operator":
+        if W is None:
+            W = abs(E.sign()) if sp.issparse(E) else np.abs(np.sign(E))
+        # W = np.abs(np.sign(E)) if W is None else W
+        if weighted:
+            div = (divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()].A1
+                   if sp.issparse(E)
+                   else divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()])
+        else:
+            div = divop(W) @ E[W.nonzero()].A1 if sp.issparse(E) else divop(W) @ E[W.nonzero()]
+    else:
+        raise NotImplementedError(f"Unsupported method `{method}`")
+
+    return div
+
+
+def divop(W: Union[sp.csr_matrix, np.ndarray]) -> np.ndarray:
+    """Return the divergence operator in matrix form.
+
+    Args:
+        W: The edge weight of the graph.
+
+    Returns:
+        The operator used to calculate the divergence of the graph.
+    """
+
+    return -0.5 * gradop(W).T
+
+
+def gradient(E: Union[sp.csr_matrix, np.ndarray], p: np.ndarray) -> np.ndarray:
+    """Calculate gradient of a weighted graph.
+
+    Args:
+        E: The length of the edges of the graph.
+        p: The potential of the graph.
+
+    Returns:
+        The gradient of the weighted graph.
+    """
+    return gradop(E).dot(p)
+
+
+def gradop(adj: Union[sp.csr_matrix, np.ndarray]) -> sp.csr_matrix:
+    """Return the gradient operator of a weighted graph in matrix form.
+
+    Args:
+        adj: The adjacency matrix of the graph
+
+    Returns:
+        The gradient operator used to calculate gradient of a weighted graph.
+    """
+
+    e = np.array(adj.nonzero())
+    ne = e.shape[1]
+    nv = adj.shape[0]
+    i, j, x = np.tile(range(ne), 2), e.flatten(), np.repeat([-1, 1], ne)
+
+    return sp.csr_matrix((x, (i, j)), shape=(ne, nv))
 
 
 class GraphVectorField:

@@ -17,7 +17,7 @@ from ..preprocessing.QC import filter_genes_by_outliers as filter_genes
 from ..preprocessing.pca import pca
 from ..preprocessing.transform import log1p
 from ..utils import LoggerManager, copy_adata
-from .connectivity import _gen_neighbor_keys, neighbors
+from .connectivity import generate_neighbor_keys, neighbors
 from .utils import update_dict
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
@@ -102,7 +102,7 @@ def hdbscan(
             reduction_method = basis.split("_")[-1]
             embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
             neighbor_result_prefix = "" if layer is None else layer
-            conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+            conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
 
             adata = run_reduce_dim(
                 adata,
@@ -343,50 +343,6 @@ def louvain(
         copy=copy,
         **kwargs
     )
-
-
-def infomap(
-    adata: AnnData,
-    use_weight: bool = True,
-    adj_matrix: Union[np.ndarray, csr_matrix, None] = None,
-    adj_matrix_key: Optional[str] = None,
-    result_key: Optional[str] = None,
-    layer: Optional[str] = None,
-    obsm_key: Optional[str] = None,
-    selected_cluster_subset: Optional[Tuple[str, str]] = None,
-    selected_cell_subset: Union[List[int], List[str], None] = None,
-    directed: bool = False,
-    copy: bool = False,
-    **kwargs
-) -> AnnData:
-    """Apply infomap community detection algorithm to cluster adata.
-
-    For other community detection general parameters, please refer to `dynamo`'s `tl.cluster_community` function.
-    "Infomap is based on ideas of information theory. The algorithm uses the probability flow of random walks on a
-    network as a proxy for information flows in the real system and it decomposes the network into modules by
-    compressing a description of the probability flow." - cdlib
-
-    Args:
-        adata: an AnnData object.
-        use_weight: whether to use graph weight or not. False means to use connectivities only (0/1 integer values).
-            Defaults to True.
-        adj_matrix: adj_matrix used for clustering. Defaults to None.
-        adj_matrix_key: the key for adj_matrix stored in adata.obsp. Defaults to None.
-        result_key: the key where the results will be stored in obs. Defaults to None.
-        layer: the adata layer on which cluster algorithms will work. Defaults to None.
-        obsm_key: the key in obsm corresponding to the data that would be used for finding neighbors. Defaults to None.
-        selected_cluster_subset: a tuple of (cluster_key, allowed_clusters).Filtering cells in adata based on
-            cluster_key in adata.obs and only reserve cells in the allowed clusters. Defaults to None.
-        selected_cell_subset: a subset of cells in adata that would be clustered. Could be a list of indices or a list
-            of cell names. Defaults to None.
-        directed: whether the edges in the graph should be directed. Defaults to False.
-        copy: whether to return a new updated AnnData object or updated the original one inplace. Defaults to False.
-
-    Returns:
-        An updated AnnData object if `copy` is set to be true.
-    """
-
-    raise NotImplementedError("infomap algorithm has been deprecated.")
 
 
 def cluster_community(

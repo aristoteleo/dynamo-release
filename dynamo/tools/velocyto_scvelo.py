@@ -1,4 +1,10 @@
-# functions to run velocyto and scvelo
+"""This file provides useful functions to interact with velocyto and scvelo.
+
+Implemented functions includes:
+    Run velocyto and scvelo analysis.
+    Convert adata to loom object or vice versa.
+    Convert Dynamo AnnData object to scvelo AnnData object or vice versa.
+"""
 # from .moments import *
 from typing import List, Optional
 

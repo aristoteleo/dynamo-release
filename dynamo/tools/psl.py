@@ -9,25 +9,9 @@ import scipy.spatial as ss
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigs
 
-from .DDRTree_py import repmat
+from .DDRTree import repmat
 
 # from scikits.sparse.cholmod import cholesky
-
-
-def diag_mat(values: List[int]):
-    """Returns a diagonal matrix with the given values on the diagonal.
-
-    Args:
-        values: A list of values to place on the diagonal of the matrix.
-
-    Returns:
-        A diagonal matrix with the given values on the diagonal.
-    """
-
-    mat = np.zeros((len(values), len(values)))
-    np.fill_diagonal(mat, values)
-
-    return mat
 
 
 def psl(
@@ -202,18 +186,17 @@ def psl(
     return (S, Z)
 
 
-def logdet(A: np.ndarray) -> float:
-    """Calculate log(det(A)). 
-
-    Compared with calculating log(det(A)) directly, this function avoid the overflow/underflow problems that are likely 
-    to happen when applying det to large matrices.	
+def diag_mat(values: List[int]):
+    """Returns a diagonal matrix with the given values on the diagonal.
 
     Args:
-        A: An square matrix.
+        values: A list of values to place on the diagonal of the matrix.
 
     Returns:
-        log(det(A)).
+        A diagonal matrix with the given values on the diagonal.
     """
 
-    v = 2 * sum(np.log(np.diag(np.linalg.cholesky(A))))
-    return v
+    mat = np.zeros((len(values), len(values)))
+    np.fill_diagonal(mat, values)
+
+    return mat

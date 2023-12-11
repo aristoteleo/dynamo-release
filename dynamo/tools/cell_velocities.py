@@ -16,7 +16,7 @@ from sklearn.utils import sparsefuncs
 from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..utils import areinstance, expr_to_pca
-from .connectivity import _gen_neighbor_keys, adj_to_knn, check_and_recompute_neighbors, construct_mapper_umap
+from .connectivity import generate_neighbor_keys, adj_to_knn, check_and_recompute_neighbors, construct_mapper_umap
 from .dimension_reduction import reduceDimension
 from .graph_calculus import calc_gaussian_weight, fp_operator, graphize_velocity
 from .Markov import ContinuousTimeMarkovChain, KernelMarkovChain, velocity_on_grid
@@ -166,7 +166,7 @@ def cell_velocities(
         the Itô kernel method or similar methods from (La Manno et al. 2018).
     """
 
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_key_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_key_prefix)
     mapper_r = get_mapper_inverse()
     layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
     ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, layer)
