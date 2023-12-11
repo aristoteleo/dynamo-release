@@ -1306,7 +1306,7 @@ def topography(
                 **quiver_kwargs,
             )  # color='red',  facecolors='gray'
 
-    save_show_ret("topography", save_show_or_return, save_kwargs, axes_list if len(axes_list) > 1 else axes_list[0])
+    return save_show_ret("topography", save_show_or_return, save_kwargs, axes_list if len(axes_list) > 1 else axes_list[0])
 
 
 # TODO: Implement more `terms` like streamline and trajectory for 3D topography
