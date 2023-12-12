@@ -1,6 +1,8 @@
 # include pseudotime and predict cell trajectory
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import pandas as pd
+
 try:
     from typing import Literal
 except ImportError:
@@ -200,7 +202,7 @@ docstrings.delete_params("kin_curves.parameters", "ncol", "color", "c_palette")
 @docstrings.with_indent(4)
 def kinetic_heatmap(
     adata: AnnData,
-    genes: List[str],
+    genes: Union[List[str], pd.Index],
     mode: str = "vector_field",
     basis: Optional[str] = None,
     layer: str = "X",
