@@ -10,6 +10,7 @@ except ImportError:
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from numpy import ndarray
 from scipy.sparse import SparseEfficiencyWarning, csr_matrix, issparse
 from tqdm import tqdm
 
@@ -29,6 +30,7 @@ from ..estimation.csc.velocity import Velocity, fit_linreg, ss_estimation
 from ..estimation.tsc.estimation_kinetic import *
 from ..estimation.tsc.twostep import fit_slope_stochastic, lin_reg_gamma_synthesis
 from ..estimation.tsc.utils_kinetic import *
+from ..estimation.tsc import storm
 from .moments import (
     moments,
     prepare_data_deterministic,
@@ -38,6 +40,7 @@ from .moments import (
     prepare_data_no_splicing,
 )
 from .utils import (
+    get_auto_assump_mRNA,
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
     get_valid_bools,
@@ -51,6 +54,1436 @@ from .utils import (
 )
 
 warnings.simplefilter("ignore", SparseEfficiencyWarning)
+
+
+class BaseDynamics:
+    """The base class for the inclusive model of expression dynamics considers splicing, metabolic labeling and protein
+    translation.
+
+    The function supports learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq,
+    etc), scSLAM-seq, NASC-seq sci-fate, scNT-seq, scEU-seq, cite-seq or REAP-seq datasets.
+
+    Args:
+        adata: an AnnData object.
+        filter_gene_mode: The string for indicating which mode of gene filter will be used. Defaults to "final".
+        use_smoothed: whether to use the smoothed data when estimating kinetic parameters and calculating velocity for
+            each gene. When you have time-series data (`tkey` is not None), we recommend to smooth data among cells from
+            each time point. Defaults to True.
+        assumption_mRNA: Parameter estimation assumption for mRNA. Available options are:
+                (1) 'ss': pseudo steady state;
+                (2) 'kinetic' or None: degradation and kinetic data without steady state assumption.
+                (3) 'auto': dynamo will choose a reasonable assumption of the system under study automatically.
+            If no labelling data exists, assumption_mRNA will automatically set to be 'ss'. For one-shot experiment,
+            assumption_mRNA is set to be None. However we will use steady state assumption to estimate parameters alpha
+            and gamma either by a deterministic linear regression or the first order decay approach in line of the
+            sci-fate paper;
+            Defaults to "auto".
+        assumption_protein: Parameter estimation assumption for protein. Available options are:
+                (1) 'ss': pseudo steady state;
+            Defaults to "ss".
+        model: String indicates which estimation model will be used.
+            Available options are:
+                (1) 'deterministic': The method based on `deterministic` ordinary differential equations;
+                (2) 'stochastic' or `moment`: The new method from us that is based on `stochastic` master equations;
+            Note that `kinetic` model doesn't need to assumes the `experiment_type` is not `conventional`. As other
+            labeling experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional`
+            scRNA-seq datasets. A "model_selection" model will be supported soon in which alpha, beta and gamma will be
+            modeled as a function of time.
+            Defaults to "auto".
+        est_method: This parameter should be used in conjunction with `model` parameter.
+            Available options when the `model` is 'ss' include:
+                (1) 'ols': The canonical method or Ordinary Least Squares regression from the seminar RNA velocity paper
+                    based on deterministic ordinary differential equations;
+                (2) 'rlm': The robust linear models from statsmodels. Robust Regression provides an alternative to OLS
+                    regression by lowering the restrictions on assumptions and dampens the effect of outliers in order
+                    to fit majority of the data.
+                (3) 'ransac': RANSAC (RANdom SAmple Consensus) algorithm for robust linear regression. RANSAC is an
+                    iterative algorithm for the robust estimation of parameters from a subset of inliers from the
+                    complete dataset. RANSAC implementation is based on RANSACRegressor function from sklearn package.
+                    Note that if `rlm` or `ransac` failed, it will roll back to the `ols` method. In addition, `ols`,
+                    `rlm` and `ransac` can be only used in conjunction with the `deterministic` model.
+                (4) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to
+                    the "moment" model in the excellent scVelo package;
+                (5) 'negbin': The new method from us that models steady state RNA expression as a negative binomial
+                    distribution, also built upon on master equations.
+                (6) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`,
+                    `experiment_type` and `model` parameter.
+            Note that all those methods require using extreme data points (except negbin, which use all data points) for
+            estimation. Extreme data points are defined as the data from cells whose expression of unspliced / spliced
+            or new / total RNA, etc. are in the top or bottom, 5%, for example. `linear_regression` only considers the
+            mean of RNA species (based on the `deterministic` ordinary different equations) while moment based methods
+            (`gmm`, `negbin`) considers both first moment (mean) and second moment (uncentered variance) of RNA species
+            (based on the `stochastic` master equations).
+            The above method are all (generalized) linear regression based method. In order to return estimated
+            parameters (including RNA half-life), it additionally returns R-squared (either just for extreme data points
+            or all data points) as well as the log-likelihood of the fitting, which will be used for transition matrix
+            and velocity embedding.
+            Available options when the `assumption_mRNA` is 'kinetic' include:
+                (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`,
+                    `experiment_type` and `model` parameter.
+                (2) `twostep`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
+                    use regression via t-np.log(1-K) to get degradation rate gamma. When splicing and labeling data both
+                    exist, replacing new/total with ul/u can be used to estimate beta. Suitable for velocity estimation.
+                (3) `direct` (default): method that directly uses the kinetic model to estimate rate parameters,
+                    generally not good for velocity estimation.
+            Under `kinetic` model, choosing estimation is `experiment_type` dependent. For `kinetics` experiments,
+            dynamo supposes methods including RNA bursting or without RNA bursting. Dynamo also adaptively estimates
+            parameters, based on whether the data has splicing or without splicing.
+            Under `kinetic` assumption, the above method uses non-linear least square fitting. In order to return
+            estimated parameters (including RNA half-life), it additionally returns the log-likelihood of the
+            fitting, which will be used for transition matrix and velocity embedding.
+            All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial
+            sampling. Defaults to "auto".
+        NTR_vel: whether to use NTR (new/total ratio) velocity for labeling datasets. Defaults to False.
+        group: the column key/name that identifies the grouping information (for example, clusters that correspond to
+            different cell types) of cells. This will be used to calculate 1/2 st moments and covariance for each cells
+            in each group. It will also enable estimating group-specific (i.e cell-type specific) kinetic parameters.
+            Defaults to None.
+        protein_names: a list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the
+            `obsm` attribute. The names have to be included in the adata.var.index. Defaults to None.
+        concat_data: whether to concatenate data before estimation. If your data is a list of matrices for each time
+            point, this need to be set as True. Defaults to False.
+        log_unnormalized: whether to log transform the unnormalized data. Defaults to True.
+        one_shot_method: The method that will be used for estimating kinetic parameters for one-shot experiment data.
+            (1) the "sci-fate" method directly solves gamma with the first-order decay model;
+            (2) the "combined" model uses the linear regression under steady state to estimate relative gamma, and then
+                calculate absolute gamma (degradation rate), beta (splicing rate) and cell-wise alpha (transcription
+                rate). Defaults to "combined".
+        fraction_for_deg: whether to use the fraction of labeled RNA instead of the raw labeled RNA to estimate the
+            degradation parameter. Defaults to False.
+        re_smooth: whether to re-smooth the adata and also recalculate 1/2 moments or covariance. Defaults to False.
+        sanity_check: whether to perform sanity-check before estimating kinetic parameters and velocity vectors,
+            currently only applicable to kinetic or degradation metabolic labeling based scRNA-seq data. The basic idea
+            is that for kinetic (degradation) experiment, the total labelled RNA for each gene should increase
+            (decrease) over time. If they don't satisfy this criteria, those genes will be ignored during the
+            estimation. Defaults to False.
+        del_2nd_moments: whether to remove second moments or covariances. Default it is `False` so this avoids
+            recalculating 2nd moments or covariance but it may take a lot memory when your dataset is big. Set this to
+            `True` when your data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Defaults to
+            None.
+        cores: number of cores to run the estimation. If cores is set to be > 1, multiprocessing will be used to
+            parallel the parameter estimation. Currently only applicable cases when assumption_mRNA is `ss` or cases
+            when experiment_type is either "one-shot" or "mix_std_stm". Defaults to 1.
+        tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data. If `tkey`
+            is None, then  `adata.uns["pp"]["tkey"]` will be checked and used if exists. Defaults to None.
+        **est_kwargs: Other arguments passed to the fit method (steady state models) or estimation methods (kinetic
+            models).
+
+    Raises:
+        ValueError: preprocessing not performed.
+        Exception: No gene pass filter.
+        Exception: Too few valid genes.
+
+    Returns:
+        An updated AnnData object with estimated kinetic parameters, inferred velocity and estimation related
+        information included. The estimated kinetic parameters are currently appended to .obs (should move to .obsm with
+        the key `dynamics` later). Depends on the estimation method, experiment type and whether you applied estimation
+        for each groups via `group`, the number of returned parameters can be variable. For conventional scRNA-seq
+        (including cite-seq or other types of protein/RNA coassays) and somethings metabolic labeling data, the
+        parameters will  at mostly include:
+            alpha: Transcription rate
+            beta: Splicing rate
+            gamma: Spliced RNA degradation rate
+            eta: Translation rate (only applicable to RNA/protein coassay)
+            delta: Protein degradation rate (only applicable to RNA/protein coassay)
+            alpha_b: intercept of alpha fit
+            beta_b: intercept of beta fit
+            gamma_b: intercept of gamma fit
+            eta_b: intercept of eta fit (only applicable to RNA/protein coassay)
+            delta_b: intercept of delta fit (only applicable to RNA/protein coassay)
+            alpha_r2: r-squared for goodness of fit of alpha estimation
+            beta_r2: r-squared for goodness of fit of beta estimation
+            gamma_r2: r-squared for goodness of fit of gamma estimation
+            eta_r2: r-squared for goodness of fit of eta estimation (only applicable to RNA/protein coassay)
+            delta_r2: r-squared for goodness of fit of delta estimation (only applicable to RNA/protein coassay)
+            alpha_logLL: loglikelihood of alpha estimation (only applicable to stochastic model)
+            beta_loggLL: loglikelihood of beta estimation (only applicable to stochastic model)
+            gamma_logLL: loglikelihood of gamma estimation (only applicable to stochastic model)
+            eta_logLL: loglikelihood of eta estimation (only applicable to stochastic model and RNA/protein coassay)
+            delta_loggLL: loglikelihood of delta estimation (only applicable to stochastic model and RNA/protein
+                coassay)
+            uu0: estimated amount of unspliced unlabeled RNA at time 0 (only applicable to data with both splicing
+                and labeling)
+            ul0: estimated amount of unspliced labeled RNA at time 0 (only applicable to data with both splicing
+                and labeling)
+            su0: estimated amount of spliced unlabeled RNA at time 0 (only applicable to data with both splicing
+                and labeling)
+            sl0: estimated amount of spliced labeled RNA at time 0 (only applicable to data with both splicing and
+                labeling)
+            U0: estimated amount of unspliced RNA (uu + ul) at time 0
+            S0: estimated amount of spliced (su + sl) RNA at time 0
+            total0: estimated amount of spliced (U + S) RNA at time 0
+            half_life: Spliced mRNA's half-life (log(2) / gamma)
+
+        Note that all data points are used when estimating r2 although only extreme data points are used for
+        estimating r2. This is applicable to all estimation methods, either `linear_regression`, `gmm` or `negbin`.
+        By default we set the intercept to be 0.
+
+        For metabolic labeling data, the kinetic parameters will at most include:
+            alpha: Transcription rate (effective - when RNA promoter switching considered)
+            beta: Splicing rate
+            gamma: Spliced RNA degradation rate
+            a: Switching rate from active promoter state to inactive promoter state
+            b: Switching rate from inactive promoter state to active promoter state
+            alpha_a: Transcription rate for active promoter
+            alpha_i: Transcription rate for inactive promoter
+            cost: cost of the kinetic parameters estimation
+            logLL: loglikelihood of kinetic parameters estimation
+            alpha_r2: r-squared for goodness of fit of alpha estimation
+            beta_r2: r-squared for goodness of fit of beta estimation
+            gamma_r2: r-squared for goodness of fit of gamma estimation
+            uu0: estimated amount of unspliced unlabeled RNA at time 0 (only applicable to data with both splicing
+                and labeling)
+            ul0: estimated amount of unspliced labeled RNA at time 0 (only applicable to data with both splicing
+                and labeling)
+            su0: estimated amount of spliced unlabeled RNA at time 0 (only applicable to data with both splicing
+                and labeling)
+            sl0: estimated amount of spliced labeled RNA at time 0 (only applicable to data with both splicing and
+                labeling)
+            u0: estimated amount of unspliced RNA (including uu, ul) at time 0
+            s0: estimated amount of spliced (including su, sl) RNA at time 0
+            total0: estimated amount of spliced (including U, S) RNA at time 0
+            p_half_life: half-life for unspliced mRNA
+            half_life: half-life for spliced mRNA
+
+        If sanity_check has performed, a column with key `sanity_check` will also included which indicates which
+        gene passes filter (`filter_gene_mode`) and sanity check. This is only applicable to kinetic and degradation
+        metabolic labeling experiments.
+
+        In addition, the `dynamics` key of the .uns attribute corresponds to a dictionary that includes the
+        following keys:
+            t: An array like object that indicates the time point of each cell used during parameters estimation
+                (applicable only to kinetic models)
+            group: The group that you used to estimate parameters group-wise
+            X_data: The input that was used for estimating parameters (applicable only to kinetic models)
+            X_fit_data: The data that was fitted during parameters estimation (applicable only to kinetic models)
+            asspt_mRNA: Assumption of mRNA dynamics (steady state or kinetic)
+            experiment_type: Experiment type (either conventional or metabolic labeling based)
+            normalized: Whether to normalize data
+            model: Model used for the parameter estimation (either auto, deterministic or stochastic)
+            has_splicing: Does the adata has splicing? detected automatically
+            has_labeling: Does the adata has labelling? detected automatically
+            has_protein: Does the adata has protein information? detected automatically
+            use_smoothed: Whether to use smoothed data (or first moment, done via local average of neighbor cells)
+            NTR_vel: Whether to estimate NTR velocity
+            log_unnormalized: Whether to log transform unnormalized data.
+        """
+
+    def __init__(self, dynamics_kwargs: Dict):
+        self.adata = dynamics_kwargs["adata"]
+        self.filter_gene_mode = dynamics_kwargs["filter_gene_mode"]
+        self.use_smoothed = dynamics_kwargs["use_smoothed"]
+        self.assumption_mRNA = dynamics_kwargs["assumption_mRNA"]
+        self.assumption_protein = dynamics_kwargs["assumption_protein"]
+        self.model = dynamics_kwargs["model"]
+        self.model_was_auto = dynamics_kwargs["model_was_auto"]
+        self.experiment_type = dynamics_kwargs["experiment_type"]
+        self.has_splicing = dynamics_kwargs["has_splicing"]
+        self.has_labeling = dynamics_kwargs["has_labeling"]
+        self.splicing_labeling = dynamics_kwargs["splicing_labeling"]
+        self.has_protein = dynamics_kwargs["has_protein"]
+        self.est_method = dynamics_kwargs["est_method"]
+        self.NTR_vel = dynamics_kwargs["NTR_vel"]
+        self.group = dynamics_kwargs["group"]
+        self.protein_names = dynamics_kwargs["protein_names"]
+        self.concat_data = dynamics_kwargs["concat_data"]
+        self.log_unnormalized = dynamics_kwargs["log_unnormalized"]
+        self.one_shot_method = dynamics_kwargs["one_shot_method"]
+        self.fraction_for_deg = dynamics_kwargs["fraction_for_deg"]
+        self.re_smooth = dynamics_kwargs["re_smooth"]
+        self.sanity_check = dynamics_kwargs["sanity_check"]
+        self.del_2nd_moments = DynamoAdataConfig.use_default_var_if_none(
+            dynamics_kwargs["del_2nd_moments"], DynamoAdataConfig.DYNAMICS_DEL_2ND_MOMENTS_KEY
+        )
+        self.cores = dynamics_kwargs["cores"]
+        if dynamics_kwargs["tkey"] is not None:
+            if dynamics_kwargs["adata"].obs[dynamics_kwargs["tkey"]].max() > 60:
+                main_warning(
+                    "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                    "we recommend using hour as the time unit."
+                )
+        self.tkey = self.adata.uns["pp"]["tkey"] if dynamics_kwargs["tkey"] is None else dynamics_kwargs["tkey"]
+        self.est_kwargs = dynamics_kwargs["est_kwargs"]
+
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        """Default method to estimate the velocity parameters."""
+        self.est = ss_estimation(**kwargs)
+        if self.model.lower() == "deterministic":
+            self.est.fit_conventional_deterministic(**fit_kwargs)
+        elif self.model.lower() == "stochastic":
+            self.est.fit_conventional_stochastic(**fit_kwargs)
+        else:
+            raise NotImplementedError("Method not implemented.")
+
+    def estimate_params_ss(self, subset_adata: AnnData, **est_params_args):
+        """Estimate velocity parameters with steady state mRNA assumption."""
+        if self.est_method.lower() == "auto":
+            self.est_method = "gmm" if self.model.lower() == "stochastic" else "ols"
+
+        if self.experiment_type.lower() == "one-shot":
+            self.beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
+            self.gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
+            ss_estimation_kwargs = {"beta": self.beta, "gamma": self.gamma}
+        else:
+            ss_estimation_kwargs = {}
+
+        if self.one_shot_method == "storm-csp":
+            _, valid_bools, _ = self._filter()
+            self.NewCounts = self.adata[:, valid_bools].layers['new'].T
+            self.TotalCounts = self.adata[:, valid_bools].layers['total'].T
+            self.NewSmoothCSP = self.adata[:, valid_bools].layers['M_CSP_n'].T
+        else:
+            self.NewCounts = None
+            self.TotalCounts = None
+            self.NewSmoothCSP = None
+
+        self.estimate_params_utils(
+            fit_kwargs=self.est_kwargs,
+            U=self.U.copy() if self.U is not None else None,
+            Ul=self.Ul.copy() if self.Ul is not None else None,
+            S=self.S.copy() if self.S is not None else None,
+            Sl=self.Sl.copy() if self.Sl is not None else None,
+            P=self.P.copy() if self.P is not None else None,
+            US=self.US.copy() if self.US is not None else None,
+            S2=self.S2.copy() if self.S2 is not None else None,
+            NewCounts=self.NewCounts.copy() if self.NewCounts is not None else None,
+            TotalCounts=self.TotalCounts.copy() if self.TotalCounts is not None else None,
+            NewSmoothCSP=self.NewSmoothCSP.copy() if self.NewSmoothCSP is not None else None,
+            conn=subset_adata.obsp["moments_con"],
+            t=self.t,
+            ind_for_proteins=self.ind_for_proteins,
+            model=self.model,
+            est_method=self.est_method,
+            experiment_type=self.experiment_type,
+            assumption_mRNA=self.assumption_mRNA,
+            assumption_protein=self.assumption_protein,
+            concat_data=self.concat_data,
+            cores=self.cores,
+            **ss_estimation_kwargs,
+        )
+
+        self.alpha, self.beta, self.gamma, self.eta, self.delta = self.est.parameters.values()
+
+    def estimate_params_kin(self, cur_grp_i: int, cur_grp: str, subset_adata: AnnData, **est_params_args):
+        """Estimate velocity parameters with kinetic mRNA assumption. Will be overriden in the subclass."""
+        return_ntr = True if self.fraction_for_deg and self.experiment_type.lower() == "deg" else False
+
+        if self.model_was_auto and self.experiment_type.lower() == "kin":
+            self.model = "mixture"
+        if self.est_method == "auto":
+            self.est_method = "direct"
+        data_type = "smoothed" if self.use_smoothed else "sfs"
+
+        (params, half_life, self.cost, self.logLL, param_ranges, cur_X_data, cur_X_fit_data,) = self.estimate_params_utils(
+            fit_kwargs=self.est_kwargs,
+            subset_adata=subset_adata,
+            tkey=self.tkey,
+            model=self.model,
+            est_method=self.est_method,
+            experiment_type=self.experiment_type,
+            has_splicing=self.has_splicing,
+            splicing_labeling=self.splicing_labeling,
+            has_switch=True,
+            param_rngs={},
+            data_type=data_type,
+            return_ntr=return_ntr,
+            **self.est_kwargs,
+        )
+
+        if type(params) == dict:
+            self.alpha = params.pop("alpha")
+            self.beta = params.pop("beta") if "beta" in params else None
+            params = pd.DataFrame(params)
+        else:
+            self.alpha = params.loc[:, "alpha"].values if "alpha" in params.columns else None
+            self.beta = params.loc[:, "beta"].values if "beta" in params.columns else None
+
+        len_t, len_g = len(np.unique(self.t)), len(self._group)
+        if cur_grp == self._group[0]:
+            if len_g != 1:
+                # X_data, X_fit_data = np.zeros((len_g, adata.n_vars, len_t)), np.zeros((len_g, adata.n_vars,len_t))
+                self.X_data, self.X_fit_data = [None] * len_g, [None] * len_g
+
+        if len(self._group) == 1:
+            self.X_data, self.X_fit_data = cur_X_data, cur_X_fit_data
+        else:
+            # X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
+            self.X_data[cur_grp_i], self.X_fit_data[cur_grp_i] = (
+                cur_X_data,
+                cur_X_fit_data,
+            )
+
+        # self.a, self.b, self.alpha_a, self.alpha_i, self.beta, self.gamma = (
+        #     params.loc[:, "a"].values if "a" in params.columns else None,
+        #     params.loc[:, "b"].values if "b" in params.columns else None,
+        #     params.loc[:, "alpha_a"].values if "alpha_a" in params.columns else None,
+        #     params.loc[:, "alpha_i"].values if "alpha_i" in params.columns else None,
+        #     params.loc[:, "beta"].values if "beta" in params.columns else None,
+        #     params.loc[:, "gamma"].values if "gamma" in params.columns else None,
+        # )
+        self.a, self.b, self.alpha_a, self.alpha_i, self.gamma = (
+            params.loc[:, "a"].values if "a" in params.columns else None,
+            params.loc[:, "b"].values if "b" in params.columns else None,
+            params.loc[:, "alpha_a"].values if "alpha_a" in params.columns else None,
+            params.loc[:, "alpha_i"].values if "alpha_i" in params.columns else None,
+            params.loc[:, "gamma"].values if "gamma" in params.columns else None,
+        )
+        if self.alpha is None:
+            self.alpha = fbar(self.a, self.b, self.alpha_a, 0) if self.alpha_i is None else fbar(self.a, self.b,
+                                                                                                 self.alpha_a,
+                                                                                                 self.alpha_i)
+        all_kinetic_params = [
+            "a",
+            "b",
+            "alpha_a",
+            "alpha_i",
+            "alpha",
+            "beta",
+            "gamma",
+        ]
+
+        self.kin_extra_params = params.loc[:, params.columns.difference(all_kinetic_params)]
+
+    def estimate_parameters(self, cur_grp_i: int, cur_grp: str, subset_adata: AnnData, **est_params_args):
+        """Wrapper to call corresponding parameters estimation functions according to assumptions. Override this in the
+        subclass if the class doesn't use ss_estimation or kinetic_model to estimate."""
+        if self.assumption_mRNA.lower() == "ss" or (self.experiment_type.lower() in ["one-shot", "mix_std_stm"]):
+            self.estimate_params_ss(subset_adata=subset_adata, **est_params_args)
+        elif self.assumption_mRNA.lower() == "kinetic":
+            self.estimate_params_kin(cur_grp_i=cur_grp_i, cur_grp=cur_grp, subset_adata=subset_adata, **est_params_args)
+        else:
+            main_warning("Not implemented yet.")
+
+    def set_velocity(
+        self,
+        vel_U: Union[ndarray, csr_matrix],
+        vel_S: Union[ndarray, csr_matrix],
+        vel_N: Union[ndarray, csr_matrix],
+        vel_T: Union[ndarray, csr_matrix],
+        vel_P: Union[ndarray, csr_matrix],
+        cur_grp: int,
+        cur_cells_bools: ndarray,
+        valid_bools_: ndarray,
+        kin_param_pre: str,
+        **set_velo_args,
+    ):
+        """Save the calculated parameters and velocity to anndata. Override this in the subclass if the class has a
+        different assumption."""
+        if self.assumption_mRNA.lower() == "ss" or (self.experiment_type.lower() in ["one-shot", "mix_std_stm"]):
+            self.adata = set_velocity(
+                self.adata,
+                vel_U,
+                vel_S,
+                vel_N,
+                vel_T,
+                vel_P,
+                self._group,
+                cur_grp,
+                cur_cells_bools,
+                valid_bools_,
+                self.ind_for_proteins,
+            )
+
+            self.adata = set_param_ss(
+                self.adata,
+                self.est,
+                self.alpha,
+                self.beta,
+                self.gamma,
+                self.eta,
+                self.delta,
+                self.experiment_type,
+                self._group,
+                cur_grp,
+                kin_param_pre,
+                valid_bools_,
+                self.ind_for_proteins,
+            )
+        elif self.assumption_mRNA.lower() == "kinetic":
+            self.adata = set_velocity(
+                self.adata,
+                vel_U,
+                vel_S,
+                vel_N,
+                vel_T,
+                vel_P,
+                self._group,
+                cur_grp,
+                cur_cells_bools,
+                valid_bools_,
+                self.ind_for_proteins,
+            )
+
+            self.adata = set_param_kinetic(
+                self.adata,
+                self.alpha,
+                self.a,
+                self.b,
+                self.alpha_a,
+                self.alpha_i,
+                self.beta,
+                self.gamma,
+                self.cost,
+                self.logLL,
+                kin_param_pre,
+                self.kin_extra_params,
+                self._group,
+                cur_grp,
+                cur_cells_bools,
+                valid_bools_,
+            )
+        else:
+            main_warning("Not implemented yet.")
+
+    def calculate_vels(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """The core function to calculate the RNA velocity. Every subclass needs to implement this function.
+
+        Args:
+            vel: the Velocity object to calculate the velocity.
+            U: the matrix representing unspliced layer.
+            S: the matrix representing spliced layer.
+            N: the matrix representing new layer in metabolic labeling.
+            T: the matrix representing total layer in metabolic labeling.
+
+        Returns:
+            The velocity matrix for unspliced, spliced, new and total layers.
+        """
+        raise NotImplementedError("This method has not been implemented.")
+
+    def calculate_vel_P(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        """Calculate the protein velocity."""
+        return vel.vel_p(T, self.P) if self.NTR_vel else vel.vel_p(S, self.P)
+
+    def calculate_velocity(self, subset_adata: AnnData) -> Tuple:
+        """Read the U, S, N, T matrix, create the Velocity class and call the velocity calculation function."""
+        U, S = get_U_S_for_velocity_estimation(
+            subset_adata,
+            self.use_smoothed,
+            self.has_splicing,
+            self.has_labeling,
+            self.log_unnormalized,
+            False,
+        )
+        N, T = get_U_S_for_velocity_estimation(
+            subset_adata,
+            self.use_smoothed,
+            self.has_splicing,
+            self.has_labeling,
+            self.log_unnormalized,
+            True,
+        )
+        if self.assumption_mRNA.lower() == "ss" or (self.experiment_type.lower() in ["one-shot", "mix_std_stm"]):
+            vel = Velocity(estimation=self.est)
+        elif self.assumption_mRNA.lower() == "kinetic":
+            params = {"alpha": self.alpha, "beta": self.beta, "gamma": self.gamma, "t": self.t}
+            vel = Velocity(**params)
+        else:
+            main_warning("Not implemented yet.")
+
+        vel_U, vel_S, vel_N, vel_T = self.calculate_vels(vel=vel, U=U, S=S, N=N, T=T)
+        vel_P = self.calculate_vel_P(vel=vel, U=U, S=S, N=N, T=T)
+
+        return vel_U, vel_S, vel_N, vel_T, vel_P
+
+    def _filter(self) -> Tuple:
+        """Get filter bools based on existing filter in AnnData."""
+        filter_list, filter_gene_mode_list = (
+            [
+                "use_for_pca",
+                "pass_basic_filter",
+                "no",
+            ],
+            ["final", "basic", "no"],
+        )
+        filter_checker = [i in self.adata.var.columns for i in filter_list[:2]]
+        filter_checker.append(True)
+        filter_id = filter_gene_mode_list.index(self.filter_gene_mode)
+        which_filter = np.where(filter_checker[filter_id:])[0][0] + filter_id
+
+        filter_gene_mode = filter_gene_mode_list[which_filter]
+
+        valid_bools = get_valid_bools(self.adata, filter_gene_mode)
+        gene_num = sum(valid_bools)
+        if gene_num == 0:
+            raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
+        return filter_gene_mode, valid_bools, gene_num
+
+    def _smooth(self, valid_bools: ndarray):
+        """Smooth the data by moments when necessary."""
+        M_layers = [i for i in self.adata.layers.keys() if i.startswith("M_")]
+
+        if len(M_layers) < 2 or self.re_smooth:
+            main_info("removing existing M layers:%s..." % (str(list(M_layers))), indent_level=2)
+            for i in M_layers:
+                del self.adata.layers[i]
+            main_info("making adata smooth...", indent_level=2)
+
+            if self.group is not None and self.group in self.adata.obs.columns:
+                moments(self.adata, genes=valid_bools, group=self.group)
+            else:
+                moments(self.adata, genes=valid_bools, group=self.tkey)
+        elif self.tkey is not None:
+            main_warning(
+                f"You used tkey {self.tkey} (or group {self.group}), but you have calculated local smoothing (1st moment) "
+                f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
+                f"performed. Try setting re_smooth = True if not sure."
+            )
+
+    def _sanity_check(
+        self,
+        valid_bools: ndarray,
+        valid_bools_: ndarray,
+        gene_num: int,
+        subset_adata: AnnData,
+        kin_param_pre: str,
+    ) -> Tuple:
+        """Perform sanity check by checking the slope for kinetic or degradation metabolic labeling experiments."""
+        indices_valid_bools = np.where(valid_bools)[0]
+        self.t, L = (
+            self.t.flatten(),
+            (0 if self.Ul is None else self.Ul) + (0 if self.Sl is None else self.Sl),
+        )
+        t_uniq = np.unique(self.t)
+
+        valid_gene_checker = np.zeros(gene_num, dtype=bool)
+        for L_iter, cur_L in tqdm(
+                enumerate(L),
+                desc=f"sanity check of {self.experiment_type} experiment data:",
+        ):
+            cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
+            y = strat_mom(cur_L, self.t, np.nanmean)
+            slope, _ = fit_linreg(t_uniq, y, intercept=True, r2=False)
+            valid_gene_checker[L_iter] = (
+                True
+                if (slope > 0 and self.experiment_type == "kin") or (slope < 0 and self.experiment_type == "deg")
+                else False
+            )
+        valid_bools_[indices_valid_bools[~valid_gene_checker]] = False
+        main_warning(f"filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.")
+
+        if len(valid_bools_) < 5:
+            raise Exception(
+                f"After sanity check, you have less than 5 valid genes. Something is wrong about your "
+                f"metabolic labeling experiment!"
+            )
+
+        self.U, self.Ul, self.S, self.Sl = (
+            (None if self.U is None else self.U[valid_gene_checker, :]),
+            (None if self.Ul is None else self.Ul[valid_gene_checker, :]),
+            (None if self.S is None else self.S[valid_gene_checker, :]),
+            (None if self.Sl is None else self.Sl[valid_gene_checker, :]),
+        )
+        subset_adata = subset_adata[:, valid_gene_checker]
+        self.adata.var[kin_param_pre + "sanity_check"] = valid_bools_
+        return subset_adata, valid_bools_
+
+    def estimate(self):
+        """Main function to estimate the RNA dynamics.
+
+        The function initially conducts filtering, smoothing, and sanity checks to ensure data quality. Subsequently, it
+        calls the corresponding functions to estimate parameters and compute velocity. Lastly, it updates the AnnData
+        object and save all results.
+        """
+        self.X_data, self.X_fit_data = None, None
+        filter_gene_mode, valid_bools, gene_num = self._filter()
+
+        if self.model.lower() == "stochastic" or self.use_smoothed or self.re_smooth:
+            self._smooth(valid_bools=valid_bools)
+
+        valid_adata = self.adata[:, valid_bools].copy()
+        if self.group is not None and self.group in self.adata.obs.columns:
+            self._group = self.adata.obs[self.group].unique()
+            if any(self.adata.obs[self.group].value_counts() < 50):
+                main_warning(
+                    f"Note that some groups have less than 50 cells, this may lead to the velocities for some "
+                    f"cells are all NaN values and cause issues for all downstream analysis. Please try to "
+                    f"coarse-grain cell groupings. Cell number for each group are {self.adata.obs[self.group].value_counts()}"
+                )
+
+        else:
+            self._group = ["_all_cells"]
+
+        for cur_grp_i, cur_grp in enumerate(self._group):
+            if cur_grp == "_all_cells":
+                kin_param_pre = ""
+                cur_cells_bools = np.ones(valid_adata.shape[0], dtype=bool)
+                subset_adata = valid_adata[cur_cells_bools]
+            else:
+                kin_param_pre = str(self.group) + "_" + str(cur_grp) + "_"
+                cur_cells_bools = (valid_adata.obs[self.group] == cur_grp).values
+                subset_adata = valid_adata[cur_cells_bools]
+
+                if self.model.lower() == "stochastic" or self.use_smoothed:
+                    moments(subset_adata)
+            (
+                self.U,
+                self.Ul,
+                self.S,
+                self.Sl,
+                self.P,
+                self.US,
+                self.U2,
+                self.S2,
+                self.t,
+                self.normalized,
+                self.ind_for_proteins,
+                assump_mRNA,
+            ) = get_data_for_kin_params_estimation(
+                subset_adata,
+                self.has_splicing,
+                self.has_labeling,
+                self.model,
+                self.use_smoothed,
+                self.tkey,
+                self.protein_names,
+                self.log_unnormalized,
+                self.NTR_vel,
+            )
+
+            valid_bools_ = valid_bools.copy()
+            if self.sanity_check and self.experiment_type.lower() in ["kin", "deg"]:
+                subset_adata, valid_bools_ = self.sanity_check(
+                    valid_bools, valid_bools_, gene_num, subset_adata, kin_param_pre)
+
+            self.estimate_parameters(cur_grp_i=cur_grp_i, cur_grp=cur_grp, subset_adata=subset_adata)
+            vel_U, vel_S, vel_N, vel_T, vel_P = self.calculate_velocity(subset_adata=subset_adata)
+            self.set_velocity(vel_U, vel_S, vel_N, vel_T, vel_P, cur_grp, cur_cells_bools, valid_bools_, kin_param_pre)
+
+        if self.group is not None and self.group in self.adata.obs[self.group]:
+            uns_key = self.group + "_dynamics"
+        else:
+            uns_key = "dynamics"
+
+        if self.sanity_check and self.experiment_type in ["kin", "deg"]:
+            sanity_check_cols = self.adata.var.columns.str.endswith("sanity_check")
+            self.adata.var["use_for_dynamics"] = self.adata.var.loc[:, sanity_check_cols].sum(1).astype(bool)
+        else:
+            self.adata.var["use_for_dynamics"] = False
+            self.adata.var.loc[valid_bools, "use_for_dynamics"] = True
+
+        self.adata.uns[uns_key] = {
+            "filter_gene_mode": filter_gene_mode,
+            "t": self.t,
+            "group": self.group,
+            "X_data": self.X_data,
+            "X_fit_data": self.X_fit_data,
+            "asspt_mRNA": self.assumption_mRNA,
+            "experiment_type": self.experiment_type,
+            "normalized": self.normalized,
+            "model": self.model,
+            "est_method": self.est_method,
+            "has_splicing": self.has_splicing,
+            "has_labeling": self.has_labeling,
+            "splicing_labeling": self.splicing_labeling,
+            "has_protein": self.has_protein,
+            "use_smoothed": self.use_smoothed,
+            "NTR_vel": self.NTR_vel,
+            "log_unnormalized": self.log_unnormalized,
+            "fraction_for_deg": self.fraction_for_deg,
+        }
+
+        if self.del_2nd_moments:
+            remove_2nd_moments(self.adata)
+
+        return self.adata
+
+
+class SplicedDynamics(BaseDynamics):
+    """Dynamics models for RNA data only contain spliced RNA. This includes the conventional, generalized moments method
+    (GMM) and negative binomial (NB) distribution method."""
+    def calculate_vels(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """Implement the velocity calculation function for splicing data. Calculate unspliced and spliced velocity."""
+        vel_U = vel.vel_u(U)
+        vel_S = vel.vel_s(U, S)
+        vel_N = np.nan
+        vel_T = np.nan
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class LabeledDynamics(BaseDynamics):
+    """Dynamics model for metabolic labeling data."""
+    def calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        """Calculate unspliced velocity. All subclass should implement this method."""
+        raise NotImplementedError("This method has not been implemented.")
+
+    def calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        """Calculate spliced velocity. All subclass should implement this method."""
+        raise NotImplementedError("This method has not been implemented.")
+
+    def calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        """Calculate new velocity. All subclass should implement this method."""
+        raise NotImplementedError("This method has not been implemented.")
+
+    def calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        """Calculate total velocity. All subclass should implement this method."""
+        raise NotImplementedError("This method has not been implemented.")
+
+    def calculate_vels(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """Implement the velocity calculation function for metabolic labeling data. Unsplcied and spliced velocity will
+        be nan for data without splicing information."""
+        if self.has_splicing:
+            vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+        else:
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class OneShotDynamics(LabeledDynamics):
+    """Dynamics model for the one shot experiment, where there is only one labeling time point."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        self.est = ss_estimation(**kwargs)
+        if self.experiment_type.lower() in ["one-shot", "one_shot"]:
+            if self.one_shot_method == "storm-csp":
+                self.est.fit_oneshot(one_shot_method=self.one_shot_method, perc_right=50, **fit_kwargs)
+            else:
+                self.est.fit_oneshot(one_shot_method=self.one_shot_method, **fit_kwargs)
+
+    def calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(U)
+
+    def calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(U, S)
+
+    def calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(N)
+
+    def calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(N, T - N) if self.has_splicing else vel.vel_u(T)
+
+
+class SSKineticsDynamics(LabeledDynamics):
+    """Two-step dynamics model for the Kinetic experiment with steady state assumption, which relies on two consecutive
+    linear regressions to estimate the degradation rate."""
+    def calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return N.multiply(csr_matrix(self.gamma_ / self.Kc)) - csr_matrix(self.beta).multiply(U)
+
+    def calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(U, S)
+
+    def calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return (N - csr_matrix(self.Kc).multiply(N)).multiply(csr_matrix(self.gamma_ / self.Kc))
+
+    def calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return (N - csr_matrix(self.Kc).multiply(T)).multiply(csr_matrix(self.gamma_ / self.Kc))
+
+    def calculate_vels(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """Override the velocity calculation function to calculate extra parameters slope and actual gamma."""
+        self.Kc = np.clip(self.gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+        self.gamma_ = -(np.log(1 - self.Kc) / self.t[None, :])  # actual gamma
+        if self.has_splicing:
+            vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+        else:
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class KineticsDynamics(LabeledDynamics):
+    """Dynamic models for the kinetic experiment with kinetic assumption. This includes a kinetic two-step method and
+    the direct method."""
+    def calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(U)
+
+    def calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(U, S)
+
+    def calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(N)
+
+    def calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(T)
+
+    def calculate_vels(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """Override the velocity calculation function to reset beta or alpha."""
+        if self.has_splicing:
+            vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+            vel.parameters["beta"] = self.gamma
+        else:
+            vel_U, vel_S = np.nan, np.nan
+            alpha_ = one_shot_alpha_matrix(N, self.gamma, self.t)
+            vel.parameters["alpha"] = alpha_
+        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class TwoStepKineticsDynamics(KineticsDynamics):
+    """Dynamic models for the kinetic experiment with two-step method."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_twostep_kinetics(**fit_kwargs)
+
+
+class KineticsStormDynamics(LabeledDynamics):
+    """Stochastic transient dynamics for the kinetic experiment with kinetic assumption. This includes three stochastic
+    models. In Model 1, only transcription and mRNA degradation were considered. In Model 2, we considered
+    transcription, splicing, and spliced mRNA degradation. And in Model 3, we considered the switching of gene
+    expression states, transcription in the active state, and mRNA degradation."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_storm(**fit_kwargs)
+
+    def calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(U)
+
+    def calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(U, S)
+
+    def calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        if self.est_method == 'storm-icsp':
+            return vel.vel_u(self.Sl)
+        else:
+            return vel.vel_u(N)
+
+    def calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        if self.est_method == 'storm-icsp':
+            return vel.vel_u(S)
+        else:
+            return vel.vel_u(T)
+
+    def calculate_vels(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """Override the velocity calculation function to reset beta or alpha."""
+        if self.has_splicing:
+            vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+            vel.parameters["beta"] = self.gamma
+        else:
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class DirectKineticsDynamics(KineticsDynamics):
+    """Dynamic models for the kinetic experiment with direct method."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_direct_kinetics(**fit_kwargs)
+
+
+class DegradationDynamics(LabeledDynamics):
+    """Dynamics model for the degradation experiment. In degradation experiment, samples are chased after an extended
+    4sU (or other nucleotide analog) labeling period and the wash-out to observe the decay of the abundance of the
+    (labeled) unspliced and spliced RNA decay over time."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_degradation(**fit_kwargs)
+
+    def calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return np.nan
+
+    def calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(U, S)
+
+    def calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return np.nan
+
+    def calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return np.nan
+
+
+class MixStdStmDynamics(LabeledDynamics):
+    """Dynamics model for the mixed steady state and stimulation labeling (mix_std_stm) experiment."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        self.est = ss_estimation(**kwargs)
+        self.est.fit_mix_std_stm(**fit_kwargs)
+
+    def calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return self.alpha1 - csr_matrix(self.beta[:, None]).multiply(U)
+
+    def calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(U, S)
+
+    def calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return self.alpha1 - csr_matrix(self.gamma[:, None]).multiply(self.u_new)
+
+    def calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return self.alpha1 - csr_matrix(self.gamma[:, None]).multiply(T)
+
+    def calculate_vels(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """Override the velocity calculation function to calculate extra parameters u_new and alpha1."""
+        if self.has_splicing:
+            u0, self.u_new, self.alpha1 = solve_alpha_2p_mat(
+                t0=np.max(self.t) - self.t,
+                t1=self.t,
+                alpha0=self.alpha[0],
+                beta=self.beta,
+                u1=N,
+            )
+            vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+        else:
+            u0, self.u_new, self.alpha1 = solve_alpha_2p_mat(
+                t0=np.max(self.t) - self.t,
+                t1=self.t,
+                alpha0=self.alpha[0],
+                beta=self.gamma,
+                u1=N,
+            )
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+class MixKineticsDynamics(LabeledDynamics):
+    """Dynamics model for two mix experiment type: mix_kin_deg and mix_pulse_chase."""
+    def estimate_params_utils(self, fit_kwargs=None, **kwargs):
+        kin_estimation = KineticEstimation(**kwargs)
+        return kin_estimation.fit_mix_kinetics(**fit_kwargs)
+
+    def calculate_vel_U(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(U, repeat=True)
+
+    def calculate_vel_S(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_s(U, S)
+
+    def calculate_vel_N(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(N, repeat=True)
+
+    def calculate_vel_T(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Union[ndarray, csr_matrix]:
+        return vel.vel_u(T) if not self.has_splicing and self.NTR_vel else vel.vel_u(T, repeat=True)
+
+    def calculate_vels(
+        self,
+        vel: Velocity,
+        U: Union[ndarray, csr_matrix],
+        S: Union[ndarray, csr_matrix],
+        N: Union[ndarray, csr_matrix],
+        T: Union[ndarray, csr_matrix],
+    ) -> Tuple:
+        """Override the velocity calculation function to reset beta when the data contains splicing information."""
+        if self.has_splicing:
+            vel_U = self.calculate_vel_U(vel=vel, U=U, S=S, N=N, T=T)
+            vel_S = self.calculate_vel_S(vel=vel, U=U, S=S, N=N, T=T)
+            vel.parameters["beta"] = self.gamma
+        else:
+            vel_U, vel_S = np.nan, np.nan
+        vel_N = self.calculate_vel_N(vel=vel, U=U, S=S, N=N, T=T)
+        vel_T = self.calculate_vel_T(vel=vel, U=U, S=S, N=N, T=T)
+        return vel_U, vel_S, vel_N, vel_T
+
+
+# TODO: rename this later
+def dynamics_wrapper(
+    adata: AnnData,
+    filter_gene_mode: Literal["final", "basic", "no"] = "final",
+    use_smoothed: bool = True,
+    assumption_mRNA: Literal["ss", "kinetic", "auto"] = "auto",
+    assumption_protein: Literal["ss"] = "ss",
+    model: Literal["auto", "deterministic", "stochastic"] = "auto",
+    est_method: Literal["ols", "rlm", "ransac", "gmm", "negbin", "auto", "twostep", "direct"] = "auto",
+    NTR_vel: bool = False,
+    group: Optional[str] = None,
+    protein_names: Optional[List[str]] = None,
+    concat_data: bool = False,
+    log_unnormalized: bool = True,
+    one_shot_method: Literal["combined", "sci-fate", "sci_fate"] = "combined",
+    fraction_for_deg: bool = False,
+    re_smooth: bool = False,
+    sanity_check: bool = False,
+    del_2nd_moments: Optional[bool] = None,
+    cores: int = 1,
+    tkey: str = None,
+    **est_kwargs,
+) -> AnnData:
+    """Predict the model and assumption if they are set as auto. Run corresponding Dynamics methods according to the
+    experiment type. More information can be found in the class BaseDynamics."""
+    if "pp" not in adata.uns_keys():
+        raise ValueError(f"\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
+    if model.lower() == "auto":
+        model = "stochastic"
+        model_was_auto = True
+    else:
+        model = model
+        model_was_auto = False
+
+    (experiment_type, has_splicing, has_labeling, splicing_labeling, has_protein,) = (
+        adata.uns["pp"]["experiment_type"],
+        adata.uns["pp"]["has_splicing"],
+        adata.uns["pp"]["has_labeling"],
+        adata.uns["pp"]["splicing_labeling"],
+        adata.uns["pp"]["has_protein"],
+    )
+
+    (NTR_vel, assump_mRNA) = get_auto_assump_mRNA(
+        subset_adata=adata,
+        has_splicing=has_splicing,
+        has_labeling=has_labeling,
+        use_moments=use_smoothed,
+        tkey=tkey,
+        NTR_vel=NTR_vel,
+    )
+    if assumption_mRNA.lower() == "auto":
+        assumption_mRNA = assump_mRNA
+    if experiment_type.lower() == "conventional":
+        assumption_mRNA = "ss"
+    elif experiment_type.lower() in ["mix_pulse_chase", "deg", "kin"]:
+        assumption_mRNA = "kinetic"
+
+    if model.lower() == "stochastic" and experiment_type.lower() not in [
+        "conventional",
+        "kinetics",
+        "degradation",
+        "kin",
+        "deg",
+        "one-shot",
+    ]:
+        """
+        # temporially convert to deterministic model as moment model for mix_std_stm
+         and other types of labeling experiment is ongoing."""
+
+        model = "deterministic"
+
+    if model_was_auto and experiment_type.lower() in [
+        "kinetic",
+        "kin",
+        "degradation",
+        "deg",
+    ]:
+        model = "deterministic"
+
+    dynamics_kwargs = {
+        "adata": adata,
+        "filter_gene_mode": filter_gene_mode,
+        "use_smoothed": use_smoothed,
+        "assumption_mRNA": assumption_mRNA,
+        "assumption_protein": assumption_protein,
+        "model": model,
+        "model_was_auto": model_was_auto,
+        "experiment_type": experiment_type,
+        "has_splicing": has_splicing,
+        "has_labeling": has_labeling,
+        "splicing_labeling": splicing_labeling,
+        "has_protein": has_protein,
+        "est_method": est_method,
+        "NTR_vel": NTR_vel,
+        "group": group,
+        "protein_names": protein_names,
+        "concat_data": concat_data,
+        "log_unnormalized": log_unnormalized,
+        "one_shot_method": one_shot_method,
+        "fraction_for_deg": fraction_for_deg,
+        "re_smooth": re_smooth,
+        "sanity_check": sanity_check,
+        "del_2nd_moments": del_2nd_moments,
+        "cores": cores,
+        "tkey": tkey,
+        "est_kwargs": est_kwargs,
+    }
+
+    if experiment_type == "conventional":
+        estimator = SplicedDynamics(dynamics_kwargs)
+    elif experiment_type in ["one-shot", "one_shot"]:
+        estimator = OneShotDynamics(dynamics_kwargs)
+    elif experiment_type == "kin":
+        if assumption_mRNA == "ss":
+            estimator = SSKineticsDynamics(dynamics_kwargs)
+        elif assumption_mRNA == "kinetic":
+            if est_method == 'twostep':
+                estimator = TwoStepKineticsDynamics(dynamics_kwargs)
+            elif est_method == "direct":
+                estimator = DirectKineticsDynamics(dynamics_kwargs)
+            elif "storm" in est_method:
+                estimator = KineticsStormDynamics(dynamics_kwargs)
+        else:
+            raise NotImplementedError("This method has not been implemented.")
+    elif experiment_type == "deg":
+        estimator = DegradationDynamics(dynamics_kwargs)
+    elif experiment_type == "mix_std_stm":
+        estimator = MixStdStmDynamics(dynamics_kwargs)
+    elif experiment_type in ["mix_kin_deg", "mix_pulse_chase"]:
+        estimator = MixKineticsDynamics(dynamics_kwargs)
+    else:
+        raise NotImplementedError("This method has not been implemented.")
+    adata = estimator.estimate()
+    return adata
 
 
 # incorporate the model selection code soon
@@ -417,8 +1850,8 @@ def dynamics(
 
             valid_gene_checker = np.zeros(gene_num, dtype=bool)
             for L_iter, cur_L in tqdm(
-                enumerate(L),
-                desc=f"sanity check of {experiment_type} experiment data:",
+                    enumerate(L),
+                    desc=f"sanity check of {experiment_type} experiment data:",
             ):
                 cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
                 y = strat_mom(cur_L, t, np.nanmean)
@@ -979,11 +2412,1054 @@ def dynamics(
     return adata
 
 
+class KineticEstimation:
+    """The clss to estimate the parameters required for velocity estimation when the mRNA assumption is 'kinetic'."""
+    def __init__(
+        self,
+        subset_adata: AnnData,
+        tkey: str,
+        model: Literal["auto", "deterministic", "stochastic"],
+        est_method: Literal["twostep", "direct", "storm-csp", "storm-cszip", "storm-icsp"],
+        experiment_type: str,
+        has_splicing: bool,
+        splicing_labeling: bool,
+        has_switch: bool,
+        param_rngs: Dict[str, List[int]],
+        data_type: Literal["smoothed", "sfs"] = "sfs",
+        return_ntr: bool = False,
+        **est_kwargs,
+    ):
+        """Constructor.
+
+        Args:
+            subset_adata: an AnnData object with invalid genes trimmed.
+            tkey: the column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data. If `tkey`
+                is None, then `adata.uns["pp"]["tkey"]` will be checked and used if exists.
+            model: String indicates which estimation model will be used.
+                Available options are:
+                    (1) 'deterministic': The method based on `deterministic` ordinary differential equations;
+                    (2) 'stochastic' or `moment`: The new method from us that is based on `stochastic` master equations;
+                Note that `kinetic` model doesn't need to assume the `experiment_type` is not `conventional`. As other
+                labeling experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional`
+                scRNA-seq datasets. A "model_selection" model will be supported soon in which alpha, beta and gamma will be
+                modeled as a function of time.
+            est_method: Available options when the `assumption_mRNA` is 'kinetic' include:
+                    (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`,
+                        `experiment_type` and `model` parameter.
+                    (2) `twostep`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
+                        use regression via t-np.log(1-K) to get degradation rate gamma. When splicing and labeling data both
+                        exist, replacing new/total with ul/u can be used to estimate beta. Suitable for velocity estimation.
+                    (3) `direct` (default): method that directly uses the kinetic model to estimate rate parameters,
+                        generally not good for velocity estimation.
+                Under `kinetic` model, choosing estimation is `experiment_type` dependent. For `kinetics` experiments,
+                dynamo supposes methods including RNA bursting or without RNA bursting. Dynamo also adaptively estimates
+                parameters, based on whether the data has splicing or without splicing.
+                Under `kinetic` assumption, the above method uses non-linear least square fitting. In order to return
+                estimated parameters (including RNA half-life), it additionally returns the log-likelihood of the
+                fitting, which will be used for transition matrix and velocity embedding.
+                All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial
+                sampling.
+            experiment_type: the experiment type of the data.
+            has_splicing: whether the object containing unspliced and spliced data
+            splicing_labeling: hether the object containing both splicing and labelling data
+            has_switch: whether there should be switch for stochastic model.
+            param_rngs: the range set for each parameter.
+            data_type: the data type, could be "smoothed" or "sfs". Defaults to "sfs".
+            return_ntr: whether to deal with new/total ratio. Defaults to False.
+            est_kwargs: additional keyword arguments of fitting function.
+
+        Returns:
+            A tuple (Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data), where Estm_df contains the
+            parameters required for mRNA velocity calculation, half_life is for half-life of spliced mRNA, cost is for the
+            cost of kinetic parameters estimation, logLL is for loglikelihood of kinetic parameters estimation,
+            _param_ranges is for the intended range of parameter estimation, X_data is for the data used for parameter
+            estimation, and X_fit_data is for the data that get fitted during parameter estimation.
+        """
+        self.subset_adata = subset_adata
+        self.tkey = tkey
+        self.model = model
+        self.est_method = est_method
+        self.experiment_type = experiment_type
+        self.has_splicing = has_splicing
+        self.splicing_labeling = splicing_labeling
+        self.has_switch = has_switch
+        self.param_rngs = param_rngs
+        self.data_type = data_type
+        self.return_ntr = return_ntr
+        self.est_kwargs = est_kwargs
+        self.time = subset_adata.obs[tkey].astype("float").values
+
+    def fit_twostep_kinetics(self):
+        """Fit the input data to estimate parameters for kinetics experiment type with two-step method."""
+        if self.has_splicing:
+            layers = (
+                ["M_u", "M_s", "M_t", "M_n"]
+                if ("M_u" in self.subset_adata.layers.keys() and self.data_type == "smoothed")
+                else ["X_u", "X_s", "X_t", "X_n"]
+            )
+            U, S, Total, New = (
+                self.subset_adata.layers[layers[0]].T,
+                self.subset_adata.layers[layers[1]].T,
+                self.subset_adata.layers[layers[2]].T,
+                self.subset_adata.layers[layers[3]].T,
+            )
+            US, S2 = (
+                self.subset_adata.layers["M_us"].T,
+                self.subset_adata.layers["M_ss"].T,
+            )
+            # gamma, gamma_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+            (
+                gamma_k,
+                gamma_b,
+                gamma_all_r2,
+                gamma_all_logLL,
+            ) = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=100)
+            (
+                gamma,
+                gamma_r2,
+                X_data,
+                mean_R2,
+                K_fit,
+            ) = lin_reg_gamma_synthesis(Total, New, self.time, perc_right=100)
+
+            k = 1 - np.exp(-gamma[:, None] * self.time[None, :])
+            beta = gamma / gamma_k  # gamma_k = gamma / beta
+
+            Estm_df = {
+                "alpha": csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
+                "beta": beta,
+                "gamma_k": gamma_k,
+                "gamma_b": gamma_b,
+                "gamma_k_r2": gamma_all_r2,
+                "gamma_logLL": gamma_all_logLL,
+                "gamma": gamma,
+                "gamma_r2": gamma_r2,
+                "mean_R2": mean_R2,
+            }
+            half_life = np.log(2) / gamma
+            cost, logLL, _param_ranges, X_data, X_fit_data = (
+                None,
+                None,
+                None,
+                X_data,
+                K_fit,
+            )
+
+            return (
+                Estm_df,
+                half_life,
+                cost,
+                logLL,
+                _param_ranges,
+                X_data,
+                X_fit_data,
+            )
+        else:
+            layers = (
+                ["M_t", "M_n"]
+                if ("M_t" in self.subset_adata.layers.keys() and self.data_type == "smoothed")
+                else ["X_t", "X_n"]
+            )
+            Total, New = (
+                self.subset_adata.layers[layers[0]].T,
+                self.subset_adata.layers[layers[1]].T,
+            )
+            (
+                gamma,
+                gamma_r2,
+                X_data,
+                mean_R2,
+                K_fit,
+            ) = lin_reg_gamma_synthesis(Total, New, self.time, perc_right=100)
+
+            k = 1 - np.exp(-gamma[:, None] * self.time[None, :])
+            Estm_df = {
+                "alpha": csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
+                "gamma": gamma,
+                "gamma_k": gamma,  # required for phase_potrait
+                "gamma_r2": gamma_r2,
+                "mean_R2": mean_R2,
+            }
+            half_life = np.log(2) / gamma
+            cost, logLL, _param_ranges, X_data, X_fit_data = (
+                None,
+                None,
+                None,
+                X_data,
+                K_fit,
+            )
+
+            return (
+                Estm_df,
+                half_life,
+                cost,
+                logLL,
+                _param_ranges,
+                X_data,
+                X_fit_data,
+            )
+    def fit_storm(self):
+        """Fit the input data to estimate parameters for kinetics experiment type with storm method."""
+        if self.has_splicing:
+            # Initialization based on the steady-state assumption
+            layers_smoothed = ["M_u", "M_s", "M_t", "M_n"]
+            U_smoothed, S_smoothed, Total_smoothed, New_smoothed = (
+                self.subset_adata.layers[layers_smoothed[0]].T,
+                self.subset_adata.layers[layers_smoothed[1]].T,
+                self.subset_adata.layers[layers_smoothed[2]].T,
+                self.subset_adata.layers[layers_smoothed[3]].T,
+            )
+
+            US_smoothed, S2_smoothed = (
+                self.subset_adata.layers["M_us"].T,
+                self.subset_adata.layers["M_ss"].T,
+            )
+            (gamma_k, _, _, _,) = fit_slope_stochastic(S_smoothed, U_smoothed, US_smoothed, S2_smoothed,
+                                                       perc_left=None, perc_right=5)
+            (gamma_init, _, _, _, _) = lin_reg_gamma_synthesis(Total_smoothed, New_smoothed, self.time, perc_right=5)
+            beta_init = gamma_init / gamma_k  # gamma_k = gamma / beta
+
+            # Read raw counts
+            layers_raw = ["ul", "sl"]
+            UL_raw, SL_raw = (
+                self.subset_adata.layers[layers_raw[0]].T,
+                self.subset_adata.layers[layers_raw[1]].T,
+            )
+
+            # Read smoothed values based CSP type distribution for cell-specific parameter inference
+            UL_smoothed_CSP, SL_smoothed_CSP = (
+                self.subset_adata.layers['M_CSP_ul'].T,
+                self.subset_adata.layers['M_CSP_sl'].T,
+            )
+
+            # Parameters inference based on maximum likelihood estimation
+            cell_total = self.subset_adata.obs['initial_cell_size'].astype("float").values
+            # Independent cell-specific Poisson
+            (gamma_s, gamma_r2, beta, gamma_t, gamma_r2_raw, alpha) = storm.mle_independent_cell_specific_poisson \
+                (UL_raw, SL_raw, self.time, gamma_init, beta_init, cell_total, Total_smoothed, S_smoothed)
+            gamma_k = gamma_s / beta
+            gamma_b = np.zeros_like(gamma_k)
+
+            # Cell specific parameters (fixed gamma_s)
+            alpha, beta = storm.cell_specific_alpha_beta(UL_smoothed_CSP, SL_smoothed_CSP, self.time, gamma_s, beta)
+
+            # # Cell specific parameters(fixed gamma_t)
+            # k = 1 - np.exp(-gamma_t[:, None] * time[None, :])
+            # alpha = csr_matrix(gamma_t[:, None]).multiply(UL_smoothed_CSP+SL_smoothed_CSP).multiply(1 / k)
+
+            Estm_df = {
+                "alpha": alpha,
+                "beta": beta,
+                "gamma_k": gamma_k,
+                "gamma_b": gamma_b,
+                # "gamma_k_r2": gamma_all_r2,
+                # "gamma_logLL": gamma_all_logLL,
+                "gamma": gamma_s,
+                "gamma_r2": gamma_r2,
+                # "mean_R2": mean_R2,
+                "gamma_t": gamma_t,
+                "gamma_r2_raw": gamma_r2_raw,
+            }
+            half_life = np.log(2) / gamma_s
+            cost, logLL, _param_ranges, X_data, X_fit_data = (
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+
+            return (
+                Estm_df,
+                half_life,
+                cost,
+                logLL,
+                _param_ranges,
+                X_data,
+                X_fit_data,
+            )
+        else:
+            # Initialization based on the steady-state assumption
+            layers_smoothed = ["M_t", "M_n"]
+            Total_smoothed, New_smoothed = (
+                self.subset_adata.layers[layers_smoothed[0]].T,
+                self.subset_adata.layers[layers_smoothed[1]].T,
+            )
+            (gamma_init, _, _, _, _,) = lin_reg_gamma_synthesis(Total_smoothed, New_smoothed, self.time,
+                                                                perc_right=5)
+
+            # Read raw counts
+            layers_raw = ["total", "new"]
+            Total_raw, New_raw = (
+                self.subset_adata.layers[layers_raw[0]].T,
+                self.subset_adata.layers[layers_raw[1]].T,
+            )
+
+            # Read smoothed values based CSP type distribution for cell-specific parameter inference
+            layers_smoothed_CSP = ["M_CSP_t", "M_CSP_n"]
+            Total_smoothed_CSP, New_smoothed_CSP = (
+                self.subset_adata.layers[layers_smoothed_CSP[0]].T,
+                self.subset_adata.layers[layers_smoothed_CSP[1]].T,
+            )
+
+            # Parameters inference based on maximum likelihood estimation
+            cell_total = self.subset_adata.obs['initial_cell_size'].astype("float").values
+
+            if "storm-csp" == self.est_method:
+                gamma, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_poisson(New_raw, self.time,
+                                                                                       gamma_init, cell_total)
+            elif "storm-cszip" == self.est_method:
+                gamma, prob_off, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_zero_inflated_poisson(
+                    New_raw, self.time, gamma_init, cell_total)
+                alpha = alpha * (1 - prob_off)  # gene-wise alpha
+            else:
+                raise NotImplementedError("This method has not been implemented.")
+
+            k = 1 - np.exp(-gamma[:, None] * self.time[None, :])
+            alpha = csr_matrix(gamma[:, None]).multiply(New_smoothed_CSP).multiply(1 / k)  # gene-cell-wise alpha
+
+            Estm_df = {
+                "alpha": alpha,
+                "gamma": gamma,
+                "gamma_k": gamma,  # required for phase_potrait
+                "gamma_r2": gamma_r2,
+                "gamma_r2_raw": gamma_r2_raw,
+                # "mean_R2": mean_R2,
+                "prob_off": prob_off if "cszip" in self.est_method else None
+            }
+            half_life = np.log(2) / gamma
+            cost, logLL, _param_ranges, X_data, X_fit_data = (
+                None,
+                None,
+                None,
+                None,  # X_data,
+                None,  # K_fit,
+            )
+
+            return (
+                Estm_df,
+                half_life,
+                cost,
+                logLL,
+                _param_ranges,
+                X_data,
+                X_fit_data,
+            )
+
+    def fit_direct_kinetics(self):
+        """Fit the input data to estimate parameters for kinetics experiment type with direct method."""
+        if self.has_splicing and self.splicing_labeling:
+            layers = (
+                ["M_ul", "M_sl", "M_uu", "M_su"]
+                if ("M_ul" in self.subset_adata.layers.keys() and self.data_type == "smoothed")
+                else ["X_ul", "X_sl", "X_uu", "X_su"]
+            )
+
+            if self.model.lower() in ["deterministic", "stochastic"]:
+                layer_u = "M_ul" if ("M_ul" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_ul"
+                layer_s = "M_sl" if ("M_ul" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_sl"
+
+                X, X_raw = prepare_data_has_splicing(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layer_u=layer_u,
+                    layer_s=layer_s,
+                    total_layers=layers,
+                )
+            elif self.model.startswith("mixture"):
+                X, _, X_raw = prepare_data_deterministic(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layers=layers,
+                    total_layers=layers,
+                )
+
+            if self.model.lower() == "deterministic":
+                X = [X[i][[0, 1], :] for i in range(len(X))]
+                _param_ranges = {
+                    "alpha": [0, 1000],
+                    "beta": [0, 1000],
+                    "gamma": [0, 1000],
+                }
+                x0 = {"u0": [0, 1000], "s0": [0, 1000]}
+                Est, _ = Estimation_DeterministicKin, Deterministic
+            elif self.model.lower() == "stochastic":
+                x0 = {
+                    "u0": [0, 1000],
+                    "s0": [0, 1000],
+                    "uu0": [0, 1000],
+                    "ss0": [0, 1000],
+                    "us0": [0, 1000],
+                }
+
+                if self.has_switch:
+                    _param_ranges = {
+                        "a": [0, 1000],
+                        "b": [0, 1000],
+                        "alpha_a": [0, 1000],
+                        "alpha_i": 0,
+                        "beta": [0, 1000],
+                        "gamma": [0, 1000],
+                    }
+                    Est, _ = Estimation_MomentKin, Moments
+                else:
+                    _param_ranges = {
+                        "alpha": [0, 1000],
+                        "beta": [0, 1000],
+                        "gamma": [0, 1000],
+                    }
+
+                    Est, _ = (
+                        Estimation_MomentKinNoSwitch,
+                        Moments_NoSwitching,
+                    )
+            elif self.model.lower() == "mixture":
+                _param_ranges = {
+                    "alpha": [0, 1000],
+                    "alpha_2": [0, 0],
+                    "beta": [0, 1000],
+                    "gamma": [0, 1000],
+                }
+                x0 = {
+                    "ul0": [0, 0],
+                    "sl0": [0, 0],
+                    "uu0": [0, 1000],
+                    "su0": [0, 1000],
+                }
+
+                Est = Mixture_KinDeg_NoSwitching(Deterministic(), Deterministic())
+            elif self.model.lower() == "mixture_deterministic_stochastic":
+                X, X_raw = prepare_data_mix_has_splicing(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layer_u=layers[2],
+                    layer_s=layers[3],
+                    layer_ul=layers[0],
+                    layer_sl=layers[1],
+                    total_layers=layers,
+                    mix_model_indices=[0, 1, 5, 6, 7, 8, 9],
+                )
+
+                _param_ranges = {
+                    "alpha": [0, 1000],
+                    "alpha_2": [0, 0],
+                    "beta": [0, 1000],
+                    "gamma": [0, 1000],
+                }
+                x0 = {
+                    "ul0": [0, 0],
+                    "sl0": [0, 0],
+                    "u0": [0, 1000],
+                    "s0": [0, 1000],
+                    "uu0": [0, 1000],
+                    "ss0": [0, 1000],
+                    "us0": [0, 1000],
+                }
+                Est = Mixture_KinDeg_NoSwitching(Deterministic(), Moments_NoSwitching())
+            elif self.model.lower() == "mixture_stochastic_stochastic":
+                _param_ranges = {
+                    "alpha": [0, 1000],
+                    "alpha_2": [0, 0],
+                    "beta": [0, 1000],
+                    "gamma": [0, 1000],
+                }
+                X, X_raw = prepare_data_mix_has_splicing(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layer_u=layers[2],
+                    layer_s=layers[3],
+                    layer_ul=layers[0],
+                    layer_sl=layers[1],
+                    total_layers=layers,
+                    mix_model_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                )
+                x0 = {
+                    "ul0": [0, 1000],
+                    "sl0": [0, 1000],
+                    "ul_ul0": [0, 1000],
+                    "sl_sl0": [0, 1000],
+                    "ul_sl0": [0, 1000],
+                    "u0": [0, 1000],
+                    "s0": [0, 1000],
+                    "uu0": [0, 1000],
+                    "ss0": [0, 1000],
+                    "us0": [0, 1000],
+                }
+                Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitching(), Moments_NoSwitching())
+            else:
+                raise NotImplementedError(
+                    f"model {self.model} with kinetic assumption is not implemented. "
+                    f"current supported models for kinetics experiments include: stochastic, deterministic, mixture,"
+                    f"mixture_deterministic_stochastic or mixture_stochastic_stochastic"
+                )
+        else:
+            total_layer = "M_t" if ("M_t" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_total"
+
+            if self.model.lower() in ["deterministic", "stochastic"]:
+                layer = "M_n" if ("M_n" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_new"
+                X, X_raw = prepare_data_no_splicing(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layer=layer,
+                    total_layer=total_layer,
+                )
+            elif self.model.lower().startswith("mixture"):
+                layers = (
+                    ["M_n", "M_t"]
+                    if ("M_n" in self.subset_adata.layers.keys() and self.data_type == "smoothed")
+                    else ["X_new", "X_total"]
+                )
+
+                X, _, X_raw = prepare_data_deterministic(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layers=layers,
+                    total_layers=total_layer,
+                )
+
+            if self.model.lower() == "deterministic":
+                X = [X[i][0, :] for i in range(len(X))]
+                _param_ranges = {
+                    "alpha": [0, 1000],
+                    "gamma": [0, 1000],
+                }
+                x0 = {"u0": [0, 1000]}
+                Est, _ = (
+                    Estimation_DeterministicKinNosp,
+                    Deterministic_NoSplicing,
+                )
+            elif self.model.lower() == "stochastic":
+                x0 = {
+                    "u0": [0, 1000],
+                    "uu0": [0, 1000],
+                }
+                if self.has_switch:
+                    _param_ranges = {
+                        "a": [0, 1000],
+                        "b": [0, 1000],
+                        "alpha_a": [0, 1000],
+                        "alpha_i": 0,
+                        "gamma": [0, 1000],
+                    }
+                    Est, _ = Estimation_MomentKinNosp, Moments_Nosplicing
+                else:
+                    _param_ranges = {
+                        "alpha": [0, 1000],
+                        "gamma": [0, 1000],
+                    }
+                    Est, _ = (
+                        Estimation_MomentKinNoSwitchNoSplicing,
+                        Moments_NoSwitchingNoSplicing,
+                    )
+            elif self.model.lower() == "mixture":
+                _param_ranges = {
+                    "alpha": [0, 1000],
+                    "alpha_2": [0, 0],
+                    "gamma": [0, 1000],
+                }
+                x0 = {"u0": [0, 0], "o0": [0, 1000]}
+                Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Deterministic_NoSplicing())
+            elif self.model.lower() == "mixture_deterministic_stochastic":
+                X, X_raw = prepare_data_mix_no_splicing(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layer_n=layers[0],
+                    layer_t=layers[1],
+                    total_layer=total_layer,
+                    mix_model_indices=[0, 2, 3],
+                )
+
+                _param_ranges = {
+                    "alpha": [0, 1000],
+                    "alpha_2": [0, 0],
+                    "gamma": [0, 1000],
+                }
+                x0 = {"u0": [0, 1000], "o0": [0, 1000], "oo0": [0, 1000]}
+                Est = Mixture_KinDeg_NoSwitching(
+                    Deterministic_NoSplicing(),
+                    Moments_NoSwitchingNoSplicing(),
+                )
+            elif self.model.lower() == "mixture_stochastic_stochastic":
+                X, X_raw = prepare_data_mix_no_splicing(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layer_n=layers[0],
+                    layer_t=layers[1],
+                    total_layer=total_layer,
+                    mix_model_indices=[0, 1, 2, 3],
+                )
+
+                _param_ranges = {
+                    "alpha": [0, 1000],
+                    "alpha_2": [0, 0],
+                    "gamma": [0, 1000],
+                }
+                x0 = {
+                    "u0": [0, 1000],
+                    "uu0": [0, 1000],
+                    "o0": [0, 1000],
+                    "oo0": [0, 1000],
+                }
+                Est = Mixture_KinDeg_NoSwitching(
+                    Moments_NoSwitchingNoSplicing(),
+                    Moments_NoSwitchingNoSplicing(),
+                )
+            else:
+                raise NotImplementedError(
+                    f"model {self.model} with kinetic assumption is not implemented. "
+                    f"current supported models for kinetics experiments include: stochastic, deterministic, "
+                    f"mixture, mixture_deterministic_stochastic or mixture_stochastic_stochastic"
+                )
+        _param_ranges = update_dict(_param_ranges, self.param_rngs)
+        x0_ = np.vstack([ran for ran in x0.values()]).T
+
+        n_genes = self.subset_adata.n_vars
+        cost, logLL = np.zeros(n_genes), np.zeros(n_genes)
+        all_keys = list(_param_ranges.keys()) + list(x0.keys())
+        all_keys = [cur_key for cur_key in all_keys if cur_key != "alpha_i"]
+        half_life, Estm = np.zeros(n_genes), [None] * n_genes
+        X_data, X_fit_data = [None] * n_genes, [None] * n_genes
+        if self.experiment_type:
+            popt = [None] * n_genes
+
+        main_debug("model: %s, experiment_type: %s" % (self.model, self.experiment_type))
+        for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
+            if self.model.lower().startswith("mixture"):
+                estm = Est
+                if self.model.lower() == "mixture":
+                    cur_X_data = np.vstack([X[i_layer][i_gene] for i_layer in range(len(X))])
+                    if issparse(X_raw[0]):
+                        cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene].A for i_layer in range(len(X))])
+                    else:
+                        cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene] for i_layer in range(len(X))])
+                else:
+                    cur_X_data = X[i_gene]
+                    cur_X_raw = X_raw[i_gene]
+
+                    if issparse(cur_X_raw[0, 0]):
+                        cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+
+                _, cost[i_gene] = estm.auto_fit(np.unique(self.time), cur_X_data)
+                (
+                    model_1,
+                    model_2,
+                    kinetic_parameters,
+                    mix_x0,
+                ) = estm.export_dictionary().values()
+                tmp = list(kinetic_parameters.values())
+                tmp.extend(mix_x0)
+                Estm[i_gene] = tmp
+            else:
+                cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
+
+                if self.has_splicing:
+                    alpha0 = guestimate_alpha(np.sum(cur_X_data, 0), np.unique(self.time))
+                else:
+                    alpha0 = (
+                        guestimate_alpha(cur_X_data, np.unique(self.time))
+                        if cur_X_data.ndim == 1
+                        else guestimate_alpha(cur_X_data[0], np.unique(self.time))
+                    )
+
+                if self.model.lower() == "stochastic":
+                    _param_ranges.update({"alpha_a": [0, alpha0 * 10]})
+                elif self.model.lower() == "deterministic":
+                    _param_ranges.update({"alpha": [0, alpha0 * 10]})
+                param_ranges = [ran for ran in _param_ranges.values()]
+
+                estm = Est(*param_ranges, x0=x0_) if "x0" in inspect.getfullargspec(Est) else Est(*param_ranges)
+                _, cost[i_gene] = estm.fit_lsq(np.unique(self.time), cur_X_data, **self.est_kwargs)
+                if self.model.lower() == "deterministic":
+                    Estm[i_gene] = estm.export_parameters()
+                else:
+                    tmp = np.ma.array(estm.export_parameters(), mask=False)
+                    tmp.mask[3] = True
+                    Estm[i_gene] = tmp.compressed()
+
+                if issparse(cur_X_raw[0, 0]):
+                    cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+
+            X_data[i_gene] = cur_X_data
+            if self.model.lower().startswith("mixture"):
+                X_fit_data[i_gene] = estm.simulator.x.T
+                X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
+            else:
+                if hasattr(estm, "extract_data_from_simulator"):
+                    X_fit_data[i_gene] = estm.extract_data_from_simulator()
+                else:
+                    X_fit_data[i_gene] = estm.simulator.x.T
+
+            half_life[i_gene] = np.log(2) / Estm[i_gene][-1]
+
+            if self.model.lower().startswith("mixture"):
+                species = [0, 1, 2, 3] if self.has_splicing else [0, 1]
+                gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters())
+                gof.prepare_data(self.time, cur_X_raw.T, species=species, normalize=True)
+            else:
+                gof = GoodnessOfFit(
+                    estm.export_model(),
+                    params=estm.export_parameters(),
+                    x0=estm.simulator.x0,
+                )
+                gof.prepare_data(self.time, cur_X_raw.T, normalize=True)
+
+            logLL[i_gene] = gof.calc_mean_squared_deviation()  # .calc_gaussian_loglikelihood()
+
+        Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[: len(Estm[0])]])
+
+        return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
+
+    def fit_degradation(self):
+        """Fit the input data to estimate parameters for degradation experiment type."""
+        if self.has_splicing and self.splicing_labeling:
+            layers = (
+                ["M_ul", "M_sl", "M_uu", "M_su"]
+                if ("M_ul" in self.subset_adata.layers.keys() and self.data_type == "smoothed")
+                else ["X_ul", "X_sl", "X_uu", "X_su"]
+            )
+
+            if self.model.lower() in ["deterministic", "stochastic"]:
+                layer_u = "M_ul" if ("M_ul" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_ul"
+                layer_s = "M_sl" if ("M_sl" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_sl"
+
+                X, X_raw = prepare_data_has_splicing(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layer_u=layer_u,
+                    layer_s=layer_s,
+                    total_layers=layers,
+                    return_ntr=self.return_ntr,
+                )
+            elif self.model.lower().startswith("mixture"):
+                X, _, X_raw = prepare_data_deterministic(
+                    self.subset_adata,
+                    self.subset_adata.var.index,
+                    self.time,
+                    layers=layers,
+                    total_layers=layers,
+                    return_ntr=self.return_ntr,
+                )
+
+            if self.model.lower() == "deterministic":
+                X = [X[i][[0, 1], :] for i in range(len(X))]
+                _param_ranges = {
+                    "beta": [0, 1000],
+                    "gamma": [0, 1000],
+                }
+                x0 = {
+                    "u0": [0, 1000],
+                    "s0": [0, 1000],
+                }
+                Est, _ = Estimation_DeterministicDeg, Deterministic
+            elif self.model.lower() == "stochastic":
+                _param_ranges = {
+                    "beta": [0, 1000],
+                    "gamma": [0, 1000],
+                }
+                x0 = {
+                    "u0": [0, 1000],
+                    "s0": [0, 1000],
+                    "uu0": [0, 1000],
+                    "ss0": [0, 1000],
+                    "us0": [0, 1000],
+                }
+                Est, _ = Estimation_MomentDeg, Moments_NoSwitching
+            else:
+                raise NotImplementedError(
+                    f"model {self.model} with kinetic assumption is not implemented. "
+                    f"current supported models for degradation experiment include: "
+                    f"stochastic, deterministic."
+                )
+        else:
+            total_layer = "M_t" if ("M_t" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_total"
+
+            layer = "M_n" if ("M_n" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_new"
+            X, X_raw = prepare_data_no_splicing(
+                self.subset_adata,
+                self.subset_adata.var.index,
+                self.time,
+                layer=layer,
+                total_layer=total_layer,
+                return_ntr=self.return_ntr,
+            )
+
+            if self.model.lower() == "deterministic":
+                X = [X[i][0, :] for i in range(len(X))]
+                _param_ranges = {
+                    "gamma": [0, 10],
+                }
+                x0 = {"u0": [0, 1000]}
+                Est, _ = (
+                    Estimation_DeterministicDegNosp,
+                    Deterministic_NoSplicing,
+                )
+            elif self.model.lower() == "stochastic":
+                _param_ranges = {
+                    "gamma": [0, 10],
+                }
+                x0 = {"u0": [0, 1000], "uu0": [0, 1000]}
+                Est, _ = Estimation_MomentDegNosp, Moments_NoSwitchingNoSplicing
+            else:
+                raise NotImplementedError(
+                    f"model {self.model} with kinetic assumption is not implemented. "
+                    f"current supported models for degradation experiment include: "
+                    f"stochastic, deterministic.")
+        _param_ranges = update_dict(_param_ranges, self.param_rngs)
+        x0_ = np.vstack([ran for ran in x0.values()]).T
+
+        n_genes = self.subset_adata.n_vars
+        cost, logLL = np.zeros(n_genes), np.zeros(n_genes)
+        all_keys = list(_param_ranges.keys()) + list(x0.keys())
+        all_keys = [cur_key for cur_key in all_keys if cur_key != "alpha_i"]
+        half_life, Estm = np.zeros(n_genes), [None] * n_genes
+        X_data, X_fit_data = [None] * n_genes, [None] * n_genes
+        if self.experiment_type:
+            popt = [None] * n_genes
+
+        main_debug("model: %s, experiment_type: %s" % (self.model, self.experiment_type))
+        for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
+            if self.model.lower().startswith("mixture"):
+                estm = Est
+                if self.model.lower() == "mixture":
+                    cur_X_data = np.vstack([X[i_layer][i_gene] for i_layer in range(len(X))])
+                    if issparse(X_raw[0]):
+                        cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene].A for i_layer in range(len(X))])
+                    else:
+                        cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene] for i_layer in range(len(X))])
+                else:
+                    cur_X_data = X[i_gene]
+                    cur_X_raw = X_raw[i_gene]
+
+                    if issparse(cur_X_raw[0, 0]):
+                        cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+
+                _, cost[i_gene] = estm.auto_fit(np.unique(self.time), cur_X_data)
+                (
+                    model_1,
+                    model_2,
+                    kinetic_parameters,
+                    mix_x0,
+                ) = estm.export_dictionary().values()
+                tmp = list(kinetic_parameters.values())
+                tmp.extend(mix_x0)
+                Estm[i_gene] = tmp
+            else:
+                estm = Est()
+                cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
+
+                _, cost[i_gene] = estm.auto_fit(np.unique(self.time), cur_X_data)
+                Estm[i_gene] = estm.export_parameters()[1:]
+
+                if issparse(cur_X_raw[0, 0]):
+                    cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+                # model_1, kinetic_parameters, mix_x0 = estm.export_dictionary().values()
+                # tmp = list(kinetic_parameters.values())
+                # tmp.extend(mix_x0)
+                # Estm[i_gene] = tmp
+
+            X_data[i_gene] = cur_X_data
+            if self.model.lower().startswith("mixture"):
+                X_fit_data[i_gene] = estm.simulator.x.T
+                X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
+            else:
+                if hasattr(estm, "extract_data_from_simulator"):
+                    X_fit_data[i_gene] = estm.extract_data_from_simulator()
+                else:
+                    X_fit_data[i_gene] = estm.simulator.x.T
+
+            half_life[i_gene] =  estm.calc_half_life("gamma")
+
+            if self.model.lower().startswith("mixture"):
+                species = [0, 1, 2, 3] if self.has_splicing else [0, 1]
+                gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters())
+                gof.prepare_data(self.time, cur_X_raw.T, species=species, normalize=True)
+            else:
+                gof = GoodnessOfFit(
+                    estm.export_model(),
+                    params=estm.export_parameters(),
+                    x0=estm.simulator.x0,
+                )
+                gof.prepare_data(self.time, cur_X_raw.T, normalize=True)
+
+            logLL[i_gene] = gof.calc_mean_squared_deviation()  # .calc_gaussian_loglikelihood()
+
+        if self.est_method == "twostep" and self.has_splicing:
+            layers = ["M_u", "M_s"] if ("M_u" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else ["X_u",
+                                                                                                               "X_s"]
+            U, S = (
+                self.subset_adata.layers[layers[0]].T,
+                self.subset_adata.layers[layers[1]].T,
+            )
+            US, S2 = self.subset_adata.layers["M_us"].T, self.subset_adata.layers["M_ss"].T
+            # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+            gamma_k, gamma_b, gamma_all_r2, gamma_all_logLL = fit_slope_stochastic(
+                S, U, US, S2, perc_left=None, perc_right=5
+            )
+
+            Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[: len(Estm[0])]])
+            Estm_df["gamma_k"] = gamma_k  # gamma_k = gamma / beta
+            Estm_df["beta"] = Estm_df["gamma"] / gamma_k  # gamma_k = gamma / beta
+            Estm_df["gamma_r2"] = gamma_all_r2
+        else:
+            Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[: len(Estm[0])]])
+
+        return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
+
+    def fit_mix_kinetics(self):
+        """Fit the input data to estimate parameters for mix_kinetics_degradation experiment type."""
+        total_layer = "M_t" if ("M_t" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_total"
+
+        if self.model.lower() in ["deterministic"]:
+            layer = "M_n" if ("M_n" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else "X_new"
+            X, X_raw = prepare_data_no_splicing(
+                self.subset_adata,
+                self.subset_adata.var.index,
+                self.time,
+                layer=layer,
+                total_layer=total_layer,
+            )
+        if self.model.lower() == "deterministic":
+            X = [X[i][0, :] for i in range(len(X))]
+            _param_ranges = {
+                "alpha": [0, 1000],
+                "gamma": [0, 1000],
+            }
+            x0 = {"u0": [0, 1000]}
+            Est = Estimation_KineticChase
+        else:
+            raise NotImplementedError(
+                f"only `deterministic` model implemented for mix_pulse_chase/mix_kin_deg experiment!"
+            )
+        _param_ranges = update_dict(_param_ranges, self.param_rngs)
+        x0_ = np.vstack([ran for ran in x0.values()]).T
+
+        n_genes = self.subset_adata.n_vars
+        cost, logLL = np.zeros(n_genes), np.zeros(n_genes)
+        all_keys = list(_param_ranges.keys()) + list(x0.keys())
+        all_keys = [cur_key for cur_key in all_keys if cur_key != "alpha_i"]
+        half_life, Estm = np.zeros(n_genes), [None] * n_genes
+        X_data, X_fit_data = [None] * n_genes, [None] * n_genes
+        if self.experiment_type:
+            popt = [None] * n_genes
+
+        main_debug("model: %s, experiment_type: %s" % (self.model, self.experiment_type))
+        for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
+            if self.model.lower().startswith("mixture"):
+                estm = Est
+                if self.model.lower() == "mixture":
+                    cur_X_data = np.vstack([X[i_layer][i_gene] for i_layer in range(len(X))])
+                    if issparse(X_raw[0]):
+                        cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene].A for i_layer in range(len(X))])
+                    else:
+                        cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene] for i_layer in range(len(X))])
+                else:
+                    cur_X_data = X[i_gene]
+                    cur_X_raw = X_raw[i_gene]
+
+                    if issparse(cur_X_raw[0, 0]):
+                        cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+
+                _, cost[i_gene] = estm.auto_fit(np.unique(self.time), cur_X_data)
+                (
+                    model_1,
+                    model_2,
+                    kinetic_parameters,
+                    mix_x0,
+                ) = estm.export_dictionary().values()
+                tmp = list(kinetic_parameters.values())
+                tmp.extend(mix_x0)
+                Estm[i_gene] = tmp
+            else:
+                estm = Est()
+                cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
+
+                popt[i_gene], cost[i_gene] = estm.auto_fit(np.unique(self.time), cur_X_data)
+                Estm[i_gene] = estm.export_parameters()
+
+                if issparse(cur_X_raw[0, 0]):
+                    cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+                # model_1, kinetic_parameters, mix_x0 = estm.export_dictionary().values()
+                # tmp = list(kinetic_parameters.values())
+                # tmp.extend(mix_x0)
+                # Estm[i_gene] = tmp
+
+            X_data[i_gene] = cur_X_data
+            if self.model.lower().startswith("mixture"):
+                X_fit_data[i_gene] = estm.simulator.x.T
+                X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
+            else:
+                # kinetic chase simulation
+                kinetic_chase = estm.simulator.x.T
+                # hidden x
+                tt, h = estm.simulator.calc_init_conc()
+
+                X_fit_data[i_gene] = [kinetic_chase, [tt, h]]
+
+            half_life[i_gene] = estm.calc_half_life("gamma")
+
+            if self.model.lower().startswith("mixture"):
+                species = [0, 1, 2, 3] if self.has_splicing else [0, 1]
+                gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters())
+                gof.prepare_data(self.time, cur_X_raw.T, species=species, normalize=True)
+            else:
+                gof = GoodnessOfFit(
+                    estm.export_model(),
+                    params=estm.export_parameters(),
+                    x0=estm.simulator.x0,
+                )
+                gof.prepare_data(self.time, cur_X_raw.T, normalize=True)
+
+            logLL[i_gene] = gof.calc_mean_squared_deviation()  # .calc_gaussian_loglikelihood()
+
+        if self.est_method == "twostep":
+            if self.has_splicing:
+                layers = (
+                    ["M_u", "M_s"] if ("M_u" in self.subset_adata.layers.keys() and self.data_type == "smoothed") else ["X_u",
+                                                                                                              "X_s"]
+                )
+                U, S = (
+                    self.subset_adata.layers[layers[0]].T,
+                    self.subset_adata.layers[layers[1]].T,
+                )
+                US, S2 = (
+                    self.subset_adata.layers["M_us"].T,
+                    self.subset_adata.layers["M_ss"].T,
+                )
+                # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+                (
+                    gamma_k,
+                    gamma_b,
+                    gamma_all_r2,
+                    gamma_all_logLL,
+                ) = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+
+                Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[: len(Estm[0])]])
+                Estm_df["gamma_k"] = gamma_k  # gamma_k = gamma / beta
+                Estm_df["beta"] = Estm_df["gamma"] / gamma_k  # gamma_k = gamma / beta
+                Estm_df["gamma_r2"] = gamma_all_r2
+            else:
+                Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[: len(Estm[0])]])
+                Estm_df["gamma_k"] = Estm_df["gamma"]  # fix a bug in pl.dynamics
+        else:
+            Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[: len(Estm[0])]])
+
+        return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
+
+
 def kinetic_model(
     subset_adata: AnnData,
     tkey: str,
     model: Literal["auto", "deterministic", "stochastic"],
-    est_method: Literal["twostep", "direct"],
+    est_method: Literal["twostep", "direct", "storm-csp", "storm-cszip", "storm-icsp"],
     experiment_type: str,
     has_splicing: bool,
     splicing_labeling: bool,
@@ -1160,6 +3636,152 @@ def kinetic_model(
                     None,
                     X_data,
                     K_fit,
+                )
+
+                return (
+                    Estm_df,
+                    half_life,
+                    cost,
+                    logLL,
+                    _param_ranges,
+                    X_data,
+                    X_fit_data,
+                )
+        elif "storm" in est_method:
+            if has_splicing:
+                # Initialization based on the steady-state assumption
+                layers_smoothed = ["M_u", "M_s", "M_t", "M_n"]
+                U_smoothed, S_smoothed, Total_smoothed, New_smoothed = (
+                    subset_adata.layers[layers_smoothed[0]].T,
+                    subset_adata.layers[layers_smoothed[1]].T,
+                    subset_adata.layers[layers_smoothed[2]].T,
+                    subset_adata.layers[layers_smoothed[3]].T,
+                )
+
+                US_smoothed, S2_smoothed = (
+                    subset_adata.layers["M_us"].T,
+                    subset_adata.layers["M_ss"].T,
+                )
+                (gamma_k, _, _, _,) = fit_slope_stochastic(S_smoothed, U_smoothed, US_smoothed, S2_smoothed,
+                                                           perc_left=None, perc_right=5)
+                (gamma_init, _, _, _, _) = lin_reg_gamma_synthesis(Total_smoothed, New_smoothed, time, perc_right=5)
+                beta_init = gamma_init / gamma_k  # gamma_k = gamma / beta
+
+                # Read raw counts
+                layers_raw = ["ul", "sl"]
+                UL_raw, SL_raw = (
+                    subset_adata.layers[layers_raw[0]].T,
+                    subset_adata.layers[layers_raw[1]].T,
+                )
+
+                # Read smoothed values based CSP type distribution for cell-specific parameter inference
+                UL_smoothed_CSP, SL_smoothed_CSP = (
+                    subset_adata.layers['M_CSP_ul'].T,
+                    subset_adata.layers['M_CSP_sl'].T,
+                )
+
+                # Parameters inference based on maximum likelihood estimation
+                cell_total = subset_adata.obs['initial_cell_size'].astype("float").values
+                # Independent cell-specific Poisson
+                (gamma_s, gamma_r2, beta, gamma_t, gamma_r2_raw, alpha) = storm.mle_independent_cell_specific_poisson \
+                    (UL_raw, SL_raw, time, gamma_init, beta_init, cell_total, Total_smoothed, S_smoothed)
+                gamma_k = gamma_s / beta
+                gamma_b = np.zeros_like(gamma_k)
+
+                # Cell specific parameters (fixed gamma_s)
+                alpha, beta = storm.cell_specific_alpha_beta(UL_smoothed_CSP, SL_smoothed_CSP, time, gamma_s, beta)
+
+                # # Cell specific parameters(fixed gamma_t)
+                # k = 1 - np.exp(-gamma_t[:, None] * time[None, :])
+                # alpha = csr_matrix(gamma_t[:, None]).multiply(UL_smoothed_CSP+SL_smoothed_CSP).multiply(1 / k)
+
+                Estm_df = {
+                    "alpha": alpha,
+                    "beta": beta,
+                    "gamma_k": gamma_k,
+                    "gamma_b": gamma_b,
+                    # "gamma_k_r2": gamma_all_r2,
+                    # "gamma_logLL": gamma_all_logLL,
+                    "gamma": gamma_s,
+                    "gamma_r2": gamma_r2,
+                    # "mean_R2": mean_R2,
+                    "gamma_t": gamma_t,
+                    "gamma_r2_raw": gamma_r2_raw,
+                }
+                half_life = np.log(2) / gamma_s
+                cost, logLL, _param_ranges, X_data, X_fit_data = (
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+
+                return (
+                    Estm_df,
+                    half_life,
+                    cost,
+                    logLL,
+                    _param_ranges,
+                    X_data,
+                    X_fit_data,
+                )
+            else:
+                # Initialization based on the steady-state assumption
+                layers_smoothed = ["M_t", "M_n"]
+                Total_smoothed, New_smoothed = (
+                    subset_adata.layers[layers_smoothed[0]].T,
+                    subset_adata.layers[layers_smoothed[1]].T,
+                )
+                (gamma_init, _, _, _, _,) = lin_reg_gamma_synthesis(Total_smoothed, New_smoothed, time,
+                                                                    perc_right=5)
+
+                # Read raw counts
+                layers_raw = ["total", "new"]
+                Total_raw, New_raw = (
+                    subset_adata.layers[layers_raw[0]].T,
+                    subset_adata.layers[layers_raw[1]].T,
+                )
+
+                # Read smoothed values based CSP type distribution for cell-specific parameter inference
+                layers_smoothed_CSP = ["M_CSP_t", "M_CSP_n"]
+                Total_smoothed_CSP, New_smoothed_CSP = (
+                    subset_adata.layers[layers_smoothed_CSP[0]].T,
+                    subset_adata.layers[layers_smoothed_CSP[1]].T,
+                )
+
+                # Parameters inference based on maximum likelihood estimation
+                cell_total = subset_adata.obs['initial_cell_size'].astype("float").values
+
+                if "storm-csp" == est_method:
+                    gamma, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_poisson(New_raw, time,
+                                                                                           gamma_init, cell_total)
+                elif "storm-cszip" == est_method:
+                    gamma, prob_off, gamma_r2, gamma_r2_raw, alpha = storm.mle_cell_specific_zero_inflated_poisson(
+                        New_raw, time, gamma_init, cell_total)
+                    alpha = alpha * (1 - prob_off)  # gene-wise alpha
+                else:
+                    raise NotImplementedError("This method has not been implemented.")
+
+                k = 1 - np.exp(-gamma[:, None] * time[None, :])
+                alpha = csr_matrix(gamma[:, None]).multiply(New_smoothed_CSP).multiply(1 / k)  # gene-cell-wise alpha
+
+                Estm_df = {
+                    "alpha": alpha,
+                    "gamma": gamma,
+                    "gamma_k": gamma,  # required for phase_potrait
+                    "gamma_r2": gamma_r2,
+                    "gamma_r2_raw": gamma_r2_raw,
+                    # "mean_R2": mean_R2,
+                    "prob_off": prob_off if "cszip" in est_method else None
+                }
+                half_life = np.log(2) / gamma
+                cost, logLL, _param_ranges, X_data, X_fit_data = (
+                    None,
+                    None,
+                    None,
+                    None,  # X_data,
+                    None,  # K_fit,
                 )
 
                 return (
@@ -1663,7 +4285,7 @@ def kinetic_model(
         X_data[i_gene] = cur_X_data
         if model.lower().startswith("mixture"):
             X_fit_data[i_gene] = estm.simulator.x.T
-            X_fit_data[i_gene][estm.model1.n_species :] *= estm.scale
+            X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
         elif experiment_type in ["mix_kin_deg", "mix_pulse_chase"]:
             # kinetic chase simulation
             kinetic_chase = estm.simulator.x.T

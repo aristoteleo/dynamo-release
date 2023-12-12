@@ -41,7 +41,7 @@ from .pseudotime import order_cells
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension  # , run_umap
-from .dynamics import dynamics
+from .dynamics import dynamics, dynamics_wrapper
 
 # state graph related
 from .graph_calculus import GraphVectorField
