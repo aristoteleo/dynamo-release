@@ -644,8 +644,8 @@ def line_integral_conv(
         if "VecFld_" + basis in adata.uns.keys():
             # first check whether the sparseVFC reconstructed vector field exists
             X_grid_, V_grid = (
-                adata.uns["VecFld_" + basis]["VecFld"]["grid"],
-                adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
+                adata.uns["VecFld_" + basis]["grid"],
+                adata.uns["VecFld_" + basis]["grid_V"],
             )
             N = int(np.sqrt(V_grid.shape[0]))
             U_grid = np.reshape(V_grid[:, 0], (N, N)).T
@@ -716,10 +716,10 @@ def line_integral_conv(
         slc.set_log("velocity_sum", False)
 
         slc.annotate_velocity(normalize=normalize)
-        slc.annotate_streamlines("velocity_x", "velocity_y", density=density)
+        slc.annotate_streamlines(("gas", "velocity_x"), ("gas", "velocity_y"), density=density)
         slc.annotate_line_integral_convolution(
-            "velocity_x",
-            "velocity_y",
+            ("gas", "velocity_x"),
+            ("gas", "velocity_y"),
             lim=lim,
             const_alpha=const_alpha,
             kernellen=kernellen,
