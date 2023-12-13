@@ -483,11 +483,11 @@ def hessian(
     if Hessian is not None:
         ret_dict["hessian_gene"] = Hessian
     if regulators is not None:
-        ret_dict["regulators"] = regulators.to_list()
+        ret_dict["regulators"] = regulators.to_list() if type(regulators) != list else regulators
     if coregulators is not None:
-        ret_dict["coregulators"] = coregulators.to_list()
+        ret_dict["coregulators"] = coregulators.to_list() if type(coregulators) != list else coregulators
     if effector is not None:
-        ret_dict["effectors"] = effector.to_list()
+        ret_dict["effectors"] = effector.to_list() if type(effector) != list else effector
 
     if store_in_adata:
         hkey = "hessian" if basis is None else "hessian_" + basis

@@ -3,7 +3,7 @@ import pandas as pd
 import scipy.stats as stats
 from scipy.sparse import issparse
 
-from ..tools.utils_markers import fdr
+from ..tools.utils import fdr
 
 
 def normalize_data(mm, szfactors, pseudo_expr: float = 0.1):

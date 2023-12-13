@@ -5,7 +5,7 @@ from anndata import AnnData
 
 from ..dynamo_logger import LoggerManager
 from ..utils import copy_adata
-from .connectivity import _gen_neighbor_keys, neighbors
+from .connectivity import generate_neighbor_keys, neighbors
 from .utils import update_dict
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
@@ -100,7 +100,7 @@ def reduceDimension(
         embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
     if neighbor_key is None:
         neighbor_result_prefix = "" if layer is None else layer
-        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+        conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
 
     if enforce or not has_basis:
         logger.info(f"[{reduction_method.upper()}] using {basis} with n_pca_components = {n_pca_components}", indent_level=1)

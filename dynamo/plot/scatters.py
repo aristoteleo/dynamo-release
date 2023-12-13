@@ -19,7 +19,7 @@ from matplotlib.lines import Line2D
 from matplotlib.colors import rgb2hex, to_hex
 from pandas.api.types import is_categorical_dtype
 
-from ..configuration import _themes, reset_rcParams
+from ..configuration import _themes
 from ..docrep import DocstringProcessor
 from ..dynamo_logger import main_debug, main_info, main_warning
 from ..preprocessing.utils import affine_transform, gen_rotation_2d
@@ -39,7 +39,7 @@ from .utils import (
     is_layer_keys,
     is_list_of_lists,
     retrieve_plot_save_path,
-    save_fig,
+    save_show_ret,
     save_plotly_figure,
     save_pyvista_plotter,
 )
@@ -184,8 +184,8 @@ def scatters(
         save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
             the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
             be return. Defaults to "show".
-        save_kwargs: A dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: A dictionary that will passed to the save_show_ret function. By default it is an empty dictionary and
+            the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         return_all: whether to return all the scatter related variables. Defaults to False.
@@ -876,45 +876,12 @@ def scatters(
             _plot_basis_layer(cur_b, cur_l)
 
     main_debug("show, return or save...")
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "scatters",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-
-        # prevent the plot from being closed if the plot need to be shown or returned.
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        save_fig(**s_kwargs)
-        if background is not None:
-            reset_rcParams()
-    if save_show_or_return in ["show", "both", "all"]:
-        if show_legend:
-            plt.subplots_adjust(right=0.85)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            plt.tight_layout()
-
-        plt.show()
-        if background is not None:
-            reset_rcParams()
-    if save_show_or_return in ["return", "all"]:
-        if background is not None:
-            reset_rcParams()
-
-        if return_all:
-            return (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
-        else:
-            return axes_list if total_panels > 1 else ax
+    return_value = None
+    if return_all:
+        return_value = (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
+    else:
+        return_value = axes_list if total_panels > 1 else ax
+    return save_show_ret("scatters", save_show_or_return, save_kwargs, return_value, adjust=show_legend, background=background)
 
 
 def map_to_points(

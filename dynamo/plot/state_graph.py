@@ -10,9 +10,8 @@ import pandas as pd
 from anndata import AnnData
 from matplotlib.axes import Axes
 
-from ..tools.utils import update_dict
 from .scatters import docstrings, scatters
-from .utils import save_fig
+from .utils import save_show_ret
 
 docstrings.delete_params("scatters.parameters", "aggregate", "kwargs", "save_kwargs")
 
@@ -226,8 +225,8 @@ def state_graph(
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. If `contour` is set  to be True,
             `frontier` will be ignored as `contour` also add an outlier for data points. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {"alpha": 1}.
@@ -323,26 +322,4 @@ def state_graph(
 
     plt.axis("off")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "state_graph",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        if show_legend:
-            plt.subplots_adjust(right=0.85)
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return axes_list, color_list, font_color
+    return save_show_ret("state_graph", save_show_or_return, save_kwargs, (axes_list, color_list, font_color), adjust = show_legend)

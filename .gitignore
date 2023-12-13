@@ -67,5 +67,5 @@ public/*.js
 
 # Docker related:
 debug/numbers_in_dynamo_first_revision.py
-dynamo/tools/DDRTree_py.py
-dynamo/tools/psl_py.py
+dynamo/tools/DDRTree.py
+dynamo/tools/psl.py
