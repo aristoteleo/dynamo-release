@@ -72,6 +72,32 @@ def test_norm_loglikelihood():
     assert ll - ll_ground_truth < 1e-9
 
 
+def setup_cell_velocities_tests():
+    # Sets up adata for test cases
+    # Select only part of data to speed up tests.
+    adata = dyn.sample_data.DentateGyrus_scvelo()[:200, :1000]
+    from dynamo.preprocessing import Preprocessor
+    preprocessor = Preprocessor()
+    preprocessor.preprocess_adata(adata, recipe="monocle")
+    dyn.tl.dynamics(adata, model="stochastic")
+    dyn.tl.reduceDimension(adata)
+    return adata
+
+
+def test_cell_velocities():
+    adata = setup_cell_velocities_tests()
+
+    dyn.tl.cell_velocities(adata)
+    assert 'velocity_S' in adata.layers
+
+
+def test_cell_velocities_selecting_transition_genes():
+    adata = setup_cell_velocities_tests()
+
+    dyn.tl.cell_velocities(adata, transition_genes=[True]*adata.n_vars)
+    assert 'velocity_S' in adata.layers
+
+
 if __name__ == "__main__":
     # test_calc_laplacian()
     # test_divergence()
