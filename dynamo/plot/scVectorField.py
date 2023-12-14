@@ -562,7 +562,7 @@ def line_integral_conv(
     kernellen: float = 100,
     V_threshold: Optional[float] = None,
     vector: str = "velocity",
-    file: Optional[str] = None,
+    file: str = "vectorfield_LIC",
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     g_kwargs_dict: Dict[str, Any] = {},
@@ -625,8 +625,8 @@ def line_integral_conv(
         if "VecFld_" + basis in adata.uns.keys():
             # first check whether the sparseVFC reconstructed vector field exists
             X_grid_, V_grid = (
-                adata.uns["VecFld_" + basis]["VecFld"]["grid"],
-                adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
+                adata.uns["VecFld_" + basis]["grid"],
+                adata.uns["VecFld_" + basis]["grid_V"],
             )
             N = int(np.sqrt(V_grid.shape[0]))
             U_grid = np.reshape(V_grid[:, 0], (N, N)).T
@@ -697,10 +697,10 @@ def line_integral_conv(
         slc.set_log("velocity_sum", False)
 
         slc.annotate_velocity(normalize=normalize)
-        slc.annotate_streamlines("velocity_x", "velocity_y", density=density)
+        slc.annotate_streamlines(("gas", "velocity_x"), ("gas", "velocity_y"), density=density)
         slc.annotate_line_integral_convolution(
-            "velocity_x",
-            "velocity_y",
+            ("gas", "velocity_x"),
+            ("gas", "velocity_y"),
             lim=lim,
             const_alpha=const_alpha,
             kernellen=kernellen,
@@ -709,21 +709,16 @@ def line_integral_conv(
         slc.set_xlabel(basis + "_1")
         slc.set_ylabel(basis + "_2")
 
-        slc.show()
-
-        if file is not None:
-            # plt.rc('font', family='serif', serif='Times')
-            # plt.rc('text', usetex=True)
-            # plt.rc('xtick', labelsize=8)
-            # plt.rc('ytick', labelsize=8)
-            # plt.rc('axes', labelsize=8)
-            slc.save(file, mpl_kwargs={"figsize": [2, 2]})
+        if save_show_or_return in ["save", "both", "all"]:
+            slc.save(file, mpl_kwargs={"figsize": [2, 2]}, **save_kwargs)
+        if save_show_or_return in ["show", "both", "all"]:
+            slc.show()
+        if save_show_or_return in ["return", "all"]:
+            return slc
     elif method == "lic":
         # velocyto_tex = runlic(V_grid, V_grid, 100)
         # plot_LIC_gray(velocyto_tex)
         pass
-
-    return save_show_ret("line_integral_conv", save_show_or_return, save_kwargs, slc)
 
 
 @docstrings.with_indent(4)
