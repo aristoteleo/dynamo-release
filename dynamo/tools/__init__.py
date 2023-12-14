@@ -35,10 +35,9 @@ from .connectivity import (
 )
 
 # Pseudotime related
-from .construct_velocity_tree import construct_velocity_tree, construct_velocity_tree_py
-from .DDRTree_py import DDRTree, cal_ncenter
+from .DDRTree_graph import construct_velocity_tree, directed_pg
+from .DDRTree import DDRTree, cal_ncenter
 from .pseudotime import order_cells
-from .time_series import directed_pg
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension  # , run_umap
@@ -79,7 +78,7 @@ from .Markov import (
 from .metric_velocity import cell_wise_confidence, gene_wise_confidence
 from .moments import calc_1nd_moment, calc_2nd_moment, moments
 from .pseudotime_velocity import pseudotime_velocity
-from .psl_py import psl
+from .psl import psl
 
 # recipes:
 from .recipes import (
@@ -111,4 +110,9 @@ from .velocyto_scvelo import (
     run_velocyto,
     scv_dyn_convertor,
     vlm_to_adata,
+)
+
+# deprecated functions
+from .deprecated import (
+    construct_velocity_tree_py,
 )
