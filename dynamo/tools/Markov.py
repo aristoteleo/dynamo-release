@@ -16,279 +16,6 @@ from .connectivity import k_nearest_neighbors
 from .utils import append_iterative_neighbor_indices, flatten
 
 
-def markov_combination(x: np.ndarray, v: np.ndarray, X: np.ndarray) -> Tuple:
-    """Calculate the Markov combination by solving a 'cvxopt' library quadratic programming (QP) problem, which is
-    defined as:
-        minimize    (1/2)*x'*P*x + q'*x
-        subject to  G*x <= h
-
-    Args:
-        x: The cell data matrix.
-        v: The velocity data matrix.
-        X: The neighbors data matrix.
-
-    Returns:
-        A tuple containing the results of QP problem.
-    """
-    from cvxopt import matrix, solvers
-
-    n = X.shape[0]
-    R = matrix(X - x).T
-    H = R.T * R
-    f = matrix(v).T * R
-    G = np.vstack((-np.eye(n), np.ones(n)))
-    h = np.zeros(n + 1)
-    h[-1] = 1
-    p = solvers.qp(H, -f.T, G=matrix(G), h=matrix(h))["x"]
-    u = R * p
-    return p, u
-
-
-def compute_markov_trans_prob(
-    x: np.ndarray, v: np.ndarray, X: np.ndarray, s: Optional[np.ndarray] = None, cont_time: bool = False
-) -> np.ndarray:
-    """Calculate the Markov transition probabilities by solving a 'cvxopt' library quadratic programming (QP) problem,
-    which is defined as:
-        minimize    (1/2)*x'*P*x + q'*x
-        subject to  G*x <= h
-
-    Args:
-        x: The cell data matrix.
-        v: The velocity data matrix.
-        X: The neighbors data matrix.
-        s: Extra constraints added to the `q` in QP problem.
-        cont_time: Whether is continuous-time or not.
-
-    Returns:
-        An array containing the optimal Markov transition probabilities computed by QP problem.
-    """
-    from cvxopt import matrix, solvers
-
-    n = X.shape[0]
-    R = X - x
-    # normalize R, v, and s
-    Rn = np.array(R, copy=True)
-    vn = np.array(v, copy=True)
-    scale = np.abs(np.max(R, 0) - np.min(R, 0))
-    Rn = Rn / scale
-    vn = vn / scale
-    if s is not None:
-        sn = np.array(s, copy=True)
-        sn = sn / scale
-        A = np.hstack((Rn, 0.5 * Rn * Rn))
-        b = np.hstack((vn, 0.5 * sn * sn))
-    else:
-        A = Rn
-        b = vn
-
-    H = A.dot(A.T)
-    f = b.dot(A.T)
-    if cont_time:
-        G = -np.eye(n)
-        h = np.zeros(n)
-    else:
-        G = np.vstack((-np.eye(n), np.ones(n)))
-        h = np.zeros(n + 1)
-        h[-1] = 1
-    p = solvers.qp(matrix(H), matrix(-f), G=matrix(G), h=matrix(h))["x"]
-    p = np.array(p).flatten()
-    return p
-
-
-@jit(nopython=True)
-def compute_kernel_trans_prob(
-    x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float], cont_time: bool = False
-) -> np.ndarray:
-    """Calculate the transition probabilities.
-
-    Args:
-        x: The cell data matrix representing current state.
-        v: The velocity data matrix.
-        X: An array of data points representing the neighbors.
-        inv_s: The inverse of the diffusion matrix or a scalar value.
-        cont_time: Whether to use continuous-time kernel computation.
-
-    Returns:
-        The computed transition probabilities for each state in the Markov chain.
-    """
-    n = X.shape[0]
-    p = np.zeros(n)
-    for i in range(n):
-        d = X[i] - x
-        p[i] = np.exp(-0.25 * (d - v) @ inv_s @ (d - v).T)
-    p /= np.sum(p)
-    return p
-
-
-# @jit(nopython=True)
-def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
-    """Compute the kernal representing the drift based on input data and parameters.
-
-    Args:
-        x: The cell data matrix representing current state.
-        v: The velocity data matrix.
-        X: An array of data points representing the neighbors.
-        inv_s: The inverse of the diffusion matrix or a scalar value.
-
-    Returns:
-        The computed drift kernel values for each state in the Markov chain.
-    """
-    n = X.shape[0]
-    k = np.zeros(n)
-    for i in range(n):
-        d = X[i] - x
-        if np.isscalar(inv_s):
-            k[i] = np.exp(-0.25 * inv_s * (d - v).dot(d - v))
-        else:
-            k[i] = np.exp(-0.25 * (d - v) @ inv_s @ (d - v).T)
-    return k
-
-
-"""def compute_drift_local_kernel(x, v, X, inv_s):
-    n = X.shape[0]
-    k = np.zeros(n)
-    # compute tau
-    D = X - x
-    dists = np.zeros(n)
-    vds = np.zeros(n)
-    for (i, d) in enumerate(D):
-        dists[i] = np.linalg.norm(d)
-        if dists[i] > 0:
-            vds[i] = v.dot(d) / dists[i]
-    i_dir = np.logical_and(vds >= np.quantile(vds, 0.7), vds > 0)
-    tau = np.mean(dists[i_dir] / vds[i_dir])
-    if np.isnan(tau): tau = 1
-    if tau > 1e2: tau = 1e2
-
-    tau_v = tau * v
-    tau_invs = (1 / (tau * np.linalg.norm(v))) * inv_s
-    for i in range(n):
-        d = D[i]
-        k[i] = np.exp(-0.25 * (d-tau_v) @ tau_invs @ (d-tau_v).T)
-    return k, tau_invs"""
-
-
-# @jit(nopython=True)
-def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
-    """Compute a local kernel representing the drift based on input data and parameters.
-
-    Args:
-        x: The cell data matrix representing current state.
-        v: The velocity data matrix.
-        X: An array of data points representing the neighbors.
-        inv_s: The inverse of the diffusion matrix or a scalar value.
-
-    Returns:
-        The computed drift kernel values.
-    """
-    n = X.shape[0]
-    k = np.zeros(n)
-    # compute tau
-    D = X - x
-    dists = np.zeros(n)
-    vds = np.zeros(n)
-    for (i, d) in enumerate(D):
-        dists[i] = np.linalg.norm(d)
-        if dists[i] > 0:
-            vds[i] = v.dot(d) / dists[i]
-    i_dir = np.logical_and(vds >= np.quantile(vds, 0.7), vds > 0)
-    if np.any(i_dir):
-        tau = np.mean(dists[i_dir] / vds[i_dir])
-        if tau > 1e2:
-            tau = 1e2
-        tau_v = tau * v
-        tau_invs = (1 / (tau * v.dot(v))) * inv_s
-    else:
-        tau_v = 0
-        tau_invs = (1 / (1e2 * v.dot(v))) * inv_s
-    for i in range(n):
-        d = D[i]
-        if np.isscalar(tau_invs):
-            k[i] = np.exp(-0.25 * tau_invs * (d - tau_v).dot(d - tau_v))
-        else:
-            k[i] = np.exp(-0.25 * (d - tau_v) @ tau_invs @ (d - tau_v).T)
-    return k
-
-
-@jit(nopython=True)
-def compute_density_kernel(x: np.ndarray, X: np.ndarray, inv_eps: float) -> np.ndarray:
-    """Compute the density kernel values.
-
-    Args:
-        x: The cell data matrix representing current state.
-        X: An array of data points representing the neighbors.
-        inv_eps: The inverse of the epsilon.
-
-    Returns:
-        The computed density kernel values for each state.
-    """
-    n = X.shape[0]
-    k = np.zeros(n)
-    for i in range(n):
-        d = X[i] - x
-        k[i] = np.exp(-0.25 * inv_eps * d.dot(d))
-    return k
-
-
-@jit(nopython=True)
-def makeTransitionMatrix(Qnn: np.ndarray, I_vec: np.ndarray, tol: float = 0.0) -> np.ndarray:  # Qnn, I, tol=0.0
-    """Create the transition matrix based on the transition rate matrix `Qnn` and the indexing vector `I_vec`.
-
-    Args:
-        Qnn: The matrix which represents the transition rates between different states.
-        I_vec: The indexing vector to map the rows to the appropriate positions in the transition matrix.
-        tol: A numerical tolerance value to consider rate matrix elements as zero.
-
-    Returns:
-        The computed transition matrix based on `Qnn` and `I_vec`.
-    """
-    n = Qnn.shape[0]
-    M = np.zeros((n, n))
-
-    for i in range(n):
-        q = Qnn[i]
-        q[q < tol] = 0
-        M[I_vec[i], i] = q
-        M[i, i] = 1 - np.sum(q)
-    return M
-
-
-@jit(nopython=True)
-def compute_tau(X: np.ndarray, V: np.ndarray, k: int = 100, nbr_idx: Optional[np.ndarray] = None) -> Tuple:
-    """Compute the tau values for each state in `X` based on the local density and velocity magnitudes.
-
-    Args:
-        X: The data matrix which represents the states of the system.
-        V: The velocity matrix which represents the velocity vectors associated with each state in `X`.
-        k: The number of neighbors to consider when estimating local density. Default is 100.
-        nbr_idx: The indices of neighbors for each state in `X`.
-
-    Returns:
-        The computed tau values representing the timescale of transitions for each state in `X`. The computed velocity
-        magnitudes for each state in `X`.
-    """
-
-    if nbr_idx is None:
-        _, dists = k_nearest_neighbors(
-            X,
-            k=k - 1,
-            exclude_self=False,
-            pynn_rand_state=19491001,
-            n_jobs=-1,
-        )
-    else:
-        dists = np.zeros(nbr_idx.shape)
-        for i in range(nbr_idx.shape[0]):
-            for j in range(nbr_idx.shape[1]):
-                x = X[i]
-                y = X[nbr_idx[i, j]]
-                dists[i, j] = np.sqrt((x - y).dot(x - y))
-    d = np.mean(dists[:, 1:], 1)
-    v = np.linalg.norm(V, axis=1)
-    tau = d / v
-    return tau, v
-
-
 def prepare_velocity_grid_data(
     X_emb: np.ndarray,
     xy_grid_nums: List,
@@ -488,150 +215,6 @@ def velocity_on_grid(
     return X_grid, V_grid, D
 
 
-# we might need a separate module/file for discrete vector field and markovian methods in the future
-def graphize_velocity(
-    V: np.ndarray,
-    X: np.ndarray,
-    nbrs_idx: Optional[list] = None,
-    k: int = 30,
-    normalize_v: bool = False,
-    E_func: Optional[Union[Callable, str]] = None
-) -> Tuple:
-    """The function generates a graph based on the velocity data. The flow from i- to j-th
-    node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
-
-    Args:
-        V: The velocities for all cells.
-        X: The coordinates for all cells.
-        nbrs_idx: A list of neighbor indices for each cell. If None a KNN will be performed instead.
-        k: The number of neighbors for the KNN search.
-        normalize_v: Whether to normalize the velocity vectors.
-        E_func: A variance stabilizing function for reducing the variance of the flows.
-            If a string is passed, there are two options:
-                'sqrt': the `numpy.sqrt` square root function;
-                'exp': the `numpy.exp` exponential function.
-
-    Returns:
-        The edge matrix and the neighbor indices.
-    """
-    n, d = X.shape
-
-    nbrs = None
-    if nbrs_idx is None:
-        nbrs_idx, _ = k_nearest_neighbors(
-            X,
-            k=k,
-            exclude_self=False,
-            pynn_rand_state=19491001,
-        )
-
-    if type(E_func) is str:
-        if E_func == "sqrt":
-            E_func = np.sqrt
-        elif E_func == "exp":
-            E_func = np.exp
-        else:
-            raise NotImplementedError("The specified edge function is not implemented.")
-
-    # E = sp.csr_matrix((n, n))      # Making E a csr_matrix will slow down this process. Try lil_matrix maybe?
-    E = np.zeros((n, n))
-    for i in range(n):
-        x = flatten(X[i])
-        idx = nbrs_idx[i]
-        if len(idx) > 0 and idx[0] == i:  # excluding the node itself from the neighbors
-            idx = idx[1:]
-        vi = flatten(V[i])
-        if normalize_v:
-            vi_norm = np.linalg.norm(vi)
-            if vi_norm > 0:
-                vi /= vi_norm
-
-        # normalized differences
-        U = X[idx] - x
-        U_norm = np.linalg.norm(U, axis=1)
-        U_norm[U_norm == 0] = 1
-        U /= U_norm[:, None]
-
-        for jj, j in enumerate(idx):
-            vj = flatten(V[j])
-            if normalize_v:
-                vj_norm = np.linalg.norm(vj)
-                if vj_norm > 0:
-                    vj /= vj_norm
-            u = flatten(U[jj])
-            v = np.mean((vi.dot(u), vj.dot(u)))
-
-            if E_func is not None:
-                v = np.sign(v) * E_func(np.abs(v))
-            E[i, j] = v
-            E[j, i] = -v
-
-    return E, nbrs_idx
-
-
-def calc_Laplacian(E: np.ndarray, convention: str = "graph") -> np.ndarray:
-    """Calculate the Laplacian matrix of a given matrix of edge weights.
-
-    Args:
-        E: The matrix of edge weights which represents the weights of edges in a graph.
-        convention: The convention used to compute the Laplacian matrix.
-            If "graph", the Laplacian matrix will be calculated as the diagonal matrix of node degrees minus the adjacency matrix.
-            If "diffusion", the Laplacian matrix will be calculated as the negative of the graph Laplacian.
-            Default is "graph".
-
-    Returns:
-        The Laplacian matrix.
-    """
-    A = np.abs(np.sign(E))
-    L = np.diag(np.sum(A, 0)) - A
-
-    if convention == "diffusion":
-        L = -L
-
-    return L
-
-
-def fp_operator(E: np.ndarray, D: Union[int, float]) -> np.ndarray:
-    """Calculate the Fokker-Planck operator based on the given matrix of edge weights (E) and diffusion coefficient (D).
-
-    Args:
-        E: The matrix of edge weights.
-        D: The diffusion coefficient used in the Fokker-Planck operator.
-
-    Returns:
-        The Fokker-Planck operator matrix.
-    """
-    # drift
-    Mu = E.T.copy()
-    Mu[Mu < 0] = 0
-    Mu = np.diag(np.sum(Mu, 0)) - Mu
-    # diffusion
-    L = calc_Laplacian(E, convention="diffusion")
-
-    return -Mu + D * L
-
-
-def divergence(E: np.ndarray, tol: float = 1e-5) -> np.ndarray:
-    """Calculate the divergence for each node in a given matrix of edge weights.
-
-    Args:
-        E: The matrix of edge weights.
-        tol: The tolerance value. Edge weights below this value will be treated as zero.
-
-    Returns:
-        The divergence values for each node.
-    """
-    n = E.shape[0]
-    div = np.zeros(n)
-    # optimize for sparse matrices later...
-    for i in range(n):
-        for j in range(i + 1, n):
-            if np.abs(E[i, j]) > tol:
-                div[i] += E[i, j] - E[j, i]
-
-    return div
-
-
 class MarkovChain:
     """Base class for all Markov Chain implementation."""
     def __init__(
@@ -758,7 +341,7 @@ class MarkovChain:
         Returns:
             True if the matrix is properly normalized.
         """
-        if not P:
+        if P is None:
             main_warning("No transition matrix input. Normalization check is skipped.")
             return True
         else:
@@ -1581,3 +1164,420 @@ class ContinuousTimeMarkovChain(MarkovChain):
             p[p<=tol] = 0       # tolerance check
             self.P[Idx[i, 1:], i] = p
             self.P[i, i] = - np.sum(p)"""
+
+
+def markov_combination(x: np.ndarray, v: np.ndarray, X: np.ndarray) -> Tuple:
+    """Calculate the Markov combination by solving a 'cvxopt' library quadratic programming (QP) problem, which is
+    defined as:
+        minimize    (1/2)*x'*P*x + q'*x
+        subject to  G*x <= h
+
+    Args:
+        x: The cell data matrix.
+        v: The velocity data matrix.
+        X: The neighbors data matrix.
+
+    Returns:
+        A tuple containing the results of QP problem.
+    """
+    from cvxopt import matrix, solvers
+
+    n = X.shape[0]
+    R = matrix(X - x).T
+    H = R.T * R
+    f = matrix(v).T * R
+    G = np.vstack((-np.eye(n), np.ones(n)))
+    h = np.zeros(n + 1)
+    h[-1] = 1
+    p = solvers.qp(H, -f.T, G=matrix(G), h=matrix(h))["x"]
+    u = R * p
+    return p, u
+
+
+def compute_markov_trans_prob(
+    x: np.ndarray, v: np.ndarray, X: np.ndarray, s: Optional[np.ndarray] = None, cont_time: bool = False
+) -> np.ndarray:
+    """Calculate the Markov transition probabilities by solving a 'cvxopt' library quadratic programming (QP) problem,
+    which is defined as:
+        minimize    (1/2)*x'*P*x + q'*x
+        subject to  G*x <= h
+
+    Args:
+        x: The cell data matrix.
+        v: The velocity data matrix.
+        X: The neighbors data matrix.
+        s: Extra constraints added to the `q` in QP problem.
+        cont_time: Whether is continuous-time or not.
+
+    Returns:
+        An array containing the optimal Markov transition probabilities computed by QP problem.
+    """
+    from cvxopt import matrix, solvers
+
+    n = X.shape[0]
+    R = X - x
+    # normalize R, v, and s
+    Rn = np.array(R, copy=True)
+    vn = np.array(v, copy=True)
+    scale = np.abs(np.max(R, 0) - np.min(R, 0))
+    Rn = Rn / scale
+    vn = vn / scale
+    if s is not None:
+        sn = np.array(s, copy=True)
+        sn = sn / scale
+        A = np.hstack((Rn, 0.5 * Rn * Rn))
+        b = np.hstack((vn, 0.5 * sn * sn))
+    else:
+        A = Rn
+        b = vn
+
+    H = A.dot(A.T)
+    f = b.dot(A.T)
+    if cont_time:
+        G = -np.eye(n)
+        h = np.zeros(n)
+    else:
+        G = np.vstack((-np.eye(n), np.ones(n)))
+        h = np.zeros(n + 1)
+        h[-1] = 1
+    p = solvers.qp(matrix(H), matrix(-f), G=matrix(G), h=matrix(h))["x"]
+    p = np.array(p).flatten()
+    return p
+
+
+@jit(nopython=True)
+def compute_kernel_trans_prob(
+    x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float], cont_time: bool = False
+) -> np.ndarray:
+    """Calculate the transition probabilities.
+
+    Args:
+        x: The cell data matrix representing current state.
+        v: The velocity data matrix.
+        X: An array of data points representing the neighbors.
+        inv_s: The inverse of the diffusion matrix or a scalar value.
+        cont_time: Whether to use continuous-time kernel computation.
+
+    Returns:
+        The computed transition probabilities for each state in the Markov chain.
+    """
+    n = X.shape[0]
+    p = np.zeros(n)
+    for i in range(n):
+        d = X[i] - x
+        p[i] = np.exp(-0.25 * (d - v) @ inv_s @ (d - v).T)
+    p /= np.sum(p)
+    return p
+
+
+# @jit(nopython=True)
+def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
+    """Compute the kernal representing the drift based on input data and parameters.
+
+    Args:
+        x: The cell data matrix representing current state.
+        v: The velocity data matrix.
+        X: An array of data points representing the neighbors.
+        inv_s: The inverse of the diffusion matrix or a scalar value.
+
+    Returns:
+        The computed drift kernel values for each state in the Markov chain.
+    """
+    n = X.shape[0]
+    k = np.zeros(n)
+    for i in range(n):
+        d = X[i] - x
+        if np.isscalar(inv_s):
+            k[i] = np.exp(-0.25 * inv_s * (d - v).dot(d - v))
+        else:
+            k[i] = np.exp(-0.25 * (d - v) @ inv_s @ (d - v).T)
+    return k
+
+
+"""def compute_drift_local_kernel(x, v, X, inv_s):
+    n = X.shape[0]
+    k = np.zeros(n)
+    # compute tau
+    D = X - x
+    dists = np.zeros(n)
+    vds = np.zeros(n)
+    for (i, d) in enumerate(D):
+        dists[i] = np.linalg.norm(d)
+        if dists[i] > 0:
+            vds[i] = v.dot(d) / dists[i]
+    i_dir = np.logical_and(vds >= np.quantile(vds, 0.7), vds > 0)
+    tau = np.mean(dists[i_dir] / vds[i_dir])
+    if np.isnan(tau): tau = 1
+    if tau > 1e2: tau = 1e2
+
+    tau_v = tau * v
+    tau_invs = (1 / (tau * np.linalg.norm(v))) * inv_s
+    for i in range(n):
+        d = D[i]
+        k[i] = np.exp(-0.25 * (d-tau_v) @ tau_invs @ (d-tau_v).T)
+    return k, tau_invs"""
+
+
+# @jit(nopython=True)
+def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
+    """Compute a local kernel representing the drift based on input data and parameters.
+
+    Args:
+        x: The cell data matrix representing current state.
+        v: The velocity data matrix.
+        X: An array of data points representing the neighbors.
+        inv_s: The inverse of the diffusion matrix or a scalar value.
+
+    Returns:
+        The computed drift kernel values.
+    """
+    n = X.shape[0]
+    k = np.zeros(n)
+    # compute tau
+    D = X - x
+    dists = np.zeros(n)
+    vds = np.zeros(n)
+    for (i, d) in enumerate(D):
+        dists[i] = np.linalg.norm(d)
+        if dists[i] > 0:
+            vds[i] = v.dot(d) / dists[i]
+    i_dir = np.logical_and(vds >= np.quantile(vds, 0.7), vds > 0)
+    if np.any(i_dir):
+        tau = np.mean(dists[i_dir] / vds[i_dir])
+        if tau > 1e2:
+            tau = 1e2
+        tau_v = tau * v
+        tau_invs = (1 / (tau * v.dot(v))) * inv_s
+    else:
+        tau_v = 0
+        tau_invs = (1 / (1e2 * v.dot(v))) * inv_s
+    for i in range(n):
+        d = D[i]
+        if np.isscalar(tau_invs):
+            k[i] = np.exp(-0.25 * tau_invs * (d - tau_v).dot(d - tau_v))
+        else:
+            k[i] = np.exp(-0.25 * (d - tau_v) @ tau_invs @ (d - tau_v).T)
+    return k
+
+
+@jit(nopython=True)
+def compute_density_kernel(x: np.ndarray, X: np.ndarray, inv_eps: float) -> np.ndarray:
+    """Compute the density kernel values.
+
+    Args:
+        x: The cell data matrix representing current state.
+        X: An array of data points representing the neighbors.
+        inv_eps: The inverse of the epsilon.
+
+    Returns:
+        The computed density kernel values for each state.
+    """
+    n = X.shape[0]
+    k = np.zeros(n)
+    for i in range(n):
+        d = X[i] - x
+        k[i] = np.exp(-0.25 * inv_eps * d.dot(d))
+    return k
+
+
+@jit(nopython=True)
+def makeTransitionMatrix(Qnn: np.ndarray, I_vec: np.ndarray, tol: float = 0.0) -> np.ndarray:  # Qnn, I, tol=0.0
+    """Create the transition matrix based on the transition rate matrix `Qnn` and the indexing vector `I_vec`.
+
+    Args:
+        Qnn: The matrix which represents the transition rates between different states.
+        I_vec: The indexing vector to map the rows to the appropriate positions in the transition matrix.
+        tol: A numerical tolerance value to consider rate matrix elements as zero.
+
+    Returns:
+        The computed transition matrix based on `Qnn` and `I_vec`.
+    """
+    n = Qnn.shape[0]
+    M = np.zeros((n, n))
+
+    for i in range(n):
+        q = Qnn[i]
+        q[q < tol] = 0
+        M[I_vec[i], i] = q
+        M[i, i] = 1 - np.sum(q)
+    return M
+
+
+@jit(nopython=True)
+def compute_tau(X: np.ndarray, V: np.ndarray, k: int = 100, nbr_idx: Optional[np.ndarray] = None) -> Tuple:
+    """Compute the tau values for each state in `X` based on the local density and velocity magnitudes.
+
+    Args:
+        X: The data matrix which represents the states of the system.
+        V: The velocity matrix which represents the velocity vectors associated with each state in `X`.
+        k: The number of neighbors to consider when estimating local density. Default is 100.
+        nbr_idx: The indices of neighbors for each state in `X`.
+
+    Returns:
+        The computed tau values representing the timescale of transitions for each state in `X`. The computed velocity
+        magnitudes for each state in `X`.
+    """
+
+    if nbr_idx is None:
+        _, dists = k_nearest_neighbors(
+            X,
+            k=k - 1,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+            n_jobs=-1,
+        )
+    else:
+        dists = np.zeros(nbr_idx.shape)
+        for i in range(nbr_idx.shape[0]):
+            for j in range(nbr_idx.shape[1]):
+                x = X[i]
+                y = X[nbr_idx[i, j]]
+                dists[i, j] = np.sqrt((x - y).dot(x - y))
+    d = np.mean(dists[:, 1:], 1)
+    v = np.linalg.norm(V, axis=1)
+    tau = d / v
+    return tau, v
+
+
+# we might need a separate module/file for discrete vector field and markovian methods in the future
+def graphize_velocity(
+    V: np.ndarray,
+    X: np.ndarray,
+    nbrs_idx: Optional[list] = None,
+    k: int = 30,
+    normalize_v: bool = False,
+    E_func: Optional[Union[Callable, str]] = None
+) -> Tuple:
+    """The function generates a graph based on the velocity data. The flow from i- to j-th
+    node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
+
+    Args:
+        V: The velocities for all cells.
+        X: The coordinates for all cells.
+        nbrs_idx: A list of neighbor indices for each cell. If None a KNN will be performed instead.
+        k: The number of neighbors for the KNN search.
+        normalize_v: Whether to normalize the velocity vectors.
+        E_func: A variance stabilizing function for reducing the variance of the flows.
+            If a string is passed, there are two options:
+                'sqrt': the `numpy.sqrt` square root function;
+                'exp': the `numpy.exp` exponential function.
+
+    Returns:
+        The edge matrix and the neighbor indices.
+    """
+    n, d = X.shape
+
+    nbrs = None
+    if nbrs_idx is None:
+        nbrs_idx, _ = k_nearest_neighbors(
+            X,
+            k=k,
+            exclude_self=False,
+            pynn_rand_state=19491001,
+        )
+
+    if type(E_func) is str:
+        if E_func == "sqrt":
+            E_func = np.sqrt
+        elif E_func == "exp":
+            E_func = np.exp
+        else:
+            raise NotImplementedError("The specified edge function is not implemented.")
+
+    # E = sp.csr_matrix((n, n))      # Making E a csr_matrix will slow down this process. Try lil_matrix maybe?
+    E = np.zeros((n, n))
+    for i in range(n):
+        x = flatten(X[i])
+        idx = nbrs_idx[i]
+        if len(idx) > 0 and idx[0] == i:  # excluding the node itself from the neighbors
+            idx = idx[1:]
+        vi = flatten(V[i])
+        if normalize_v:
+            vi_norm = np.linalg.norm(vi)
+            if vi_norm > 0:
+                vi /= vi_norm
+
+        # normalized differences
+        U = X[idx] - x
+        U_norm = np.linalg.norm(U, axis=1)
+        U_norm[U_norm == 0] = 1
+        U /= U_norm[:, None]
+
+        for jj, j in enumerate(idx):
+            vj = flatten(V[j])
+            if normalize_v:
+                vj_norm = np.linalg.norm(vj)
+                if vj_norm > 0:
+                    vj /= vj_norm
+            u = flatten(U[jj])
+            v = np.mean((vi.dot(u), vj.dot(u)))
+
+            if E_func is not None:
+                v = np.sign(v) * E_func(np.abs(v))
+            E[i, j] = v
+            E[j, i] = -v
+
+    return E, nbrs_idx
+
+
+def calc_Laplacian(E: np.ndarray, convention: str = "graph") -> np.ndarray:
+    """Calculate the Laplacian matrix of a given matrix of edge weights.
+
+    Args:
+        E: The matrix of edge weights which represents the weights of edges in a graph.
+        convention: The convention used to compute the Laplacian matrix.
+            If "graph", the Laplacian matrix will be calculated as the diagonal matrix of node degrees minus the adjacency matrix.
+            If "diffusion", the Laplacian matrix will be calculated as the negative of the graph Laplacian.
+            Default is "graph".
+
+    Returns:
+        The Laplacian matrix.
+    """
+    A = np.abs(np.sign(E))
+    L = np.diag(np.sum(A, 0)) - A
+
+    if convention == "diffusion":
+        L = -L
+
+    return L
+
+
+def fp_operator(E: np.ndarray, D: Union[int, float]) -> np.ndarray:
+    """Calculate the Fokker-Planck operator based on the given matrix of edge weights (E) and diffusion coefficient (D).
+
+    Args:
+        E: The matrix of edge weights.
+        D: The diffusion coefficient used in the Fokker-Planck operator.
+
+    Returns:
+        The Fokker-Planck operator matrix.
+    """
+    # drift
+    Mu = E.T.copy()
+    Mu[Mu < 0] = 0
+    Mu = np.diag(np.sum(Mu, 0)) - Mu
+    # diffusion
+    L = calc_Laplacian(E, convention="diffusion")
+
+    return -Mu + D * L
+
+
+def divergence(E: np.ndarray, tol: float = 1e-5) -> np.ndarray:
+    """Calculate the divergence for each node in a given matrix of edge weights.
+
+    Args:
+        E: The matrix of edge weights.
+        tol: The tolerance value. Edge weights below this value will be treated as zero.
+
+    Returns:
+        The divergence values for each node.
+    """
+    n = E.shape[0]
+    div = np.zeros(n)
+    # optimize for sparse matrices later...
+    for i in range(n):
+        for j in range(i + 1, n):
+            if np.abs(E[i, j]) > tol:
+                div[i] += E[i, j] - E[j, i]
+
+    return div

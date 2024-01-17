@@ -10,126 +10,32 @@ from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.sparse.linalg import inv
 
 
-def cal_ncenter(ncells: int, ncells_limit: int=100) -> int:
-    """Calculate the number of cells to be most significant in the reduced space.
-
-    Args:
-        ncells: Total number of cells.
-        ncells_limit: The max number of cells to be considered. Defaults to 100.
-
-    Returns:
-        The number of cells to be most significant in the reduced space. 
-    """    
-
-    res = np.round(
-        2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit))
-    )
-
-    return res
-
-
-def pca_projection(C: np.ndarray, L: int) -> np.ndarray:
-    """Solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I	
-
-    Args:
-        C: The matrix to calculate eigenvalues.
-        L: The number of Eigenvalues.
-
-    Returns:
-        The L largest Eigenvalues. 
-    """
-
-    V, U = eig(C)
-    eig_idx = np.argsort(V).tolist()
-    eig_idx.reverse()
-    W = U.T[eig_idx[0:L]].T
-    return W
-
-
-def sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Calculate the square distance between `a` and `b`. 
-
-    Args:
-        a: A matrix with dimension D x N
-        b: A matrix with dimension D x N
-
-    Returns:
-        A numeric value for the difference between a and b. 
-    """
-
-    aa = np.sum(a ** 2, axis=0)
-    bb = np.sum(b ** 2, axis=0)
-    ab = a.T.dot(b)
-
-    aa_repmat = matlib.repmat(aa[:, None], 1, b.shape[1])
-    bb_repmat = matlib.repmat(bb[None, :], a.shape[1], 1)
-
-    dist = abs(aa_repmat + bb_repmat - 2 * ab)
-
-    return dist
-
-
-def repmat(X: np.ndarray, m: int, n: int) -> np.ndarray:
-    """This function returns an array containing m (n) copies of A in the row (column) dimensions.
-
-    The size of B is size(A)*n when A is a matrix. For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix. 
-
-    Args:
-        X: An array like matrix.
-        m: Number of copies on row dimension.
-        n: Number of copies on column dimension.
-
-    Returns:
-        The constructed repmat. 
-    """
-
-    xy_rep = matlib.repmat(X, m, n)
-
-    return xy_rep
-
-
-def eye(m: int, n: int) -> np.ndarray:
-    """Equivalent of eye (matlab).
-
-    Return a m x n matrix with 0th diagonal to be 1 and the rest to be 0.
-
-    Args:
-        m: Number of rows.
-        n: Number of columns.
-
-    Returns:
-        The m x n eye matrix.
-    """
-    mat = np.eye(m, n)
-    return mat
-
-
 def DDRTree(
-        X: np.ndarray, 
-        maxIter: int, 
-        sigma: float, 
-        gamma: float, 
-        eps: int=0, 
-        dim: int=2, 
-        Lambda: float=1.0, 
-        ncenter: Optional[int]=None, 
-        keep_history: bool=False
+    X: np.ndarray,
+    maxIter: int,
+    sigma: float,
+    gamma: float,
+    eps: int = 0,
+    dim: int = 2,
+    Lambda: float = 1.0,
+    ncenter: Optional[int] = None,
+    keep_history: bool = False,
 ) -> Union[
-        pd.DataFrame, 
+        pd.DataFrame,
         Tuple[
-            np.ndarray, 
-            np.ndarray, 
-            np.ndarray, 
-            np.ndarray, 
-            np.ndarray, 
-            np.ndarray, 
-            np.ndarray, 
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
             List[np.ndarray],
         ],
     ]:
-    """Provides an implementation of the framework of reversed graph embedding (RGE). 
+    """Provides an implementation of the framework of reversed graph embedding (RGE).
 
-    This function is a python version of the DDRTree algorithm originally written in R. 
+    This function is a python version of the DDRTree algorithm originally written in R.
     (https://cran.r-project.org/web/packages/DDRTree/DDRTree.pdf)
 
     Args:
@@ -144,13 +50,13 @@ def DDRTree(
         keep_history: Whether to keep relative parameters during each iteration and return. Defaults to False.
 
     Returns:
-        A dataframe containing `W`, `Z`, `Y`, `stree`, `R`, `objs` for each iterations if `keep_history` is True. 
-        Otherwise, a tuple (Z, Y, stree, R, W, Q, C, objs). The items in the tuple is from the last iteration. `Z` is 
+        A dataframe containing `W`, `Z`, `Y`, `stree`, `R`, `objs` for each iterations if `keep_history` is True.
+        Otherwise, a tuple (Z, Y, stree, R, W, Q, C, objs). The items in the tuple is from the last iteration. `Z` is
         the reduced dimension; `Y` is the latent points as the center of Z; `stree` is the smooth tree graph embedded in
-        the low dimension space; `R` is used to transform the hard assignments used in K-means into soft assignments; 
-        `W` is the orthogonal set of d (dimensions) linear basis; `Q` is (I + lambda L)^(-1), where L = diag(B1) - B, a 
-        Laplacian matrix. `C` equals to XQ^(-1)X^T; `objs` is a list containing convergency conditions during the 
-        iterations. 
+        the low dimension space; `R` is used to transform the hard assignments used in K-means into soft assignments;
+        `W` is the orthogonal set of d (dimensions) linear basis; `Q` is (I + lambda L)^(-1), where L = diag(B1) - B, a
+        Laplacian matrix. `C` equals to XQ^(-1)X^T; `objs` is a list containing convergency conditions during the
+        iterations.
     """
 
     X = np.array(X).T
@@ -245,3 +151,97 @@ def DDRTree(
         return history
     else:
         return Z, Y, stree, R, W, Q, C, objs
+
+
+def cal_ncenter(ncells: int, ncells_limit: int = 100) -> int:
+    """Calculate the number of cells to be most significant in the reduced space.
+
+    Args:
+        ncells: Total number of cells.
+        ncells_limit: The max number of cells to be considered. Defaults to 100.
+
+    Returns:
+        The number of cells to be most significant in the reduced space. 
+    """    
+
+    res = np.round(
+        2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit))
+    )
+
+    return res
+
+
+def pca_projection(C: np.ndarray, L: int) -> np.ndarray:
+    """Solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I	
+
+    Args:
+        C: The matrix to calculate eigenvalues.
+        L: The number of Eigenvalues.
+
+    Returns:
+        The L largest Eigenvalues. 
+    """
+
+    V, U = eig(C)
+    eig_idx = np.argsort(V).tolist()
+    eig_idx.reverse()
+    W = U.T[eig_idx[0:L]].T
+    return W
+
+
+def sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Calculate the square distance between `a` and `b`. 
+
+    Args:
+        a: A matrix with dimension D x N
+        b: A matrix with dimension D x N
+
+    Returns:
+        A numeric value for the difference between a and b. 
+    """
+
+    aa = np.sum(a ** 2, axis=0)
+    bb = np.sum(b ** 2, axis=0)
+    ab = a.T.dot(b)
+
+    aa_repmat = matlib.repmat(aa[:, None], 1, b.shape[1])
+    bb_repmat = matlib.repmat(bb[None, :], a.shape[1], 1)
+
+    dist = abs(aa_repmat + bb_repmat - 2 * ab)
+
+    return dist
+
+
+def repmat(X: np.ndarray, m: int, n: int) -> np.ndarray:
+    """This function returns an array containing m (n) copies of A in the row (column) dimensions.
+
+    The size of B is size(A)*n when A is a matrix. For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix. 
+
+    Args:
+        X: An array like matrix.
+        m: Number of copies on row dimension.
+        n: Number of copies on column dimension.
+
+    Returns:
+        The constructed repmat. 
+    """
+
+    xy_rep = matlib.repmat(X, m, n)
+
+    return xy_rep
+
+
+def eye(m: int, n: int) -> np.ndarray:
+    """Equivalent of eye (matlab).
+
+    Return a m x n matrix with 0th diagonal to be 1 and the rest to be 0.
+
+    Args:
+        m: Number of rows.
+        n: Number of columns.
+
+    Returns:
+        The m x n eye matrix.
+    """
+    mat = np.eye(m, n)
+    return mat

@@ -14,9 +14,9 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from scipy.sparse import issparse
 
-from ..configuration import _themes, reset_rcParams, set_figure_params
-from ..tools.utils import get_mapper, update_dict
-from .utils import save_fig
+from ..configuration import _themes, set_figure_params
+from ..tools.utils import get_mapper
+from .utils import save_show_ret
 
 
 def bubble(
@@ -112,8 +112,8 @@ def bubble(
         figsize: the size of the figure. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Can be one of "save", "show", or "return".
             Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide
             a dictionary that properly modify those keys according to your needs.. Defaults to {}.
 
@@ -316,34 +316,4 @@ def bubble(
                 )
         axes[igene].set_xlabel("") if transpose else axes[igene].set_ylabel("")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "violin",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-        if background is not None:
-            reset_rcParams()
-    if save_show_or_return in ["show", "both", "all"]:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            plt.tight_layout()
-
-        plt.show()
-        if background is not None:
-            reset_rcParams()
-    if save_show_or_return in ["return", "all"]:
-        if background is not None:
-            reset_rcParams()
-
-        return fig, axes
+    return save_show_ret("violin", save_show_or_return, save_kwargs, (fig, axes), background=background)

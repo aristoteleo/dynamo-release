@@ -193,70 +193,6 @@ def cell_wise_confidence(
     return adata
 
 
-def jaccard(
-    X: np.ndarray, V: np.ndarray, n_pca_components: int, n_neigh: int, X_neighbors: csr_matrix
-) -> Tuple[np.ndarray, csr_matrix, np.ndarray]:
-    """Calculate cell-wise confidence matrix with Jaccard method.
-
-    This method measures how well each velocity vector meets the geometric constraints defined by the local neighborhood
-    structure. Jaccard index is calculated as the fraction of the number of the intersected set of nearest neighbors
-    from each cell at current expression state (X) and that from the future expression state (X + V) over the number of
-    the union of these two sets.
-
-    Args:
-        X: The expression states of single cells (or expression states in reduced dimension, like pca, of single cells).
-        V: The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
-            cells). Note that X, V_mat need to have the exact dimensionalities.
-        n_pca_components: The number of PCA components of the expression data.
-        n_neigh: The number of neighbors to be found.
-        X_neighbors: The neighbor matrix.
-
-    Returns:
-        The cell wise velocity confidence metric.
-    """
-    from sklearn.decomposition import TruncatedSVD
-
-    transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
-    Xt = X + V
-    if issparse(Xt):
-        Xt.data[Xt.data < 0] = 0
-        Xt.data = np.log2(Xt.data + 1)
-    else:
-        Xt = np.log2(Xt + 1)
-    X_fit = transformer.fit(Xt)
-    Xt_pca = X_fit.transform(Xt)[:, 1:]
-
-    V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(Xt_pca, n_neighbors=n_neigh, return_mapper=False)
-    X_neighbors_, V_neighbors_ = (
-        X_neighbors.dot(X_neighbors),
-        V_neighbors.dot(V_neighbors),
-    )
-    union_ = X_neighbors_ + V_neighbors_ > 0
-    intersect_ = mnn_from_list([X_neighbors_, V_neighbors_]) > 0
-
-    jaccard = (intersect_.sum(1) / union_.sum(1)).A1 if issparse(X) else intersect_.sum(1) / union_.sum(1)
-
-    return jaccard, intersect_, union_
-
-
-def consensus(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    """Calculate the consensus with expression matrix and velocity matrix.
-
-    Args:
-        x: Expression matrix (genes x cells).
-        y: Velocity vectors y_i for gene i.
-
-    Returns:
-        The consensus matrix.
-    """
-    x_norm, y_norm = np.linalg.norm(x), np.linalg.norm(y)
-    consensus = (
-        einsum_correlation(x[None, :], y, type="cosine")[0, 0] * np.min([x_norm, y_norm]) / np.max([x_norm, y_norm])
-    )
-
-    return consensus
-
-
 def gene_wise_confidence(
     adata: AnnData,
     group: str,
@@ -431,3 +367,68 @@ def gene_wise_confidence(
     adata.var.loc[genes, "avg_mature_confidence"] = avg.loc[genes, "mature_confidence"]
 
     adata.uns["gene_wise_confidence"] = confidence
+
+
+def jaccard(
+    X: np.ndarray, V: np.ndarray, n_pca_components: int, n_neigh: int, X_neighbors: csr_matrix
+) -> Tuple[np.ndarray, csr_matrix, np.ndarray]:
+    """Calculate cell-wise confidence matrix with Jaccard method.
+
+    This method measures how well each velocity vector meets the geometric constraints defined by the local neighborhood
+    structure. Jaccard index is calculated as the fraction of the number of the intersected set of nearest neighbors
+    from each cell at current expression state (X) and that from the future expression state (X + V) over the number of
+    the union of these two sets.
+
+    Args:
+        X: The expression states of single cells (or expression states in reduced dimension, like pca, of single cells).
+        V: The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+            cells). Note that X, V_mat need to have the exact dimensionalities.
+        n_pca_components: The number of PCA components of the expression data.
+        n_neigh: The number of neighbors to be found.
+        X_neighbors: The neighbor matrix.
+
+    Returns:
+        The cell wise velocity confidence metric.
+    """
+    from sklearn.decomposition import TruncatedSVD
+
+    transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
+    Xt = X + V
+    if issparse(Xt):
+        Xt.data[Xt.data < 0] = 0
+        Xt.data = np.log2(Xt.data + 1)
+    else:
+        Xt = np.log2(Xt + 1)
+    X_fit = transformer.fit(Xt)
+    Xt_pca = X_fit.transform(Xt)[:, 1:]
+
+    V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(Xt_pca, n_neighbors=n_neigh, return_mapper=False)
+    X_neighbors_, V_neighbors_ = (
+        X_neighbors.dot(X_neighbors),
+        V_neighbors.dot(V_neighbors),
+    )
+    union_ = X_neighbors_ + V_neighbors_ > 0
+    intersect_ = mnn_from_list([X_neighbors_, V_neighbors_]) > 0
+
+    jaccard = (intersect_.sum(1) / union_.sum(1)).A1 if issparse(X) else intersect_.sum(1) / union_.sum(1)
+
+    return jaccard, intersect_, union_
+
+
+def consensus(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Calculate the consensus with expression matrix and velocity matrix.
+
+    Args:
+        x: Expression matrix (genes x cells).
+        y: Velocity vectors y_i for gene i.
+
+    Returns:
+        The consensus matrix.
+    """
+    x_norm, y_norm = np.linalg.norm(x), np.linalg.norm(y)
+    consensus = (
+        einsum_correlation(x[None, :], y, type="cosine")[0, 0] * np.min([x_norm, y_norm]) / np.max([x_norm, y_norm])
+    )
+
+    return consensus
+

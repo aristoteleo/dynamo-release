@@ -23,7 +23,7 @@ from ..estimation.fit_jacobian import (
     hill_inh_func,
     hill_inh_grad,
 )
-from ..tools.utils import flatten, update_dict
+from ..tools.utils import flatten
 from ..vectorfield.utils import get_jacobian
 from ..vectorfield.vector_calculus import hessian as run_hessian
 from .utils import (
@@ -37,7 +37,7 @@ from .utils import (
     is_gene_name,
     is_layer_keys,
     is_list_of_lists,
-    save_fig,
+    save_show_ret,
 )
 
 
@@ -249,8 +249,8 @@ def response(
         figsize: size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         return_data: whether to return the data used to generate the heatmap. Defaults to False.
@@ -609,29 +609,7 @@ def response(
         axes[i, j].set_yticklabels(ylabels)
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "scatters",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        # prevent the plot from being closed if the plot need to be shown or returned.
-        if save_show_or_return == "both":
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both"]:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            plt.tight_layout()
-
-        plt.show()
+    save_show_ret("scatters", save_show_or_return, save_kwargs)
 
     list_for_return = []
 
@@ -680,8 +658,8 @@ def plot_hill_function(
         linewidth: the line width of the curve. Defaults to 2.
         save_show_or_return: whether to save or show the figure. Could be one of "save", "show", "both", or "all".
             "both" and "all" have the same effect. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **plot_kwargs: any other kwargs passed to `pyplot.plot`.
@@ -762,29 +740,7 @@ def plot_hill_function(
             raise NotImplementedError(f"The fit mode `{mode}` is not supported.")
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "scatters",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        # prevent the plot from being closed if the plot need to be shown or returned.
-        if save_show_or_return == "both":
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both"]:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            plt.tight_layout()
-
-        plt.show()
+    save_show_ret("scatters", save_show_or_return, save_kwargs)
 
 
 def causality(
@@ -854,8 +810,8 @@ def causality(
         figsize: the size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
         return_data: whether to return the calculated causality data. Defaults to False.
@@ -1190,29 +1146,7 @@ def causality(
     # plt.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
 
     plt.subplots_adjust(left=0.1, right=1, top=0.80, bottom=0.1, wspace=0.1)
-    if save_show_or_return in ["save", "both"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "scatters",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        # prevent the plot from being closed if the plot need to be shown or returned.
-        if save_show_or_return == "both":
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both"]:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            plt.tight_layout()
-
-        plt.show()
+    save_show_ret("scatters", save_show_or_return, save_kwargs)
 
     if return_data:
         return flat_res
@@ -1292,8 +1226,8 @@ def comb_logic(
         figsize: the size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
         return_data: whether to return the calculated causality data. Defaults to False.
@@ -1453,8 +1387,8 @@ def hessian(
         figsize: the size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to save or show the figure. If "both", it will save and plot the figure at the same time. If
             "all", the figure will be saved, displayed and the associated axis and other object will be return.
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-         and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+         and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}. Defaults to {}.
         return_data: whether to return the calculated causality data. Defaults to False.
