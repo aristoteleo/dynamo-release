@@ -1417,6 +1417,32 @@ def scatters2(
             % calpha
         )
 
+    if stack_colors and stack_colors_cmaps is None:
+        main_info("using default stack colors")
+        stack_colors_cmaps = [
+            "Greys",
+            "Purples",
+            "Blues",
+            "Greens",
+            "Oranges",
+            "Reds",
+            "YlOrBr",
+            "YlOrRd",
+            "OrRd",
+            "PuRd",
+            "RdPu",
+            "BuPu",
+            "GnBu",
+            "PuBu",
+            "YlGnBu",
+            "PuBuGn",
+            "BuGn",
+            "YlGn",
+        ]
+    stack_legend_handles = []
+    if stack_colors:
+        color_key = None
+
     if background is None:
         background = rcParams.get("figure.facecolor")
         background = to_hex(background) if type(background) is tuple else background
@@ -1491,6 +1517,9 @@ def scatters2(
     axes_list, color_list = [], []
     color_out = None
 
+    if stack_colors:
+        ax = None
+
     for cur_b in basis:
         for cur_l in layer:
             main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
@@ -1505,7 +1534,7 @@ def scatters2(
                         ax = plt.subplot(gs[ax_index], projection=projection)
                     ax_index += 1
 
-                    ax, color_out, font_color = scatters_single_input(
+                    ax, color_out, font_color, stack_legend_handles = scatters_single_input(
                         adata=adata,
                         basis=cur_b,
                         x=cur_x,
@@ -1521,8 +1550,6 @@ def scatters2(
                         color_key=color_key,
                         color_key_cmap=color_key_cmap,
                         background=background,
-                        ncols=ncols,
-                        pointsize=pointsize,
                         figsize=figsize,
                         show_legend=show_legend,
                         use_smoothed=use_smoothed,
@@ -1530,23 +1557,16 @@ def scatters2(
                         show_arrowed_spines=show_arrowed_spines,
                         ax=ax,
                         sort=sort,
-                        save_show_or_return=save_show_or_return,
-                        save_kwargs=save_kwargs,
-                        return_all=return_all,
                         add_gamma_fit=add_gamma_fit,
                         frontier=frontier,
                         contour=contour,
                         ccmap=ccmap,
-                        alpha=alpha,
                         calpha=calpha,
                         sym_c=sym_c,
                         smooth=smooth,
-                        dpi=dpi,
                         inset_dict=inset_dict,
-                        marker=marker,
                         group=group,
                         add_group_gamma_fit=add_group_gamma_fit,
-                        affine_transform_degree=affine_transform_degree,
                         affine_transform_A=affine_transform_A,
                         affine_transform_b=affine_transform_b,
                         stack_colors=stack_colors,
@@ -1554,57 +1574,25 @@ def scatters2(
                         stack_colors_title=stack_colors_title,
                         stack_colors_legend_size=stack_colors_legend_size,
                         stack_colors_cmaps=stack_colors_cmaps,
+                        stack_legend_handles=stack_legend_handles,
                         despline=despline,
                         deaxis=deaxis,
                         despline_sides=despline_sides,
                         projection=projection,
                         scatter_kwargs=scatter_kwargs,
-                        ** kwargs,
+                        ax_index=ax_index,
                     )
 
                     axes_list.append(ax)
                     color_list.append(color_out)
 
     main_debug("show, return or save...")
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "scatters",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-
-        # prevent the plot from being closed if the plot need to be shown or returned.
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        save_fig(**s_kwargs)
-        if background is not None:
-            reset_rcParams()
-    if save_show_or_return in ["show", "both", "all"]:
-        if show_legend:
-            plt.subplots_adjust(right=0.85)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            plt.tight_layout()
-
-        plt.show()
-        if background is not None:
-            reset_rcParams()
-    if save_show_or_return in ["return", "all"]:
-        if background is not None:
-            reset_rcParams()
-
-        if return_all:
-            return (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
-        else:
-            return axes_list if total_panels > 1 else ax
+    if return_all:
+        return_value = (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
+    else:
+        return_value = axes_list if total_panels > 1 else ax
+    return save_show_ret("scatters", save_show_or_return, save_kwargs, return_value, adjust=show_legend,
+                         background=background)
 
 
 def scatters_single_input(
@@ -1635,8 +1623,6 @@ def scatters_single_input(
     color_key: Union[Dict[str, str], List[str], None] = None,
     color_key_cmap: Optional[str] = None,
     background: Optional[str] = None,
-    ncols: int = 4,
-    pointsize: Optional[float] = None,
     figsize: Tuple[float, float] = (6, 4),
     show_legend: str = "on data",
     use_smoothed: bool = True,
@@ -1644,23 +1630,16 @@ def scatters_single_input(
     show_arrowed_spines: bool = False,
     ax: Optional[Axes] = None,
     sort: Literal["raw", "abs", "neg"] = "raw",
-    save_show_or_return: Literal["save", "show", "return", "both", "all"] = "show",
-    save_kwargs: Dict[str, Any] = {},
-    return_all: bool = False,
     add_gamma_fit: bool = False,
     frontier: bool = False,
     contour: bool = False,
     ccmap: Optional[str] = None,
-    alpha: float = 0.1,
     calpha: float = 0.4,
     sym_c: bool = False,
     smooth: bool = False,
-    dpi: int = 100,
     inset_dict: Dict[str, Any] = {},
-    marker: Optional[str] = None,
     group: Optional[str] = None,
     add_group_gamma_fit: bool = False,
-    affine_transform_degree: Optional[int] = None,
     affine_transform_A: Optional[float] = None,
     affine_transform_b: Optional[float] = None,
     stack_colors: bool = False,
@@ -1668,12 +1647,13 @@ def scatters_single_input(
     stack_colors_title: str = "stacked colors",
     stack_colors_legend_size: float = 2,
     stack_colors_cmaps: Optional[List[str]] = None,
+    stack_legend_handles: Optional[List[Line2D]] = None,
     despline: bool = True,
     deaxis: bool = True,
     despline_sides: Optional[List[str]] = None,
     projection: str = "2d",
     scatter_kwargs: Optional[Dict[str, Any]] = None,
-    **kwargs,
+    ax_index: Optional[int] = None,
 ) -> Union[
     Axes,
     List[Axes],
@@ -1927,7 +1907,27 @@ def scatters_single_input(
         color_key_cmap=color_key_cmap,
         background=background,
         title=cur_title,
+        stack_colors=stack_colors,
+        stack_colors_threshold=stack_colors_threshold,
     )
+
+    if stack_colors:
+        main_debug("stack colors: changing cmap")
+        cur_title = stack_colors_title
+        cmap = stack_colors_cmaps[(ax_index - 1) % len(stack_colors_cmaps)]
+        max_color = matplotlib.cm.get_cmap(cmap)(float("inf"))
+        # TODO: consider remove the legend because it is not helpful
+        legend_circle = Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor=max_color,
+            label=color,
+            markersize=stack_colors_legend_size,
+        )
+        stack_legend_handles.append(legend_circle)
+        ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_colors_legend_size})
 
     if aggregate is not None:
         groups, uniq_grp = (
@@ -2114,10 +2114,10 @@ def scatters_single_input(
                     "_adata does not seem to have %s column. Velocity estimation is required "
                     "before running this function." % group_k_name
                 )
-    return ax, color_out, font_color
+    return ax, color_out, font_color, stack_legend_handles
 
 
-def _get_color_parameters(adata, color, layer, labels, values, theme, cmap, color_key_cmap, background, title):
+def _get_color_parameters(adata, color, layer, labels, values, theme, cmap, color_key_cmap, background, title, stack_colors, stack_colors_threshold):
 
     font_color = _select_font_color(background)
 
@@ -2164,6 +2164,18 @@ def _get_color_parameters(adata, color, layer, labels, values, theme, cmap, colo
                 % color,
                 indent_level=2,
             )
+
+    if stack_colors and np.issubdtype(_color.dtype, np.number):
+        main_debug("Subsetting adata by stack_colors")
+        _stack_background_adata_indices = np.ones(len(adata), dtype=bool)
+        _stack_background_adata_indices = np.logical_and(
+            _stack_background_adata_indices, (_color < stack_colors_threshold)
+        )
+        if values is not None:
+            values = values[_color > stack_colors_threshold]
+        _color = _color[_color > stack_colors_threshold]
+        if len(_color) == 0:
+            main_info("skipping filtering %s because no point of %s is above threshold" % (color, color))
 
     is_not_continuous = not isinstance(_color[0], Number) or _color.dtype.name == "category"
 
