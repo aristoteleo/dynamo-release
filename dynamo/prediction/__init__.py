@@ -15,7 +15,7 @@ from .perturbation import (
     rank_perturbation_cells,
     rank_perturbation_genes,
 )
-from .state_graph import state_graph, tree_model
+from .state_graph import classify_clone_cell_type, state_graph, tree_model
 from .trajectory import GeneTrajectory, Trajectory
 from .trajectory_analysis import (
     calc_mean_exit_time,
@@ -45,5 +45,6 @@ __all__ = [
     "get_pulse_r0",
     "calc_mean_exit_time",
     "calc_mean_first_passage_time",
+    "classify_clone_cell_type",
     "mean_first_passage_time",
 ]

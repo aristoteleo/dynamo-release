@@ -1,7 +1,10 @@
-# YEAR: 2019
-# COPYRIGHT HOLDER: ddhodge
+""" This file implements graph operators using Graph object from iGraph as input.
 
-# Code adapted from https://github.com/kazumits/ddhodge.
+YEAR: 2019
+COPYRIGHT HOLDER: ddhodge
+
+Code adapted from https://github.com/kazumits/ddhodge.
+"""
 from typing import List, Optional, Union
 
 from itertools import combinations
@@ -10,6 +13,47 @@ import numpy as np
 from igraph import Graph
 from scipy.linalg import qr
 from scipy.sparse import csr_matrix
+
+
+def potential(g: Graph, div_neg: Optional[csr_matrix] = None) -> np.ndarray:
+    """Calculate potential for each cell.
+
+    The potential is related to the intrinsic time. Note that the returned value from this function is the negative of
+    potential. Thus, small potential is related to smaller intrinsic time and vice versa.
+
+    Args:
+        g: Graph object.
+        div_neg: Negative divergence. If None, it will be calculated from the graph.
+
+    Returns:
+        An array representing the potential.
+    """
+
+    div_neg = -div(g) if div_neg is None else div_neg
+    g_undirected = g.copy()
+    g_undirected.to_undirected()
+    L = np.array(g_undirected.laplacian())
+    Q, R = qr(L)
+    p = np.linalg.pinv(R).dot(Q.T).dot(div_neg)
+
+    res = p - p.min()
+    return res
+
+
+def grad(g: Graph, div_neg: Optional[csr_matrix] = None) -> np.ndarray:
+    """Compute the gradient of a potential field on a graph.
+
+    The gradient of a potential field on a graph represents the rate of change of the potential at each vertex. It is
+    obtained by multiplying the gradient operator with the potential field.
+
+    Args:
+        g: Graph object.
+        div_neg: Negative divergence. If None, it will be calculated from the graph.
+
+    Returns:
+        An array representing the gradient.
+    """
+    return gradop(g).dot(potential(g, div_neg))
 
 
 def gradop(g: Graph) -> csr_matrix:
@@ -28,6 +72,22 @@ def gradop(g: Graph) -> csr_matrix:
     return csr_matrix((x, (i, j)), shape=(ne, g.vcount()))
 
 
+def div(g: Graph) -> np.ndarray:
+    """Calculate divergence for each cell.
+
+    Negative values correspond to potential sink while positive corresponds to potential source.
+    https://en.wikipedia.org/wiki/Divergence
+
+    Args:
+        g: Graph object.
+
+    Returns:
+        The divergence of the graph
+    """
+    weight = np.array(g.es.get_attribute_values("weight"))
+    return divop(g).dot(weight)
+
+
 def divop(g: Graph) -> csr_matrix:
     """Compute the divergence operator for a graph.
 
@@ -38,6 +98,24 @@ def divop(g: Graph) -> csr_matrix:
         Divergence operator as a sparse matrix.
     """
     return -gradop(g).T
+
+
+def curl(g: Graph) -> np.ndarray:
+    """Calculate curl for each cell.
+
+    On 2d, negative values correspond to clockwise rotation while positive corresponds to anticlockwise rotation.
+    https://www.khanacademy.org/math/multivariable-calculus/greens-theorem-and-stokes-theorem/formal-definitions-of
+    -divergence-and-curl/a/defining-curl
+
+    Args:
+        g: Graph object.
+
+    Returns:
+        The curl of the graph.
+    """
+
+    weight = np.array(g.es.get_attribute_values("weight"))
+    return curlop(g).dot(weight)
 
 
 def curlop(g: Graph) -> csr_matrix:
@@ -100,81 +178,6 @@ def laplacian1(g: Graph) -> csr_matrix:
     cur_mat, grad_mat = curlop(g), gradop(g)
 
     return cur_mat.T.dot(cur_mat) - grad_mat.dot(grad_mat.T)
-
-
-def potential(g: Graph, div_neg: Optional[csr_matrix] = None) -> np.ndarray:
-    """Calculate potential for each cell.
-
-    The potential is related to the intrinsic time. Note that the returned value from this function is the negative of
-    potential. Thus, small potential is related to smaller intrinsic time and vice versa.
-
-    Args:
-        g: Graph object.
-        div_neg: Negative divergence. If None, it will be calculated from the graph.
-
-    Returns:
-        An array representing the potential.
-    """
-
-    div_neg = -div(g) if div_neg is None else div_neg
-    g_undirected = g.copy()
-    g_undirected.to_undirected()
-    L = np.array(g_undirected.laplacian())
-    Q, R = qr(L)
-    p = np.linalg.pinv(R).dot(Q.T).dot(div_neg)
-
-    res = p - p.min()
-    return res
-
-
-def grad(g: Graph, div_neg: Optional[csr_matrix] = None) -> np.ndarray:
-    """Compute the gradient of a potential field on a graph.
-
-    The gradient of a potential field on a graph represents the rate of change of the potential at each vertex. It is
-    obtained by multiplying the gradient operator with the potential field.
-
-    Args:
-        g: Graph object.
-        div_neg: Negative divergence. If None, it will be calculated from the graph.
-
-    Returns:
-        An array representing the gradient.
-    """
-    return gradop(g).dot(potential(g, div_neg))
-
-
-def div(g: Graph) -> np.ndarray:
-    """Calculate divergence for each cell.
-
-    Negative values correspond to potential sink while positive corresponds to potential source.
-    https://en.wikipedia.org/wiki/Divergence
-
-    Args:
-        g: Graph object.
-
-    Returns:
-        The divergence of the graph
-    """
-    weight = np.array(g.es.get_attribute_values("weight"))
-    return divop(g).dot(weight)
-
-
-def curl(g: Graph) -> np.ndarray:
-    """Calculate curl for each cell.
-
-    On 2d, negative values correspond to clockwise rotation while positive corresponds to anticlockwise rotation.
-    https://www.khanacademy.org/math/multivariable-calculus/greens-theorem-and-stokes-theorem/formal-definitions-of
-    -divergence-and-curl/a/defining-curl
-
-    Args:
-        g: Graph object.
-
-    Returns:
-        The curl of the graph.
-    """
-
-    weight = np.array(g.es.get_attribute_values("weight"))
-    return curlop(g).dot(weight)
 
 
 def triangles(g: Graph) -> List[int]:

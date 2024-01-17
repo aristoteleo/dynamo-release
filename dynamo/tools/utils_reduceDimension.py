@@ -14,11 +14,11 @@ from ..configuration import DKM
 from ..dynamo_logger import main_info_insert_adata_obsm
 from ..preprocessing.pca import pca
 from .connectivity import (
-    _gen_neighbor_keys,
+    generate_neighbor_keys,
     knn_to_adj,
     umap_conn_indices_dist_embedding,
 )
-from .psl_py import psl
+from .psl import psl
 from .utils import log1p_, update_dict
 
 
@@ -300,7 +300,7 @@ def run_reduce_dim(
 
         layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
         neighbor_result_prefix = "" if layer is None else layer
-        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+        conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
 
         adata.uns["umap_fit"] = {
             "X_data": X_data,

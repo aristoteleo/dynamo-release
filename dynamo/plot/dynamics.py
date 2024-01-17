@@ -27,7 +27,7 @@ from .utils import (
     despline,
     despline_all,
     quiver_autoscaler,
-    save_fig,
+    save_show_ret,
 )
 from .utils_dynamics import *
 
@@ -155,8 +155,8 @@ def phase_portraits(
             currently using. If None, only the first panel in the expression / velocity plot will have the arrowed
             spine. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
                 {
                     "path": None,
                     "prefix": 'phase_portraits',
@@ -1067,31 +1067,7 @@ def phase_portraits(
 
     update_vel_params(adata, params_df=vel_params_df)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "phase_portraits",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            plt.tight_layout()
-
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
+    return save_show_ret("phase_portraits", save_show_or_return, save_kwargs, g)
 
 
 def dynamics(
@@ -1142,8 +1118,8 @@ def dynamics(
         gene_order: the order of genes to present on the figure, either row-major or column major. Defaults to "column".
         font_size_scale: the scale factor of fonts. Defaults to 1.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
             {
                 "path": None,
                 "prefix": 'dynamics',
@@ -2733,27 +2709,7 @@ def dynamics(
                 elif experiment_type == "coassay":
                     pass  # show protein velocity (steady state and the Gamma distribution model)
     # g.autofmt_xdate(rotation=-30, ha='right')
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "dynamics",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
+    return save_show_ret("dynamics", save_show_or_return, save_kwargs, g)
 
 
 def dynamics_(

@@ -4,7 +4,7 @@ import os
 
 # import matplotlib.tri as tri
 import warnings
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 from warnings import warn
 
 import matplotlib
@@ -17,7 +17,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from scipy.spatial import Delaunay
 
-from ..configuration import _themes
+from ..configuration import _themes, reset_rcParams
 from ..dynamo_logger import main_debug
 from ..tools.utils import integrate_vf, update_dict  # integrate_vf_ivp
 
@@ -1657,6 +1657,84 @@ def save_fig(
 
     if verbose:
         print("Done")
+
+
+def save_show_ret(
+    prefix: str,
+    save_show_or_return: Literal["save", "show", "return", "both", "all"],
+    save_kwargs: Dict[str, Any],
+    ret_value = None,
+    tight: bool = True,
+    adjust: bool = False,
+    background: Optional[str] = None,
+):
+    """
+    Helper function that performs actions based on the variable save_show_or_return. 
+    Should always have at least 3 inputs (prefix, save_show__or_return, save_kwargs).
+
+    Args:
+        prefix: Prefix added to name of figure that will be saved. See the `s_kwargs` variable.
+        save_show_or_return: Whether the figure should be saved, shown, or returned. 
+            "both" means that the figure would be shown and saved but not returned. Defaults
+            to "show".
+        save_kwargs: A dictionary that will be passed to the save_fig() function. 
+            The save_fig() function will use
+                {
+                    "path": None, 
+                    "prefix": [prefix input], 
+                    "dpi": None, 
+                    "ext": 'pdf',
+                    "transparent": True, 
+                    "close": True, 
+                    "verbose": True
+                } 
+            as its parameters. `save_kwargs` modifies those keys according to your needs. Defaults to {}.
+        ret_value: Value to be returned if `save_show_or_return` equals "return" or "all".
+        tight: Toggles whether plt.tight_layout() is called.
+        adjust: Toggles whether plt.subplots_adjust() is called. Some functions, such as scatters(), pass
+            in a string rather than a boolean.
+        background: Toggles whether reset_rcParams() is called.
+
+    Returns:
+        If `save_show_or_return` is set as "return" or "all", returns `ret_value`.
+    """
+    if save_show_or_return in ["save", "both", "all"]:
+        s_kwargs = {
+            "path": None,
+            "prefix": prefix,
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        if save_show_or_return in ["both", "all"]:
+            s_kwargs["close"] = False
+
+        save_fig(**s_kwargs)
+        if background is not None:
+            reset_rcParams()
+
+    if save_show_or_return in ["show", "both", "all"]:
+        if adjust:
+            plt.subplots_adjust(right=0.85)
+
+        if tight:
+            #Do note that warnings should not be ignored in the future.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                plt.tight_layout()
+
+        plt.show()
+        if background is not None:
+            reset_rcParams()
+
+    if save_show_or_return in ["return", "all"]:
+        if background is not None:
+            reset_rcParams()
+        return ret_value
 
 
 def retrieve_plot_save_path(

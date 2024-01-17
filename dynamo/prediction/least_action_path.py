@@ -323,7 +323,7 @@ def lap_T(
     def jac(x):
         return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt)
 
-    sol_dict = minimize(fun, path_0[1:-1], jac=jac)
+    sol_dict = minimize(fun, path_0[1:-1].flatten(), jac=jac)
     path_sol = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
 
     # further optimization by varying dt

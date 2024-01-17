@@ -74,7 +74,7 @@ def fate(
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction
             is based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be
-            applied.
+            applied. If `average` is True, `origin` will be used.
         sampling: Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
             If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
             of all time points from all cell states' fate prediction will be used and then evenly sampled up to
@@ -95,15 +95,6 @@ def fate(
             attribute.
     """
 
-    if sampling in ["arc_length", "logspace", "uniform_indices"]:
-        if average in ["origin", "trajectory", True]:
-            main_warning(
-                f"using {sampling} to sample data points along an integral path at different integration "
-                "time points. Average trajectory won't be calculated"
-            )
-
-        average = False
-
     if basis is not None:
         fate_key = "fate_" + basis
         # vf_key = "VecFld_" + basis
@@ -123,7 +114,7 @@ def fate(
         init_cells,
         basis,
         layer,
-        True if average in ["origin", "trajectory", True] else False,
+        average,
         t_end,
     )
 
@@ -141,7 +132,7 @@ def fate(
         t_end=t_end,
         direction=direction,
         interpolation_num=interpolation_num,
-        average=True if average in ["origin", "trajectory", True] else False,
+        average=True if average == "trajectory" else False,
         sampling=sampling,
         cores=cores,
         **kwargs,
@@ -301,18 +292,19 @@ def _fate(
         pool.join()
         t_, prediction_ = zip(*res)
         t, prediction = [i[0] for i in t_], [i[0] for i in prediction_]
+
+    if init_states.shape[0] > 1 and average:
         t_stack, prediction_stack = np.hstack(t), np.hstack(prediction)
         n_cell, n_feature = init_states.shape
 
-        if init_states.shape[0] > 1 and average:
-            t_len = int(len(t_stack) / n_cell)
-            avg = np.zeros((n_feature, t_len))
+        t_len = int(len(t_stack) / n_cell)
+        avg = np.zeros((n_feature, t_len))
 
-            for i in range(t_len):
-                avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
+        for i in range(t_len):
+            avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
 
-            prediction = [avg]
-            t = [np.sort(np.unique(t))]
+        prediction = [avg]
+        t = [np.sort(np.unique(t))]
 
     return t, prediction
 

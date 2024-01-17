@@ -95,131 +95,22 @@ def knn_to_adj(knn_indices: np.ndarray, knn_weights: np.ndarray) -> csr_matrix:
     return adj
 
 
-def get_conn_dist_graph(knn: np.ndarray, distances: np.ndarray) -> Tuple[csr_matrix, csr_matrix]:
-    """Compute connection and distance sparse matrix.
+def normalize_knn_graph(knn: csr_matrix) -> csr_matrix:
+    """Normalize the knn graph so that each row will be sum up to 1.
 
     Args:
-        knn: A matrix (n x n_neighbors) storing the indices for each node's n_neighbors nearest neighbors in knn graph.
-        distances: The distances to the n_neighbors the closest points in knn graph.
+        knn: The sparse matrix containing the indices of nearest neighbors of each cell.
 
     Returns:
-        A tuple (distances, connectivities), where distance is the distance sparse matrix and connectivities is the
-        connectivity sparse matrix.
+        The normalized matrix.
     """
 
-    n_obs, n_neighbors = knn.shape
-    distances = csr_matrix(
-        (
-            distances.flatten(),
-            (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten()),
-        ),
-        shape=(n_obs, n_obs),
-    )
-    connectivities = distances.copy()
-    connectivities.data[connectivities.data > 0] = 1
+    """normalize the knn graph so that each row will be sum up to 1."""
+    knn.setdiag(1)
+    knn = knn.astype("float32")
+    sparsefuncs.inplace_row_scale(knn, 1 / knn.sum(axis=1).A1)
 
-    distances.eliminate_zeros()
-    connectivities.eliminate_zeros()
-
-    return distances, connectivities
-
-
-def construct_mapper_umap(
-    X: np.ndarray,
-    n_neighbors: int = 30,
-    n_components: int = 2,
-    metric: Union[str, Callable] = "euclidean",
-    min_dist: float = 0.1,
-    spread: float = 1.0,
-    max_iter: Optional[int] = None,
-    alpha: float = 1.0,
-    gamma: float = 1.0,
-    negative_sample_rate: float = 5,
-    init_pos: Union[Literal["spectral", "random"], np.ndarray] = "spectral",
-    random_state: Union[int, np.random.RandomState, None] = 0,
-    verbose: bool = False,
-    **umap_kwargs,
-) -> UMAP:
-    """Construct a UMAP object.
-
-    Args:
-        X: the expression matrix (n_cell x n_genes).
-        n_neighbors: the number of nearest neighbors to compute for each sample in `X`. Defaults to 30.
-        n_components: the dimension of the space to embed into. Defaults to 2.
-        metric: the metric to use for the computation. Defaults to "euclidean".
-        min_dist: the effective minimum distance between embedded points. Smaller values will result in a more
-            clustered/clumped embedding where nearby points on the manifold are drawn closer together, while larger
-            values will result on a more even dispersal of points. The value should be set relative to the `spread`
-            value, which determines the scale at which embedded points will be spread out. Defaults to 0.1.
-        spread: the effective scale of embedded points. In combination with min_dist this determines how
-            clustered/clumped the embedded points are. Defaults to 1.0.
-        max_iter: the number of training epochs to be used in optimizing the low dimensional embedding. Larger values
-            result in more accurate embeddings. If None is specified a value will be selected based on the size of the
-            input dataset (200 for large datasets, 500 for small). This argument was refactored from n_epochs from
-            UMAP-learn to account for recent API changes in UMAP-learn 0.5.2. Defaults to None.
-        alpha: initial learning rate for the SGD. Defaults to 1.0.
-        gamma: weight to apply to negative samples. Values higher than one will result in greater weight being given to
-            negative samples. Defaults to 1.0.
-        negative_sample_rate: the number of negative samples to select per positive sample in the optimization process.
-            Increasing this value will result in greater repulsive force being applied, greater optimization cost, but
-            slightly more accuracy. The number of negative edge/1-simplex samples to use per positive edge/1-simplex
-            sample in optimizing the low dimensional embedding. Defaults to 5.
-        init_pos: the method to initialize the low dimensional embedding. Where:
-            "spectral": use a spectral embedding of the fuzzy 1-skeleton.
-            "random": assign initial embedding positions at random.
-            np.ndarray: the array to define the initial position.
-            Defaults to "spectral".
-        random_state: the method to generate random numbers. If int, random_state is the seed used by the random number
-            generator; If RandomState instance, random_state is the random number generator; If None, the random number
-            generator is the RandomState instance used by `numpy.random`. Defaults to 0.
-        verbose: whether to log verbosely. Defaults to False.
-
-    Returns:
-        A `mapper` that is the data mapped onto umap space.
-    """
-
-    import umap.umap_ as umap
-    from sklearn.utils import check_random_state
-
-    from .utils import update_dict
-
-    # also see github issue at: https://github.com/lmcinnes/umap/issues/798
-    default_epochs = 500 if X.shape[0] <= 10000 else 200
-    max_iter = default_epochs if max_iter is None else max_iter
-
-    random_state = check_random_state(random_state)
-
-    _umap_kwargs = {
-        "angular_rp_forest": False,
-        "local_connectivity": 1.0,
-        "metric_kwds": None,
-        "set_op_mix_ratio": 1.0,
-        "target_metric": "categorical",
-        "target_metric_kwds": None,
-        "target_n_neighbors": -1,
-        "target_weight": 0.5,
-        "transform_queue_size": 4.0,
-        "transform_seed": 42,
-    }
-    umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
-
-    mapper = umap.UMAP(
-        n_neighbors=n_neighbors,
-        n_components=n_components,
-        metric=metric,
-        min_dist=min_dist,
-        spread=spread,
-        n_epochs=max_iter,
-        learning_rate=alpha,
-        repulsion_strength=gamma,
-        negative_sample_rate=negative_sample_rate,
-        init=init_pos,
-        random_state=random_state,
-        verbose=verbose,
-        **umap_kwargs,
-    ).fit(X)
-
-    return mapper
+    return knn
 
 
 @docstrings.get_sectionsf("umap_ann")
@@ -347,7 +238,6 @@ def umap_conn_indices_dist_embedding(
             "transform_seed": 42,
         }
         umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
-        dmat = pairwise_distances(X, metric=metric)
         mapper = umap.UMAP(
             n_neighbors=n_neighbors,
             n_components=n_components,
@@ -366,6 +256,7 @@ def umap_conn_indices_dist_embedding(
 
         if X.shape[0] < 4096:
             g_tmp = deepcopy(mapper.graph_)
+            dmat = pairwise_distances(X, metric=metric)
             g_tmp[mapper.graph_.nonzero()] = dmat[mapper.graph_.nonzero()]
             mapper._knn_indices, mapper._knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
 
@@ -467,134 +358,105 @@ def umap_conn_indices_dist_embedding(
         return graph, knn_indices, knn_dists, embedding_
 
 
-CsrOrNdarray = TypeVar("CsrOrNdarray", csr_matrix, np.ndarray)
-
-
-def mnn_from_list(knn_graph_list: List[CsrOrNdarray]) -> CsrOrNdarray:
-    """Apply `reduce` function to calculate the mutual kNN.
-
-    Args:
-        knn_graph_list: A list of ndarray or csr_matrix representing a series of knn graphs.
-
-    Returns:
-        The calculated mutual knn, in same type as the input (ndarray of csr_matrix).
-    """
-
-    import functools
-
-    mnn = (
-        functools.reduce(scipy.sparse.csr.csr_matrix.minimum, knn_graph_list)
-        if issparse(knn_graph_list[0])
-        else functools.reduce(scipy.minimum, knn_graph_list)
-    )
-
-    return mnn
-
-
-def normalize_knn_graph(knn: csr_matrix) -> csr_matrix:
-    """Normalize the knn graph so that each row will be sum up to 1.
+def construct_mapper_umap(
+    X: np.ndarray,
+    n_neighbors: int = 30,
+    n_components: int = 2,
+    metric: Union[str, Callable] = "euclidean",
+    min_dist: float = 0.1,
+    spread: float = 1.0,
+    max_iter: Optional[int] = None,
+    alpha: float = 1.0,
+    gamma: float = 1.0,
+    negative_sample_rate: float = 5,
+    init_pos: Union[Literal["spectral", "random"], np.ndarray] = "spectral",
+    random_state: Union[int, np.random.RandomState, None] = 0,
+    verbose: bool = False,
+    **umap_kwargs,
+) -> UMAP:
+    """Construct a UMAP object.
 
     Args:
-        knn: The sparse matrix containing the indices of nearest neighbors of each cell.
+        X: the expression matrix (n_cell x n_genes).
+        n_neighbors: the number of nearest neighbors to compute for each sample in `X`. Defaults to 30.
+        n_components: the dimension of the space to embed into. Defaults to 2.
+        metric: the metric to use for the computation. Defaults to "euclidean".
+        min_dist: the effective minimum distance between embedded points. Smaller values will result in a more
+            clustered/clumped embedding where nearby points on the manifold are drawn closer together, while larger
+            values will result on a more even dispersal of points. The value should be set relative to the `spread`
+            value, which determines the scale at which embedded points will be spread out. Defaults to 0.1.
+        spread: the effective scale of embedded points. In combination with min_dist this determines how
+            clustered/clumped the embedded points are. Defaults to 1.0.
+        max_iter: the number of training epochs to be used in optimizing the low dimensional embedding. Larger values
+            result in more accurate embeddings. If None is specified a value will be selected based on the size of the
+            input dataset (200 for large datasets, 500 for small). This argument was refactored from n_epochs from
+            UMAP-learn to account for recent API changes in UMAP-learn 0.5.2. Defaults to None.
+        alpha: initial learning rate for the SGD. Defaults to 1.0.
+        gamma: weight to apply to negative samples. Values higher than one will result in greater weight being given to
+            negative samples. Defaults to 1.0.
+        negative_sample_rate: the number of negative samples to select per positive sample in the optimization process.
+            Increasing this value will result in greater repulsive force being applied, greater optimization cost, but
+            slightly more accuracy. The number of negative edge/1-simplex samples to use per positive edge/1-simplex
+            sample in optimizing the low dimensional embedding. Defaults to 5.
+        init_pos: the method to initialize the low dimensional embedding. Where:
+            "spectral": use a spectral embedding of the fuzzy 1-skeleton.
+            "random": assign initial embedding positions at random.
+            np.ndarray: the array to define the initial position.
+            Defaults to "spectral".
+        random_state: the method to generate random numbers. If int, random_state is the seed used by the random number
+            generator; If RandomState instance, random_state is the random number generator; If None, the random number
+            generator is the RandomState instance used by `numpy.random`. Defaults to 0.
+        verbose: whether to log verbosely. Defaults to False.
 
     Returns:
-        The normalized matrix.
+        A `mapper` that is the data mapped onto umap space.
     """
 
-    """normalize the knn graph so that each row will be sum up to 1."""
-    knn.setdiag(1)
-    knn = knn.astype("float32")
-    sparsefuncs.inplace_row_scale(knn, 1 / knn.sum(axis=1).A1)
+    import umap.umap_ as umap
+    from sklearn.utils import check_random_state
 
-    return knn
+    from .utils import update_dict
 
+    # also see github issue at: https://github.com/lmcinnes/umap/issues/798
+    default_epochs = 500 if X.shape[0] <= 10000 else 200
+    max_iter = default_epochs if max_iter is None else max_iter
 
-def mnn(
-    adata: AnnData,
-    n_pca_components: int = 30,
-    n_neighbors: int = 250,
-    layers: Union[str, List[str]] = "all",
-    use_pca_fit: bool = True,
-    save_all_to_adata: bool = False,
-) -> AnnData:
-    """Calculate mutual nearest neighbor graph across specific data layers.
+    random_state = check_random_state(random_state)
 
-    Args:
-        adata: An AnnData object.
-        n_pca_components: The number of PCA components. Defaults to 30.
-        n_neighbors: The number of nearest neighbors to compute for each sample. Defaults to 250.
-        layers: The layer(s) to be normalized. When set to `'all'`, it will include RNA (X, raw) or spliced, unspliced,
-            protein, etc. Defaults to "all".
-        use_pca_fit: Whether to use the precomputed pca model to transform different data layers or calculate pca for
-            each data layer separately. Defaults to True.
-        save_all_to_adata: Whether to save_fig all calculated data to adata object. Defaults to False.
+    _umap_kwargs = {
+        "angular_rp_forest": False,
+        "local_connectivity": 1.0,
+        "metric_kwds": None,
+        "set_op_mix_ratio": 1.0,
+        "target_metric": "categorical",
+        "target_metric_kwds": None,
+        "target_n_neighbors": -1,
+        "target_weight": 0.5,
+        "transform_queue_size": 4.0,
+        "transform_seed": 42,
+    }
+    umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
 
-    Raises:
-        Exception: No PCA fit result in .uns.
+    mapper = umap.UMAP(
+        n_neighbors=n_neighbors,
+        n_components=n_components,
+        metric=metric,
+        min_dist=min_dist,
+        spread=spread,
+        n_epochs=max_iter,
+        learning_rate=alpha,
+        repulsion_strength=gamma,
+        negative_sample_rate=negative_sample_rate,
+        init=init_pos,
+        random_state=random_state,
+        verbose=verbose,
+        **umap_kwargs,
+    ).fit(X)
 
-    Returns:
-        An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
-        calculation.
-    """
-
-    if use_pca_fit:
-        if "PCs" in adata.uns.keys():
-            PCs = adata.uns["PCs"]
-        else:
-            raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
-
-    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
-    layers = [
-        layer
-        for layer in layers
-        if layer.startswith("X_") and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
-    ]
-    knn_graph_list = []
-    for layer in layers:
-        layer_X = adata.layers[layer]
-        layer_X = log1p_(adata, layer_X)
-        if use_pca_fit:
-            layer_pca = expr_to_pca(layer_X, PCs=PCs, mean=layer_X.mean(0))[:, 1:]
-        else:
-            transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
-            layer_pca = transformer.fit_transform(layer_X)[:, 1:]
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            (
-                graph,
-                knn_indices,
-                knn_dists,
-                X_dim,
-            ) = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors, return_mapper=False)
-
-        if save_all_to_adata:
-            adata.obsm[layer + "_pca"], adata.obsm[layer + "_umap"] = (
-                layer_pca,
-                X_dim,
-            )
-            n_neighbors = signature(umap_conn_indices_dist_embedding).parameters["n_neighbors"]
-
-            adata.uns[layer + "_neighbors"] = {
-                "params": {"n_neighbors": eval(n_neighbors), "method": "umap"},
-                # "connectivities": None,
-                # "distances": None,
-                "indices": knn_indices,
-            }
-            (
-                adata.obsp[layer + "_connectivities"],
-                adata.obsp[layer + "_distances"],
-            ) = (graph, knn_dists)
-
-        knn_graph_list.append(graph > 0)
-
-    mnn = mnn_from_list(knn_graph_list)
-    adata.uns["mnn"] = normalize_knn_graph(mnn)
-
-    return adata
+    return mapper
 
 
-def _gen_neighbor_keys(result_prefix: str = "") -> Tuple[str, str, str]:
+def generate_neighbor_keys(result_prefix: str = "") -> Tuple[str, str, str]:
     """Generate neighbor keys for other functions to store/access info in adata.
 
     Args:
@@ -616,30 +478,6 @@ def _gen_neighbor_keys(result_prefix: str = "") -> Tuple[str, str, str]:
         result_prefix + "neighbors",
     )
     return conn_key, dist_key, neighbor_key
-
-
-def correct_hnsw_neighbors(knn_hn: np.ndarray, distances_hn: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Corrects the indices and corresponding distances obtained from a hnswlib by manually adding self neighbors.
-
-    Args:
-        knn_hn: Array containing the k-NN indices obtained from the hnswlib.
-        distances_hn: Array containing the distances corresponding to the k-NN indices obtained from the HNSW index.
-
-    Returns:
-        A tuple containing the corrected indices and distances.
-    """
-    mask = knn_hn[:, 0] == np.arange(knn_hn.shape[0])
-    target_indices = np.where(mask)[0]
-    def roll(arr, value=0):
-        arr = np.roll(arr, 1, axis=0)
-        arr[0] = value
-        return arr
-
-    knn_corrected = [knn_hn[i] if i in target_indices else roll(knn_hn[i], i) for i in range(knn_hn.shape[0])]
-    distances_corrected = [
-        distances_hn[i] if i in target_indices else roll(distances_hn[i]) for i in range(distances_hn.shape[0])
-    ]
-    return np.vstack(knn_corrected), np.vstack(distances_corrected)
 
 
 def k_nearest_neighbors(
@@ -713,6 +551,7 @@ def k_nearest_neighbors(
 
     if method.lower() in ["pynn", "umap"]:
         from pynndescent import NNDescent
+
         nbrs = NNDescent(
             X,
             metric=metric,
@@ -724,6 +563,7 @@ def k_nearest_neighbors(
         nbrs_idx, dists = nbrs.query(query_X, k=k + 1)
     elif method in ["ball_tree", "kd_tree"]:
         from sklearn.neighbors import NearestNeighbors
+
         # print("***debug X_data:", X_data)
         nbrs = NearestNeighbors(
             n_neighbors=k + 1,
@@ -735,7 +575,11 @@ def k_nearest_neighbors(
         ).fit(X)
         dists, nbrs_idx = nbrs.kneighbors(query_X)
     elif method == "hnswlib":
-        import hnswlib
+        try:
+            import hnswlib
+        except ImportError:
+            raise ImportError("hnswlib is not installed, please install it first")
+
         space = "l2" if metric == "euclidean" else metric
         if space not in ["l2", "cosine", "ip"]:
             raise ImportError(f"hnswlib nearest neighbors with space {space} is not supported")
@@ -845,7 +689,7 @@ def neighbors(
         **kwargs,
     )
 
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(result_prefix)
     logger.info_insert_adata(conn_key, adata_attr="obsp")
     logger.info_insert_adata(dist_key, adata_attr="obsp")
     adata.obsp[dist_key], adata.obsp[conn_key] = get_conn_dist_graph(knn, distances)
@@ -890,7 +734,7 @@ def check_neighbors_completeness(
     """
 
     is_valid = True
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(result_prefix)
     keys = [conn_key, dist_key, neighbor_key]
 
     # Old anndata version version
@@ -956,8 +800,171 @@ def check_and_recompute_neighbors(adata: AnnData, result_prefix: str = "") -> No
 
     if result_prefix is None:
         result_prefix = ""
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(result_prefix)
 
     if not check_neighbors_completeness(adata, conn_key=conn_key, dist_key=dist_key, result_prefix=result_prefix):
         main_info("Neighbor graph is broken, recomputing....")
         neighbors(adata, result_prefix=result_prefix)
+
+
+def correct_hnsw_neighbors(knn_hn: np.ndarray, distances_hn: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Corrects the indices and corresponding distances obtained from a hnswlib by manually adding self neighbors.
+
+    Args:
+        knn_hn: Array containing the k-NN indices obtained from the hnswlib.
+        distances_hn: Array containing the distances corresponding to the k-NN indices obtained from the HNSW index.
+
+    Returns:
+        A tuple containing the corrected indices and distances.
+    """
+    mask = knn_hn[:, 0] == np.arange(knn_hn.shape[0])
+    target_indices = np.where(mask)[0]
+
+    def roll(arr, value=0):
+        arr = np.roll(arr, 1, axis=0)
+        arr[0] = value
+        return arr
+
+    knn_corrected = [knn_hn[i] if i in target_indices else roll(knn_hn[i], i) for i in range(knn_hn.shape[0])]
+    distances_corrected = [
+        distances_hn[i] if i in target_indices else roll(distances_hn[i]) for i in range(distances_hn.shape[0])
+    ]
+    return np.vstack(knn_corrected), np.vstack(distances_corrected)
+
+
+CsrOrNdarray = TypeVar("CsrOrNdarray", csr_matrix, np.ndarray)
+
+
+def mnn_from_list(knn_graph_list: List[CsrOrNdarray]) -> CsrOrNdarray:
+    """Apply `reduce` function to calculate the mutual kNN.
+
+    Args:
+        knn_graph_list: A list of ndarray or csr_matrix representing a series of knn graphs.
+
+    Returns:
+        The calculated mutual knn, in same type as the input (ndarray of csr_matrix).
+    """
+
+    import functools
+
+    mnn = (
+        functools.reduce(scipy.sparse.csr.csr_matrix.minimum, knn_graph_list)
+        if issparse(knn_graph_list[0])
+        else functools.reduce(scipy.minimum, knn_graph_list)
+    )
+
+    return mnn
+
+
+def mnn(
+    adata: AnnData,
+    n_pca_components: int = 30,
+    n_neighbors: int = 250,
+    layers: Union[str, List[str]] = "all",
+    use_pca_fit: bool = True,
+    save_all_to_adata: bool = False,
+) -> AnnData:
+    """Calculate mutual nearest neighbor graph across specific data layers.
+
+    Args:
+        adata: An AnnData object.
+        n_pca_components: The number of PCA components. Defaults to 30.
+        n_neighbors: The number of nearest neighbors to compute for each sample. Defaults to 250.
+        layers: The layer(s) to be normalized. When set to `'all'`, it will include RNA (X, raw) or spliced, unspliced,
+            protein, etc. Defaults to "all".
+        use_pca_fit: Whether to use the precomputed pca model to transform different data layers or calculate pca for
+            each data layer separately. Defaults to True.
+        save_all_to_adata: Whether to save_fig all calculated data to adata object. Defaults to False.
+
+    Raises:
+        Exception: No PCA fit result in .uns.
+
+    Returns:
+        An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
+        calculation.
+    """
+
+    if use_pca_fit:
+        if "PCs" in adata.uns.keys():
+            PCs = adata.uns["PCs"]
+        else:
+            raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
+
+    layers = DynamoAdataKeyManager.get_available_layer_keys(adata, layers, False, False)
+    layers = [
+        layer
+        for layer in layers
+        if layer.startswith("X_") and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
+    ]
+    knn_graph_list = []
+    for layer in layers:
+        layer_X = adata.layers[layer]
+        layer_X = log1p_(adata, layer_X)
+        if use_pca_fit:
+            layer_pca = expr_to_pca(layer_X, PCs=PCs, mean=layer_X.mean(0))[:, 1:]
+        else:
+            transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
+            layer_pca = transformer.fit_transform(layer_X)[:, 1:]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            (
+                graph,
+                knn_indices,
+                knn_dists,
+                X_dim,
+            ) = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors, return_mapper=False)
+
+        if save_all_to_adata:
+            adata.obsm[layer + "_pca"], adata.obsm[layer + "_umap"] = (
+                layer_pca,
+                X_dim,
+            )
+            n_neighbors = signature(umap_conn_indices_dist_embedding).parameters["n_neighbors"]
+
+            adata.uns[layer + "_neighbors"] = {
+                "params": {"n_neighbors": eval(n_neighbors), "method": "umap"},
+                # "connectivities": None,
+                # "distances": None,
+                "indices": knn_indices,
+            }
+            (
+                adata.obsp[layer + "_connectivities"],
+                adata.obsp[layer + "_distances"],
+            ) = (graph, knn_dists)
+
+        knn_graph_list.append(graph > 0)
+
+    mnn = mnn_from_list(knn_graph_list)
+    adata.uns["mnn"] = normalize_knn_graph(mnn)
+
+    return adata
+
+
+def get_conn_dist_graph(knn: np.ndarray, distances: np.ndarray) -> Tuple[csr_matrix, csr_matrix]:
+    """Compute connection and distance sparse matrix.
+
+    Args:
+        knn: A matrix (n x n_neighbors) storing the indices for each node's n_neighbors nearest neighbors in knn graph.
+        distances: The distances to the n_neighbors the closest points in knn graph.
+
+    Returns:
+        A tuple (distances, connectivities), where distance is the distance sparse matrix and connectivities is the
+        connectivity sparse matrix.
+    """
+
+    n_obs, n_neighbors = knn.shape
+    distances = csr_matrix(
+        (
+            distances.flatten(),
+            (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten()),
+        ),
+        shape=(n_obs, n_obs),
+    )
+    connectivities = distances.copy()
+    connectivities.data[connectivities.data > 0] = 1
+
+    distances.eliminate_zeros()
+    connectivities.eliminate_zeros()
+
+    return distances, connectivities
