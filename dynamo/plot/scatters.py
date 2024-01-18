@@ -49,7 +49,7 @@ docstrings = DocstringProcessor()
 
 
 @docstrings.get_sectionsf("scatters")
-def scatters(
+def scatters_legacy(
     adata: AnnData,
     basis: str = "umap",
     x: int = 0,
@@ -1333,7 +1333,7 @@ def scatters_interactive(
     )
 
 
-def scatters2(
+def scatters(
     adata: AnnData,
     basis: str = "umap",
     x: int = 0,
@@ -1406,6 +1406,153 @@ def scatters2(
     Tuple[List[Axes], List[str], Literal["white", "black"]],
     None,
 ]:
+    """Plot an embedding as points.
+
+    Support both 2D and 3D embeddings. While there are many optional parameters to further control and tailor the
+    plotting, you need only pass in the trained/fit umap model to get results. This plot utility will attempt to do the
+    hard work of avoiding overplotting issues, and make it easy to automatically color points by a categorical labelling
+    or numeric values. This method is intended to be used within a Jupyter notebook with `%matplotlib inline`.
+
+    Args:
+        adata: an AnnData object.
+        basis: the reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following
+            priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters`
+            is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`.
+            Defaults to "umap".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        z: the column index of the low dimensional embedding for the z-axis. Defaults to 2.
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        layer: the layer of data to use for the scatter plot. Defaults to "X".
+        highlights: the color group that will be highlighted. If highlights is a list of lists, each list is relate to
+            each color element. Defaults to None.
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Available themes are: {'blue', 'red', 'green', 'inferno', 'fire', 'viridis', 'darkblue',
+            'darkred', 'darkgreen'}. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        ncols: the number of columns for the figure. Defaults to 4.
+        pointsize: the scale of the point size. Actual point cell size is calculated as
+            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
+        figsize: the width and height of a figure. Defaults to (6, 4).
+        show_legend: whether to display a legend of the labels. Defaults to "on data".
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        aggregate: the column in adata.obs that will be used to aggregate data points. Defaults to None.
+        show_arrowed_spines: whether to show a pair of arrowed spines representing the basis of the scatter is currently
+            using. Defaults to False.
+        ax: the matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
+            Defaults to None.
+        sort: the method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
+            to "raw".
+        save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
+            the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
+            be return. Defaults to "show".
+        save_kwargs: A dictionary that will passed to the save_show_ret function. By default it is an empty dictionary and
+            the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        return_all: whether to return all the scatter related variables. Defaults to False.
+        add_gamma_fit: whether to add the line of the gamma fitting. This will automatically turn on if `basis` points
+            to gene names and those genes have went through gamma fitting. Defaults to False.
+        frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
+            show area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib
+            tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
+            scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. If `contour` is set  to be True,
+            `frontier` will be ignored as `contour` also add an outlier for data points. Defaults to False.
+        contour: whether to add an countor on top of scatter plots. We use tricontourf to plot contour for non-gridded
+            data. The shapely package was used to create a polygon of the concave hull of the scatters. With the polygon
+            we then check if the mean of the triangulated points are within the polygon and use this as our condition to
+            form the mask to create the contour. We also add the polygon shape as a frontier of the data point (similar
+            to when setting `frontier = True`). When the color of the data points is continuous, we will use the same
+            cmap as for the scatter points by default, when color is categorical, no contour will be drawn but just the
+            polygon. cmap can be set with `ccmap` argument. See below. This has recently changed to use seaborn's
+            kdeplot. Defaults to False.
+        ccmap: the name of a matplotlib colormap to use for coloring or shading points the contour. See above.
+            Defaults to None.
+        alpha: the point's alpha (transparency) value. Defaults to 0.1.
+        calpha: contour alpha value passed into sns.kdeplot. The value should be inbetween [0, 1]. Defaults to 0.4.
+        sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
+            for plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative
+            values. Defaults to False.
+        smooth: whether do you want to further smooth data and how much smoothing do you want. If it is `False`, no
+            smoothing will be applied. If `True`, smoothing based on one step diffusion of connectivity matrix
+            (`.uns['moment_cnn']`) will be applied. If a number larger than 1, smoothing will based on `smooth` steps of
+            diffusion.
+        dpi: the resolution of the figure in dots-per-inch. Dots per inches (dpi) determines how many pixels the figure
+            comprises. dpi is different from ppi or points per inches. Note that most elements like lines, markers,
+            texts have a size given in points so you can convert the points to inches. Matplotlib figures use Points per
+            inch (ppi) of 72. A line with thickness 1 point will be 1./72. inch wide. A text with fontsize 12 points
+            will be 12./72. inch heigh. Of course if you change the figure size in inches, points will not change, so a
+            larger figure in inches still has the same size of the elements.Changing the figure size is thus like taking
+            a piece of paper of a different size. Doing so, would of course not change the width of the line drawn with
+            the same pen. On the other hand, changing the dpi scales those elements. At 72 dpi, a line of 1 point size
+            is one pixel strong. At 144 dpi, this line is 2 pixels strong. A larger dpi will therefore act like a
+            magnifying glass. All elements are scaled by the magnifying power of the lens. see more details at answer 2
+            by @ImportanceOfBeingErnest:
+            https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size. Defaults to 100.
+        inset_dict: a  dictionary of parameters in inset_ax. Example, something like {"width": "5%", "height": "50%", "loc":
+            'lower left', "bbox_to_anchor": (0.85, 0.90, 0.145, 0.145), "bbox_transform": ax.transAxes, "borderpad": 0}
+            See more details at https://matplotlib.org/api/_as_gen/mpl_toolkits.axes_grid1.inset_locator.inset_axes.html
+            or https://stackoverflow.com/questions/39803385/what-does-a-4-element-tuple-argument-for-bbox-to-anchor-mean-in-matplotlib.
+            Defaults to {}.
+        marker: the marker style. marker can be either an instance of the class or the text shorthand for a particular
+            marker. See matplotlib.markers for more information about marker styles. Defaults to None.
+        group: the key in `adata.obs` corresponding to the cell group data. Defaults to None.
+        add_group_gamma_fit: whether to plot the cell group's gamma fit results. Defaults to False.
+        affine_transform_degree: transform coordinates of points according to some degree. Defaults to None.
+        affine_transform_A: coefficients in affine transformation Ax + b. 2D for now. Defaults to None.
+        affine_transform_b: bias in affine transformation Ax + b. Defaults to None.
+        stack_colors: whether to stack all color on the same ax passed above. Currently only support 18 sequential
+            matplotlib default cmaps assigning to different color groups. (#colors should be smaller than 18, reuse if
+            #colors > 18. TODO generate cmaps according to #colors). Defaults to False.
+        stack_colors_threshold: a threshold for filtering out points values < threshold when drawing each color. E.g. if
+            you do not want points with values < 1 showing up on axis, set threshold to be 1. Defaults to 0.001.
+        stack_colors_title: the title for the stack_color plot. Defaults to "stacked colors".
+        stack_colors_legend_size: the legend size in stack color plot. Defaults to 2.
+        stack_colors_cmaps: a list of cmaps that will be used to map values to color when stacking colors on the same
+            subplot. The order corresponds to the order of color. Defaults to None.
+        despline: whether to remove splines of the figure. Defaults to True.
+        deaxis: whether to remove axis ticks of the figure. Defaults to True.
+        despline_sides: which side of splines should be removed. Can be any combination of `["bottom", "right", "top", "left"]`. Defaults to None.
+        projection: the projection property of the matplotlib.Axes. Defaults to "2d".
+        **kwargs: any other kwargs that would be passed to `pyplot.scatters`.
+
+    Raises:
+        ValueError: invalid adata object: lacking of required layers.
+        ValueError: `basis` not found in `adata.obsm`.
+        ValueError: invalid `x` or `y`.
+        ValueError: `labels` and `values` conflicted.
+        ValueError: invalid velocity estimation in `adata`.
+        ValueError: invalid velocity estimation in `adata`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be 'return' or 'all', the matplotlib axes
+        object of the generated plots would be returned. If `return_all` is set to be true, the list of colors used and
+        the font color would also be returned.
+    """
     import matplotlib.pyplot as plt
 
     if projection == "2d":
@@ -1661,11 +1808,7 @@ def scatters_single_input(
     Tuple[List[Axes], List[str], Literal["white", "black"]],
     None,
 ]:
-    """Plot an embedding as points. Currently this only works for 2D embeddings. While there are many optional
-    parameters to further control and tailor the plotting, you need only pass in the trained/fit umap model to get
-    results. This plot utility will attempt to do the hard work of avoiding overplotting issues, and make it easy to
-    automatically color points by a categorical labelling or numeric values. This method is intended to be used within a
-    Jupyter notebook with `%matplotlib inline`.
+    """Generate a single scatter plot from given embedding.
 
     Args:
         adata: an AnnData object.
@@ -1678,7 +1821,7 @@ def scatters_single_input(
         z: the column index of the low dimensional embedding for the z-axis. Defaults to 2.
         color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
         layer: the layer of data to use for the scatter plot. Defaults to "X".
-        highlights: the color group that will be highlighted. If highligts is a list of lists, each list is relate to
+        highlights: the color group that will be highlighted. If highlights is a list of lists, each list is relate to
             each color element. Defaults to None.
         labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
             coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
@@ -1706,9 +1849,6 @@ def scatters_single_input(
             work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
             the things that themes handle for you. Note that if theme is passed then this value will be overridden by
             the corresponding option of the theme. Defaults to None.
-        ncols: the number of columns for the figure. Defaults to 4.
-        pointsize: the scale of the point size. Actual point cell size is calculated as
-            `500.0 / np.sqrt(adata.shape[0]) * pointsize`. Defaults to None.
         figsize: the width and height of a figure. Defaults to (6, 4).
         show_legend: whether to display a legend of the labels. Defaults to "on data".
         use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
@@ -1721,14 +1861,6 @@ def scatters_single_input(
         sort: the method to reorder data so that high values points will be on top of background points. Can be one of
             {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
             to "raw".
-        save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
-            the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
-            be return. Defaults to "show".
-        save_kwargs: A dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
-            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
-            dictionary that properly modify those keys according to your needs. Defaults to {}.
-        return_all: whether to return all the scatter related variables. Defaults to False.
         add_gamma_fit: whether to add the line of the gamma fitting. This will automatically turn on if `basis` points
             to gene names and those genes have went through gamma fitting. Defaults to False.
         frontier: whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to
@@ -1746,7 +1878,6 @@ def scatters_single_input(
             kdeplot. Defaults to False.
         ccmap: the name of a matplotlib colormap to use for coloring or shading points the contour. See above.
             Defaults to None.
-        alpha: the point's alpha (transparency) value. Defaults to 0.1.
         calpha: contour alpha value passed into sns.kdeplot. The value should be inbetween [0, 1]. Defaults to 0.4.
         sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
             for plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative
@@ -1755,28 +1886,13 @@ def scatters_single_input(
             smoothing will be applied. If `True`, smoothing based on one step diffusion of connectivity matrix
             (`.uns['moment_cnn']`) will be applied. If a number larger than 1, smoothing will based on `smooth` steps of
             diffusion.
-        dpi: the resolution of the figure in dots-per-inch. Dots per inches (dpi) determines how many pixels the figure
-            comprises. dpi is different from ppi or points per inches. Note that most elements like lines, markers,
-            texts have a size given in points so you can convert the points to inches. Matplotlib figures use Points per
-            inch (ppi) of 72. A line with thickness 1 point will be 1./72. inch wide. A text with fontsize 12 points
-            will be 12./72. inch heigh. Of course if you change the figure size in inches, points will not change, so a
-            larger figure in inches still has the same size of the elements.Changing the figure size is thus like taking
-            a piece of paper of a different size. Doing so, would of course not change the width of the line drawn with
-            the same pen. On the other hand, changing the dpi scales those elements. At 72 dpi, a line of 1 point size
-            is one pixel strong. At 144 dpi, this line is 2 pixels strong. A larger dpi will therefore act like a
-            magnifying glass. All elements are scaled by the magnifying power of the lens. see more details at answer 2
-            by @ImportanceOfBeingErnest:
-            https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size. Defaults to 100.
         inset_dict: a  dictionary of parameters in inset_ax. Example, something like {"width": "5%", "height": "50%", "loc":
             'lower left', "bbox_to_anchor": (0.85, 0.90, 0.145, 0.145), "bbox_transform": ax.transAxes, "borderpad": 0}
             See more details at https://matplotlib.org/api/_as_gen/mpl_toolkits.axes_grid1.inset_locator.inset_axes.html
             or https://stackoverflow.com/questions/39803385/what-does-a-4-element-tuple-argument-for-bbox-to-anchor-mean-in-matplotlib.
             Defaults to {}.
-        marker: the marker style. marker can be either an instance of the class or the text shorthand for a particular
-            marker. See matplotlib.markers for more information about marker styles. Defaults to None.
         group: the key in `adata.obs` corresponding to the cell group data. Defaults to None.
         add_group_gamma_fit: whether to plot the cell group's gamma fit results. Defaults to False.
-        affine_transform_degree: transform coordinates of points according to some degree. Defaults to None.
         affine_transform_A: coefficients in affine transformation Ax + b. 2D for now. Defaults to None.
         affine_transform_b: bias in affine transformation Ax + b. Defaults to None.
         stack_colors: whether to stack all color on the same ax passed above. Currently only support 18 sequential
@@ -1792,20 +1908,9 @@ def scatters_single_input(
         deaxis: whether to remove axis ticks of the figure. Defaults to True.
         despline_sides: which side of splines should be removed. Can be any combination of `["bottom", "right", "top", "left"]`. Defaults to None.
         projection: the projection property of the matplotlib.Axes. Defaults to "2d".
-        **kwargs: any other kwargs that would be passed to `pyplot.scatters`.
-
-    Raises:
-        ValueError: invalid adata object: lacking of required layers.
-        ValueError: `basis` not found in `adata.obsm`.
-        ValueError: invalid `x` or `y`.
-        ValueError: `labels` and `values` conflicted.
-        ValueError: invalid velocity estimation in `adata`.
-        ValueError: invalid velocity estimation in `adata`.
 
     Returns:
-        None would be returned by default. If `save_show_or_return` is set to be 'return' or 'all', the matplotlib axes
-        object of the generated plots would be returned. If `return_all` is set to be true, the list of colors used and
-        the font color would also be returned.
+        The matplotlib axes object of the generated plot.
     """
     import matplotlib.pyplot as plt
 
@@ -2117,7 +2222,21 @@ def scatters_single_input(
     return ax, color_out, font_color, stack_legend_handles
 
 
-def _get_color_parameters(adata, color, layer, labels, values, theme, cmap, color_key_cmap, background, title, stack_colors, stack_colors_threshold):
+def _get_color_parameters(
+    adata: AnnData,
+    color: str,
+    layer: str,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = None,
+    title: str = "",
+    stack_colors: bool = False,
+    stack_colors_threshold: float = 0.001,
+) -> Tuple:
+    """A helper function to get color parameters for scatters function."""
 
     font_color = _select_font_color(background)
 
@@ -2194,7 +2313,14 @@ def _get_color_parameters(adata, color, layer, labels, values, theme, cmap, colo
     return _color, labels, values, _theme_, cmap, color_key_cmap, background, font_color, is_not_continuous, title
 
 
-def _standardize_dimensions(x, y, z, n_obs, projection):
+def _standardize_dimensions(
+    x: Union[int, str, np.ndarray, anndata._core.views.ArrayView],
+    y: Union[int, str, np.ndarray, anndata._core.views.ArrayView],
+    z: Union[int, str, np.ndarray, anndata._core.views.ArrayView],
+    n_obs: int,
+    projection: str,
+) -> Tuple:
+    """A helper function to standardize the dimensions of x, y, z."""
     if projection == "3d":
         x, y, z = (
             _standardize_dimension(x, n_obs),
@@ -2210,7 +2336,8 @@ def _standardize_dimensions(x, y, z, n_obs, projection):
     return x, y, z
 
 
-def _standardize_dimension(dim, n_obs):
+def _standardize_dimension(dim: Union[int, str, np.ndarray, anndata._core.views.ArrayView], n_obs: int) -> List:
+    """A helper function to standardize the dimension of a given axis."""
     if type(dim) in [anndata._core.views.ArrayView, np.ndarray] and len(dim) == n_obs:
         return [dim]
     elif hasattr(dim, "__len__"):
