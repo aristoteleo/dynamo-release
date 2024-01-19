@@ -13,6 +13,7 @@ from matplotlib.axes import Axes
 from matplotlib.colors import ListedColormap
 from matplotlib.figure import Figure
 
+from .utils import save_show_ret
 from ..tools.utils import flatten, index_gene, velocity_on_grid
 from ..utils import areinstance, isarray
 
@@ -40,6 +41,8 @@ def plot_X(
     create_figure: bool = False,
     figsize: Tuple[float, float] = (6, 6),
     sort_by_c: Literal["neg", "abs", "raw"] = "raw",
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ) -> None:
     """Plot scatter graph of the specified dimensions in an array.
@@ -90,6 +93,8 @@ def plot_X(
         plt.gcf().add_subplot(111, projection="3d")
         plt.gca().scatter(x, y, z, c=c, **kwargs)
 
+    return save_show_ret("plot_X", save_show_or_return, save_kwargs, plt.gca())
+
 
 def plot_V(
     X: np.ndarray,
@@ -99,6 +104,8 @@ def plot_V(
     dims: Optional[List[int]] = None,
     create_figure: bool = False,
     figsize: Tuple[float, float] = (6, 6),
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ) -> None:
     """Plot quiver graph (vector arrow graph) with given vectors.
@@ -121,6 +128,8 @@ def plot_V(
         dim2 = dims[1]
     plt.quiver(X[:, dim1], X[:, dim2], V[:, dim1], V[:, dim2], **kwargs)
 
+    return save_show_ret("plot_V", save_show_or_return, save_kwargs, plt.gca())
+
 
 def zscatter(
     adata: AnnData,
@@ -135,6 +144,8 @@ def zscatter(
     cbar_shrink: float = 0.4,
     sym_c: bool = False,
     axis_off: bool = True,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ) -> None:
     """Plot scatter graph for a given AnnData object.
@@ -206,7 +217,7 @@ def zscatter(
         color_map = None
 
     if color_map is None:
-        plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, **kwargs)
+        plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, save_show_or_return="return", **kwargs)
     else:
         plot_X(
             X,
@@ -215,6 +226,7 @@ def zscatter(
             dim3=dim3,
             c=color,
             cmap=color_map,
+            save_show_or_return="return",
             **kwargs,
         )
     if isarray(color):
@@ -238,6 +250,8 @@ def zscatter(
     if axis_off:
         plt.axis("off")
 
+    return save_show_ret("zscatter", save_show_or_return, save_kwargs, plt.gca())
+
 
 def zstreamline(
     adata: AnnData,
@@ -259,6 +273,8 @@ def zstreamline(
     linewidth: float = 1,
     constant_lw: bool = False,
     density: float = 1,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: dict = {},
     **streamline_kwargs,
 ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
     """Plot streamline graph with given AnnData object.
@@ -358,6 +374,8 @@ def zstreamline(
     if return_grid:
         return X_grid.T, V_grid.T
 
+    return save_show_ret("zstreamline", save_show_or_return, save_kwargs, plt.gca())
+
 
 def multiplot(
     plot_func: Callable,
@@ -366,6 +384,8 @@ def multiplot(
     n_col: int = 3,
     fig: Figure = None,
     subplot_size: Tuple[float, float] = (6, 4),
+    save_show_or_return: Literal["save", "show", "return"] = "return",
+    save_kwargs: dict = {},
 ) -> List[Axes]:
     """Plot multiple graphs with same plotting function but different inputs.
 
@@ -420,6 +440,8 @@ def plot_jacobian_gene(
     basis: str = "pca",
     regulators: Optional[Iterable[str]] = None,
     effectors: Optional[Iterable[str]] = None,
+    save_show_or_return: Literal["save", "show", "return"] = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ) -> None:
     """Plot scatter graphs for gene's jacobians to show relationship between the regulators and effectors.
@@ -443,9 +465,10 @@ def plot_jacobian_gene(
                 if effectors is None or eff in effectors:
                     c_arr.append(J_dict["jacobian_gene"][j, i, :])
                     ti_arr.append(f"{eff} wrt. {reg}")
-    multiplot(
-        lambda c, ti: [zscatter(adata, color=c, **kwargs), plt.title(ti)],
+    ax_list = multiplot(
+        lambda c, ti: [zscatter(adata, color=c, save_show_or_return="return", **kwargs), plt.title(ti)],
         {"c": c_arr, "ti": ti_arr},
         n_col=2,
         subplot_size=(8, 4),
     )
+    return save_show_ret("plot_jacobian_gene", save_show_or_return, save_kwargs, ax_list)
