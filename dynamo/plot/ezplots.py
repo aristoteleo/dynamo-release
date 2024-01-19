@@ -58,7 +58,25 @@ def plot_X(
         sort_by_c: how the colors and corresponding points would be sorted. Can be one of "raw", "neg", and "abs" and
             the data and color would be sorted based on the color scalar's original value, negative value, and absolute
             value, respectively. Defaults to "raw".
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
+                {
+                    "path": None,
+                    "prefix": 'phase_portraits',
+                    "dpi": None,
+                    "ext": 'pdf',
+                    "transparent": True,
+                    "close": True,
+                    "verbose": True
+                }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
+            your needs. Defaults to {}.
         **kwargs: any other kwargs to be passed to `plt.scatter`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be `return`, the matplotlib axis of the
+        plot would be returned.
     """
 
     if create_figure:
@@ -118,7 +136,25 @@ def plot_V(
         dims: a two-item list containing dim1 and dim2. This argument would override dim1 and dim2. Defaults to None.
         create_figure: whether to create a new figure. Defaults to False.
         figsize: the size of the figure. Defaults to (6, 6).
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
+                {
+                    "path": None,
+                    "prefix": 'phase_portraits',
+                    "dpi": None,
+                    "ext": 'pdf',
+                    "transparent": True,
+                    "close": True,
+                    "verbose": True
+                }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
+            your needs. Defaults to {}.
         **kwargs: any other kwargs that would be passed to `plt.quiver`.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be `return`, the matplotlib axis of the
+        plot would be returned.
     """
 
     if create_figure:
@@ -167,6 +203,24 @@ def zscatter(
         cbar_shrink: size factor of the color bar. Defaults to 0.4.
         sym_c: whether to make the color bar symmetric to 0. Defaults to False.
         axis_off: whether to turn of the axis in the graph. Defaults to True.
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
+                {
+                    "path": None,
+                    "prefix": 'phase_portraits',
+                    "dpi": None,
+                    "ext": 'pdf',
+                    "transparent": True,
+                    "close": True,
+                    "verbose": True
+                }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
+            your needs. Defaults to {}.
+
+    Returns:
+        None would be returned by default. If `save_show_or_return` is set to be `return`, the matplotlib axis of the
+        plot would be returned.
     """
 
     if layer is None or len(layer) == 0:
@@ -306,7 +360,22 @@ def zstreamline(
         constant_lw: whether to keep the streamlines having same width or to make the width vary corresponding to local
             velocity. Defaults to False.
         density: density of the stream plot. Refer to `pyplot.streamplot` for more details. Defaults to 1.
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
+                {
+                    "path": None,
+                    "prefix": 'phase_portraits',
+                    "dpi": None,
+                    "ext": 'pdf',
+                    "transparent": True,
+                    "close": True,
+                    "verbose": True
+                }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
+            your needs. Defaults to {}.
         **streamline_kwargs: any other kwargs to be passed to `pyplot.streamplot`.
+
     Returns:
         None would be returned in default. if `return_grid` is set to be True, the grids of X and V would be returned.
     """
@@ -402,9 +471,23 @@ def multiplot(
             `n_col x n_row` subplots would be shown. Defaults to 3.
         fig: the figure to plot on. If None, a new figure would be created. Defaults to None.
         subplot_size: the size of each subplot. Defaults to (6, 4).
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
+                {
+                    "path": None,
+                    "prefix": 'phase_portraits',
+                    "dpi": None,
+                    "ext": 'pdf',
+                    "transparent": True,
+                    "close": True,
+                    "verbose": True
+                }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
+            your needs. Defaults to {}.
 
     Returns:
-        The axes of the subplots.
+        The axes of the subplots by default.
     """
 
     if n_col is None and n_row is None:
@@ -431,7 +514,7 @@ def multiplot(
             plot_func(*arr[i])
         else:
             plot_func(arr[i])
-    return ax_list
+    return save_show_ret("multiplot", save_show_or_return, save_kwargs, ax_list)
 
 
 def plot_jacobian_gene(
@@ -453,6 +536,23 @@ def plot_jacobian_gene(
             Defaults to "pca".
         regulators: the regulator genes to be considered. Defaults to None.
         effectors: the effector genes to be considered. Defaults to None.
+        save_show_or_return: whether to save, show or return the figure. Defaults to "show".
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
+                {
+                    "path": None,
+                    "prefix": 'phase_portraits',
+                    "dpi": None,
+                    "ext": 'pdf',
+                    "transparent": True,
+                    "close": True,
+                    "verbose": True
+                }
+            as its parameters. Otherwise, you can provide a dictionary that properly modify those keys according to
+            your needs. Defaults to {}.
+
+    Returns:
+        None would be returned in default. If `save_show_or_return` is set to be "return", the axes of the subplots.
     """
 
     jkey = f"{jkey}_{basis}" if basis is not None else jkey
