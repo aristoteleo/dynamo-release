@@ -879,7 +879,7 @@ def causality(
 
     id = 0
     for gene_pairs_ind in range(0, len(pairs_mat)):
-        gene_pairs = pairs_mat[gene_pairs_ind, :]
+        gene_pairs = pairs_mat[gene_pairs_ind]
         f_ini_ind = (grid_num**2) * id
 
         gene_pair_name = reduce(lambda a, b: a + "->" + b, gene_pairs)
