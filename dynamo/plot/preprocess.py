@@ -514,7 +514,7 @@ def loading(
         n_pcs = PCs.shape[1]
 
     x = np.arange(n_top_genes)
-    genes = adata.var_names[adata.var.use_for_pca]
+    cells = adata.obs_names
 
     nrow, ncol = int(n_pcs / ncol), min([ncol, n_pcs])
     fig, axes = plt.subplots(nrow, ncol, figsize=(figsize[0] * ncol, figsize[1] * nrow))
@@ -529,7 +529,7 @@ def loading(
         axes[cur_row, cur_col].scatter(x, sort_val[: len(x)])
         for j in x:
             axes[cur_row, cur_col].text(
-                x[j], sort_val[j] * 1.01, genes[sort_ind[j]], color="r" if cur_sign[sort_ind[j]] > 0 else "k"
+                x[j], sort_val[j] * 1.01, cells[sort_ind[j]], color="r" if cur_sign[sort_ind[j]] > 0 else "k"
             )
 
         axes[cur_row, cur_col].set_title("PC " + str(i))
