@@ -376,6 +376,7 @@ def biplot(
     figsize: Tuple[float, float] = (6, 4),
     scale_pca_embedding: bool = False,
     draw_pca_embedding: bool = False,
+    show_text: bool = False,
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     ax: Optional[Axes] = None,
@@ -401,6 +402,7 @@ def biplot(
         figsize: the size of each subplot. Defaults to (6, 4).
         scale_pca_embedding: whether to scale the pca embedding. Defaults to False.
         draw_pca_embedding: whether to draw the pca embedding. Defaults to False.
+        show_text: whether to show the text labels on plot. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
         save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
@@ -440,14 +442,17 @@ def biplot(
     else:
         scalex, scaley = 1, 1
 
-    genes = adata.var_names[adata.var.use_for_pca]
+    cells = adata.obs_names
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize)
     for i in range(len(xvector)):
         # arrows project features, e.g. genes, as vectors onto PC axes
         ax.arrow(0, 0, xvector[i] * max(xs), yvector[i] * max(ys), color="r", width=0.0005, head_width=0.0025)
-        ax.text(xvector[i] * max(xs) * 1.01, yvector[i] * max(ys) * 1.01, genes[i], color="r")
+
+    if show_text:
+        for i in range(len(xvector)):
+            ax.text(xvector[i] * max(xs) * 1.01, yvector[i] * max(ys) * 1.01, cells[i], color="r")
 
     ax.set_xlabel("PC" + str(pca_components[0]))
     ax.set_ylabel("PC" + str(pca_components[1]))
@@ -455,7 +460,9 @@ def biplot(
         for i in range(len(xs)):
             # circles project cells
             ax.plot(xs[i] * scalex, ys[i] * scaley, "b", alpha=0.1)
-            ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
+        if show_text:
+            for i in range(len(xs)):
+                ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
 
     return save_show_ret("biplot", save_show_or_return, save_kwargs, ax)
 
