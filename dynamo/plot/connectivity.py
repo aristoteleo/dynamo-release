@@ -514,7 +514,7 @@ def nneighbors(
                 if is_not_continous:
                     labels = _color
                     if theme is None:
-                        theme = "glasbey_dark"
+                        theme = "viridis"
                 else:
                     values = _color
                     if theme is None:
@@ -559,7 +559,7 @@ def nneighbors(
                 ax.set_ylabel(cur_b + "_2")
                 ax.set_title(cur_c)
 
-    return save_show_ret("nneighbors", save_show_or_return, save_kwargs, g)
+    return save_show_ret("nneighbors", save_show_or_return, save_kwargs, plt.gcf())
 
 
 
