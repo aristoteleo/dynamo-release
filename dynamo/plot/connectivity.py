@@ -221,6 +221,7 @@ def connectivity_base(
     available_themes = [
         "blue",
         "red",
+        "glasbey_dark",
         "green",
         "inferno",
         "fire",
@@ -514,7 +515,7 @@ def nneighbors(
                 if is_not_continous:
                     labels = _color
                     if theme is None:
-                        theme = "viridis"
+                        theme = "glasbey_dark"
                 else:
                     values = _color
                     if theme is None:
