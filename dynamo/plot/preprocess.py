@@ -571,35 +571,57 @@ def feature_genes(
     layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, include_protein=False)[0]
     uns_store_key = None
 
-    if "_dispersion" in mode:  # "cv_dispersion", "fano_dispersion"
-        prefix = "" if layer == "X" else layer + "_"
-        uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
-
-        if not np.all(pd.Series([prefix + "log_m", prefix + "score"]).isin(adata.var.columns)):
-            raise ValueError("Looks like you have not run support vector machine regression yet, try run SVRs first.")
-        else:
-            table = adata.var.loc[:, [prefix + "log_m", prefix + "log_cv", prefix + "score"]]
-            table = table.loc[
-                np.isfinite(table[prefix + "log_m"]) & np.isfinite(table[prefix + "log_cv"]),
-                :,
-            ]
-            x_min, x_max = (
-                np.nanmin(table[prefix + "log_m"]),
-                np.nanmax(table[prefix + "log_m"]),
-            )
-
     ordering_genes = adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
 
-    mu_linspace = np.linspace(x_min, x_max, num=1000)
-    if "_dispersion" in mode:
+    if "_dispersion" not in mode and mode != "gini":
+        raise ValueError("Invalid mode!.")
+
+    plt.figure(figsize=figsize)
+
+    if mode == "gini":
+        mean_key = layer + "_m"
+        variance_key = layer + "_gini"
+
+        if variance_key not in adata.var.columns:
+            raise ValueError(
+                "Looks like you have not run gene selection yet, try run necessary preprocessing first.")
+
+        mean = DynamoAdataKeyManager.select_layer_data(adata, layer).mean(0)[0]
+        table = adata.var.loc[:, [variance_key]]
+        table[mean_key] = mean.T
+    else:
+        if mode == "seurat_dispersion":
+            mean_key = "pp_gene_mean"
+            variance_key = "pp_gene_variance"
+        else:
+            prefix = "" if layer == "X" else layer + "_"
+            mean_key = prefix + "log_m"
+            variance_key = prefix + "log_cv"
+            uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
+
+        if not np.all(pd.Series([mean_key, variance_key]).isin(adata.var.columns)):
+            raise ValueError("Looks like you have not run gene selection yet, try run necessary preprocessing first.")
+        else:
+            table = adata.var.loc[:, [mean_key, variance_key]]
+
+    table = table.loc[
+        np.isfinite(table[mean_key]) & np.isfinite(table[variance_key])
+    ]
+    x_min, x_max = (
+        np.nanmin(table[mean_key]),
+        np.nanmax(table[mean_key]),
+    )
+
+    if mode == "cv_dispersion" or mode == "fano_dispersion":
+        mu_linspace = np.linspace(x_min, x_max, num=1000)
         mean = adata.uns[uns_store_key]["mean"]
         cv = adata.uns[uns_store_key]["cv"]
         svr_gamma = adata.uns[uns_store_key]["svr_gamma"]
         fit, _ = get_prediction_by_svr(mean, cv, svr_gamma)
         fit = fit(mu_linspace.reshape(-1, 1))
 
-    plt.figure(figsize=figsize)
-    plt.plot(mu_linspace, fit, alpha=0.4, color="r")
+        plt.plot(mu_linspace, fit, alpha=0.4, color="r")
+
     valid_ind = (
         table.index.isin(ordering_genes.index[ordering_genes])
         if ordering_genes is not None
@@ -607,31 +629,34 @@ def feature_genes(
     )
 
     valid_disp_table = table.iloc[valid_ind, :]
-    if "_dispersion" in mode:
-        ax = plt.scatter(
-            valid_disp_table[prefix + "log_m"],
-            valid_disp_table[prefix + "log_cv"],
-            s=3,
-            alpha=1,
-            color="xkcd:red",
-        )
+
+    plt.scatter(
+        valid_disp_table[mean_key],
+        valid_disp_table[variance_key],
+        s=3,
+        alpha=1,
+        color="xkcd:red",
+    )
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
-    if "_dispersion" in mode:
-        ax = plt.scatter(
-            neg_disp_table[prefix + "log_m"],
-            neg_disp_table[prefix + "log_cv"],
-            s=3,
-            alpha=0.5,
-            color="xkcd:grey",
-        )
+    plt.scatter(
+        neg_disp_table[mean_key],
+        neg_disp_table[variance_key],
+        s=3,
+        alpha=0.5,
+        color="xkcd:grey",
+    )
 
-    plt.yscale("log")
-    plt.xlabel("Mean (log)")
-    plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
+    if mode == "gini":
+        plt.xlabel("Mean")
+        plt.ylabel("Variance")
+    else:
+        plt.yscale("log")
+        plt.xlabel("Mean (log)")
+        plt.ylabel("CV (log)")
 
-    return save_show_ret("feature_genes", save_show_or_return, save_kwargs, ax)
+    return save_show_ret("feature_genes", save_show_or_return, save_kwargs, plt.gcf())
 
 
 def exp_by_groups(
