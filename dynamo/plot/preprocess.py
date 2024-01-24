@@ -540,7 +540,7 @@ def loading(
 def feature_genes(
     adata: AnnData,
     layer: str = "X",
-    mode: Optional[Literal["dispersion", "gini", "SVR"]] = None,
+    mode: Optional[Literal["cv_dispersion", "fano_dispersion", "seurat_dispersion", "gini"]] = None,
     figsize: tuple = (4, 3),
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
@@ -550,7 +550,7 @@ def feature_genes(
     Args:
         adata: an AnnData object.
         layer: the data from a particular layer (include X) used for making the feature gene plot. Defaults to "X".
-        mode: the method to select the feature genes (can be either `dispersion`, `gini` or `SVR`). Defaults to None.
+        mode: the method to select the feature genes (can be either one kind of `dispersion` or `gini`). Defaults to None.
         figsize: the size of each panel of the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
