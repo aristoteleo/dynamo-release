@@ -716,7 +716,7 @@ def jacobian_heatmap(
                 center=0,
                 **heatmap_kwargs,
             )
-            ax.title(name)
+            ax.set_title(name)
 
     return save_show_ret(jkey + "_heatmap", save_show_or_return, save_kwargs, gs)
 
