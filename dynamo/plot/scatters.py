@@ -1635,7 +1635,7 @@ def scatters(
     if type(basis) is str:
         basis = [basis]
 
-    n_c, n_l, n_b, n_x, n_y = (
+    n_c, n_l, n_b, n_x, n_y, n_z = (
         1 if color is None else len(color),
         1 if layer is None else len(layer),
         1 if basis is None else len(basis),
@@ -1643,11 +1643,12 @@ def scatters(
         # check whether it is an array
         1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
         # check whether it is an array
+        1 if z is None else 1 if type(z) in [anndata._core.views.ArrayView, np.ndarray] else len(z),
     )
 
     total_panels, ncols = (
-        n_c * n_l * n_b * n_x * n_y,
-        min(max([n_c, n_l, n_b, n_x, n_y]), ncols),
+        n_c * n_l * n_b * n_x,
+        min(max([n_c, n_l, n_b, n_x, n_y, n_z]), ncols),
     )
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
 
