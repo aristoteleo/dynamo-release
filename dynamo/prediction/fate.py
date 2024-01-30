@@ -16,7 +16,8 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_warning,
 )
-from ..tools.connectivity import correct_hnsw_neighbors, k_nearest_neighbors
+from ..utils import pca_to_expr
+from ..tools.connectivity import construct_mapper_umap, correct_hnsw_neighbors, k_nearest_neighbors
 from ..tools.utils import fetch_states, getTseq
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vecfld_from_adata, vector_transformation
@@ -73,7 +74,7 @@ def fate(
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction
             is based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be
-            applied.
+            applied. If `average` is True, `origin` will be used.
         sampling: Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
             If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
             of all time points from all cell states' fate prediction will be used and then evenly sampled up to
@@ -94,15 +95,6 @@ def fate(
             attribute.
     """
 
-    if sampling in ["arc_length", "logspace", "uniform_indices"]:
-        if average in ["origin", "trajectory", True]:
-            main_warning(
-                f"using {sampling} to sample data points along an integral path at different integration "
-                "time points. Average trajectory won't be calculated"
-            )
-
-        average = False
-
     if basis is not None:
         fate_key = "fate_" + basis
         # vf_key = "VecFld_" + basis
@@ -122,7 +114,7 @@ def fate(
         init_cells,
         basis,
         layer,
-        True if average in ["origin", "trajectory", True] else False,
+        average,
         t_end,
     )
 
@@ -140,7 +132,7 @@ def fate(
         t_end=t_end,
         direction=direction,
         interpolation_num=interpolation_num,
-        average=True if average in ["origin", "trajectory", True] else False,
+        average=True if average == "trajectory" else False,
         sampling=sampling,
         cores=cores,
         **kwargs,
@@ -167,9 +159,23 @@ def fate(
             if prediction.ndim == 1:
                 prediction = prediction[None, :]
 
-        umap_fit = adata.uns["umap_fit"]["fit"]
-        PCs = adata.uns["PCs"].T
+        params = adata.uns["umap_fit"]
+        umap_fit = construct_mapper_umap(
+            params["X_data"],
+            n_components=params["umap_kwargs"]["n_components"],
+            metric=params["umap_kwargs"]["metric"],
+            min_dist=params["umap_kwargs"]["min_dist"],
+            spread=params["umap_kwargs"]["spread"],
+            max_iter=params["umap_kwargs"]["max_iter"],
+            alpha=params["umap_kwargs"]["alpha"],
+            gamma=params["umap_kwargs"]["gamma"],
+            negative_sample_rate=params["umap_kwargs"]["negative_sample_rate"],
+            init_pos=params["umap_kwargs"]["init_pos"],
+            random_state=params["umap_kwargs"]["random_state"],
+            umap_kwargs=params["umap_kwargs"],
+        )
 
+        PCs = adata.uns["PCs"].T
         exprs = []
 
         for cur_pred in prediction:
@@ -193,12 +199,12 @@ def fate(
 
     adata.uns[fate_key] = {
         "init_states": init_states,
-        "init_cells": init_cells,
+        "init_cells": list(init_cells),
         "average": average,
         "t": t,
         "prediction": prediction,
         # "VecFld": VecFld,
-        "VecFld_true": VecFld_true,
+        # "VecFld_true": VecFld_true,
         "genes": valid_genes,
     }
     if exprs is not None:
@@ -247,6 +253,12 @@ def _fate(
         prediction: Predicted cells states at different time points. Row order corresponds to the element order in t. If init_states corresponds to multiple cells, the expression dynamics over time for each cell is concatenated by rows. That is, the final dimension of prediction is (len(t) * n_cells, n_features). n_cells: number of cells; n_features: number of genes or number of low dimensional embeddings. Of note, if the average is set to be True, the average cell state at each time point is calculated for all cells.
     """
 
+    if sampling == "uniform_indices":
+        main_warning(
+            f"Uniform_indices method sample data points from all time points. The multiprocessing will be disabled."
+        )
+        cores = 1
+
     t_linspace = getTseq(init_states, t_end, step_size)
 
     if cores == 1:
@@ -280,18 +292,19 @@ def _fate(
         pool.join()
         t_, prediction_ = zip(*res)
         t, prediction = [i[0] for i in t_], [i[0] for i in prediction_]
+
+    if init_states.shape[0] > 1 and average:
         t_stack, prediction_stack = np.hstack(t), np.hstack(prediction)
         n_cell, n_feature = init_states.shape
 
-        if init_states.shape[0] > 1 and average:
-            t_len = int(len(t_stack) / n_cell)
-            avg = np.zeros((n_feature, t_len))
+        t_len = int(len(t_stack) / n_cell)
+        avg = np.zeros((n_feature, t_len))
 
-            for i in range(t_len):
-                avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
+        for i in range(t_len):
+            avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
 
-            prediction = [avg]
-            t = [np.sort(np.unique(t))]
+        prediction = [avg]
+        t = [np.sort(np.unique(t))]
 
     return t, prediction
 

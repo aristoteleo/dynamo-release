@@ -9,25 +9,9 @@ import scipy.spatial as ss
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigs
 
-from .DDRTree_py import repmat
+from .DDRTree import repmat
 
 # from scikits.sparse.cholmod import cholesky
-
-
-def diag_mat(values: List[int]):
-    """Returns a diagonal matrix with the given values on the diagonal.
-
-    Args:
-        values: a list of values to place on the diagonal of the matrix.
-
-    Returns:
-        A diagonal matrix with the given values on the diagonal.
-    """
-
-    mat = np.zeros((len(values), len(values)))
-    np.fill_diagonal(mat, values)
-
-    return mat
 
 
 def psl(
@@ -47,20 +31,20 @@ def psl(
     Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019
 
     Args:
-        Y: the data list. 
-        sG: a prior kNN graph passed to the algorithm. Defaults to None.
-        dist: a dense distance matrix between all vertices. If no distance matrix passed, we will use the kNN based 
+        Y: The data list.
+        sG: A prior kNN graph passed to the algorithm. Defaults to None.
+        dist: A dense distance matrix between all vertices. If no distance matrix passed, we will use the kNN based
             algorithm, otherwise we will use the original algorithm reported in the manuscript. Defaults to None.
-        K: number of nearest neighbors used to build the neighborhood graph. Large k can obtain less sparse structures. 
+        K: Number of nearest neighbors used to build the neighborhood graph. Large k can obtain less sparse structures.
             Ignored if sG is used. Defaults to 10.
-        C: the penalty parameter for loss term. It controls the preservation of distances. The larger it is, the 
+        C: The penalty parameter for loss term. It controls the preservation of distances. The larger it is, the
             distance is more strictly preserve. If the structure is very clear, a larger C is preferred. Defaults to 
             1e3.
         param_gamma: param_gamma is trying to make a matrix A non-singular, it is like a round-off parameter. 1e-4 or
             1e-5 is good. It corresponds to the variance of prior embedding. Defaults to 1e-3.
         d: the embedding dimension. Defaults to 2.
-        maxIter: number of maximum iterations. Defaults to 10.
-        verbose: whether to print running information. Defaults to False.
+        maxIter: Number of maximum iterations. Defaults to 10.
+        verbose: Whether to print running information. Defaults to False.
 
     Returns:
         A tuple (S, Z), where S is the adjacency matrix and Z is the reduced low dimension embedding.
@@ -202,18 +186,17 @@ def psl(
     return (S, Z)
 
 
-def logdet(A: np.ndarray) -> float:
-    """Calculate log(det(A)). 
-
-    Compared with calculating log(det(A)) directly, this function avoid the overflow/underflow problems that are likely 
-    to happen when applying det to large matrices.	
+def diag_mat(values: List[int]):
+    """Returns a diagonal matrix with the given values on the diagonal.
 
     Args:
-        A: an square matrix.
+        values: A list of values to place on the diagonal of the matrix.
 
     Returns:
-        log(det(A)).
+        A diagonal matrix with the given values on the diagonal.
     """
 
-    v = 2 * sum(np.log(np.diag(np.linalg.cholesky(A))))
-    return v
+    mat = np.zeros((len(values), len(values)))
+    np.fill_diagonal(mat, values)
+
+    return mat

@@ -12,9 +12,8 @@ from anndata import AnnData
 from matplotlib.axes import Axes
 
 from ..prediction.fate import fate_bias as fate_bias_pd
-from ..tools.utils import update_dict
-from .scatters import save_fig, scatters
-from .utils import map2color
+from .scatters import scatters
+from .utils import map2color, save_show_ret
 
 
 def fate_bias(
@@ -44,8 +43,8 @@ def fate_bias(
              fate_bias_df = dyn.tl.fate_bias(adata). Defaults to None.
         figsize: the size of the figure. Defaults to (6, 4).
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
                 {
                     "path": None,
                     "prefix": 'phase_portraits',
@@ -70,31 +69,13 @@ def fate_bias(
     if "confidence" in fate_bias.keys():
         fate_bias.set_index([fate_bias.index, fate_bias.confidence], inplace=True)
 
+    fate_bias.fillna(0, inplace=True)
+
     ax = sns.clustermap(
         fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False, **cluster_maps_kwargs
     )
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "fate_bias",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("fate_bias", save_show_or_return, save_kwargs, ax)
 
 
 def fate(
@@ -119,8 +100,8 @@ def fate(
         ax: the matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
             If None, new axis would be created. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
                 {
                     "path": None,
                     "prefix": 'phase_portraits',
@@ -144,29 +125,7 @@ def fate(
     lap_dict = adata.uns[fate_key]
 
     for i, j in zip(lap_dict["prediction"], lap_dict["t"]):
-        ax.scatter(*i[:, [x, y]].T, c=map2color(j))
-        ax.plot(*i[:, [x, y]].T, c="k")
+        ax.scatter(*i.T[:, [x, y]].T, c=map2color(j))
+        ax.plot(*i.T[:, [x, y]].T, c="k")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "kinetic_curves",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-
-        # prevent the plot from being closed if the plot need to be shown or returned.
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("kinetic_curves", save_show_or_return, save_kwargs, ax)

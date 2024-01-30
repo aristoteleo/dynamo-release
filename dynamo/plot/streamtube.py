@@ -33,7 +33,7 @@ def plot_3d_streamtube(
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
 ):
-    """Plot a interative 3d streamtube plot via plotly.
+    """Plot an interative 3d streamtube plot via plotly.
 
     A streamtube is a tubular region surrounded by streamlines that form a closed loop. It's a continuous version of a
     streamtube plot (3D quiver plot) and can provide insight into flow data from natural systems. The color of tubes is
@@ -89,10 +89,7 @@ def plot_3d_streamtube(
     else:
         _background = background
 
-    if is_gene_name(adata, color):
-        color_val = adata.obs_vector(k=color, layer=None) if layer == "X" else adata.obs_vector(k=color, layer=layer)
-    elif is_cell_anno_column(adata, color):
-        color_val = adata.obs_vector
+    color_val = adata.obs_vector(k=color, layer=None) if layer == "X" else adata.obs_vector(k=color, layer=layer)
 
     is_not_continous = not isinstance(color_val[0], Number) or color_val.dtype.name == "category"
 
@@ -133,30 +130,41 @@ def plot_3d_streamtube(
         mapper = cm.ScalarMappable(norm=norm, cmap=_cmap)
         colors = _to_hex(mapper.to_rgba(values))
 
+    if adata.obsm["X_" + basis].shape[1] < 3:
+        raise ValueError("Current basis has dimensions less than 3!")
+
+    if "VecFld_" + basis not in adata.uns.keys():
+        raise KeyError("Corresponding vector field not found! Please run VectorField() with current basis.")
+
     X = adata.obsm["X_" + basis][:, dims]
-    grid_kwargs_dict = {
-        "density": None,
-        "smooth": None,
-        "n_neighbors": None,
-        "min_mass": None,
-        "autoscale": False,
-        "adjust_for_stream": True,
-        "V_threshold": None,
-    }
 
-    X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(
-        X,
-        [60, 60, 60],
-        density=grid_kwargs_dict["density"],
-        smooth=grid_kwargs_dict["smooth"],
-        n_neighbors=grid_kwargs_dict["n_neighbors"],
-    )
+    if "grid" in adata.uns["VecFld_" + basis].keys() and "grid_V" in adata.uns["VecFld_" + basis].keys():
+        X_grid = adata.uns["VecFld_" + basis]["grid"]
+        velocity_grid = adata.uns["VecFld_" + basis]["grid_V"]
+    else:
+        grid_kwargs_dict = {
+            "density": None,
+            "smooth": None,
+            "n_neighbors": None,
+            "min_mass": None,
+            "autoscale": False,
+            "adjust_for_stream": True,
+            "V_threshold": None,
+        }
 
-    from ..vectorfield.utils import vecfld_from_adata
+        X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(
+            X,
+            [60, 60, 60],
+            density=grid_kwargs_dict["density"],
+            smooth=grid_kwargs_dict["smooth"],
+            n_neighbors=grid_kwargs_dict["n_neighbors"],
+        )
 
-    VecFld, func = vecfld_from_adata(adata, basis="umap")
+        from ..vectorfield.utils import vecfld_from_adata
 
-    velocity_grid = func(X_grid)
+        VecFld, func = vecfld_from_adata(adata, basis=basis)
+
+        velocity_grid = func(X_grid)
 
     fig = go.Figure(
         data=go.Streamtube(
@@ -167,14 +175,12 @@ def plot_3d_streamtube(
             v=velocity_grid[:, 1],
             w=velocity_grid[:, 2],
             starts=dict(
-                x=adata[labels == init_group, :].obsm["X_umap"][:125, 0],
-                y=adata[labels == init_group, :].obsm["X_umap"][:125, 1],
-                z=adata[labels == init_group, :].obsm["X_umap"][:125, 2],
+                x=adata[labels == init_group, :].obsm["X_" + basis][:125, 0],
+                y=adata[labels == init_group, :].obsm["X_" + basis][:125, 1],
+                z=adata[labels == init_group, :].obsm["X_" + basis][:125, 2],
             ),
-            sizeref=3000,
             colorscale="Portland",
             showscale=False,
-            maxdisplayed=3000,
         )
     )
 

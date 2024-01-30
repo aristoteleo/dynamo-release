@@ -8,6 +8,7 @@ from scipy.optimize import minimize
 
 from ..dynamo_logger import LoggerManager
 from ..tools.utils import fetch_states, nearest_neighbors
+from ..utils import pca_to_expr
 from ..vectorfield import SvcVectorField
 from ..vectorfield.utils import (
     vecfld_from_adata,
@@ -15,7 +16,7 @@ from ..vectorfield.utils import (
     vector_transformation,
 )
 from .trajectory import GeneTrajectory, Trajectory
-from .utils import arclength_sampling_n, find_elbow, pca_to_expr
+from .utils import arclength_sampling_n, find_elbow
 
 
 class LeastActionPath(Trajectory):
@@ -322,7 +323,7 @@ def lap_T(
     def jac(x):
         return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt)
 
-    sol_dict = minimize(fun, path_0[1:-1], jac=jac)
+    sol_dict = minimize(fun, path_0[1:-1].flatten(), jac=jac)
     path_sol = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
 
     # further optimization by varying dt
@@ -601,7 +602,7 @@ def least_action(
 
     adata.uns[LAP_key] = {
         "init_states": init_states,
-        "init_cells": init_cells,
+        "init_cells": list(init_cells),
         "t": t,
         "mftp": mftp,
         "prediction": prediction,

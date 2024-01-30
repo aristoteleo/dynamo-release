@@ -14,24 +14,69 @@ from ..dynamo_logger import LoggerManager
 from .utils import nearest_neighbors, timeit
 
 
+def sample(
+    arr: Union[list, np.ndarray],
+    n: int,
+    method: Literal["random", "velocity", "trn", "kmeans"] = "random",
+    X: Optional[np.ndarray] = None,
+    V: Optional[np.ndarray] = None,
+    seed: int = 19491001,
+    **kwargs,
+) -> np.ndarray:
+    """A collection of various sampling methods.
+
+    Args:
+        arr: The array to be sub-sampled.
+        n: The number of samples.
+        method: The method to be used.
+            "random": randomly choosing `n` elements from `arr`;
+            "velocity": Higher the velocity, higher the chance to be sampled;
+            "trn": Topology Representing Network based sampling;
+            "kmeans": `n` points that are closest to the kmeans centroids on `X` are chosen.
+            Defaults to "random".
+        X: Coordinates associated to each element in `arr`. Defaults to None.
+        V: Velocity associated to each element in `arr`. Defaults to None.
+        seed: The randomization seed. Defaults to 19491001.
+
+    Raises:
+        NotImplementedError: `method` is invalid.
+
+    Returns:
+        The sampled data array.
+    """
+
+    if method == "random":
+        np.random.seed(seed)
+        sub_arr = arr[np.random.choice(arr.shape[0], size=n, replace=False)]
+    elif method == "velocity" and V is not None:
+        sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
+    elif method == "trn" and X is not None:
+        sub_arr = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
+    elif method == "kmeans":
+        sub_arr = arr[sample_by_kmeans(X, n, return_index=True)]
+    else:
+        raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
+    return sub_arr
+
+
 class TRNET:
     """Class for topology representing network sampling.
 
     Attributes:
-        n_nodes: the number of nodes in the graph.
-        n_dim: the dimensions of the array to be sub-sampled.
-        X: coordinates associated to each element in original array to be sub-sampled.
-        seed: the randomization seed.
-        W: the sample graph.
+        n_nodes: The number of nodes in the graph.
+        n_dim: The dimensions of the array to be sub-sampled.
+        X: Coordinates associated to each element in original array to be sub-sampled.
+        seed: The randomization seed.
+        W: The sample graph.
     """
 
     def __init__(self, n_nodes: int, X: np.ndarray, seed: int = 19491001) -> None:
         """Initialize the TRNET object.
 
         Args:
-            n_nodes: the number of nodes in the graph.
-            X: coordinates associated to each element in original array to be sub-sampled.
-            seed: the randomization seed. Defaults to 19491001.
+            n_nodes: The number of nodes in the graph.
+            X: Coordinates associated to each element in original array to be sub-sampled.
+            seed: The randomization seed. Defaults to 19491001.
         """
 
         self.n_nodes = n_nodes
@@ -44,7 +89,7 @@ class TRNET:
         """Initialize the positions of nodes.
 
         Args:
-            n_samples: the number of nodes.
+            n_samples: The number of nodes.
 
         Returns:
             The initial positions of nodes.
@@ -59,7 +104,7 @@ class TRNET:
         """Performs one iteration of the TRN sampling algorithm. Learn from distance to update the sampling index.
 
         Args:
-            p: the target data points to calculate the distance.
+            p: The target data points to calculate the distance.
             l: The learning rate that controls learning speed.
             ep: The epsilon that controls learning speed.
             c: The cutoff parameter to accelerate the learning.
@@ -123,8 +168,8 @@ class TRNET:
         """Run the TRN algorithm sampling for a specified range of iterations.
 
         Args:
-            k0: starting iteration number.
-            k: ending iteration number.
+            k0: Starting iteration number.
+            k: Ending iteration number.
             tmax: The maximum number of iterations.
             li: The initial learning rate parameter.
             lf: The final learning rate parameter.
@@ -152,11 +197,11 @@ def trn(X: np.ndarray, n: int, return_index: bool = True, seed: int = 19491001, 
     """Sample method based on topology representing network.
 
     Args:
-        X: coordinates associated to each element in original array to be sub-sampled.
-        n: the number of samples.
-        return_index: whether to return the indices of the sub-sampled array or the sample graph. Defaults to
+        X: Coordinates associated to each element in original array to be sub-sampled.
+        n: The number of samples.
+        return_index: Whether to return the indices of the sub-sampled array or the sample graph. Defaults to
             True.
-        seed: the randomization seed. Defaults to 19491001.
+        seed: The randomization seed. Defaults to 19491001.
 
     Returns:
         The sample graph or the indices of the sub-sampled array.
@@ -182,8 +227,8 @@ def sample_by_velocity(V: np.ndarray, n: int, seed: int = 19491001) -> np.ndarra
 
     Args:
         V: Velocity associated with each element in the sample array.
-        n: the number of samples.
-        seed: the randomization seed. Defaults to 19491001.
+        n: The number of samples.
+        seed: The randomization seed. Defaults to 19491001.
 
     Returns:
         The sample data array.
@@ -199,9 +244,9 @@ def sample_by_kmeans(X: np.ndarray, n: int, return_index: bool = False) -> Optio
     """Sample method based on kmeans.
 
     Args:
-        X: coordinates associated to each element in `arr`.
-        n: the number of samples.
-        return_index: whether to return the sample indices. Defaults to False.
+        X: Coordinates associated to each element in `arr`.
+        n: The number of samples.
+        return_index: Whether to return the sample indices. Defaults to False.
 
     Returns:
         The sample index array if `return_index` is True. Else return the array after sampling.
@@ -221,11 +266,11 @@ def lhsclassic(
     """Latin Hypercube Sampling method implemented from PyDOE.
 
     Args:
-        n_samples: the number of samples to be generated.
-        n_dim: the number of data dimensions.
+        n_samples: The number of samples to be generated.
+        n_dim: The number of data dimensions.
         bounds: n_dim-by-2 matrix where each row specifies the lower and upper bound for the corresponding dimension. If
             None, it is assumed to be (0, 1) for every dimension. Defaults to None.
-        seed: the randomization seed. Defaults to 19491001.
+        seed: The randomization seed. Defaults to 19491001.
 
     Returns:
         The sampled data array.
@@ -255,48 +300,3 @@ def lhsclassic(
             H[:, i] = H[:, i] * (bounds[i][1] - bounds[i][0]) + bounds[i][0]
 
     return H
-
-
-def sample(
-    arr: Union[list, np.ndarray],
-    n: int,
-    method: Literal["random", "velocity", "trn", "kmeans"] = "random",
-    X: Optional[np.ndarray] = None,
-    V: Optional[np.ndarray] = None,
-    seed: int = 19491001,
-    **kwargs,
-) -> np.ndarray:
-    """A collection of various sampling methods.
-
-    Args:
-        arr: the array to be sub-sampled.
-        n: the number of samples.
-        method: the method to be used.
-            "random": randomly choosing `n` elements from `arr`;
-            "velocity": Higher the velocity, higher the chance to be sampled;
-            "trn": Topology Representing Network based sampling;
-            "kmeans": `n` points that are closest to the kmeans centroids on `X` are chosen.
-            Defaults to "random".
-        X: coordinates associated to each element in `arr`. Defaults to None.
-        V: velocity associated to each element in `arr`. Defaults to None.
-        seed: the randomization seed. Defaults to 19491001.
-
-    Raises:
-        NotImplementedError: `method` is invalid.
-
-    Returns:
-        The sampled data array.
-    """
-
-    if method == "random":
-        np.random.seed(seed)
-        sub_arr = arr[np.random.choice(arr.shape[0], size=n, replace=False)]
-    elif method == "velocity" and V is not None:
-        sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
-    elif method == "trn" and X is not None:
-        sub_arr = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
-    elif method == "kmeans":
-        sub_arr = arr[sample_by_kmeans(X, n, return_index=True)]
-    else:
-        raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
-    return sub_arr

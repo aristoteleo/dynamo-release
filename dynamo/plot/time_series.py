@@ -1,6 +1,8 @@
 # include pseudotime and predict cell trajectory
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import pandas as pd
+
 try:
     from typing import Literal
 except ImportError:
@@ -17,7 +19,7 @@ from ..docrep import DocstringProcessor
 from ..external.hodge import ddhodge
 from ..prediction.utils import fetch_exprs
 from ..tools.utils import update_dict
-from .utils import _to_hex, save_fig
+from .utils import _to_hex, save_show_ret
 
 docstrings = DocstringProcessor()
 
@@ -78,8 +80,8 @@ def kinetic_curves(
             when predicted data is not inverse transformed back to original expression space, no transformation will be
             applied. Defaults to True.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -171,27 +173,7 @@ def kinetic_curves(
             facet_kws={"sharex": True, "sharey": False},
         )
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "kinetic_curves",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
+    return save_show_ret("kinetic_curves", save_show_or_return, save_kwargs, g)
 
 
 docstrings.delete_params("kin_curves.parameters", "ncol", "color", "c_palette")
@@ -200,7 +182,7 @@ docstrings.delete_params("kin_curves.parameters", "ncol", "color", "c_palette")
 @docstrings.with_indent(4)
 def kinetic_heatmap(
     adata: AnnData,
-    genes: List[str],
+    genes: Union[List[str], pd.Index],
     mode: str = "vector_field",
     basis: Optional[str] = None,
     layer: str = "X",
@@ -289,8 +271,8 @@ def kinetic_heatmap(
         vline_cols: the indices of column that we can place a line on the heatmap. Defaults to None.
         vlines_kwargs: a dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.vlines. Defaults to {}.
         save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         transpose: whether to transpose the dataframe and swap X-Y in heatmap. In single cell case, `transpose=True`
@@ -467,29 +449,7 @@ def kinetic_heatmap(
         vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
         sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "kinetic_heatmap",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        if show_colorbar:
-            plt.subplots_adjust(right=0.85)
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return sns_heatmap
+    return save_show_ret("kinetic_heatmap", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)
 
 
 def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
@@ -702,8 +662,8 @@ def jacobian_kinetics(
             to 1.
         n_convolve: the number of cells for convolution. Defaults to 30.
         save_show_or_return: whether to save, show, or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
         **kwargs: any other kwargs that would be passed to `seaborn.clustermap`.
@@ -843,29 +803,7 @@ def jacobian_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "jacobian_kinetics",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        if show_colorbar:
-            plt.subplots_adjust(right=0.85)
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return sns_heatmap
+    return save_show_ret("jacobian_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)
 
 
 @docstrings.with_indent(4)
@@ -920,8 +858,8 @@ def sensitivity_kinetics(
             meaning for each row or column, subtract the minimum and divide each by its maximum. Defaults to 1.
         n_convolve: the number of cells for convolution. Defaults to 30.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: any other kwargs that would be passed to `heatmap(). Currently `xticklabels=False, yticklabels='auto'`
@@ -1062,26 +1000,4 @@ def sensitivity_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "sensitivity_kinetics",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        if show_colorbar:
-            plt.subplots_adjust(right=0.85)
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return sns_heatmap
+    return save_show_ret("sensitivity_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)

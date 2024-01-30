@@ -125,8 +125,12 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
         merge_df = adata.var.merge(official_gene_df, left_on="query", right_on="query", how="left").set_index(
             adata.var.index
         )
-        valid_ind = np.where(merge_df["notfound"] != True)[0]  # noqa: E712
-        merge_df.pop("notfound")
+        if "notfound" in merge_df.columns:
+            valid_ind = np.where(merge_df["notfound"] != True)[0]  # noqa: E712
+            merge_df.pop("notfound")
+        else:
+            valid_ind = np.arange(len(merge_df))
+
         adata.var = merge_df
 
         if subset is True:
