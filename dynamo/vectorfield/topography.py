@@ -882,8 +882,8 @@ def topography(
                 "Xss": Xss,
                 "ftype": ftype,
                 "confidence": confidence,
-                "NCx": {str(index): array for index, array in enumerate(NCx)},
-                "NCy": {str(index): array for index, array in enumerate(NCy)},
+                "NCx": {str(index): array for index, array in enumerate(NCx)} if NCx is not None else None,
+                "NCy": {str(index): array for index, array in enumerate(NCy)} if NCy is not None else None,
                 "separatrices": None,
                 "fp_ind": fp_ind,
             }
@@ -897,8 +897,8 @@ def topography(
             "Xss": Xss,
             "ftype": ftype,
             "confidence": confidence,
-            "NCx": {str(index): array for index, array in enumerate(NCx)},
-            "NCy": {str(index): array for index, array in enumerate(NCy)},
+            "NCx": {str(index): array for index, array in enumerate(NCx)} if NCx is not None else None,
+            "NCy": {str(index): array for index, array in enumerate(NCy)} if NCy is not None else None,
             "separatrices": None,
             "fp_ind": fp_ind,
         }

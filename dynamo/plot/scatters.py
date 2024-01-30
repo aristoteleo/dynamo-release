@@ -986,7 +986,7 @@ def map_to_points(
     return points, cur_title
 
 
-def scatters_interactive(
+def scatters_interactive_legacy(
     adata: AnnData,
     basis: str = "umap",
     x: Union[int, str] = 0,
@@ -1319,6 +1319,338 @@ def scatters_interactive(
             main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
             main_debug("colors: %s" % (str(color)))
             _plot_basis_layer_pv(cur_b, cur_l)
+
+    return save_pyvista_plotter(
+        pl=pl,
+        colors_list=colors_list,
+        save_show_or_return=save_show_or_return,
+        save_kwargs=save_kwargs,
+    ) if plot_method == "pv" else save_plotly_figure(
+        pl=pl,
+        colors_list=colors_list,
+        save_show_or_return=save_show_or_return,
+        save_kwargs=save_kwargs,
+    )
+
+
+def scatters_interactive(
+    adata: AnnData,
+    basis: str = "umap",
+    x: Union[int, str] = 0,
+    y: Union[int, str] = 1,
+    z: Union[int, str] = 2,
+    color: str = "ntr",
+    layer: str = "X",
+    plot_method: str = "pv",
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    cmap: Optional[str] = None,
+    theme: Optional[str] = None,
+    background: Optional[str] = None,
+    color_key: Union[Dict[str, str], List[str], None] = None,
+    color_key_cmap: Optional[str] = None,
+    use_smoothed: bool = True,
+    sym_c: bool = False,
+    smooth: bool = False,
+    save_show_or_return: Literal["save", "show", "return", "both", "all"] = "show",
+    save_kwargs: Dict[str, Any] = {},
+    **kwargs,
+):
+    """Plot an embedding as points with Pyvista. Currently only 3D input is supported. For 2D data, `scatters` is a
+    better alternative.
+
+    The function will use the colors from matplotlib to keep consistence with other plotting functions.
+
+    Args:
+        adata: an AnnData object.
+        basis: the reduced dimension stored in adata.obsm. The specific basis key will be constructed in the following
+            priority if exits: 1) specific layer input +  basis 2) X_ + basis 3) basis. E.g. if basis is PCA, `scatters`
+            is going to look for 1) if specific layer is spliced, `spliced_pca` 2) `X_pca` (dynamo convention) 3) `pca`.
+            Defaults to "umap".
+        x: the column index of the low dimensional embedding for the x-axis. Defaults to 0.
+        y: the column index of the low dimensional embedding for the y-axis. Defaults to 1.
+        z: the column index of the low dimensional embedding for the z-axis. Defaults to 2.
+        color: any column names or gene expression, etc. that will be used for coloring cells. Defaults to "ntr".
+        layer: the layer of data to use for the scatter plot. Defaults to "X".
+        labels: an array of labels (assumed integer or categorical), one for each data sample. This will be used for
+            coloring the points in the plot according to their label. Note that this option is mutually exclusive to the
+            `values` option. Defaults to None.
+        values: an array of values (assumed float or continuous), one for each sample. This will be used for coloring
+            the points in the plot according to a colorscale associated to the total range of values. Note that this
+            option is mutually exclusive to the `labels` option. Defaults to None.
+        theme: A color theme to use for plotting. A small set of predefined themes are provided which have relatively
+            good aesthetics. Defaults to None.
+        cmap: The name of a matplotlib colormap to use for coloring or shading points. If no labels or values are passed
+            this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme. Defaults to None.
+        background: the color of the background. Usually this will be either 'white' or 'black', but any color name will
+            work. Ideally one wants to match this appropriately to the colors being used for points etc. This is one of
+            the things that themes handle for you. Note that if theme is passed then this value will be overridden by
+            the corresponding option of the theme. Defaults to None.
+        color_key: the method to assign colors to categoricals. This can either be an explicit dict mapping labels to
+            colors (as strings of form '#RRGGBB'), or an array like object providing one color for each distinct
+            category being provided in `labels`. Either way this mapping will be used to color points according to the
+            label. Note that if theme is passed then this value will be overridden by the corresponding option of the
+            theme. Defaults to None.
+        color_key_cmap: the name of a matplotlib colormap to use for categorical coloring. If an explicit `color_key` is
+            not given a color mapping for categories can be generated from the label list and selecting a matching list
+            of colors from the given colormap. Note that if theme is passed then this value will be overridden by the
+            corresponding option of the theme. Defaults to None.
+        use_smoothed: whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.). Defaults to
+            True.
+        sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
+            for plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative
+            values. Defaults to False.
+        smooth: whether do you want to further smooth data and how much smoothing do you want. If it is `False`, no
+            smoothing will be applied. If `True`, smoothing based on one-step diffusion of connectivity matrix
+            (`.uns['moment_cnn']`) will be applied. If a number larger than 1, smoothing will be based on `smooth` steps
+            of diffusion.
+        save_show_or_return: whether to save, show or return the figure. If "both", it will save and plot the figure at
+            the same time. If "all", the figure will be saved, displayed and the associated axis and other object will
+            be return. Defaults to "show".
+        save_kwargs: A dictionary that will be passed to the saving function. By default, it is an empty dictionary
+            and the saving function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+            "title": PyVista Export, "raster": True, "painter": True} as its parameters. Otherwise, you can provide a
+            dictionary that properly modify those keys according to your needs. Defaults to {}.
+        **kwargs: any other kwargs that would be passed to `Plotter.add_points()`.
+
+    Returns:
+        If `save_show_or_return` is `save`, `show` or `both`, the function will return nothing but show or save the
+        figure. If `save_show_or_return` is `return`, the function will return the axis object(s) that contains the
+        figure.
+    """
+
+    if plot_method == "pv":
+        try:
+            import pyvista as pv
+        except ImportError:
+            raise ImportError("Please install pyvista first.")
+    elif plot_method == "plotly":
+        try:
+            import plotly.express as px
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+        except ImportError:
+            raise ImportError("Please install plotly first.")
+    else:
+        raise NotImplementedError("Current plot method not supported.")
+
+    if background is None:
+        background = rcParams.get("figure.facecolor")
+        background = to_hex(background) if type(background) is tuple else background
+        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
+
+    if type(x) in [int, str]:
+        x = [x]
+    if type(y) in [int, str]:
+        y = [y]
+    if type(z) in [int, str]:
+        z = [z]
+
+    # make x, y, z lists of list, where each list corresponds to one coordinate set
+    if (
+            type(x) in [anndata._core.views.ArrayView, np.ndarray]
+            and type(y) in [anndata._core.views.ArrayView, np.ndarray]
+            and type(z) in [anndata._core.views.ArrayView, np.ndarray]
+            and len(x) == adata.n_obs
+            and len(y) == adata.n_obs
+            and len(z) == adata.n_obs
+    ):
+        x, y, z = [x], [y], [z]
+
+    elif hasattr(x, "__len__") and hasattr(y, "__len__") and hasattr(z, "__len__"):
+        x, y, z = list(x), list(y), list(z)
+
+    assert len(x) == len(y) and len(x) == len(z), "bug: x, y, z does not have the same shape."
+
+    if use_smoothed:
+        mapper = get_mapper()
+
+    # check color, layer, basis -> convert to list
+    if type(color) is str:
+        color = [color]
+    if type(layer) is str:
+        layer = [layer]
+    if type(basis) is str:
+        basis = [basis]
+
+    n_c, n_l, n_b, n_x, n_y, n_z = (
+        1 if color is None else len(color),
+        1 if layer is None else len(layer),
+        1 if basis is None else len(basis),
+        1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x),
+        1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
+        1 if z is None else 1 if type(z) in [anndata._core.views.ArrayView, np.ndarray] else len(z),
+    )
+
+    total_panels, ncols = (
+        n_c * n_l * n_b * n_x,
+        max([n_c, n_l, n_b, n_x, n_y, n_z]),
+    )
+
+    nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
+    subplot_indices = [[i, j] for i in range(nrow) for j in range(ncol)]
+    cur_subplot = 0
+    colors_list = []
+
+    if total_panels == 1:
+        pl = pv.Plotter() if plot_method == "pv" else make_subplots(rows=1, cols=1, specs=[[{"type": "scatter3d"}]])
+    else:
+        pl = (
+            pv.Plotter(shape=(nrow, ncol))
+            if plot_method == "pv"
+            else
+            make_subplots(rows=nrow, cols=ncol, specs=[[{"type": "scatter3d"} for _ in range(ncol)] for _ in range(nrow)])
+        )
+
+    def _plot_basis_layer_pv(cur_b: str, cur_l: str, cur_c: str, cur_x: str, cur_y: str, cur_z: str) -> None:
+        """A helper function for plotting a specific basis/layer data
+
+        Args:
+            cur_b: current basis
+            cur_l: current layer
+        """
+        nonlocal background, cur_subplot, cur_l_smoothed, cmap, sym_c, labels, values, theme, color_key, color_key_cmap
+
+        cur_l_smoothed = cur_l_smoothed if cur_l_smoothed is not None else cur_l
+        main_debug("coloring scatter of cur_c: %s" % str(cur_c))
+
+        main_debug("handling coordinates, cur_x: %s, cur_y: %s, cur_z: %s" % (cur_x, cur_y, cur_z))
+
+        points, cur_title = map_to_points(
+            adata,
+            axis_x=cur_x,
+            axis_y=cur_y,
+            axis_z=cur_z,
+            basis_key=basis_key,
+            cur_c=cur_c,
+            cur_b=cur_b,
+            cur_l_smoothed=cur_l_smoothed,
+        )
+
+        (
+            _color,
+            _labels,
+            _values,
+            _theme_,
+            _cmap,
+            _color_key_cmap,
+            background,
+            font_color,
+            is_not_continuous,
+            cur_title,
+        ) = _get_color_parameters(
+            adata=adata,
+            color=cur_c,
+            layer=cur_l,
+            labels=labels,
+            values=values,
+            theme=theme,
+            cmap=cmap,
+            color_key_cmap=color_key_cmap,
+            background=background,
+            title=cur_title,
+        )
+
+
+        if smooth and not is_not_continuous:
+            main_debug("smooth and not continuous")
+            knn = adata.obsp["moments_con"]
+            _values = (
+                calc_1nd_moment(_values, knn)[0]
+                if smooth in [1, True]
+                else calc_1nd_moment(_values, knn**smooth)[0]
+            )
+
+        colors, color_type, _ = calculate_colors(
+            points.values,
+            labels=_labels,
+            values=_values,
+            cmap=_cmap,
+            color_key=color_key,
+            color_key_cmap=_color_key_cmap,
+            background=background,
+            sym_c=sym_c,
+        )
+
+        colors_list.append(colors)
+
+        if plot_method == "pv":
+            if total_panels > 1:
+                pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
+
+            pvdataset = pv.PolyData(points.values)
+            pvdataset.point_data["colors"] = np.stack(colors)
+            pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, cmap=_cmap, **kwargs)
+
+            if color_type == "labels":
+                type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(_labels, colors)}
+                type_color_pair = [[k, v] for k, v in type_color_dict.items()]
+                pl.add_legend(labels=type_color_pair)
+            else:
+                pl.add_scalar_bar()  # TODO: fix the bug that scalar bar only works in the first plot
+
+            pl.add_text(cur_title)
+            pl.add_axes(xlabel=points.columns[0], ylabel=points.columns[1], zlabel=points.columns[2])
+        elif plot_method == "plotly":
+
+            pl.add_trace(
+                go.Scatter3d(
+                    x=points.iloc[:, 0],
+                    y=points.iloc[:, 1],
+                    z=points.iloc[:, 2],
+                    mode="markers",
+                    marker=dict(
+                        color=colors,
+                    ),
+                    text=_labels if color_type == "labels" else _values,
+                    **kwargs,
+                ),
+                row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+            )
+
+            pl.update_layout(
+                scene=dict(
+                    xaxis_title=points.columns[0],
+                    yaxis_title=points.columns[1],
+                    zaxis_title=points.columns[2]
+                ),
+            )
+
+        cur_subplot += 1
+
+    for cur_b in basis:
+        for cur_l in layer:
+            main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
+            main_debug("colors: %s" % (str(color)))
+
+            if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
+                cur_l_smoothed = cur_l
+                cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in the future
+            else:
+                if use_smoothed:
+                    cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
+                    if cur_l.startswith("velocity"):
+                        cmap, sym_c = "bwr", True
+
+            if cur_l + "_" + cur_b in adata.obsm.keys():
+                prefix = cur_l + "_"
+            elif ("X_" + cur_b) in adata.obsm.keys():
+                prefix = "X_"
+            elif cur_b in adata.obsm.keys():
+                # special case for spatial for compatibility with other packages
+                prefix = ""
+            else:
+                raise ValueError("Please check if basis=%s exists in adata.obsm" % basis)
+
+            basis_key = prefix + cur_b
+            main_info("plotting with basis key=%s" % basis_key, indent_level=2)
+
+            for cur_c in color:
+                for cur_x, cur_y, cur_z in zip(x, y, z):
+                    _plot_basis_layer_pv(cur_b, cur_l, cur_c, cur_x, cur_y, cur_z)
+
 
     return save_pyvista_plotter(
         pl=pl,
