@@ -1590,6 +1590,35 @@ def scatters(
     if stack_colors:
         color_key = None
 
+    if all([is_gene_name(adata, i) for i in basis]):
+        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
+            "M_u",
+            "X_unspliced",
+            "M_n",
+            "X_new",
+            "unspliced",
+            "new",
+        ]:
+            if "M_t" in adata.layers.keys() and "M_n" in adata.layers.keys():
+                x, y = ["M_t"], ["M_n"]
+            elif "X_total" in adata.layers.keys() and "X_new" in adata.layers.keys():
+                x, y = ["X_total"], ["X_new"]
+            elif "M_s" in adata.layers.keys() and "M_u" in adata.layers.keys():
+                x, y = ["M_s"], ["M_u"]
+            elif "X_spliced" in adata.layers.keys() and "X_unspliced" in adata.layers.keys():
+                x, y = ["X_spliced"], ["X_unspliced"]
+            elif "spliced" in adata.layers.keys() and "unspliced" in adata.layers.keys():
+                x, y = ["spliced"], ["unspliced"]
+            elif "total" in adata.layers.keys() and "new" in adata.layers.keys():
+                x, y = ["total"], ["new"]
+            else:
+                raise ValueError(
+                    "your adata object is corrupted. Please make sure it has at least one of the following "
+                    "pair of layers:"
+                    "'M_s', 'X_spliced', 'M_t', 'X_total', 'spliced', 'total' and "
+                    "'M_u', 'X_unspliced', 'M_n', 'X_new', 'unspliced', 'new'. "
+                )
+
     if background is None:
         background = rcParams.get("figure.facecolor")
         background = to_hex(background) if type(background) is tuple else background
@@ -1670,8 +1699,15 @@ def scatters(
 
     for cur_b in basis:
         for cur_l in layer:
-            main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
-            main_debug("colors: %s" % (str(color)))
+
+            basis_key, cur_l_smoothed, cmap, sym_c = _get_basis_key(
+                adata=adata,
+                basis=cur_b,
+                layer=cur_l,
+                use_smoothed=use_smoothed,
+                cmap=cmap,
+                sym_c=sym_c,
+            )
 
             for cur_c in color:
                 x, y, z = _standardize_dimensions(x, y, z, adata.n_obs, projection)
@@ -1729,6 +1765,8 @@ def scatters(
                         projection=projection,
                         scatter_kwargs=scatter_kwargs,
                         ax_index=ax_index,
+                        cur_l_smoothed=cur_l_smoothed,
+                        basis_key=basis_key,
                     )
 
                     axes_list.append(ax)
@@ -1802,6 +1840,8 @@ def scatters_single_input(
     projection: str = "2d",
     scatter_kwargs: Optional[Dict[str, Any]] = None,
     ax_index: Optional[int] = None,
+    cur_l_smoothed: Optional[str] = None,
+    basis_key: Optional[str] = None,
 ) -> Union[
     Axes,
     List[Axes],
@@ -1915,66 +1955,14 @@ def scatters_single_input(
     """
     import matplotlib.pyplot as plt
 
-    if is_gene_name(adata, basis):
-        if x not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y not in [
-            "M_u",
-            "X_unspliced",
-            "M_n",
-            "X_new",
-            "unspliced",
-            "new",
-        ]:
-            if "M_t" in adata.layers.keys() and "M_n" in adata.layers.keys():
-                x, y = "M_t", "M_n"
-            elif "X_total" in adata.layers.keys() and "X_new" in adata.layers.keys():
-                x, y = "X_total", "X_new"
-            elif "M_s" in adata.layers.keys() and "M_u" in adata.layers.keys():
-                x, y = "M_s", "M_u"
-            elif "X_spliced" in adata.layers.keys() and "X_unspliced" in adata.layers.keys():
-                x, y = "X_spliced", "X_unspliced"
-            elif "spliced" in adata.layers.keys() and "unspliced" in adata.layers.keys():
-                x, y = "spliced", "unspliced"
-            elif "total" in adata.layers.keys() and "new" in adata.layers.keys():
-                x, y = "total", "new"
-            else:
-                raise ValueError(
-                    "your adata object is corrupted. Please make sure it has at least one of the following "
-                    "pair of layers:"
-                    "'M_s', 'X_spliced', 'M_t', 'X_total', 'spliced', 'total' and "
-                    "'M_u', 'X_unspliced', 'M_n', 'X_new', 'unspliced', 'new'. "
-                )
-
-    if use_smoothed:
-        mapper = get_mapper()
-
     # if #total_panel is 1, `_matplotlib_points` will create a figure. No need to create a figure here and generate a blank figure.
     if ax is None:
         figure, ax = plt.subplots()
 
     color_out = None
 
-    if layer in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
-        cur_l_smoothed = layer
-        cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in the future
-    else:
-        if use_smoothed:
-            cur_l_smoothed = layer if layer.startswith("M_") | layer.startswith("velocity") else mapper[layer]
-            if layer.startswith("velocity"):
-                cmap, sym_c = "bwr", True
-
-    if layer + "_" + basis in adata.obsm.keys():
-        prefix = layer + "_"
-    elif ("X_" + basis) in adata.obsm.keys():
-        prefix = "X_"
-    elif basis in adata.obsm.keys():
-        # special case for spatial for compatibility with other packages
-        prefix = ""
-    elif is_gene_name(adata, basis):
-        prefix = ""
-    else:
-        raise ValueError("Please check if basis=%s exists in adata.obsm" % basis)
-
-    basis_key = prefix + basis
+    basis_key = basis_key if basis_key is not None else basis
+    cur_l_smoothed = cur_l_smoothed if cur_l_smoothed is not None else layer
 
     main_info("plotting with basis key=%s" % basis_key, indent_level=2)
     main_debug("coloring scatter of cur_c: %s" % str(color))
@@ -2222,6 +2210,45 @@ def scatters_single_input(
                 )
     return ax, color_out, font_color, stack_legend_handles
 
+
+def _get_basis_key(
+    adata: AnnData,
+    basis: str,
+    layer: str,
+    use_smoothed: bool,
+    cmap: Optional[str] = None,
+    sym_c: Optional[bool] = None,
+) -> str:
+    """A helper function to get basis key for scatters function."""
+    if use_smoothed:
+        mapper = get_mapper()
+
+    cur_l_smoothed = layer
+
+    if layer in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
+        cur_l_smoothed = layer
+        cmap, sym_c = "bwr", True  # TODO maybe use other divergent color map in the future
+    else:
+        if use_smoothed:
+            cur_l_smoothed = layer if layer.startswith("M_") | layer.startswith("velocity") else mapper[layer]
+            if layer.startswith("velocity"):
+                cmap, sym_c = "bwr", True
+
+    if layer + "_" + basis in adata.obsm.keys():
+        prefix = layer + "_"
+    elif ("X_" + basis) in adata.obsm.keys():
+        prefix = "X_"
+    elif basis in adata.obsm.keys():
+        # special case for spatial for compatibility with other packages
+        prefix = ""
+    elif is_gene_name(adata, basis):
+        prefix = ""
+    else:
+        raise ValueError("Please check if basis=%s exists in adata.obsm" % basis)
+
+    basis_key = prefix + basis
+
+    return basis_key, cur_l_smoothed, cmap, sym_c
 
 def _get_color_parameters(
     adata: AnnData,
