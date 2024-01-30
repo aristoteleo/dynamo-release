@@ -1436,60 +1436,21 @@ def scatters_interactive(
     else:
         raise NotImplementedError("Current plot method not supported.")
 
-    if background is None:
-        background = rcParams.get("figure.facecolor")
-        background = to_hex(background) if type(background) is tuple else background
-        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
-
-    if type(x) in [int, str]:
-        x = [x]
-    if type(y) in [int, str]:
-        y = [y]
-    if type(z) in [int, str]:
-        z = [z]
-
-    # make x, y, z lists of list, where each list corresponds to one coordinate set
-    if (
-            type(x) in [anndata._core.views.ArrayView, np.ndarray]
-            and type(y) in [anndata._core.views.ArrayView, np.ndarray]
-            and type(z) in [anndata._core.views.ArrayView, np.ndarray]
-            and len(x) == adata.n_obs
-            and len(y) == adata.n_obs
-            and len(z) == adata.n_obs
-    ):
-        x, y, z = [x], [y], [z]
-
-    elif hasattr(x, "__len__") and hasattr(y, "__len__") and hasattr(z, "__len__"):
-        x, y, z = list(x), list(y), list(z)
-
-    assert len(x) == len(y) and len(x) == len(z), "bug: x, y, z does not have the same shape."
-
     if use_smoothed:
         mapper = get_mapper()
 
     # check color, layer, basis -> convert to list
-    if type(color) is str:
-        color = [color]
-    if type(layer) is str:
-        layer = [layer]
-    if type(basis) is str:
-        basis = [basis]
-
-    n_c, n_l, n_b, n_x, n_y, n_z = (
-        1 if color is None else len(color),
-        1 if layer is None else len(layer),
-        1 if basis is None else len(basis),
-        1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x),
-        1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
-        1 if z is None else 1 if type(z) in [anndata._core.views.ArrayView, np.ndarray] else len(z),
+    basis, background, color, layer, x, y, z, nrow, ncol, total_panels = _validate_parameters(
+        adata=adata,
+        basis=basis,
+        background=background,
+        color=color,
+        layer=layer,
+        x=x,
+        y=y,
+        z=z,
     )
 
-    total_panels, ncols = (
-        n_c * n_l * n_b * n_x,
-        max([n_c, n_l, n_b, n_x, n_y, n_z]),
-    )
-
-    nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     subplot_indices = [[i, j] for i in range(nrow) for j in range(ncol)]
     cur_subplot = 0
     colors_list = []
@@ -1518,7 +1479,7 @@ def scatters_interactive(
 
         main_debug("handling coordinates, cur_x: %s, cur_y: %s, cur_z: %s" % (cur_x, cur_y, cur_z))
 
-        points, cur_title = map_to_points(
+        points, cur_title = _map_to_points(
             adata,
             axis_x=cur_x,
             axis_y=cur_y,
@@ -1527,6 +1488,7 @@ def scatters_interactive(
             cur_c=cur_c,
             cur_b=cur_b,
             cur_l_smoothed=cur_l_smoothed,
+            projection="3d",
         )
 
         (
@@ -1648,6 +1610,7 @@ def scatters_interactive(
             main_info("plotting with basis key=%s" % basis_key, indent_level=2)
 
             for cur_c in color:
+                x, y, z = _standardize_dimensions(x, y, z, adata.n_obs, projection="3d")
                 for cur_x, cur_y, cur_z in zip(x, y, z):
                     _plot_basis_layer_pv(cur_b, cur_l, cur_c, cur_x, cur_y, cur_z)
 
@@ -1922,40 +1885,6 @@ def scatters(
     if stack_colors:
         color_key = None
 
-    if all([is_gene_name(adata, i) for i in basis]):
-        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
-            "M_u",
-            "X_unspliced",
-            "M_n",
-            "X_new",
-            "unspliced",
-            "new",
-        ]:
-            if "M_t" in adata.layers.keys() and "M_n" in adata.layers.keys():
-                x, y = ["M_t"], ["M_n"]
-            elif "X_total" in adata.layers.keys() and "X_new" in adata.layers.keys():
-                x, y = ["X_total"], ["X_new"]
-            elif "M_s" in adata.layers.keys() and "M_u" in adata.layers.keys():
-                x, y = ["M_s"], ["M_u"]
-            elif "X_spliced" in adata.layers.keys() and "X_unspliced" in adata.layers.keys():
-                x, y = ["X_spliced"], ["X_unspliced"]
-            elif "spliced" in adata.layers.keys() and "unspliced" in adata.layers.keys():
-                x, y = ["spliced"], ["unspliced"]
-            elif "total" in adata.layers.keys() and "new" in adata.layers.keys():
-                x, y = ["total"], ["new"]
-            else:
-                raise ValueError(
-                    "your adata object is corrupted. Please make sure it has at least one of the following "
-                    "pair of layers:"
-                    "'M_s', 'X_spliced', 'M_t', 'X_total', 'spliced', 'total' and "
-                    "'M_u', 'X_unspliced', 'M_n', 'X_new', 'unspliced', 'new'. "
-                )
-
-    if background is None:
-        background = rcParams.get("figure.facecolor")
-        background = to_hex(background) if type(background) is tuple else background
-        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
-
     if not (affine_transform_degree is None):
         affine_transform_A = gen_rotation_2d(affine_transform_degree)
         affine_transform_b = 0
@@ -1982,36 +1911,17 @@ def scatters(
     if figsize is None:
         figsize = plt.rcParams["figsize"]
 
-    if type(x) in [int, str]:
-        x = [x]
-    if type(y) in [int, str]:
-        y = [y]
-    if type(z) in [int, str]:
-        z = [z]
-
-    if type(color) is str:
-        color = [color]
-    if type(layer) is str:
-        layer = [layer]
-    if type(basis) is str:
-        basis = [basis]
-
-    n_c, n_l, n_b, n_x, n_y, n_z = (
-        1 if color is None else len(color),
-        1 if layer is None else len(layer),
-        1 if basis is None else len(basis),
-        1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x),
-        # check whether it is an array
-        1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
-        # check whether it is an array
-        1 if z is None else 1 if type(z) in [anndata._core.views.ArrayView, np.ndarray] else len(z),
+    basis, background, color, layer, x, y, z, nrow, ncol, total_panels = _validate_parameters(
+        adata=adata,
+        basis=basis,
+        background=background,
+        color=color,
+        layer=layer,
+        x=x,
+        y=y,
+        z=z,
+        ncols=ncols,
     )
-
-    total_panels, ncols = (
-        n_c * n_l * n_b * n_x,
-        min(max([n_c, n_l, n_b, n_x, n_y, n_z]), ncols),
-    )
-    nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
 
     if total_panels > 1 and ax is None:
         figure = plt.figure(
@@ -2542,6 +2452,85 @@ def scatters_single_input(
                 )
     return ax, color_out, font_color, stack_legend_handles
 
+
+def _validate_parameters(
+    adata: AnnData,
+    basis: Union[str, List[str]],
+    background: Optional[str],
+    color: Union[str, List[str]],
+    layer: Union[str, List[str]],
+    x: Union[str, List[str], int, List[int], None],
+    y: Union[str, List[str], int, List[int], None],
+    z: Union[str, List[str], int, List[int], None],
+    ncols: int = 4,
+) -> Tuple:
+    """A helper function to validate parameters for scatters function."""
+    if all([is_gene_name(adata, i) for i in basis]):
+        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
+            "M_u",
+            "X_unspliced",
+            "M_n",
+            "X_new",
+            "unspliced",
+            "new",
+        ]:
+            if "M_t" in adata.layers.keys() and "M_n" in adata.layers.keys():
+                x, y = ["M_t"], ["M_n"]
+            elif "X_total" in adata.layers.keys() and "X_new" in adata.layers.keys():
+                x, y = ["X_total"], ["X_new"]
+            elif "M_s" in adata.layers.keys() and "M_u" in adata.layers.keys():
+                x, y = ["M_s"], ["M_u"]
+            elif "X_spliced" in adata.layers.keys() and "X_unspliced" in adata.layers.keys():
+                x, y = ["X_spliced"], ["X_unspliced"]
+            elif "spliced" in adata.layers.keys() and "unspliced" in adata.layers.keys():
+                x, y = ["spliced"], ["unspliced"]
+            elif "total" in adata.layers.keys() and "new" in adata.layers.keys():
+                x, y = ["total"], ["new"]
+            else:
+                raise ValueError(
+                    "your adata object is corrupted. Please make sure it has at least one of the following "
+                    "pair of layers:"
+                    "'M_s', 'X_spliced', 'M_t', 'X_total', 'spliced', 'total' and "
+                    "'M_u', 'X_unspliced', 'M_n', 'X_new', 'unspliced', 'new'. "
+                )
+
+    if background is None:
+        background = rcParams.get("figure.facecolor")
+        background = to_hex(background) if type(background) is tuple else background
+        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
+
+    if type(x) in [int, str]:
+        x = [x]
+    if type(y) in [int, str]:
+        y = [y]
+    if type(z) in [int, str]:
+        z = [z]
+
+    if type(color) is str:
+        color = [color]
+    if type(layer) is str:
+        layer = [layer]
+    if type(basis) is str:
+        basis = [basis]
+
+    n_c, n_l, n_b, n_x, n_y, n_z = (
+        1 if color is None else len(color),
+        1 if layer is None else len(layer),
+        1 if basis is None else len(basis),
+        1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x),
+        # check whether it is an array
+        1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
+        # check whether it is an array
+        1 if z is None else 1 if type(z) in [anndata._core.views.ArrayView, np.ndarray] else len(z),
+    )
+
+    total_panels, ncols = (
+        n_c * n_l * n_b * n_x,
+        min(max([n_c, n_l, n_b, n_x, n_y, n_z]), ncols),
+    )
+    nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
+
+    return basis, background, color, layer, x, y, z, nrow, ncol, total_panels
 
 def _get_basis_key(
     adata: AnnData,
