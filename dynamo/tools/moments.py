@@ -366,7 +366,7 @@ def prepare_data_deterministic(
             )
         else:
             tot_sfs = adata.obs.total_Size_Factor
-        sfs_x, sfs_y = tot_sfs[:, None], tot_sfs[:, None]
+        sfs_x, sfs_y = tot_sfs.values[:, None], tot_sfs.values[:, None]
 
     m = [None] * len(layers)
     v = [None] * len(layers)
@@ -424,7 +424,7 @@ def prepare_data_deterministic(
                         total_layers=None,
                         CM=pair_x_layer + group_pair_x_layer,
                     )
-                    sfs_x, sfs_y = sfs_x[:, None], sfs_y[:, None]
+                    sfs_x, sfs_y = sfs_x.values[:, None], sfs_y.values[:, None]
 
                 x_layer = normalize_mat_monocle(
                     x_layer[:, adata.var_names.isin(genes)],
@@ -477,7 +477,7 @@ def prepare_data_deterministic(
                     )
                 x_layer = normalize_mat_monocle(
                     x_layer[:, adata.var_names.isin(genes)],
-                    szfactors=tot_sfs[:, None],
+                    szfactors=tot_sfs.values[:, None],
                     relative_expr=True,
                     pseudo_expr=0,
                     norm_method=None,
@@ -486,7 +486,7 @@ def prepare_data_deterministic(
                 if return_ntr:
                     total_layer = normalize_mat_monocle(
                         total_layer[:, adata.var_names.isin(genes)],
-                        szfactors=tot_sfs[:, None],
+                        szfactors=tot_sfs.values[:, None],
                         relative_expr=True,
                         pseudo_expr=0,
                         norm_method=None,
