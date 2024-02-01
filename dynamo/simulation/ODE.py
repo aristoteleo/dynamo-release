@@ -80,7 +80,7 @@ def hill_act_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float
 
 
 def toggle(
-    ab: Union[np.ndarray, Tuple[float, float]], t: Optional[float] = None, beta: float = 5, gamma: float = 1, n: int = 2
+    ab: Union[np.ndarray, Tuple[float, float]], beta: float = 5, gamma: float = 1, n: int = 2
 ) -> np.ndarray:
     """Calculates the right-hand side (RHS) of the differential equations for the toggle switch system.
 
@@ -105,7 +105,7 @@ def toggle(
     return res
 
 
-def Ying_model(x: np.ndarray, t: Optional[float]=None):
+def Ying_model(x: np.ndarray):
     """network used in the potential landscape paper from Ying, et. al:
     https://www.nature.com/articles/s41598-017-15889-2.
     This is also the mixture of Gaussian model.
@@ -124,7 +124,7 @@ def Ying_model(x: np.ndarray, t: Optional[float]=None):
     return ret
 
 
-def jacobian_Ying_model(x, t=None):
+def jacobian_Ying_model(x):
     """network used in the potential landscape paper from Ying, et. al:
     https://www.nature.com/articles/s41598-017-15889-2.
     This is also the mixture of Gaussian model.
@@ -333,14 +333,12 @@ def ode_neurongenesis(
 
 def neurongenesis(
     x,
-    t=None,
     mature_mu=0,
     n=4,
     k=1,
     a=4,
     eta=0.25,
     eta_m=0.125,
-    eta_b=0.1,
     a_s=2.2,
     a_e=6,
     mx=10,
@@ -386,14 +384,10 @@ def neurongenesis(
     return dx
 
 
-def hsc():
-    pass
-
-
 def state_space_sampler(ode, dim, seed_num=19491001, clip=True, min_val=0, max_val=4, N=10000):
     """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val and max_val. Velocity vector at the sampled points will be calculated according to ode function."""
 
-    seed(seed)
+    seed(seed_num)
     X = np.array([[uniform(min_val, max_val) for _ in range(dim)] for _ in range(N)])
     Y = np.clip(X + ode(X), a_min=min_val, a_max=None) if clip else X + ode(X)
 
