@@ -500,7 +500,8 @@ def arclength_sampling_n(X, num, t=None):
 # ---------------------------------------------------------------------------------------------------
 # fate related
 def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim, traj_ind):
-    import pandas as pd
+    if type(genes) != list:
+        genes = list(genes)
 
     prefix = "LAP_" if mode.lower() == "lap" else "fate_"
     if basis is not None:

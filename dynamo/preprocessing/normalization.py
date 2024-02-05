@@ -186,7 +186,7 @@ def get_sz_exprs(
             szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
 
         if total_szfactor is not None and total_szfactor in adata.obs.keys():
-            szfactors = adata.obs[total_szfactor][:, None]
+            szfactors = adata.obs[total_szfactor].values[:, None]
         elif total_szfactor is not None:
             main_warning("`total_szfactor` is not `None` and it is not in adata object.")
     except KeyError:

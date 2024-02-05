@@ -1734,7 +1734,11 @@ def set_param_kinetic(
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
     if isarray(alpha) and alpha.ndim > 1:
-        params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
+        params_df.loc[valid_ind, kin_param_pre + "alpha"] = (
+            np.asarray(alpha.mean(1))
+            if sp.issparse(alpha)
+            else alpha.mean(1)
+        )
         cur_cells_ind, valid_ind_ = (
             np.where(cur_cells_bools)[0][:, np.newaxis],
             np.where(valid_ind)[0],
