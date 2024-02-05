@@ -66,3 +66,62 @@ def test_state_graph(adata):
         terminators=['Iridophore'],
     )
     assert len(res) == len(adata.obs["Cell_type"].unique())
+
+
+def test_least_action_path():
+    import pandas as pd
+
+    adata = dyn.sample_data.hematopoiesis()
+    adata = adata[:2000, :2000].copy()
+
+    HSC_cells = dyn.tl.select_cell(adata, "cell_type", "HSC")
+    Meg_cells = dyn.tl.select_cell(adata, "cell_type", "Meg")
+
+    HSC_cells_indices = dyn.tools.utils.nearest_neighbors(
+        adata.obsm["X_umap"][HSC_cells[15]],
+        adata.obsm["X_umap"],
+    )
+    Meg_cells_indices = dyn.tools.utils.nearest_neighbors(
+        adata.obsm["X_umap"][Meg_cells[1]],
+        adata.obsm["X_umap"],
+    )
+
+    dyn.tl.neighbors(adata, basis="umap", result_prefix="umap")
+
+    dyn.pd.least_action(
+        adata,
+        [adata.obs_names[HSC_cells_indices[0]][0]],
+        [adata.obs_names[Meg_cells_indices[0]][0]],
+        basis="umap",
+        adj_key="X_umap_distances",
+        min_lap_t=False,
+        EM_steps=2,
+    )
+    ax = dyn.pl.least_action(adata, basis="umap", save_show_or_return="return")
+    assert ax is not None
+
+    lap = dyn.pd.least_action(
+        adata,
+        [adata.obs_names[HSC_cells_indices[0]][0]],
+        [adata.obs_names[Meg_cells_indices[0]][0]],
+        basis="pca",
+        adj_key="cosine_transition_matrix",
+        min_lap_t=False,
+        EM_steps=2,
+    )
+
+    gtraj = dyn.pd.GeneTrajectory(adata)
+    gtraj.from_pca(lap.X, t=lap.t)
+    gtraj.calc_msd()
+    ranking = dyn.vf.rank_genes(adata, "traj_msd")
+
+    assert type(ranking) == pd.DataFrame
+    assert ranking.shape[0] == adata.n_vars
+
+
+def test_trajectoy_analysis():
+    adata = dyn.sample_data.hematopoiesis()
+    adata = adata[:1000, :1000].copy()
+    adata.obs["trajectory"] = [i for i in range(adata.n_obs)]
+    mfpt = dyn.pd.mean_first_passage_time(adata, sink_states=[0, 1, 2], init_states=[3, 4, 5], target_states=[6, 7, 8])
+    assert type(mfpt) == float
