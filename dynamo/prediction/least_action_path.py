@@ -244,14 +244,33 @@ def action(path: np.ndarray, vf_func: Callable[[np.ndarray], np.ndarray], D: flo
     return s
 
 
-def action_aux(path_flatten, vf_func, dim, start=None, end=None, **kwargs):
+def action_aux(
+    path_flatten: np.ndarray,
+    vf_func: Callable,
+    dim: int,
+    start: Optional[np.ndarray] = None,
+    end: Optional[np.ndarray] = None,
+    **kwargs,
+) -> float:
+    """Auxiliary function for computing the action of a path.
+
+    Args:
+        path_flatten: A 1D array representing the flattened path.
+        vf_func: A function that computes the velocity field vf(x) for a given position x.
+        dim: The dimension of the path.
+        start: The starting point of the path.
+        end: The end point of the path.
+        **kwargs: Additional keyword arguments to pass to the action function.
+
+    Returns:
+        The action of the path.
+    """
     path = reshape_path(path_flatten, dim, start=start, end=end)
     return action(path, vf_func, **kwargs)
 
 
 def action_grad(path: np.ndarray, vf_func: Callable, jac_func: Callable, D: float = 1.0, dt: float = 1.0) -> np.ndarray:
-    """
-    Computes the gradient of the action functional with respect to the path.
+    """Computes the gradient of the action functional with respect to the path.
 
     Args:
         path: A 2D array of shape (n+1,d) representing the path, where n is the number of time steps and d is the dimension of the path.
@@ -275,12 +294,50 @@ def action_grad(path: np.ndarray, vf_func: Callable, jac_func: Callable, D: floa
     return grad
 
 
-def action_grad_aux(path_flatten, vf_func, jac_func, dim, start=None, end=None, **kwargs):
+def action_grad_aux(
+    path_flatten: np.ndarray,
+    vf_func: Callable,
+    jac_func: Callable,
+    dim: int,
+    start: Optional[np.ndarray] = None,
+    end: Optional[np.ndarray] = None,
+    **kwargs,
+) -> np.ndarray:
+    """Auxiliary function for computing the gradient of the action functional with respect to the path.
+
+    Args:
+        path_flatten: A 1D array representing the flattened path.
+        vf_func: A function that computes the velocity field vf(x) for a given position x.
+        jac_func: A function that computes the Jacobian matrix of the velocity field at a given position.
+        dim: The dimension of the path.
+        start: The starting point of the path.
+        end: The end point of the path.
+        **kwargs: Additional keyword arguments to pass to the action_grad function.
+
+    Returns:
+        The gradient of the action functional with respect to the path.
+    """
     path = reshape_path(path_flatten, dim, start=start, end=end)
     return action_grad(path, vf_func, jac_func, **kwargs).flatten()
 
 
-def reshape_path(path_flatten, dim, start=None, end=None):
+def reshape_path(
+    path_flatten: np.ndarray,
+    dim: int,
+    start: Optional[np.ndarray] = None,
+    end: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """Reshapes a flattened path into a 2D array.
+
+    Args:
+        path_flatten: A 1D array representing the flattened path.
+        dim: The dimension of the path.
+        start: The starting point of the path.
+        end: The end point of the path.
+
+    Returns:
+        A 2D array representing the path.
+    """
     path = path_flatten.reshape(int(len(path_flatten) / dim), dim)
     if start is not None:
         path = np.vstack((start, path))
@@ -381,7 +438,36 @@ def least_action_path(
     return path, dt, action_opt
 
 
-def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, elbow_method="hessian", hes_tol=3):
+def minimize_lap_time(
+    path_0: np.ndarray,
+    t0: float,
+    t_min: float,
+    vf_func: Callable,
+    jac_func: Callable,
+    D: Union[float, int, np.ndarray] = 1,
+    num_t: int = 20,
+    elbow_method: str = "hessian",
+    hes_tol=3,
+) -> Tuple[int, List[np.ndarray], np.ndarray, np.ndarray]:
+    """Minimize the least action path time.
+
+    Args:
+        path_0: The initial path.
+        t0: The initial time to start the minimization.
+        t_min: The minimum time to consider.
+        vf_func: The vector field function.
+        jac_func: The Jacobian function.
+        D: The diffusion constant or matrix.
+        num_t: The number of time steps.
+        elbow_method: The method to use to find the elbow in the action vs time plot.
+        hes_tol: The tolerance to use for the elbow method.
+
+    Returns:
+        A tuple containing the following elements:
+            - i_elbow: The index of the elbow in the action vs time plot.
+            - laps: A list of the least action paths for each time step.
+            - A: An array of action values for each time step.
+    """
     T = np.linspace(t_min, t0, num_t)
     A = np.zeros(num_t)
     opt_T = np.zeros(num_t)
@@ -398,7 +484,25 @@ def minimize_lap_time(path_0, t0, t_min, vf_func, jac_func, D=1, num_t=20, elbow
     return i_elbow, laps, A, opt_T
 
 
-def get_init_path(G, start, end, coords, interpolation_num=20):
+def get_init_path(
+    G: nx.Graph,
+    start: np.ndarray,
+    end: np.ndarray,
+    coords: np.ndarray,
+    interpolation_num: int = 20,
+) -> np.ndarray:
+    """Get the initial path for the least action path calculation.
+
+    Args:
+        G: A networkx graph representing the cell state space.
+        start: The starting point of the path.
+        end: The end point of the path.
+        coords: The coordinates of the cell states.
+        interpolation_num: The number of points to use in the initial path.
+
+    Returns:
+        The initial path for the least action path calculation.
+    """
     source_ind = nearest_neighbors(start, coords, k=1)[0][0]
     target_ind = nearest_neighbors(end, coords, k=1)[0][0]
 
