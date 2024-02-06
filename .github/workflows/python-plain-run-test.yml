@@ -47,7 +47,7 @@ jobs:
       uses: Wandalen/wretry.action@v1
       with:
         action: codecov/codecov-action@v3
-        with:
+        with: |
           fail_ci_if_error: true
           verbose: true
         attempt_limit: 5
