@@ -45,50 +45,36 @@ def ddhodge(
     reconstructed vector field function. This method is relevant to the curl-free/divergence-free vector field
     reconstruction.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        X_data:
-            The user supplied expression (embedding) data that will be used for graph hodege decomposition directly.
-        layer:
-            Which layer of the data will be used for graph Hodge decomposition.
-        basis:
-            Which basis of the data will be used for graph Hodge decomposition.
-        n:
-            Number of nearest neighbors when the nearest neighbor graph is not included.
-        VecFld:
-            The reconstructed vector field function.
-        adjmethod:
-            The method to build the ajacency matrix that will be used to create the sparse diffusion graph, can be
+    Args:
+        adata: An Anndata object.
+        X_data: The user supplied expression (embedding) data that will be used for graph hodege decomposition directly.
+        layer: Which layer of the data will be used for graph Hodge decomposition.
+        basis: Which basis of the data will be used for graph Hodge decomposition.
+        n: Number of nearest neighbors when the nearest neighbor graph is not included.
+        VecFld: The reconstructed vector field function.
+        adjmethod: The method to build the ajacency matrix that will be used to create the sparse diffusion graph, can be
             either "naive" or "graphize_vecfld". If "naive" used, the transition_matrix that created during vector field
             projection will be used; if "graphize_vecfld" used, a method that guarantees the preservance of divergence
             will be used.
-        n_downsamples:
-            Number of cells to downsample to if the cell number is large than this value. Three downsampling methods are
-            available, see `sampling_method`.
-        up_sampling:
-            Whether to assign calculated potential, curl and divergence to cells not sampled based on values from their
-            nearest sampled cells.
-        sampling_method:
-            Methods to downsample datasets to facilitate calculation. Can be one of {`random`, `velocity`, `trn`}, each
-            corresponds to random sampling, velocity magnitude based and topology representing network based sampling.
-        seed:
-            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
+        n_downsamples: Number of cells to downsample to if the cell number is large than this value. Three downsampling
+            methods are available, see `sampling_method`.
+        up_sampling: Whether to assign calculated potential, curl and divergence to cells not sampled based on values
+            from their nearest sampled cells.
+        sampling_method: Methods to downsample datasets to facilitate calculation. Can be one of {`random`, `velocity`,
+            `trn`}, each corresponds to random sampling, velocity magnitude based and topology representing network
+            based sampling.
+        seed: Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
             Default is to be 0 for ensure consistency between different runs.
-        enforce:
-            Whether to enforce the calculation of adjacency matrix for estimating potential, curl, divergence for each
-            cell.
-        cores:
-            Number of cores to run the graphize_vecfld function. If cores is set to be > 1, multiprocessing will be used
-            to parallel the graphize_vecfld calculation.
+        enforce: Whether to enforce the calculation of adjacency matrix for estimating potential, curl, divergence for
+            each cell.
+        cores: Number of cores to run the graphize_vecfld function. If cores is set to be > 1, multiprocessing will be
+            used to parallel the graphize_vecfld calculation.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            `AnnData` object that is updated with the `ddhodge` key in the `obsp` attribute which to adjacency matrix
-            that corresponds to the sparse diffusion graph. Two columns `potential` and `divergence` corresponds to the
-            potential and divergence for each cell will also be added."""
+    Returns:
+        `AnnData` object that is updated with the `ddhodge` key in the `obsp` attribute which to adjacency matrix
+        that corresponds to the sparse diffusion graph. Two columns `potential` and `divergence` corresponds to the
+        potential and divergence for each cell will also be added.
+    """
 
     main_log_time()
     prefix = "" if basis is None else basis + "_"

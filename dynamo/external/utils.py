@@ -6,8 +6,21 @@ from scipy.sparse import issparse
 from ..tools.utils import fdr
 
 
-def normalize_data(mm, szfactors, pseudo_expr: float = 0.1):
-    """normalize data via size factor and scaling."""
+def normalize_data(
+    mm: np.ndarray,
+    szfactors: np.ndarray,
+    pseudo_expr: float = 0.1,
+):
+    """Normalize data via size factor and scaling.
+
+    Args:
+        mm: The input data matrix.
+        szfactors: The size factors for each cell.
+        pseudo_expr: The pseudo expression value to add before log transformation.
+
+    Returns:
+        The normalized data matrix.
+    """
 
     mm = mm / szfactors
 
@@ -27,8 +40,23 @@ def normalize_data(mm, szfactors, pseudo_expr: float = 0.1):
     return mm
 
 
-def TF_link_gene_chip(raw_glmnet_res_var, df_gene_TF_link_ENCODE, var, cor_thresh: float = 0.02):
-    """Filter the raw lasso regression links via chip-seq data based on a Fisher exact test"""
+def TF_link_gene_chip(
+    raw_glmnet_res_var: pd.DataFrame,
+    df_gene_TF_link_ENCODE: pd.DataFrame,
+    var: pd.DataFrame,
+    cor_thresh: float = 0.02,
+):
+    """Filter the raw lasso regression links via chip-seq data based on a Fisher exact test.
+
+    Args:
+        raw_glmnet_res_var: The raw glmnet results.
+        df_gene_TF_link_ENCODE: The gene-TF link data from ENCODE.
+        var: The gene data.
+        cor_thresh: The correlation threshold.
+
+    Returns:
+        The filtered gene-TF link data.
+    """
 
     glmnet_res_var_filtered = raw_glmnet_res_var.query("abs(corcoef) > @cor_thresh")
     if glmnet_res_var_filtered.shape[0] < 1000:

@@ -1,6 +1,6 @@
 import itertools
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -27,59 +27,48 @@ def scribe(
     TF_link_ENCODE_ref: str = "https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
 ) -> AnnData:
     """Apply Scribe to calculate causal network from spliced/unspliced, metabolic labeling based and other "real" time
-    series datasets. Note that this function can be applied to both of the metabolic labeling based single-cell assays
+    series datasets.
+
+    Note that this function can be applied to both of the metabolic labeling based single-cell assays
     with newly synthesized and total RNA as well as the regular single cell assays with both the unspliced and spliced
-    transcripts. Furthermore, you can also replace the either the new or unspliced RNA with dynamo estimated cell-wise
+    transcripts. Furthermore, you can also replace either the new or unspliced RNA with dynamo estimated cell-wise
     velocity, transcription, splicing and degradation rates for each gene (similarly, replacing the expression values
     of transcription factors with RNA binding, ribosome, epigenetics or epitranscriptomic factors, etc.) to infer the
     total regulatory effects, transcription, splicing and post-transcriptional regulation of different factors.
 
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`.
-            adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
+    Args:
+        adata: Adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
             the object should include both unspliced and spliced gene expression of cells.
-        genes:
-            The list of gene names that will be used for casual network inference. By default, it is `None` and thus
+        genes: The list of gene names that will be used for casual network inference. By default, it is `None` and thus
             will use all genes.
-        TFs:
-            The list of transcription factors that will be used for casual network inference. When it is `None` gene
+        TFs: The list of transcription factors that will be used for casual network inference. When it is `None` gene
             list included in the file linked by `motif_ref` will be used.
-        Targets:
-            The list of target genes that will be used for casual network inference. When it is `None` gene list not
-            included in the file linked by `motif_ref` will be used.
-        gene_filter_rate:
-            minimum percentage of expressed cells for gene filtering.
-        cell_filter_UMI:
-             minimum number of UMIs for cell filtering.
-        motif_ref:
-            It provides the list of TFs gene names and is used to parse the data to get the list of TFs and Targets
-            for the causal network inference from those TFs to Targets. But currently the motif based filtering is not
-            implemented. By default it is a dropbox link that store the data from us. Other motif reference can bed
-            downloaded from RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be
+        Targets: The list of target genes that will be used for casual network inference. When it is `None` gene list
+            not included in the file linked by `motif_ref` will be used.
+        gene_filter_rate: Minimum percentage of expressed cells for gene filtering.
+        cell_filter_UMI: Minimum number of UMIs for cell filtering.
+        motif_ref: It provides the list of TFs gene names and is used to parse the data to get the list of TFs and
+            Targets for the causal network inference from those TFs to Targets. But currently the motif based filtering
+            is not implemented. By default, it is a dropbox link that store the data from us. Other motif reference can
+            bed downloaded from RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be
             downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-
             centered-10kb-7species.mc9nr.feather
-        nt_layers:
-            The two keys for layers that will be used for the network inference. Note that the layers can be changed
-            flexibly. See the description of this function above. The first key corresponds to the transcriptome of the
-            next time point, for example unspliced RNAs (or estimated velocitym, see Fig 6 of the Scribe preprint:
+        nt_layers: The two keys for layers that will be used for the network inference. Note that the layers can be
+            changed flexibly. See the description of this function above. The first key corresponds to the transcriptome
+            of the next time point, for example unspliced RNAs (or estimated velocity, see Fig 6 of the Scribe preprint:
             https://www.biorxiv.org/content/10.1101/426981v1) from RNA velocity, new RNA from scSLAM-seq data, etc.
             The second key corresponds to the transcriptome of the initial time point, for example spliced RNAs from RNA
             velocity, old RNA from scSLAM-seq data.
-        drop_zero_cells:
-            Whether to drop cells that with zero expression for either the potential regulator or potential target. This
-            can signify the relationship between potential regulators and targets, speed up the calculation, but at the
-            risk of ignoring strong inhibition effects from certain regulators to targets.
-        do_CLR:
-            Whether to perform context likelihood relatedness analysis on the reconstructed causal network
-        TF_link_ENCODE_ref:
-            The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data
-            can be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
+        drop_zero_cells: Whether to drop cells that with zero expression for either the potential regulator or potential
+            target. This can signify the relationship between potential regulators and targets, speed up the calculation,
+            but at the risk of ignoring strong inhibition effects from certain regulators to targets.
+        do_CLR: Whether to perform context likelihood relatedness analysis on the reconstructed causal network
+        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a dropbox link from us that stores the
+            data. Other data can be downloaded from:
+                https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
 
-    Returns
-    -------
+    Returns:
         An updated adata object with a new key `causal_net` in .uns attribute, which stores the inferred causal network.
     """
 
@@ -221,28 +210,27 @@ def scribe(
     return adata
 
 
-def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
+def coexp_measure(
+    adata: AnnData,
+    genes: List,
+    layer_x: str,
+    layer_y: str,
+    cores: int = 1,
+    skip_mi: bool = True,
+):
     """Calculate co-expression measures, including mutual information (MI), pearson correlation, etc. of genes between
     two different layers.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`.
-            adata object that will be used for mutual information calculation.
-        genes: `List` (default: None)
-            Gene names from the adata object that will be used for mutual information calculation.
-        layer_x: `str`
-            The first key of the layer from the adata object that will be used for mutual information calculation.
-        layer_y: `str`
-            The second key of the layer from the adata object that will be used for mutual information calculation.
-        cores: `int` (default: 1)
-            Number of cores to run the MI calculation. If cores is set to be > 1, multiprocessing will be used to
+    Args:
+        adata: Adata object that will be used for mutual information calculation.
+        genes: Gene names from the adata object that will be used for mutual information calculation.
+        layer_x: The first key of the layer from the adata object that will be used for mutual information calculation.
+        layer_y: The second key of the layer from the adata object that will be used for mutual information calculation.
+        cores: Number of cores to run the MI calculation. If cores is set to be > 1, multiprocessing will be used to
             parallel the calculation. `cores` is only applicable to MI calculation.
-        skip_mi: `bool` (default: `True`)
-            Whether to skip the mutual information calculation step which is time-consuming.
+        skip_mi: Whether to skip the mutual information calculation step which is time-consuming.
 
-    Returns
-    -------
+    Returns:
         An updated adata object that updated with a new columns (`mi`, `pearson`) in .var contains the mutual
         information of input genes.
     """
@@ -300,20 +288,21 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
 
 
 def coexp_measure_mat(
-    adata,
-    TFs=None,
-    Targets=None,
-    guide_keys=None,
-    t0_key="spliced",
-    t1_key="velocity",
-    normalize=True,
-    drop_zero_cells=True,
-    skip_mi=True,
-    cores=1,
-    copy=False,
-):
+    adata: AnnData,
+    TFs: Optional[List] = None,
+    Targets: Optional[List] = None,
+    guide_keys: Optional[List] = None,
+    t0_key: str = "spliced",
+    t1_key: str = "velocity",
+    normalize: bool = True,
+    drop_zero_cells: bool = True,
+    skip_mi: bool = True,
+    cores: int = 1,
+    copy: bool = False,
+) -> AnnData:
     """Infer causal networks with dynamics-coupled single cells measurements.
-    Network inference is a insanely challenging problem which has a long history and that none of the existing
+
+    Network inference is an insanely challenging problem which has a long history and that none of the existing
     algorithms work well. However, it's quite possible that one or more of the algorithms could work if only they were
     given enough data. Single-cell RNA-seq is exciting because it provides a ton of data. Somewhat surprisingly, just
     having a lot of single-cell RNA-seq data won't make causal inference work well. We need a fundamentally better type
@@ -328,33 +317,23 @@ def coexp_measure_mat(
     advance may be still not sufficient, radically different methods, for example something like highly multiplexed live
     imaging that can record many genes may be needed.
 
-    Arguments
-    ---------
-    adata: `anndata`
-        Annotated data matrix.
-    TFs: `List` or `None` (default: None)
-        The list of transcription factors that will be used for casual network inference.
-    Targets: `List` or `None` (default: None)
-        The list of target genes that will be used for casual network inference.
-    guide_keys: `List` (default: None)
-        The key of the CRISPR-guides, stored as a column in the .obs attribute. This argument is useful
-        for identifying the knockout or knockin genes for a perturb-seq experiment. Currently not used.
-    t0_key: `str` (default: spliced)
-        Key corresponds to the transcriptome of the initial time point, for example spliced RNAs from RNA velocity, old
-        RNA from scSLAM-seq data.
-    t1_key: `str` (default: velocity)
-        Key corresponds to the transcriptome of the next time point, for example unspliced RNAs (or estimated velocity,
-        see Fig 6 of the Scribe preprint) from RNA velocity, old RNA from scSLAM-seq data.
-    normalize: `bool`
-        Whether to scale the expression or velocity values into 0 to 1 before calculating causal networks.
-    drop_zero_cells: `bool` (Default: True)
-        Whether to drop cells that with zero expression for either the potential regulator or potential target. This
-        can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
-        of ignoring strong inhibition effects from certain regulators to targets.
-    copy: `bool`
-        Whether to return a copy of the adata or just update adata in place.
-    Returns
-    ---------
+    Args:
+        adata: Annotated data matrix.
+        TFs: The list of transcription factors that will be used for casual network inference.
+        Targets: The list of target genes that will be used for casual network inference.
+        guide_keys: The key of the CRISPR-guides, stored as a column in the .obs attribute. This argument is useful
+            for identifying the knockout or knockin genes for a perturb-seq experiment. Currently not used.
+        t0_key: Key corresponds to the transcriptome of the initial time point, for example spliced RNAs from RNA
+            velocity, old RNA from scSLAM-seq data.
+        t1_key: Key corresponds to the transcriptome of the next time point, for example unspliced RNAs (or estimated
+            velocity, see Fig 6 of the Scribe preprint) from RNA velocity, old RNA from scSLAM-seq data.
+        normalize: Whether to scale the expression or velocity values into 0 to 1 before calculating causal networks.
+        drop_zero_cells: Whether to drop cells that with zero expression for either the potential regulator or potential
+            target. This can signify the relationship between potential regulators and targets, speed up the
+            calculation, but at the risk of ignoring strong inhibition effects from certain regulators to targets.
+        copy: Whether to return a copy of the adata or just update adata in place.
+
+    Returns:
         An update AnnData object with inferred causal network stored as a matrix related to the key `causal_net` in the
         `uns` slot.
     """
