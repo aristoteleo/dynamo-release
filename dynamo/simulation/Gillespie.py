@@ -35,7 +35,8 @@ def Gillespie(
     method: str = "basic",
     verbose: bool = False,
 ) -> AnnData:
-    """A simulator of RNA dynamics that includes RNA bursting, transcription, metabolic labeling, splicing, transcription, RNA/protein degradation
+    """A simulator of RNA dynamics that includes RNA bursting, transcription, metabolic labeling, splicing,
+    transcription, RNA/protein degradation.
 
     Args:
         a: rate of active promoter switches to inactive one

@@ -1,3 +1,5 @@
+from typing import Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 
 from .utils import directMethod, temporal_interp
@@ -5,6 +7,7 @@ from .utils import directMethod, temporal_interp
 
 # Differentiation model
 class sim_diff:
+    """The differentiation model."""
     def __init__(
         self,
         a1,
@@ -56,6 +59,7 @@ class sim_diff:
         }
 
     def f_prop(self, C):
+        """Get the propensities."""
         # unlabeled mRNA
         u1 = C[0]
         s1 = C[1]
@@ -117,6 +121,7 @@ class sim_diff:
         return prop
 
     def f_stoich(self):
+        """Get the stoichiometry matrix."""
         # species
         u1 = 0
         s1 = 1
@@ -164,6 +169,7 @@ class sim_diff:
 
 # Oscillator
 class sim_osc:
+    """The oscillator model."""
     def __init__(
         self,
         a1,
@@ -207,6 +213,7 @@ class sim_osc:
         }
 
     def f_prop(self, C):
+        """Get the propensities."""
         # unlabeled mRNA
         u1 = C[0]
         s1 = C[1]
@@ -266,6 +273,7 @@ class sim_osc:
         return prop
 
     def f_stoich(self):
+        """Get the stoichiometry matrix."""
         # species
         u1 = 0
         s1 = 1
@@ -311,7 +319,25 @@ class sim_osc:
         return stoich
 
 
-def simulate(model, C0, t_span, n_traj, report=False):
+def simulate(
+    model: Union[sim_diff, sim_osc],
+    C0: List[np.ndarray],
+    t_span: List[int],
+    n_traj: int,
+    report: bool = False,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Simulate the model.
+
+    Args:
+        model: The model to simulate.
+        C0: The initial conditions for each trajectory.
+        t_span: The time span to simulate over.
+        n_traj: The number of trajectories to simulate.
+        report: Whether to report the progress of the simulation.
+
+    Returns:
+        The time points and the corresponding conditions of the trajectories.
+    """
     stoich = model.f_stoich()
     update_func = lambda C, mu: C + stoich[mu, :]
 
@@ -328,7 +354,27 @@ def simulate(model, C0, t_span, n_traj, report=False):
 
 
 # synthesize labeling data (kinetics) at different time points (multi-time-series)
-def syn_kin_data(model_lab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
+def syn_kin_data(
+    model_lab: Union[sim_diff, sim_osc],
+    n_trajs: int,
+    t_idx: int,
+    trajs_CP: List[np.ndarray],
+    Tl: List[int],
+    n_cell: int,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Synthesize labeling data (kinetics) at different time points (multi-time-series).
+
+    Args:
+        model_lab: The labeling model.
+        n_trajs: The number of trajectories to simulate.
+        t_idx: The index of the time point to simulate at.
+        trajs_CP: The checkpoint data.
+        Tl: The time points to simulate at.
+        n_cell: The number of cells to simulate.
+
+    Returns:
+        The synthesized labeling data.
+    """
     C0 = [trajs_CP[j][:, t_idx] for j in range(n_trajs)]
     # label for 1 unit of time
     trajs_T, trajs_C = simulate(model_lab, C0=C0, t_span=[0, 1], n_traj=n_cell, report=True)
@@ -361,7 +407,29 @@ def syn_kin_data(model_lab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
 
 
 # synthesize labeling data (degradation) at the begining and the end
-def syn_deg_data(model_lab, model_unlab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
+def syn_deg_data(
+    model_lab: Union[sim_diff, sim_osc],
+    model_unlab: Union[sim_diff, sim_osc],
+    n_trajs: int,
+    t_idx: int,
+    trajs_CP: List[np.ndarray],
+    Tl: List[int],
+    n_cell: int,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Synthesize labeling data (degradation) at the begining and the end.
+
+    Args:
+        model_lab: The labeling model.
+        model_unlab: The unlabeling model.
+        n_trajs: The number of trajectories to simulate.
+        t_idx: The index of the time point to simulate at.
+        trajs_CP: The checkpoint data.
+        Tl: The time points to simulate at.
+        n_cell: The number of cells to simulate.
+
+    Returns:
+        The synthesized labeling data.
+    """
     C0 = [trajs_CP[j][:, t_idx] for j in range(n_trajs)]
     # label for 10 unit of time
     trajs_T, trajs_C = simulate(model_lab, C0=C0, t_span=[0, 10], n_traj=n_cell, report=True)
@@ -396,7 +464,25 @@ def syn_deg_data(model_lab, model_unlab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
     return uu_deg, su_deg, ul_deg, sl_deg, pr_deg
 
 
-def osc_diff_dup(n_species, trajs_C, model_lab, model_unlab, n_cell):
+def osc_diff_dup(
+    n_species: int,
+    trajs_C: List[np.ndarray],
+    model_lab: Union[sim_diff, sim_osc],
+    model_unlab: Union[sim_diff, sim_osc],
+    n_cell: int,
+) -> Tuple:
+    """Synthesize data for both oscillatory and differentiation models.
+
+    Args:
+        n_species: The number of species.
+        trajs_C: The checkpoint data.
+        model_lab: The labeling model.
+        model_unlab: The unlabeling model.
+        n_cell: The number of cells to simulate.
+
+    Returns:
+        The synthesized data.
+    """
     n_trajs = len(trajs_C)
 
     # get the steady state expression (cell state at the final time point) for the cells
