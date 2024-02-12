@@ -147,6 +147,7 @@ def fate(
         **kwargs,
     )
 
+    exprs = None
     if inverse_transform:
         exprs, valid_genes = _inverse_transform(adata=adata, prediction=prediction, basis=basis, Qkey=Qkey)
 
