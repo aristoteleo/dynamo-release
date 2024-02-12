@@ -161,8 +161,9 @@ class Trajectory:
         # idx = dup_osc_idx_iter(x)
         x = x[:idx]
         _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
-        arc_stepsize = arclen / interpolation_num
-        cur_Y, alen, self.t = arclength_sampling(x, step_length=arc_stepsize, n_steps=interpolation_num, t=tau[:idx])
+        cur_Y, alen, self.t = arclength_sampling_n(x, num=interpolation_num+1, t=tau[:idx])
+        self.t = self.t[1:]
+        cur_Y = cur_Y[:, 1:]
 
         if integration_direction == "both":
             neg_t_len = sum(np.array(self.t) < 0)
