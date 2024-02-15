@@ -1721,7 +1721,7 @@ class Estimation:
             }
 
     def fit_gene(self, gene_no, n_p0=10):
-        from ..estimation.tsc.utils_moments import estimation
+        from ..estimation.deprecated import estimation
 
         estm = estimation(list(self.param_ranges.values()))
         if self.data_u is None:

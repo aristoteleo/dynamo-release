@@ -51,6 +51,43 @@ def fit_slope_stochastic(
     return k, 0, all_r2, all_logLL
 
 
+def lin_reg_gamma_synthesis(
+    R: Union[csc_matrix, csr_matrix, np.ndarray],
+    N: Union[csc_matrix, csr_matrix, np.ndarray],
+    time: Union[List, csc_matrix, csr_matrix, np.ndarray],
+    perc_right: int = 100,
+) -> Tuple:
+    """Under the steady-state assumption, alpha / gamma equals the total RNA. Gamma can be calculated from the slope of
+    total RNA and new RNA. The relationship can be expressed as:
+        l(t) = (1 - exp(- gamma * t)) alpha / gamma
+
+    Args:
+        R: A matrix representing total RNA. Can be expression or the first moments.
+        N: A matrix representing new RNA. Can be expression or the first moments.
+        time: A matrix with time information.
+        perc_right: The percentile limitation to find extreme data points.
+
+    Returns:
+        Gamma, R squared, the slope k, the mean of R squared and the fitted k by time and gamma.
+    """
+    n_var = R.shape[0]
+    mean_R2, gamma, r2 = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
+    K_list, K_fit_list = [None] * n_var, [None] * n_var
+    for i, r, n in tqdm(
+        zip(np.arange(n_var), R, N),
+        "Estimate gamma via linear regression of t vs. -ln(1-K)",
+    ):
+        r = r.A.flatten() if issparse(r) else r.flatten()
+        n = n.A.flatten() if issparse(n) else n.flatten()
+
+        K_list[i], R2 = fit_labeling_synthesis(n, r, time, perc_right=perc_right)
+        gamma[i], r2[i] = compute_gamma_synthesis(K_list[i], np.unique(time))
+        K_fit_list[i] = np.unique(time) * gamma[i]
+        mean_R2[i] = np.mean(R2)
+
+    return gamma, r2, K_list, mean_R2, K_fit_list
+
+
 def fit_labeling_synthesis(
     new: Union[csc_matrix, csr_matrix, np.ndarray],
     total: Union[csc_matrix, csr_matrix, np.ndarray],
@@ -120,40 +157,3 @@ def compute_velocity_synthesis(
     k = 1 - np.exp(-np.einsum("i,j->ij", t, gamma))
     V = elem_prod(gamma, N) / k - elem_prod(gamma, R)
     return V
-
-
-def lin_reg_gamma_synthesis(
-    R: Union[csc_matrix, csr_matrix, np.ndarray],
-    N: Union[csc_matrix, csr_matrix, np.ndarray],
-    time: Union[List, csc_matrix, csr_matrix, np.ndarray],
-    perc_right: int = 100,
-) -> Tuple:
-    """Under the steady-state assumption, alpha / gamma equals the total RNA. Gamma can be calculated from the slope of
-    total RNA and new RNA. The relationship can be expressed as:
-        l(t) = (1 - exp(- gamma * t)) alpha / gamma
-
-    Args:
-        R: A matrix representing total RNA. Can be expression or the first moments.
-        N: A matrix representing new RNA. Can be expression or the first moments.
-        time: A matrix with time information.
-        perc_right: The percentile limitation to find extreme data points.
-
-    Returns:
-        Gamma, R squared, the slope k, the mean of R squared and the fitted k by time and gamma.
-    """
-    n_var = R.shape[0]
-    mean_R2, gamma, r2 = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
-    K_list, K_fit_list = [None] * n_var, [None] * n_var
-    for i, r, n in tqdm(
-        zip(np.arange(n_var), R, N),
-        "Estimate gamma via linear regression of t vs. -ln(1-K)",
-    ):
-        r = r.A.flatten() if issparse(r) else r.flatten()
-        n = n.A.flatten() if issparse(n) else n.flatten()
-
-        K_list[i], R2 = fit_labeling_synthesis(n, r, time, perc_right=perc_right)
-        gamma[i], r2[i] = compute_gamma_synthesis(K_list[i], np.unique(time))
-        K_fit_list[i] = np.unique(time) * gamma[i]
-        mean_R2[i] = np.mean(R2)
-
-    return gamma, r2, K_list, mean_R2, K_fit_list
