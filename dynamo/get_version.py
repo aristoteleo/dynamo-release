@@ -18,7 +18,8 @@ RE_GIT_DESCRIBE = r"v?(?:([\d.]+)-(.+)-g)?([0-9a-f]{7})(-dirty)?"
 ON_RTD = os.environ.get("READTHEDOCS") == "True"
 
 
-def match_groups(regex, target):
+def match_groups(regex: str, target: str) -> List[str]:
+    """Match a regex and return the groups as a list. Raise an error if the regex does not match."""
     match = re.match(regex, target)
     if match is None:
         raise re.error(f"Regex does not match “{target}”. RE Pattern: {regex}", regex)
@@ -26,6 +27,7 @@ def match_groups(regex, target):
 
 
 class Version(NamedTuple):
+    """A parsed version string."""
     release: str
     dev: Optional[str]
     labels: List[str]
@@ -42,8 +44,8 @@ class Version(NamedTuple):
         return f"{release}{dev}{labels}"
 
 
-def get_version_from_dirname(name, parent):
-    """Extracted sdist"""
+def get_version_from_dirname(name: str, parent: Path) -> Optional[Version]:
+    """Extracted sdist."""
     parent = parent.resolve()
 
     re_dirname = re.compile(f"{name}-{RE_VERSION}$")
@@ -53,7 +55,8 @@ def get_version_from_dirname(name, parent):
     return Version.parse(parent.name[len(name) + 1 :])
 
 
-def get_version_from_git(parent):
+def get_version_from_git(parent: Path) -> Optional[Version]:
+    """Get the version from git describe."""
     parent = parent.resolve()
 
     try:
@@ -102,7 +105,8 @@ def get_version_from_git(parent):
     return Version(release, dev, labels)
 
 
-def get_version_from_metadata(name: str, parent: Optional[Path] = None):
+def get_version_from_metadata(name: str, parent: Optional[Path] = None) -> Optional[Version]:
+    """Get the version from the package metadata."""
     try:
         from pkg_resources import DistributionNotFound, get_distribution
     except ImportError:
@@ -128,16 +132,20 @@ def get_version_from_metadata(name: str, parent: Optional[Path] = None):
 
 
 def get_version(package: Union[Path, str]) -> str:
-    """Get the version of a package or module
-    Pass a module path or package name.
-    The former is recommended, since it also works for not yet installed packages.
+    """Get the version of a package or module.
+
+    Pass a module path or package name. The former is recommended, since it also works for not yet installed packages.
     Supports getting the version from
-    #. The directory name (as created by ``setup.py sdist``)
-    #. The output of ``git describe``
-    #. The package metadata of an installed package
-       (This is the only possibility when passing a name)
+        #. The directory name (as created by ``setup.py sdist``)
+        #. The output of ``git describe``
+        #. The package metadata of an installed package
+           (This is the only possibility when passing a name)
+
     Args:
        package: package name or module path (``…/module.py`` or ``…/module/__init__.py``)
+
+    Returns:
+        The version string.
     """
     path = Path(package)
     if not path.suffix and len(path.parts) == 1:  # Is probably not a path
@@ -165,7 +173,8 @@ def get_version(package: Union[Path, str]) -> str:
     )
 
 
-def get_dynamo_version():
+def get_dynamo_version() -> Optional[str]:
+    """Get the version of Dynamo."""
     import pkg_resources
 
     try:
@@ -179,7 +188,8 @@ def get_dynamo_version():
 
 
 def get_all_dependencies_version(display=True):
-    """
+    """Get the version of all dependencies of Dynamo.
+
     Adapted from answer 2 in
     https://stackoverflow.com/questions/40428931/package-for-listing-version-of-packages-used-in-a-jupyter-notebook
     """
@@ -210,6 +220,7 @@ def get_all_dependencies_version(display=True):
 
 
 def session_info():
+    """Show the versions of all dependencies of the current environment by session_info."""
     try:
         import session_info
     except:
