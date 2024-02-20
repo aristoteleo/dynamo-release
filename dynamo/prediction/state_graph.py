@@ -15,11 +15,8 @@ from ..tools.clustering import neighbors
 from ..tools.Markov import DiscreteTimeMarkovChain
 from ..tools.utils import fetch_states
 from ..vectorfield import vector_field_function
-from .utils import (
-    arclength_sampling,
-    integrate_streamline,
-    remove_redundant_points_trajectory,
-)
+from .trajectory import arclength_sampling, remove_redundant_points_trajectory
+from .utils import integrate_streamline
 
 # from sklearn.preprocessing import OrdinalEncoder
 
