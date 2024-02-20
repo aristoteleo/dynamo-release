@@ -23,11 +23,11 @@ from .dynamo_logger import main_info
 from .tools.Markov import KernelMarkovChain
 
 
-def make_dir(path: str, can_exist=True) -> bool:
-    """Wrapper for making directory
+def make_dir(path: str, can_exist: bool = True) -> bool:
+    """Wrapper for making directory.
 
     Args:
-        path: A str or path object
+        path: A str or path object.
         can_exist: If path can exist or not. If set to True and path exists, an exception will be raised.
 
     Returns:
@@ -78,14 +78,14 @@ def convert2float(adata: AnnData, columns: List, var: bool = False) -> None:
 
 
 def load_NASC_seq(
-    dir: str, type: str = "TPM", delimiter: str = "_", colnames: Optional[List] = None, dropna: bool = False
+    dir: str, type: str = "TPM", delimiter: str = "_", colnames: Optional[List] = None, dropna: bool = False,
 ) -> AnnData:
     """Function to create an anndata object from NASC-seq pipeline.
 
     Args:
         dir: The directory that points to the NASC-seq pipeline analysis folder (something like /Experimentdir).
         type: The data type that will be used as the gene expression. One of `{'TPM', 'FPKM', 'Reads'}`.
-        delimiter: Delimiter pattern for splitting the cells names (columns of each count table)
+        delimiter: Delimiter pattern for splitting the cells names (columns of each count table).
         colnames: The list of column names after splitting the cell names.
         dropna: Whether to drop all genes that have any np.nan values across all cells. If not, all na values will be
             filled as 0.
@@ -323,7 +323,7 @@ def cleanup(adata: AnnData, del_prediction: bool = False, del_2nd_moments: bool 
 
 
 def export_rank_xlsx(
-    adata: AnnData, path: str = "rank_info.xlsx", ext: str = "excel", rank_prefix: str = "rank"
+    adata: AnnData, path: str = "rank_info.xlsx", ext: str = "excel", rank_prefix: str = "rank",
 ) -> None:
     import pandas as pd
 

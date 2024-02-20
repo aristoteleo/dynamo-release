@@ -213,7 +213,7 @@ def pancreatic_endocrinogenesis(
     url: str ="https://github.com/theislab/scvelo_notebooks/raw/master/data/Pancreas/endocrinogenesis_day15.h5ad",
     filename: Optional[str] = None,
 ) -> AnnData:
-    """Pancreatic endocrinogenesis. Data from scvelo
+    """Pancreatic endocrinogenesis. Data from scvelo.
 
     Pancreatic epithelial and Ngn3-Venus fusion (NVF) cells during secondary transition / embryonic day 15.5.
     https://dev.biologists.org/content/146/12/dev173849

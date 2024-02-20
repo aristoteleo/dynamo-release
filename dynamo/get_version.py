@@ -187,7 +187,7 @@ def get_dynamo_version() -> Optional[str]:
     return version
 
 
-def get_all_dependencies_version(display=True):
+def get_all_dependencies_version(display: bool = True):
     """Get the version of all dependencies of Dynamo.
 
     Adapted from answer 2 in

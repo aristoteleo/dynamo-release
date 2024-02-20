@@ -11,7 +11,7 @@ def silence_logger(name: str) -> None:
     """Given a logger name, silence it completely.
 
     Args:
-        name: Name of the logger
+        name: Name of the logger.
     """
     package_logger = logging.getLogger(name)
     package_logger.setLevel(logging.CRITICAL + 100)
@@ -22,7 +22,7 @@ def set_logger_level(name: str, level: int) -> None:
     """Given a logger name, set its logging level.
 
     Args:
-        name: Name of the logger
+        name: Name of the logger.
     """
     package_logger = logging.getLogger(name)
     package_logger.setLevel(level)
@@ -137,7 +137,7 @@ class Logger:
         """Add namespace information at the beginning of the logging message.
 
         Args:
-            message: the logging message
+            message: the logging message.
         """
         return f"[{self.namespace}] {message}"
 
@@ -262,8 +262,8 @@ class Logger:
 
     def request_report_hook(self, bn: int, rs: int, ts: int) -> None:
         """A callback required by the request lib:
-        The reporthook argument should be a callable that accepts a block number, a read size, and the
-        total file size of the URL target. The data argument should be valid URL encoded data.
+            The reporthook argument should be a callable that accepts a block number, a read size, and the
+            total file size of the URL target. The data argument should be valid URL encoded data.
 
         Args:
             bs: block number.

@@ -53,7 +53,7 @@ class DynamoAdataKeyManager:
         return "_".join(keys)
 
     def gen_layer_X_key(key: str) -> str:
-        """Generate dynamo style keys for adata.layer[X_*], used later in dynamics"""
+        """Generate dynamo style keys for adata.layer[X_*], used later in dynamics."""
         return DynamoAdataKeyManager.gen_new_layer_key("X", key)
 
     def is_layer_X_key(key: str) -> bool:
@@ -109,7 +109,9 @@ class DynamoAdataKeyManager:
 
         return layer in adata.layers
 
-    def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True) -> List[str]:
+    def get_available_layer_keys(
+        adata: AnnData, layers: str = "all", remove_pp_layers: bool = True, include_protein: bool = True,
+    ) -> List[str]:
         """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if
         `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
         layer_keys = list(adata.layers.keys())
@@ -271,7 +273,7 @@ class DynamoAdataConfig:
         Args:
             val: The input value to check against.
             key: `key` stored in the dynamo configuration. E.g DynamoAdataConfig.RECIPE_MONOCLE_KEEP_RAW_LAYERS_KEY.
-            replace_val: The target value to replace, by default None
+            replace_val: The target value to replace, by default None.
 
         Returns:
             `val` or config value set in DynamoAdataConfig according to the method description above.
@@ -560,9 +562,9 @@ def config_dynamo_rcParams(
     Args:
         background: The background color of the plot. By default we use the white ground which is suitable for producing
             figures for publication. Setting it to `black` background will be great for presentation.
-        prop_cycle: A list with hex color codes
-        fontsize: Size of font
-        color_map: Color map
+        prop_cycle: A list with hex color codes.
+        fontsize: Size of font.
+        color_map: Color map.
         frameon: Whether to have frame for the figure.
 
     Returns:
@@ -708,7 +710,7 @@ def set_figure_params(
         vector_friendly: Plot scatter plots using `png` backend even when exporting as `pdf` or `svg`.
         color_map: Convenience method for setting the default color map.
         format: This sets the default format for saving figures: `file_format_figs`. This can be `png`, `pdf`, `svg`, etc.
-        transparent: Save figures with transparent back ground. Sets `rcParams['savefig.transparent']`.
+        transparent: Save figures with transparent background. Sets `rcParams['savefig.transparent']`.
         ipython_format: Only concerns the notebook/IPython environment; see `IPython.core.display.set_matplotlib_formats`
             for more details.
     """
@@ -753,7 +755,7 @@ def reset_rcParams():
 
 
 def set_pub_style(scaler: float = 1) -> None:
-    """Formatting helper function that can be used to save publishable figures"""
+    """Formatting helper function that can be used to save publishable figures."""
     set_figure_params("dynamo", background="white")
     matplotlib.use("cairo")
     matplotlib.rcParams.update({"font.size": 4 * scaler})
@@ -772,7 +774,7 @@ def set_pub_style(scaler: float = 1) -> None:
 
 
 def set_pub_style_mpltex() -> None:
-    """Formatting helper function based on mpltex package that can be used to save publishable figures"""
+    """Formatting helper function based on mpltex package that can be used to save publishable figures."""
     set_figure_params("dynamo", background="white")
     matplotlib.use("cairo")
     # the following code is adapted from https://github.com/liuyxpp/mpltex
