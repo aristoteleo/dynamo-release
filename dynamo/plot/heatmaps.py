@@ -46,7 +46,7 @@ def bandwidth_nrd(x):
     h = (x.quantile([0.75]).values - x.quantile([0.25]).values) / 1.34
 
     res = 4 * 1.06 * min(math.sqrt(np.var(x, ddof=1)), h) * (len(x) ** (-1 / 5))
-    return np.asscalar(res) if isinstance(res, np.ndarray) else res
+    return np.ndarray.item(res) if isinstance(res, np.ndarray) else res
 
 
 def rep(x, length):
