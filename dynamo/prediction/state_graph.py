@@ -15,24 +15,35 @@ from ..tools.clustering import neighbors
 from ..tools.Markov import DiscreteTimeMarkovChain
 from ..tools.utils import fetch_states
 from ..vectorfield import vector_field_function
-from .utils import (
-    arclength_sampling,
-    integrate_streamline,
-    remove_redundant_points_trajectory,
-)
+from .trajectory import arclength_sampling, remove_redundant_points_trajectory
+from .utils import integrate_streamline
 
 # from sklearn.preprocessing import OrdinalEncoder
 
 
-def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):
-    """find the dominant cell type of all the cells that are from the same clone"""
+def classify_clone_cell_type(
+    adata: AnnData,
+    clone: str,
+    clone_column: str,
+    cell_type_column: str,
+    cell_type_to_excluded: Union[List, str],
+) -> str:
+    """Find the dominant cell type of all the cells that are from the given clone.
+
+    Args:
+        adata: AnnData object.
+        clone: The clone name that specifies the clone group used to find the dominant cell type.
+        clone_column: The column name in `adata.obs` that corresponds to the clone information.
+        cell_type_column: The column name in `adata.obs` that corresponds to cell type information.
+        cell_type_to_excluded: The cell type name that will be excluded from the dominant cell type calculation.
+
+    Returns:
+        The dominant cell type of all the cells that are from the given clone.
+    """
     cell_ids = np.where(adata.obs[clone_column] == clone)[0]
-
-    to_check = adata[cell_ids].obs[cell_type_column].value_counts().index.isin(list(cell_type_to_excluded))
-
-    cell_type = np.where(to_check)[0]
-
-    return cell_type
+    cell_types_counts = adata[cell_ids].obs[cell_type_column].value_counts()
+    to_check = cell_types_counts.index.isin(list(cell_type_to_excluded))
+    return cell_types_counts[np.where(~to_check)[0]].index[0]
 
 
 def prune_transition(
@@ -297,7 +308,7 @@ def state_graph(
                 # assign the transition matrix and average transition time
                 if len(confident_pass_check) > 0:
                     ind_other_cell_type = [uniq_grp.index(k) for k in np.array(pass_groups)[confident_pass_check]]
-                    grp_graph[i, ind_other_cell_type] += 1
+                    grp_graph[i, ind_other_cell_type] += 1 / len(ind_other_cell_type)
                     grp_avg_time[i, ind_other_cell_type] += (
                         pass_df.groupby("group")["t"].mean()[confident_pass_check].values
                     )

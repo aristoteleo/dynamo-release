@@ -74,7 +74,7 @@ def fate(
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction
             is based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be
-            applied.
+            applied. If `average` is True, `origin` will be used.
         sampling: Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
             If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
             of all time points from all cell states' fate prediction will be used and then evenly sampled up to
@@ -95,15 +95,6 @@ def fate(
             attribute.
     """
 
-    if sampling in ["arc_length", "logspace", "uniform_indices"]:
-        if average in ["origin", "trajectory", True]:
-            main_warning(
-                f"using {sampling} to sample data points along an integral path at different integration "
-                "time points. Average trajectory won't be calculated"
-            )
-
-        average = False
-
     if basis is not None:
         fate_key = "fate_" + basis
         # vf_key = "VecFld_" + basis
@@ -123,7 +114,7 @@ def fate(
         init_cells,
         basis,
         layer,
-        True if average in ["origin", "trajectory", True] else False,
+        average,
         t_end,
     )
 
@@ -141,70 +132,15 @@ def fate(
         t_end=t_end,
         direction=direction,
         interpolation_num=interpolation_num,
-        average=True if average in ["origin", "trajectory", True] else False,
+        average=True if average == "trajectory" else False,
         sampling=sampling,
         cores=cores,
         **kwargs,
     )
 
     exprs = None
-    if basis == "pca" and inverse_transform:
-        Qkey = "PCs"
-        if type(prediction) == list:
-            exprs = [vector_transformation(cur_pred.T, adata.uns[Qkey]) for cur_pred in prediction]
-            high_p_n = exprs[0].shape[1]
-        else:
-            exprs = vector_transformation(prediction.T, adata.uns[Qkey])
-            high_p_n = exprs.shape[1]
-
-        if adata.var.use_for_dynamics.sum() == high_p_n:
-            valid_genes = adata.var_names[adata.var.use_for_dynamics]
-        else:
-            valid_genes = adata.var_names[adata.var.use_for_transition]
-
-    elif basis == "umap" and inverse_transform:
-        # this requires umap 0.4; reverse project to PCA space.
-        if hasattr(prediction, "ndim"):
-            if prediction.ndim == 1:
-                prediction = prediction[None, :]
-
-        params = adata.uns["umap_fit"]
-        umap_fit = construct_mapper_umap(
-            params["X_data"],
-            n_components=params["umap_kwargs"]["n_components"],
-            metric=params["umap_kwargs"]["metric"],
-            min_dist=params["umap_kwargs"]["min_dist"],
-            spread=params["umap_kwargs"]["spread"],
-            max_iter=params["umap_kwargs"]["max_iter"],
-            alpha=params["umap_kwargs"]["alpha"],
-            gamma=params["umap_kwargs"]["gamma"],
-            negative_sample_rate=params["umap_kwargs"]["negative_sample_rate"],
-            init_pos=params["umap_kwargs"]["init_pos"],
-            random_state=params["umap_kwargs"]["random_state"],
-            umap_kwargs=params["umap_kwargs"],
-        )
-
-        PCs = adata.uns["PCs"].T
-        exprs = []
-
-        for cur_pred in prediction:
-            expr = umap_fit.inverse_transform(cur_pred.T)
-
-            # further reverse project back to raw expression space
-            if PCs.shape[0] == expr.shape[1]:
-                expr = np.expm1(expr @ PCs + adata.uns["pca_mean"])
-
-            exprs.append(expr)
-
-        if adata.var.use_for_dynamics.sum() == exprs[0].shape[1]:
-            valid_genes = adata.var_names[adata.var.use_for_dynamics]
-        elif adata.var.use_for_transition.sum() == exprs[0].shape[1]:
-            valid_genes = adata.var_names[adata.var.use_for_transition]
-        else:
-            raise Exception(
-                "looks like a customized set of genes is used for pca analysis of the adata. "
-                "Try rerunning pca analysis with default settings for this function to work."
-            )
+    if inverse_transform:
+        exprs, valid_genes = _inverse_transform(adata=adata, prediction=prediction, basis=basis, Qkey=Qkey)
 
     adata.uns[fate_key] = {
         "init_states": init_states,
@@ -301,20 +237,90 @@ def _fate(
         pool.join()
         t_, prediction_ = zip(*res)
         t, prediction = [i[0] for i in t_], [i[0] for i in prediction_]
+
+    if init_states.shape[0] > 1 and average:
         t_stack, prediction_stack = np.hstack(t), np.hstack(prediction)
         n_cell, n_feature = init_states.shape
 
-        if init_states.shape[0] > 1 and average:
-            t_len = int(len(t_stack) / n_cell)
-            avg = np.zeros((n_feature, t_len))
+        t_len = int(len(t_stack) / n_cell)
+        avg = np.zeros((n_feature, t_len))
 
-            for i in range(t_len):
-                avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
+        for i in range(t_len):
+            avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
 
-            prediction = [avg]
-            t = [np.sort(np.unique(t))]
+        prediction = [avg]
+        t = [np.sort(np.unique(t))]
 
     return t, prediction
+
+
+def _inverse_transform(
+    adata: AnnData,
+    prediction: Union[np.ndarray, List[np.ndarray]],
+    basis: str = "umap",
+    Qkey: str = "PCs",
+) -> Tuple[Union[np.ndarray, List[np.ndarray]], np.ndarray]:
+    """Inverse transform the low dimensional vector field prediction back to high dimensional space."""
+    if basis == "pca":
+        if type(prediction) == list:
+            exprs = [vector_transformation(cur_pred.T, adata.uns[Qkey]) for cur_pred in prediction]
+            high_p_n = exprs[0].shape[1]
+        else:
+            exprs = vector_transformation(prediction.T, adata.uns[Qkey])
+            high_p_n = exprs.shape[1]
+
+        if adata.var.use_for_dynamics.sum() == high_p_n:
+            valid_genes = adata.var_names[adata.var.use_for_dynamics]
+        else:
+            valid_genes = adata.var_names[adata.var.use_for_transition]
+
+    elif basis == "umap":
+        # this requires umap 0.4; reverse project to PCA space.
+        if hasattr(prediction, "ndim"):
+            if prediction.ndim == 1:
+                prediction = prediction[None, :]
+
+        params = adata.uns["umap_fit"]
+        umap_fit = construct_mapper_umap(
+            params["X_data"],
+            n_components=params["umap_kwargs"]["n_components"],
+            metric=params["umap_kwargs"]["metric"],
+            min_dist=params["umap_kwargs"]["min_dist"],
+            spread=params["umap_kwargs"]["spread"],
+            max_iter=params["umap_kwargs"]["max_iter"],
+            alpha=params["umap_kwargs"]["alpha"],
+            gamma=params["umap_kwargs"]["gamma"],
+            negative_sample_rate=params["umap_kwargs"]["negative_sample_rate"],
+            init_pos=params["umap_kwargs"]["init_pos"],
+            random_state=params["umap_kwargs"]["random_state"],
+            umap_kwargs=params["umap_kwargs"],
+        )
+
+        PCs = adata.uns[Qkey].T
+        exprs = []
+
+        for cur_pred in prediction:
+            expr = umap_fit.inverse_transform(cur_pred.T)
+
+            # further reverse project back to raw expression space
+            if PCs.shape[0] == expr.shape[1]:
+                expr = np.expm1(expr @ PCs + adata.uns["pca_mean"])
+
+            exprs.append(expr)
+
+        if adata.var.use_for_dynamics.sum() == exprs[0].shape[1]:
+            valid_genes = adata.var_names[adata.var.use_for_dynamics]
+        elif adata.var.use_for_transition.sum() == exprs[0].shape[1]:
+            valid_genes = adata.var_names[adata.var.use_for_transition]
+        else:
+            raise Exception(
+                "looks like a customized set of genes is used for pca analysis of the adata. "
+                "Try rerunning pca analysis with default settings for this function to work."
+            )
+    else:
+        raise ValueError(f"Inverse transform with basis {basis} is not supported.")
+
+    return exprs, valid_genes
 
 
 def fate_bias(

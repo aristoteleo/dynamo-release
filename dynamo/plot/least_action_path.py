@@ -14,10 +14,9 @@ from ..prediction.utils import (
     interp_second_derivative,
     kneedle_difference,
 )
-from ..tools.utils import update_dict
 from ..utils import denormalize, normalize
 from .ezplots import plot_X, zscatter
-from .scatters import save_fig, scatters
+from .scatters import save_show_ret, scatters
 from .utils import map2color
 
 
@@ -45,8 +44,8 @@ def least_action(
         save_show_or_return: whether the figure should be saved, show, or return. Can be one of "save", "show",
             "return", "both", "all". "both" means that the figure would be shown and saved but not returned. Defaults to
             "show".
-        save_kwargs:a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary and
-            the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs. Defaults to {}.
 
@@ -66,28 +65,7 @@ def least_action(
         ax.scatter(*i[:, [x, y]].T, c=map2color(j))
         ax.plot(*i[:, [x, y]].T, c="k")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "kinetic_curves",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        # prevent the plot from being closed if the plot need to be shown or returned.
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("kinetic_curves", save_show_or_return, save_kwargs, ax)
 
 
 def lap_min_time(
@@ -116,8 +94,8 @@ def lap_min_time(
         n_col: the number of subplot columns. Defaults to 3.
         save_show_or_return: whether to save or show the figure. Can be one of "save", "show", "both" or "all". "both"
             and "all" have the same effect. The axis of the plot cannot be returned here. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide
             a dictionary that properly modify those keys according to your needs. Defaults to {}.
         **kwargs: not used here.
@@ -181,30 +159,10 @@ def lap_min_time(
 
             elif show_paths:
                 plt.sca(axes[i, j])
-                zscatter(adata, basis=basis, color=color)
-                plot_X(paths[c - 1], c="k")
+                zscatter(adata, basis=basis, color=color, save_show_or_return="return")
+                plot_X(paths[c - 1], c="k", save_show_or_return="return")
                 plt.title(f"path {c-1}")
                 # scatters(adata, basis=basis, color=color, ax=axes[i, j], **kwargs)
                 # axes[i, j].scatter(*i[:, [x, y]].T, c=map2color(j))
 
-        if save_show_or_return in ["save", "both", "all"]:
-            s_kwargs = {
-                "path": None,
-                "prefix": "kinetic_curves",
-                "dpi": None,
-                "ext": "pdf",
-                "transparent": True,
-                "close": True,
-                "verbose": True,
-            }
-
-            # prevent the plot from being closed if the plot need to be shown or returned.
-            if save_show_or_return == "both":
-                s_kwargs["close"] = False
-
-            s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-            save_fig(**s_kwargs)
-        if save_show_or_return in ["show", "both"]:
-            plt.tight_layout()
-            plt.show()
+        return save_show_ret("kinetic_curves", save_show_or_return, save_kwargs)

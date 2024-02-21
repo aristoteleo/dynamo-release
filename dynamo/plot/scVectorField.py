@@ -33,7 +33,7 @@ from .utils import (
     default_quiver_args,
     quiver_autoscaler,
     retrieve_plot_save_path,
-    save_fig,
+    save_show_ret,
     save_plotly_figure,
     save_pyvista_plotter,
     set_arrow_alpha,
@@ -149,8 +149,8 @@ def cell_wise_vectors_3d(
         vector: which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity
             field or acceleration field will be plotted. Defaults to "velocity".
         save_show_or_return: whether to save, show or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            an the save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         quiver_3d_kwargs: any other kwargs to be passed to `pyplot.quiver`. Defaults to { "zorder": 3, "length": 2,
@@ -491,26 +491,7 @@ def cell_wise_vectors_3d(
             ax.set_facecolor(background)
             add_axis_label(ax, axis_labels)
 
-        if save_show_or_return in ["save", "both", "all"]:
-            s_kwargs = {
-                "path": None,
-                "prefix": "cell_wise_vectors_3d",
-                "dpi": None,
-                "ext": "pdf",
-                "transparent": True,
-                "close": True,
-                "verbose": True,
-            }
-            s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-            if save_show_or_return in ["both", "all"]:
-                s_kwargs["close"] = False
-
-            save_fig(**s_kwargs)
-        if save_show_or_return in ["show", "both", "all"]:
-            plt.show()
-        if save_show_or_return in ["return", "all"]:
-            return axes_list
+        return save_show_ret("cell_wise_vectors_3d", save_show_or_return, save_kwargs, axes_list, tight=False)
 
 
 def grid_vectors_3d():
@@ -581,7 +562,7 @@ def line_integral_conv(
     kernellen: float = 100,
     V_threshold: Optional[float] = None,
     vector: str = "velocity",
-    file: Optional[str] = None,
+    file: str = "vectorfield_LIC",
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     g_kwargs_dict: Dict[str, Any] = {},
@@ -615,8 +596,8 @@ def line_integral_conv(
             field or acceleration field will be plotted. Defaults to "velocity".
         file: the path to save the slice figure. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         g_kwargs_dict: any other kwargs that would be passed to `dynamo.tl.grid_velocity_filter`. Defaults to {}.
@@ -626,8 +607,8 @@ def line_integral_conv(
         Exception: _description_
 
     Returns:
-        None would be returned by default. If `save_show_or_return` is set to be True, the generated `yt.SlicePlot` will
-        be returned.
+        None would be returned by default. If `save_show_or_return` is set to "return" or "all", the generated 
+        `yt.SlicePlot` will be returned.
     """
 
     import matplotlib.pyplot as plt
@@ -644,8 +625,8 @@ def line_integral_conv(
         if "VecFld_" + basis in adata.uns.keys():
             # first check whether the sparseVFC reconstructed vector field exists
             X_grid_, V_grid = (
-                adata.uns["VecFld_" + basis]["VecFld"]["grid"],
-                adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
+                adata.uns["VecFld_" + basis]["grid"],
+                adata.uns["VecFld_" + basis]["grid_V"],
             )
             N = int(np.sqrt(V_grid.shape[0]))
             U_grid = np.reshape(V_grid[:, 0], (N, N)).T
@@ -716,10 +697,10 @@ def line_integral_conv(
         slc.set_log("velocity_sum", False)
 
         slc.annotate_velocity(normalize=normalize)
-        slc.annotate_streamlines("velocity_x", "velocity_y", density=density)
+        slc.annotate_streamlines(("gas", "velocity_x"), ("gas", "velocity_y"), density=density)
         slc.annotate_line_integral_convolution(
-            "velocity_x",
-            "velocity_y",
+            ("gas", "velocity_x"),
+            ("gas", "velocity_y"),
             lim=lim,
             const_alpha=const_alpha,
             kernellen=kernellen,
@@ -728,41 +709,16 @@ def line_integral_conv(
         slc.set_xlabel(basis + "_1")
         slc.set_ylabel(basis + "_2")
 
-        slc.show()
-
-        if file is not None:
-            # plt.rc('font', family='serif', serif='Times')
-            # plt.rc('text', usetex=True)
-            # plt.rc('xtick', labelsize=8)
-            # plt.rc('ytick', labelsize=8)
-            # plt.rc('axes', labelsize=8)
-            slc.save(file, mpl_kwargs={"figsize": [2, 2]})
+        if save_show_or_return in ["save", "both", "all"]:
+            slc.save(file, mpl_kwargs={"figsize": [2, 2]}, **save_kwargs)
+        if save_show_or_return in ["show", "both", "all"]:
+            slc.show()
+        if save_show_or_return in ["return", "all"]:
+            return slc
     elif method == "lic":
         # velocyto_tex = runlic(V_grid, V_grid, 100)
         # plot_LIC_gray(velocyto_tex)
         pass
-
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "line_integral_conv",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return slc
 
 
 @docstrings.with_indent(4)
@@ -893,8 +849,8 @@ def cell_wise_vectors(
             tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: A dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs. Defaults to {}.
         s_kwargs_dict: any other kwargs that will be passed to `dynamo.pl.scatters`. Defaults to {}.
@@ -1083,28 +1039,7 @@ def cell_wise_vectors(
             )
         ax.set_facecolor(background)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "cell_wise_vector",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        if projection != "3d":
-            plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return axes_list
+    return save_show_ret("cell_wise_vector", save_show_or_return, save_kwargs, axes_list, tight = projection != "3d")
 
 
 @docstrings.with_indent(4)
@@ -1241,8 +1176,8 @@ def grid_vectors(
             tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
         s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {}.
@@ -1448,27 +1383,7 @@ def grid_vectors(
         axes_list.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
         axes_list.set_facecolor(background)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "grid_velocity",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return axes_list
+    return save_show_ret("grid_velocity", save_show_or_return, save_kwargs, axes_list)
 
 
 @docstrings.with_indent(4)
@@ -1601,8 +1516,8 @@ def streamline_plot(
             tips & tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from
             scEU-seq paper: https://science.sciencemag.org/content/367/6482/1151. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'streamline_plot', "dpi": None,
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'streamline_plot', "dpi": None,
             "ext": 'pdf', "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can
             provide a dictionary that properly modify those keys according to your needs.. Defaults to {}.
         s_kwargs_dict: any other kwargs that would be passed to `dynamo.pl.scatters`. Defaults to {}.
@@ -1814,27 +1729,7 @@ def streamline_plot(
             ax = axes_list[i]
             streamplot_2d(ax)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "streamline_plot",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return axes_list
+    return save_show_ret("streamline_plot", save_show_or_return, save_kwargs, axes_list)
 
 
 # refactor line_conv_integration
@@ -1862,8 +1757,8 @@ def plot_energy(
         fig: the figure object where panels of the energy or energy change rate over iteration plots will be appended
             to. Defaults to None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "show".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf',
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise, you can provide a
             dictionary that properly modify those keys according to your needs.. Defaults to {}.
 
@@ -1909,24 +1804,4 @@ def plot_energy(
         plt.xlabel("Iteration")
         plt.ylabel("Energy change rate")
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "energy",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return fig
+    return save_show_ret("energy", save_show_or_return, save_kwargs, fig)

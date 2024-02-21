@@ -14,6 +14,51 @@ from ..dynamo_logger import LoggerManager
 from .utils import nearest_neighbors, timeit
 
 
+def sample(
+    arr: Union[list, np.ndarray],
+    n: int,
+    method: Literal["random", "velocity", "trn", "kmeans"] = "random",
+    X: Optional[np.ndarray] = None,
+    V: Optional[np.ndarray] = None,
+    seed: int = 19491001,
+    **kwargs,
+) -> np.ndarray:
+    """A collection of various sampling methods.
+
+    Args:
+        arr: The array to be sub-sampled.
+        n: The number of samples.
+        method: The method to be used.
+            "random": randomly choosing `n` elements from `arr`;
+            "velocity": Higher the velocity, higher the chance to be sampled;
+            "trn": Topology Representing Network based sampling;
+            "kmeans": `n` points that are closest to the kmeans centroids on `X` are chosen.
+            Defaults to "random".
+        X: Coordinates associated to each element in `arr`. Defaults to None.
+        V: Velocity associated to each element in `arr`. Defaults to None.
+        seed: The randomization seed. Defaults to 19491001.
+
+    Raises:
+        NotImplementedError: `method` is invalid.
+
+    Returns:
+        The sampled data array.
+    """
+
+    if method == "random":
+        np.random.seed(seed)
+        sub_arr = arr[np.random.choice(arr.shape[0], size=n, replace=False)]
+    elif method == "velocity" and V is not None:
+        sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
+    elif method == "trn" and X is not None:
+        sub_arr = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
+    elif method == "kmeans":
+        sub_arr = arr[sample_by_kmeans(X, n, return_index=True)]
+    else:
+        raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
+    return sub_arr
+
+
 class TRNET:
     """Class for topology representing network sampling.
 
@@ -255,48 +300,3 @@ def lhsclassic(
             H[:, i] = H[:, i] * (bounds[i][1] - bounds[i][0]) + bounds[i][0]
 
     return H
-
-
-def sample(
-    arr: Union[list, np.ndarray],
-    n: int,
-    method: Literal["random", "velocity", "trn", "kmeans"] = "random",
-    X: Optional[np.ndarray] = None,
-    V: Optional[np.ndarray] = None,
-    seed: int = 19491001,
-    **kwargs,
-) -> np.ndarray:
-    """A collection of various sampling methods.
-
-    Args:
-        arr: The array to be sub-sampled.
-        n: The number of samples.
-        method: The method to be used.
-            "random": randomly choosing `n` elements from `arr`;
-            "velocity": Higher the velocity, higher the chance to be sampled;
-            "trn": Topology Representing Network based sampling;
-            "kmeans": `n` points that are closest to the kmeans centroids on `X` are chosen.
-            Defaults to "random".
-        X: Coordinates associated to each element in `arr`. Defaults to None.
-        V: Velocity associated to each element in `arr`. Defaults to None.
-        seed: The randomization seed. Defaults to 19491001.
-
-    Raises:
-        NotImplementedError: `method` is invalid.
-
-    Returns:
-        The sampled data array.
-    """
-
-    if method == "random":
-        np.random.seed(seed)
-        sub_arr = arr[np.random.choice(arr.shape[0], size=n, replace=False)]
-    elif method == "velocity" and V is not None:
-        sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
-    elif method == "trn" and X is not None:
-        sub_arr = arr[trn(X=X, n=n, return_index=True, seed=seed, **kwargs)]
-    elif method == "kmeans":
-        sub_arr = arr[sample_by_kmeans(X, n, return_index=True)]
-    else:
-        raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
-    return sub_arr

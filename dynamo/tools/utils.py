@@ -279,6 +279,47 @@ def create_layer(
         return new
 
 
+def AddAssay(adata: AnnData, data: pd.DataFrame, key: str, slot: str = "obsm") -> AnnData:
+    """Add a new data as a key to the specified slot.
+
+    Args:
+        adata: An AnnData object.
+        data: The data (in pandas DataFrame format) that will be added to adata.
+        key: The key name to be used for the new data.
+        slot: The slot of adata to store the new data. Defaults to "obsm".
+
+    Returns:
+        An updated anndata object that are updated with a new data as a key to the specified slot.
+    """
+
+    if slot == "uns":
+        adata.uns[key] = data.loc[adata.obs.index, set(adata.var.index).intersection(data.columns)]
+    elif slot == "obsm":
+        adata.obsm[key] = data.loc[adata.obs.index, set(adata.var.index).intersection(data.columns)]
+
+    return adata
+
+
+def getAssay(adata: AnnData, key: str, slot: str = "obsm") -> pd.DataFrame:
+    """Retrieve a key named data from the specified slot.
+
+    Args:
+        adata: An AnnData object.
+        key: The key name of the data to be retrieved. .
+        slot: The slot of adata to be retrieved from. Defaults to "obsm".
+
+    Returns:
+        The data (in pd.DataFrame) that will be retrieved from adata.
+    """
+
+    if slot == "uns":
+        data = adata.uns[key]
+    elif slot == "obsm":
+        data = adata.obsm[key]
+
+    return data
+
+
 def index_gene(adata: AnnData, arr: np.ndarray, genes: List[str]) -> np.ndarray:
     """A lightweight method for indexing adata arrays by genes.
 
@@ -494,6 +535,23 @@ def elem_prod(
         return Y.multiply(X)
     else:
         return np.multiply(X, Y)
+
+
+def logdet(A: np.ndarray) -> float:
+    """Calculate log(det(A)).
+
+    Compared with calculating log(det(A)) directly, this function avoid the overflow/underflow problems that are likely
+    to happen when applying det to large matrices.
+
+    Args:
+        A: An square matrix.
+
+    Returns:
+        log(det(A)).
+    """
+
+    v = 2 * sum(np.log(np.diag(np.linalg.cholesky(A))))
+    return v
 
 
 def norm(x: Union[sp.csr_matrix, np.ndarray], **kwargs) -> np.ndarray:
@@ -1676,7 +1734,11 @@ def set_param_kinetic(
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
     if isarray(alpha) and alpha.ndim > 1:
-        params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
+        params_df.loc[valid_ind, kin_param_pre + "alpha"] = (
+            np.asarray(alpha.mean(1))
+            if sp.issparse(alpha)
+            else alpha.mean(1)
+        )
         cur_cells_ind, valid_ind_ = (
             np.where(cur_cells_bools)[0][:, np.newaxis],
             np.where(valid_ind)[0],
@@ -2452,7 +2514,7 @@ def set_transition_genes(
     use_for_dynamics: bool = True,
     store_key: str = "use_for_transition",
     minimal_gene_num: int = 50,
-) -> None:
+) -> AnnData:
     """Set the transition genes in the AnnData object.
 
     Args:
@@ -3073,7 +3135,7 @@ def fetch_states(
                 VecFld = adata.uns["VecFld_" + layer]
                 X = log1p_(adata, adata[:, valid_genes].layers[layer])
 
-    if init_states.shape[0] > 1 and average in ["origin", "trajectory", True]:
+    if init_states.shape[0] > 1 and average in ["origin", True]:
         init_states = init_states.mean(0).reshape((1, -1))
 
     if t_end is None:
@@ -3337,3 +3399,23 @@ def density_corrected_transition_matrix(T: Union[npt.ArrayLike, sp.csr_matrix]) 
         T[i, idx] = T_i
 
     return T
+
+
+# ---------------------------------------------------------------------------------------------------
+# differential gene expression test related
+def fdr(p_vals: np.ndarray) -> np.ndarray:
+    """Calculate False Discovery Rate using Benjamini–Hochberg (non-negative) method.
+
+    Args:
+        p_vals: The p-values describes the likelihood of an observation based on a probability distribution.
+
+    Returns:
+        The corrected False Discovery Rate.
+    """
+    from scipy.stats import rankdata
+
+    ranked_p_values = rankdata(p_vals)
+    fdr = p_vals * len(p_vals) / ranked_p_values
+    fdr[fdr > 1] = 1
+
+    return fdr

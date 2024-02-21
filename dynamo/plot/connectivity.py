@@ -32,14 +32,13 @@ from matplotlib.figure import Figure
 from ..configuration import _themes
 from ..docrep import DocstringProcessor
 from ..tools.connectivity import check_and_recompute_neighbors
-from ..tools.utils import update_dict
 from .utils import is_list_of_lists  # is_gene_name
 from .utils import (
     _datashade_points,
     _embed_datashader_in_an_axis,
     _get_extent,
     _select_font_color,
-    save_fig,
+    save_show_ret,
 )
 
 docstrings = DocstringProcessor()
@@ -185,8 +184,8 @@ def connectivity_base(
         sort: the method to reorder data so that high values points will be on top of background points. Can be one of
             {'raw', 'abs'}, i.e. sorted by raw data or sort by absolute values. Defaults to "raw".
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will be passed to the save_fig function. By default, it is an empty dictionary
-            and the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
                 {
                     "path": None,
                     "prefix": 'connectivity_base',
@@ -203,7 +202,6 @@ def connectivity_base(
         ImportError: `datashader` is not installed.
         NotImplementedError: invalid `theme`.
         ValueError: invalid `edge_bundling`.
-        NotImplementedError: invalid `save_show_or_return`.
 
     Returns:
         The matplotlib axis with the relevant plot displayed by default. If `save_show_or_return` is set to be `"show"`
@@ -223,6 +221,7 @@ def connectivity_base(
     available_themes = [
         "blue",
         "red",
+        "glasbey_dark",
         "green",
         "inferno",
         "fire",
@@ -290,8 +289,8 @@ def connectivity_base(
             color_key,
             color_key_cmap,
             None,
-            figsize[0] * dpi,
-            figsize[1] * dpi,
+            figsize[0],
+            figsize[1],
             True,
             sort=sort,
         )
@@ -309,28 +308,7 @@ def connectivity_base(
 
     ax.set(xticks=[], yticks=[])
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "connectivity_base",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return ax
+    return save_show_ret("connectivity_base", save_show_or_return, save_kwargs, ax)
 
 
 docstrings.delete_params("con_base.parameters", "edge_df", "save_show_or_return", "save_kwargs")
@@ -429,8 +407,8 @@ def nneighbors(
         ax: the axis on which the subplot would be shown. If set to be `None`, a new axis would be created. Defaults to
             None.
         save_show_or_return: whether to save, show or return the figure. Defaults to "return".
-        save_kwargs: a dictionary that will passed to the save_fig function. By default it is an empty dictionary and
-            the save_fig function will use the
+        save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
+            and the save_show_ret function will use the
                 {
                     "path": None,
                     "prefix": 'connectivity_base',
@@ -445,7 +423,6 @@ def nneighbors(
 
     Raises:
         TypeError: wrong type of `x` and `y`.
-        NotImplementedError: invalid `save_show_or_return`.
 
     Returns:
         The matplotlib axis with the plotted knn graph by default. If `save_show_or_return` is set to be `"show"`
@@ -549,22 +526,25 @@ def nneighbors(
                 i += 1
 
                 # if highligts is a list of lists - each list is relate to each color element
-                if is_list_of_lists(highlights):
-                    _highlights = highlights[color.index(cur_c)]
-                    _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                if highlights is not None:
+                    if is_list_of_lists(highlights):
+                        _highlights = highlights[color.index(cur_c)]
+                        _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                    else:
+                        _highlights = highlights if all([i in _color for i in highlights]) else None
                 else:
-                    _highlights = highlights if all([i in _color for i in highlights]) else None
+                    _highlights = None
 
-                connectivity_base(
+                ax = connectivity_base(
                     x_,
                     y_,
                     edge_df,
+                    _highlights,
                     edge_bundling,
                     edge_cmap,
                     show_points,
                     labels,
                     values,
-                    _highlights,
                     theme,
                     cmap,
                     color_key,
@@ -580,29 +560,8 @@ def nneighbors(
                 ax.set_ylabel(cur_b + "_2")
                 ax.set_title(cur_c)
 
-    if save_show_or_return in ["save", "both", "all"]:
-        s_kwargs = {
-            "path": None,
-            "prefix": "nneighbors",
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
+    return save_show_ret("nneighbors", save_show_or_return, save_kwargs, plt.gcf())
 
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        plt.tight_layout()
-        plt.show()
-    if save_show_or_return in ["return", "all"]:
-        return g
-    else:
-        raise NotImplementedError('Invalid "save_show_or_return".')
 
 
 def pgraph():

@@ -20,6 +20,8 @@ def download_data(url, file_path=None, dir="./data"):
 
         # download the data
         urlretrieve(url, file_path, reporthook=LoggerManager.get_main_logger().request_report_hook)
+    else:
+        main_info("File " + file_path + " already exists.")
 
     return file_path
 
@@ -38,13 +40,26 @@ def get_adata(url, filename=None):
             an Annodata object.
     """
 
-    file_path = download_data(url, filename)
-    if Path(file_path).suffixes[-1][1:] == "loom":
-        adata = read_loom(filename=file_path)
-    elif Path(file_path).suffixes[-1][1:] == "h5ad":
-        adata = read_h5ad(filename=file_path)
+    try:
+        file_path = download_data(url, filename)
+        if Path(file_path).suffixes[-1][1:] == "loom":
+            adata = read_loom(filename=file_path)
+        elif Path(file_path).suffixes[-1][1:] == "h5ad":
+            adata = read_h5ad(filename=file_path)
+        else:
+            main_info("REPORT THIS: Unknown filetype (" + file_path + ")")
 
-    adata.var_names_make_unique()
+        adata.var_names_make_unique()
+    except OSError: 
+        # Usually occurs when download is stopped before completion then attempted again.
+        main_info("Corrupted file. Deleting " + file_path + " then redownloading...")
+        # Half-downloaded file cannot be read due to corruption so it's better to delete it.
+        # Potential issue: user have a file with duplicate name but is not sample data (this will overwrite file).
+        os.remove(file_path)
+        adata = get_adata(url, filename)
+    except Exception as e:
+        main_info("REPORT THIS: " + e)
+        adata = None
 
     return adata
 

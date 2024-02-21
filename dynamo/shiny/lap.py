@@ -821,12 +821,14 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData]=None):
         def tf_roc_curve():
             if input.activate_plot_priority_scores_and_ROC():
                 all_ranks_dict = {}
+                all_transitions = reprogramming_mat_dict().keys()
                 for key, value in transition_graph().items():
-                    ranking = transition_graph()[key]["ranking"]
-                    ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
-                    ranking = ranking.query("TF == True")
-                    ranking["known_TF"] = [i in value[input.roc_tf_key()] for i in list(ranking["all"])]
-                    all_ranks_dict[key.split("->")[0] + "_" + key.split("->")[1] + "_ranking"] = ranking
+                    if key in all_transitions:
+                        ranking = transition_graph()[key]["ranking"]
+                        ranking["TF"] = [i in tfs_names for i in list(ranking["all"])]
+                        ranking = ranking.query("TF == True")
+                        ranking["known_TF"] = [i in value[input.roc_tf_key()] for i in list(ranking["all"])]
+                        all_ranks_dict[key.split("->")[0] + "_" + key.split("->")[1] + "_ranking"] = ranking
 
                 all_ranks_df = pd.concat([rank_dict for rank_dict in all_ranks_dict.values()])
 
