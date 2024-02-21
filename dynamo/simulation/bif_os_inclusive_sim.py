@@ -10,28 +10,28 @@ class sim_diff:
     """The differentiation model."""
     def __init__(
         self,
-        a1,
-        b1,
-        c1,
-        a2,
-        b2,
-        c2,
-        a1_l,
-        b1_l,
-        c1_l,
-        a2_l,
-        b2_l,
-        c2_l,
-        K,
-        n,
-        be1,
-        ga1,
-        et1,
-        de1,
-        be2,
-        ga2,
-        et2,
-        de2,
+        a1: float,
+        b1: float,
+        c1: float,
+        a2: float,
+        b2: float,
+        c2: float,
+        a1_l: float,
+        b1_l: float,
+        c1_l: float,
+        a2_l: float,
+        b2_l: float,
+        c2_l: float,
+        K: float,
+        n: float,
+        be1: float,
+        ga1: float,
+        et1: float,
+        de1: float,
+        be2: float,
+        ga2: float,
+        et2: float,
+        de2: float,
     ):
         self.parameters = {
             "a1": a1,
@@ -58,7 +58,7 @@ class sim_diff:
             "de2": de2,
         }
 
-    def f_prop(self, C):
+    def f_prop(self, C: np.ndarray) -> np.ndarray:
         """Get the propensities."""
         # unlabeled mRNA
         u1 = C[0]
@@ -120,7 +120,7 @@ class sim_diff:
 
         return prop
 
-    def f_stoich(self):
+    def f_stoich(self) -> np.ndarray:
         """Get the stoichiometry matrix."""
         # species
         u1 = 0
@@ -172,24 +172,24 @@ class sim_osc:
     """The oscillator model."""
     def __init__(
         self,
-        a1,
-        b1,
-        a2,
-        b2,
-        a1_l,
-        b1_l,
-        a2_l,
-        b2_l,
-        K,
-        n,
-        be1,
-        ga1,
-        et1,
-        de1,
-        be2,
-        ga2,
-        et2,
-        de2,
+        a1: float,
+        b1: float,
+        a2: float,
+        b2: float,
+        a1_l: float,
+        b1_l: float,
+        a2_l: float,
+        b2_l: float,
+        K: float,
+        n: float,
+        be1: float,
+        ga1: float,
+        et1: float,
+        de1: float,
+        be2: float,
+        ga2: float,
+        et2: float,
+        de2: float,
     ):
         self.parameters = {
             "a1": a1,
@@ -212,7 +212,7 @@ class sim_osc:
             "de2": de2,
         }
 
-    def f_prop(self, C):
+    def f_prop(self, C: np.ndarray) -> np.ndarray:
         """Get the propensities."""
         # unlabeled mRNA
         u1 = C[0]
@@ -272,7 +272,7 @@ class sim_osc:
 
         return prop
 
-    def f_stoich(self):
+    def f_stoich(self) -> np.ndarray:
         """Get the stoichiometry matrix."""
         # species
         u1 = 0
@@ -416,7 +416,7 @@ def syn_deg_data(
     Tl: List[int],
     n_cell: int,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Synthesize labeling data (degradation) at the begining and the end.
+    """Synthesize labeling data (degradation) at the beginning and the end.
 
     Args:
         model_lab: The labeling model.

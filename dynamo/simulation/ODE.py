@@ -18,7 +18,7 @@ def hill_inh_func(x: float, A: float, K: float, n: float, g: float = 0) -> float
         g: Background inhibition parameter. Defaults to 0.
 
     Returns:
-        float: The value of the Hill inhibition function for the given input.
+        The value of the Hill inhibition function for the given input.
     """
     Kd = K**n
     return A * Kd / (Kd + x**n) - g * x
@@ -35,7 +35,7 @@ def hill_inh_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float
         g: Background inhibition parameter. Defaults to 0.
 
     Returns:
-        float: The value of the gradient of the Hill inhibition function for the given input.
+        The value of the gradient of the Hill inhibition function for the given input.
     """
     Kd = K**n
     return -A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
@@ -52,7 +52,7 @@ def hill_act_func(x: float, A: float, K: float, n: float, g: float = 0) -> float
         g: Background activation parameter. Defaults to 0.
 
     Returns:
-        float: The value of the Hill activation function for the given input.
+        The value of the Hill activation function for the given input.
     """
     Kd = K**n
     return A * x**n / (Kd + x**n) - g * x
@@ -69,7 +69,7 @@ def hill_act_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float
         g: Background activation parameter. Defaults to 0.
 
     Returns:
-        float: The value of the gradient of the Hill activation function for the given input.
+        The value of the gradient of the Hill activation function for the given input.
     """
     Kd = K**n
     return A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
@@ -186,13 +186,13 @@ def hessian_Ying_model(x: np.ndarray, t: Optional[float] = None) -> np.ndarray:
 
 def ode_bifur2genes(
     x: np.ndarray,
-    a: List[Union[int, float]] = [1, 1],
-    b: List[Union[int, float]] = [1, 1],
-    S: List[Union[int, float]] = [0.5, 0.5],
-    K: List[Union[int, float]] = [0.5, 0.5],
-    m: List[Union[int, float]] = [4, 4],
-    n: List[Union[int, float]] = [4, 4],
-    gamma: List[Union[int, float]] = [1, 1],
+    a: List[float] = [1, 1],
+    b: List[float] = [1, 1],
+    S: List[float] = [0.5, 0.5],
+    K: List[float] = [0.5, 0.5],
+    m: List[float] = [4, 4],
+    n: List[float] = [4, 4],
+    gamma: List[float] = [1, 1],
 ) -> np.ndarray:
     """The ODEs for the toggle switch motif with self-activation and mutual inhibition.
 
@@ -228,13 +228,13 @@ def ode_bifur2genes(
 
 def jacobian_bifur2genes(
     x: np.ndarray,
-    a: List[Union[int, float]] = [1, 1],
-    b: List[Union[int, float]] = [1, 1],
-    S: List[Union[int, float]] = [0.5, 0.5],
-    K: List[Union[int, float]] = [0.5, 0.5],
-    m: List[Union[int, float]] = [4, 4],
-    n: List[Union[int, float]] = [4, 4],
-    gamma: List[Union[int, float]] = [1, 1]
+    a: List[float] = [1, 1],
+    b: List[float] = [1, 1],
+    S: List[float] = [0.5, 0.5],
+    K: List[float] = [0.5, 0.5],
+    m: List[float] = [4, 4],
+    n: List[float] = [4, 4],
+    gamma: List[float] = [1, 1]
 ) -> np.ndarray:
     """The Jacobian of the toggle switch ODE model.
 
@@ -312,12 +312,12 @@ def hill_act_grad2(x: float, A: float, K: float, n: float) -> float:
 
 def hessian_bifur2genes(
     x: np.ndarray,
-    a: List[Union[int, float]] = [1, 1],
-    b: List[Union[int, float]] = [1, 1],
-    S: List[Union[int, float]] = [0.5, 0.5],
-    K: List[Union[int, float]] = [0.5, 0.5],
-    m: List[Union[int, float]] = [4, 4],
-    n: List[Union[int, float]] = [4, 4],
+    a: List[float] = [1, 1],
+    b: List[float] = [1, 1],
+    S: List[float] = [0.5, 0.5],
+    K: List[float] = [0.5, 0.5],
+    m: List[float] = [4, 4],
+    n: List[float] = [4, 4],
 ) -> np.ndarray:
     """The Hessian of the toggle switch ODE model.
 
@@ -351,14 +351,14 @@ def hessian_bifur2genes(
 
 def ode_osc2genes(
     x: np.ndarray,
-    a: List[Union[int, float]],
-    b: List[Union[int, float]],
-    S: List[Union[int, float]],
-    K: List[Union[int, float]],
-    m: List[Union[int, float]],
-    n: List[Union[int, float]],
-    gamma: List[Union[int, float]],
-):
+    a: List[float],
+    b: List[float],
+    S: List[float],
+    K: List[float],
+    m: List[float],
+    n: List[float],
+    gamma: List[float],
+) -> np.ndarray:
     """The ODEs for the two gene oscillation based on a predator-prey model.
 
     Args:
@@ -390,11 +390,11 @@ def ode_osc2genes(
 
 def ode_neurongenesis(
     x: np.ndarray,
-    a: List[Union[int, float]],
-    K: List[Union[int, float]],
-    n: List[Union[int, float]],
-    gamma: List[Union[int, float]],
-):
+    a: List[float],
+    K: List[float],
+    n: List[float],
+    gamma: List[float],
+) -> np.ndarray:
     """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original
     from Xiaojie Qiu, et. al, 2012.
 
@@ -452,17 +452,16 @@ def ode_neurongenesis(
 
 def neurongenesis(
     x: np.ndarray,
-    mature_mu: Union[float, int] = 0,
-    n: Union[float, int] = 4,
-    k: Union[float, int] = 1,
-    a: Union[float, int] = 4,
-    eta: Union[float, int] = 0.25,
-    eta_m: Union[float, int] = 0.125,
-    eta_b: Union[float, int] = 0.1,
-    a_s: Union[float, int] = 2.2,
-    a_e: Union[float, int] = 6,
-    mx: Union[float, int] = 10,
-):
+    mature_mu: float = 0,
+    n: float = 4,
+    k: float = 1,
+    a: float = 4,
+    eta: float = 0.25,
+    eta_m: float = 0.125,
+    a_s: float = 2.2,
+    a_e: float = 6,
+    mx: float = 10,
+) -> np.ndarray:
     """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original
     from Xiaojie Qiu, et. al, 2012.
 
@@ -475,7 +474,6 @@ def neurongenesis(
         a: The production rate of the genes. Defaults to 4.
         eta: Parameter representing negative feedback from terminal cells. Defaults to 0.25.
         eta_m: Parameter representing negative feedback from terminal cells. Defaults to 0.125.
-        eta_b: Parameter representing negative feedback from terminal cells. Defaults to 0.1.
         a_s: The production rate of the genes. Defaults to 2.2.
         a_e: The production rate of the genes. Defaults to 6.
         mx: The maximum number of mature neurons. Defaults to 10.
@@ -532,8 +530,8 @@ def state_space_sampler(
     dim: int,
     seed_num: int = 19491001,
     clip: bool = True,
-    min_val: Union[float, int] = 0,
-    max_val: Union[float, int] = 4,
+    min_val: float = 0,
+    max_val: float = 4,
     N: int = 10000,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val

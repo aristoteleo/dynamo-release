@@ -39,25 +39,25 @@ def Gillespie(
     transcription, RNA/protein degradation.
 
     Args:
-        a: rate of active promoter switches to inactive one
-        b: rate of inactive promoter switches to active one
-        la: lambda_: 4sU labelling rate
-        aa: transcription rate with active promoter
-        ai: transcription rate with inactive promoter
-        si: sigma, degradation rate
-        be: beta, splicing rate
-        ga: gamma, the fraction of labeled u turns to unlabeled s
+        a: rate of active promoter switches to inactive one.
+        b: rate of inactive promoter switches to active one.
+        la: lambda_: 4sU labelling rate.
+        aa: transcription rate with active promoter.
+        ai: transcription rate with inactive promoter.
+        si: sigma, degradation rate.
+        be: beta, splicing rate.
+        ga: gamma, the fraction of labeled u turns to unlabeled s.
         C0: A numpy array with dimension of 5 x n_gene. Here 5 corresponds to the five species (s - promoter state, ul,
             uu, sl, su) for each gene.
-        t_span: list of between and end time of simulation
-        n_traj: number of simulation trajectory to use
-        t_eval: the time points at which data is simulated
-        dt: delta t used in simulation
-        method: method to simulate the expression dynamics
-        verbose: whether to report running information
+        t_span: list of between and end time of simulation.
+        n_traj: number of simulation trajectory to use.
+        t_eval: the time points at which data is simulated.
+        dt: delta t used in simulation.
+        method: method to simulate the expression dynamics.
+        verbose: whether to report running information.
 
     Returns:
-        adata: an Annodata object containing the simulated data.
+        An Annodata object containing the simulated data.
     """
 
     gene_num, species_num = C0.shape[0:2]
