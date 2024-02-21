@@ -10,7 +10,7 @@ def normalize_data(
     mm: np.ndarray,
     szfactors: np.ndarray,
     pseudo_expr: float = 0.1,
-):
+) -> np.ndarray:
     """Normalize data via size factor and scaling.
 
     Args:
@@ -45,7 +45,7 @@ def TF_link_gene_chip(
     df_gene_TF_link_ENCODE: pd.DataFrame,
     var: pd.DataFrame,
     cor_thresh: float = 0.02,
-):
+) -> pd.DataFrame:
     """Filter the raw lasso regression links via chip-seq data based on a Fisher exact test.
 
     Args:

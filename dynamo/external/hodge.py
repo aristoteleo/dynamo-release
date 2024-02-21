@@ -40,7 +40,7 @@ def ddhodge(
     enforce: bool = False,
     cores: int = 1,
     **kwargs,
-):
+) -> None:
     """Modeling Latent Flow Structure using Hodge Decomposition based on the creation of sparse diffusion graph from the
     reconstructed vector field function. This method is relevant to the curl-free/divergence-free vector field
     reconstruction.
@@ -71,7 +71,7 @@ def ddhodge(
             used to parallel the graphize_vecfld calculation.
 
     Returns:
-        `AnnData` object that is updated with the `ddhodge` key in the `obsp` attribute which to adjacency matrix
+        `AnnData` object wil be updated with the `ddhodge` key in the `obsp` attribute which to adjacency matrix
         that corresponds to the sparse diffusion graph. Two columns `potential` and `divergence` corresponds to the
         potential and divergence for each cell will also be added.
     """

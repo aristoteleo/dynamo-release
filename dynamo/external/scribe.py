@@ -217,7 +217,7 @@ def coexp_measure(
     layer_y: str,
     cores: int = 1,
     skip_mi: bool = True,
-):
+) -> None:
     """Calculate co-expression measures, including mutual information (MI), pearson correlation, etc. of genes between
     two different layers.
 
@@ -231,7 +231,7 @@ def coexp_measure(
         skip_mi: Whether to skip the mutual information calculation step which is time-consuming.
 
     Returns:
-        An updated adata object that updated with a new columns (`mi`, `pearson`) in .var contains the mutual
+        None. The adata object will be updated with a new columns (`mi`, `pearson`) in .var contains the mutual
         information of input genes.
     """
 

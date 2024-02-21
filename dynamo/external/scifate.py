@@ -2,7 +2,7 @@
 # the following code is based on Cao, et. al, Nature Biotechnology, 2020 and
 # https://github.com/JunyueC/sci-fate_analysis
 
-from typing import Dict
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -277,7 +277,7 @@ def TF_gene_link(
     core_num: int = 1,
     cor_thresh: float = 0.03,
     seed: int = 123456,
-):
+) -> Union[pd.DataFrame, str]:
     """Estimate the regulatory weight of each TF to its potential targets via lasso regression for each gene.
 
     Args:
