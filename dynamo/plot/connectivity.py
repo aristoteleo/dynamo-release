@@ -570,9 +570,9 @@ def plot_connectivity(
     graph: Union[csr_matrix, csc_matrix, np.ndarray],
     x: int = 0,
     y: int = 1,
-    color: List[str] = ["ntr"],
-    basis: List[str] = ["umap"],
-    layer: List[str] = ["X"],
+    color: Union[str, List[str]] = ["ntr"],
+    basis: Union[str, List[str]] = ["umap"],
+    layer: Union[str, List[str]] = ["X"],
     highlights: Optional[list] = None,
     ncols: int = 1,
     edge_bundling: Optional[Literal["hammer"]] = None,
@@ -695,6 +695,10 @@ def plot_connectivity(
 
     if type(x) is not int or type(y) is not int:
         raise TypeError("x, y have to be integers (components in the a particular embedding {}) ".format(basis))
+
+    basis = [basis] if isinstance(basis, str) else basis
+    color = [color] if isinstance(color, str) else color
+    layer = [layer] if isinstance(layer, str) else layer
 
     n_c, n_l, n_b = (
         0 if color is None else len(color),
