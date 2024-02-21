@@ -171,13 +171,13 @@ def simulate_Gillespie(
 
 def prop_2bifurgenes(
     C: Union[List, np.ndarray],
-    a: List,
-    b: List,
-    S: List,
-    K: List,
-    m: List,
-    n: List,
-    gamma: List,
+    a: List[float],
+    b: List[float],
+    S: List[float],
+    K: List[float],
+    m: List[float],
+    n: List[float],
+    gamma: List[float],
 ) -> np.ndarray:
     """Propensity function for the 2 bifurcating genes model."""
     # species
@@ -221,14 +221,14 @@ def stoich_2bifurgenes():
 
 def prop_2bifurgenes_splicing(
     C: Union[List, np.ndarray],
-    a: List,
-    b: List,
-    S: List,
-    K: List,
-    m: List,
-    n: List,
-    beta: List,
-    gamma: List,
+    a: List[float],
+    b: List[float],
+    S: List[float],
+    K: List[float],
+    m: List[float],
+    n: List[float],
+    beta: List[float],
+    gamma: List[float],
 ) -> np.ndarray:
     """Propensity function for the 2 bifurcating genes model with splicing."""
     # species
@@ -387,16 +387,16 @@ def convert_nosplice(trajs_T: List[np.ndarray], trajs_C: List[np.ndarray]) -> Li
 
 
 def simulate_multigene(
-    a: List,
-    b: List,
-    la: List,
-    aa: List,
-    ai: List,
-    si: List,
-    be: List,
-    ga: List,
-    C0: List,
-    t_span: List,
+    a: List[float],
+    b: List[float],
+    la: List[float],
+    aa: List[float],
+    ai: List[float],
+    si: List[float],
+    be: List[float],
+    ga: List[float],
+    C0: List[np.ndarray],
+    t_span: List[float],
     n_traj: int,
     t_eval: np.ndarray,
     report: bool = False,

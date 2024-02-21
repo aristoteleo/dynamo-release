@@ -262,7 +262,8 @@ def jacobian_bifur2genes(
 def two_genes_motif_jacobian(x1: float, x2: float) -> np.ndarray:
     """The Jacobian of the two genes motif model.
 
-    This should be equivalent to jacobian_bifur2genes when using default parameters"""
+    This should be equivalent to jacobian_bifur2genes when using default parameters.
+    """
     J = np.array(
         [
             [
@@ -519,10 +520,6 @@ def neurongenesis(
         dx[12] = mature_mu * (1 - x[12] / mx)
 
     return dx
-
-
-def hsc():
-    pass
 
 
 def state_space_sampler(
