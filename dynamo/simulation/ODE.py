@@ -76,7 +76,7 @@ def hill_act_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float
 
 
 def toggle(
-    ab: Union[np.ndarray, Tuple[float, float]], t: Optional[float] = None, beta: float = 5, gamma: float = 1, n: int = 2
+    ab: Union[np.ndarray, Tuple[float, float]], beta: float = 5, gamma: float = 1, n: int = 2
 ) -> np.ndarray:
     """Calculates the right-hand side (RHS) of the differential equations for the toggle switch system.
 
@@ -100,7 +100,7 @@ def toggle(
     return res
 
 
-def Ying_model(x: np.ndarray, t: Optional[float]=None):
+def Ying_model(x: np.ndarray):
     """Solve the equation from the network used in the potential landscape paper from Ying, et. al:
         https://www.nature.com/articles/s41598-017-15889-2.
 
@@ -108,7 +108,6 @@ def Ying_model(x: np.ndarray, t: Optional[float]=None):
 
     Args:
         x: The current state of the system.
-        t: Time variable. Defaults to None.
 
     Returns:
         The rate of change of the system state.
@@ -127,7 +126,7 @@ def Ying_model(x: np.ndarray, t: Optional[float]=None):
     return ret
 
 
-def jacobian_Ying_model(x: np.ndarray, t: Optional[float] = None) -> np.ndarray:
+def jacobian_Ying_model(x: np.ndarray) -> np.ndarray:
     """Solve the jacobian from network used in the potential landscape paper from Ying, et. al:
         https://www.nature.com/articles/s41598-017-15889-2.
 
@@ -453,7 +452,6 @@ def ode_neurongenesis(
 
 def neurongenesis(
     x: np.ndarray,
-    t: Optional[float] = None,
     mature_mu: Union[float, int] = 0,
     n: Union[float, int] = 4,
     k: Union[float, int] = 1,
@@ -554,7 +552,7 @@ def state_space_sampler(
         The sampled points from the gene expression space and the corresponding velocity vector.
     """
 
-    seed(seed)
+    seed(seed_num)
     X = np.array([[uniform(min_val, max_val) for _ in range(dim)] for _ in range(N)])
     Y = np.clip(X + ode(X), a_min=min_val, a_max=None) if clip else X + ode(X)
 

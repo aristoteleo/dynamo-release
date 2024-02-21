@@ -159,8 +159,8 @@ def lap_min_time(
 
             elif show_paths:
                 plt.sca(axes[i, j])
-                zscatter(adata, basis=basis, color=color)
-                plot_X(paths[c - 1], c="k")
+                zscatter(adata, basis=basis, color=color, save_show_or_return="return")
+                plot_X(paths[c - 1], c="k", save_show_or_return="return")
                 plt.title(f"path {c-1}")
                 # scatters(adata, basis=basis, color=color, ax=axes[i, j], **kwargs)
                 # axes[i, j].scatter(*i[:, [x, y]].T, c=map2color(j))

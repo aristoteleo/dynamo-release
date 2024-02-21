@@ -15,11 +15,8 @@ from ..tools.clustering import neighbors
 from ..tools.Markov import DiscreteTimeMarkovChain
 from ..tools.utils import fetch_states
 from ..vectorfield import vector_field_function
-from .utils import (
-    arclength_sampling,
-    integrate_streamline,
-    remove_redundant_points_trajectory,
-)
+from .trajectory import arclength_sampling, remove_redundant_points_trajectory
+from .utils import integrate_streamline
 
 # from sklearn.preprocessing import OrdinalEncoder
 
@@ -311,7 +308,7 @@ def state_graph(
                 # assign the transition matrix and average transition time
                 if len(confident_pass_check) > 0:
                     ind_other_cell_type = [uniq_grp.index(k) for k in np.array(pass_groups)[confident_pass_check]]
-                    grp_graph[i, ind_other_cell_type] += 1
+                    grp_graph[i, ind_other_cell_type] += 1 / len(ind_other_cell_type)
                     grp_avg_time[i, ind_other_cell_type] += (
                         pass_df.groupby("group")["t"].mean()[confident_pass_check].values
                     )

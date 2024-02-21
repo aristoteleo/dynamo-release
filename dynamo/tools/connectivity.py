@@ -238,7 +238,6 @@ def umap_conn_indices_dist_embedding(
             "transform_seed": 42,
         }
         umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
-        dmat = pairwise_distances(X, metric=metric)
         mapper = umap.UMAP(
             n_neighbors=n_neighbors,
             n_components=n_components,
@@ -257,6 +256,7 @@ def umap_conn_indices_dist_embedding(
 
         if X.shape[0] < 4096:
             g_tmp = deepcopy(mapper.graph_)
+            dmat = pairwise_distances(X, metric=metric)
             g_tmp[mapper.graph_.nonzero()] = dmat[mapper.graph_.nonzero()]
             mapper._knn_indices, mapper._knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
 
@@ -551,6 +551,7 @@ def k_nearest_neighbors(
 
     if method.lower() in ["pynn", "umap"]:
         from pynndescent import NNDescent
+
         nbrs = NNDescent(
             X,
             metric=metric,
@@ -562,6 +563,7 @@ def k_nearest_neighbors(
         nbrs_idx, dists = nbrs.query(query_X, k=k + 1)
     elif method in ["ball_tree", "kd_tree"]:
         from sklearn.neighbors import NearestNeighbors
+
         # print("***debug X_data:", X_data)
         nbrs = NearestNeighbors(
             n_neighbors=k + 1,
