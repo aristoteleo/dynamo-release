@@ -20,8 +20,7 @@ from .utils import find_elbow
 
 
 class LeastActionPath(Trajectory):
-    """
-    A class for computing the Least Action Path for a given function and initial conditions.
+    """A class for computing the Least Action Path for a given function and initial conditions.
 
     Args:
         X: The initial conditions as a 2D array of shape (n, m), where n is the number of
@@ -47,8 +46,7 @@ class LeastActionPath(Trajectory):
     """
 
     def __init__(self, X: np.ndarray, vf_func: Callable, D: float = 1, dt: float = 1) -> None:
-        """
-        Initializes the LeastActionPath class instance with the given initial conditions, vector field function,
+        """Initializes the LeastActionPath class instance with the given initial conditions, vector field function,
         diffusion constant and time step.
 
         Args:
@@ -66,26 +64,23 @@ class LeastActionPath(Trajectory):
             self._action[i] = action(self.X[: i + 1], self.func, self.D, dt)
 
     def get_t(self) -> np.ndarray:
-        """
-        Returns the time points of the trajectory.
+        """Returns the time points of the trajectory.
 
         Returns:
-            ndarray: The time points of the trajectory.
+            The time points of the trajectory.
         """
         return self.t
 
     def get_dt(self) -> float:
-        """
-        Returns the time step of the trajectory.
+        """Returns the time step of the trajectory.
 
         Returns:
-            float: The time step of the trajectory.
+            The time step of the trajectory.
         """
         return np.mean(np.diff(self.t))
 
     def action_t(self, t: Optional[float] = None, **interp_kwargs) -> np.ndarray:
-        """
-        Returns the Least Action Path action values at time t.
+        """Returns the Least Action Path action values at time t.
 
         Args:
             t: The time point(s) to return the action value(s) for.
@@ -94,7 +89,7 @@ class LeastActionPath(Trajectory):
             **interp_kwargs: Additional keyword arguments to pass to the interp1d function.
 
         Returns:
-            ndarray: The Least Action Path action value(s).
+            The Least Action Path action value(s).
         """
         if t is None:
             return self._action
@@ -102,7 +97,14 @@ class LeastActionPath(Trajectory):
             return interp1d(self.t, self._action, **interp_kwargs)(t)
 
     def mfpt(self, action: Optional[np.ndarray] = None) -> np.ndarray:
-        """Eqn. 7 of Epigenetics as a first exit problem."""
+        """Eqn. 7 of Epigenetics as a first exit problem.
+
+        Args:
+            action: The action values. If None, uses the action values stored in the _action attribute.
+
+        Returns:
+            The mean first passage time.
+        """
         action = self._action if action is None else action
         return 1 / np.exp(-action)
 
@@ -110,7 +112,7 @@ class LeastActionPath(Trajectory):
         """Optimizes the time step of the simulation to minimize the Least Action Path action.
 
         Returns:
-            float: optimal time step
+            Optimal time step
         """
         dt_0 = self.get_dt()
         t_dict = minimize(lambda t: action(self.X, self.func, D=self.D, dt=t), dt_0)
@@ -122,10 +124,31 @@ class LeastActionPath(Trajectory):
 
 
 class GeneLeastActionPath(GeneTrajectory):
-    def __init__(self, adata, lap: LeastActionPath = None, X_pca=None, vf_func=None, D=1, dt=1, **kwargs) -> None:
-        """
-        Calculates the least action path trajectory and action for a gene expression dataset.
-        Inherits from GeneTrajectory class.
+    """A class for computing the least action path trajectory and action for a gene expression dataset.
+    Inherits from GeneTrajectory class.
+
+    Attributes:
+        adata: AnnData object containing the gene expression dataset.
+        X: Expression data.
+        to_pca: Transformation matrix from gene expression space to PCA space.
+        from_pca: Transformation matrix from PCA space to gene expression space.
+        PCs: Principal components from PCA analysis.
+        func: Vector field function reconstructed within the PCA space.
+        D: Diffusivity value.
+        t: Array of time values.
+        action: Array of action values.
+    """
+    def __init__(
+        self,
+        adata: AnnData,
+        lap: LeastActionPath = None,
+        X_pca: Optional[np.ndarray] = None,
+        vf_func: Optional[Callable] = None,
+        D: float = 1,
+        dt: float = 1,
+        **kwargs,
+    ) -> None:
+        """Initializes the GeneLeastActionPath class instance.
 
         Args:
             adata: AnnData object containing the gene expression dataset.
@@ -135,17 +158,6 @@ class GeneLeastActionPath(GeneTrajectory):
             D: Diffusivity value. Defaults to 1.
             dt: Time step size. Defaults to 1.
             **kwargs: Additional keyword arguments passed to the GeneTrajectory class.
-
-        Attributes:
-            adata: AnnData object containing the gene expression dataset.
-            X: Expression data.
-            to_pca: Transformation matrix from gene expression space to PCA space.
-            from_pca: Transformation matrix from PCA space to gene expression space.
-            PCs: Principal components from PCA analysis.
-            func: Vector field function reconstructed within the PCA space.
-            D: Diffusivity value.
-            t: Array of time values.
-            action: Array of action values.
         """
         if lap is not None:
             self.from_lap(adata, lap, **kwargs)
@@ -172,29 +184,26 @@ class GeneLeastActionPath(GeneTrajectory):
         self.D = lap.D
 
     def get_t(self) -> np.ndarray:
-        """
-        Returns the array of time values.
+        """Returns the array of time values.
 
         Returns:
-            np.ndarray: Array of time values.
+            Array of time values.
         """
         return self.t
 
     def get_dt(self) -> float:
-        """
-        Returns the average time step size.
+        """Returns the average time step size.
 
         Returns:
-            float: Average time step size.
+            Average time step size.
         """
         return np.mean(np.diff(self.t))
 
     def genewise_action(self) -> np.ndarray:
-        """
-        Calculates the genewise action values.
+        """Calculates the genewise action values.
 
         Returns:
-            np.ndarray: Array of genewise action values.
+            Array of genewise action values.
         """
         dt = self.get_dt()
         x = (self.X[:-1] + self.X[1:]) * 0.5
@@ -206,25 +215,28 @@ class GeneLeastActionPath(GeneTrajectory):
         return s
 
     def select_genewise_action(self, genes: Union[str, List[str]]) -> np.ndarray:
-        """
-        Returns the genewise action values for the specified genes.
+        """Returns the genewise action values for the specified genes.
 
         Args:
             genes (Union[str, List[str]]): List of gene names or a single gene name.
 
         Returns:
-            np.ndarray: Array of genewise action values.
+            Array of genewise action values.
         """
         return super().select_gene(genes, arr=self.action)
 
 
 def action(path: np.ndarray, vf_func: Callable[[np.ndarray], np.ndarray], D: float = 1, dt: float = 1) -> float:
-    # centers
-    """The action function calculates the action (or functional) of a path in space, given a velocity field function and diffusion coefficient. The path is represented as an array of points in space, and the velocity field is given by vf_func.
+    """The action function calculates the action (or functional) of a path in space, given a velocity field function
+    and diffusion coefficient.
 
-    The function first calculates the centers of the segments between each point in the path, and then calculates the velocity at each of these centers by taking the average of the velocities at the two neighboring points. The difference between the actual velocity and the velocity field at each center is then calculated and flattened into a one-dimensional array.
-
-    The action is then calculated by taking the dot product of this array with itself, multiplying by a factor of 0.5*dt/D, where dt is the time step used to define the path, and D is the diffusion coefficient.
+    The path is represented as an array of points in space, and the velocity field is given by vf_func. The function
+    first calculates the centers of the segments between each point in the path, and then calculates the velocity at
+    each of these centers by taking the average of the velocities at the two neighboring points. The difference
+    between the actual velocity and the velocity field at each center is then calculated and flattened into a
+    one-dimensional array. The action is then calculated by taking the dot product of this array with itself,
+    multiplying by a factor of 0.5*dt/D, where dt is the time step used to define the path, and D is the diffusion
+    coefficient.
 
     Args:
         path: An array of shape (N, d) containing the coordinates of a path with N points in d dimensions.
@@ -273,14 +285,15 @@ def action_grad(path: np.ndarray, vf_func: Callable, jac_func: Callable, D: floa
     """Computes the gradient of the action functional with respect to the path.
 
     Args:
-        path: A 2D array of shape (n+1,d) representing the path, where n is the number of time steps and d is the dimension of the path.
+        path: A 2D array of shape (n+1,d) representing the path, where n is the number of time steps and d is the
+            dimension of the path.
         vf_func: A function that computes the velocity field vf(x) for a given position x.
         jac_func: A function that computes the Jacobian matrix of the velocity field at a given position.
         D: The diffusion constant (default is 1).
         dt: The time step (default is 1).
 
     Returns:
-        np.ndarray: The gradient of the action functional with respect to the path, as a 2D array of shape (n,d).
+        The gradient of the action functional with respect to the path, as a 2D array of shape (n,d).
     """
     x = (path[:-1] + path[1:]) * 0.5
     v = np.diff(path, axis=0) / dt

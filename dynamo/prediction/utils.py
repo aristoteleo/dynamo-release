@@ -61,18 +61,34 @@ def init_l0_chase(
 # ---------------------------------------------------------------------------------------------------
 # integration related
 def integrate_vf_ivp(
-    init_states,
-    t,
-    integration_direction,
+    init_states: np.ndarray,
+    t: np.ndarray,
+    integration_direction: str,
     f: Callable,
-    args=None,
-    interpolation_num=250,
-    average=True,
-    sampling="arc_length",
-    verbose=False,
-    disable=False,
-):
-    """integrating along vector field function using the initial value problem solver from scipy.integrate"""
+    args: Optional[Tuple] = None,
+    interpolation_num: int = 250,
+    average: bool = True,
+    sampling: str = "arc_length",
+    verbose: bool = False,
+    disable: bool = False,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Integrating along vector field function using the initial value problem solver from scipy.integrate.
+
+    Args:
+        init_states: Initial states of the system.
+        t: Time points to integrate the system over.
+        integration_direction: The direction of integration.
+        f: The vector field function of the system.
+        args: Additional arguments to pass to the vector field function.
+        interpolation_num: Number of time points to interpolate the trajectories over.
+        average: Whether to average the trajectories.
+        sampling: The method of sampling points along a trajectory.
+        verbose: Whether to print the integration time.
+        disable: Whether to disable the progress bar.
+
+    Returns:
+        The time and trajectories of the system.
+    """
 
     # TODO: rewrite this function with the Trajectory class
     if init_states.ndim == 1:
