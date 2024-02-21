@@ -23,7 +23,7 @@ def enrichr(
             see here for details: https://amp.pharm.mssm.edu/modEnrichr
         gene_sets: str, list, tuple of Enrichr Library name(s).
         description: Name of analysis. optional.
-        outdir: Output file directory
+        outdir: Output file directory.
         cutoff: Show enriched terms which Adjusted P-value < cutoff. Only affects the output figure. Default: 0.05
         kwargs: Additional arguments passed to the `gp.enrichr` function.
 
