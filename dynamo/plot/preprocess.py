@@ -376,6 +376,7 @@ def biplot(
     figsize: Tuple[float, float] = (6, 4),
     scale_pca_embedding: bool = False,
     draw_pca_embedding: bool = False,
+    show_text: bool = False,
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
     ax: Optional[Axes] = None,
@@ -401,6 +402,7 @@ def biplot(
         figsize: the size of each subplot. Defaults to (6, 4).
         scale_pca_embedding: whether to scale the pca embedding. Defaults to False.
         draw_pca_embedding: whether to draw the pca embedding. Defaults to False.
+        show_text: whether to show the text labels on plot. Defaults to False.
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
         save_kwargs: a dictionary that will be passed to the save_show_ret function. By default, it is an empty dictionary
@@ -440,14 +442,17 @@ def biplot(
     else:
         scalex, scaley = 1, 1
 
-    genes = adata.var_names[adata.var.use_for_pca]
+    cells = adata.obs_names
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize)
     for i in range(len(xvector)):
         # arrows project features, e.g. genes, as vectors onto PC axes
         ax.arrow(0, 0, xvector[i] * max(xs), yvector[i] * max(ys), color="r", width=0.0005, head_width=0.0025)
-        ax.text(xvector[i] * max(xs) * 1.01, yvector[i] * max(ys) * 1.01, genes[i], color="r")
+
+    if show_text:
+        for i in range(len(xvector)):
+            ax.text(xvector[i] * max(xs) * 1.01, yvector[i] * max(ys) * 1.01, cells[i], color="r")
 
     ax.set_xlabel("PC" + str(pca_components[0]))
     ax.set_ylabel("PC" + str(pca_components[1]))
@@ -455,7 +460,9 @@ def biplot(
         for i in range(len(xs)):
             # circles project cells
             ax.plot(xs[i] * scalex, ys[i] * scaley, "b", alpha=0.1)
-            ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
+        if show_text:
+            for i in range(len(xs)):
+                ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
 
     return save_show_ret("biplot", save_show_or_return, save_kwargs, ax)
 
@@ -507,7 +514,7 @@ def loading(
         n_pcs = PCs.shape[1]
 
     x = np.arange(n_top_genes)
-    genes = adata.var_names[adata.var.use_for_pca]
+    cells = adata.obs_names
 
     nrow, ncol = int(n_pcs / ncol), min([ncol, n_pcs])
     fig, axes = plt.subplots(nrow, ncol, figsize=(figsize[0] * ncol, figsize[1] * nrow))
@@ -522,7 +529,7 @@ def loading(
         axes[cur_row, cur_col].scatter(x, sort_val[: len(x)])
         for j in x:
             axes[cur_row, cur_col].text(
-                x[j], sort_val[j] * 1.01, genes[sort_ind[j]], color="r" if cur_sign[sort_ind[j]] > 0 else "k"
+                x[j], sort_val[j] * 1.01, cells[sort_ind[j]], color="r" if cur_sign[sort_ind[j]] > 0 else "k"
             )
 
         axes[cur_row, cur_col].set_title("PC " + str(i))
@@ -533,7 +540,7 @@ def loading(
 def feature_genes(
     adata: AnnData,
     layer: str = "X",
-    mode: Optional[Literal["dispersion", "gini", "SVR"]] = None,
+    mode: Optional[Literal["cv_dispersion", "fano_dispersion", "seurat_dispersion", "gini"]] = None,
     figsize: tuple = (4, 3),
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
@@ -543,7 +550,7 @@ def feature_genes(
     Args:
         adata: an AnnData object.
         layer: the data from a particular layer (include X) used for making the feature gene plot. Defaults to "X".
-        mode: the method to select the feature genes (can be either `dispersion`, `gini` or `SVR`). Defaults to None.
+        mode: the method to select the feature genes (can be either one kind of `dispersion` or `gini`). Defaults to None.
         figsize: the size of each panel of the figure. Defaults to (4, 3).
         save_show_or_return: whether to save, show, or return the generated figure. Can be one of 'save', 'show', or
             'return'. Defaults to "show".
@@ -564,35 +571,57 @@ def feature_genes(
     layer = DynamoAdataKeyManager.get_available_layer_keys(adata, layer, include_protein=False)[0]
     uns_store_key = None
 
-    if "_dispersion" in mode:  # "cv_dispersion", "fano_dispersion"
-        prefix = "" if layer == "X" else layer + "_"
-        uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
-
-        if not np.all(pd.Series([prefix + "log_m", prefix + "score"]).isin(adata.var.columns)):
-            raise ValueError("Looks like you have not run support vector machine regression yet, try run SVRs first.")
-        else:
-            table = adata.var.loc[:, [prefix + "log_m", prefix + "log_cv", prefix + "score"]]
-            table = table.loc[
-                np.isfinite(table[prefix + "log_m"]) & np.isfinite(table[prefix + "log_cv"]),
-                :,
-            ]
-            x_min, x_max = (
-                np.nanmin(table[prefix + "log_m"]),
-                np.nanmax(table[prefix + "log_m"]),
-            )
-
     ordering_genes = adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
 
-    mu_linspace = np.linspace(x_min, x_max, num=1000)
-    if "_dispersion" in mode:
+    if "_dispersion" not in mode and mode != "gini":
+        raise ValueError("Invalid mode!.")
+
+    plt.figure(figsize=figsize)
+
+    if mode == "gini":
+        mean_key = layer + "_m"
+        variance_key = layer + "_gini"
+
+        if variance_key not in adata.var.columns:
+            raise ValueError(
+                "Looks like you have not run gene selection yet, try run necessary preprocessing first.")
+
+        mean = DynamoAdataKeyManager.select_layer_data(adata, layer).mean(0)[0]
+        table = adata.var.loc[:, [variance_key]]
+        table[mean_key] = mean.T
+    else:
+        if mode == "seurat_dispersion":
+            mean_key = "pp_gene_mean"
+            variance_key = "pp_gene_variance"
+        else:
+            prefix = "" if layer == "X" else layer + "_"
+            mean_key = prefix + "log_m"
+            variance_key = prefix + "log_cv"
+            uns_store_key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
+
+        if not np.all(pd.Series([mean_key, variance_key]).isin(adata.var.columns)):
+            raise ValueError("Looks like you have not run gene selection yet, try run necessary preprocessing first.")
+        else:
+            table = adata.var.loc[:, [mean_key, variance_key]]
+
+    table = table.loc[
+        np.isfinite(table[mean_key]) & np.isfinite(table[variance_key])
+    ]
+    x_min, x_max = (
+        np.nanmin(table[mean_key]),
+        np.nanmax(table[mean_key]),
+    )
+
+    if mode == "cv_dispersion" or mode == "fano_dispersion":
+        mu_linspace = np.linspace(x_min, x_max, num=1000)
         mean = adata.uns[uns_store_key]["mean"]
         cv = adata.uns[uns_store_key]["cv"]
         svr_gamma = adata.uns[uns_store_key]["svr_gamma"]
         fit, _ = get_prediction_by_svr(mean, cv, svr_gamma)
         fit = fit(mu_linspace.reshape(-1, 1))
 
-    plt.figure(figsize=figsize)
-    plt.plot(mu_linspace, fit, alpha=0.4, color="r")
+        plt.plot(mu_linspace, fit, alpha=0.4, color="r")
+
     valid_ind = (
         table.index.isin(ordering_genes.index[ordering_genes])
         if ordering_genes is not None
@@ -600,31 +629,34 @@ def feature_genes(
     )
 
     valid_disp_table = table.iloc[valid_ind, :]
-    if "_dispersion" in mode:
-        ax = plt.scatter(
-            valid_disp_table[prefix + "log_m"],
-            valid_disp_table[prefix + "log_cv"],
-            s=3,
-            alpha=1,
-            color="xkcd:red",
-        )
+
+    plt.scatter(
+        valid_disp_table[mean_key],
+        valid_disp_table[variance_key],
+        s=3,
+        alpha=1,
+        color="xkcd:red",
+    )
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
-    if "_dispersion" in mode:
-        ax = plt.scatter(
-            neg_disp_table[prefix + "log_m"],
-            neg_disp_table[prefix + "log_cv"],
-            s=3,
-            alpha=0.5,
-            color="xkcd:grey",
-        )
+    plt.scatter(
+        neg_disp_table[mean_key],
+        neg_disp_table[variance_key],
+        s=3,
+        alpha=0.5,
+        color="xkcd:grey",
+    )
 
-    plt.yscale("log")
-    plt.xlabel("Mean (log)")
-    plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
+    if mode == "gini":
+        plt.xlabel("Mean")
+        plt.ylabel("Variance")
+    else:
+        plt.yscale("log")
+        plt.xlabel("Mean (log)")
+        plt.ylabel("CV (log)")
 
-    return save_show_ret("feature_genes", save_show_or_return, save_kwargs, ax)
+    return save_show_ret("feature_genes", save_show_or_return, save_kwargs, plt.gcf())
 
 
 def exp_by_groups(

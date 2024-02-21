@@ -14,9 +14,9 @@ from .utils import save_show_ret
 
 def show_landscape(
     adata: AnnData,
-    Xgrid: np.ndarray,
-    Ygrid: np.ndarray,
-    Zgrid: np.ndarray,
+    Xgrid: Optional[np.ndarray] = None,
+    Ygrid: Optional[np.ndarray] = None,
+    Zgrid: Optional[np.ndarray] = None,
     basis: str = "umap",
     save_show_or_return: Literal["save", "show", "return"] = "show",
     save_kwargs: Dict[str, Any] = {},
@@ -48,9 +48,9 @@ def show_landscape(
             adata.uns["grid_Pot_" + basis]["Zgrid"],
         )
 
-    Xgrid = Xgrid_ if Xgrid is None else Xgrid
-    Ygrid = Ygrid_ if Ygrid is None else Ygrid
-    Zgrid = Zgrid_ if Zgrid is None else Zgrid
+    Xgrid = np.nan_to_num(Xgrid_) if Xgrid is None else np.nan_to_num(Xgrid)
+    Ygrid = np.nan_to_num(Ygrid_) if Ygrid is None else np.nan_to_num(Ygrid)
+    Zgrid = np.nan_to_num(Zgrid_) if Zgrid is None else np.nan_to_num(Zgrid)
 
     import matplotlib.pyplot as plt
     from matplotlib import cm
@@ -59,7 +59,7 @@ def show_landscape(
     from mpl_toolkits.mplot3d import Axes3D
 
     fig = plt.figure()
-    ax = fig.gca(projection="3d")
+    ax = fig.add_subplot(projection="3d")
 
     # Plot the surface.
     ls = LightSource(azdeg=0, altdeg=65)

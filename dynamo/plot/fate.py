@@ -69,6 +69,8 @@ def fate_bias(
     if "confidence" in fate_bias.keys():
         fate_bias.set_index([fate_bias.index, fate_bias.confidence], inplace=True)
 
+    fate_bias.fillna(0, inplace=True)
+
     ax = sns.clustermap(
         fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False, **cluster_maps_kwargs
     )
@@ -123,7 +125,7 @@ def fate(
     lap_dict = adata.uns[fate_key]
 
     for i, j in zip(lap_dict["prediction"], lap_dict["t"]):
-        ax.scatter(*i[:, [x, y]].T, c=map2color(j))
-        ax.plot(*i[:, [x, y]].T, c="k")
+        ax.scatter(*i.T[:, [x, y]].T, c=map2color(j))
+        ax.plot(*i.T[:, [x, y]].T, c="k")
 
     return save_show_ret("kinetic_curves", save_show_or_return, save_kwargs, ax)
