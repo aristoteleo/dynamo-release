@@ -25,11 +25,8 @@ from .rank_vf import (
 # potential related
 from .scPotential import (  # , vector_field_function
     DiffusionMatrix,
-    IntGrad,
     Pot,
     Potential,
-    action,
-    gen_fixed_points,
     gen_gradient,
     search_fixed_points,
 )
@@ -40,6 +37,7 @@ from .scVectorField import (  # , evaluate, con_K_div_cur_free
     SvcVectorField,
     graphize_vecfld,
 )
+from .Tang import action, gen_fixed_points, IntGrad
 
 # stochastic process related
 from .stochastic_process import diffusionMatrix

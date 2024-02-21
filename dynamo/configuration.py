@@ -1,5 +1,5 @@
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import List, Generator, Optional, Tuple, Union
 
 import colorcet
 import matplotlib
@@ -37,6 +37,35 @@ class DynamoAdataKeyManager:
     X_LAYER = "X"
     PROTEIN_LAYER = "protein"
     X_PCA = "X_pca"
+    RAW = "raw"
+
+    def _select_layer_cell_chunked_data(
+            mat: np.ndarray,
+            chunk_size: int,
+    ) -> Generator:
+        """Select layer data in cell chunks based on chunk_size."""
+        start = 0
+        n = mat.shape[0]
+        for _ in range(int(n // chunk_size)):
+            end = start + chunk_size
+            yield (mat[start:end, :], start, end)
+            start = end
+        if start < n:
+            yield (mat[start:n, :], start, n)
+
+    def _select_layer_gene_chunked_data(
+            mat: np.ndarray,
+            chunk_size: int,
+    ) -> Generator:
+        """Select layer data in gene chunks based on chunk_size."""
+        start = 0
+        n = mat.shape[1]
+        for _ in range(int(n // chunk_size)):
+            end = start + chunk_size
+            yield (mat[:, start:end], start, end)
+            start = end
+        if start < n:
+            yield (mat[:, start:n], start, n)
 
     def gen_new_layer_key(layer_name, key, sep="_") -> str:
         """utility function for returning a new key name for a specific layer. By convention layer_name should not have the separator as the last character."""
@@ -82,6 +111,39 @@ class DynamoAdataKeyManager:
         if copy:
             return res_data.copy()
         return res_data
+
+    def select_layer_chunked_data(
+        adata: AnnData,
+        layer: str,
+        chunk_size: int,
+        chunk_mode: str = "cell",
+    ) -> Generator:
+        """This utility provides a unified interface for selecting chunked layer data."""
+        if layer is None:
+            layer = DynamoAdataKeyManager.X_LAYER
+
+        if chunk_mode == "cell":
+            if layer == DynamoAdataKeyManager.X_LAYER:
+                return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.X, chunk_size=chunk_size)
+            elif layer == DynamoAdataKeyManager.RAW:
+                return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.raw.X, chunk_size=chunk_size)
+            elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
+                return DynamoAdataKeyManager._select_layer_cell_chunked_data(
+                    adata.obsm["protein"], chunk_size=chunk_size) if "protein" in adata.obsm_keys() else None
+            else:
+                return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.layers[layer], chunk_size=chunk_size)
+        elif chunk_mode == "gene":
+            if layer == DynamoAdataKeyManager.X_LAYER:
+                return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.X, chunk_size=chunk_size)
+            elif layer == DynamoAdataKeyManager.RAW:
+                return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.raw.X, chunk_size=chunk_size)
+            elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
+                return DynamoAdataKeyManager._select_layer_gene_chunked_data(
+                    adata.obsm["protein"], chunk_size=chunk_size) if "protein" in adata.obsm_keys() else None
+            else:
+                return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.layers[layer], chunk_size=chunk_size)
+        else:
+            raise NotImplementedError("chunk_mode %s not implemented." % (chunk_mode))
 
     def set_layer_data(adata: AnnData, layer: str, vals: np.array, var_indices: np.array = None):
         if var_indices is None:

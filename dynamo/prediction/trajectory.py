@@ -1,14 +1,15 @@
 from typing import Callable, List, Tuple, Union
 
 import numpy as np
+import scipy
 from scipy.interpolate import interp1d
 
 from ..dynamo_logger import LoggerManager
 from ..tools.utils import flatten
 from ..utils import expr_to_pca, pca_to_expr
 from ..vectorfield.scVectorField import DifferentiableVectorField
+from ..vectorfield.topography import dup_osc_idx_iter
 from ..vectorfield.utils import angle, normalize_vectors
-from .utils import arclength_sampling_n
 
 
 class Trajectory:
@@ -140,6 +141,89 @@ class Trajectory:
             self.X, self.t = X, t
 
         return X, t
+
+    def archlength_sampling(
+        self,
+        sol: scipy.integrate._ivp.common.OdeSolution,
+        interpolation_num: int,
+        integration_direction: str,
+    ):
+        """Sample the curve using archlength sampling.
+
+        Args:
+            sol: The ODE solution from scipy.integrate.solve_ivp.
+            interpolation_num: The number of points to interpolate the curve at.
+            integration_direction: The direction to integrate the curve in. Can be "forward", "backward", or "both".
+        """
+        tau, x = self.t, self.X.T
+        idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
+
+        # idx = dup_osc_idx_iter(x)
+        x = x[:idx]
+        _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
+        cur_Y, alen, self.t = arclength_sampling_n(x, num=interpolation_num+1, t=tau[:idx])
+        self.t = self.t[1:]
+        cur_Y = cur_Y[:, 1:]
+
+        if integration_direction == "both":
+            neg_t_len = sum(np.array(self.t) < 0)
+
+        self.X = (
+            sol(self.t)
+            if integration_direction != "both"
+            else np.hstack(
+                (
+                    sol[0](self.t[:neg_t_len]),
+                    sol[1](self.t[neg_t_len:]),
+                )
+            )
+        )
+
+    def logspace_sampling(
+        self,
+        sol: scipy.integrate._ivp.common.OdeSolution,
+        interpolation_num: int,
+        integration_direction: str,
+    ):
+        """Sample the curve using logspace sampling.
+
+        Args:
+            sol: The ODE solution from scipy.integrate.solve_ivp.
+            interpolation_num: The number of points to interpolate the curve at.
+            integration_direction: The direction to integrate the curve in. Can be "forward", "backward", or "both".
+        """
+        tau, x = self.t, self.X.T
+        neg_tau, pos_tau = tau[tau < 0], tau[tau >= 0]
+
+        if len(neg_tau) > 0:
+            t_0, t_1 = (
+                -(
+                    np.logspace(
+                        0,
+                        np.log10(abs(min(neg_tau)) + 1),
+                        interpolation_num,
+                    )
+                )
+                - 1,
+                np.logspace(0, np.log10(max(pos_tau) + 1), interpolation_num) - 1,
+            )
+            self.t = np.hstack((t_0[::-1], t_1))
+        else:
+            self.t = np.logspace(0, np.log10(max(tau) + 1), interpolation_num) - 1
+
+        if integration_direction == "both":
+            neg_t_len = sum(np.array(self.t) < 0)
+
+        self.X = (
+            sol(self.t)
+            if integration_direction != "both"
+            else np.hstack(
+                (
+                    sol[0](self.t[:neg_t_len]),
+                    sol[1](self.t[neg_t_len:]),
+                )
+            )
+        )
 
     def interpolate(self, t: np.ndarray, **interp_kwargs) -> np.ndarray:
         """Interpolate the curve at new time values.
@@ -427,3 +511,95 @@ class GeneTrajectory(Trajectory):
             raise Exception("Cannot select genes since `self.genes` is `None`.")
 
         return np.array(y)
+
+
+def arclength_sampling_n(X, num, t=None):
+    arclen = np.cumsum(np.linalg.norm(np.diff(X, axis=0), axis=1))
+    arclen = np.hstack((0, arclen))
+
+    z = np.linspace(arclen[0], arclen[-1], num)
+    X_ = interp1d(arclen, X, axis=0)(z)
+    if t is not None:
+        t_ = interp1d(arclen, t)(z)
+        return X_, arclen[-1], t_
+    else:
+        return X_, arclen[-1]
+
+
+def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
+    """remove consecutive data points that are too close to each other."""
+    X = np.atleast_2d(X)
+    discard = np.zeros(len(X), dtype=bool)
+    if X.shape[0] > 1:
+        for i in range(len(X) - 1):
+            dist = np.linalg.norm(X[i + 1] - X[i])
+            if dist < tol:
+                discard[i + 1] = True
+        X = X[~discard]
+
+    arclength = 0
+
+    x0 = X[0]
+    for i in range(1, len(X)):
+        tangent = X[i] - x0 if i == 1 else X[i] - X[i - 1]
+        d = np.linalg.norm(tangent)
+
+        arclength += d
+
+    if output_discard:
+        return (X, arclength, discard)
+    else:
+        return (X, arclength)
+
+
+def arclength_sampling(X, step_length, n_steps: int, t=None):
+    """uniformly sample data points on an arc curve that generated from vector field predictions."""
+    Y = []
+    x0 = X[0]
+    T = [] if t is not None else None
+    t0 = t[0] if t is not None else None
+    i = 1
+    terminate = False
+    arclength = 0
+
+    def _calculate_new_point():
+        x = x0 if j == i else X[j - 1]
+        cur_y = x + (step_length - L) * tangent / d
+
+        if t is not None:
+            cur_tau = t0 if j == i else t[j - 1]
+            cur_tau += (step_length - L) / d * (t[j] - cur_tau)
+            T.append(cur_tau)
+        else:
+            cur_tau = None
+
+        Y.append(cur_y)
+
+        return cur_y, cur_tau
+
+    while i < len(X) - 1 and not terminate:
+        L = 0
+        for j in range(i, len(X)):
+            tangent = X[j] - x0 if j == i else X[j] - X[j - 1]
+            d = np.linalg.norm(tangent)
+            if L + d >= step_length:
+                y, tau = _calculate_new_point()
+                t0 = tau if t is not None else None
+                x0 = y
+                i = j
+                break
+            else:
+                L += d
+        if j == len(X) - 1:
+            i += 1
+        arclength += step_length
+        if L + d < step_length:
+            terminate = True
+
+    if len(Y) < n_steps:
+        _, _ = _calculate_new_point()
+
+    if T is not None:
+        return np.array(Y), arclength, T
+    else:
+        return np.array(Y), arclength
