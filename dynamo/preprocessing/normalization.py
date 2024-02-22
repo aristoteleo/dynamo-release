@@ -38,6 +38,7 @@ def calc_sz_factor(
     scale_to: Union[float, None] = None,
     use_all_genes_cells: bool = True,
     genes_use_for_norm: Union[List[str], None] = None,
+    initial_dtype: Optional[type] = None,
 ) -> anndata.AnnData:
     """Calculate the size factor of each cell using geometric mean or median of total UMI across cells for a AnnData
     object.
@@ -67,11 +68,15 @@ def calc_sz_factor(
         genes_use_for_norm: A list of gene names that will be used to calculate total RNA for each cell and then the
             size factor for normalization. This is often very useful when you want to use only the host genes to
             normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
+        initial_dtype: the data type when initializing a new array. Should be one of the float type.
 
     Returns:
         An updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the
         obs attribute.
     """
+
+    if initial_dtype is None:
+        initial_dtype = adata_ori.X.dtype if adata_ori.X.dtype == np.float32 or adata_ori.X.dtype == np.float64 else np.float32
 
     if use_all_genes_cells:
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
@@ -122,6 +127,7 @@ def calc_sz_factor(
                 chunk_size=chunk_size,
                 total_layers=None,
                 scale_to=scale_to,
+                initial_dtype=initial_dtype,
             )
         else:
             sfs, cell_total = sz_util(
@@ -133,6 +139,7 @@ def calc_sz_factor(
                 chunk_size=chunk_size,
                 total_layers=total_layers,
                 scale_to=scale_to,
+                initial_dtype=initial_dtype,
             )
 
         sfs[~np.isfinite(sfs)] = 1
@@ -304,11 +311,6 @@ def normalize(
         splicing_total_layers=splicing_total_layers,
     )
 
-    if "X" in layers and transform_int_to_float and adata.X.dtype == "int":
-        main_warning("Transforming adata.X from int to float32 for normalization. If you want to disable this, set "
-                     "`transform_int_to_float` to False.")
-        adata.X = adata.X.astype("float32")
-
     main_debug("size factor normalize following layers: " + str(layers))
     for layer in layers:
         if layer in excluded_layers:
@@ -432,6 +434,7 @@ def sz_util(
     total_layers: List[str] = None,
     CM: pd.DataFrame = None,
     scale_to: Union[float, None] = None,
+    initial_dtype: type=np.float32,
 ) -> Tuple[pd.Series, pd.Series]:
     """Calculate the size factor for a given layer.
 
@@ -450,6 +453,7 @@ def sz_util(
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         CM: the data to operate on, overriding the layer. Defaults to None.
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
+        initial_dtype: the data type when initializing the cell_total.
 
     Raises:
         NotImplementedError: method is invalid.
@@ -469,7 +473,7 @@ def sz_util(
     chunk_size = chunk_size if chunk_size is not None else adata.n_obs
     chunked_CMs = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size) if CM is None else CM
 
-    cell_total = np.zeros(adata.n_obs, dtype=adata.X.dtype)
+    cell_total = np.zeros(adata.n_obs, dtype=initial_dtype)
 
     for CM_data in chunked_CMs:
         CM = CM_data[0]
