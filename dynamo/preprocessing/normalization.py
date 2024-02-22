@@ -287,6 +287,11 @@ def normalize(
 
     layers = DKM.get_available_layer_keys(adata, layers)
 
+    if "X" in layers and transform_int_to_float and adata.X.dtype == "int":
+        main_warning("Transforming adata.X from int to float32 for normalization. If you want to disable this, set "
+                     "`transform_int_to_float` to False.")
+        adata.X = adata.X.astype("float32")
+
     if recalc_sz:
         if "use_for_pca" in adata.var.columns and keep_filtered is False:
             adata = adata[:, adata.var.loc[:, "use_for_pca"]]
