@@ -477,6 +477,8 @@ def filter_genes_by_residuals(adata: AnnData, select_genes_layer: str = "X", sel
         select_genes_layer: the layer to select highly variable genes.
         select_genes_key: the key to use for selecting highly variable genes.
     """
+
+    main_logger.info("Filtering var <%s> with pearson residual normalized data." % select_genes_key)
     X = DKM.select_layer_data(adata, layer=select_genes_layer)
     X = X.A if sp_sparse.issparse(X) else X
     nan_columns_index = np.where(np.isnan(X).any(axis=0))[0]
