@@ -15,6 +15,7 @@ from .QC import (
     basic_stats,
     filter_genes_by_clusters,
     filter_cells_by_outliers,
+    filter_cells_by_highly_variable_genes,
     filter_genes_by_outliers,
     filter_genes_by_pattern,
 )
@@ -59,6 +60,7 @@ __all__ = [
     "recipe_velocyto",
     "calc_Gini",
     "filter_cells_by_outliers",
+    "filter_cells_by_highly_variable_genes",
     "select_genes_monocle",
     "select_genes_by_pearson_residuals",
     "filter_genes",

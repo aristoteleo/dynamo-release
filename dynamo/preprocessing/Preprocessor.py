@@ -90,6 +90,10 @@ class Preprocessor:
             filter_cells_by_outliers_kwargs: arguments that will be passed to filter_cells_by_outliers. Defaults to {}.
             filter_genes_by_outliers_function: filter genes by thresholds. Defaults to monocle_filter_genes_by_outliers.
             filter_genes_by_outliers_kwargs: arguments that will be passed to filter_genes_by_outliers. Defaults to {}.
+            filter_cells_by_highly_variable_genes_function: filter cells by highly variable genes. Defaults to
+                filter_cells_by_highly_variable_genes.
+            filter_cells_by_highly_variable_genes_kwargs: arguments that will be passed to
+                filter_cells_by_highly_variable_genes. Defaults to {}.
             normalize_by_cells_function: function for performing cell-wise normalization. Defaults to
                 normalize_cell_expr_by_size_factors.
             normalize_by_cells_function_kwargs: arguments that will be passed to normalize_by_cells_function. Defaults
