@@ -423,7 +423,6 @@ def normalize_layers_pearson_residuals(
     select_genes_layer="X",
     select_genes_key="use_for_pca",
     copy=False,
-    filter_after_normalization=True,
     **normalize_pearson_residual_args,
 ) -> None:
     """Normalize the given layers of the AnnData object using Pearson residuals.
@@ -464,26 +463,6 @@ def normalize_layers_pearson_residuals(
             new_X_key = DKM.gen_layer_X_key(layer)
             main_info_insert_adata_layer(new_X_key, indent_level=2)
             adata.layers[new_X_key] = DKM.select_layer_data(temp_adata, layer)
-
-    if filter_after_normalization:
-        filter_genes_by_residuals(adata, select_genes_layer, select_genes_key)
-
-
-def filter_genes_by_residuals(adata: AnnData, select_genes_layer: str = "X", select_genes_key: str = "use_for_pca") -> None:
-    """Filter genes based on the nan value in residuals of the selected layer.
-
-    Args:
-        adata: AnnData object to filter genes.
-        select_genes_layer: the layer to select highly variable genes.
-        select_genes_key: the key to use for selecting highly variable genes.
-    """
-
-    main_logger.info("Filtering var <%s> with pearson residual normalized data." % select_genes_key)
-    X = DKM.select_layer_data(adata, layer=select_genes_layer)
-    X = X.A if sp_sparse.issparse(X) else X
-    nan_columns_index = np.where(np.isnan(X).any(axis=0))[0]
-    adata.var[select_genes_key][nan_columns_index] = False
-
 
 
 # TODO: Combine this function with compute_highly_variable_genes.
