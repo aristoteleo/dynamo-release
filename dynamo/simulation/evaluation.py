@@ -8,10 +8,10 @@ def evaluate(reference: np.ndarray, prediction: np.ndarray, metric: str = "cosin
     """Function to evaluate the vector field related reference quantities vs. that from vector field prediction.
 
     Args:
-        reference: The reference quantity of the vector field (for example, simulated velocity vectors at each point or trajectory,
-            or estimated RNA velocity vector)
-        prediction: The predicted quantity of the vector field (for example, velocity vectors calculated based on reconstructed vector
-            field function at each point or trajectory, or reconstructed RNA velocity vector)
+        reference: The reference quantity of the vector field (for example, simulated velocity vectors at each point or
+            trajectory, or estimated RNA velocity vector).
+        prediction: The predicted quantity of the vector field (for example, velocity vectors calculated based on
+            reconstructed vector field function at each point or trajectory, or reconstructed RNA velocity vector).
         metric: The metric for benchmarking the vector field quantities after reconstruction.
 
     Returns:
