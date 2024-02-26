@@ -20,11 +20,11 @@ from ..tools.cell_velocities import cell_velocities
 from ..tools.utils import nearest_neighbors, update_dict
 from ..vectorfield.scVectorField import BaseVectorField
 from ..vectorfield.topography import (  # , compute_separatrices
-    VectorField,
-    VectorField2D,
+    Topography2D,
 )
 from ..vectorfield.topography import topography as _topology  # , compute_separatrices
 from ..vectorfield.utils import vecfld_from_adata
+from ..vectorfield.VectorField import VectorField
 from ..vectorfield.vector_calculus import curl, divergence
 from .scatters import docstrings, scatters, scatters_interactive
 from .utils import (
@@ -42,7 +42,7 @@ from .utils import (
 
 
 def plot_flow_field(
-    vecfld: VectorField2D,
+    vecfld: Topography2D,
     x_range: npt.ArrayLike,
     y_range: npt.ArrayLike,
     n_grid: int = 100,
@@ -182,7 +182,7 @@ def plot_flow_field(
 
 
 def plot_nullclines(
-    vecfld: VectorField2D,
+    vecfld: Topography2D,
     vecfld_dict: Dict[str, Any] = None,
     lw: float = 3,
     background: Optional[float] = None,
@@ -240,7 +240,7 @@ def plot_nullclines(
                 max_[1] + (max_[1] - min_[1]) * 0.1,
             ]
 
-            vecfld2d = VectorField2D(vecfld, X_data=vecfld_dict["X"])
+            vecfld2d = Topography2D(vecfld, X_data=vecfld_dict["X"])
             vecfld2d.find_fixed_points_by_sampling(25, xlim, ylim)
 
             if vecfld2d.get_num_fixed_points() > 0:
@@ -266,7 +266,7 @@ def plot_nullclines(
 
 
 def plot_fixed_points_2d(
-    vecfld: VectorField2D,
+    vecfld: Topography2D,
     marker: str = "o",
     markersize: float = 200,
     cmap: Optional[str] = None,
@@ -358,7 +358,7 @@ def plot_fixed_points_2d(
 
 
 def plot_fixed_points(
-    vecfld: VectorField2D,
+    vecfld: Topography2D,
     vecfld_dict: Dict[str, Any] = None,
     marker: str = "o",
     markersize: int = 200,
@@ -431,7 +431,7 @@ def plot_fixed_points(
                     max_[1] + (max_[1] - min_[1]) * 0.1,
                 ]
 
-                vecfld = VectorField2D(vecfld, X_data=vecfld_dict["X"])
+                vecfld = Topography2D(vecfld, X_data=vecfld_dict["X"])
                 vecfld.find_fixed_points_by_sampling(25, xlim, ylim)
                 if vecfld.get_num_fixed_points() > 0:
                     vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
@@ -642,7 +642,7 @@ def plot_traj(
 
 
 def plot_separatrix(
-    vecfld: VectorField2D,
+    vecfld: Topography2D,
     x_range: npt.ArrayLike,
     y_range: npt.ArrayLike,
     t: npt.ArrayLike,
@@ -706,7 +706,7 @@ def plot_separatrix(
                 max_[1] + (max_[1] - min_[1]) * 0.1,
             ]
 
-            vecfld2d = VectorField2D(vecfld, X_data=vecfld_dict["X"])
+            vecfld2d = Topography2D(vecfld, X_data=vecfld_dict["X"])
             vecfld2d.find_fixed_points_by_sampling(25, xlim, ylim)
 
             fps, ftypes = vecfld2d.get_fixed_points(get_types=True)
