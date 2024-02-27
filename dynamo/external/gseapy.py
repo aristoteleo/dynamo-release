@@ -17,27 +17,17 @@ def enrichr(
 ):
     """Perform gene list enrichment with gseapy.
 
-    Parameters
-    ----------
-        genes:
-            Flat file with list of genes, one gene id per row, or a python list object.
-        organism:
-            Enrichr supported organism. Select from (human, mouse, yeast, fly, fish, worm).
+    Args:
+        genes: Flat file with list of genes, one gene id per row, or a python list object.
+        organism: Enrichr supported organism. Select from (human, mouse, yeast, fly, fish, worm).
             see here for details: https://amp.pharm.mssm.edu/modEnrichr
-              :param gene_sets:
-        gene_sets:
-            str, list, tuple of Enrichr Library name(s).
-        description:
-            name of analysis. optional.
-        outdir:
-             Output file directory
-        cutoff:
-            Show enriched terms which Adjusted P-value < cutoff. Only affects the output figure. Default: 0.05
-        kwargs:
-            additional arguments passed to the `gp.enrichr` function.
+        gene_sets: str, list, tuple of Enrichr Library name(s).
+        description: Name of analysis. optional.
+        outdir: Output file directory.
+        cutoff: Show enriched terms which Adjusted P-value < cutoff. Only affects the output figure. Default: 0.05
+        kwargs: Additional arguments passed to the `gp.enrichr` function.
 
-    Returns
-    -------
+    Returns:
         An Enrichr object, which obj.res2d stores your last query, obj.results stores your all queries.
 
     >>> import dynamo as dyn

@@ -119,7 +119,7 @@ def _hat_matrix_legacy(X: np.ndarray, W: np.ndarray) -> np.ndarray:
 
 @deprecated
 def cook_dist(*args, **kwargs):
-    _cook_dist_legacy(*args, **kwargs)
+    return _cook_dist_legacy(*args, **kwargs)
 
 
 def _cook_dist_legacy(model: sm.Poisson, X: np.ndarray, good: npt.ArrayLike) -> np.ndarray:
@@ -511,7 +511,7 @@ def _calc_mean_var_dispersion_sparse_legacy(
 
 @deprecated
 def calc_sz_factor_legacy(*args, **kwargs):
-    _calc_sz_factor_legacy(*args, **kwargs)
+    return _calc_sz_factor_legacy(*args, **kwargs)
 
 
 def _calc_sz_factor_legacy(
@@ -646,7 +646,7 @@ def _calc_sz_factor_legacy(
 
 @deprecated
 def normalize_cell_expr_by_size_factors(*args, **kwargs):
-    _normalize_cell_expr_by_size_factors_legacy(*args, **kwargs)
+    return _normalize_cell_expr_by_size_factors_legacy(*args, **kwargs)
 
 
 def _normalize_cell_expr_by_size_factors_legacy(
@@ -773,7 +773,7 @@ def _normalize_cell_expr_by_size_factors_legacy(
 
 @deprecated
 def filter_cells_legacy(*args, **kwargs):
-    _filter_cells_legacy(*args, **kwargs)
+    return _filter_cells_legacy(*args, **kwargs)
 
 
 def _filter_cells_legacy(
@@ -864,7 +864,7 @@ def _filter_cells_legacy(
 
 @deprecated
 def filter_genes_by_outliers_legacy(*args, **kwargs):
-    _filter_genes_by_outliers_legacy(*args, **kwargs)
+    return _filter_genes_by_outliers_legacy(*args, **kwargs)
 
 
 def _filter_genes_by_outliers_legacy(
@@ -979,7 +979,7 @@ def _filter_genes_by_outliers_legacy(
 
 @deprecated
 def recipe_monocle(*args, **kwargs):
-    _recipe_monocle_legacy(*args, **kwargs)
+    return _recipe_monocle_legacy(*args, **kwargs)
 
 
 def _recipe_monocle_legacy(
@@ -1602,7 +1602,7 @@ def _recipe_monocle_legacy(
 
 @deprecated
 def recipe_velocyto(*args, **kwargs):
-    _recipe_velocyto_legacy(*args, **kwargs)
+    return _recipe_velocyto_legacy(*args, **kwargs)
 
 
 def _recipe_velocyto_legacy(
@@ -1736,7 +1736,7 @@ def _recipe_velocyto_legacy(
 
 @deprecated
 def select_genes_monocle_legacy(*args, **kwargs):
-    _select_genes_monocle_legacy(*args, **kwargs)
+    return _select_genes_monocle_legacy(*args, **kwargs)
 
 
 def _select_genes_monocle_legacy(

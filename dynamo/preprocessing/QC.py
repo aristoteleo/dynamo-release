@@ -264,6 +264,48 @@ def filter_cells_by_outliers(
     return adata
 
 
+def filter_cells_by_highly_variable_genes(
+    adata: anndata.AnnData,
+    keep_filtered: bool = False,
+    select_genes_layer: str = DKM.X_LAYER,
+    high_var_genes_key: str = DKM.VAR_USE_FOR_PCA,
+    obs_store_key: str = "pass_basic_filter",
+) -> anndata.AnnData:
+    """Filter cells based on the expression of highly variable genes.
+
+    Args:
+        adata: an AnnData object.
+        keep_filtered: whether to keep cells that don't pass the filtering in the adata object.
+        select_genes_layer: the layer used for genes selection.
+        high_var_genes_key: the key in adata.var to store the highly variable genes.
+        obs_store_key: the key in adata.obs to store the filtered data.
+
+    Returns:
+        An updated AnnData object indicating the selection of cells for downstream analysis.
+    """
+    if high_var_genes_key not in adata.var.keys():
+        raise ValueError(
+            "The key %s is not found in adata.var. Please run genes selection methods first."
+            % high_var_genes_key
+        )
+
+    if obs_store_key not in adata.obs.keys():
+        adata.obs[obs_store_key] = True
+
+    filter_bool = adata.var[high_var_genes_key].values
+    X = DKM.select_layer_data(adata, layer=select_genes_layer)
+    X = X[:, filter_bool].A if issparse(X) else X[:, filter_bool]
+    nan_columns_index = np.where(np.sum(X, axis=1) == 0)[0]
+
+    adata.obs[obs_store_key].iloc[nan_columns_index] = False
+
+    if not keep_filtered:
+        main_debug("inplace subsetting adata by filtered cells", indent_level=2)
+        adata._inplace_subset_obs(adata.obs[obs_store_key])
+
+    return adata
+
+
 def filter_genes_by_outliers(
     adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,

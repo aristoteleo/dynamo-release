@@ -35,34 +35,36 @@ def Gillespie(
     method: str = "basic",
     verbose: bool = False,
 ) -> AnnData:
-    """A simulator of RNA dynamics that includes RNA bursting, transcription, metabolic labeling, splicing, transcription, RNA/protein degradation
+    """A simulator of RNA dynamics that includes RNA bursting, transcription, metabolic labeling, splicing,
+    transcription, RNA/protein degradation.
 
     Args:
-        a: rate of active promoter switches to inactive one
-        b: rate of inactive promoter switches to active one
-        la: lambda_: 4sU labelling rate
-        aa: transcription rate with active promoter
-        ai: transcription rate with inactive promoter
-        si: sigma, degradation rate
-        be: beta, splicing rate
-        ga: gamma, the fraction of labeled u turns to unlabeled s
+        a: rate of active promoter switches to inactive one.
+        b: rate of inactive promoter switches to active one.
+        la: lambda_: 4sU labelling rate.
+        aa: transcription rate with active promoter.
+        ai: transcription rate with inactive promoter.
+        si: sigma, degradation rate.
+        be: beta, splicing rate.
+        ga: gamma, the fraction of labeled u turns to unlabeled s.
         C0: A numpy array with dimension of 5 x n_gene. Here 5 corresponds to the five species (s - promoter state, ul,
             uu, sl, su) for each gene.
-        t_span: list of between and end time of simulation
-        n_traj: number of simulation trajectory to use
-        t_eval: the time points at which data is simulated
-        dt: delta t used in simulation
-        method: method to simulate the expression dynamics
-        verbose: whether to report running information
+        t_span: list of between and end time of simulation.
+        n_traj: number of simulation trajectory to use.
+        t_eval: the time points at which data is simulated.
+        dt: delta t used in simulation.
+        method: method to simulate the expression dynamics.
+        verbose: whether to report running information.
 
     Returns:
-        adata: an Annodata object containing the simulated data.
+        An Annodata object containing the simulated data.
     """
 
     gene_num, species_num = C0.shape[0:2]
-    adata_no_splicing, P = None, None
+    adata_no_splicing, P, layers_no_splicing = None, None, None
 
     if method == "basic":
+        gene_num = 2
         if t_eval is None:
             steps = (t_span[1] - t_span[0]) // dt  # // int; %% remainder
             t_eval = np.linspace(t_span[0], t_span[1], steps)
@@ -75,10 +77,10 @@ def Gillespie(
             si=si,
             be=be,
             ga=ga,
-            C0=np.zeros((5, 1)),
+            C0=[np.zeros((1, 5))] * 2,
             t_span=[0, 50],
             n_traj=1,
-            t_eval=None,
+            t_eval=t_eval,
             report=verbose,
         )  # unfinished, no need to interpolate now.
         uu, ul, su, sl = [np.transpose(trajs_C[:, :, i + 1, :].reshape((gene_num, -1))) for i in range(4)]
@@ -108,20 +110,22 @@ def Gillespie(
             }
         )
         obs.set_index("Cell_name", inplace=True)
+        true_beta, true_gamma, delta, eta = be, ga, None, None
     elif method == "simulate_2bifurgenes":
         gene_num = 2
+        param_dict = {
+            "a": [20, 20],
+            "b": [20, 20],
+            "S": [20, 20],
+            "K": [20, 20],
+            "m": [3, 3],
+            "n": [3, 3],
+            "beta": [1, 1],
+            "gamma": [1, 1],
+        }
         _, trajs_C = simulate_2bifurgenes(
-            a1=20,
-            b1=20,
-            a2=20,
-            b2=20,
-            K=20,
-            n=3,
-            be1=1,
-            ga1=1,
-            be2=1,
-            ga2=1,
             C0=np.zeros(4),
+            param_dict=param_dict,
             t_span=t_span,
             n_traj=n_traj,
             report=verbose,
@@ -150,6 +154,7 @@ def Gillespie(
             }
         )
         obs.set_index("Cell_name", inplace=True)
+        true_beta, true_gamma, delta, eta = param_dict["beta"], param_dict["gamma"], None, None
     elif method == "differentiation":
         gene_num = 2
 
@@ -413,6 +418,7 @@ def Gillespie(
             }
         )
         obs.set_index("cell_name", inplace=True)
+        true_beta, true_gamma = [beta, beta], [gamma, gamma]
     elif method == "oscillation":
         gene_num = 2
 
@@ -658,6 +664,7 @@ def Gillespie(
             }
         )
         obs.set_index("cell_name", inplace=True)
+        true_beta, true_gamma = [beta, beta], [gamma, gamma]
     else:
         raise Exception("method not implemented!")
     # anadata: observation x variable (cells x genes)
@@ -668,8 +675,8 @@ def Gillespie(
     var = pd.DataFrame(
         {
             "gene_short_name": ["gene_%d" % (i) for i in range(gene_num)],
-            "true_beta": [beta, beta],
-            "true_gamma": [gamma, gamma],
+            "true_beta": true_beta,
+            "true_gamma": true_gamma,
             "true_eta": [eta, eta],
             "true_delta": [delta, delta],
         }
@@ -682,17 +689,21 @@ def Gillespie(
         var.copy(),
         layers=layers.copy(),
     )
-    adata_no_splicing = anndata.AnnData(
-        scipy.sparse.csc_matrix(E.astype(int)).copy(),
-        obs.copy(),
-        var.copy(),
-        layers=layers_no_splicing.copy(),
-    )
     if P is not None:
         adata.obsm["protein"] = P
-        adata_no_splicing.obsm["protein"] = P
     # remove cells that has no expression
     adata = adata[np.array(adata.X.sum(1)).flatten() > 0, :]
-    adata_no_splicing = adata_no_splicing[np.array(adata_no_splicing.X.sum(1)).flatten() > 0, :]
+
+    if layers_no_splicing is not None:
+        adata_no_splicing = anndata.AnnData(
+            scipy.sparse.csc_matrix(E.astype(int)).copy(),
+            obs.copy(),
+            var.copy(),
+            layers=layers_no_splicing.copy(),
+        )
+        if P is not None:
+            adata_no_splicing.obsm["protein"] = P
+        # remove cells that has no expression
+        adata_no_splicing = adata_no_splicing[np.array(adata_no_splicing.X.sum(1)).flatten() > 0, :]
 
     return adata, adata_no_splicing

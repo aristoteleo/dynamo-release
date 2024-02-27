@@ -15,7 +15,7 @@ from .estimation_kinetic import (
     Mixture_KinDeg_NoSwitching,
     kinetic_estimation,
 )
-from .utils_kinetic import (
+from .ODEs import (
     Deterministic,
     Deterministic_NoSplicing,
     LinearODE,

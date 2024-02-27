@@ -30,8 +30,9 @@ def directMethod(
         record_max_length: The maximum length for recording the trajectories.
 
     Returns:
-        retT: a 1d numpy array of time points.
-        retC: a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
+        A tuple containing:
+            retT: a 1d numpy array of time points.
+            retC: a 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
     """
     retC = np.zeros((len(C0), int(record_max_length)), np.float64)
     retT = np.zeros(int(record_max_length), np.float64)
@@ -65,7 +66,18 @@ def directMethod(
     return retT, retC
 
 
-def prop_slam(C, a, b, la, aa, ai, si, be, ga):
+def prop_slam(
+    C: Union[List, np.ndarray],
+    a: float,
+    b: float,
+    la: float,
+    aa: float,
+    ai: float,
+    si: float,
+    be: float,
+    ga: float,
+) -> np.ndarray:
+    """Propensity function for the SLAM data."""
     # species
     s = C[0]
     ul = C[1]
@@ -93,7 +105,21 @@ def prop_slam(C, a, b, la, aa, ai, si, be, ga):
     return prop
 
 
-def simulate_Gillespie(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=False):
+def simulate_Gillespie(
+    a: float,
+    b: float,
+    la: float,
+    aa: float,
+    ai: float,
+    si: float,
+    be: float,
+    ga: float,
+    C0: np.ndarray,
+    t_span: List,
+    n_traj: int,
+    report: bool = False,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Simulate using the Gillespie method."""
     # species
     s = 0
     u_l = 1
@@ -137,7 +163,17 @@ def simulate_Gillespie(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=
     return trajs_T, trajs_C
 
 
-def prop_2bifurgenes(C, a, b, S, K, m, n, gamma):
+def prop_2bifurgenes(
+    C: Union[List, np.ndarray],
+    a: List[float],
+    b: List[float],
+    S: List[float],
+    K: List[float],
+    m: List[float],
+    n: List[float],
+    gamma: List[float],
+) -> np.ndarray:
+    """Propensity function for the 2 bifurcating genes model."""
     # species
     x = C[0]
     y = C[1]
@@ -162,6 +198,7 @@ def prop_2bifurgenes(C, a, b, S, K, m, n, gamma):
 
 
 def stoich_2bifurgenes():
+    """Get the stoichiometry matrix for the 2 bifurcating genes model."""
     # species
     x = 0
     y = 1
@@ -176,7 +213,18 @@ def stoich_2bifurgenes():
     return stoich
 
 
-def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
+def prop_2bifurgenes_splicing(
+    C: Union[List, np.ndarray],
+    a: List[float],
+    b: List[float],
+    S: List[float],
+    K: List[float],
+    m: List[float],
+    n: List[float],
+    beta: List[float],
+    gamma: List[float],
+) -> np.ndarray:
+    """Propensity function for the 2 bifurcating genes model with splicing."""
     # species
     u1 = C[0]
     u2 = C[1]
@@ -206,6 +254,7 @@ def prop_2bifurgenes_splicing(C, a, b, S, K, m, n, beta, gamma):
 
 
 def stoich_2bifurgenes_splicing():
+    """Get the stoichiometry matrix for the 2 bifurcating genes model with splicing."""
     # species
     u1 = 0
     u2 = 1
@@ -226,7 +275,15 @@ def stoich_2bifurgenes_splicing():
     return stoich
 
 
-def simulate_2bifurgenes(C0, t_span, n_traj, param_dict, report=False, **gillespie_kwargs):
+def simulate_2bifurgenes(
+    C0: np.ndarray,
+    t_span: List,
+    n_traj: int,
+    param_dict: dict,
+    report: bool = False,
+    **gillespie_kwargs,
+):
+    """Simulate the 2 bifurcating genes model."""
     param_dict = param_dict.copy()
     beta = param_dict.pop("beta", None)
     if beta is None:
@@ -253,7 +310,14 @@ def simulate_2bifurgenes(C0, t_span, n_traj, param_dict, report=False, **gillesp
     return trajs_T, trajs_C
 
 
-def temporal_average(t, trajs_T, trajs_C, species, f=lambda x: x):
+def temporal_average(
+    t: np.ndarray,
+    trajs_T: List[np.ndarray],
+    trajs_C: List[np.ndarray],
+    species: int,
+    f=lambda x: x,
+) -> np.ndarray:
+    """Calculate the temporal average of a species."""
     n = len(trajs_T)
     y = np.zeros((n, len(t)))
     for i in range(n):
@@ -264,7 +328,14 @@ def temporal_average(t, trajs_T, trajs_C, species, f=lambda x: x):
     return np.nanmean(y, 0)
 
 
-def temporal_cov(t, trajs_T, trajs_C, species1, species2):
+def temporal_cov(
+    t: np.ndarray,
+    trajs_T: List[np.ndarray],
+    trajs_C: List[np.ndarray],
+    species1: int,
+    species2: int,
+) -> np.ndarray:
+    """Calculate the temporal covariance between two species."""
     n = len(trajs_T)
     y = np.zeros((n, len(t)))
     for i in range(n):
@@ -277,7 +348,13 @@ def temporal_cov(t, trajs_T, trajs_C, species1, species2):
     return np.nanmean(y, 0)
 
 
-def temporal_interp(t, trajs_T, trajs_C, round=False):
+def temporal_interp(
+    t: np.ndarray,
+    trajs_T: List[np.ndarray],
+    trajs_C: List[np.ndarray],
+    round: bool = False,
+) -> np.ndarray:
+    """Interpolate the trajectories to a given time section."""
     n = len(trajs_T)
     ret = []
     for i in range(n):
@@ -292,7 +369,8 @@ def temporal_interp(t, trajs_T, trajs_C, round=False):
     return np.array(ret)
 
 
-def convert_nosplice(trajs_T, trajs_C):
+def convert_nosplice(trajs_T: List[np.ndarray], trajs_C: List[np.ndarray]) -> List:
+    """Convert the splicing model to the non-splicing model."""
     trajs_C_nosplice = []
     for i in range(len(trajs_T)):
         traj_temp = np.zeros((2, len(trajs_T[i])))
@@ -302,7 +380,22 @@ def convert_nosplice(trajs_T, trajs_C):
     return trajs_C_nosplice
 
 
-def simulate_multigene(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval, report=False):
+def simulate_multigene(
+    a: List[float],
+    b: List[float],
+    la: List[float],
+    aa: List[float],
+    ai: List[float],
+    si: List[float],
+    be: List[float],
+    ga: List[float],
+    C0: List[np.ndarray],
+    t_span: List[float],
+    n_traj: int,
+    t_eval: np.ndarray,
+    report: bool = False,
+) -> np.ndarray:
+    """Simulate the multi-gene model."""
     n_genes = len(a)
     ret = []
     for i in range(n_genes):
@@ -326,9 +419,12 @@ def simulate_multigene(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval,
 
 
 class CellularSpecies:
+    """A class to register gene and species for easier implemention of simulations."""
     def __init__(self, gene_names: list = []) -> None:
-        """
-        A class to register gene and species for easier implemention of simulations.
+        """Initialize the CellularSpecies class.
+
+        Args:
+            gene_names: A list of gene names.
         """
         self.species_dict = {}
         self.gene_names = gene_names
@@ -336,13 +432,29 @@ class CellularSpecies:
         self._is_gene_species = []
         self.num_species = 0
 
-    def get_n_genes(self):
+    def get_n_genes(self) -> int:
+        """Get the number of genes.
+
+        Returns:
+            The number of genes.
+        """
         return len(self.gene_names)
 
-    def get_species_names(self):
+    def get_species_names(self) -> List[str]:
+        """Get the names of the registered species.
+
+        Returns:
+            A list of species names.
+        """
         return self.species_dict.keys()
 
-    def register_species(self, species_name: str, is_gene_species: bool = True):
+    def register_species(self, species_name: str, is_gene_species: bool = True) -> None:
+        """Register a species.
+
+        Args:
+            species_name: The name of the species.
+            is_gene_species: Whether the species is a gene species.
+        """
         if self.get_n_genes() == 0 and is_gene_species:
             raise Exception("There is no gene and therefore cannot register gene species.")
         if species_name in self.species_dict:
@@ -358,7 +470,16 @@ class CellularSpecies:
                 self.species_dict[species_name] = [i + self.num_species for i in range(self.get_n_genes())]
                 self.num_species += self.get_n_genes()
 
-    def get_index(self, species: str, gene: Optional[Union[int, str]] = None):
+    def get_index(self, species: str, gene: Optional[Union[int, str]] = None) -> int:
+        """Get the index of a species or gene.
+
+        Args:
+            species: The name of the species.
+            gene: The name or index of the gene.
+
+        Returns:
+            The index of the species or gene.
+        """
         if not species in self.species_dict.keys():
             raise Exception(f"Unregistered species `{species}`")
         idx = self.species_dict[species]
@@ -371,7 +492,16 @@ class CellularSpecies:
                 raise Exception(f"The gene name {gene} is not found in the registered genes.")
         return idx
 
-    def get_species(self, index, return_gene_name=True):
+    def get_species(self, index: int, return_gene_name: bool = True) -> Tuple[str, Optional[int]]:
+        """Get the species name from the index.
+
+        Args:
+            index: The index of the species.
+            return_gene_name: Whether to return the gene name if the species is a gene species.
+
+        Returns:
+            The name of the species or a tuple containing the name of the species and the gene index.
+        """
         species = None
         for k, v in self.species_dict.items():
             if type(v) == int:
@@ -385,12 +515,28 @@ class CellularSpecies:
                     species = (k, gene_idx)
         return species
 
-    def get_gene_index(self, gene):
+    def get_gene_index(self, gene: str) -> int:
+        """Get the index of a gene.
+
+        Args:
+            gene: The name of the gene.
+
+        Returns:
+            The index of the gene.
+        """
         if not gene in self.gene_names:
             raise Exception(f"Gene name `{gene}` not found.")
         return np.where(self.gene_names == gene)[0]
 
-    def is_gene_species(self, species: Union[str, int]):
+    def is_gene_species(self, species: Union[str, int]) -> bool:
+        """Check if a species is a gene species.
+
+        Args:
+            species: The name or index of the species.
+
+        Returns:
+            Whether the species is a gene species.
+        """
         if type(species) == int:
             species = self.__getitem__(species)[0]
 
@@ -401,12 +547,18 @@ class CellularSpecies:
                 if k == species:
                     return self.is_gene_species[i]
 
-    def iter_gene_species(self):
+    def iter_gene_species(self) -> Tuple[str, int]:
+        """Iterate through the gene species.
+
+        Yields:
+            A tuple containing the name of the gene species and the index of the gene species.
+        """
         for i, (k, v) in enumerate(self.species_dict.items()):
             if self._is_gene_species[i]:
                 yield (k, v)
 
-    def __getitem__(self, species):
+    def __getitem__(self, species: Union[str, int]) -> Tuple[str, Optional[int]]:
+        """Method for list indexing, dictionary lookup, or accessing ranges of values."""
         if np.isscalar(species):
             if type(species) == str:
                 return self.get_index(species)
@@ -415,10 +567,12 @@ class CellularSpecies:
         else:
             return self.get_index(species[0], species[1])
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """Method to define length of the class."""
         return self.num_species
 
     def copy(self):
+        """Create a copy of the CellularSpecies object."""
         # this function needs to be tested.
         species = CellularSpecies(self.gene_names)
         for sp in self.get_species_names():
@@ -427,6 +581,7 @@ class CellularSpecies:
 
 
 class Reaction:
+    """A class to register reactions for easier implementation of simulations."""
     def __init__(
         self,
         substrates: list,
@@ -436,6 +591,16 @@ class Reaction:
         stoich_products=None,
         desc: str = "",
     ) -> None:
+        """Initialize the Reaction class.
+
+        Args:
+            substrates: A list of substrates.
+            products: A list of products.
+            rate_func: The rate function of the reaction.
+            stoich_substrates: The stoichiometry of the substrates.
+            stoich_products: The stoichiometry of the products.
+            desc: The description of the reaction.
+        """
         self.substrates = substrates
         self.products = products
         self.rate_func = rate_func
@@ -449,35 +614,61 @@ class Reaction:
 
 
 class GillespieReactions:
+    """A class to register reactions for easier implementation of Gillespie simulations."""
     def __init__(self, species: CellularSpecies) -> None:
+        """Initialize the GillespieReactions class.
+
+        Args:
+            species: The CellularSpecies object.
+        """
         self.species = species
         self._rxns: List[Reaction] = []
         self._stoich = None
 
     def __len__(self):
+        """Method to define length of the class."""
         return len(self._rxns)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Reaction:
+        """Method for list indexing, dictionary lookup, or accessing ranges of values."""
         return self._rxns[index]
 
-    def __iter__(self):
+    def __iter__(self) -> Reaction:
+        """Method to iterate through the class."""
         for rxn in self._rxns:
             yield rxn
 
-    def register_reaction(self, reaction: Reaction):
+    def register_reaction(self, reaction: Reaction) -> int:
+        """Register a reaction.
+
+        Args:
+            reaction: The Reaction object to be registered.
+
+        Returns:
+            The index of the registered reaction.
+        """
         # reset stoich
         self._stoich = None
         # append reaction
         self._rxns.append(reaction)
         return len(self) - 1
 
-    def propensity(self, C):
+    def propensity(self, C: np.ndarray) -> np.ndarray:
+        """Calculate the propensities of all reactions.
+
+        Args:
+            C: An array of copy numbers of all species.
+
+        Returns:
+            An array of propensities of all reactions.
+        """
         prop = np.zeros(len(self))
         for i, rxn in enumerate(self._rxns):
             prop[i] = rxn.rate_func(C)
         return prop
 
     def generate_stoich_matrix(self):
+        """Generate the stoichiometry matrix."""
         # TODO: check if substrates and products are valid species indices
         # TODO: fix the case where a species is in both the substrates and products
         self._stoich = np.zeros((len(self), len(self.species)), dtype=int)
@@ -486,12 +677,18 @@ class GillespieReactions:
             self._stoich[i, rxn.products] = rxn.stoich_products
 
     def get_desc(self):
+        """Get the descriptions of all reactions.
+
+        Returns:
+            A list of descriptions of all reactions.
+        """
         desc = []
         for rxn in self._rxns:
             desc.append(rxn.desc)
         return desc
 
     def display_stoich(self):
+        """Display the stoichiometry matrix."""
         import pandas as pd
 
         if self._stoich is None:
@@ -505,7 +702,19 @@ class GillespieReactions:
         df = pd.DataFrame(self._stoich, columns=species_names, index=self.get_desc())
         print(df)
 
-    def simulate(self, t_span, C0, **gillespie_kwargs):
+    def simulate(self, t_span: List, C0: np.ndarray, **gillespie_kwargs) -> Tuple[np.ndarray, np.ndarray]:
+        """Simulate using the Gillespie method.
+
+        Args:
+            t_span: A list of starting and end simulation time.
+            C0: A 1d array of initial conditions.
+            gillespie_kwargs: Additional keyword arguments for the Gillespie simulation.
+
+        Returns:
+            A tuple containing:
+                T: A 1d numpy array of time points.
+                C: A 2d numpy array (n_species x n_time_points) of copy numbers for each species at each time point.
+        """
         if self._stoich is None:
             self.generate_stoich_matrix()
         update_func = lambda C, mu: C + self._stoich[mu, :]

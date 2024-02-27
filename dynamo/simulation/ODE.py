@@ -1,5 +1,5 @@
 from random import seed, uniform
-from typing import List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -18,8 +18,7 @@ def hill_inh_func(x: float, A: float, K: float, n: float, g: float = 0) -> float
         g: Background inhibition parameter. Defaults to 0.
 
     Returns:
-        float: The value of the Hill inhibition function for the given input.
-
+        The value of the Hill inhibition function for the given input.
     """
     Kd = K**n
     return A * Kd / (Kd + x**n) - g * x
@@ -36,8 +35,7 @@ def hill_inh_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float
         g: Background inhibition parameter. Defaults to 0.
 
     Returns:
-        float: The value of the gradient of the Hill inhibition function for the given input.
-
+        The value of the gradient of the Hill inhibition function for the given input.
     """
     Kd = K**n
     return -A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
@@ -54,8 +52,7 @@ def hill_act_func(x: float, A: float, K: float, n: float, g: float = 0) -> float
         g: Background activation parameter. Defaults to 0.
 
     Returns:
-        float: The value of the Hill activation function for the given input.
-
+        The value of the Hill activation function for the given input.
     """
     Kd = K**n
     return A * x**n / (Kd + x**n) - g * x
@@ -72,15 +69,14 @@ def hill_act_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float
         g: Background activation parameter. Defaults to 0.
 
     Returns:
-        float: The value of the gradient of the Hill activation function for the given input.
-
+        The value of the gradient of the Hill activation function for the given input.
     """
     Kd = K**n
     return A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
 def toggle(
-    ab: Union[np.ndarray, Tuple[float, float]], t: Optional[float] = None, beta: float = 5, gamma: float = 1, n: int = 2
+    ab: Union[np.ndarray, Tuple[float, float]], beta: float = 5, gamma: float = 1, n: int = 2
 ) -> np.ndarray:
     """Calculates the right-hand side (RHS) of the differential equations for the toggle switch system.
 
@@ -92,8 +88,7 @@ def toggle(
         n: The Hill coefficient. Defaults to 2.
 
     Returns:
-        np.ndarray: The RHS of the differential equations for the toggle switch system, calculated using the given input parameters.
-
+        The RHS of the differential equations for the toggle switch system, calculated using the given input parameters.
     """
     if len(ab.shape) == 2:
         a, b = ab[:, 0], ab[:, 1]
@@ -105,10 +100,17 @@ def toggle(
     return res
 
 
-def Ying_model(x: np.ndarray, t: Optional[float] = None):
-    """network used in the potential landscape paper from Ying, et. al:
-    https://www.nature.com/articles/s41598-017-15889-2.
+def Ying_model(x: np.ndarray):
+    """Solve the equation from the network used in the potential landscape paper from Ying, et. al:
+        https://www.nature.com/articles/s41598-017-15889-2.
+
     This is also the mixture of Gaussian model.
+
+    Args:
+        x: The current state of the system.
+
+    Returns:
+        The rate of change of the system state.
     """
     if len(x.shape) == 2:
         dx1 = -1 + 9 * x[:, 0] - 2 * pow(x[:, 0], 3) + 9 * x[:, 1] - 2 * pow(x[:, 1], 3)
@@ -124,10 +126,18 @@ def Ying_model(x: np.ndarray, t: Optional[float] = None):
     return ret
 
 
-def jacobian_Ying_model(x, t=None):
-    """network used in the potential landscape paper from Ying, et. al:
-    https://www.nature.com/articles/s41598-017-15889-2.
-    This is also the mixture of Gaussian model.
+def jacobian_Ying_model(x: np.ndarray) -> np.ndarray:
+    """Solve the jacobian from network used in the potential landscape paper from Ying, et. al:
+        https://www.nature.com/articles/s41598-017-15889-2.
+
+        This is also the mixture of Gaussian model.
+
+    Args:
+        x: The current state of the system.
+        t: Time variable. Defaults to None.
+
+    Returns:
+        The Jacobian of the system.
     """
     if len(x.shape) == 2:
         df1_dx1 = 9 - 6 * pow(x[:, 0], 2)
@@ -145,10 +155,18 @@ def jacobian_Ying_model(x, t=None):
     return J
 
 
-def hessian_Ying_model(x, t=None):
-    """network used in the potential landscape paper from Ying, et. al:
-    https://www.nature.com/articles/s41598-017-15889-2.
+def hessian_Ying_model(x: np.ndarray, t: Optional[float] = None) -> np.ndarray:
+    """Solve the hessian from the network used in the potential landscape paper from Ying, et. al:
+        https://www.nature.com/articles/s41598-017-15889-2.
+
     This is also the mixture of Gaussian model.
+
+    Args:
+        x: The current state of the system.
+        t: Time variable. Defaults to None.
+
+    Returns:
+        The Hessian of the system.
     """
     if len(x.shape) == 2:
         H = np.zeros([2, 2, 2, x.shape[0]])
@@ -168,13 +186,13 @@ def hessian_Ying_model(x, t=None):
 
 def ode_bifur2genes(
     x: np.ndarray,
-    a: List = [1, 1],
-    b: List = [1, 1],
-    S: List = [0.5, 0.5],
-    K: List = [0.5, 0.5],
-    m: List = [4, 4],
-    n: List = [4, 4],
-    gamma: List = [1, 1],
+    a: List[float] = [1, 1],
+    b: List[float] = [1, 1],
+    S: List[float] = [0.5, 0.5],
+    K: List[float] = [0.5, 0.5],
+    m: List[float] = [4, 4],
+    n: List[float] = [4, 4],
+    gamma: List[float] = [1, 1],
 ) -> np.ndarray:
     """The ODEs for the toggle switch motif with self-activation and mutual inhibition.
 
@@ -182,8 +200,8 @@ def ode_bifur2genes(
         x: The current state of the system.
         a: The self-activation strengths of the genes. Defaults to [1, 1].
         b: The mutual inhibition strengths of the genes. Defaults to [1, 1].
-        S: The self-activation thresholds of the genes. Defaults to [0.5, 0.5].
-        K: The mutual inhibition thresholds of the genes. Defaults to [0.5, 0.5].
+        S: The self-activation factors of the genes. Defaults to [0.5, 0.5].
+        K: The mutual inhibition factors of the genes. Defaults to [0.5, 0.5].
         m: The Hill coefficients for self-activation. Defaults to [4, 4].
         n: The Hill coefficients for mutual inhibition. Defaults to [4, 4].
         gamma: The degradation rates of the genes. Defaults to [1, 1].
@@ -209,9 +227,30 @@ def ode_bifur2genes(
 
 
 def jacobian_bifur2genes(
-    x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], gamma=[1, 1]
-):
-    """The Jacobian of the toggle switch ODE model."""
+    x: np.ndarray,
+    a: List[float] = [1, 1],
+    b: List[float] = [1, 1],
+    S: List[float] = [0.5, 0.5],
+    K: List[float] = [0.5, 0.5],
+    m: List[float] = [4, 4],
+    n: List[float] = [4, 4],
+    gamma: List[float] = [1, 1]
+) -> np.ndarray:
+    """The Jacobian of the toggle switch ODE model.
+
+    Args:
+        x: The current state of the system.
+        a: The self-activation strengths of the genes. Defaults to [1, 1].
+        b: The mutual inhibition strengths of the genes. Defaults to [1, 1].
+        S: The self-activation factors of the genes. Defaults to [0.5, 0.5].
+        K: The mutual inhibition factors of the genes. Defaults to [0.5, 0.5].
+        m: The Hill coefficients for self-activation. Defaults to [4, 4].
+        n: The Hill coefficients for mutual inhibition. Defaults to [4, 4].
+        gamma: The degradation rates of the genes. Defaults to [1, 1].
+
+    Returns:
+        The Jacobian of the system.
+    """
     df1_dx1 = hill_act_grad(x[:, 0], a[0], S[0], m[0], g=gamma[0])
     df1_dx2 = hill_inh_grad(x[:, 1], b[0], K[0], n[0])
     df2_dx1 = hill_inh_grad(x[:, 0], b[1], K[1], n[1])
@@ -220,8 +259,11 @@ def jacobian_bifur2genes(
     return J
 
 
-def two_genes_motif_jacobian(x1, x2):
-    """This should be equivalent to jacobian_bifur2genes when using default parameters"""
+def two_genes_motif_jacobian(x1: float, x2: float) -> np.ndarray:
+    """The Jacobian of the two genes motif model.
+
+    This should be equivalent to jacobian_bifur2genes when using default parameters.
+    """
     J = np.array(
         [
             [
@@ -237,18 +279,61 @@ def two_genes_motif_jacobian(x1, x2):
     return J
 
 
-def hill_inh_grad2(x, A, K, n):
+def hill_inh_grad2(x: float, A: float, K: float, n: float) -> float:
+    """Calculates the second derivative of the Hill inhibition function for a given input.
+
+    Args:
+        x: Input value for which the second derivative of the Hill inhibition function is to be calculated.
+        A: Scaling factor for the output of the function.
+        K: Concentration at which half-maximal inhibition occurs.
+        n: Hill coefficient, which describes the steepness of the function's curve.
+
+    Returns:
+        The value of the second derivative of the Hill inhibition function for the given input.
+    """
     Kd = K**n
     return A * n * Kd * x ** (n - 2) * ((n + 1) * x**n - Kd * n + Kd) / (Kd + x**n) ** 3
 
 
-def hill_act_grad2(x, A, K, n):
+def hill_act_grad2(x: float, A: float, K: float, n: float) -> float:
+    """Calculates the second derivative of the Hill activation function for a given input.
+
+    Args:
+        x: Input value for which the second derivative of the Hill activation function is to be calculated.
+        A: Scaling factor for the output of the function.
+        K: Concentration at which half-maximal activation occurs.
+        n: Hill coefficient, which describes the steepness of the function's curve.
+
+    Returns:
+        The value of the second derivative of the Hill activation function for the given input.
+    """
     Kd = K**n
     return -A * n * Kd * x ** (n - 2) * ((n + 1) * x**n - Kd * n + Kd) / (Kd + x**n) ** 3
 
 
-def hessian_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5, 0.5], m=[4, 4], n=[4, 4], t=None):
-    """The Hessian of the toggle switch ODE model."""
+def hessian_bifur2genes(
+    x: np.ndarray,
+    a: List[float] = [1, 1],
+    b: List[float] = [1, 1],
+    S: List[float] = [0.5, 0.5],
+    K: List[float] = [0.5, 0.5],
+    m: List[float] = [4, 4],
+    n: List[float] = [4, 4],
+) -> np.ndarray:
+    """The Hessian of the toggle switch ODE model.
+
+    Args:
+        x: The current state of the system.
+        a: The self-activation strengths of the genes. Defaults to [1, 1].
+        b: The mutual inhibition strengths of the genes. Defaults to [1, 1].
+        S: The self-activation factors of the genes. Defaults to [0.5, 0.5].
+        K: The mutual inhibition factors of the genes. Defaults to [0.5, 0.5].
+        m: The Hill coefficients for self-activation. Defaults to [4, 4].
+        n: The Hill coefficients for mutual inhibition. Defaults to [4, 4].
+
+    Returns:
+        The Hessian of the system.
+    """
     if len(x.shape) == 2:
         H = np.zeros([2, 2, 2, x.shape[0]])
         H[0, 0, 0, :] = hill_act_grad2(x[:, 0], a[0], S[0], m[0])
@@ -265,8 +350,31 @@ def hessian_bifur2genes(x: np.ndarray, a=[1, 1], b=[1, 1], S=[0.5, 0.5], K=[0.5,
     return H
 
 
-def ode_osc2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
-    """The ODEs for the two gene oscillation based on a predator-prey model."""
+def ode_osc2genes(
+    x: np.ndarray,
+    a: List[float],
+    b: List[float],
+    S: List[float],
+    K: List[float],
+    m: List[float],
+    n: List[float],
+    gamma: List[float],
+) -> np.ndarray:
+    """The ODEs for the two gene oscillation based on a predator-prey model.
+
+    Args:
+        x: The current state of the system.
+        a: The self-activation strengths of the genes.
+        b: The mutual inhibition strengths of the genes.
+        S: The self-activation factors of the genes.
+        K: The mutual inhibition factors of the genes.
+        m: The Hill coefficients for self-activation.
+        n: The Hill coefficients for mutual inhibition.
+        gamma: The degradation rates of the genes.
+
+    Returns:
+        The rate of change of the system state.
+    """
 
     d = x.ndim
     x = np.atleast_2d(x)
@@ -283,12 +391,24 @@ def ode_osc2genes(x: np.ndarray, a, b, S, K, m, n, gamma):
 
 def ode_neurongenesis(
     x: np.ndarray,
-    a,
-    K,
-    n,
-    gamma,
-):
-    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2012."""
+    a: List[float],
+    K: List[float],
+    n: List[float],
+    gamma: List[float],
+) -> np.ndarray:
+    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original
+    from Xiaojie Qiu, et. al, 2012.
+
+    Args:
+        x: The current state of the system.
+        a: The self-activation strengths of the genes.
+        K: The mutual inhibition strengths of the genes.
+        n: The Hill coefficients for self-activation.
+        gamma: The degradation rates of the genes.
+
+    Returns:
+        The rate of change of the system state.
+    """
 
     d = x.ndim
     x = np.atleast_2d(x)
@@ -332,20 +452,36 @@ def ode_neurongenesis(
 
 
 def neurongenesis(
-    x,
-    t=None,
-    mature_mu=0,
-    n=4,
-    k=1,
-    a=4,
-    eta=0.25,
-    eta_m=0.125,
-    eta_b=0.1,
-    a_s=2.2,
-    a_e=6,
-    mx=10,
-):
-    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2012."""
+    x: np.ndarray,
+    mature_mu: float = 0,
+    n: float = 4,
+    k: float = 1,
+    a: float = 4,
+    eta: float = 0.25,
+    eta_m: float = 0.125,
+    a_s: float = 2.2,
+    a_e: float = 6,
+    mx: float = 10,
+) -> np.ndarray:
+    """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original
+    from Xiaojie Qiu, et. al, 2012.
+
+    Args:
+        x: The current state of the system.
+        t: Time variable. Defaults to None.
+        mature_mu: The degradation rate of the mature neuron. Defaults to 0.
+        n: The Hill coefficient. Defaults to 4.
+        k: The degradation rate of the genes. Defaults to 1.
+        a: The production rate of the genes. Defaults to 4.
+        eta: Parameter representing negative feedback from terminal cells. Defaults to 0.25.
+        eta_m: Parameter representing negative feedback from terminal cells. Defaults to 0.125.
+        a_s: The production rate of the genes. Defaults to 2.2.
+        a_e: The production rate of the genes. Defaults to 6.
+        mx: The maximum number of mature neurons. Defaults to 10.
+
+    Returns:
+        The rate of change of the system state.
+    """
 
     dx = np.nan * np.ones(shape=x.shape)
 
@@ -386,14 +522,32 @@ def neurongenesis(
     return dx
 
 
-def hsc():
-    pass
+def state_space_sampler(
+    ode: Callable,
+    dim: int,
+    seed_num: int = 19491001,
+    clip: bool = True,
+    min_val: float = 0,
+    max_val: float = 4,
+    N: int = 10000,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val
+    and max_val. Velocity vector at the sampled points will be calculated according to ode function.
 
+    Args:
+        ode: The ODE function that will be used to calculate the velocity vector at the sampled points.
+        dim: The dimension of the gene expression space.
+        seed_num: The seed number for the random number generator. Defaults to 19491001.
+        clip: Whether to clip data points that are negative. Defaults to True.
+        min_val: The minimum value of the gene expression space. Defaults to 0.
+        max_val: The maximum value of the gene expression space. Defaults to 4.
+        N: The number of points to sample. Defaults to 10000.
 
-def state_space_sampler(ode, dim, seed_num=19491001, clip=True, min_val=0, max_val=4, N=10000):
-    """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val and max_val. Velocity vector at the sampled points will be calculated according to ode function."""
+    Returns:
+        The sampled points from the gene expression space and the corresponding velocity vector.
+    """
 
-    seed(seed)
+    seed(seed_num)
     X = np.array([[uniform(min_val, max_val) for _ in range(dim)] for _ in range(N)])
     Y = np.clip(X + ode(X), a_min=min_val, a_max=None) if clip else X + ode(X)
 
@@ -413,7 +567,7 @@ def Simulator(
         cell_num: Number of cells to simulate.
 
     Returns:
-        adata: an Annodata object containing the simulated data.
+        An Annodata object containing the simulated data.
     """
 
     if motif == "toggle":

@@ -22,7 +22,7 @@ from .pca import pca
 from .QC import basic_stats
 from .QC import filter_cells_by_outliers as monocle_filter_cells_by_outliers
 from .QC import filter_genes_by_outliers as monocle_filter_genes_by_outliers
-from .QC import regress_out_parallel
+from .QC import regress_out_parallel, filter_cells_by_highly_variable_genes
 from .transform import Freeman_Tukey, log, log1p, log2
 from .utils import (_infer_labeling_experiment_type, calc_new_to_total_ratio,
                     collapse_species_adata, convert2symbol, convert_layers2csr,
@@ -38,6 +38,8 @@ class Preprocessor:
         filter_cells_by_outliers_kwargs: Dict[str, Any] = {},
         filter_genes_by_outliers_function: Callable = monocle_filter_genes_by_outliers,
         filter_genes_by_outliers_kwargs: Dict[str, Any] = {},
+        filter_cells_by_highly_variable_genes_function: Callable = filter_cells_by_highly_variable_genes,
+        filter_cells_by_highly_variable_genes_kwargs: Dict[str, Any] = {},
         normalize_by_cells_function: Callable = normalize,
         normalize_by_cells_function_kwargs: Dict[str, Any] = {},
         size_factor_function: Callable = calc_sz_factor,
@@ -74,6 +76,10 @@ class Preprocessor:
             filter_cells_by_outliers_kwargs: arguments that will be passed to filter_cells_by_outliers. Defaults to {}.
             filter_genes_by_outliers_function: filter genes by thresholds. Defaults to monocle_filter_genes_by_outliers.
             filter_genes_by_outliers_kwargs: arguments that will be passed to filter_genes_by_outliers. Defaults to {}.
+            filter_cells_by_highly_variable_genes_function: filter cells by highly variable genes. Defaults to
+                filter_cells_by_highly_variable_genes.
+            filter_cells_by_highly_variable_genes_kwargs: arguments that will be passed to
+                filter_cells_by_highly_variable_genes. Defaults to {}.
             normalize_by_cells_function: function for performing cell-wise normalization. Defaults to
                 normalize_cell_expr_by_size_factors.
             normalize_by_cells_function_kwargs: arguments that will be passed to normalize_by_cells_function. Defaults
@@ -103,6 +109,7 @@ class Preprocessor:
 
         self.filter_cells_by_outliers = filter_cells_by_outliers_function
         self.filter_genes_by_outliers = filter_genes_by_outliers_function
+        self.filter_cells_by_highly_variable_genes = filter_cells_by_highly_variable_genes_function
         self.normalize_by_cells = normalize_by_cells_function
         self.calc_size_factor = size_factor_function
         self.calc_new_to_total_ratio = calc_new_to_total_ratio
@@ -121,6 +128,7 @@ class Preprocessor:
 
         # kwargs pass to the functions above
         self.filter_genes_by_outliers_kwargs = filter_genes_by_outliers_kwargs
+        self.filter_cells_by_highly_variable_genes_kwargs = filter_cells_by_highly_variable_genes_kwargs
         self.normalize_by_cells_function_kwargs = normalize_by_cells_function_kwargs
         self.filter_cells_by_outliers_kwargs = filter_cells_by_outliers_kwargs
         self.size_factor_kwargs = size_factor_kwargs
@@ -267,6 +275,18 @@ class Preprocessor:
             main_debug("filtering outlier genes...")
             main_debug("gene filter kwargs:" + str(self.filter_genes_by_outliers_kwargs))
             self.filter_genes_by_outliers(adata, **self.filter_genes_by_outliers_kwargs)
+
+    def _filter_cells_by_highly_variable_genes(self, adata: AnnData) -> None:
+        """Select valid cells based on the method specified as the preprocessor's `filter_cells_by_highly_variable_genes`.
+
+        Args:
+            adata: an AnnData object.
+        """
+
+        if self.filter_cells_by_highly_variable_genes:
+            main_debug("filtering cells by highly variable genes...")
+            main_debug("filter_cells_by_highly_variable_genes kwargs:" + str(self.filter_cells_by_highly_variable_genes_kwargs))
+            self.filter_cells_by_highly_variable_genes(adata, **self.filter_cells_by_highly_variable_genes_kwargs)
 
     def _calc_size_factor(self, adata: AnnData) -> None:
         """Calculate the size factor of each cell based on method specified as the preprocessor's `calc_size_factor`.
@@ -677,6 +697,7 @@ class Preprocessor:
 
         self.filter_cells_by_outliers = None
         self.filter_genes_by_outliers = None
+        self.filter_cells_by_highly_variable_genes_kwargs = {"keep_filtered": False}
         self.normalize_by_cells = None
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
@@ -715,6 +736,7 @@ class Preprocessor:
         self._exclude_gene_list(adata)
         self._force_gene_list(adata)
 
+        self._filter_cells_by_highly_variable_genes(adata)
         self._normalize_selected_genes(adata)
         if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)
@@ -736,6 +758,7 @@ class Preprocessor:
         self.config_monocle_recipe(adata)
         # self.filter_cells_by_outliers = None
         # self.filter_genes_by_outliers = None
+        self.filter_cells_by_highly_variable_genes_kwargs = {"keep_filtered": False}
         self.normalize_by_cells = normalize
         self.select_genes = select_genes_by_pearson_residuals
         self.select_genes_kwargs = {"n_top_genes": 2000}
@@ -776,6 +799,7 @@ class Preprocessor:
         self._calc_size_factor(adata)
         self._normalize_by_cells(adata)
         adata.X = X_copy
+        self._filter_cells_by_highly_variable_genes(adata)
         self._normalize_selected_genes(adata)
         if len(self.regress_out_kwargs["obs_keys"]) > 0:
             self._regress_out(adata)

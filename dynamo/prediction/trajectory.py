@@ -1,20 +1,22 @@
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
+import scipy
+from anndata import AnnData
 from scipy.interpolate import interp1d
 
 from ..dynamo_logger import LoggerManager
 from ..tools.utils import flatten
 from ..utils import expr_to_pca, pca_to_expr
 from ..vectorfield.scVectorField import DifferentiableVectorField
+from ..vectorfield.topography import dup_osc_idx_iter
 from ..vectorfield.utils import angle, normalize_vectors
-from .utils import arclength_sampling_n
 
 
 class Trajectory:
+    """Base class for handling trajectory interpolation, resampling, etc."""
     def __init__(self, X: np.ndarray, t: Union[None, np.ndarray] = None, sort: bool = True) -> None:
-        """
-        Base class for handling trajectory interpolation, resampling, etc.
+        """Initializes a Trajectory object.
 
         Args:
             X: trajectory positions, shape (n_points, n_dimensions)
@@ -36,8 +38,7 @@ class Trajectory:
         return self.X.shape[0]
 
     def set_time(self, t: np.ndarray, sort: bool = True) -> None:
-        """
-        Set the time stamps for the trajectory. Sorts the time stamps if requested.
+        """Set the time stamps for the trajectory. Sorts the time stamps if requested.
 
         Args:
             t: trajectory times, shape (n_points,)
@@ -51,8 +52,7 @@ class Trajectory:
             self.t = t
 
     def dim(self) -> int:
-        """
-        Returns the number of dimensions in the trajectory.
+        """Returns the number of dimensions in the trajectory.
 
         Returns:
             number of dimensions in the trajectory
@@ -60,8 +60,7 @@ class Trajectory:
         return self.X.shape[1]
 
     def calc_tangent(self, normalize: bool = True):
-        """
-        Calculate the tangent vectors of the trajectory.
+        """Calculate the tangent vectors of the trajectory.
 
         Args:
             normalize: whether to normalize the tangent vectors. Defaults to True.
@@ -75,8 +74,7 @@ class Trajectory:
         return tvec
 
     def calc_arclength(self) -> float:
-        """
-        Calculate the arc length of the trajectory.
+        """Calculate the arc length of the trajectory.
 
         Returns:
             arc length of the trajectory
@@ -86,8 +84,7 @@ class Trajectory:
         return np.sum(norms)
 
     def calc_curvature(self) -> np.ndarray:
-        """
-        Calculate the curvature of the trajectory.
+        """Calculate the curvature of the trajectory.
 
         Returns:
             curvature of the trajectory, shape (n_points,)
@@ -100,8 +97,7 @@ class Trajectory:
         return kappa
 
     def resample(self, n_points: int, tol: float = 1e-4, inplace: bool = True) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Resample the curve with the specified number of points.
+        """Resample the curve with the specified number of points.
 
         Args:
             n_points: An integer specifying the number of points in the resampled curve.
@@ -141,6 +137,89 @@ class Trajectory:
 
         return X, t
 
+    def archlength_sampling(
+        self,
+        sol: scipy.integrate._ivp.common.OdeSolution,
+        interpolation_num: int,
+        integration_direction: str,
+    ) -> None:
+        """Sample the curve using archlength sampling.
+
+        Args:
+            sol: The ODE solution from scipy.integrate.solve_ivp.
+            interpolation_num: The number of points to interpolate the curve at.
+            integration_direction: The direction to integrate the curve in. Can be "forward", "backward", or "both".
+        """
+        tau, x = self.t, self.X.T
+        idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
+
+        # idx = dup_osc_idx_iter(x)
+        x = x[:idx]
+        _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
+        cur_Y, alen, self.t = arclength_sampling_n(x, num=interpolation_num+1, t=tau[:idx])
+        self.t = self.t[1:]
+        cur_Y = cur_Y[:, 1:]
+
+        if integration_direction == "both":
+            neg_t_len = sum(np.array(self.t) < 0)
+
+        self.X = (
+            sol(self.t)
+            if integration_direction != "both"
+            else np.hstack(
+                (
+                    sol[0](self.t[:neg_t_len]),
+                    sol[1](self.t[neg_t_len:]),
+                )
+            )
+        )
+
+    def logspace_sampling(
+        self,
+        sol: scipy.integrate._ivp.common.OdeSolution,
+        interpolation_num: int,
+        integration_direction: str,
+    ) -> None:
+        """Sample the curve using logspace sampling.
+
+        Args:
+            sol: The ODE solution from scipy.integrate.solve_ivp.
+            interpolation_num: The number of points to interpolate the curve at.
+            integration_direction: The direction to integrate the curve in. Can be "forward", "backward", or "both".
+        """
+        tau, x = self.t, self.X.T
+        neg_tau, pos_tau = tau[tau < 0], tau[tau >= 0]
+
+        if len(neg_tau) > 0:
+            t_0, t_1 = (
+                -(
+                    np.logspace(
+                        0,
+                        np.log10(abs(min(neg_tau)) + 1),
+                        interpolation_num,
+                    )
+                )
+                - 1,
+                np.logspace(0, np.log10(max(pos_tau) + 1), interpolation_num) - 1,
+            )
+            self.t = np.hstack((t_0[::-1], t_1))
+        else:
+            self.t = np.logspace(0, np.log10(max(tau) + 1), interpolation_num) - 1
+
+        if integration_direction == "both":
+            neg_t_len = sum(np.array(self.t) < 0)
+
+        self.X = (
+            sol(self.t)
+            if integration_direction != "both"
+            else np.hstack(
+                (
+                    sol[0](self.t[:neg_t_len]),
+                    sol[1](self.t[neg_t_len:]),
+                )
+            )
+        )
+
     def interpolate(self, t: np.ndarray, **interp_kwargs) -> np.ndarray:
         """Interpolate the curve at new time values.
 
@@ -172,8 +251,7 @@ class Trajectory:
         return np.linspace(self.t[0], self.t[-1], num=num)
 
     def interp_X(self, num: int = 100, **interp_kwargs) -> np.ndarray:
-        """
-        Interpolates the curve at `num` equally spaced points in `t`.
+        """Interpolates the curve at `num` equally spaced points in `t`.
 
         Args:
             num: The number of points to interpolate the curve at.
@@ -222,9 +300,9 @@ class Trajectory:
 
 
 class VectorFieldTrajectory(Trajectory):
+    """Class for handling trajectory data with a differentiable vector field."""
     def __init__(self, X: np.ndarray, t: np.ndarray, vecfld: DifferentiableVectorField) -> None:
-        """
-        Initializes a VectorFieldTrajectory object.
+        """Initializes a VectorFieldTrajectory object.
 
         Args:
             X: The trajectory data as a numpy array of shape (n, d).
@@ -237,8 +315,7 @@ class VectorFieldTrajectory(Trajectory):
         self.Js = None
 
     def get_velocities(self) -> np.ndarray:
-        """
-        Calculates and returns the velocities along the trajectory.
+        """Calculates and returns the velocities along the trajectory.
 
         Returns:
             The velocity data as a numpy array of shape (n, d).
@@ -247,9 +324,8 @@ class VectorFieldTrajectory(Trajectory):
             self.data["velocity"] = self.vecfld.func(self.X)
         return self.data["velocity"]
 
-    def get_jacobians(self, method=None) -> np.ndarray:
-        """
-        Calculates and returns the Jacobians of the vector field along the trajectory.
+    def get_jacobians(self, method: Optional[str] = None) -> np.ndarray:
+        """Calculates and returns the Jacobians of the vector field along the trajectory.
 
         Args:
             method: The method used to compute the Jacobians.
@@ -262,9 +338,8 @@ class VectorFieldTrajectory(Trajectory):
             self.Js = fjac(self.X)
         return self.Js
 
-    def get_accelerations(self, method=None, **kwargs) -> np.ndarray:
-        """
-        Calculates and returns the accelerations along the trajectory.
+    def get_accelerations(self, method: Optional[str] = None, **kwargs) -> np.ndarray:
+        """Calculates and returns the accelerations along the trajectory.
 
         Args:
             method: The method used to compute the Jacobians.
@@ -279,9 +354,8 @@ class VectorFieldTrajectory(Trajectory):
             self.data["acceleration"] = self.vecfld.compute_acceleration(self.X, Js=self.Js, **kwargs)
         return self.data["acceleration"]
 
-    def get_curvatures(self, method=None, **kwargs) -> np.ndarray:
-        """
-        Calculates and returns the curvatures along the trajectory.
+    def get_curvatures(self, method: Optional[str] = None, **kwargs) -> np.ndarray:
+        """Calculates and returns the curvatures along the trajectory.
 
         Args:
             method: The method used to compute the Jacobians.
@@ -296,9 +370,8 @@ class VectorFieldTrajectory(Trajectory):
             self.data["curvature"] = self.vecfld.compute_curvature(self.X, Js=self.Js, **kwargs)
         return self.data["curvature"]
 
-    def get_divergences(self, method=None, **kwargs) -> np.ndarray:
-        """
-        Calculates and returns the divergences along the trajectory.
+    def get_divergences(self, method: Optional[str] = None, **kwargs) -> np.ndarray:
+        """Calculates and returns the divergences along the trajectory.
 
         Args:
             method: The method used to compute the Jacobians.
@@ -340,20 +413,32 @@ class VectorFieldTrajectory(Trajectory):
 
 
 class GeneTrajectory(Trajectory):
+    """Class for handling gene expression trajectory data."""
     def __init__(
         self,
-        adata,
-        X=None,
-        t=None,
-        X_pca=None,
-        PCs="PCs",
-        mean="pca_mean",
-        genes="use_for_pca",
-        expr_func=None,
+        adata: AnnData,
+        X: Optional[np.ndarray] = None,
+        t: Optional[np.ndarray] = None,
+        X_pca: Optional[np.ndarray] = None,
+        PCs: str = "PCs",
+        mean: str = "pca_mean",
+        genes: str = "use_for_pca",
+        expr_func: Optional[Callable] = None,
         **kwargs,
     ) -> None:
-        """
-        This class is not fully functional yet.
+        """Initializes a GeneTrajectory object.
+
+        Args:
+            adata: Anndata object containing the gene expression data.
+            X: The gene expression data as a numpy array of shape (n, d). Defaults to None.
+            t: The time data as a numpy array of shape (n,). Defaults to None.
+            X_pca: The PCA-transformed gene expression data as a numpy array of shape (n, d). Defaults to None.
+            PCs: The key in adata.uns to use for the PCA components. Defaults to "PCs".
+            mean: The key in adata.uns to use for the PCA mean. Defaults to "pca_mean".
+            genes: The key in adata.var to use for the genes. Defaults to "use_for_pca".
+            expr_func: A function to transform the PCA-transformed gene expression data back to the original space.
+                Defaults to None.
+            **kwargs: Additional keyword arguments to be passed to the superclass initializer.
         """
         self.adata = adata
         if type(PCs) is str:
@@ -376,22 +461,50 @@ class GeneTrajectory(Trajectory):
         if X is not None:
             super().__init__(X, t=t)
 
-    def from_pca(self, X_pca, t=None):
+    def from_pca(self, X_pca: np.ndarray, t: Optional[np.ndarray] = None) -> None:
+        """Converts PCA-transformed gene expression data to gene expression data.
+
+        Args:
+            X_pca: The PCA-transformed gene expression data as a numpy array of shape (n, d).
+            t: The time data as a numpy array of shape (n,). Defaults to None.
+        """
         X = pca_to_expr(X_pca, self.PCs, mean=self.mean, func=self.expr_func)
         super().__init__(X, t=t)
 
-    def to_pca(self, x=None):
+    def to_pca(self, x: Optional[np.ndarray] = None) -> np.ndarray:
+        """Converts gene expression data to PCA-transformed gene expression data.
+
+        Args:
+            x: The gene expression data as a numpy array of shape (n, d). Defaults to None.
+
+        Returns:
+            The PCA-transformed gene expression data as a numpy array of shape (n, d).
+        """
         if x is None:
             x = self.X
         return expr_to_pca(x, self.PCs, mean=self.mean, func=self.expr_func)
 
-    def genes_to_mask(self):
+    def genes_to_mask(self) -> np.ndarray:
+        """Returns a boolean mask for the genes in the trajectory.
+
+        Returns:
+            A boolean mask for the genes in the trajectory.
+        """
         mask = np.zeros(self.adata.n_vars, dtype=np.bool_)
         for g in self.genes:
             mask[self.adata.var_names == g] = True
         return mask
 
-    def calc_msd(self, save_key="traj_msd", **kwargs):
+    def calc_msd(self, save_key: str = "traj_msd", **kwargs) -> Union[float, np.ndarray]:
+        """Calculate the mean squared displacement (MSD) of the gene expression trajectory.
+
+        Args:
+            save_key: The key to save the MSD data to in adata.var. Defaults to "traj_msd".
+            **kwargs: Additional keyword arguments to be passed to the superclass method.
+
+        Returns:
+            The mean squared displacement of the gene expression trajectory.
+        """
         msd = super().calc_msd(**kwargs)
 
         LoggerManager.main_logger.info_insert_adata(save_key, "var")
@@ -400,12 +513,29 @@ class GeneTrajectory(Trajectory):
 
         return msd
 
-    def save(self, save_key="gene_trajectory"):
+    def save(self, save_key: str = "gene_trajectory") -> None:
+        """Save the gene expression trajectory to adata.var.
+
+        Args:
+            save_key: The key to save the gene expression trajectory to in adata.var. Defaults to "gene_trajectory".
+        """
         LoggerManager.main_logger.info_insert_adata(save_key, "varm")
         self.adata.varm[save_key] = np.ones((self.adata.n_vars, self.X.shape[0])) * np.nan
         self.adata.varm[save_key][self.genes_to_mask(), :] = self.X.T
 
-    def select_gene(self, genes, arr=None, axis=None):
+    def select_gene(
+        self, genes: Union[np.ndarray, list], arr: Optional[np.ndarray] = None, axis: Optional[int] = None,
+    ) -> np.ndarray:
+        """Selects the gene expression data for the specified genes.
+
+        Args:
+            genes: The genes to select the expression data for.
+            arr: The array to select the genes from. Defaults to None.
+            axis: The axis to select the genes along. Defaults to None.
+
+        Returns:
+            The gene expression data for the specified genes.
+        """
         if arr is None:
             arr = self.X
         if arr.ndim == 1:
@@ -427,3 +557,128 @@ class GeneTrajectory(Trajectory):
             raise Exception("Cannot select genes since `self.genes` is `None`.")
 
         return np.array(y)
+
+
+def arclength_sampling_n(
+    X: np.ndarray, num: int, t: Optional[np.ndarray] = None,
+) -> Union[Tuple[np.ndarray, float], Tuple[np.ndarray, float, np.ndarray]]:
+    """Uniformly sample data points on an arc curve that generated from vector field predictions.
+
+    Args:
+        X: The data points to sample from.
+        num: The number of points to sample.
+        t: The time values for the data points. Defaults to None.
+
+    Returns:
+        The sampled data points and the arc length of the curve.
+    """
+    arclen = np.cumsum(np.linalg.norm(np.diff(X, axis=0), axis=1))
+    arclen = np.hstack((0, arclen))
+
+    z = np.linspace(arclen[0], arclen[-1], num)
+    X_ = interp1d(arclen, X, axis=0)(z)
+    if t is not None:
+        t_ = interp1d(arclen, t)(z)
+        return X_, arclen[-1], t_
+    else:
+        return X_, arclen[-1]
+
+
+def remove_redundant_points_trajectory(
+    X: np.ndarray, tol: float = 1e-4, output_discard: bool = False,
+) -> Union[Tuple[np.ndarray, float], Tuple[np.ndarray, float, np.ndarray]]:
+    """Remove consecutive data points that are too close to each other.
+
+    Args:
+        X: The data points to remove redundant points from.
+        tol: The tolerance for removing redundant points. Defaults to 1e-4.
+        output_discard: Whether to output the discarded points. Defaults to False.
+
+    Returns:
+        The data points with redundant points removed and the arc length of the curve.
+    """
+    X = np.atleast_2d(X)
+    discard = np.zeros(len(X), dtype=bool)
+    if X.shape[0] > 1:
+        for i in range(len(X) - 1):
+            dist = np.linalg.norm(X[i + 1] - X[i])
+            if dist < tol:
+                discard[i + 1] = True
+        X = X[~discard]
+
+    arclength = 0
+
+    x0 = X[0]
+    for i in range(1, len(X)):
+        tangent = X[i] - x0 if i == 1 else X[i] - X[i - 1]
+        d = np.linalg.norm(tangent)
+
+        arclength += d
+
+    if output_discard:
+        return (X, arclength, discard)
+    else:
+        return (X, arclength)
+
+
+def arclength_sampling(X: np.ndarray, step_length: float, n_steps: int, t: Optional[np.ndarray] = None) -> np.ndarray:
+    """Uniformly sample data points on an arc curve that generated from vector field predictions.
+
+    Args:
+        X: The data points to sample from.
+        step_length: The length of each step.
+        n_steps: The number of steps to sample.
+        t: The time values for the data points. Defaults to None.
+
+    Returns:
+        The sampled data points and the arc length of the curve.
+    """
+    Y = []
+    x0 = X[0]
+    T = [] if t is not None else None
+    t0 = t[0] if t is not None else None
+    i = 1
+    terminate = False
+    arclength = 0
+
+    def _calculate_new_point():
+        x = x0 if j == i else X[j - 1]
+        cur_y = x + (step_length - L) * tangent / d
+
+        if t is not None:
+            cur_tau = t0 if j == i else t[j - 1]
+            cur_tau += (step_length - L) / d * (t[j] - cur_tau)
+            T.append(cur_tau)
+        else:
+            cur_tau = None
+
+        Y.append(cur_y)
+
+        return cur_y, cur_tau
+
+    while i < len(X) - 1 and not terminate:
+        L = 0
+        for j in range(i, len(X)):
+            tangent = X[j] - x0 if j == i else X[j] - X[j - 1]
+            d = np.linalg.norm(tangent)
+            if L + d >= step_length:
+                y, tau = _calculate_new_point()
+                t0 = tau if t is not None else None
+                x0 = y
+                i = j
+                break
+            else:
+                L += d
+        if j == len(X) - 1:
+            i += 1
+        arclength += step_length
+        if L + d < step_length:
+            terminate = True
+
+    if len(Y) < n_steps:
+        _, _ = _calculate_new_point()
+
+    if T is not None:
+        return np.array(Y), arclength, T
+    else:
+        return np.array(Y), arclength

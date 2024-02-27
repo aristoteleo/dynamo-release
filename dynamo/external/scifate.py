@@ -2,7 +2,7 @@
 # the following code is based on Cao, et. al, Nature Biotechnology, 2020 and
 # https://github.com/JunyueC/sci-fate_analysis
 
-from typing import Union
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -25,7 +25,9 @@ def scifate_glmnet(
     TF_link_ENCODE_ref: str = "https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
     nt_layers: list = ["X_new", "X_total"],
 ) -> AnnData:
-    """Reconstruction of regulatory network (Cao, et. al, Nature Biotechnology, 2020) from TFs to other target
+    """Perform scifate analysis using glmnet.
+
+     Reconstruction of regulatory network (Cao, et. al, Nature Biotechnology, 2020) from TFs to other target
      genes via LASSO regression between the total expression of known transcription factors and the newly synthesized
      RNA of potential targets. The inferred regulatory relationships between TF and targets are further filtered based
      on evidence of promoter motifs (not implemented currently) and the ENCODE chip-seq peaks. The python wrapper for the
@@ -33,51 +35,43 @@ def scifate_glmnet(
      with glm-python can be found here (https://github.com/bbalasub1/glmnet_python/blob/master/test/glmnet_examples.ipynb).
      Note that this function can be applied to both of the metabolic labeling single-cell assays with newly synthesized
      and total RNA as well as the regular single cell assays with both the unspliced and spliced transcripts. Furthermore,
-     you can also replace the either the new or unspliced RNA with dynamo estimated cell-wise velocity, transcription,
+     you can also replace either the new or unspliced RNA with dynamo estimated cell-wise velocity, transcription,
      splicing and degradation rates for each gene (similarly, replacing the expression values of transcription factors with RNA binding,
      ribosome, epigenetics or epitranscriptomic factors, etc.) to infer the tottal regulatory effects, transcription, splicing
      and post-transcriptional regulation of different factors. In addition, this approach will be fully integrated with
      Scribe (Qiu, et. al, 2020) which employs restricted directed information to determine causality by estimating the
-     strength of information transferred from a potential regulator to its downstream target. In contrast of lasso regression,
+     strength of information transferred from a potential regulator to its downstream target. In contrast, of lasso regression,
      Scribe can learn both linear and non-linear causality in deterministic and stochastic systems. It also incorporates
      rigorous procedures to alleviate sampling bias and builds upon novel estimators and regularization techniques to
      facilitate inference of large-scale causal networks.
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`.
-            adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
+    Args:
+        adata: Adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
             the object should include both unspliced and spliced gene expression of cells.
-        gene_filter_rate:
-            minimum percentage of expressed cells for gene filtering.
-        cell_filter_UMI:
-            minimum number of UMIs for cell filtering.
-        core_n_lasso:
-            number of cores for lasso regression in linkage analysis. By default, it is 1 and parallel is turned off.
-            Parallel computing can significantly speed up the computation process, especially for datasets involve
-            many cells or genes. But for smaller datasets or genes, it could result in a reduction in speed due to the
-            additional overhead. User discretion is advised.
-        core_n_filtering:
-            number of cores for filtering TF-gene links. Not used currently.
-        motif_ref:
-            The path to the TF binding motif data as described above. It provides the list of TFs gene names and
+        gene_filter_rate: Minimum percentage of expressed cells for gene filtering.
+        cell_filter_UMI: Minimum number of UMIs for cell filtering.
+        core_n_lasso: Number of cores for lasso regression in linkage analysis. By default, it is 1 and parallel is
+            turned off. Parallel computing can significantly speed up the computation process, especially for datasets
+            involve many cells or genes. But for smaller datasets or genes, it could result in a reduction in speed due
+            to the additional overhead. User discretion is advised.
+        core_n_filtering: Number of cores for filtering TF-gene links. Not used currently.
+        motif_ref: The path to the TF binding motif data as described above. It provides the list of TFs gene names and
             is used to process adata object to generate the TF expression and target new expression matrix for glmnet
             based TF-target synthesis rate linkage analysis. But currently it is not used for motif based filtering.
-            By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
-            https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
-            https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
-        TF_link_ENCODE_ref:
-            The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data can
-            be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
-        nt_layers:
-            The layers that will be used for the network inference. Note that the layers can be changed flexibly. See
-            the description of this function above.
+            By default, it is a dropbox link that store the data from us. Other motif reference can bed downloaded from
+            RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from
+            June's shared folder:
+                https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
+        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a dropbox link from us that stores the
+            data. Other data can be downloaded from:
+                https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
+        nt_layers: The layers that will be used for the network inference. Note that the layers can be changed flexibly.
+            See the description of this function above.
 
         Note that if your internet connection is slow, we recommend to download the `motif_ref` and `TF_link_ENCODE_ref` and
         supplies those two arguments with the local paths where the downloaded datasets are saved.
 
-    Returns
-    -------
+    Returns:
         An updated adata object with a new key `scifate` in .uns attribute, which stores the raw lasso regression results
         and the filter results after applying the Fisher exact test of the ChIP-seq peaks.
     """
@@ -120,7 +114,7 @@ def scifate_glmnet(
 
     # filtering the links using TF-gene binding data and store the result in the target folder
     # note that currently the motif filtering is not implement
-    df_gene_TF_link_chip = TF_gene_filter_links(link_result, var, core_n_filtering, motif_ref, df_gene_TF_link_ENCODE)
+    df_gene_TF_link_chip = TF_gene_filter_links(link_result, var, df_gene_TF_link_ENCODE)
 
     adata.uns["scifate"] = {
         "glmnet_res": link_result,
@@ -137,7 +131,25 @@ def adata_processing_TF_link(
     gene_filter_rate: float = 0.1,
     cell_filter_UMI: int = 10000,
 ) -> tuple:
-    """preprocess adata and get ready for TF-target gene analysis"""
+    """Preprocess adata and get ready for TF-target gene analysis.
+
+    Args:
+        adata: Adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
+            the object should include both unspliced and spliced gene expression of cells.
+        nt_layers: The layers that will be used for the network inference. Note that the layers can be changed flexibly.
+        TF_list: The list of transcription factors.
+        gene_filter_rate: Minimum percentage of expressed cells for gene filtering.
+        cell_filter_UMI: Minimum number of UMIs for cell filtering.
+
+    Returns:
+        A tuple of the following:
+            - tot_mat: The total gene expression matrix.
+            - new_mat: The newly synthesized gene expression matrix.
+            - obs: The observation dataframe.
+            - var: The variable dataframe.
+            - var_TF: The variable matrix for transcription factors.
+            - TF_matrix: The matrix of transcription factors.
+    """
 
     n_obs, n_var = adata.n_obs, adata.n_vars
 
@@ -217,7 +229,22 @@ def link_TF_gene_analysis(
     cor_thresh: float = 0.03,
     seed: int = 123456,
 ) -> list:
-    """Perform lasso regression for each gene."""
+    """Perform lasso regression for each gene.
+
+    Args:
+        TF_matrix: The dataframe of transcription factors.
+        gene_matrix: The dataframe of genes.
+        var_TF: The variable dataframe for transcription factors.
+        core_num: Number of cores for lasso regression in linkage analysis. By default, it is 1 and parallel is
+            turned off. Parallel computing can significantly speed up the computation process, especially for datasets
+            involve many cells or genes. But for smaller datasets or genes, it could result in a reduction in speed due
+            to the additional overhead. User discretion is advised.
+        cor_thresh: The threshold for the correlation.
+        seed: The random seed.
+
+    Returns:
+        A list of the results of the lasso regression for each gene.
+    """
 
     gene_list = gene_matrix.index
     link_result = [None] * len(gene_list)
@@ -246,12 +273,27 @@ def link_TF_gene_analysis(
 def TF_gene_link(
     TF_matrix: pd.DataFrame,
     linked_gene: str,
-    linked_gene_expr_vector,
+    linked_gene_expr_vector: pd.Series,
     core_num: int = 1,
     cor_thresh: float = 0.03,
     seed: int = 123456,
-):
-    """Estimate the regulatory weight of each TF to its potential targets via lasso regression for each gene."""
+) -> Union[pd.DataFrame, str]:
+    """Estimate the regulatory weight of each TF to its potential targets via lasso regression for each gene.
+
+    Args:
+        TF_matrix: The dataframe of transcription factors.
+        linked_gene: The name of the linked gene.
+        linked_gene_expr_vector: The expression vector of the linked gene.
+        core_num: Number of cores for lasso regression in linkage analysis. By default, it is 1 and parallel is
+            turned off. Parallel computing can significantly speed up the computation process, especially for datasets
+            involve many cells or genes. But for smaller datasets or genes, it could result in a reduction in speed due
+            to the additional overhead. User discretion is advised.
+        cor_thresh: The threshold for the correlation.
+        seed: The random seed.
+
+    Returns:
+        The result of the lasso regression for the gene.
+    """
 
     expr_cor = einsum_correlation(TF_matrix.values, linked_gene_expr_vector.values)[0]
     select_sites = abs(expr_cor) > cor_thresh
@@ -266,8 +308,25 @@ def TF_gene_link(
         return "unknown"
 
 
-def lasso_regression_expression(x1, linked_gene, y, seed: int, parallel=1):
-    """Lasso linear model with iterative fitting along a regularization path. Select best model is by cross-validation."""
+def lasso_regression_expression(
+    x1: pd.DataFrame,
+    linked_gene: str,
+    y: pd.Series,
+    seed: int,
+    parallel: int = 1,
+) -> pd.DataFrame:
+    """Lasso linear model with iterative fitting along a regularization path. Select best model is by cross-validation.
+
+    Args:
+        x1: The dataframe of the input matrix.
+        linked_gene: The name of the linked gene.
+        y: The expression vector of the linked gene.
+        seed: The random seed.
+        parallel: The number of cores for parallel computing.
+
+    Returns:
+        The result of the lasso regression.
+    """
 
     x1 = x1.loc[:, ~x1.columns.duplicated(keep="first")]
 
@@ -304,9 +363,17 @@ def lasso_regression_expression(x1, linked_gene, y, seed: int, parallel=1):
     return df_cor
 
 
-def r2_glmnet(cv_out, y):
-    """calculate r2 using the lambda_1se. This value is for the most regularized model whose mean squared error is
-    within one standard error of the minimal."""
+def r2_glmnet(cv_out: Dict, y: pd.Series) -> float:
+    """Calculate r2 using the lambda_1se. This value is for the most regularized model whose mean squared error is
+    within one standard error of the minimal.
+
+    Args:
+        cv_out: The output of the cross-validation.
+        y: The expression vector of the linked gene.
+
+    Returns:
+        The r2 value.
+    """
 
     # https://stackoverflow.com/questions/50610895/how-to-calculate-r-squared-value-for-lasso-regression-using-glmnet-in-r
     bestlam = cv_out["lambda_1se"]
@@ -319,8 +386,21 @@ def r2_glmnet(cv_out, y):
     return r2[0]
 
 
-def TF_gene_filter_links(raw_glmnet_res: pd.DataFrame, var, core_n, motif_ref, df_gene_TF_link_ENCODE):
-    """prepare data for TF-target gene link filtering"""
+def TF_gene_filter_links(
+    raw_glmnet_res: pd.DataFrame,
+    var: pd.DataFrame,
+    df_gene_TF_link_ENCODE: pd.DataFrame,
+) -> pd.DataFrame:
+    """Prepare data for TF-target gene link filtering.
+
+    Args:
+        raw_glmnet_res: The raw result of glmnet.
+        var: The variable dataframe.
+        df_gene_TF_link_ENCODE: The dataframe of the TF chip-seq data.
+
+    Returns:
+        The filtered result of the lasso regression.
+    """
 
     var_ori = var.copy()
     if "gene_type" not in var.columns:
