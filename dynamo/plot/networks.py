@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -89,7 +89,7 @@ def nxvizPlot(
             edge_attr="weight",
             create_using=nx.DiGraph(),
         )
-        if len(network.node) == 0:
+        if len(network.nodes) == 0:
             raise ValueError(
                 f"weight_threshold is too high, no edge has weight than {weight_threshold} " f"for cluster {cluster}."
             )
@@ -114,92 +114,89 @@ def nxvizPlot(
 
     if plot.lower() == "arcplot":
         prefix = "arcPlot"
-        # Create the customized ArcPlot object: a2
-        nv_ax = nv.ArcPlot(
+        nv_ax = nv.arc(
             network,
-            node_order=kwargs.pop("node_order", "degree"),
-            node_size=kwargs.pop("node_size", None),
-            node_grouping=kwargs.pop("node_grouping", None),
-            group_order=kwargs.pop("group_order", "alphabetically"),
-            node_color=kwargs.pop("node_color", "size"),
-            node_labels=kwargs.pop("node_labels", True),
-            edge_width=kwargs.pop("edge_width", "weight"),
-            edge_color=kwargs.pop("edge_color", None),
-            data_types=kwargs.pop("data_types", None),
-            nodeprops=kwargs.pop(
-                "nodeprops",
-                {
-                    "facecolor": "None",
-                    "alpha": 0.2,
-                    "cmap": "viridis",
-                    "label": "label",
-                },
-            ),
-            edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
-            node_label_color=kwargs.pop("node_label_color", False),
-            group_label_position=kwargs.pop("group_label_position", None),
-            group_label_color=kwargs.pop("group_label_color", False),
-            fontsize=kwargs.pop("fontsize", 10),
-            fontfamily=kwargs.pop("fontfamily", "serif"),
-            figsize=figsize,
+            group_by=kwargs.pop("node_grouping", None),
+            sort_by=kwargs.pop("sort_by", "degree"),
+            node_color_by=kwargs.pop("node_color_by", "size"),
+            node_alpha_by=kwargs.pop("node_alpha_by", None),
+            node_size_by=kwargs.pop("node_size_by", None),
+            edge_color_by=kwargs.pop("edge_color_by", None),
+            edge_lw_by=kwargs.pop("edge_lw_by", "weight"),
+            edge_alpha_by=kwargs.pop("edge_alpha_by", None),
+            **kwargs.pop("layout_kwargs", {}),
         )
+        # Create the customized ArcPlot object: a2, which only works for old version of nxviz
+        # nv_ax = nv.ArcPlot(
+        #     network,
+        #     node_order=kwargs.pop("node_order", "degree"),
+        #     node_size=kwargs.pop("node_size", None),
+        #     node_grouping=kwargs.pop("node_grouping", None),
+        #     group_order=kwargs.pop("group_order", "alphabetically"),
+        #     node_color=kwargs.pop("node_color", "size"),
+        #     node_labels=kwargs.pop("node_labels", True),
+        #     edge_width=kwargs.pop("edge_width", "weight"),
+        #     edge_color=kwargs.pop("edge_color", None),
+        #     data_types=kwargs.pop("data_types", None),
+        #     nodeprops=kwargs.pop(
+        #         "nodeprops",
+        #         {
+        #             "facecolor": "None",
+        #             "alpha": 0.2,
+        #             "cmap": "viridis",
+        #             "label": "label",
+        #         },
+        #     ),
+        #     edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
+        #     node_label_color=kwargs.pop("node_label_color", False),
+        #     group_label_position=kwargs.pop("group_label_position", None),
+        #     group_label_color=kwargs.pop("group_label_color", False),
+        #     fontsize=kwargs.pop("fontsize", 10),
+        #     fontfamily=kwargs.pop("fontfamily", "serif"),
+        #     figsize=figsize,
+        # )
     elif plot.lower() == "circosplot":
         prefix = "circosPlot"
-        # Create the customized CircosPlot object: a2
-        nv_ax = nv.CircosPlot(
+        nv_ax = nv.circos(
             network,
-            node_order=kwargs.pop("node_order", "degree"),
-            node_size=kwargs.pop("node_size", None),
-            node_grouping=kwargs.pop("node_grouping", None),
-            group_order=kwargs.pop("group_order", "alphabetically"),
-            node_color=kwargs.pop("node_color", "size"),
-            node_labels=kwargs.pop("node_labels", True),
-            edge_width=kwargs.pop("edge_width", "weight"),
-            edge_color=kwargs.pop("edge_color", None),
-            data_types=kwargs.pop("data_types", None),
-            nodeprops=kwargs.pop("nodeprops", None),
-            node_label_layout="rotation",
-            edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
-            node_label_color=kwargs.pop("node_label_color", False),
-            group_label_position=kwargs.pop("group_label_position", None),
-            group_label_color=kwargs.pop("group_label_color", False),
-            fontsize=kwargs.pop("fontsize", 10),
-            fontfamily=kwargs.pop("fontfamily", "serif"),
-            figsize=figsize,
+            group_by=kwargs.pop("node_grouping", None),
+            sort_by=kwargs.pop("sort_by", "degree"),
+            node_color_by=kwargs.pop("node_color_by", "size"),
+            node_alpha_by=kwargs.pop("node_alpha_by", None),
+            node_size_by=kwargs.pop("node_size_by", None),
+            edge_color_by=kwargs.pop("edge_color_by", None),
+            edge_lw_by=kwargs.pop("edge_lw_by", "weight"),
+            edge_alpha_by=kwargs.pop("edge_alpha_by", None),
+            **kwargs.pop("layout_kwargs", {}),
         )
+        # Create the customized CircosPlot object: a2, which only works for old version of nxviz
+        # nv_ax = nv.CircosPlot(
+        #     network,
+        #     node_order=kwargs.pop("node_order", "degree"),
+        #     node_size=kwargs.pop("node_size", None),
+        #     node_grouping=kwargs.pop("node_grouping", None),
+        #     group_order=kwargs.pop("group_order", "alphabetically"),
+        #     node_color=kwargs.pop("node_color", "size"),
+        #     node_labels=kwargs.pop("node_labels", True),
+        #     edge_width=kwargs.pop("edge_width", "weight"),
+        #     edge_color=kwargs.pop("edge_color", None),
+        #     data_types=kwargs.pop("data_types", None),
+        #     nodeprops=kwargs.pop("nodeprops", None),
+        #     node_label_layout="rotation",
+        #     edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
+        #     node_label_color=kwargs.pop("node_label_color", False),
+        #     group_label_position=kwargs.pop("group_label_position", None),
+        #     group_label_color=kwargs.pop("group_label_color", False),
+        #     fontsize=kwargs.pop("fontsize", 10),
+        #     fontfamily=kwargs.pop("fontfamily", "serif"),
+        #     figsize=figsize,
+        # )
 
     # recover network edge weights
     for e in network.edges():
         network.edges[e]["weight"] /= weight_scale
 
-    if save_show_or_return in ["save", "both", "all"]:
-        # Draw a to the screen
-        nv_ax.draw()
-        plt.autoscale()
-        s_kwargs = {
-            "path": None,
-            "prefix": prefix,
-            "dpi": None,
-            "ext": "pdf",
-            "transparent": True,
-            "close": True,
-            "verbose": True,
-        }
-        s_kwargs = update_dict(s_kwargs, save_kwargs)
-
-        if save_show_or_return in ["both", "all"]:
-            s_kwargs["close"] = False
-
-        save_fig(**s_kwargs)
-    if save_show_or_return in ["show", "both", "all"]:
-        # Draw a to the screen
-        nv_ax.draw()
-        plt.autoscale()
-        # Display the plot
-        plt.show()
-        # plt.savefig('./unknown_arcplot.pdf', dpi=300)
-    if save_show_or_return in ["return", "all"]:
-        return nv_ax
+    return save_show_ret(prefix, save_show_or_return, save_kwargs, nv_ax)
 
 
 def arcPlot(
@@ -437,7 +434,7 @@ def hivePlot(
     adata: AnnData,
     edges_list: Dict[str, pd.DataFrame],
     cluster: str,
-    cluster_names: Optional[str] = None,
+    cluster_names: Optional[List[str]] = None,
     weight_threshold: float = 1e-4,
     figsize: Tuple[float, float] = (6, 6),
     save_show_or_return: Literal["save", "show", "return"] = "show",
@@ -484,7 +481,7 @@ def hivePlot(
     try:
         import networkx as nx
         from hiveplotlib import Axis, HivePlot, Node
-        from hiveplotlib.viz import axes_viz_mpl, edge_viz_mpl, node_viz_mpl
+        from hiveplotlib.viz import axes_viz, edge_viz, node_viz
     except ImportError:
         raise ImportError(
             "You need to install the package `networkx, hiveplotlib`."
@@ -513,7 +510,7 @@ def hivePlot(
             edge_attr="weight",
             create_using=nx.DiGraph(),
         )
-        if len(G[grp].node) == 0:
+        if len(G[grp].nodes) == 0:
             raise ValueError(
                 f"weight_threshold is too high, no edge has weight than {weight_threshold} " f"for cluster {grp}."
             )
@@ -572,11 +569,11 @@ def hivePlot(
         )  # different color for each lineage
 
     # plot axes
-    fig, ax = axes_viz_mpl(hp, figsize=figsize, axes_labels_buffer=1.4)
+    fig, ax = axes_viz(hp, figsize=figsize, axes_labels_buffer=1.4)
     # plot nodes
-    node_viz_mpl(hp, fig=fig, ax=ax, s=80, c="black")
+    node_viz(hp, fig=fig, ax=ax, s=80, c="black")
     # plot edges
-    edge_viz_mpl(hive_plot=hp, fig=fig, ax=ax, alpha=0.7, zorder=-1)
+    edge_viz(hive_plot=hp, fig=fig, ax=ax, alpha=0.7, zorder=-1)
 
     # ax.set_title("Hive Plot", fontsize=20, y=0.9)
     # custom_lines = [Line2D([0], [0], color=f'C{i}', lw=3, linestyle='-') for i in range(len(reg_groups))]

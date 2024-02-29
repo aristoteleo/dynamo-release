@@ -3,7 +3,7 @@ from typing import Dict
 from anndata import AnnData
 
 from ..tools.cell_velocities import cell_velocities
-from .topography import VectorField
+from .VectorField import VectorField
 from .vector_calculus import acceleration, curvature
 
 

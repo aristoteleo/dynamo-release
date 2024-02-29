@@ -1,11 +1,13 @@
-from typing import Callable, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 # from anndata._core.views import ArrayView
 import numpy as np
+from anndata import AnnData
 from scipy import interpolate
 from scipy.integrate import solve_ivp
 from tqdm import tqdm
 
+from .trajectory import Trajectory
 from ..dynamo_logger import main_warning
 from ..tools.utils import log1p_, nearest_neighbors
 from ..utils import isarray, normalize
@@ -58,23 +60,35 @@ def init_l0_chase(
 
 # ---------------------------------------------------------------------------------------------------
 # integration related
-
-# TODO – a majority of the code below can be rewritten with the Trajectory class
-
-
 def integrate_vf_ivp(
-    init_states,
-    t,
-    integration_direction,
+    init_states: np.ndarray,
+    t: np.ndarray,
+    integration_direction: str,
     f: Callable,
-    args=None,
-    interpolation_num=250,
-    average=True,
-    sampling="arc_length",
-    verbose=False,
-    disable=False,
-):
-    """integrating along vector field function using the initial value problem solver from scipy.integrate"""
+    args: Optional[Tuple] = None,
+    interpolation_num: int = 250,
+    average: bool = True,
+    sampling: str = "arc_length",
+    verbose: bool = False,
+    disable: bool = False,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Integrating along vector field function using the initial value problem solver from scipy.integrate.
+
+    Args:
+        init_states: Initial states of the system.
+        t: Time points to integrate the system over.
+        integration_direction: The direction of integration.
+        f: The vector field function of the system.
+        args: Additional arguments to pass to the vector field function.
+        interpolation_num: Number of time points to interpolate the trajectories over.
+        average: Whether to average the trajectories.
+        sampling: The method of sampling points along a trajectory.
+        verbose: Whether to print the integration time.
+        disable: Whether to disable the progress bar.
+
+    Returns:
+        The time and trajectories of the system.
+    """
 
     # TODO: rewrite this function with the Trajectory class
     if init_states.ndim == 1:
@@ -154,81 +168,34 @@ def integrate_vf_ivp(
         if verbose:
             print("\nintegration time: ", len(t_trans))
 
+    trajs = [Trajectory(X=Y[i], t=T[i], sort=False) for i in range(n_cell)]
+
     if sampling == "arc_length":
-        Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(
             range(n_cell),
             desc="uniformly sampling points along a trajectory",
             disable=disable,
         ):
-            tau, x = T[i], Y[i].T
-
-            idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
-
-            # idx = dup_osc_idx_iter(x)
-            x = x[:idx]
-            _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
-            arc_stepsize = arclen / interpolation_num
-            cur_Y, alen, t_[i] = arclength_sampling(x, step_length=arc_stepsize, n_steps=interpolation_num, t=tau[:idx])
-
-            if integration_direction == "both":
-                neg_t_len = sum(np.array(t_[i]) < 0)
-
-            odeint_cur_Y = (
-                SOL[i](t_[i])
-                if integration_direction != "both"
-                else np.hstack(
-                    (
-                        SOL[i][0](t_[i][:neg_t_len]),
-                        SOL[i][1](t_[i][neg_t_len:]),
-                    )
-                )
+            trajs[i].archlength_sampling(
+                SOL[i],
+                interpolation_num=interpolation_num,
+                integration_direction=integration_direction,
             )
-            Y_[i] = odeint_cur_Y
 
-        Y, t = Y_, t_
+        t, Y = [traj.t for traj in trajs], [traj.X for traj in trajs]
     elif sampling == "logspace":
-        Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(
             range(n_cell),
             desc="sampling points along a trajectory in logspace",
             disable=disable,
         ):
-            tau, x = T[i], Y[i].T
-            neg_tau, pos_tau = tau[tau < 0], tau[tau >= 0]
-
-            if len(neg_tau) > 0:
-                t_0, t_1 = (
-                    -(
-                        np.logspace(
-                            0,
-                            np.log10(abs(min(neg_tau)) + 1),
-                            interpolation_num,
-                        )
-                    )
-                    - 1,
-                    np.logspace(0, np.log10(max(pos_tau) + 1), interpolation_num) - 1,
-                )
-                t_[i] = np.hstack((t_0[::-1], t_1))
-            else:
-                t_[i] = np.logspace(0, np.log10(max(tau) + 1), interpolation_num) - 1
-
-            if integration_direction == "both":
-                neg_t_len = sum(np.array(t_[i]) < 0)
-
-            odeint_cur_Y = (
-                SOL[i](t_[i])
-                if integration_direction != "both"
-                else np.hstack(
-                    (
-                        SOL[i][0](t_[i][:neg_t_len]),
-                        SOL[i][1](t_[i][neg_t_len:]),
-                    )
-                )
+            trajs[i].logspace_sampling(
+                SOL[i],
+                interpolation_num=interpolation_num,
+                integration_direction=integration_direction,
             )
-            Y_[i] = odeint_cur_Y
 
-        Y, t = Y_, t_
+        t, Y = [traj.t for traj in trajs], [traj.X for traj in trajs]
     elif sampling == "uniform_indices":
         t_uniq = np.unique(np.hstack(T))
         if len(t_uniq) > interpolation_num:
@@ -291,7 +258,28 @@ def integrate_vf_ivp(
     return t, Y
 
 
-def integrate_sde(init_states, t, f, sigma, num_t=100, **interp_kwargs):
+def integrate_sde(
+    init_states: Union[np.ndarray, list],
+    t: Union[float, np.ndarray],
+    f: Callable,
+    sigma: Union[float, np.ndarray, Callable],
+    num_t: int = 100,
+    **interp_kwargs,
+) -> np.ndarray:
+    """Calculate the trajectories by integrating a system of stochastic differential equations (SDEs) using the sdeint
+    package.
+
+    Args:
+        init_states: Initial states of the system.
+        t: Time points to integrate the system over.
+        f: The vector field function of the system.
+        sigma: The diffusion matrix of the system.
+        num_t: Number of time points to interpolate the trajectories over.
+        interp_kwargs: Additional keyword arguments to pass to the interpolation function.
+
+    Returns:
+        The trajectories of the system.
+    """
     try:
         from sdeint import itoint
     except:
@@ -328,7 +316,25 @@ def integrate_sde(init_states, t, f, sigma, num_t=100, **interp_kwargs):
     return np.array(trajs)
 
 
-def estimate_sigma(X, V, diff_multiplier=1.0, num_nbrs=30, nbr_idx=None):
+def estimate_sigma(
+    X: np.ndarray,
+    V: np.ndarray,
+    diff_multiplier: int = 1.0,
+    num_nbrs: int = 30,
+    nbr_idx: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """Estimate the diffusion matrix of the system using the vector field and the data.
+
+    Args:
+        X: The array representing cell states.
+        V: The array representing velocity.
+        diff_multiplier: The multiplier for the diffusion matrix.
+        num_nbrs: The number of nearest neighbors to use for the estimation.
+        nbr_idx: The indices of the nearest neighbors.
+
+    Returns:
+        The estimated diffusion matrix.
+    """
     if nbr_idx is None:
         nbr_idx = nearest_neighbors(X, X, k=num_nbrs)
 
@@ -345,16 +351,30 @@ def estimate_sigma(X, V, diff_multiplier=1.0, num_nbrs=30, nbr_idx=None):
 
 
 def integrate_streamline(
-    X,
-    Y,
-    U,
-    V,
-    integration_direction,
-    init_states,
-    interpolation_num=100,
-    average=True,
-):
-    """use streamline's integrator to alleviate stacking of the solve_ivp. Need to update with the correct time."""
+    X: np.ndarray,
+    Y: np.ndarray,
+    U: np.ndarray,
+    V: np.ndarray,
+    integration_direction: str,
+    init_states: np.ndarray,
+    interpolation_num: int = 100,
+    average: bool = True,
+) -> np.ndarray:
+    """Use streamline's integrator to alleviate stacking of the solve_ivp. Need to update with the correct time.
+
+    Args:
+        X: The x-coordinates of the grid.
+        Y: The y-coordinates of the grid.
+        U: The x-components of the velocity.
+        V: The y-components of the velocity.
+        integration_direction: The direction of integration.
+        init_states: The initial states of the system.
+        interpolation_num: The number of time points to interpolate the trajectories over.
+        average: Whether to average the trajectories.
+
+    Returns:
+        The time and trajectories of the system.
+    """
     import matplotlib.pyplot as plt
 
     n_cell = init_states.shape[0]
@@ -404,102 +424,32 @@ def integrate_streamline(
 
 
 # ---------------------------------------------------------------------------------------------------
-# arc curve related
-def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
-    """remove consecutive data points that are too close to each other."""
-    X = np.atleast_2d(X)
-    discard = np.zeros(len(X), dtype=bool)
-    if X.shape[0] > 1:
-        for i in range(len(X) - 1):
-            dist = np.linalg.norm(X[i + 1] - X[i])
-            if dist < tol:
-                discard[i + 1] = True
-        X = X[~discard]
-
-    arclength = 0
-
-    x0 = X[0]
-    for i in range(1, len(X)):
-        tangent = X[i] - x0 if i == 1 else X[i] - X[i - 1]
-        d = np.linalg.norm(tangent)
-
-        arclength += d
-
-    if output_discard:
-        return (X, arclength, discard)
-    else:
-        return (X, arclength)
-
-
-def arclength_sampling(X, step_length, n_steps: int, t=None):
-    """uniformly sample data points on an arc curve that generated from vector field predictions."""
-    Y = []
-    x0 = X[0]
-    T = [] if t is not None else None
-    t0 = t[0] if t is not None else None
-    i = 1
-    terminate = False
-    arclength = 0
-
-    def _calculate_new_point():
-        x = x0 if j == i else X[j - 1]
-        cur_y = x + (step_length - L) * tangent / d
-
-        if t is not None:
-            cur_tau = t0 if j == i else t[j - 1]
-            cur_tau += (step_length - L) / d * (t[j] - cur_tau)
-            T.append(cur_tau)
-        else:
-            cur_tau = None
-
-        Y.append(cur_y)
-
-        return cur_y, cur_tau
-
-    while i < len(X) - 1 and not terminate:
-        L = 0
-        for j in range(i, len(X)):
-            tangent = X[j] - x0 if j == i else X[j] - X[j - 1]
-            d = np.linalg.norm(tangent)
-            if L + d >= step_length:
-                y, tau = _calculate_new_point()
-                t0 = tau if t is not None else None
-                x0 = y
-                i = j
-                break
-            else:
-                L += d
-        if j == len(X) - 1:
-            i += 1
-        arclength += step_length
-        if L + d < step_length:
-            terminate = True
-
-    if len(Y) < n_steps:
-        _, _ = _calculate_new_point()
-
-    if T is not None:
-        return np.array(Y), arclength, T
-    else:
-        return np.array(Y), arclength
-
-
-def arclength_sampling_n(X, num, t=None):
-    arclen = np.cumsum(np.linalg.norm(np.diff(X, axis=0), axis=1))
-    arclen = np.hstack((0, arclen))
-
-    z = np.linspace(arclen[0], arclen[-1], num)
-    X_ = interpolate.interp1d(arclen, X, axis=0)(z)
-    if t is not None:
-        t_ = interpolate.interp1d(arclen, t)(z)
-        return X_, arclen[-1], t_
-    else:
-        return X_, arclen[-1]
-
-
-# ---------------------------------------------------------------------------------------------------
 # fate related
-def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim, traj_ind):
+def fetch_exprs(
+    adata: AnnData,
+    basis: str,
+    layer: str,
+    genes: Union[str, list],
+    time: str,
+    mode: str,
+    project_back_to_high_dim: bool,
+    traj_ind: int,
+) -> Tuple:
+    """Fetch the expression data for the given genes and time points.
+
+    Args:
+        adata: The AnnData object.
+        basis: Target basis to fetch.
+        layer: Target layer to fetch.
+        genes: Target genes to consider.
+        time: The time information.
+        mode: The mode of the trajectory.
+        project_back_to_high_dim: Whether to project the data back to high dimension.
+        traj_ind: The index of the trajectory.
+
+    Returns:
+        The expression data for the given genes and time points.
+    """
     if type(genes) != list:
         genes = list(genes)
 
@@ -556,14 +506,33 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
 # perturbation related
 
 
-def z_score(X, axis=1):
+def z_score(X: np.ndarray, axis: int = 1) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate the z-score of the given data.
+
+    Args:
+        X: The data to calculate the z-score for.
+        axis: The axis to calculate the z-score over.
+
+    Returns:
+        The z-score of the data.
+    """
     s = X.std(axis)
     m = X.mean(axis)
     Z = ((X.T - m) / s).T
     return Z, m, s
 
 
-def z_score_inv(Z, m, s):
+def z_score_inv(Z: Union[float, List, np.ndarray], m: np.ndarray, s: np.ndarray) -> np.ndarray:
+    """The inverse operation of z-score calculation.
+
+    Args:
+        Z: The z-scored data.
+        m: The mean of the original data.
+        s: The standard deviation of the original data.
+
+    Returns:
+        The original data reconstructed from the z-scored data.
+    """
     if isarray(Z):
         X = (Z.T * s + m).T
     else:
@@ -575,7 +544,17 @@ def z_score_inv(Z, m, s):
 # state graph related
 
 
-def get_path(Pr, i, j):
+def get_path(Pr: np.ndarray, i: int, j: int) -> List:
+    """Retrieve the shortest path from node i to node j in given graph.
+
+    Args:
+        Pr: The graph.
+        i: The start node.
+        j: The end node.
+
+    Returns:
+        The shortest path from node i to node j.
+    """
     path = [j]
     k = j
     while Pr[i, k] != -9999:
@@ -588,10 +567,25 @@ def get_path(Pr, i, j):
 # least action path related
 
 
-def interp_second_derivative(t, f, num=5e2, interp_kind="cubic", **interp_kwargs):
-    """
-    interpolate f(t) and calculate the discrete second derivative using:
+def interp_second_derivative(
+    t: np.ndarray,
+    f: np.ndarray,
+    num: int = 5e2,
+    interp_kind="cubic",
+    **interp_kwargs,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Interpolate f(t) and calculate the discrete second derivative using:
         d^2 f / dt^2 = (f(x+h1) - 2f(x) + f(x-h2)) / (h1 * h2)
+
+    Args:
+        t: The time points.
+        f: The function values corresponding to the time points.
+        num: The number of points to interpolate to.
+        interp_kind: The kind of interpolation to use.
+        interp_kwargs: Additional keyword arguments to pass to the interpolation function.
+
+    Returns:
+        The interpolated time points and the discrete second derivative.
     """
     t_ = np.linspace(t[0], t[-1], int(num))
     f_ = interpolate.interp1d(t, f, kind=interp_kind, **interp_kwargs)(t_)
@@ -607,8 +601,25 @@ def interp_second_derivative(t, f, num=5e2, interp_kind="cubic", **interp_kwargs
     return t_, d2fdt2
 
 
-def interp_curvature(t, f, num=5e2, interp_kind="cubic", **interp_kwargs):
-    """"""
+def interp_curvature(
+    t: np.ndarray,
+    f: np.ndarray,
+    num: int = 5e2,
+    interp_kind="cubic",
+    **interp_kwargs,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Interpolate f(t) and calculate the curvature.
+
+    Args:
+        t: The time points.
+        f: The function values corresponding to the time points.
+        num: The number of points to interpolate to.
+        interp_kind: The kind of interpolation to use.
+        interp_kwargs: Additional keyword arguments to pass to the interpolation function.
+
+    Returns:
+        The interpolated time points and the curvature.
+    """
     t_ = np.linspace(t[0], t[-1], int(num))
     f_ = interpolate.interp1d(t, f, kind=interp_kind, **interp_kwargs)(t_)
 
@@ -628,7 +639,17 @@ def interp_curvature(t, f, num=5e2, interp_kind="cubic", **interp_kwargs):
     return t_, cur
 
 
-def kneedle_difference(t, f, type="decrease"):
+def kneedle_difference(t: np.ndarray, f: np.ndarray, type: str = "decrease") -> np.ndarray:
+    """Calculate the difference between the function and the diagonal line.
+
+    Args:
+        t: The time points.
+        f: The function values corresponding to the time points.
+        type: The type of function to use.
+
+    Returns:
+        The difference between the function and the diagonal line.
+    """
     if type == "decrease":
         diag_line = lambda x: -x + 1
     elif type == "increase":
@@ -642,7 +663,25 @@ def kneedle_difference(t, f, type="decrease"):
     return res
 
 
-def find_elbow(T, F, method="kneedle", order=1, **kwargs):
+def find_elbow(
+    T: np.ndarray,
+    F: np.ndarray,
+    method: str = "kneedle",
+    order: int = 1,
+    **kwargs,
+) -> int:
+    """Find the elbow of the given function.
+
+    Args:
+        T: The time points.
+        F: The function values corresponding to the time points.
+        method: The method to use for finding the elbow.
+        order: The order of the elbow.
+        kwargs: Additional keyword arguments to pass to the elbow finding function.
+
+    Returns:
+        The index of the elbow.
+    """
     i_elbow = None
     if method == "hessian":
         T_ = normalize(T)

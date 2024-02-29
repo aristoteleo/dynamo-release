@@ -43,13 +43,13 @@ def KO(
         vf_key: A key to the vector field functions in adata.uns.
         basis: The basis in which the vector field function is created.
         emb_basis: The embedding basis where the perturbed (KO) vector field function will be projected to.
-        velocity_ko_wt_difference: Whether to use the difference from perturbed (KO) vector field to wildtype vector field in embedding space
-            instead of raw perturbation (KO) vector field. Using the difference may reveal the perturbation (KO) effects more
-            clearly.
-        add_ko_basis_key: The key name for the velocity corresponds to the `basis` name whose associated vector field is perturbed
-            (KO).
-        add_embedding_key: The key name for the velocity corresponds to the `embedding` name to which the high dimensional perturbed
-            (KO) vector field will be projected to.
+        velocity_ko_wt_difference: Whether to use the difference from perturbed (KO) vector field to wildtype vector
+            field in embedding space instead of raw perturbation (KO) vector field. Using the difference may reveal the
+            perturbation (KO) effects more clearly.
+        add_ko_basis_key: The key name for the velocity corresponds to the `basis` name whose associated vector field
+            is perturbed (KO).
+        add_embedding_key: The key name for the velocity corresponds to the `embedding` name to which the high
+            dimensional perturbed (KO) vector field will be projected to.
         store_vf_ko: Whether to store the perturbed (KO) vector field function. By default it is False.
         add_vf_ko_key: The key to store the perturbed (KO) vector field function in adata.uns.
         return_vector_field_class: Whether to return the perturbed (KO) vector field class. By default it is True.
@@ -161,30 +161,33 @@ def perturbation(
     Args:
         adata: an Annodata object.
         genes: The gene or list of genes that will be used to perform in-silico perturbation.
-        expression: The numerical value or list of values that will be used to encode the genetic perturbation. High positive
-             values indicates up-regulation while low negative value repression.
+        expression: The numerical value or list of values that will be used to encode the genetic perturbation. High
+            positive values indicates up-regulation while low negative value repression.
         perturb_mode: The mode for perturbing the gene expression vector, either `raw` or `z_score`.
         cells: The list of the cell indices that we will perform the perturbation.
         zero_perturb_genes_vel: Whether to set the peturbed genes' perturbation velocity vector values to be zero.
         pca_key: The key that corresponds to pca embedding. Can also be the actual embedding matrix.
         PCs_key: The key that corresponds to PC loading embedding. Can also be the actual loading matrix.
-        pca_mean_key: The key that corresponds to means values that used for pca projection. Can also be the actual means matrix.
+        pca_mean_key: The key that corresponds to means values that used for pca projection. Can also be the actual
+            means matrix.
         basis: The key that corresponds to the basis from which the vector field is reconstructed.
         jac_key: The key to the jacobian matrix.
         X_pca: The pca embedding matrix.
         delta_Y: The actual perturbation matrix. This argument enables more customized perturbation schemes.
-        projection_method: The approach that will be used to project the high dimensional perturbation effect vector to low dimensional
-            space.
+        projection_method: The approach that will be used to project the high dimensional perturbation effect vector to
+            low dimensional space.
         pertubation_method: The approach that will be used to calculate the perturbation effect vector after in-silico genetic
             perturbation. Can only be one of `"j_delta_x", "j_x_prime", "j_jv", "f_x_prime", "f_x_prime_minus_f_x_0"`
         J_jv_delta_t: If pertubation_method is `j_jv`, this will be used to determine the $\\delta x = jv \\delta t_{jv}$
         delta_t: This will be used to determine the $\\delta Y = jv \\delta t$
-        add_delta_Y_key: The key that will be used to store the perturbation effect matrix. Both the pca dimension matrix (stored in
-            obsm) or the matrix of the original gene expression space (stored in .layers) will use this key. By default
-            it is None and is set to be `method + '_perturbation'`.
+        add_delta_Y_key: The key that will be used to store the perturbation effect matrix. Both the pca dimension
+            matrix (stored in obsm) or the matrix of the original gene expression space (stored in .layers) will use
+            this key. By default it is None and is set to be `method + '_perturbation'`.
         add_transition_key: The dictionary key that will be used for storing the transition matrix in .obsp.
-        add_velocity_key: The dictionary key that will be used for storing the low dimensional velocity projection matrix in .obsm.
-        add_embedding_key: The dictionary key that will be used for storing the low dimensional velocity projection matrix in .obsm.
+        add_velocity_key: The dictionary key that will be used for storing the low dimensional velocity projection
+            matrix in .obsm.
+        add_embedding_key: The dictionary key that will be used for storing the low dimensional velocity projection
+            matrix in .obsm.
 
     Returns:
         adata: Returns an updated :class:`~anndata.AnnData` with perturbation effect matrix, projected perturbation vectors

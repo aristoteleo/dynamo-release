@@ -19,8 +19,7 @@ from .trajectory import Trajectory
 
 
 def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable, in_sink_state: Callable) -> float:
-    """
-    Calculates the mean exit time (MET) from the initial state to the sink state for a list of trajectories.
+    """Calculates the mean exit time (MET) from the initial state to the sink state for a list of trajectories.
 
     Args:
         trajectories: A list of trajectories.
@@ -52,8 +51,7 @@ def calc_mean_exit_time(trajectories: List[Trajectory], in_init_state: Callable,
 def calc_mean_first_passage_time(
     trajectories: List[Trajectory], in_init_state: Callable, in_target_state: Callable, in_sink_state: Callable
 ) -> float:
-    """
-    Calculates the mean first-passage time (MFPT) from the initial state to the target state for a list of trajectories.
+    """Calculates the mean first-passage time (MFPT) from the initial state to the target state for a list of trajectories.
 
     Args:
         trajectories: A list of trajectories.

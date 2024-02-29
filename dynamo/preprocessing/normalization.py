@@ -32,6 +32,7 @@ def calc_sz_factor(
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
     locfunc: Callable = np.nanmean,
+    chunk_size: Optional[int] = None,
     round_exprs: bool = False,
     method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
@@ -53,6 +54,7 @@ def calc_sz_factor(
             Defaults to False.
         X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
         locfunc: the function to normalize the data. Defaults to np.nanmean.
+        chunk_size: the number of cells to be processed at a time. Defaults to None.
         round_exprs: whether the gene expression should be rounded into integers. Defaults to False.
         method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
             `mean-geometric-mean-total` / `geometric` and `median` are supported. When `mean-geometric-mean-total` is
@@ -117,6 +119,7 @@ def calc_sz_factor(
                 round_exprs,
                 method,
                 locfunc,
+                chunk_size=chunk_size,
                 total_layers=None,
                 scale_to=scale_to,
             )
@@ -127,6 +130,7 @@ def calc_sz_factor(
                 round_exprs,
                 method,
                 locfunc,
+                chunk_size=chunk_size,
                 total_layers=total_layers,
                 scale_to=scale_to,
             )
@@ -195,6 +199,41 @@ def get_sz_exprs(
     return szfactors, CM
 
 
+def get_sz_factors(
+    adata: anndata.AnnData, layer: str, total_szfactor: Union[str, None] = None
+) -> Tuple[np.ndarray, npt.ArrayLike]:
+    """Get the size factor from an AnnData object.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer for which to get the size factor.
+        total_szfactor: the key-name for total size factor entry in `adata.obs`. If not None, would override the layer
+            selected. Defaults to None.
+
+    Returns:
+        The queried size factor.
+    """
+
+    if layer == "raw":
+        szfactors = adata.obs[layer + "Size_Factor"].values[:, None]
+    elif layer == "X":
+        szfactors = adata.obs["Size_Factor"].values[:, None]
+    elif layer == "protein":
+        if "protein" in adata.obsm_keys():
+            szfactors = adata.obs["protein_Size_Factor"].values[:, None]
+        else:
+            szfactors = None
+    else:
+        szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
+
+    if total_szfactor is not None and total_szfactor in adata.obs.keys():
+        szfactors = adata.obs[total_szfactor][:, None]
+    elif total_szfactor is not None:
+        main_warning("`total_szfactor` is not `None` and it is not in adata object.")
+
+    return szfactors
+
+
 def normalize(
     adata: anndata.AnnData,
     layers: str = "all",
@@ -202,9 +241,11 @@ def normalize(
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
     keep_filtered: bool = True,
+    chunk_size: Optional[int] = None,
     recalc_sz: bool = False,
     sz_method: Literal["mean-geometric-mean-total", "geometric", "median"] = "median",
     scale_to: Union[float, None] = None,
+    transform_int_to_float: bool = True,
 ) -> anndata.AnnData:
     """Normalize the gene expression value for the AnnData object.
 
@@ -221,6 +262,7 @@ def normalize(
         X_total_layers: whether to also normalize adata.X by size factor from total RNA. Defaults to False.
         keep_filtered: whether we will only store feature genes in the adata object. If it is False, size factor will be
             recalculated only for the selected feature genes. Defaults to True.
+        chunk_size: the number of cells to be processed at a time. Defaults to None.
         recalc_sz: whether we need to recalculate size factor based on selected genes before normalization. Defaults to
             False.
         sz_method: the method used to calculate the expected total reads / UMI used in size factor calculation. Only
@@ -229,6 +271,8 @@ def normalize(
             used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
             `np.nanmean`. Defaults to "median".
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
+        transform_int_to_float: whether to transform the adata.X from int to float32 for normalization. Defaults to
+            True.
 
     Returns:
         An updated anndata object that are updated with normalized expression values for different layers.
@@ -242,11 +286,14 @@ def normalize(
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
+    chunk_size = chunk_size if chunk_size is not None else adata.n_obs
+
     if np.count_nonzero(adata.obs.columns.str.contains("Size_Factor")) < len(layers):
         calc_sz_factor(
             adata,
             layers=layers,
             locfunc=np.nanmean,
+            chunk_size=chunk_size,
             round_exprs=False,
             method=sz_method,
             scale_to=scale_to,
@@ -257,17 +304,25 @@ def normalize(
         splicing_total_layers=splicing_total_layers,
     )
 
+    if "X" in layers and transform_int_to_float and adata.X.dtype == "int":
+        main_warning("Transforming adata.X from int to float32 for normalization. If you want to disable this, set "
+                     "`transform_int_to_float` to False.")
+        adata.X = adata.X.astype("float32")
+
     main_debug("size factor normalize following layers: " + str(layers))
     for layer in layers:
         if layer in excluded_layers:
-            szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
+            szfactors = get_sz_factors(adata, layer, total_szfactor=None)
         else:
-            szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
+            szfactors = get_sz_factors(adata, layer, total_szfactor=total_szfactor)
 
         if layer == "protein":
             """This normalization implements the centered log-ratio (CLR) normalization from Seurat which is computed
             for each gene (M Stoeckius, 2017).
             """
+            CMs_data = DKM.select_layer_chunked_data(adata, layer, chunk_size=adata.n_obs)
+            CM = next(CMs_data)[0]
+
             CM = CM.T
             n_feature = CM.shape[1]
 
@@ -280,18 +335,36 @@ def normalize(
                 CM[i] = res
 
             CM = CM.T
-        else:
-            CM = size_factor_normalize(CM, szfactors)
 
-        if layer in ["raw", "X"]:
-            main_debug("set adata <X> to normalized data.")
-            adata.X = CM
-        elif layer == "protein" and "protein" in adata.obsm_keys():
-            main_info_insert_adata_obsm("X_protein")
-            adata.obsm["X_protein"] = CM
+            if "protein" in adata.obsm_keys():
+                main_info_insert_adata_obsm("X_protein")
+                adata.obsm["X_protein"] = CM
+            else:
+                main_info_insert_adata_layer("X_" + layer)
+                adata.layers["X_" + layer] = CM
         else:
-            main_info_insert_adata_layer("X_" + layer)
-            adata.layers["X_" + layer] = CM
+            CMs_data = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size)
+
+            if layer in ["raw", "X"]:
+                main_debug("set adata <X> to normalized data.")
+
+                for CM_data in CMs_data:
+                    CM = CM_data[0]
+                    CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
+                    adata.X[CM_data[1]:CM_data[2]] = CM
+
+            else:
+                main_info_insert_adata_layer("X_" + layer)
+
+                if issparse(adata.layers[layer]):
+                    adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape))
+                else:
+                    adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape)
+
+                for CM_data in CMs_data:
+                    CM = CM_data[0]
+                    CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
+                    adata.layers["X_" + layer][CM_data[1]:CM_data[2]] = CM
 
     return adata
 
@@ -355,6 +428,7 @@ def sz_util(
     round_exprs: bool,
     method: Literal["mean-geometric-mean-total", "geometric", "median"],
     locfunc: Callable,
+    chunk_size: Optional[int] = None,
     total_layers: List[str] = None,
     CM: pd.DataFrame = None,
     scale_to: Union[float, None] = None,
@@ -371,6 +445,7 @@ def sz_util(
             used, `locfunc` will be replaced with `np.nanmedian`. When `mean` is used, `locfunc` will be replaced with
             `np.nanmean`. Defaults to "median".
         locfunc: the function to normalize the data.
+        chunk_size: the number of cells to be processed at a time. Defaults to None.
         total_layers: the layer(s) that can be summed up to get the total mRNA. For example, ["spliced", "unspliced"],
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         CM: the data to operate on, overriding the layer. Defaults to None.
@@ -383,8 +458,6 @@ def sz_util(
         A tuple (sfs, cell_total) where sfs is the size factors and cell_total is the initial cell size.
     """
 
-    adata = adata.copy()
-
     if layer == "_total_" and "_total_" not in adata.layers.keys():
         if total_layers is not None:
             total_layers, _ = DKM.aggregate_layers_into_total(
@@ -393,19 +466,30 @@ def sz_util(
                 extend_layers=False,
             )
 
-    CM = DKM.select_layer_data(adata, layer) if CM is None else CM
-    if CM is None:
-        return None, None
+    chunk_size = chunk_size if chunk_size is not None else adata.n_obs
+    chunked_CMs = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size) if CM is None else CM
 
-    if round_exprs:
-        main_debug("rounding expression data of layer: %s during size factor calculation" % (layer))
-        if issparse(CM):
-            CM.data = np.round(CM.data, 0)
-        else:
-            CM = CM.round().astype("int")
+    cell_total = np.zeros(adata.n_obs, dtype=adata.X.dtype)
 
-    cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
-    cell_total += cell_total == 0  # avoid infinity value after log (0)
+    for CM_data in chunked_CMs:
+        CM = CM_data[0]
+
+        if CM is None:
+            return None, None
+
+        if round_exprs:
+            main_debug("rounding expression data of layer: %s during size factor calculation" % (layer))
+            if issparse(CM):
+                CM.data = np.round(CM.data, 0)
+            else:
+                CM = CM.round().astype("int")
+
+        chunk_cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
+        chunk_cell_total += chunk_cell_total == 0  # avoid infinity value after log (0)
+
+        cell_total[CM_data[1]:CM_data[2]] = chunk_cell_total
+
+    cell_total = cell_total.astype(int) if np.all(cell_total % 1 == 0) else cell_total
 
     if method in ["mean-geometric-mean-total", "geometric"]:
         sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)
