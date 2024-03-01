@@ -795,7 +795,7 @@ def _matplotlib_points(
         if show_colorbar:
             cb = plt.colorbar(mappable, cax=set_colorbar(ax, inset_dict), ax=ax)
             cb.set_alpha(1)
-            cb.draw_all()
+            cb._draw_all()
             cb.locator = MaxNLocator(nbins=3, integer=True)
             cb.update_ticks()
 
