@@ -17,16 +17,16 @@ def test_vector_calculus_rank_vf(adata):
     dyn.vf.speed(adata)
     assert "speed_umap" in adata.obs.keys()
 
-    dyn.vf.jacobian(adata, basis="umap", regulators=["ptmaa", "tmsb4x"], effectors=["ptmaa", "tmsb4x"], cell_idx=progenitor)
+    dyn.vf.jacobian(adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=progenitor)
     assert "jacobian_umap" in adata.uns.keys()
 
-    dyn.vf.hessian(adata, basis="umap", regulators=["tmsb4x"], coregulators=["ptmaa"], effector=["ptmaa"], cell_idx=progenitor)
+    dyn.vf.hessian(adata, basis="umap", regulators=["rpl5b"], coregulators=["ptmaa"], effector=["ptmaa"], cell_idx=progenitor)
     assert "hessian_umap" in adata.uns.keys()
 
     dyn.vf.laplacian(adata, hkey="hessian_umap", basis="umap")
     assert "Laplacian_umap" in adata.obs.keys()
 
-    dyn.vf.sensitivity(adata, basis="umap", regulators=["tmsb4x"], effectors=["ptmaa"], cell_idx=progenitor)
+    dyn.vf.sensitivity(adata, basis="umap", regulators=["rpl5b"], effectors=["ptmaa"], cell_idx=progenitor)
     assert "sensitivity_umap" in adata.uns.keys()
 
     dyn.vf.acceleration(adata, basis="pca")
@@ -75,8 +75,8 @@ def test_vector_calculus_rank_vf(adata):
     rank = dyn.vf.rank_sensitivity_genes(adata, skey="sensitivity_umap")
     assert len(rank["all"]) == len(adata.uns["sensitivity_umap"]["regulators"])
 
-    reg_dict = {"ptmaa": "ptmaa", "tmsb4x": "tmsb4x"}
-    eff_dict = {"ptmaa": "ptmaa", "tmsb4x": "tmsb4x"}
+    reg_dict = {"ptmaa": "ptmaa", "rpl5b": "rpl5b"}
+    eff_dict = {"ptmaa": "ptmaa", "rpl5b": "rpl5b"}
     rank = dyn.vf.aggregateRegEffs(adata, basis="umap", reg_dict=reg_dict, eff_dict=eff_dict, store_in_adata=False)
     assert rank["aggregation_gene"].shape[2] == adata.n_obs
 
@@ -87,3 +87,34 @@ def test_cell_vectors(adata):
     dyn.vf.cell_curvatures(adata)
     assert "acceleration_pca" in adata.obsm.keys()
     assert "curvature_pca" in adata.obsm.keys()
+
+
+def test_potential(adata):
+    import matplotlib.pyplot as plt
+
+    adata = adata.copy()
+    dyn.vf.Potential(adata, basis="umap")
+    assert "grid_Pot_umap" in adata.uns.keys()
+    adata.uns.pop("grid_Pot_umap")
+
+    dyn.vf.Potential(adata, basis="umap", method="Bhattacharya")
+    assert "grid_Pot_umap" in adata.uns.keys()
+
+    # too time-consuming
+    # dyn.vf.Potential(adata, basis="umap", boundary=[0, 10], method="Tang")
+    # assert "grid_Pot_umap" in adata.uns.keys()
+
+    ax = dyn.pl.show_landscape(adata, basis="umap", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+
+def test_networks(adata):
+    adata = adata.copy()
+
+    dyn.vf.jacobian(adata, basis="pca", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=np.arange(adata.n_obs))
+
+    res = dyn.vf.build_network_per_cluster(adata, cluster="Cell_type", genes=adata.var_names)
+    assert isinstance(res, dict)
+
+    res = dyn.vf.adj_list_to_matrix(adj_list=res["Neuron"])
+    assert isinstance(res, pd.DataFrame)

@@ -3,6 +3,7 @@ import copy
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import pytest
 
 import dynamo as dyn
@@ -100,3 +101,156 @@ def test_nxviz7_circosplot(adata):
     dyn.pl.circosPlot(network, node_color_key="M_s", show_colorbar=False, edge_alpha_scale=1, edge_lw_scale=1)
     dyn.pl.circosPlot(network, node_color_key="M_s", show_colorbar=True, edge_alpha_scale=0.5, edge_lw_scale=0.4)
     # plt.show() # show via command line run.
+
+
+def test_scatters_markers_ezplots():
+    adata = dyn.sample_data.hematopoiesis()
+
+    ax = dyn.pl.cell_cycle_scores(adata, save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.pca(adata, color="cell_type", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.umap(adata, color="cell_type", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.cell_wise_vectors(adata, color=["cell_type"], basis="umap", save_show_or_return="return")
+    assert isinstance(ax, list)
+
+    ax = dyn.pl.streamline_plot(adata, color=["cell_type"], basis="umap", save_show_or_return="return")
+    assert isinstance(ax, list)
+
+    ax = dyn.pl.topography(adata, basis="umap", color=["ntr", "cell_type"], save_show_or_return="return")
+    assert isinstance(ax, list)
+
+    ax = dyn.pl.plot_X(adata.obsm["X_umap"], save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.plot_V(adata.obsm["X_pca"], adata.obsm["velocity_umap"], save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.zscatter(adata, save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.zstreamline(adata, save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.plot_jacobian_gene(adata, save_show_or_return="return")
+    assert isinstance(ax, list)
+
+    ax = dyn.pl.bubble(adata, genes=adata.var_names[:4], group="cell_type", save_show_or_return="return")
+    assert isinstance(ax, tuple)
+
+
+def test_lap_plots():
+    import numpy as np
+    import seaborn as sns
+
+    adata = dyn.sample_data.hematopoiesis()
+
+    progenitor = adata.obs_names[adata.obs.cell_type.isin(['HSC'])]
+
+    dyn.pd.fate(adata, basis='umap', init_cells=progenitor, interpolation_num=25, direction='forward',
+                inverse_transform=False, average=False)
+    ax = dyn.pl.fate_bias(adata, group="cell_type", basis="umap", save_show_or_return='return')
+    assert isinstance(ax, sns.matrix.ClusterGrid)
+
+    ax = dyn.pl.fate(adata, basis="umap", save_show_or_return='return')
+    assert isinstance(ax, plt.Axes)
+
+    # genes = adata.var_names[adata.var.use_for_dynamics]
+    # integer_pairs = [
+    #     (3, 21),
+    #     (2, 11),
+    # ]
+    # pair_matrix = [[genes[x[0]], genes[x[1]]] for x in integer_pairs]
+    # ax = dyn.pl.response(adata, pairs_mat=pair_matrix, return_data=True)
+    # assert isinstance(ax, tuple)
+
+    ax = dyn.plot.connectivity.plot_connectivity(adata, graph=adata.obsp["perturbation_transition_matrix"],
+                                            color=["cell_type"], save_show_or_return='return')
+    assert isinstance(ax, plt.Figure)
+
+    from dynamo.tools.utils import nearest_neighbors
+
+    fixed_points = np.array(
+        [
+            [8.45201833, 9.37697661],
+            [14.00630381, 2.53853712],
+        ]
+    )
+
+    HSC_cells_indices = nearest_neighbors(fixed_points[0], adata.obsm["X_umap"])
+    Meg_cells_indices = nearest_neighbors(fixed_points[1], adata.obsm["X_umap"])
+    dyn.pd.least_action(
+        adata,
+        [adata.obs_names[HSC_cells_indices[0]][0]],
+        [adata.obs_names[Meg_cells_indices[0]][0]],
+        basis="umap",
+        adj_key="X_umap_distances",
+        min_lap_t=True,
+        EM_steps=2,
+    )
+    ax = dyn.pl.least_action(adata, basis="umap", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+    ax = dyn.pl.lap_min_time(adata, basis="umap", save_show_or_return="return")
+    assert isinstance(ax, plt.Figure)
+
+
+def test_heatmaps():
+    import numpy as np
+    import pandas as pd
+
+    adata = dyn.sample_data.hematopoiesis()
+    genes = adata.var_names[adata.var.use_for_dynamics]
+    integer_pairs = [
+        (3, 21),
+        (2, 11),
+    ]
+    pair_matrix = [[genes[x[0]], genes[x[1]]] for x in integer_pairs]
+    ax = dyn.pl.response(adata, pairs_mat=pair_matrix, return_data=True)
+    assert isinstance(ax, tuple)
+    ax = dyn.pl.causality(adata, pairs_mat=np.array(pair_matrix), return_data=True)
+    assert isinstance(ax, pd.DataFrame)
+
+    integer_pairs = [
+        (3, 21, 23),
+        (2, 11, 7),
+    ]
+    pair_matrix = [[genes[x[0]], genes[x[1]], genes[x[2]]] for x in integer_pairs]
+    ax = dyn.pl.hessian(adata, pairs_mat=np.array(pair_matrix), return_data=True)
+    assert isinstance(ax, pd.DataFrame)
+
+    ax = dyn.pl.comb_logic(
+        adata, pairs_mat=np.array(pair_matrix), xkey="M_n", ykey="M_t", zkey="velocity_alpha_minus_gamma_s", return_data=True
+    )
+    assert isinstance(ax, pd.DataFrame)
+
+
+def test_preprocess(adata):
+    import seaborn as sns
+
+    ax = dyn.pl.basic_stats(adata, save_show_or_return="return")
+    assert isinstance(ax, sns.axisgrid.FacetGrid)
+
+    ax = dyn.pl.show_fraction(adata, save_show_or_return="return")
+    assert isinstance(ax, sns.axisgrid.FacetGrid)
+
+    ax = dyn.pl.variance_explained(adata, save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.biplot(adata, save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
+    ax = dyn.pl.loading(adata, n_pcs=4, ncol=2, save_show_or_return="return")
+    assert isinstance(ax, np.ndarray)
+
+    ax = dyn.pl.feature_genes(adata, save_show_or_return="return")
+    assert isinstance(ax, plt.Figure)
+
+    ax = dyn.pl.exp_by_groups(adata, genes=adata.var_names[:3], save_show_or_return="return")
+    assert isinstance(ax, sns.axisgrid.FacetGrid)
+
+    ax = dyn.pl.highest_frac_genes(adata)
+    assert isinstance(ax, plt.Axes)

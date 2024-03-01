@@ -50,3 +50,41 @@ def test_simulate_anndata():
     kin_simulator.simulate(label_time=5)
     adata2 = kin_simulator.write_to_anndata(adata)
     assert adata2.n_vars == 2 and adata2.n_obs == 1000
+
+
+def test_Gillespie():
+    adata, adata2 = dyn.sim.Gillespie(
+        method="basic",
+        a=[0.8, 0.8],
+        b=[0.8, 0.8],
+        la=[0.8, 0.8],
+        aa=[0.8, 0.8],
+        ai=[0.8, 0.8],
+        si=[0.8, 0.8],
+        be=[1, 1],
+        ga=[1, 1],
+    )
+    assert adata.n_vars == 2
+
+    adata, adata2 = dyn.sim.Gillespie(
+        method="simulate_2bifurgenes",
+    )
+    assert adata.n_vars == 2
+
+    adata, adata2 = dyn.sim.Gillespie(
+        method="differentiation",
+    )
+    assert adata.n_vars == 2
+
+    adata, adata2 = dyn.sim.Gillespie(
+        method="oscillation",
+        a=[0.8, 0.8],
+        b=[0.8, 0.8],
+        la=[0.8, 0.8],
+        aa=[0.8, 0.8],
+        ai=[0.8, 0.8],
+        si=[0.8, 0.8],
+        be=[1, 1],
+        ga=[1, 1],
+    )
+    assert adata.n_vars == 2

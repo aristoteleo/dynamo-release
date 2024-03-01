@@ -46,7 +46,7 @@ class TestUtils:
         del raw_adata
 
         preprocessor = dyn.pp.Preprocessor(cell_cycle_score_enable=True)
-        preprocessor.config_monocle_recipe(adata, n_top_genes=100)
+        preprocessor.config_monocle_recipe(adata, n_top_genes=40)
         preprocessor.filter_genes_by_outliers_kwargs["inplace"] = True
         preprocessor.select_genes_kwargs["keep_filtered"] = False
         preprocessor.pca_kwargs["n_pca_components"] = 5

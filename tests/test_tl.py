@@ -6,7 +6,7 @@ from scipy.sparse import csr_matrix
 
 import dynamo as dyn
 from dynamo.tools.connectivity import (
-    _gen_neighbor_keys,
+    generate_neighbor_keys,
     check_and_recompute_neighbors,
     check_neighbors_completeness,
 )
@@ -156,6 +156,8 @@ def test_leiden_membership_input(adata):
 
 
 def test_DDRTree_pseudotime(adata):
+    import matplotlib.pyplot as plt
+
     adata = adata.copy()
     dyn.tl.order_cells(adata, basis="umap", maxIter=3, ncenter=10)
     assert "Pseudotime" in adata.obs.keys()
@@ -172,6 +174,9 @@ def test_DDRTree_pseudotime(adata):
 
     dyn.tl.pseudotime_velocity(adata, pseudotime="Pseudotime")
     assert "velocity_S" in adata.layers.keys()
+
+    ax = dyn.pl.plot_dim_reduced_direct_graph(adata, graph=adata.uns["directed_velocity_tree"], save_show_or_return="return")
+    assert isinstance(ax, list)
 
 
 def test_psl():
