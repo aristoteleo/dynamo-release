@@ -9,13 +9,7 @@ import pytest
 import dynamo as dyn
 
 
-@pytest.mark.skip(reason="unhelpful test")
-def test_scatter_contour(adata):
-    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True)
-    dyn.pl.scatters(adata, layer="curvature", save_show_or_return="return", contour=True, calpha=1)
-
-
-@pytest.mark.skip(reason="nxviz old version")
+@pytest.mark.skip(reason="need additional dependency")
 def test_circosPlot_deprecated(adata):
     # genes from top acceleration rank
     selected_genes = ["hmgn2", "hmgb2a", "si:ch211-222l21.1", "mbpb", "h2afvb"]
@@ -74,7 +68,7 @@ def test_scatter_group_gamma(viral_adata, gene_list_df: list):
     )
 
 
-@pytest.mark.skip(reason="unhelpful test")
+@pytest.mark.skip(reason="need additional dependency")
 def test_nxviz7_circosplot(adata):
     selected_genes = ["hmgn2", "hmgb2a", "si:ch211-222l21.1", "mbpb", "h2afvb"]
     edges_list = dyn.vf.build_network_per_cluster(
@@ -254,3 +248,47 @@ def test_preprocess(adata):
 
     ax = dyn.pl.highest_frac_genes(adata)
     assert isinstance(ax, plt.Axes)
+
+
+def test_time_series_plot(adata):
+    import seaborn as sns
+
+    adata = adata.copy()
+    adata.uns["umap_fit"]["umap_kwargs"]["max_iter"] = None
+    progenitor = adata.obs_names[adata.obs.Cell_type.isin(['Proliferating Progenitor', 'Pigment Progenitor'])]
+
+    dyn.pd.fate(adata, basis='umap', init_cells=progenitor, interpolation_num=25, direction='forward',
+                inverse_transform=True, average=False)
+
+    ax = dyn.pl.kinetic_curves(adata, basis="umap", genes=adata.var_names[:4], save_show_or_return="return")
+    assert isinstance(ax, sns.axisgrid.FacetGrid)
+    ax = dyn.pl.kinetic_heatmap(adata, basis="umap", genes=adata.var_names[:4], save_show_or_return="return")
+    assert isinstance(ax, sns.matrix.ClusterGrid)
+
+    dyn.tl.order_cells(adata, basis="umap")
+    progenitor = adata.obs_names[adata.obs.Cell_type.isin(['Proliferating Progenitor', 'Pigment Progenitor'])]
+
+    dyn.vf.jacobian(adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"],
+                    cell_idx=progenitor)
+    ax = dyn.pl.jacobian_kinetics(
+        adata,
+        basis="umap",
+        genes=adata.var_names[:4],
+        regulators=["ptmaa", "rpl5b"],
+        effectors=["ptmaa", "rpl5b"],
+        tkey="Pseudotime",
+        save_show_or_return="return",
+    )
+    assert isinstance(ax, sns.matrix.ClusterGrid)
+
+    dyn.vf.sensitivity(adata, basis="umap", regulators=["rpl5b"], effectors=["ptmaa"], cell_idx=progenitor)
+    ax = dyn.pl.sensitivity_kinetics(
+        adata,
+        basis="umap",
+        genes=adata.var_names[:4],
+        regulators=["rpl5b"],
+        effectors=["ptmaa"],
+        tkey="Pseudotime",
+        save_show_or_return="return",
+    )
+    assert isinstance(ax, sns.matrix.ClusterGrid)

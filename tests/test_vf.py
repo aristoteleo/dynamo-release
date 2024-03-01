@@ -8,6 +8,9 @@ import dynamo as dyn
 
 
 def test_vector_calculus_rank_vf(adata):
+    import matplotlib
+    import matplotlib.pyplot as plt
+
     adata = adata.copy()
 
     progenitor = adata.obs_names[adata.obs.Cell_type.isin(['Proliferating Progenitor', 'Pigment Progenitor'])]
@@ -17,8 +20,18 @@ def test_vector_calculus_rank_vf(adata):
     dyn.vf.speed(adata)
     assert "speed_umap" in adata.obs.keys()
 
+    ax = dyn.pl.speed(adata, basis="umap", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
     dyn.vf.jacobian(adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=progenitor)
     assert "jacobian_umap" in adata.uns.keys()
+
+    ax = dyn.pl.jacobian(adata, basis="umap", j_basis="umap", save_show_or_return="return")
+    assert isinstance(ax, matplotlib.gridspec.GridSpec)
+
+    ax = dyn.pl.jacobian_heatmap(
+        adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=[2, 3], save_show_or_return="return")
+    assert isinstance(ax, matplotlib.gridspec.GridSpec)
 
     dyn.vf.hessian(adata, basis="umap", regulators=["rpl5b"], coregulators=["ptmaa"], effector=["ptmaa"], cell_idx=progenitor)
     assert "hessian_umap" in adata.uns.keys()
@@ -29,11 +42,24 @@ def test_vector_calculus_rank_vf(adata):
     dyn.vf.sensitivity(adata, basis="umap", regulators=["rpl5b"], effectors=["ptmaa"], cell_idx=progenitor)
     assert "sensitivity_umap" in adata.uns.keys()
 
+    ax = dyn.pl.sensitivity(adata, basis="umap", s_basis="umap", save_show_or_return="return")
+    assert isinstance(ax, matplotlib.gridspec.GridSpec)
+
+    ax = dyn.pl.sensitivity_heatmap(
+        adata, basis="umap", regulators=["rpl5b"], effectors=["ptmaa"], cell_idx=[2, 3], save_show_or_return="return")
+    assert isinstance(ax, matplotlib.gridspec.GridSpec)
+
     dyn.vf.acceleration(adata, basis="pca")
     assert "acceleration_pca" in adata.obs.keys()
 
+    ax = dyn.pl.acceleration(adata, basis="pca", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
     dyn.vf.curvature(adata, basis="pca")
     assert "curvature_pca" in adata.obsm.keys()
+
+    ax = dyn.pl.curvature(adata, basis="pca", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
 
     # Need 3D vector field data
     # dyn.vf.torsion(adata, basis="umap")
@@ -42,8 +68,14 @@ def test_vector_calculus_rank_vf(adata):
     dyn.vf.curl(adata, basis="umap")
     assert "curl_umap" in adata.obs.keys()
 
+    ax = dyn.pl.curl(adata, basis="umap", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+
     dyn.vf.divergence(adata, basis="umap", cell_idx=progenitor)
     assert "divergence_umap" in adata.obs.keys()
+
+    ax = dyn.pl.divergence(adata, basis="umap", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
 
     rank = dyn.vf.rank_genes(adata, arr_key="velocity_S")
     assert len(rank) == adata.n_vars
@@ -109,12 +141,20 @@ def test_potential(adata):
 
 
 def test_networks(adata):
+    import matplotlib.pyplot as plt
+    import networkx as nx
+
     adata = adata.copy()
 
     dyn.vf.jacobian(adata, basis="pca", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=np.arange(adata.n_obs))
 
-    res = dyn.vf.build_network_per_cluster(adata, cluster="Cell_type", genes=adata.var_names)
-    assert isinstance(res, dict)
+    edges_list = dyn.vf.build_network_per_cluster(adata, cluster="Cell_type", genes=adata.var_names)
+    assert isinstance(edges_list, dict)
 
-    res = dyn.vf.adj_list_to_matrix(adj_list=res["Neuron"])
+    network = nx.from_pandas_edgelist(edges_list['Unknown'], 'regulator', 'target', edge_attr='weight',
+                                      create_using=nx.DiGraph())
+    ax = dyn.pl.arcPlot(adata, cluster="Cell_type", cluster_name="Unknown", edges_list=None, network=network, color="M_s", save_show_or_return="return")
+    assert isinstance(ax, dyn.plot.networks.ArcPlot)
+
+    res = dyn.vf.adj_list_to_matrix(adj_list=edges_list["Neuron"])
     assert isinstance(res, pd.DataFrame)

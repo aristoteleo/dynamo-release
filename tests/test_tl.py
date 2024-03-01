@@ -351,7 +351,7 @@ def test_neighbors_subset():
 
     # check obsp keys subsetting by AnnData Obj
     neighbor_result_prefix = ""
-    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+    conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
     check_and_recompute_neighbors(adata, result_prefix=neighbor_result_prefix)
     expected_conn_mat = adata.obsp[conn_key][indices][:, indices]
     expected_dist_mat = adata.obsp[dist_key][indices][:, indices]
@@ -425,3 +425,21 @@ def test_norm_loglikelihood():
     ll_ground_truth = np.sum(norm.logpdf(data, mu, sigma))
     ll = dyn.tl.utils.norm_loglikelihood(data, mu, sigma)
     assert ll - ll_ground_truth < 1e-9
+
+
+def test_fit_linreg():
+    from dynamo.estimation.csc.utils_velocity import fit_linreg, fit_linreg_robust
+    from sklearn.datasets import make_regression
+
+    X0, y0 = make_regression(n_samples=100, n_features=1, noise=0.5, random_state=0)
+    X1, y1 = make_regression(n_samples=100, n_features=1, noise=0.5, random_state=2)
+    X = np.vstack([X0.T, X1.T])
+    y = np.vstack([y0, y1])
+
+    k, b, r2, all_r2 = fit_linreg(X, y, intercept=True)
+    k_r, b_r, r2_r, all_r2_r = fit_linreg_robust(X, y, intercept=True)
+
+    assert np.allclose(k, k_r, rtol=1)
+    assert np.allclose(b, b_r, rtol=1)
+    assert np.allclose(r2, r2_r, rtol=1)
+    assert np.allclose(all_r2, all_r2_r, rtol=1)

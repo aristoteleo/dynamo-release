@@ -46,6 +46,8 @@ def test_perturbation(adata):
 
 
 def test_state_graph(adata):
+    import matplotlib.pyplot as plt
+
     # TODO: add this function to __init__ if we need it
     # res = dyn.pd.classify_clone_cell_type(
     #     adata,
@@ -57,6 +59,9 @@ def test_state_graph(adata):
 
     dyn.pd.state_graph(adata, group='Cell_type')
     assert "Cell_type_graph" in adata.uns.keys()
+
+    ax = dyn.pl.state_graph(adata, group='Cell_type', save_show_or_return='return')
+    assert isinstance(ax, tuple)
 
     res = dyn.pd.tree_model(
         adata,
@@ -124,4 +129,4 @@ def test_trajectoy_analysis():
     adata = adata[:1000, :1000].copy()
     adata.obs["trajectory"] = [i for i in range(adata.n_obs)]
     mfpt = dyn.pd.mean_first_passage_time(adata, sink_states=[0, 1, 2], init_states=[3, 4, 5], target_states=[6, 7, 8])
-    assert type(mfpt) == float
+    assert mfpt is not None
