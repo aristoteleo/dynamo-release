@@ -36,7 +36,3 @@ def test_config_change():
     import dynamo.configuration as imported_config
 
     assert imported_config.DynamoAdataConfig.data_store_mode == "succinct"
-
-
-if __name__ == "__main__":
-    test_config_change()
