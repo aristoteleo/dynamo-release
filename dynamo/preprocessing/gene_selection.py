@@ -535,6 +535,7 @@ def select_genes_by_seurat_recipe(
     gene_names: Union[List[str], None] = None,
     var_filter_key: str = "pass_basic_filter",
     inplace: bool = False,
+    initial_dtype: Optional[type] = None,
 ) -> None:
     """A general function for feature genes selection.
 
@@ -556,10 +557,14 @@ def select_genes_by_seurat_recipe(
         var_filter_key: filter gene names based on the key defined in adata.var before gene selection. Defaults to
             "pass_basic_filter".
         inplace: when inplace is True, subset adata according to selected genes. Defaults to False.
+        initial_dtype: the data type when initializing a new array. Should be one of the float type.
 
     Raises:
         NotImplementedError: the recipe is invalid/unsupported.
     """
+
+    if initial_dtype is None:
+        initial_dtype = adata.X.dtype if adata.X.dtype == np.float32 or adata.X.dtype == np.float64 else np.float32
 
     pass_filter_genes = adata.var_names
     if gene_names:
@@ -584,8 +589,8 @@ def select_genes_by_seurat_recipe(
             chunk_size=chunk_size,
             chunk_mode="gene",
         )
-        mean = np.zeros(len(pass_filter_genes), dtype=adata.X.dtype)
-        variance = np.zeros(len(pass_filter_genes), dtype=adata.X.dtype)
+        mean = np.zeros(len(pass_filter_genes), dtype=initial_dtype)
+        variance = np.zeros(len(pass_filter_genes), dtype=initial_dtype)
 
         for mat_data in chunked_layer_mats:
             layer_mat = mat_data[0]

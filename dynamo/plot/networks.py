@@ -307,7 +307,7 @@ def arcPlot(
             cb.ax.set_title(cbar_title)
 
         cb.set_alpha(1)
-        cb.draw_all()
+        cb._draw_all()
         cb.locator = MaxNLocator(nbins=3, integer=True)
         cb.update_ticks()
 
