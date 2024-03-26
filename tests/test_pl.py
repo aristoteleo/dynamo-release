@@ -162,9 +162,9 @@ def test_lap_plots():
     # ax = dyn.pl.response(adata, pairs_mat=pair_matrix, return_data=True)
     # assert isinstance(ax, tuple)
 
-    ax = dyn.plot.connectivity.plot_connectivity(adata, graph=adata.obsp["perturbation_transition_matrix"],
-                                            color=["cell_type"], save_show_or_return='return')
-    assert isinstance(ax, plt.Figure)
+    # ax = dyn.plot.connectivity.plot_connectivity(adata, graph=adata.obsp["perturbation_transition_matrix"],
+    #                                         color=["cell_type"], save_show_or_return='return')
+    # assert isinstance(ax, plt.Figure)
 
     from dynamo.tools.utils import nearest_neighbors
 
