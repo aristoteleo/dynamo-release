@@ -298,8 +298,6 @@ def normalize(
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
-    chunk_size = chunk_size if chunk_size is not None else adata.n_obs
-
     if np.count_nonzero(adata.obs.columns.str.contains("Size_Factor")) < len(layers):
         calc_sz_factor(
             adata,
@@ -327,8 +325,7 @@ def normalize(
             """This normalization implements the centered log-ratio (CLR) normalization from Seurat which is computed
             for each gene (M Stoeckius, 2017).
             """
-            CMs_data = DKM.select_layer_chunked_data(adata, layer, chunk_size=adata.n_obs)
-            CM = next(CMs_data)[0]
+            CM = DKM.select_layer_data(adata, layer)
 
             CM = CM.T
             n_feature = CM.shape[1]
@@ -350,28 +347,39 @@ def normalize(
                 main_info_insert_adata_layer("X_" + layer)
                 adata.layers["X_" + layer] = CM
         else:
-            CMs_data = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size)
+            if chunk_size is None:
+                CM = DKM.select_layer_data(adata, layer)
+                CM = size_factor_normalize(CM, szfactors)
 
-            if layer in ["raw", "X"]:
-                main_debug("set adata <X> to normalized data.")
-
-                for CM_data in CMs_data:
-                    CM = CM_data[0]
-                    CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
-                    adata.X[CM_data[1]:CM_data[2]] = CM
-
-            else:
-                main_info_insert_adata_layer("X_" + layer)
-
-                if issparse(adata.layers[layer]):
-                    adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape))
+                if layer in ["raw", "X"]:
+                    main_debug("set adata <X> to normalized data.")
+                    adata.X = CM
                 else:
-                    adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape)
+                    main_info_insert_adata_layer("X_" + layer)
+                    adata.layers["X_" + layer] = CM
+            else:
+                CMs_data = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size)
 
-                for CM_data in CMs_data:
-                    CM = CM_data[0]
-                    CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
-                    adata.layers["X_" + layer][CM_data[1]:CM_data[2]] = CM
+                if layer in ["raw", "X"]:
+                    main_debug("set adata <X> to normalized data.")
+
+                    for CM_data in CMs_data:
+                        CM = CM_data[0]
+                        CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
+                        adata.X[CM_data[1]:CM_data[2]] = CM
+
+                else:
+                    main_info_insert_adata_layer("X_" + layer)
+
+                    if issparse(adata.layers[layer]):
+                        adata.layers["X_" + layer] = csr_matrix(np.zeros(adata.layers[layer].shape))
+                    else:
+                        adata.layers["X_" + layer] = np.zeros(adata.layers[layer].shape)
+
+                    for CM_data in CMs_data:
+                        CM = CM_data[0]
+                        CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
+                        adata.layers["X_" + layer][CM_data[1]:CM_data[2]] = CM
 
     return adata
 
@@ -439,7 +447,7 @@ def sz_util(
     total_layers: List[str] = None,
     CM: pd.DataFrame = None,
     scale_to: Union[float, None] = None,
-    initial_dtype: type=np.float32,
+    initial_dtype: type = np.float32,
 ) -> Tuple[pd.Series, pd.Series]:
     """Calculate the size factor for a given layer.
 
@@ -475,13 +483,8 @@ def sz_util(
                 extend_layers=False,
             )
 
-    chunk_size = chunk_size if chunk_size is not None else adata.n_obs
-    chunked_CMs = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size) if CM is None else CM
-
-    cell_total = np.zeros(adata.n_obs, dtype=initial_dtype)
-
-    for CM_data in chunked_CMs:
-        CM = CM_data[0]
+    if chunk_size is None:
+        CM = DKM.select_layer_data(adata, layer) if CM is None else CM
 
         if CM is None:
             return None, None
@@ -493,12 +496,32 @@ def sz_util(
             else:
                 CM = CM.round().astype("int")
 
-        chunk_cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
-        chunk_cell_total += chunk_cell_total == 0  # avoid infinity value after log (0)
+        cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
+        cell_total += cell_total == 0  # avoid infinity value after log (0)
+    else:
+        chunked_CMs = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size) if CM is None else CM
 
-        cell_total[CM_data[1]:CM_data[2]] = chunk_cell_total
+        cell_total = np.zeros(adata.n_obs, dtype=initial_dtype)
 
-    cell_total = cell_total.astype(int) if np.all(cell_total % 1 == 0) else cell_total
+        for CM_data in chunked_CMs:
+            CM = CM_data[0]
+
+            if CM is None:
+                return None, None
+
+            if round_exprs:
+                main_debug("rounding expression data of layer: %s during size factor calculation" % (layer))
+                if issparse(CM):
+                    CM.data = np.round(CM.data, 0)
+                else:
+                    CM = CM.round().astype("int")
+
+            chunk_cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
+            chunk_cell_total += chunk_cell_total == 0  # avoid infinity value after log (0)
+
+            cell_total[CM_data[1]:CM_data[2]] = chunk_cell_total
+
+        cell_total = cell_total.astype(int) if np.all(cell_total % 1 == 0) else cell_total
 
     if method in ["mean-geometric-mean-total", "geometric"]:
         sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)
