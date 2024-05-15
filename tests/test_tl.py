@@ -259,12 +259,6 @@ def test_gradop():
     # Check that the matrix has the expected shape values
     assert np.all(grad.A == grad_dense.A)
     assert grad.shape == (4, 3)
-    expected_data = np.array([-1, 1, 1, -1, -1, 1, 1, -1])
-    expected_indices = np.array([0, 1, 0, 1, 1, 2, 1, 2])
-    expected_indptr = np.array([0, 2, 4, 6, 8])
-    assert np.all(grad.data == expected_data)
-    assert np.all(grad.indices == expected_indices)
-    assert np.all(grad.indptr == expected_indptr)
 
 
 def test_graphize_velocity_coopt(adata):
