@@ -43,12 +43,12 @@ from .Tang import action, gen_fixed_points, IntGrad
 from .stochastic_process import diffusionMatrix
 from .topography import (
     FixedPoints,
-    VectorField,
-    VectorField2D,
+    Topography2D,
     assign_fixedpoints,
     topography,
 )
 from .utils import get_jacobian, parse_int_df, vector_field_function
+from .VectorField import VectorField
 from .vector_calculus import (
     acceleration,
     curl,

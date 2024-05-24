@@ -98,35 +98,6 @@ def hill_act_grad(
     return A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
-def calc_mean_squared_deviation(
-    func: Callable,
-    x_data: np.ndarray,
-    y_mean: np.ndarray,
-    y_sigm: np.ndarray,
-    weighted=True,
-) -> float:
-    """Calculate the mean squared deviation of the fit.
-
-    Args:
-        func: The function to evaluate.
-        x_data: An array of the x data.
-        y_mean: An array of the mean of y data.
-        y_sigm: An array of the standard deviation of the y data.
-        weighted: Whether to use weighted mean squared deviation.
-
-    Returns:
-        The mean squared deviation.
-    """
-    err = func(x_data) - y_mean
-    if weighted:
-        sig = np.array(y_sigm, copy=True)
-        if np.any(sig == 0):
-            main_warning("Some standard deviations are 0; Set to 1 instead.")
-            sig[sig == 0] = 1
-        err /= sig
-    return np.sqrt(err.dot(err))
-
-
 def fit_hill_grad(
     x_data: np.ndarray,
     y_mean: np.ndarray,
@@ -329,3 +300,32 @@ def fit_hill_act_grad(
             pass
 
     return {"A": p_opt_min[0], "K": p_opt_min[1], "n": np.exp(p_opt_min[2]), "g": p_opt_min[3]}, msd_min
+
+
+def calc_mean_squared_deviation(
+    func: Callable,
+    x_data: np.ndarray,
+    y_mean: np.ndarray,
+    y_sigm: np.ndarray,
+    weighted=True,
+) -> float:
+    """Calculate the mean squared deviation of the fit.
+
+    Args:
+        func: The function to evaluate.
+        x_data: An array of the x data.
+        y_mean: An array of the mean of y data.
+        y_sigm: An array of the standard deviation of the y data.
+        weighted: Whether to use weighted mean squared deviation.
+
+    Returns:
+        The mean squared deviation.
+    """
+    err = func(x_data) - y_mean
+    if weighted:
+        sig = np.array(y_sigm, copy=True)
+        if np.any(sig == 0):
+            main_warning("Some standard deviations are 0; Set to 1 instead.")
+            sig[sig == 0] = 1
+        err /= sig
+    return np.sqrt(err.dot(err))

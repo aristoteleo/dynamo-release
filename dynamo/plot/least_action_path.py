@@ -165,4 +165,4 @@ def lap_min_time(
                 # scatters(adata, basis=basis, color=color, ax=axes[i, j], **kwargs)
                 # axes[i, j].scatter(*i[:, [x, y]].T, c=map2color(j))
 
-        return save_show_ret("kinetic_curves", save_show_or_return, save_kwargs)
+        return save_show_ret("kinetic_curves", save_show_or_return, save_kwargs, fig)

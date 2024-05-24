@@ -463,7 +463,7 @@ def response(
         )
         cb = fig.colorbar(im, cax=axins)
         cb.set_alpha(1)
-        cb.draw_all()
+        cb._draw_all()
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
@@ -1043,7 +1043,7 @@ def causality(
         )
         cb = fig.colorbar(im, cax=axins)
         cb.set_alpha(1)
-        cb.draw_all()
+        cb._draw_all()
         cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
