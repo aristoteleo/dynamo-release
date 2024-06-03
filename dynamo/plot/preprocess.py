@@ -933,8 +933,8 @@ def highest_frac_genes(
 
         if gene_annotations is not None:
             ax2 = ax.twiny()
-            ax2.set_xlim(ax.get_ylim())
-            ax2.set_xticks(ax.get_yticks())
+            ax2.set_xlim(ax.get_xlim())
+            ax2.set_xticks(ax.get_xticks())
             ax2.set_xticks(list(range(len(gene_annotations))))
             ax2.set_xticklabels(gene_annotations, rotation=v_rotation, ha="left")
             ax2.set_xlabel(gene_annotation_key)
