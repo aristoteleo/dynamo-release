@@ -716,6 +716,7 @@ def dynamics(
                 kin_param_pre,
                 valid_bools_,
                 ind_for_proteins,
+                cur_cells_bools,
             )
 
         elif assumption_mRNA.lower() == "kinetic":
