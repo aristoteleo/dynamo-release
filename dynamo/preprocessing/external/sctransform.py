@@ -20,7 +20,8 @@ from anndata import AnnData
 from scipy import stats
 
 from ...configuration import DKM
-from ...dynamo_logger import main_info, main_info_insert_adata_layer, main_warning
+from ...dynamo_logger import (main_info, main_info_insert_adata_layer,
+                              main_warning)
 from ..utils import get_gene_selection_filter
 
 _EPS = np.finfo(float).eps
@@ -218,6 +219,7 @@ def sctransform_core(
     """
     import multiprocessing
     import sys
+
     try:
         from KDEpy import FFTKDE
     except ImportError:
