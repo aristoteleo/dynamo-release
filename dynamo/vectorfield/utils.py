@@ -916,7 +916,7 @@ def compute_curl(f_jac, X):
 
 # ---------------------------------------------------------------------------------------------------
 # ranking related utilies
-def get_metric_gene_in_rank(mat: np.matrix, genes: list, neg: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+def get_metric_gene_in_rank(mat: np.asmatrix, genes: list, neg: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """Calculate ranking of genes based on mean value of matrix.
 
     Args:
@@ -936,7 +936,7 @@ def get_metric_gene_in_rank(mat: np.matrix, genes: list, neg: bool = False) -> T
 
 
 def get_metric_gene_in_rank_by_group(
-    mat: np.matrix, genes: list, groups: np.array, selected_group, neg: bool = False
+    mat: np.asmatrix, genes: list, groups: np.array, selected_group, neg: bool = False
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate ranking of genes based on mean value of matrix, grouped by selected group.
 
@@ -993,7 +993,7 @@ def get_sorted_metric_genes_df(df: pd.DataFrame, genes: list, neg: bool = False)
     return sorted_metric, sorted_genes
 
 
-def rank_vector_calculus_metrics(mat: np.matrix, genes: list, group, groups: list, uniq_group: list) -> Tuple:
+def rank_vector_calculus_metrics(mat: np.asmatrix, genes: list, group, groups: list, uniq_group: list) -> Tuple:
     """Calculate ranking of genes based on vector calculus metric.
 
     Args:

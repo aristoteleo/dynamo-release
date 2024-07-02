@@ -46,9 +46,10 @@ jobs:
     - name: Upload coverage to Codecov
       uses: Wandalen/wretry.action@v1
       with:
-        action: codecov/codecov-action@v3
+        action: codecov/codecov-action@v4
         with: |
           fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
         attempt_limit: 5
         attempt_delay: 10000
