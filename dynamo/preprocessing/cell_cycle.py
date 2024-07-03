@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import issparse
 
-from ..tools.utils import log1p_
 from ..utils import LoggerManager, copy_adata
 
 
@@ -30,7 +29,7 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
         between input gene_list and the adata.var_names. corr contains the correlation coefficient of each gene with
         the mean expression of all genes in the list.
     """
-    from ..tools.utils import einsum_correlation
+    from ..tools.utils import einsum_correlation, log1p_
     # returns list of correlations of each gene within a list of genes with the total expression of the group
     tmp = adata.var_names.intersection(gene_list)
     # get the location of gene names
