@@ -30,7 +30,7 @@ from ..dynamo_logger import (
     main_warning,
 )
 from ..preprocessing.transform import _Freeman_Tukey
-from ..tools.connectivity import generate_neighbor_keys, check_and_recompute_neighbors
+from ..tools.connectivity import check_and_recompute_neighbors, generate_neighbor_keys
 from .utils import fdr, fetch_X_data
 
 
@@ -676,21 +676,29 @@ def glm_degs(
             X_data.data = (
                 2**X_data.data - 1
                 if adata.uns["pp"][norm_method_key] == "log2"
-                else np.exp(X_data.data) - 1
-                if adata.uns["pp"][norm_method_key] == "log"
-                else _Freeman_Tukey(X_data.data + 1, inverse=True) - 1
-                if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
-                else X_data.data
+                else (
+                    np.exp(X_data.data) - 1
+                    if adata.uns["pp"][norm_method_key] == "log"
+                    else (
+                        _Freeman_Tukey(X_data.data + 1, inverse=True) - 1
+                        if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
+                        else X_data.data
+                    )
+                )
             )
         else:
             X_data = (
                 2**X_data - 1
                 if adata.uns["pp"][norm_method_key] == "log2"
-                else np.exp(X_data) - 1
-                if adata.uns["pp"][norm_method_key] == "log"
-                else _Freeman_Tukey(X_data, inverse=True)
-                if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
-                else X_data
+                else (
+                    np.exp(X_data) - 1
+                    if adata.uns["pp"][norm_method_key] == "log"
+                    else (
+                        _Freeman_Tukey(X_data, inverse=True)
+                        if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
+                        else X_data
+                    )
+                )
             )
 
     factors = get_all_variables(fullModelFormulaStr)
@@ -721,7 +729,10 @@ def diff_test_helper(
     data: pd.DataFrame,
     fullModelFormulaStr: str = "~cr(time, df=3)",
     reducedModelFormulaStr: str = "~1",
-) -> Union[Tuple[Literal["fail"], Literal["NB2"], Literal[1]], Tuple[Literal["ok"], Literal["NB2"], np.ndarray],]:
+) -> Union[
+    Tuple[Literal["fail"], Literal["NB2"], Literal[1]],
+    Tuple[Literal["ok"], Literal["NB2"], np.ndarray],
+]:
     """A helper function to generate required data fields for differential gene expression test.
 
     Args:

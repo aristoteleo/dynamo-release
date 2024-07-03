@@ -5,9 +5,9 @@ COPYRIGHT HOLDER: ddhodge
 
 Code adapted from https://github.com/kazumits/ddhodge.
 """
-from typing import List, Optional, Union
 
 from itertools import combinations
+from typing import List, Optional, Union
 
 import numpy as np
 from igraph import Graph

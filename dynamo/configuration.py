@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, List, Generator, Optional, Tuple, Union
+from typing import Any, Generator, List, Optional, Tuple, Union
 
 import colorcet
 import matplotlib
@@ -15,6 +15,7 @@ from .dynamo_logger import main_debug, main_info
 
 class DynamoAdataKeyManager:
     """A class to manage the keys used in anndata object for dynamo."""
+
     VAR_GENE_MEAN_KEY = "pp_gene_mean"
     VAR_GENE_VAR_KEY = "pp_gene_variance"
     VAR_GENE_HIGHLY_VARIABLE_KEY = "gene_highly_variable"
@@ -41,8 +42,8 @@ class DynamoAdataKeyManager:
     RAW = "raw"
 
     def _select_layer_cell_chunked_data(
-            mat: np.ndarray,
-            chunk_size: int,
+        mat: np.ndarray,
+        chunk_size: int,
     ) -> Generator:
         """Select layer data in cell chunks based on chunk_size."""
         start = 0
@@ -55,8 +56,8 @@ class DynamoAdataKeyManager:
             yield (mat[start:n, :], start, n)
 
     def _select_layer_gene_chunked_data(
-            mat: np.ndarray,
-            chunk_size: int,
+        mat: np.ndarray,
+        chunk_size: int,
     ) -> Generator:
         """Select layer data in gene chunks based on chunk_size."""
         start = 0
@@ -131,8 +132,11 @@ class DynamoAdataKeyManager:
             elif layer == DynamoAdataKeyManager.RAW:
                 return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.raw.X, chunk_size=chunk_size)
             elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
-                return DynamoAdataKeyManager._select_layer_cell_chunked_data(
-                    adata.obsm["protein"], chunk_size=chunk_size) if "protein" in adata.obsm_keys() else None
+                return (
+                    DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.obsm["protein"], chunk_size=chunk_size)
+                    if "protein" in adata.obsm_keys()
+                    else None
+                )
             else:
                 return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.layers[layer], chunk_size=chunk_size)
         elif chunk_mode == "gene":
@@ -141,8 +145,11 @@ class DynamoAdataKeyManager:
             elif layer == DynamoAdataKeyManager.RAW:
                 return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.raw.X, chunk_size=chunk_size)
             elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
-                return DynamoAdataKeyManager._select_layer_gene_chunked_data(
-                    adata.obsm["protein"], chunk_size=chunk_size) if "protein" in adata.obsm_keys() else None
+                return (
+                    DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.obsm["protein"], chunk_size=chunk_size)
+                    if "protein" in adata.obsm_keys()
+                    else None
+                )
             else:
                 return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.layers[layer], chunk_size=chunk_size)
         else:
@@ -172,7 +179,10 @@ class DynamoAdataKeyManager:
         return layer in adata.layers
 
     def get_available_layer_keys(
-        adata: AnnData, layers: str = "all", remove_pp_layers: bool = True, include_protein: bool = True,
+        adata: AnnData,
+        layers: str = "all",
+        remove_pp_layers: bool = True,
+        include_protein: bool = True,
     ) -> List[str]:
         """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if
         `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
@@ -278,6 +288,7 @@ DKM = DynamoAdataKeyManager
 
 class DynamoVisConfig:
     """Dynamo visualization config class holding static variables to change behaviors of functions globally."""
+
     def set_default_mode(background="white"):
         """Set the default mode for dynamo visualization."""
         set_figure_params("dynamo", background=background)

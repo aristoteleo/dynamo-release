@@ -134,6 +134,7 @@ def bandwidth_selector(X: np.ndarray) -> float:
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
 
+
 def denorm(
     VecFld: Dict[str, Union[np.ndarray, None]],
     X_old: np.ndarray,
@@ -1011,7 +1012,12 @@ class SvcVectorField(DifferentiableVectorField):
 
         if self.normalize:
             X_norm, V_norm, T_norm, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
-            (self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict,) = (
+            (
+                self.data["X"],
+                self.data["V"],
+                self.data["Grid"],
+                self.norm_dict,
+            ) = (
                 X_norm,
                 V_norm,
                 T_norm,

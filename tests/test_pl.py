@@ -143,14 +143,21 @@ def test_lap_plots():
 
     adata = dyn.sample_data.hematopoiesis()
 
-    progenitor = adata.obs_names[adata.obs.cell_type.isin(['HSC'])]
+    progenitor = adata.obs_names[adata.obs.cell_type.isin(["HSC"])]
 
-    dyn.pd.fate(adata, basis='umap', init_cells=progenitor, interpolation_num=25, direction='forward',
-                inverse_transform=False, average=False)
-    ax = dyn.pl.fate_bias(adata, group="cell_type", basis="umap", save_show_or_return='return')
+    dyn.pd.fate(
+        adata,
+        basis="umap",
+        init_cells=progenitor,
+        interpolation_num=25,
+        direction="forward",
+        inverse_transform=False,
+        average=False,
+    )
+    ax = dyn.pl.fate_bias(adata, group="cell_type", basis="umap", save_show_or_return="return")
     assert isinstance(ax, sns.matrix.ClusterGrid)
 
-    ax = dyn.pl.fate(adata, basis="umap", save_show_or_return='return')
+    ax = dyn.pl.fate(adata, basis="umap", save_show_or_return="return")
     assert isinstance(ax, plt.Axes)
 
     # genes = adata.var_names[adata.var.use_for_dynamics]
@@ -217,7 +224,12 @@ def test_heatmaps():
     assert isinstance(ax, pd.DataFrame)
 
     ax = dyn.pl.comb_logic(
-        adata, pairs_mat=np.array(pair_matrix), xkey="M_n", ykey="M_t", zkey="velocity_alpha_minus_gamma_s", return_data=True
+        adata,
+        pairs_mat=np.array(pair_matrix),
+        xkey="M_n",
+        ykey="M_t",
+        zkey="velocity_alpha_minus_gamma_s",
+        return_data=True,
     )
     assert isinstance(ax, pd.DataFrame)
 
@@ -255,10 +267,17 @@ def test_time_series_plot(adata):
 
     adata = adata.copy()
     adata.uns["umap_fit"]["umap_kwargs"]["max_iter"] = None
-    progenitor = adata.obs_names[adata.obs.Cell_type.isin(['Proliferating Progenitor', 'Pigment Progenitor'])]
+    progenitor = adata.obs_names[adata.obs.Cell_type.isin(["Proliferating Progenitor", "Pigment Progenitor"])]
 
-    dyn.pd.fate(adata, basis='umap', init_cells=progenitor, interpolation_num=25, direction='forward',
-                inverse_transform=True, average=False)
+    dyn.pd.fate(
+        adata,
+        basis="umap",
+        init_cells=progenitor,
+        interpolation_num=25,
+        direction="forward",
+        inverse_transform=True,
+        average=False,
+    )
 
     ax = dyn.pl.kinetic_curves(adata, basis="umap", genes=adata.var_names[:4], save_show_or_return="return")
     assert isinstance(ax, sns.axisgrid.FacetGrid)
@@ -266,10 +285,11 @@ def test_time_series_plot(adata):
     assert isinstance(ax, sns.matrix.ClusterGrid)
 
     dyn.tl.order_cells(adata, basis="umap")
-    progenitor = adata.obs_names[adata.obs.Cell_type.isin(['Proliferating Progenitor', 'Pigment Progenitor'])]
+    progenitor = adata.obs_names[adata.obs.Cell_type.isin(["Proliferating Progenitor", "Pigment Progenitor"])]
 
-    dyn.vf.jacobian(adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"],
-                    cell_idx=progenitor)
+    dyn.vf.jacobian(
+        adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=progenitor
+    )
     ax = dyn.pl.jacobian_kinetics(
         adata,
         basis="umap",

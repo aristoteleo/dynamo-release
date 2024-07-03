@@ -72,6 +72,7 @@ def deprecated(func):
 
 # from __future__ import division, print_function
 
+
 # https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the-gamma-
 # family
 def _weight_matrix_legacy(fitted_model: sm.Poisson) -> np.ndarray:

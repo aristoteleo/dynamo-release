@@ -1,5 +1,7 @@
-import dynamo as dyn
 import pytest
+
+import dynamo as dyn
+
 
 def test_dynamcis(adata):
     raw_adata = dyn.sample_data.zebrafish()

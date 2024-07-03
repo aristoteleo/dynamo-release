@@ -431,4 +431,3 @@ def consensus(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     )
 
     return consensus
-

@@ -243,27 +243,26 @@ def calculate_colors(
         _vmin = (
             np.nanmin(values)
             if vmin is None
-            else np.nanpercentile(values, vmin * 100)
-            if (vmin + vmax == 1 and 0 <= vmin < vmax)
-            else np.nanpercentile(values, vmin)
-            if (vmin + vmax == 100 and 0 <= vmin < vmax)
-            else vmin
+            else (
+                np.nanpercentile(values, vmin * 100)
+                if (vmin + vmax == 1 and 0 <= vmin < vmax)
+                else np.nanpercentile(values, vmin) if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmin
+            )
         )
         _vmax = (
             np.nanmax(values)
             if vmax is None
-            else np.nanpercentile(values, vmax * 100)
-            if (vmin + vmax == 1 and 0 <= vmin < vmax)
-            else np.nanpercentile(values, vmax)
-            if (vmin + vmax == 100 and 0 <= vmin < vmax)
-            else vmax
+            else (
+                np.nanpercentile(values, vmax * 100)
+                if (vmin + vmax == 1 and 0 <= vmin < vmax)
+                else np.nanpercentile(values, vmax) if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmax
+            )
         )
 
         if sym_c and _vmin < 0 and _vmax > 0:
             bounds = np.nanmax([np.abs(_vmin), _vmax])
             bounds = bounds * np.array([-1, 1])
             _vmin, _vmax = bounds
-
 
         if "norm" in kwargs:
             norm = kwargs["norm"]
@@ -424,9 +423,15 @@ def _matplotlib_points(
     if ax is None:
         dpi = plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
-        ax = fig.add_subplot(
-            111, projection=projection, computed_zorder=False,
-        ) if projection == "3d" else fig.add_subplot(111, projection=projection)
+        ax = (
+            fig.add_subplot(
+                111,
+                projection=projection,
+                computed_zorder=False,
+            )
+            if projection == "3d"
+            else fig.add_subplot(111, projection=projection)
+        )
 
     ax.set_facecolor(background)
 
@@ -655,20 +660,20 @@ def _matplotlib_points(
         _vmin = (
             np.nanmin(values)
             if vmin is None
-            else np.nanpercentile(values, vmin * 100)
-            if (vmin + vmax == 1 and 0 <= vmin < vmax)
-            else np.nanpercentile(values, vmin)
-            if (vmin + vmax == 100 and 0 <= vmin < vmax)
-            else vmin
+            else (
+                np.nanpercentile(values, vmin * 100)
+                if (vmin + vmax == 1 and 0 <= vmin < vmax)
+                else np.nanpercentile(values, vmin) if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmin
+            )
         )
         _vmax = (
             np.nanmax(values)
             if vmax is None
-            else np.nanpercentile(values, vmax * 100)
-            if (vmin + vmax == 1 and 0 <= vmin < vmax)
-            else np.nanpercentile(values, vmax)
-            if (vmin + vmax == 100 and 0 <= vmin < vmax)
-            else vmax
+            else (
+                np.nanpercentile(values, vmax * 100)
+                if (vmin + vmax == 1 and 0 <= vmin < vmax)
+                else np.nanpercentile(values, vmax) if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmax
+            )
         )
 
         if sym_c and _vmin < 0 and _vmax > 0:
@@ -929,7 +934,10 @@ def _datashade_points(
                     data["label"] == "other",
                 )
                 reorder_data = data.copy(deep=True)
-                (reorder_data.iloc[: sum(background_ids), :], reorder_data.iloc[sum(background_ids) :, :],) = (
+                (
+                    reorder_data.iloc[: sum(background_ids), :],
+                    reorder_data.iloc[sum(background_ids) :, :],
+                ) = (
                     data.loc[background_ids, :],
                     data.loc[highlight_ids, :],
                 )
@@ -1663,31 +1671,31 @@ def save_show_ret(
     prefix: str,
     save_show_or_return: Literal["save", "show", "return", "both", "all"],
     save_kwargs: Dict[str, Any],
-    ret_value = None,
+    ret_value=None,
     tight: bool = True,
     adjust: bool = False,
     background: Optional[str] = None,
 ):
     """
-    Helper function that performs actions based on the variable save_show_or_return. 
+    Helper function that performs actions based on the variable save_show_or_return.
     Should always have at least 3 inputs (prefix, save_show__or_return, save_kwargs).
 
     Args:
         prefix: Prefix added to name of figure that will be saved. See the `s_kwargs` variable.
-        save_show_or_return: Whether the figure should be saved, shown, or returned. 
+        save_show_or_return: Whether the figure should be saved, shown, or returned.
             "both" means that the figure would be shown and saved but not returned. Defaults
             to "show".
-        save_kwargs: A dictionary that will be passed to the save_fig() function. 
+        save_kwargs: A dictionary that will be passed to the save_fig() function.
             The save_fig() function will use
                 {
-                    "path": None, 
-                    "prefix": [prefix input], 
-                    "dpi": None, 
+                    "path": None,
+                    "prefix": [prefix input],
+                    "dpi": None,
                     "ext": 'pdf',
-                    "transparent": True, 
-                    "close": True, 
+                    "transparent": True,
+                    "close": True,
                     "verbose": True
-                } 
+                }
             as its parameters. `save_kwargs` modifies those keys according to your needs. Defaults to {}.
         ret_value: Value to be returned if `save_show_or_return` equals "return" or "all".
         tight: Toggles whether plt.tight_layout() is called.
@@ -1722,7 +1730,7 @@ def save_show_ret(
             plt.subplots_adjust(right=0.85)
 
         if tight:
-            #Do note that warnings should not be ignored in the future.
+            # Do note that warnings should not be ignored in the future.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 plt.tight_layout()
@@ -1812,7 +1820,7 @@ def save_pyvista_plotter(
             "path": None,
             "prefix": "scatters_pv",
             "ext": "pdf",
-            "title": 'PyVista Export',
+            "title": "PyVista Export",
             "raster": True,
             "painter": True,
         }

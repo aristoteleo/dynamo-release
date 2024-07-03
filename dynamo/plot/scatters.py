@@ -15,8 +15,8 @@ import pandas as pd
 from anndata import AnnData
 from matplotlib import patches, rcParams
 from matplotlib.axes import Axes
-from matplotlib.lines import Line2D
 from matplotlib.colors import rgb2hex, to_hex
+from matplotlib.lines import Line2D
 from pandas.api.types import is_categorical_dtype
 from scipy.sparse import issparse
 
@@ -25,7 +25,13 @@ from ..docrep import DocstringProcessor
 from ..dynamo_logger import main_debug, main_info, main_warning
 from ..preprocessing.utils import affine_transform, gen_rotation_2d
 from ..tools.moments import calc_1nd_moment
-from ..tools.utils import flatten, get_mapper, get_vel_params, update_dict, update_vel_params
+from ..tools.utils import (
+    flatten,
+    get_mapper,
+    get_vel_params,
+    update_dict,
+    update_vel_params,
+)
 from .utils import (
     _datashade_points,
     _get_adata_color_vec,
@@ -40,9 +46,9 @@ from .utils import (
     is_layer_keys,
     is_list_of_lists,
     retrieve_plot_save_path,
-    save_show_ret,
     save_plotly_figure,
     save_pyvista_plotter,
+    save_show_ret,
 )
 
 docstrings = DocstringProcessor()
@@ -555,12 +561,16 @@ def scatters_legacy(
                 elif is_gene_name(_adata, cur_x) and is_gene_name(_adata, cur_y):
                     points = pd.DataFrame(
                         {
-                            cur_x: _adata.obs_vector(k=cur_x, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                            cur_y: _adata.obs_vector(k=cur_y, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            cur_x: (
+                                _adata.obs_vector(k=cur_x, layer=None)
+                                if cur_l_smoothed == "X"
+                                else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed)
+                            ),
+                            cur_y: (
+                                _adata.obs_vector(k=cur_y, layer=None)
+                                if cur_l_smoothed == "X"
+                                else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed)
+                            ),
                         }
                     )
                     # points = points.loc[(points > 0).sum(1) > 1, :]
@@ -582,9 +592,11 @@ def scatters_legacy(
                     points = pd.DataFrame(
                         {
                             cur_x: _adata.obs_vector(cur_x),
-                            cur_y: _adata.obs_vector(k=cur_y, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            cur_y: (
+                                _adata.obs_vector(k=cur_y, layer=None)
+                                if cur_l_smoothed == "X"
+                                else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed)
+                            ),
                         }
                     )
                     # points = points.loc[points.iloc[:, 1] > 0, :]
@@ -596,9 +608,11 @@ def scatters_legacy(
                 elif is_gene_name(_adata, cur_x) and is_cell_anno_column(_adata, cur_y):
                     points = pd.DataFrame(
                         {
-                            cur_x: _adata.obs_vector(k=cur_x, layer=None)
-                            if cur_l_smoothed == "X"
-                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            cur_x: (
+                                _adata.obs_vector(k=cur_x, layer=None)
+                                if cur_l_smoothed == "X"
+                                else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed)
+                            ),
                             cur_y: _adata.obs_vector(cur_y),
                         }
                     )
@@ -633,9 +647,11 @@ def scatters_legacy(
                         list(_adata.obs[aggregate].unique()),
                     )
                     group_color, group_median = (
-                        np.zeros((1, len(uniq_grp))).flatten()
-                        if isinstance(_color[0], Number)
-                        else np.zeros((1, len(uniq_grp))).astype("str").flatten(),
+                        (
+                            np.zeros((1, len(uniq_grp))).flatten()
+                            if isinstance(_color[0], Number)
+                            else np.zeros((1, len(uniq_grp))).astype("str").flatten()
+                        ),
                         np.zeros((len(uniq_grp), 2)),
                     )
 
@@ -882,7 +898,9 @@ def scatters_legacy(
         return_value = (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
     else:
         return_value = axes_list if total_panels > 1 else ax
-    return save_show_ret("scatters", save_show_or_return, save_kwargs, return_value, adjust=show_legend, background=background)
+    return save_show_ret(
+        "scatters", save_show_or_return, save_kwargs, return_value, adjust=show_legend, background=background
+    )
 
 
 def map_to_points(
@@ -925,9 +943,11 @@ def map_to_points(
         nonlocal gene_title, anno_title
 
         if is_gene_name(_adata, cur):
-            points_df_data = (_adata.obs_vector(k=cur, layer=None)
-                              if cur_l_smoothed == "X"
-                              else _adata.obs_vector(k=cur, layer=cur_l_smoothed))
+            points_df_data = (
+                _adata.obs_vector(k=cur, layer=None)
+                if cur_l_smoothed == "X"
+                else _adata.obs_vector(k=cur, layer=cur_l_smoothed)
+            )
             points_column = cur + " (" + cur_l_smoothed + ")"
             gene_title.append(cur)
         elif is_cell_anno_column(_adata, cur):
@@ -960,20 +980,22 @@ def map_to_points(
 
         return points, cur_title
     elif type(axis_x) in [anndata._core.views.ArrayView, np.ndarray] and type(axis_y) in [
-            anndata._core.views.ArrayView,
-            np.ndarray,
-        ]:
+        anndata._core.views.ArrayView,
+        np.ndarray,
+    ]:
         points = pd.DataFrame({"x": flatten(axis_x), "y": flatten(axis_y), "x": flatten(axis_z)})
         points.columns = ["x", "y", "z"]
     else:
         x_points_df_data, x_points_column = _map_cur_axis(axis_x)
         y_points_df_data, y_points_column = _map_cur_axis(axis_y)
         z_points_df_data, z_points_column = _map_cur_axis(axis_z)
-        points = pd.DataFrame({
-            axis_x: x_points_df_data,
-            axis_y: y_points_df_data,
-            axis_z: z_points_df_data,
-        })
+        points = pd.DataFrame(
+            {
+                axis_x: x_points_df_data,
+                axis_y: y_points_df_data,
+                axis_z: z_points_df_data,
+            }
+        )
         points.columns = [x_points_column, y_points_column, z_points_column]
 
     if len(gene_title) != 0:
@@ -1098,12 +1120,12 @@ def scatters_interactive_legacy(
 
     # make x, y, z lists of list, where each list corresponds to one coordinate set
     if (
-            type(x) in [anndata._core.views.ArrayView, np.ndarray]
-            and type(y) in [anndata._core.views.ArrayView, np.ndarray]
-            and type(z) in [anndata._core.views.ArrayView, np.ndarray]
-            and len(x) == adata.n_obs
-            and len(y) == adata.n_obs
-            and len(z) == adata.n_obs
+        type(x) in [anndata._core.views.ArrayView, np.ndarray]
+        and type(y) in [anndata._core.views.ArrayView, np.ndarray]
+        and type(z) in [anndata._core.views.ArrayView, np.ndarray]
+        and len(x) == adata.n_obs
+        and len(y) == adata.n_obs
+        and len(z) == adata.n_obs
     ):
         x, y, z = [x], [y], [z]
 
@@ -1148,8 +1170,9 @@ def scatters_interactive_legacy(
         pl = (
             pv.Plotter(shape=(nrow, ncol))
             if plot_method == "pv"
-            else
-            make_subplots(rows=nrow, cols=ncol, specs=[[{"type": "scatter3d"} for _ in range(ncol)] for _ in range(nrow)])
+            else make_subplots(
+                rows=nrow, cols=ncol, specs=[[{"type": "scatter3d"} for _ in range(ncol)] for _ in range(nrow)]
+            )
         )
 
     def _plot_basis_layer_pv(cur_b: str, cur_l: str) -> None:
@@ -1276,7 +1299,7 @@ def scatters_interactive_legacy(
 
                     pvdataset = pv.PolyData(points.values)
                     pvdataset.point_data["colors"] = np.stack(colors)
-                    pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, cmap=_cmap, **kwargs)
+                    pl.add_points(pvdataset, scalars="colors", preference="point", rgb=True, cmap=_cmap, **kwargs)
 
                     if color_type == "labels":
                         type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(_labels, colors)}
@@ -1301,14 +1324,13 @@ def scatters_interactive_legacy(
                             text=_labels if color_type == "labels" else _values,
                             **kwargs,
                         ),
-                        row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+                        row=subplot_indices[cur_subplot][0] + 1,
+                        col=subplot_indices[cur_subplot][1] + 1,
                     )
 
                     pl.update_layout(
                         scene=dict(
-                            xaxis_title=points.columns[0],
-                            yaxis_title=points.columns[1],
-                            zaxis_title=points.columns[2]
+                            xaxis_title=points.columns[0], yaxis_title=points.columns[1], zaxis_title=points.columns[2]
                         ),
                     )
 
@@ -1320,16 +1342,20 @@ def scatters_interactive_legacy(
             main_debug("colors: %s" % (str(color)))
             _plot_basis_layer_pv(cur_b, cur_l)
 
-    return save_pyvista_plotter(
-        pl=pl,
-        colors_list=colors_list,
-        save_show_or_return=save_show_or_return,
-        save_kwargs=save_kwargs,
-    ) if plot_method == "pv" else save_plotly_figure(
-        pl=pl,
-        colors_list=colors_list,
-        save_show_or_return=save_show_or_return,
-        save_kwargs=save_kwargs,
+    return (
+        save_pyvista_plotter(
+            pl=pl,
+            colors_list=colors_list,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+        if plot_method == "pv"
+        else save_plotly_figure(
+            pl=pl,
+            colors_list=colors_list,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
     )
 
 
@@ -1461,8 +1487,9 @@ def scatters_interactive(
         pl = (
             pv.Plotter(shape=(nrow, ncol))
             if plot_method == "pv"
-            else
-            make_subplots(rows=nrow, cols=ncol, specs=[[{"type": "scatter3d"} for _ in range(ncol)] for _ in range(nrow)])
+            else make_subplots(
+                rows=nrow, cols=ncol, specs=[[{"type": "scatter3d"} for _ in range(ncol)] for _ in range(nrow)]
+            )
         )
 
     def _plot_basis_layer_pv(cur_b: str, cur_l: str, cur_c: str, cur_x: str, cur_y: str, cur_z: str) -> None:
@@ -1515,14 +1542,11 @@ def scatters_interactive(
             title=cur_title,
         )
 
-
         if smooth and not is_not_continuous:
             main_debug("smooth and not continuous")
             knn = adata.obsp["moments_con"]
             _values = (
-                calc_1nd_moment(_values, knn)[0]
-                if smooth in [1, True]
-                else calc_1nd_moment(_values, knn**smooth)[0]
+                calc_1nd_moment(_values, knn)[0] if smooth in [1, True] else calc_1nd_moment(_values, knn**smooth)[0]
             )
 
         colors, color_type, _ = calculate_colors(
@@ -1544,7 +1568,7 @@ def scatters_interactive(
 
             pvdataset = pv.PolyData(points.values)
             pvdataset.point_data["colors"] = np.stack(colors)
-            pl.add_points(pvdataset, scalars="colors", preference='point', rgb=True, cmap=_cmap, **kwargs)
+            pl.add_points(pvdataset, scalars="colors", preference="point", rgb=True, cmap=_cmap, **kwargs)
 
             if color_type == "labels":
                 type_color_dict = {cell_type: cell_color for cell_type, cell_color in zip(_labels, colors)}
@@ -1569,15 +1593,12 @@ def scatters_interactive(
                     text=_labels if color_type == "labels" else _values,
                     **kwargs,
                 ),
-                row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+                row=subplot_indices[cur_subplot][0] + 1,
+                col=subplot_indices[cur_subplot][1] + 1,
             )
 
             pl.update_layout(
-                scene=dict(
-                    xaxis_title=points.columns[0],
-                    yaxis_title=points.columns[1],
-                    zaxis_title=points.columns[2]
-                ),
+                scene=dict(xaxis_title=points.columns[0], yaxis_title=points.columns[1], zaxis_title=points.columns[2]),
             )
 
         cur_subplot += 1
@@ -1614,17 +1635,20 @@ def scatters_interactive(
                 for cur_x, cur_y, cur_z in zip(x, y, z):
                     _plot_basis_layer_pv(cur_b, cur_l, cur_c, cur_x, cur_y, cur_z)
 
-
-    return save_pyvista_plotter(
-        pl=pl,
-        colors_list=colors_list,
-        save_show_or_return=save_show_or_return,
-        save_kwargs=save_kwargs,
-    ) if plot_method == "pv" else save_plotly_figure(
-        pl=pl,
-        colors_list=colors_list,
-        save_show_or_return=save_show_or_return,
-        save_kwargs=save_kwargs,
+    return (
+        save_pyvista_plotter(
+            pl=pl,
+            colors_list=colors_list,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
+        if plot_method == "pv"
+        else save_plotly_figure(
+            pl=pl,
+            colors_list=colors_list,
+            save_show_or_return=save_show_or_return,
+            save_kwargs=save_kwargs,
+        )
     )
 
 
@@ -2019,8 +2043,9 @@ def scatters(
         return_value = (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
     else:
         return_value = axes_list if total_panels > 1 else ax
-    return save_show_ret("scatters", save_show_or_return, save_kwargs, return_value, adjust=show_legend,
-                         background=background)
+    return save_show_ret(
+        "scatters", save_show_or_return, save_kwargs, return_value, adjust=show_legend, background=background
+    )
 
 
 def scatters_single_input(
@@ -2271,16 +2296,16 @@ def scatters_single_input(
             list(adata.obs[aggregate].unique()),
         )
         group_color, group_median = (
-            np.zeros((1, len(uniq_grp))).flatten()
-            if isinstance(_color[0], Number)
-            else np.zeros((1, len(uniq_grp))).astype("str").flatten(),
+            (
+                np.zeros((1, len(uniq_grp))).flatten()
+                if isinstance(_color[0], Number)
+                else np.zeros((1, len(uniq_grp))).astype("str").flatten()
+            ),
             np.zeros((len(uniq_grp), 2)),
         )
 
         grp_size = adata.obs[aggregate].value_counts()[uniq_grp].values
-        scatter_kwargs = (
-            {"s": grp_size} if scatter_kwargs is None else update_dict(scatter_kwargs, {"s": grp_size})
-        )
+        scatter_kwargs = {"s": grp_size} if scatter_kwargs is None else update_dict(scatter_kwargs, {"s": grp_size})
 
         for ind, cur_grp in enumerate(uniq_grp):
             group_median[ind, :] = np.nanmedian(
@@ -2312,11 +2337,7 @@ def scatters_single_input(
     if smooth and not is_not_continuous:
         main_debug("smooth and not continuous")
         knn = adata.obsp["moments_con"]
-        values = (
-            calc_1nd_moment(values, knn)[0]
-            if smooth in [1, True]
-            else calc_1nd_moment(values, knn ** smooth)[0]
-        )
+        values = calc_1nd_moment(values, knn)[0] if smooth in [1, True] else calc_1nd_moment(values, knn**smooth)[0]
 
     if affine_transform_A is None or affine_transform_b is None:
         point_coords = points.values
@@ -2404,8 +2425,7 @@ def scatters_single_input(
                 update_vel_params(adata, params_df=vel_params_df)
             ax.plot(
                 xnew,
-                xnew * adata[:, basis].var.loc[:, k_name].unique()
-                + adata[:, basis].var.loc[:, "gamma_b"].unique(),
+                xnew * adata[:, basis].var.loc[:, k_name].unique() + adata[:, basis].var.loc[:, "gamma_b"].unique(),
                 dashes=[6, 2],
                 c=font_color,
             )
@@ -2429,8 +2449,8 @@ def scatters_single_input(
                 group_points.iloc[:, 0].max() * 0.90,
             )
             group_ynew = (
-                    group_xnew * group_adata[:, basis].var.loc[:, group_k_name].unique()
-                    + group_adata[:, basis].var.loc[:, group_b_key].unique()
+                group_xnew * group_adata[:, basis].var.loc[:, group_k_name].unique()
+                + group_adata[:, basis].var.loc[:, group_b_key].unique()
             )
             ax.annotate(group + "_" + cur_group, xy=(group_xnew[-1], group_ynew[-1]))
             vel_params_df = get_vel_params(group_adata)
@@ -2532,6 +2552,7 @@ def _validate_parameters(
 
     return basis, background, color, layer, x, y, z, nrow, ncol, total_panels
 
+
 def _get_basis_key(
     adata: AnnData,
     basis: str,
@@ -2570,6 +2591,7 @@ def _get_basis_key(
     basis_key = prefix + basis
 
     return basis_key, cur_l_smoothed, cmap, sym_c
+
 
 def _get_color_parameters(
     adata: AnnData,
@@ -2628,8 +2650,7 @@ def _get_color_parameters(
         is_numeric_color = np.issubdtype(_color.dtype, np.number)
         if not is_numeric_color:
             main_info(
-                "skip filtering %s by stack threshold when stacking color because it is not a numeric type"
-                % color,
+                "skip filtering %s by stack threshold when stacking color because it is not a numeric type" % color,
                 indent_level=2,
             )
 
@@ -2739,9 +2760,11 @@ def _map_to_points(
         nonlocal gene_title, anno_title
 
         if is_gene_name(_adata, cur):
-            points_df_data = (_adata.obs_vector(k=cur, layer=None)
-                              if cur_l_smoothed == "X"
-                              else _adata.obs_vector(k=cur, layer=cur_l_smoothed))
+            points_df_data = (
+                _adata.obs_vector(k=cur, layer=None)
+                if cur_l_smoothed == "X"
+                else _adata.obs_vector(k=cur, layer=cur_l_smoothed)
+            )
             points_column = cur + " (" + cur_l_smoothed + ")"
             gene_title.append(cur)
         elif is_cell_anno_column(_adata, cur):
@@ -2784,11 +2807,13 @@ def _map_to_points(
             x_points_df_data, x_points_column = _map_cur_axis_to_title(axis_x, _adata, cur_b, cur_l_smoothed)
             y_points_df_data, y_points_column = _map_cur_axis_to_title(axis_y, _adata, cur_b, cur_l_smoothed)
             z_points_df_data, z_points_column = _map_cur_axis_to_title(axis_z, _adata, cur_b, cur_l_smoothed)
-            points = pd.DataFrame({
-                axis_x: x_points_df_data,
-                axis_y: y_points_df_data,
-                axis_z: z_points_df_data,
-            })
+            points = pd.DataFrame(
+                {
+                    axis_x: x_points_df_data,
+                    axis_y: y_points_df_data,
+                    axis_z: z_points_df_data,
+                }
+            )
             points.columns = [x_points_column, y_points_column, z_points_column]
 
         if len(gene_title) != 0:
@@ -2824,10 +2849,13 @@ def _map_to_points(
             y_points_df_data, y_points_column = _map_cur_axis_to_title(axis_y, _adata, cur_b, cur_l_smoothed)
             x_points_df_data = x_points_df_data.A.flatten() if issparse(x_points_df_data) else x_points_df_data
             y_points_df_data = y_points_df_data.A.flatten() if issparse(y_points_df_data) else y_points_df_data
-            points = pd.DataFrame({
-                axis_x: x_points_df_data,
-                axis_y: y_points_df_data,
-            }, index=_adata.obs_names)
+            points = pd.DataFrame(
+                {
+                    axis_x: x_points_df_data,
+                    axis_y: y_points_df_data,
+                },
+                index=_adata.obs_names,
+            )
             points.columns = [axis_x, axis_y]
 
         if len(gene_title) != 0:

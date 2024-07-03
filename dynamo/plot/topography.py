@@ -19,13 +19,11 @@ from ..dynamo_logger import LoggerManager
 from ..tools.cell_velocities import cell_velocities
 from ..tools.utils import nearest_neighbors, update_dict
 from ..vectorfield.scVectorField import BaseVectorField
-from ..vectorfield.topography import (  # , compute_separatrices
-    Topography2D,
-)
+from ..vectorfield.topography import Topography2D  # , compute_separatrices
 from ..vectorfield.topography import topography as _topology  # , compute_separatrices
 from ..vectorfield.utils import vecfld_from_adata
-from ..vectorfield.VectorField import VectorField
 from ..vectorfield.vector_calculus import curl, divergence
+from ..vectorfield.VectorField import VectorField
 from .scatters import docstrings, scatters, scatters_interactive
 from .utils import (
     _plot_traj,
@@ -33,9 +31,9 @@ from .utils import (
     default_quiver_args,
     quiver_autoscaler,
     retrieve_plot_save_path,
-    save_show_ret,
     save_plotly_figure,
     save_pyvista_plotter,
+    save_show_ret,
     set_arrow_alpha,
     set_stream_line_alpha,
 )
@@ -534,7 +532,8 @@ def plot_fixed_points(
                     ),
                     **kwargs,
                 ),
-                row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+                row=subplot_indices[cur_subplot][0] + 1,
+                col=subplot_indices[cur_subplot][1] + 1,
             )
 
         return save_plotly_figure(
@@ -592,7 +591,7 @@ def plot_traj(
     ax: Optional[Axes] = None,
 ) -> Optional[Axes]:
     """Plots a trajectory on a phase portrait.
-    
+
     Code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
     Args:
@@ -1306,7 +1305,9 @@ def topography(
                 **quiver_kwargs,
             )  # color='red',  facecolors='gray'
 
-    return save_show_ret("topography", save_show_or_return, save_kwargs, axes_list if len(axes_list) > 1 else axes_list[0])
+    return save_show_ret(
+        "topography", save_show_or_return, save_kwargs, axes_list if len(axes_list) > 1 else axes_list[0]
+    )
 
 
 # TODO: Implement more `terms` like streamline and trajectory for 3D topography
@@ -1567,7 +1568,6 @@ def topography_3D(
             max_[2] + (max_[2] - min_[2]) * 0.1,
         ]
 
-
     if init_cells is not None:
         if init_states is None:
             intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
@@ -1751,4 +1751,6 @@ def topography_3D(
                     cmap=marker_cmap,
                 )
 
-        return save_show_ret("topography", save_show_or_return, save_kwargs, axes_list if len(axes_list) > 1 else axes_list[0])
+        return save_show_ret(
+            "topography", save_show_or_return, save_kwargs, axes_list if len(axes_list) > 1 else axes_list[0]
+        )

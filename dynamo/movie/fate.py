@@ -25,6 +25,7 @@ class BaseAnim:
     vector field. Thus, it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
     fate commitment in action.
     """
+
     def __init__(
         self,
         adata: AnnData,
@@ -258,7 +259,9 @@ class StreamFuncAnim(BaseAnim):
             self.fig = fig
             self.ax = ax
 
-        (self.ln,) = self.ax.plot([], [], "ro", zs=[]) if dims is not None and len(dims) == 3 else self.ax.plot([], [], "ro")
+        (self.ln,) = (
+            self.ax.plot([], [], "ro", zs=[]) if dims is not None and len(dims) == 3 else self.ax.plot([], [], "ro")
+        )
 
     def init_background(self):
         """Initialize background of the animation."""
@@ -305,6 +308,7 @@ class StreamFuncAnim(BaseAnim):
 
 class StreamFuncAnim3D(StreamFuncAnim):
     """The class of 3D animation instance for matplotlib FuncAnimation function."""
+
     def update(self, frame):
         """The function to call at each frame. Update the position of the line object in the animation."""
         init_states = self.init_states
@@ -457,6 +461,7 @@ def animate_fates(
 
 class PyvistaAnim(BaseAnim):
     """The class for animating cell fate commitment prediction with pyvista."""
+
     def __init__(
         self,
         adata: AnnData,
@@ -567,6 +572,7 @@ class PyvistaAnim(BaseAnim):
 
 class PlotlyAnim(BaseAnim):
     """The class for animating cell fate commitment prediction with plotly."""
+
     def __init__(
         self,
         adata: AnnData,
@@ -665,11 +671,10 @@ class PlotlyAnim(BaseAnim):
 
         fig = go.Figure(
             data=self.pl,
-            layout=go.Layout(title="Moving Frenet Frame Along a Planar Curve",
-                             updatemenus=[dict(type="buttons",
-                                               buttons=[dict(label="Play",
-                                                             method="animate",
-                                                             args=[None])])]),
+            layout=go.Layout(
+                title="Moving Frenet Frame Along a Planar Curve",
+                updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None])])],
+            ),
             frames=[
                 go.Frame(
                     data=[
@@ -684,8 +689,9 @@ class PlotlyAnim(BaseAnim):
                             ),
                         )
                     ]
-                ) for k in range(1, self.n_steps)
-            ]
+                )
+                for k in range(1, self.n_steps)
+            ],
         )
 
         fig.show()

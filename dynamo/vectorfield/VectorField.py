@@ -13,9 +13,7 @@ from ..tools.utils import inverse_norm, update_dict
 from ..utils import copy_adata
 from .scVectorField import BaseVectorField, SvcVectorField
 from .topography import topography
-from .utils import (
-    angle,
-)
+from .utils import angle
 
 
 def VectorField(
@@ -139,6 +137,7 @@ def VectorField(
     elif method.lower() == "dynode":
         try:
             from dynode.vectorfield import Dynode  # networkModels,
+
             from .scVectorField import dynode_vectorfield
         except ImportError:
             raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
@@ -474,9 +473,11 @@ def _resume_training(
                 "Y": Y,
                 "V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].X_raw),
                 "grid_V": Dynode_obj.predict_velocity(Dynode_obj.Velocity["sampler"].Grid),
-                "valid_ind": Dynode_obj.Velocity["sampler"].valid_ind
-                if hasattr(Dynode_obj.Velocity["sampler"], "valid_ind")
-                else np.arange(X.shape[0]),
+                "valid_ind": (
+                    Dynode_obj.Velocity["sampler"].valid_ind
+                    if hasattr(Dynode_obj.Velocity["sampler"], "valid_ind")
+                    else np.arange(X.shape[0])
+                ),
                 "parameters": Dynode_obj.Velocity,
                 "dynode_object": VecFld,
             }

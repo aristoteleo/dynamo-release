@@ -703,9 +703,7 @@ def default_layer(adata: anndata.AnnData) -> str:
             default_layer = (
                 "M_s"
                 if "M_s" in adata.layers.keys()
-                else "X_spliced"
-                if "X_spliced" in adata.layers.keys()
-                else "spliced"
+                else "X_spliced" if "X_spliced" in adata.layers.keys() else "spliced"
             )
     else:
         default_layer = (

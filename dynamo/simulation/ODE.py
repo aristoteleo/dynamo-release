@@ -75,9 +75,7 @@ def hill_act_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float
     return A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
-def toggle(
-    ab: Union[np.ndarray, Tuple[float, float]], beta: float = 5, gamma: float = 1, n: int = 2
-) -> np.ndarray:
+def toggle(ab: Union[np.ndarray, Tuple[float, float]], beta: float = 5, gamma: float = 1, n: int = 2) -> np.ndarray:
     """Calculates the right-hand side (RHS) of the differential equations for the toggle switch system.
 
     Args:
@@ -234,7 +232,7 @@ def jacobian_bifur2genes(
     K: List[float] = [0.5, 0.5],
     m: List[float] = [4, 4],
     n: List[float] = [4, 4],
-    gamma: List[float] = [1, 1]
+    gamma: List[float] = [1, 1],
 ) -> np.ndarray:
     """The Jacobian of the toggle switch ODE model.
 
@@ -497,9 +495,7 @@ def neurongenesis(
         dx[:, 5] = a * (x[:, 0] ** n) / (1 + x[:, 0] ** n + x[:, 1] ** n) - k * x[:, 5]
         dx[:, 6] = a_e * (eta**n * x[:, 5] ** n) / (1 + eta**n * x[:, 5] ** n + x[:, 7] ** n) - k * x[:, 6]
         dx[:, 7] = a_e * (eta**n * x[:, 5] ** n) / (1 + x[:, 6] ** n + eta**n * x[:, 5] ** n) - k * x[:, 7]
-        dx[:, 8] = (
-            a * (eta**n * x[:, 5] ** n * x[:, 6] ** n) / (1 + eta**n * x[:, 5] ** n * x[:, 6] ** n) - k * x[:, 8]
-        )
+        dx[:, 8] = a * (eta**n * x[:, 5] ** n * x[:, 6] ** n) / (1 + eta**n * x[:, 5] ** n * x[:, 6] ** n) - k * x[:, 8]
         dx[:, 9] = a * (x[:, 7] ** n) / (1 + x[:, 7] ** n) - k * x[:, 9]
         dx[:, 10] = a_e * (x[:, 8] ** n) / (1 + x[:, 8] ** n) - k * x[:, 10]
         dx[:, 11] = a * (eta_m**n * x[:, 7] ** n) / (1 + eta_m**n * x[:, 7] ** n) - k * x[:, 11]

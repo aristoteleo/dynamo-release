@@ -86,11 +86,7 @@ def scribe(
     str_format = (
         "upper"
         if adata.var_names[0].isupper()
-        else "lower"
-        if adata.var_names[0].islower()
-        else "title"
-        if adata.var_names[0].istitle()
-        else "other"
+        else "lower" if adata.var_names[0].islower() else "title" if adata.var_names[0].istitle() else "other"
     )
 
     motifAnnotations_hgnc = pd.read_csv(motif_ref, sep="\t")

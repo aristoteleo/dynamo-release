@@ -247,7 +247,11 @@ def calc_dispersion_by_svr(
         adata_ori.uns[key] = {"mean": mean, "cv": cv, "svr_gamma": svr_gamma}
 
         prefix = "" if layer == "X" else layer + "_"
-        (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
+        (
+            adata.var[prefix + "log_m"],
+            adata.var[prefix + "log_cv"],
+            adata.var[prefix + "score"],
+        ) = (
             np.nan,
             np.nan,
             -np.inf,
@@ -602,8 +606,8 @@ def select_genes_by_seurat_recipe(
 
             chunked_mean, chunked_var = seurat_get_mean_var(layer_mat)
 
-            mean[mat_data[1]:mat_data[2]] = chunked_mean
-            variance[mat_data[1]:mat_data[2]] = chunked_var
+            mean[mat_data[1] : mat_data[2]] = chunked_mean
+            variance[mat_data[1] : mat_data[2]] = chunked_var
 
         mean, variance, highly_variable_mask = select_genes_by_seurat_dispersion(
             mean=mean,

@@ -7,13 +7,13 @@ from scipy import interpolate
 from scipy.integrate import solve_ivp
 from tqdm import tqdm
 
-from .trajectory import Trajectory
 from ..dynamo_logger import main_warning
 from ..tools.utils import log1p_, nearest_neighbors
 from ..utils import isarray, normalize
 
 # import scipy.sparse as sp
 from ..vectorfield.topography import dup_osc_idx_iter
+from .trajectory import Trajectory
 
 # ---------------------------------------------------------------------------------------------------
 # initial state related
@@ -253,7 +253,7 @@ def integrate_vf_ivp(
 
         t = [t] * n_cell
         subarray_width = Y.shape[1] // n_cell
-        Y = [Y[:, i * subarray_width: (i + 1) * subarray_width] for i in range(n_cell)]
+        Y = [Y[:, i * subarray_width : (i + 1) * subarray_width] for i in range(n_cell)]
 
     return t, Y
 

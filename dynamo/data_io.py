@@ -78,7 +78,11 @@ def convert2float(adata: AnnData, columns: List, var: bool = False) -> None:
 
 
 def load_NASC_seq(
-    dir: str, type: str = "TPM", delimiter: str = "_", colnames: Optional[List] = None, dropna: bool = False,
+    dir: str,
+    type: str = "TPM",
+    delimiter: str = "_",
+    colnames: Optional[List] = None,
+    dropna: bool = False,
 ) -> AnnData:
     """Function to create an anndata object from NASC-seq pipeline.
 
@@ -323,7 +327,10 @@ def cleanup(adata: AnnData, del_prediction: bool = False, del_2nd_moments: bool 
 
 
 def export_rank_xlsx(
-    adata: AnnData, path: str = "rank_info.xlsx", ext: str = "excel", rank_prefix: str = "rank",
+    adata: AnnData,
+    path: str = "rank_info.xlsx",
+    ext: str = "excel",
+    rank_prefix: str = "rank",
 ) -> None:
     import pandas as pd
 
@@ -373,15 +380,16 @@ def export_h5ad(adata: AnnData, path: str = "data/processed_data.h5ad") -> None:
     for i in fate_keys:
         if i is not None:
             if "prediction" in adata.uns[i].keys():
-                adata.uns[i]["prediction"] = {str(index): array for index, array in
-                                              enumerate(adata.uns[i]["prediction"])}
+                adata.uns[i]["prediction"] = {
+                    str(index): array for index, array in enumerate(adata.uns[i]["prediction"])
+                }
             if "t" in adata.uns[i].keys():
                 adata.uns[i]["t"] = {str(index): array for index, array in enumerate(adata.uns[i]["t"])}
 
     adata.write_h5ad(path)
 
 
-def import_h5ad(path: str ="data/processed_data.h5ad") -> AnnData:
+def import_h5ad(path: str = "data/processed_data.h5ad") -> AnnData:
     """Import a Dynamo h5ad object into anndata."""
 
     adata = read_h5ad(path)
@@ -397,4 +405,3 @@ def import_h5ad(path: str ="data/processed_data.h5ad") -> AnnData:
                 adata.uns[i]["t"] = [adata.uns[i]["t"][index] for index in adata.uns[i]["t"]]
 
     return adata
-

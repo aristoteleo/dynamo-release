@@ -1,8 +1,7 @@
-from typing import Optional
-
 import ntpath
 import os
 from pathlib import Path
+from typing import Optional
 from urllib.request import urlretrieve
 
 import pandas as pd
@@ -50,7 +49,7 @@ def get_adata(url: str, filename: Optional[str] = None) -> Optional[AnnData]:
             main_info("REPORT THIS: Unknown filetype (" + file_path + ")")
 
         adata.var_names_make_unique()
-    except OSError: 
+    except OSError:
         # Usually occurs when download is stopped before completion then attempted again.
         main_info("Corrupted file. Deleting " + file_path + " then redownloading...")
         # Half-downloaded file cannot be read due to corruption so it's better to delete it.
@@ -210,7 +209,7 @@ def BM(
 
 
 def pancreatic_endocrinogenesis(
-    url: str ="https://github.com/theislab/scvelo_notebooks/raw/master/data/Pancreas/endocrinogenesis_day15.h5ad",
+    url: str = "https://github.com/theislab/scvelo_notebooks/raw/master/data/Pancreas/endocrinogenesis_day15.h5ad",
     filename: Optional[str] = None,
 ) -> AnnData:
     """Pancreatic endocrinogenesis. Data from scvelo.

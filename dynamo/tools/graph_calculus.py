@@ -1,4 +1,5 @@
 """This file implements the graph calculus functions using matrix as input."""
+
 from typing import Callable, List, Optional, Tuple, Union
 
 try:
@@ -12,9 +13,9 @@ from scipy.linalg import qr
 from scipy.optimize import lsq_linear, minimize
 from sklearn.neighbors import NearestNeighbors
 
-from .connectivity import k_nearest_neighbors
 from ..dynamo_logger import main_info, main_warning
 from ..tools.utils import projection_with_transition_matrix
+from .connectivity import k_nearest_neighbors
 from .utils import (
     elem_prod,
     flatten,
@@ -181,6 +182,7 @@ def graphize_velocity_coopt(
         else:
             sim = 0
         return sim
+
     def func(w, v, D, kernel, mat, mat_norm):
         """Wrap up main operations in the object function to minimize."""
         v_ = w @ D
@@ -202,9 +204,7 @@ def graphize_velocity_coopt(
         elif loss_func == "log":
             rec = np.log(rec)
         else:
-            raise NotImplementedError(
-                f"The function {loss_func} is not supported. Choose either `linear` or `log`."
-            )
+            raise NotImplementedError(f"The function {loss_func} is not supported. Choose either `linear` or `log`.")
 
         # regularization
         reg = 0 if r == 0 else w.dot(w)
@@ -217,7 +217,7 @@ def graphize_velocity_coopt(
         v_ = w @ D
         if kernel == "U":
             v_norm = np.linalg.norm(v_)
-            mat_ = mat/mat_norm
+            mat_ = mat / mat_norm
 
         # reconstruction error
         jac_con = 2 * a * D @ (v_ - v)
@@ -230,10 +230,10 @@ def graphize_velocity_coopt(
         # cosine similarity
         if kernel == "C":
             w_norm = np.linalg.norm(w)
-            if w_norm == 0 or b == 0 or c_norm==0:
+            if w_norm == 0 or b == 0 or c_norm == 0:
                 jac_sim = 0
             else:
-                jac_sim = b * (mat / (w_norm * mat_norm) - w.dot(mat) / (w_norm ** 3 * mat_norm) * w)
+                jac_sim = b * (mat / (w_norm * mat_norm) - w.dot(mat) / (w_norm**3 * mat_norm) * w)
         elif kernel == "U":
             if v_norm == 0 or b == 0:
                 jac_sim = 0
@@ -293,9 +293,7 @@ def graphize_velocity_coopt(
             res = minimize(func_u, x0=D @ v, jac=fjac_u, bounds=bounds)
             E[i][idx] = res["x"]
     else:
-        raise NotImplementedError(
-            f"Optimization method is not supported. Please provide one of U or C."
-        )
+        raise NotImplementedError(f"Optimization method is not supported. Please provide one of U or C.")
     return E
 
 
@@ -487,7 +485,7 @@ def fp_operator(
         if E is not None:
             L = calc_laplacian(E, E=E, convention="diffusion", weight_mode="naive")
         else:
-            L =  calc_laplacian(F, E=E, convention="diffusion", weight_mode="naive")
+            L = calc_laplacian(F, E=E, convention="diffusion", weight_mode="naive")
     else:
         L = calc_laplacian(W, E=E, convention="diffusion", weight_mode=weight_mode)
 
@@ -552,7 +550,10 @@ def potential(
 
 
 def divergence(
-    E: np.ndarray, W: Optional[np.ndarray] = None, method: Literal["direct", "operator"] = "operator", weighted: bool = False
+    E: np.ndarray,
+    W: Optional[np.ndarray] = None,
+    method: Literal["direct", "operator"] = "operator",
+    weighted: bool = False,
 ) -> np.ndarray:
     """Calculate the divergence of a weighted graph.
 
@@ -582,9 +583,11 @@ def divergence(
             W = abs(E.sign()) if sp.issparse(E) else np.abs(np.sign(E))
         # W = np.abs(np.sign(E)) if W is None else W
         if weighted:
-            div = (divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()].A1
-                   if sp.issparse(E)
-                   else divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()])
+            div = (
+                divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()].A1
+                if sp.issparse(E)
+                else divop(W) @ elem_prod(E, np.sqrt(W))[W.nonzero()]
+            )
         else:
             div = divop(W) @ E[W.nonzero()].A1 if sp.issparse(E) else divop(W) @ E[W.nonzero()]
     else:

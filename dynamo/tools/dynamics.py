@@ -27,8 +27,8 @@ from ..dynamo_logger import (
 from ..estimation.csc.utils_velocity import solve_alpha_2p_mat
 from ..estimation.csc.velocity import Velocity, fit_linreg, ss_estimation
 from ..estimation.tsc.estimation_kinetic import *
-from ..estimation.tsc.twostep import fit_slope_stochastic, lin_reg_gamma_synthesis
 from ..estimation.tsc.ODEs import *
+from ..estimation.tsc.twostep import fit_slope_stochastic, lin_reg_gamma_synthesis
 from .moments import (
     moments,
     prepare_data_deterministic,
@@ -294,7 +294,13 @@ def dynamics(
         raise ValueError(f"\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
     if tkey is None:
         tkey = adata.uns["pp"]["tkey"]
-    (experiment_type, has_splicing, has_labeling, splicing_labeling, has_protein,) = (
+    (
+        experiment_type,
+        has_splicing,
+        has_labeling,
+        splicing_labeling,
+        has_protein,
+    ) = (
         adata.uns["pp"]["experiment_type"],
         adata.uns["pp"]["has_splicing"],
         adata.uns["pp"]["has_labeling"],
@@ -727,7 +733,15 @@ def dynamics(
                 est_method = "direct"
             data_type = "smoothed" if use_smoothed else "sfs"
 
-            (params, half_life, cost, logLL, param_ranges, cur_X_data, cur_X_fit_data,) = kinetic_model(
+            (
+                params,
+                half_life,
+                cost,
+                logLL,
+                param_ranges,
+                cur_X_data,
+                cur_X_fit_data,
+            ) = kinetic_model(
                 subset_adata,
                 tkey,
                 model,

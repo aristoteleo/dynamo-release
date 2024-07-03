@@ -5,7 +5,11 @@ from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from ..tools.connectivity import generate_neighbor_keys, check_and_recompute_neighbors, k_nearest_neighbors
+from ..tools.connectivity import (
+    check_and_recompute_neighbors,
+    generate_neighbor_keys,
+    k_nearest_neighbors,
+)
 from ..tools.utils import log1p_
 from .utils import VecFldDict, vecfld_from_adata, vector_field_function
 

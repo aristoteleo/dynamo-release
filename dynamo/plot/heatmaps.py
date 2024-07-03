@@ -362,8 +362,8 @@ def response(
         x, y_ori = x[valid_ids], y_ori[valid_ids]
 
         if log:
-            x, y_ori = x if sum(x < 0) else np.log(np.array(x) + 1), y_ori if sum(y_ori) < 0 else np.log(
-                np.array(y_ori) + 1
+            x, y_ori = x if sum(x < 0) else np.log(np.array(x) + 1), (
+                y_ori if sum(y_ori) < 0 else np.log(np.array(y_ori) + 1)
             )
 
         if delay != 0:

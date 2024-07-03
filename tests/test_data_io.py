@@ -1,10 +1,11 @@
 import os
 
 import numpy as np
+import pytest
 
 import dynamo
 import dynamo as dyn
-import pytest
+
 # import utils
 
 

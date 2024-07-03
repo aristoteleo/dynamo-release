@@ -291,8 +291,7 @@ def filter_cells_by_highly_variable_genes(
     """
     if high_var_genes_key not in adata.var.keys():
         raise ValueError(
-            "The key %s is not found in adata.var. Please run genes selection methods first."
-            % high_var_genes_key
+            "The key %s is not found in adata.var. Please run genes selection methods first." % high_var_genes_key
         )
 
     if obs_store_key not in adata.obs.keys():

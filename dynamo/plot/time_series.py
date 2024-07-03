@@ -449,7 +449,7 @@ def kinetic_heatmap(
         vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
         sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
-    return save_show_ret("kinetic_heatmap", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)
+    return save_show_ret("kinetic_heatmap", save_show_or_return, save_kwargs, sns_heatmap, adjust=show_colorbar)
 
 
 def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
@@ -675,7 +675,7 @@ def jacobian_kinetics(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
         ClusterGrid would be returned.
-    
+
     Examples:
         >>> import dynamo as dyn
         >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
@@ -803,7 +803,7 @@ def jacobian_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    return save_show_ret("jacobian_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)
+    return save_show_ret("jacobian_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust=show_colorbar)
 
 
 @docstrings.with_indent(4)
@@ -872,7 +872,7 @@ def sensitivity_kinetics(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
         ClusterGrid would be returned.
-        
+
     Examples:
         >>> import dynamo as dyn
         >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
@@ -1000,4 +1000,4 @@ def sensitivity_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    return save_show_ret("sensitivity_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)
+    return save_show_ret("sensitivity_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust=show_colorbar)
