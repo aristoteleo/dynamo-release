@@ -105,7 +105,7 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: List
     Returns:
         The Z-scored expression data.
     """
-
+    from ..tools.utils import log1p_
     tmp = adata.var_names.intersection(gene_list)
     # use indices
     intersect_genes = [adata.var_names.get_loc(i) for i in tmp]
