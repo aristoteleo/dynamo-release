@@ -30,6 +30,7 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
         the mean expression of all genes in the list.
     """
     from ..tools.utils import einsum_correlation, log1p_
+
     # returns list of correlations of each gene within a list of genes with the total expression of the group
     tmp = adata.var_names.intersection(gene_list)
     # get the location of gene names
@@ -106,6 +107,7 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: List
         The Z-scored expression data.
     """
     from ..tools.utils import log1p_
+
     tmp = adata.var_names.intersection(gene_list)
     # use indices
     intersect_genes = [adata.var_names.get_loc(i) for i in tmp]
