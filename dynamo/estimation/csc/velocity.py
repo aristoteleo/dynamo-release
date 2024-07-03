@@ -662,14 +662,7 @@ class ss_estimation:
                             bs,
                             bf,
                         ) = zip(*res)
-                        (
-                            gamma,
-                            gamma_intercept,
-                            gamma_r2,
-                            gamma_logLL,
-                            bs,
-                            bf,
-                        ) = (
+                        (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf,) = (
                             np.array(gamma),
                             np.array(gamma_intercept),
                             np.array(gamma_r2),
@@ -755,14 +748,7 @@ class ss_estimation:
                             bs,
                             bf,
                         ) = zip(*res)
-                        (
-                            gamma,
-                            gamma_intercept,
-                            gamma_r2,
-                            gamma_logLL,
-                            bs,
-                            bf,
-                        ) = (
+                        (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf,) = (
                             np.array(gamma),
                             np.array(gamma_intercept),
                             np.array(gamma_r2),
@@ -850,11 +836,7 @@ class ss_estimation:
                         uu_m, uu_v, _ = calc_12_mom_labeling(self.data["uu"], self.t)
                         if cores == 1:
                             for i in tqdm(range(n_genes), desc="estimating alpha"):
-                                (
-                                    alpha[i],
-                                    alpha_b[i],
-                                    alpha_r2[i],
-                                ) = fit_alpha_degradation(
+                                (alpha[i], alpha_b[i], alpha_r2[i],) = fit_alpha_degradation(
                                     t_uniq,
                                     uu_m[i],
                                     self.parameters["gamma"][i],
@@ -1046,10 +1028,7 @@ class ss_estimation:
                                             total,
                                         ),
                                     )
-                                (
-                                    self.aux_param["total0"],
-                                    self.parameters["gamma"],
-                                ) = (
+                                (self.aux_param["total0"], self.parameters["gamma"],) = (
                                     total0,
                                     gamma,
                                 )
@@ -1086,14 +1065,7 @@ class ss_estimation:
                                     if issparse(self.data["ul"])
                                     else np.zeros_like(self.data["ul"].shape)
                                 )
-                                (
-                                    t_uniq,
-                                    gamma,
-                                    gamma_k,
-                                    gamma_intercept,
-                                    gamma_r2,
-                                    gamma_logLL,
-                                ) = (
+                                (t_uniq, gamma, gamma_k, gamma_intercept, gamma_r2, gamma_logLL,) = (
                                     np.unique(self.t),
                                     np.zeros(n_genes),
                                     np.zeros(n_genes),
@@ -1141,12 +1113,7 @@ class ss_estimation:
                                         _,
                                         gamma_logLL,
                                     ) = zip(*res1)
-                                    (
-                                        gamma_k,
-                                        gamma_intercept,
-                                        gamma_r2,
-                                        gamma_logLL,
-                                    ) = (
+                                    (gamma_k, gamma_intercept, gamma_r2, gamma_logLL,) = (
                                         np.array(gamma_k),
                                         np.array(gamma_intercept),
                                         np.array(gamma_r2),
@@ -1500,11 +1467,7 @@ class ss_estimation:
                         # gamma_3 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == np.max(self.t)], tmp) # sci-fate
                         gamma[i] = gamma_2
                         # print('Steady state, stimulation, sci-fate like gamma values are ', gamma_1, '; ', gamma_2, '; ', gamma_3)
-                    (
-                        self.parameters["gamma"],
-                        self.aux_param["U0"],
-                        self.parameters["beta"],
-                    ) = (
+                    (self.parameters["gamma"], self.aux_param["U0"], self.parameters["beta"],) = (
                         gamma,
                         U,
                         np.ones(gamma.shape),
@@ -1521,12 +1484,7 @@ class ss_estimation:
 
             if self.asspt_prot.lower() == "ss" and n_genes > 0:
                 self.parameters["eta"] = np.ones(n_genes)
-                (
-                    delta,
-                    delta_intercept,
-                    delta_r2,
-                    delta_logLL,
-                ) = (
+                (delta, delta_intercept, delta_r2, delta_logLL,) = (
                     np.zeros(n_genes),
                     np.zeros(n_genes),
                     np.zeros(n_genes),

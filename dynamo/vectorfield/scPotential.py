@@ -183,19 +183,7 @@ class Pot:
                 "A": A,
             }
         elif method == "Bhattacharya":
-            (
-                _,
-                _,
-                _,
-                _,
-                numPaths,
-                numTimeSteps,
-                pot_path,
-                path_tag,
-                attractors_pot,
-                x_path,
-                y_path,
-            ) = path_integral(
+            (_, _, _, _, numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path,) = path_integral(
                 self.VecFld["Function"],
                 x_lim=x_lim,
                 y_lim=y_lim,
@@ -228,15 +216,7 @@ class Pot:
                 self.VecFld["Function"],
                 self.VecFld["DiffusionMatrix"],
             )
-            (
-                boundary,
-                n_points,
-                fixed_point_only,
-                find_fixed_points,
-                refpoint,
-                stable,
-                saddle,
-            ) = (
+            (boundary, n_points, fixed_point_only, find_fixed_points, refpoint, stable, saddle,) = (
                 self.parameters["boundary"],
                 self.parameters["n_points"],
                 self.parameters["fixed_point_only"],

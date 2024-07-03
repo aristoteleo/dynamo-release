@@ -126,12 +126,7 @@ def moments(
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 if group is None:
-                    (
-                        kNN,
-                        knn_indices,
-                        knn_dists,
-                        _,
-                    ) = umap_conn_indices_dist_embedding(
+                    (kNN, knn_indices, knn_dists, _,) = umap_conn_indices_dist_embedding(
                         X,
                         n_neighbors=np.min((n_neighbors, adata.n_obs - 1)),
                         return_mapper=False,
@@ -151,12 +146,7 @@ def moments(
                     for cur_grp in uniq_grp:
                         cur_cells = cells_group == cur_grp
                         cur_X = X[cur_cells, :]
-                        (
-                            cur_kNN,
-                            cur_knn_indices,
-                            cur_knn_dists,
-                            _,
-                        ) = umap_conn_indices_dist_embedding(
+                        (cur_kNN, cur_knn_indices, cur_knn_dists, _,) = umap_conn_indices_dist_embedding(
                             cur_X,
                             n_neighbors=np.min((n_neighbors, sum(cur_cells) - 1)),
                             return_mapper=False,

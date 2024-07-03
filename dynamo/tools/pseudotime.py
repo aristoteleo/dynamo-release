@@ -97,9 +97,12 @@ def order_cells(
     root_cell = select_root_cell(adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse)
     cc_ordering = get_order_from_DDRTree(dp=dp, mst=mst, root_cell=root_cell)
 
-    (cellPairwiseDistances, pr_graph_cell_proj_dist, pr_graph_cell_proj_closest_vertex, pr_graph_cell_proj_tree) = (
-        project2MST(mst, Z, Y, project_point_to_line_segment)
-    )
+    (
+        cellPairwiseDistances,
+        pr_graph_cell_proj_dist,
+        pr_graph_cell_proj_closest_vertex,
+        pr_graph_cell_proj_tree,
+    ) = project2MST(mst, Z, Y, project_point_to_line_segment)
 
     adata.uns["cell_order"]["root_cell"] = root_cell
     adata.uns["cell_order"]["centers_order"] = cc_ordering["orders"].values

@@ -1306,16 +1306,7 @@ def get_data_for_kin_params_estimation(
             )
         NTR_vel = True
 
-    (
-        U,
-        Ul,
-        S,
-        Sl,
-        P,
-        US,
-        U2,
-        S2,
-    ) = (
+    (U, Ul, S, Sl, P, US, U2, S2,) = (
         None,
         None,
         None,

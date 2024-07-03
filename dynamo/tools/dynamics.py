@@ -294,13 +294,7 @@ def dynamics(
         raise ValueError(f"\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
     if tkey is None:
         tkey = adata.uns["pp"]["tkey"]
-    (
-        experiment_type,
-        has_splicing,
-        has_labeling,
-        splicing_labeling,
-        has_protein,
-    ) = (
+    (experiment_type, has_splicing, has_labeling, splicing_labeling, has_protein,) = (
         adata.uns["pp"]["experiment_type"],
         adata.uns["pp"]["has_splicing"],
         adata.uns["pp"]["has_labeling"],
@@ -733,15 +727,7 @@ def dynamics(
                 est_method = "direct"
             data_type = "smoothed" if use_smoothed else "sfs"
 
-            (
-                params,
-                half_life,
-                cost,
-                logLL,
-                param_ranges,
-                cur_X_data,
-                cur_X_fit_data,
-            ) = kinetic_model(
+            (params, half_life, cost, logLL, param_ranges, cur_X_data, cur_X_fit_data,) = kinetic_model(
                 subset_adata,
                 tkey,
                 model,

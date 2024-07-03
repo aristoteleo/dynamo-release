@@ -246,7 +246,9 @@ def calculate_colors(
             else (
                 np.nanpercentile(values, vmin * 100)
                 if (vmin + vmax == 1 and 0 <= vmin < vmax)
-                else np.nanpercentile(values, vmin) if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmin
+                else np.nanpercentile(values, vmin)
+                if (vmin + vmax == 100 and 0 <= vmin < vmax)
+                else vmin
             )
         )
         _vmax = (
@@ -255,7 +257,9 @@ def calculate_colors(
             else (
                 np.nanpercentile(values, vmax * 100)
                 if (vmin + vmax == 1 and 0 <= vmin < vmax)
-                else np.nanpercentile(values, vmax) if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmax
+                else np.nanpercentile(values, vmax)
+                if (vmin + vmax == 100 and 0 <= vmin < vmax)
+                else vmax
             )
         )
 
@@ -663,7 +667,9 @@ def _matplotlib_points(
             else (
                 np.nanpercentile(values, vmin * 100)
                 if (vmin + vmax == 1 and 0 <= vmin < vmax)
-                else np.nanpercentile(values, vmin) if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmin
+                else np.nanpercentile(values, vmin)
+                if (vmin + vmax == 100 and 0 <= vmin < vmax)
+                else vmin
             )
         )
         _vmax = (
@@ -672,7 +678,9 @@ def _matplotlib_points(
             else (
                 np.nanpercentile(values, vmax * 100)
                 if (vmin + vmax == 1 and 0 <= vmin < vmax)
-                else np.nanpercentile(values, vmax) if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmax
+                else np.nanpercentile(values, vmax)
+                if (vmin + vmax == 100 and 0 <= vmin < vmax)
+                else vmax
             )
         )
 
@@ -934,10 +942,7 @@ def _datashade_points(
                     data["label"] == "other",
                 )
                 reorder_data = data.copy(deep=True)
-                (
-                    reorder_data.iloc[: sum(background_ids), :],
-                    reorder_data.iloc[sum(background_ids) :, :],
-                ) = (
+                (reorder_data.iloc[: sum(background_ids), :], reorder_data.iloc[sum(background_ids) :, :],) = (
                     data.loc[background_ids, :],
                     data.loc[highlight_ids, :],
                 )

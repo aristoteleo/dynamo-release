@@ -1837,10 +1837,7 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
     else:
         if log_unnormalized and "X_total" not in subset_adata.layers.keys():
             if issparse(subset_adata.layers["total"]):
-                (
-                    subset_adata.layers["new"].data,
-                    subset_adata.layers["total"].data,
-                ) = (
+                (subset_adata.layers["new"].data, subset_adata.layers["total"].data,) = (
                     np.log1p(subset_adata.layers["new"].data),
                     np.log1p(subset_adata.layers["total"].data),
                 )

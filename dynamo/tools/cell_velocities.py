@@ -456,13 +456,7 @@ def cell_velocities(
 
         if calc_rnd_vel:
             permute_rows_nsign(V)
-            (
-                T_rnd,
-                delta_X_rnd,
-                X_grid_rnd,
-                V_grid_rnd,
-                D_rnd,
-            ) = kernels_from_velocyto_scvelo(
+            (T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd,) = kernels_from_velocyto_scvelo(
                 X,
                 X_embedding,
                 V,

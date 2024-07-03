@@ -1629,14 +1629,7 @@ def dynamics(
                     mom.integrate(t)
                     mom_data = mom.get_all_central_moments() if has_splicing else mom.get_nosplice_central_moments()
                     if true_param_prefix is not None:
-                        (
-                            true_a,
-                            true_b,
-                            true_alpha_a,
-                            true_alpha_i,
-                            true_beta,
-                            true_gamma,
-                        ) = (
+                        (true_a, true_b, true_alpha_a, true_alpha_i, true_beta, true_gamma,) = (
                             (
                                 vel_params_df.loc[gene_name, true_param_prefix + "a"]
                                 if true_param_prefix + "a" in vel_params_df.columns
@@ -1883,15 +1876,7 @@ def dynamics(
                                 np.log1p(sl),
                             )
 
-                        (
-                            alpha,
-                            beta,
-                            gamma,
-                            ul0,
-                            sl0,
-                            uu0,
-                            half_life,
-                        ) = vel_params_df.loc[
+                        (alpha, beta, gamma, ul0, sl0, uu0, half_life,) = vel_params_df.loc[
                             gene_name,
                             [
                                 prefix + "alpha",

@@ -729,10 +729,7 @@ def diff_test_helper(
     data: pd.DataFrame,
     fullModelFormulaStr: str = "~cr(time, df=3)",
     reducedModelFormulaStr: str = "~1",
-) -> Union[
-    Tuple[Literal["fail"], Literal["NB2"], Literal[1]],
-    Tuple[Literal["ok"], Literal["NB2"], np.ndarray],
-]:
+) -> Union[Tuple[Literal["fail"], Literal["NB2"], Literal[1]], Tuple[Literal["ok"], Literal["NB2"], np.ndarray],]:
     """A helper function to generate required data fields for differential gene expression test.
 
     Args:

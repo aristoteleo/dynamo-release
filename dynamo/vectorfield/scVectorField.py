@@ -1012,12 +1012,7 @@ class SvcVectorField(DifferentiableVectorField):
 
         if self.normalize:
             X_norm, V_norm, T_norm, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
-            (
-                self.data["X"],
-                self.data["V"],
-                self.data["Grid"],
-                self.norm_dict,
-            ) = (
+            (self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict,) = (
                 X_norm,
                 V_norm,
                 T_norm,
