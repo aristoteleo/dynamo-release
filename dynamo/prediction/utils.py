@@ -8,7 +8,6 @@ from scipy.integrate import solve_ivp
 from tqdm import tqdm
 
 from ..dynamo_logger import main_warning
-from ..tools.utils import log1p_, nearest_neighbors
 from ..utils import isarray, normalize
 
 # import scipy.sparse as sp
@@ -335,6 +334,8 @@ def estimate_sigma(
     Returns:
         The estimated diffusion matrix.
     """
+    from ..tools.utils import nearest_neighbors
+    
     if nbr_idx is None:
         nbr_idx = nearest_neighbors(X, X, k=num_nbrs)
 
@@ -450,6 +451,7 @@ def fetch_exprs(
     Returns:
         The expression data for the given genes and time points.
     """
+    from ..tools.utils import log1p_
     if type(genes) != list:
         genes = list(genes)
 

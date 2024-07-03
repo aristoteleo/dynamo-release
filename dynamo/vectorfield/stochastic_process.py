@@ -10,7 +10,7 @@ from ..tools.connectivity import (
     generate_neighbor_keys,
     k_nearest_neighbors,
 )
-from ..tools.utils import log1p_
+
 from .utils import VecFldDict, vecfld_from_adata, vector_field_function
 
 
@@ -47,6 +47,8 @@ def diffusionMatrix(
             the diffusion matrix for each cell. A column `diffusion` corresponds to the square root of the sum of all
             elements for each cell's diffusion matrix will also be added.
     """
+    
+    from ..tools.utils import log1p_
 
     if X_data is None or V_data is not None:
         if genes is not None:

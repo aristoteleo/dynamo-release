@@ -1,8 +1,6 @@
 import numpy as np
 from sklearn.metrics import mean_squared_error
 
-from ..tools.utils import einsum_correlation
-
 
 def evaluate(reference: np.ndarray, prediction: np.ndarray, metric: str = "cosine") -> float:
     """Function to evaluate the vector field related reference quantities vs. that from vector field prediction.
@@ -17,7 +15,7 @@ def evaluate(reference: np.ndarray, prediction: np.ndarray, metric: str = "cosin
     Returns:
         res: The score between the reference vs. reconstructed quantities based on the metric.
     """
-
+    from ..tools.utils import einsum_correlation
     if metric == "cosine":
         true_normalized = reference / (np.linalg.norm(reference, axis=1).reshape(-1, 1) + 1e-20)
         predict_normalized = prediction / (np.linalg.norm(prediction, axis=1).reshape(-1, 1) + 1e-20)
