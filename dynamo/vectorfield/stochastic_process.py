@@ -10,7 +10,6 @@ from ..tools.connectivity import (
     generate_neighbor_keys,
     k_nearest_neighbors,
 )
-
 from .utils import VecFldDict, vecfld_from_adata, vector_field_function
 
 
