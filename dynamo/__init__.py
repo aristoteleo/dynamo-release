@@ -10,7 +10,19 @@ del get_version
 #
 # __version__ = get_dynamo_version()
 
-from . import configuration, est, ext, mv, pd, pl, pp, sample_data, shiny, sim, tl, vf
+from . import pp
+from . import est
+from . import tl
+from . import vf
+from . import pd
+from . import pl
+from . import mv
+from . import shiny
+from . import sim
+from . import sample_data
+from . import configuration
+from . import ext
+
 from .data_io import *
 from .dynamo_logger import (
     Logger,
