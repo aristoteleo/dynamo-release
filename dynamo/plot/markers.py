@@ -259,7 +259,7 @@ def bubble(
                 linewidth=None,
                 palette=color_key,
                 inner="box",
-                scale="width",
+                density_norm="width",
                 cut=0,
                 ax=axes[igene],
                 alpha=alpha,
