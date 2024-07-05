@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 from scipy.sparse import csr_matrix
-from scipy.sparse.base import issparse
+from scipy.sparse import issparse
 
 from ..configuration import DKM
 from ..dynamo_logger import (

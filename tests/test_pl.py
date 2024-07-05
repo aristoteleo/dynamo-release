@@ -99,11 +99,12 @@ def test_nxviz7_circosplot(adata):
 
 def test_scatters_markers_ezplots():
     adata = dyn.sample_data.hematopoiesis()
-
-    ax = dyn.pl.cell_cycle_scores(adata, save_show_or_return="return")
-    assert isinstance(ax, plt.Axes)
+    import matplotlib.pyplot as plt
 
     ax = dyn.pl.pca(adata, color="cell_type", save_show_or_return="return")
+    assert isinstance(ax, plt.Axes)
+    
+    ax = dyn.pl.cell_cycle_scores(adata, save_show_or_return="return")
     assert isinstance(ax, plt.Axes)
 
     ax = dyn.pl.umap(adata, color="cell_type", save_show_or_return="return")
