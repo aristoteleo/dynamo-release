@@ -212,7 +212,8 @@ def calculate_colors(
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            matplotlib.colormaps.register(name=cmap_.name, cmap=cmap_)
+            if cmap_.name not in plt.colormaps():
+                matplotlib.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
 
         if values.shape[0] != points.shape[0]:
             raise ValueError(
@@ -451,7 +452,7 @@ def _matplotlib_points(
             )
         if color_key is None:
             main_debug("color_key is None")
-            cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
+            cmap = copy.copy(matplotlib.colormaps[color_key_cmap])
             cmap.set_bad("lightgray")
             colors = None
 
@@ -628,12 +629,13 @@ def _matplotlib_points(
     # Color by values
     elif values is not None:
         main_debug("drawing points by values")
-        cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
+        cmap_ = copy.copy(matplotlib.colormaps[cmap])
         cmap_.set_bad("lightgray")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            matplotlib.colormaps.register(name=cmap_.name, cmap=cmap_)
+            if cmap_.name not in plt.colormaps():
+                matplotlib.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
 
         if values.shape[0] != points.shape[0]:
             raise ValueError(
