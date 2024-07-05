@@ -21,8 +21,8 @@ def scifate_glmnet(
     cell_filter_UMI: int = 10000,
     core_n_lasso: int = 1,
     core_n_filtering: int = 1,
-    motif_ref: str = "https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1",
-    TF_link_ENCODE_ref: str = "https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
+    motif_ref: str = "https://figshare.com/ndownloader/files/47439455",
+    TF_link_ENCODE_ref: str = "https://figshare.com/ndownloader/files/47439458",
     nt_layers: list = ["X_new", "X_total"],
 ) -> AnnData:
     """Perform scifate analysis using glmnet.
@@ -58,11 +58,11 @@ def scifate_glmnet(
         motif_ref: The path to the TF binding motif data as described above. It provides the list of TFs gene names and
             is used to process adata object to generate the TF expression and target new expression matrix for glmnet
             based TF-target synthesis rate linkage analysis. But currently it is not used for motif based filtering.
-            By default, it is a dropbox link that store the data from us. Other motif reference can bed downloaded from
+            By default, it is a cloud link that store the data from us. Other motif reference can bed downloaded from
             RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from
             June's shared folder:
                 https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
-        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a dropbox link from us that stores the
+        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a cloud link from us that stores the
             data. Other data can be downloaded from:
                 https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
         nt_layers: The layers that will be used for the network inference. Note that the layers can be changed flexibly.

@@ -840,6 +840,7 @@ def relative2abs(
     """
 
     if ERCC_annotation is None:
+        #TODO: outdated link. consider replacing or removing it.
         ERCC_annotation = pd.read_csv(
             "https://www.dropbox.com/s/cmiuthdw5tt76o5/ERCC_specification.txt?dl=1",
             sep="\t",
