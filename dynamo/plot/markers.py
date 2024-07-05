@@ -217,7 +217,7 @@ def bubble(
     )
 
     if color_key is None:
-        cmap_ = matplotlib.cm.get_cmap(color_key_cmap)
+        cmap_ = matplotlib.colormaps[color_key_cmap]
         cmap_.set_bad("lightgray")
         unique_labels = np.unique(clusters)
         num_labels = unique_labels.shape[0]

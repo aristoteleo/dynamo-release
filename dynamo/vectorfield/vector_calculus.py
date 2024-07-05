@@ -737,7 +737,7 @@ def sensitivity(
 
     S_det = [np.linalg.det(S[:, :, i]) for i in np.arange(S.shape[2])]
     adata.obs["sensitivity_det_" + basis] = np.nan
-    adata.obs.loc[cell_idx, "sensitivity_det_" + basis] = S_det
+    adata.obs["sensitivity_det_" + basis][cell_idx] = S_det
     if store_in_adata:
         skey = "sensitivity" if basis is None else "sensitivity_" + basis
         adata.uns[skey] = ret_dict

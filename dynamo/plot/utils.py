@@ -125,7 +125,7 @@ def calculate_colors(
             )
         if color_key is None:
             main_debug("color_key is None")
-            cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
+            cmap = copy.copy(matplotlib.colormaps[color_key_cmap])
             cmap.set_bad("lightgray")
             colors = None
 
@@ -814,7 +814,7 @@ def _matplotlib_points(
             cb.locator = MaxNLocator(nbins=3, integer=True)
             cb.update_ticks()
 
-        cmap = matplotlib.cm.get_cmap(cmap)
+        cmap = matplotlib.colormaps[cmap]
         colors = cmap(values)
     # No color (just pick the midpoint of the cmap)
     else:
@@ -919,7 +919,7 @@ def _datashade_points(
             aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
             result = tf.shade(aggregation, how="eq_hist")
         elif color_key is None:
-            cmap = matplotlib.cm.get_cmap(color_key_cmap)
+            cmap = matplotlib.colormaps[color_key_cmap]
             cmap.set_bad("lightgray")
             # add plotnonfinite=True to canvas.points
 
@@ -960,7 +960,7 @@ def _datashade_points(
 
     # Color by values
     elif values is not None:
-        cmap_ = matplotlib.cm.get_cmap(cmap)
+        cmap_ = matplotlib.colormaps[cmap]
         cmap_.set_bad("lightgray")
 
         if values.shape[0] != points.shape[0]:
