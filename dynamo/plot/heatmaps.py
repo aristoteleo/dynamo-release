@@ -127,7 +127,7 @@ def kde2d(
             h /= 4
             ax = pd.DataFrame((gx - x[:, np.newaxis]) / h[0]).T
             ay = pd.DataFrame((gy - y[:, np.newaxis]) / h[1]).T
-            z = (np.matrix(dnorm(ax)) * np.matrix(dnorm(ay).T)) / (nx * h[0] * h[1])
+            z = (np.array(dnorm(ax)) @ np.array(dnorm(ay).T)) / (nx * h[0] * h[1])
     return gx, gy, z
 
 
