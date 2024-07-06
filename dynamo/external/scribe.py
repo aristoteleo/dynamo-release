@@ -49,7 +49,7 @@ def scribe(
         cell_filter_UMI: Minimum number of UMIs for cell filtering.
         motif_ref: It provides the list of TFs gene names and is used to parse the data to get the list of TFs and
             Targets for the causal network inference from those TFs to Targets. But currently the motif based filtering
-            is not implemented. By default, it is a cloud link that store the data from us. Other motif reference can
+            is not implemented. By default, it is a figshare link that store the data from us. Other motif reference can
             bed downloaded from RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be
             downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-
@@ -64,7 +64,7 @@ def scribe(
             target. This can signify the relationship between potential regulators and targets, speed up the calculation,
             but at the risk of ignoring strong inhibition effects from certain regulators to targets.
         do_CLR: Whether to perform context likelihood relatedness analysis on the reconstructed causal network
-        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a cloud link from us that stores the
+        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a figshare link from us that stores the
             data. Other data can be downloaded from:
                 https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
 

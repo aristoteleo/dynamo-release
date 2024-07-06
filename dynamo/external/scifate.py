@@ -58,11 +58,11 @@ def scifate_glmnet(
         motif_ref: The path to the TF binding motif data as described above. It provides the list of TFs gene names and
             is used to process adata object to generate the TF expression and target new expression matrix for glmnet
             based TF-target synthesis rate linkage analysis. But currently it is not used for motif based filtering.
-            By default, it is a cloud link that store the data from us. Other motif reference can bed downloaded from
+            By default, it is a figshare link that store the data from us. Other motif reference can bed downloaded from
             RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from
             June's shared folder:
                 https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
-        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a cloud link from us that stores the
+        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a figshare link from us that stores the
             data. Other data can be downloaded from:
                 https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
         nt_layers: The layers that will be used for the network inference. Note that the layers can be changed flexibly.

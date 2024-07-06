@@ -246,7 +246,7 @@ def scEU_seq_rpe1(
     url: str = "https://figshare.com/ndownloader/files/47439641",
     filename: str = "rpe1.h5ad",
 ):
-    """Download rpe1 dataset from Battich, et al (2020) via a cloud link.
+    """Download rpe1 dataset from Battich, et al (2020) via a figshare link.
 
     This data consists of 13,913 genes across 2,930 cells.
     """
@@ -259,7 +259,7 @@ def scEU_seq_organoid(
     url: str = "https://figshare.com/ndownloader/files/47439632",
     filename: str = "organoid.h5ad",
 ):
-    """Download organoid dataset from Battich, et al (2020) via a cloud link.
+    """Download organoid dataset from Battich, et al (2020) via a figshare link.
 
     This data consists of 9,157 genes across 3,831 cells.
     """
