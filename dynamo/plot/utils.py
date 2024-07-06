@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 from warnings import warn
 
 import matplotlib
+import matplotlib as mpl
 import matplotlib.patheffects as PathEffects
 import matplotlib.pyplot as plt
 import numba
@@ -125,7 +126,7 @@ def calculate_colors(
             )
         if color_key is None:
             main_debug("color_key is None")
-            cmap = copy.copy(matplotlib.colormaps[color_key_cmap])
+            cmap = copy.copy(mpl.colormaps[color_key_cmap])
             cmap.set_bad("lightgray")
             colors = None
 
@@ -207,13 +208,13 @@ def calculate_colors(
     elif values is not None:
         main_debug("drawing points by values")
         color_type = "values"
-        cmap_ = copy.copy(matplotlib.colormaps[cmap])
+        cmap_ = copy.copy(mpl.colormaps[cmap])
         cmap_.set_bad("lightgray")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if cmap_.name not in plt.colormaps():
-                matplotlib.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
+                mpl.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
 
         if values.shape[0] != points.shape[0]:
             raise ValueError(
@@ -277,7 +278,7 @@ def calculate_colors(
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(values)
 
-        cmap = matplotlib.colormaps[cmap]
+        cmap = mpl.colormaps[cmap]
         colors = cmap(values)
     # No color (just pick the midpoint of the cmap)
     else:
@@ -452,7 +453,7 @@ def _matplotlib_points(
             )
         if color_key is None:
             main_debug("color_key is None")
-            cmap = copy.copy(matplotlib.colormaps[color_key_cmap])
+            cmap = copy.copy(mpl.colormaps[color_key_cmap])
             cmap.set_bad("lightgray")
             colors = None
 
@@ -629,13 +630,13 @@ def _matplotlib_points(
     # Color by values
     elif values is not None:
         main_debug("drawing points by values")
-        cmap_ = copy.copy(matplotlib.colormaps[cmap])
+        cmap_ = copy.copy(mpl.colormaps[cmap])
         cmap_.set_bad("lightgray")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if cmap_.name not in plt.colormaps():
-                matplotlib.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
+                mpl.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
 
         if values.shape[0] != points.shape[0]:
             raise ValueError(
@@ -814,7 +815,7 @@ def _matplotlib_points(
             cb.locator = MaxNLocator(nbins=3, integer=True)
             cb.update_ticks()
 
-        cmap = matplotlib.colormaps[cmap]
+        cmap = mpl.colormaps[cmap]
         colors = cmap(values)
     # No color (just pick the midpoint of the cmap)
     else:
@@ -919,7 +920,7 @@ def _datashade_points(
             aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
             result = tf.shade(aggregation, how="eq_hist")
         elif color_key is None:
-            cmap = matplotlib.colormaps[color_key_cmap]
+            cmap = mpl.colormaps[color_key_cmap]
             cmap.set_bad("lightgray")
             # add plotnonfinite=True to canvas.points
 
@@ -960,7 +961,7 @@ def _datashade_points(
 
     # Color by values
     elif values is not None:
-        cmap_ = matplotlib.colormaps[cmap]
+        cmap_ = mpl.colormaps[cmap]
         cmap_.set_bad("lightgray")
 
         if values.shape[0] != points.shape[0]:

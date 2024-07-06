@@ -9,7 +9,7 @@ except ImportError:
     from typing_extensions import Literal
 
 import anndata
-import matplotlib.cm
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -705,7 +705,7 @@ def scatters_legacy(
                 if stack_colors:
                     main_debug("stack colors: changing cmap")
                     _cmap = stack_colors_cmaps[ax_index % len(stack_colors_cmaps)]
-                    max_color = matplotlib.colormaps[_cmap](float("inf"))
+                    max_color = mpl.colormaps[_cmap](float("inf"))
                     legend_circle = Line2D(
                         [0],
                         [0],
@@ -2276,7 +2276,7 @@ def scatters_single_input(
         main_debug("stack colors: changing cmap")
         cur_title = stack_colors_title
         cmap = stack_colors_cmaps[(ax_index - 1) % len(stack_colors_cmaps)]
-        max_color = matplotlib.colormaps[cmap](float("inf"))
+        max_color = mpl.colormaps[cmap](float("inf"))
         # TODO: consider remove the legend because it is not helpful
         legend_circle = Line2D(
             [0],

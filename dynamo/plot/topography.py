@@ -6,6 +6,7 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -321,7 +322,7 @@ def plot_fixed_points_2d(
     if ax is None:
         ax = plt.gca()
 
-    cm = matplotlib.colormaps[_cmap] if type(_cmap) is str else _cmap
+    cm = mpl.colormaps[_cmap] if type(_cmap) is str else _cmap
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
         marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
@@ -457,7 +458,7 @@ def plot_fixed_points(
             vecfld_dict["confidence"],
         )
 
-    cm = matplotlib.colormaps[_cmap] if type(_cmap) is str else _cmap
+    cm = mpl.colormaps[_cmap] if type(_cmap) is str else _cmap
     colors = [c if confidence is None else np.array(cm(confidence[i])) for i in range(len(confidence))]
     text_colors = ["black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red" for cur_ftype in ftype]
 

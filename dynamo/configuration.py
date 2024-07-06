@@ -3,6 +3,7 @@ from typing import Any, Generator, List, Optional, Tuple, Union
 
 import colorcet
 import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -442,26 +443,26 @@ glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 # register cmap
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    if "zebrafish" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="zebrafish", cmap=zebrafish_cmap)
-    if "fire" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="fire", cmap=fire_cmap)
-    if "darkblue" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="darkblue", cmap=darkblue_cmap)
-    if "darkgreen" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="darkgreen", cmap=darkgreen_cmap)
-    if "darkred" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="darkred", cmap=darkred_cmap)
-    if "darkpurple" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="darkpurple", cmap=darkpurple_cmap)
-    if "div_blue_black_red" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="div_blue_black_red", cmap=div_blue_black_red_cmap)
-    if "div_blue_red" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="div_blue_red", cmap=div_blue_red_cmap)
-    if "glasbey_white" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="glasbey_white", cmap=glasbey_white_cmap)
-    if "glasbey_dark" not in matplotlib.colormaps():
-        matplotlib.colormaps.register(name="glasbey_dark", cmap=glasbey_dark_cmap)
+    if "zebrafish" not in mpl.colormaps():
+        mpl.colormaps.register(name="zebrafish", cmap=zebrafish_cmap)
+    if "fire" not in mpl.colormaps():
+        mpl.colormaps.register(name="fire", cmap=fire_cmap)
+    if "darkblue" not in mpl.colormaps():
+        mpl.colormaps.register(name="darkblue", cmap=darkblue_cmap)
+    if "darkgreen" not in mpl.colormaps():
+        mpl.colormaps.register(name="darkgreen", cmap=darkgreen_cmap)
+    if "darkred" not in mpl.colormaps():
+        mpl.colormaps.register(name="darkred", cmap=darkred_cmap)
+    if "darkpurple" not in mpl.colormaps():
+        mpl.colormaps.register(name="darkpurple", cmap=darkpurple_cmap)
+    if "div_blue_black_red" not in mpl.colormaps():
+        mpl.colormaps.register(name="div_blue_black_red", cmap=div_blue_black_red_cmap)
+    if "div_blue_red" not in mpl.colormaps():
+        mpl.colormaps.register(name="div_blue_red", cmap=div_blue_red_cmap)
+    if "glasbey_white" not in mpl.colormaps():
+        mpl.colormaps.register(name="glasbey_white", cmap=glasbey_white_cmap)
+    if "glasbey_dark" not in mpl.colormaps():
+        mpl.colormaps.register(name="glasbey_dark", cmap=glasbey_dark_cmap)
 
 
 _themes = {
