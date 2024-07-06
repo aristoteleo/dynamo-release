@@ -138,7 +138,7 @@ def load_NASC_seq(
         tot_RNA = None
         cells_raw, cells = None, None
 
-        for f in tqdm(files, desc=f"reading rmse output files:"):
+        for f in tqdm(files, desc="reading rmse output files:"):
             tmp = pd.read_csv(f, index_col=0, sep="\t")
 
             if tot_RNA is None:
@@ -251,7 +251,7 @@ def aggregate_adata(file_list: list) -> AnnData:
 
     if len(valid_cells) == 0 or len(valid_genes) == 0:
         raise Exception(
-            f"we don't find any gene or cell names shared across different adata objects." f"Please check your data. "
+            "we don't find any gene or cell names shared across different adata objects."+"Please check your data. "
         )
 
     layer_dict = {}

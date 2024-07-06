@@ -2,6 +2,7 @@ import itertools
 from multiprocessing.dummy import Pool as ThreadPool
 from warnings import warn
 
+import numpy as np
 from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
@@ -909,7 +910,7 @@ class ss_estimation:
                     for i in tqdm(range(n_genes), desc="estimating gamma"):
                         try:
                             gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
-                        except:
+                        except Exception as e:
                             gamma[i], u0[i] = 0, 0
                     self.parameters["gamma"], self.aux_param["uu0"] = gamma, u0
                     alpha = np.zeros(n_genes)

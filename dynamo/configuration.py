@@ -352,7 +352,7 @@ class DynamoAdataConfig:
         Returns:
             `val` or config value set in DynamoAdataConfig according to the method description above.
         """
-        if not key in DynamoAdataConfig.config_key_to_values:
+        if key not in DynamoAdataConfig.config_key_to_values:
             assert KeyError("Config %s not exist in DynamoAdataConfig." % (key))
         if val == replace_val:
             config_val = DynamoAdataConfig.config_key_to_values[key]

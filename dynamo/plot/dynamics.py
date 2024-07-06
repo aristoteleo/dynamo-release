@@ -7,6 +7,7 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+import numpy as np
 import pandas as pd
 from anndata import AnnData
 from matplotlib.figure import Figure
