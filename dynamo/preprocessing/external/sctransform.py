@@ -218,6 +218,7 @@ def sctransform_core(
     """
     import multiprocessing
     import sys
+
     try:
         from KDEpy import FFTKDE
     except ImportError:

@@ -404,7 +404,6 @@ def circosPlotDeprecated(
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
 ) -> Optional[Any]:
-
     """Deprecated.
 
     A wrapper of `dynamo.pl.networks.nxvizPlot` to plot Circos graph. See the `nxvizPlot` for more information.

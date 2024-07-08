@@ -583,8 +583,7 @@ def feature_genes(
         variance_key = layer + "_gini"
 
         if variance_key not in adata.var.columns:
-            raise ValueError(
-                "Looks like you have not run gene selection yet, try run necessary preprocessing first.")
+            raise ValueError("Looks like you have not run gene selection yet, try run necessary preprocessing first.")
 
         mean = DynamoAdataKeyManager.select_layer_data(adata, layer).mean(0)[0]
         table = adata.var.loc[:, [variance_key]]
@@ -604,9 +603,7 @@ def feature_genes(
         else:
             table = adata.var.loc[:, [mean_key, variance_key]]
 
-    table = table.loc[
-        np.isfinite(table[mean_key]) & np.isfinite(table[variance_key])
-    ]
+    table = table.loc[np.isfinite(table[mean_key]) & np.isfinite(table[variance_key])]
     x_min, x_max = (
         np.nanmin(table[mean_key]),
         np.nanmax(table[mean_key]),

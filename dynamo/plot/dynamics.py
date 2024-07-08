@@ -7,6 +7,7 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+import numpy as np
 import pandas as pd
 from anndata import AnnData
 from matplotlib.figure import Figure
@@ -15,7 +16,15 @@ from ..configuration import _themes
 from ..dynamo_logger import main_warning
 from ..estimation.csc.velocity import sol_s, sol_u, solve_first_order_deg
 from ..estimation.tsc.utils_moments import moments
-from ..tools.utils import get_mapper, get_valid_bools, get_vel_params, index_gene, log1p_, update_dict, update_vel_params
+from ..tools.utils import (
+    get_mapper,
+    get_valid_bools,
+    get_vel_params,
+    index_gene,
+    log1p_,
+    update_dict,
+    update_vel_params,
+)
 from .scatters import scatters
 from .utils import (
     _datashade_points,
@@ -537,23 +546,29 @@ def phase_portraits(
 
     discrete_cmap, discrete_color_key_cmap, discrete_background = (
         _themes[discrete_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[0],
-        _themes[discrete_theme]["color_key_cmap"]
-        if discrete_continous_div_color_key_cmap is None
-        else discrete_continous_div_color_key_cmap[0],
+        (
+            _themes[discrete_theme]["color_key_cmap"]
+            if discrete_continous_div_color_key_cmap is None
+            else discrete_continous_div_color_key_cmap[0]
+        ),
         _themes[discrete_theme]["background"],
     )
     continous_cmap, continous_color_key_cmap, continous_background = (
         _themes[continous_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[1],
-        _themes[continous_theme]["color_key_cmap"]
-        if discrete_continous_div_color_key_cmap is None
-        else discrete_continous_div_color_key_cmap[1],
+        (
+            _themes[continous_theme]["color_key_cmap"]
+            if discrete_continous_div_color_key_cmap is None
+            else discrete_continous_div_color_key_cmap[1]
+        ),
         _themes[continous_theme]["background"],
     )
     divergent_cmap, divergent_color_key_cmap, divergent_background = (
         _themes[divergent_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[2],
-        _themes[divergent_theme]["color_key_cmap"]
-        if discrete_continous_div_color_key_cmap is None
-        else discrete_continous_div_color_key_cmap[2],
+        (
+            _themes[divergent_theme]["color_key_cmap"]
+            if discrete_continous_div_color_key_cmap is None
+            else discrete_continous_div_color_key_cmap[2]
+        ),
         _themes[divergent_theme]["background"],
     )
 
@@ -585,9 +600,11 @@ def phase_portraits(
         if cur_pd.color.isna().all():
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
-                    cur_pd.loc[:, ["S", "U"]].values
-                    if vkey == "velocity_S"
-                    else cur_pd.loc[:, ["total", "new"]].values,
+                    (
+                        cur_pd.loc[:, ["S", "U"]].values
+                        if vkey == "velocity_S"
+                        else cur_pd.loc[:, ["total", "new"]].values
+                    ),
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
@@ -603,9 +620,11 @@ def phase_portraits(
                 )
             else:
                 ax1, color = _datashade_points(
-                    cur_pd.loc[:, ["S", "U"]].values
-                    if vkey == "velocity_S"
-                    else cur_pd.loc[:, ["total", "new"]].values,
+                    (
+                        cur_pd.loc[:, ["S", "U"]].values
+                        if vkey == "velocity_S"
+                        else cur_pd.loc[:, ["total", "new"]].values
+                    ),
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
@@ -622,9 +641,11 @@ def phase_portraits(
         else:
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
-                    cur_pd.loc[:, ["S", "U"]].values
-                    if vkey == "velocity_S"
-                    else cur_pd.loc[:, ["total", "new"]].values,
+                    (
+                        cur_pd.loc[:, ["S", "U"]].values
+                        if vkey == "velocity_S"
+                        else cur_pd.loc[:, ["total", "new"]].values
+                    ),
                     ax=ax1,
                     labels=cur_pd.loc[:, "color"],
                     values=None,
@@ -640,9 +661,11 @@ def phase_portraits(
                 )
             else:
                 ax1, color = _datashade_points(
-                    cur_pd.loc[:, ["S", "U"]].values
-                    if vkey == "velocity_S"
-                    else cur_pd.loc[:, ["total", "new"]].values,
+                    (
+                        cur_pd.loc[:, ["S", "U"]].values
+                        if vkey == "velocity_S"
+                        else cur_pd.loc[:, ["total", "new"]].values
+                    ),
                     ax=ax1,
                     labels=cur_pd.loc[:, "color"],
                     values=None,
@@ -1608,24 +1631,36 @@ def dynamics(
                     mom_data = mom.get_all_central_moments() if has_splicing else mom.get_nosplice_central_moments()
                     if true_param_prefix is not None:
                         (true_a, true_b, true_alpha_a, true_alpha_i, true_beta, true_gamma,) = (
-                            vel_params_df.loc[gene_name, true_param_prefix + "a"]
-                            if true_param_prefix + "a" in vel_params_df.columns
-                            else -np.inf,
-                            vel_params_df.loc[gene_name, true_param_prefix + "b"]
-                            if true_param_prefix + "b" in vel_params_df.columns
-                            else -np.inf,
-                            vel_params_df.loc[gene_name, true_param_prefix + "alpha_a"]
-                            if true_param_prefix + "alpha_a" in vel_params_df.columns
-                            else -np.inf,
-                            vel_params_df.loc[gene_name, true_param_prefix + "alpha_i"]
-                            if true_param_prefix + "alpha_i" in vel_params_df.columns
-                            else -np.inf,
-                            vel_params_df.loc[gene_name, true_param_prefix + "beta"]
-                            if true_param_prefix + "beta" in vel_params_df.columns
-                            else -np.inf,
-                            vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
-                            if true_param_prefix + "gamma" in vel_params_df.columns
-                            else -np.inf,
+                            (
+                                vel_params_df.loc[gene_name, true_param_prefix + "a"]
+                                if true_param_prefix + "a" in vel_params_df.columns
+                                else -np.inf
+                            ),
+                            (
+                                vel_params_df.loc[gene_name, true_param_prefix + "b"]
+                                if true_param_prefix + "b" in vel_params_df.columns
+                                else -np.inf
+                            ),
+                            (
+                                vel_params_df.loc[gene_name, true_param_prefix + "alpha_a"]
+                                if true_param_prefix + "alpha_a" in vel_params_df.columns
+                                else -np.inf
+                            ),
+                            (
+                                vel_params_df.loc[gene_name, true_param_prefix + "alpha_i"]
+                                if true_param_prefix + "alpha_i" in vel_params_df.columns
+                                else -np.inf
+                            ),
+                            (
+                                vel_params_df.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in vel_params_df.columns
+                                else -np.inf
+                            ),
+                            (
+                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in vel_params_df.columns
+                                else -np.inf
+                            ),
                         )
 
                         true_params = {
@@ -1868,15 +1903,21 @@ def dynamics(
                         l = sol_s(t, sl0, ul0, 0, beta, gamma)
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in vel_params_df.columns
-                                else -np.inf,
-                                vel_params_df.loc[gene_name, true_param_prefix + "beta"]
-                                if true_param_prefix + "beta" in vel_params_df.columns
-                                else -np.inf,
-                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in vel_params_df.columns
-                                else -np.inf,
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in vel_params_df.columns
+                                    else -np.inf
+                                ),
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "beta"]
+                                    if true_param_prefix + "beta" in vel_params_df.columns
+                                    else -np.inf
+                                ),
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in vel_params_df.columns
+                                    else -np.inf
+                                ),
                             )
 
                             true_u = sol_u(t, uu0, true_alpha, true_beta)
@@ -1931,12 +1972,16 @@ def dynamics(
                         title_ = ["(unlabeled)", "(labeled)"]
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in vel_params_df.columns
-                                else -np.inf,
-                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in vel_params_df.columns
-                                else -np.inf,
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in vel_params_df.columns
+                                    else -np.inf
+                                ),
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in vel_params_df.columns
+                                    else -np.inf
+                                ),
                             )
                             true_u = sol_u(t, uu0, true_alpha, true_gamma)
                             true_w = sol_u(t, ul0, 0, true_gamma)
@@ -2147,15 +2192,21 @@ def dynamics(
                             l = sol_s(t, 0, 0, alpha, beta, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_beta, true_gamma = (
-                                    vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
-                                    if true_param_prefix + "alpha" in vel_params_df.columns
-                                    else -np.inf,
-                                    vel_params_df.loc[gene_name, true_param_prefix + "beta"]
-                                    if true_param_prefix + "beta" in vel_params_df.columns
-                                    else -np.inf,
-                                    vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
-                                    if true_param_prefix + "gamma" in vel_params_df.columns
-                                    else -np.inf,
+                                    (
+                                        vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                        if true_param_prefix + "alpha" in vel_params_df.columns
+                                        else -np.inf
+                                    ),
+                                    (
+                                        vel_params_df.loc[gene_name, true_param_prefix + "beta"]
+                                        if true_param_prefix + "beta" in vel_params_df.columns
+                                        else -np.inf
+                                    ),
+                                    (
+                                        vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                        if true_param_prefix + "gamma" in vel_params_df.columns
+                                        else -np.inf
+                                    ),
                                 )
                                 true_u = sol_u(t, uu0, 0, true_beta)
                                 true_s = sol_s(t, su0, uu0, 0, true_beta, true_gamma)
@@ -2207,12 +2258,16 @@ def dynamics(
                             l = None  # sol_s(t, 0, 0, alpha, 1, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_gamma = (
-                                    vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
-                                    if true_param_prefix + "alpha" in vel_params_df.columns
-                                    else -np.inf,
-                                    vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
-                                    if true_param_prefix + "gamma" in vel_params_df.columns
-                                    else -np.inf,
+                                    (
+                                        vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                        if true_param_prefix + "alpha" in vel_params_df.columns
+                                        else -np.inf
+                                    ),
+                                    (
+                                        vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                        if true_param_prefix + "gamma" in vel_params_df.columns
+                                        else -np.inf
+                                    ),
                                 )
                                 true_u = sol_u(t, uu0, 0, true_gamma)
                                 true_w = sol_u(t, 0, true_alpha, true_gamma)
@@ -2354,15 +2409,21 @@ def dynamics(
                         L = sl + ul
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in vel_params_df.columns
-                                else -np.inf,
-                                vel_params_df.loc[gene_name, true_param_prefix + "beta"]
-                                if true_param_prefix + "beta" in vel_params_df.columns
-                                else -np.inf,
-                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in vel_params_df.columns
-                                else -np.inf,
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in vel_params_df.columns
+                                    else -np.inf
+                                ),
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "beta"]
+                                    if true_param_prefix + "beta" in vel_params_df.columns
+                                    else -np.inf
+                                ),
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in vel_params_df.columns
+                                    else -np.inf
+                                ),
                             )
                             true_l = sol_u(t, 0, true_alpha, true_beta) + sol_s(
                                 t, 0, 0, true_alpha, true_beta, true_gamma
@@ -2401,12 +2462,16 @@ def dynamics(
                         L = ul
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in vel_params_df.columns
-                                else -np.inf,
-                                vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in vel_params_df.columns
-                                else -np.inf,
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in vel_params_df.columns
+                                    else -np.inf
+                                ),
+                                (
+                                    vel_params_df.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in vel_params_df.columns
+                                    else -np.inf
+                                ),
                             )
                             true_l = sol_u(t, 0, true_alpha, true_gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
 

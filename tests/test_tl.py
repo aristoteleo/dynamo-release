@@ -6,9 +6,9 @@ from scipy.sparse import csr_matrix
 
 import dynamo as dyn
 from dynamo.tools.connectivity import (
-    generate_neighbor_keys,
     check_and_recompute_neighbors,
     check_neighbors_completeness,
+    generate_neighbor_keys,
 )
 
 
@@ -22,8 +22,7 @@ def test_calc_1nd_moment():
     result, normalized_W = dyn.tl.calc_1nd_moment(X, W, normalize_W=True)
     expected_result = np.array([[3.0, 4.0], [3.0, 4.0], [3.0, 4.0]])
     assert np.array_equal(result, expected_result)
-    assert np.array_equal(normalized_W,
-                          np.array([[0.0, 1, 0.0], [0.5, 0.0, 0.5], [0.0, 1, 0.0]]))
+    assert np.array_equal(normalized_W, np.array([[0.0, 1, 0.0], [0.5, 0.0, 0.5], [0.0, 1, 0.0]]))
 
 
 def test_calc_2nd_moment():
@@ -35,7 +34,7 @@ def test_calc_2nd_moment():
     assert np.array_equal(result, expected_result)
 
     result = dyn.tl.calc_2nd_moment(X, Y, W, normalize_W=True, center=False)
-    expected_result = np.array([[12., 20.], [16., 24.], [12., 20.]])
+    expected_result = np.array([[12.0, 20.0], [16.0, 24.0], [12.0, 20.0]])
     assert np.array_equal(result, expected_result)
 
 
@@ -53,20 +52,20 @@ def test_cell_growth_rate(adata):
 @pytest.mark.skip(reason="umap compatability issue with numpy, pynndescent and pytest")
 def test_dynamics():
     adata = dyn.sample_data.scNT_seq_neuron_labeling()
-    adata.obs['label_time'] = 2  # this is the labeling time
+    adata.obs["label_time"] = 2  # this is the labeling time
 
     adata = adata[:, adata.var.activity_genes]
-    adata.obs['time'] = adata.obs['time'] / 60
+    adata.obs["time"] = adata.obs["time"] / 60
 
     adata1 = adata.copy()
     preprocessor = dyn.pp.Preprocessor(cell_cycle_score_enable=True)
-    preprocessor.preprocess_adata(adata1, recipe='monocle', tkey='label_time', experiment_type='one-shot')
+    preprocessor.preprocess_adata(adata1, recipe="monocle", tkey="label_time", experiment_type="one-shot")
     dyn.tl.dynamics(adata1)
     assert "velocity_N" in adata.layers.keys()
 
     adata2 = adata.copy()
     preprocessor = dyn.pp.Preprocessor(cell_cycle_score_enable=True)
-    preprocessor.preprocess_adata(adata2, recipe='monocle', tkey='label_time', experiment_type='kin')
+    preprocessor.preprocess_adata(adata2, recipe="monocle", tkey="label_time", experiment_type="kin")
     dyn.tl.dynamics(adata2)
     assert "velocity_N" in adata.layers.keys()
 
@@ -175,7 +174,9 @@ def test_DDRTree_pseudotime(adata):
     dyn.tl.pseudotime_velocity(adata, pseudotime="Pseudotime")
     assert "velocity_S" in adata.layers.keys()
 
-    ax = dyn.pl.plot_dim_reduced_direct_graph(adata, graph=adata.uns["directed_velocity_tree"], save_show_or_return="return")
+    ax = dyn.pl.plot_dim_reduced_direct_graph(
+        adata, graph=adata.uns["directed_velocity_tree"], save_show_or_return="return"
+    )
     assert isinstance(ax, list)
 
 
@@ -302,6 +303,7 @@ def test_fp_operator():
 
 def test_triangles():
     import igraph as ig
+
     g = ig.Graph(edges=[(0, 1), (1, 2), (2, 0), (2, 3), (3, 0)])
 
     result = dyn.tools.graph_operators.triangles(g)
@@ -319,7 +321,9 @@ def test_cell_and_gene_confidence(adata):
         dyn.tl.cell_wise_confidence(adata, method=method)
         assert method + "_velocity_confidence" in adata.obs.keys()
 
-    dyn.tl.confident_cell_velocities(adata, group="Cell_type", lineage_dict={'Proliferating Progenitor': ['Schwann Cell']})
+    dyn.tl.confident_cell_velocities(
+        adata, group="Cell_type", lineage_dict={"Proliferating Progenitor": ["Schwann Cell"]}
+    )
     assert "gene_wise_confidence" in adata.uns.keys()
 
 
@@ -378,8 +382,8 @@ def test_broken_neighbors_check_recompute():
 # Test for utils
 def smallest_distance_bf(coords):
     res = float("inf")
-    for (i, c1) in enumerate(coords):
-        for (j, c2) in enumerate(coords):
+    for i, c1 in enumerate(coords):
+        for j, c2 in enumerate(coords):
             if i == j:
                 continue
             else:
@@ -422,8 +426,9 @@ def test_norm_loglikelihood():
 
 
 def test_fit_linreg():
-    from dynamo.estimation.csc.utils_velocity import fit_linreg, fit_linreg_robust
     from sklearn.datasets import make_regression
+
+    from dynamo.estimation.csc.utils_velocity import fit_linreg, fit_linreg_robust
 
     X0, y0 = make_regression(n_samples=100, n_features=1, noise=0.5, random_state=0)
     X1, y1 = make_regression(n_samples=100, n_features=1, noise=0.5, random_state=2)

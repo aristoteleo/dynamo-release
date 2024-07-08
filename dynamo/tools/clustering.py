@@ -13,8 +13,8 @@ from scipy.sparse import csr_matrix, issparse
 from ..configuration import DKM
 from ..dynamo_logger import main_info
 from ..preprocessing.normalization import calc_sz_factor, normalize
-from ..preprocessing.QC import filter_genes_by_outliers as filter_genes
 from ..preprocessing.pca import pca
+from ..preprocessing.QC import filter_genes_by_outliers as filter_genes
 from ..preprocessing.transform import log1p
 from ..utils import LoggerManager, copy_adata
 from .connectivity import generate_neighbor_keys, neighbors

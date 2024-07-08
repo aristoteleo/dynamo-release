@@ -28,6 +28,7 @@ from ..QC import filter_genes_by_outliers
 
 main_logger = LoggerManager.main_logger
 
+
 # TODO: Use compute_pearson_residuals function to calculate residuals
 def _highly_variable_pearson_residuals(
     adata: AnnData,

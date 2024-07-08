@@ -134,6 +134,7 @@ def bandwidth_selector(X: np.ndarray) -> float:
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
 
+
 def denorm(
     VecFld: Dict[str, Union[np.ndarray, None]],
     X_old: np.ndarray,

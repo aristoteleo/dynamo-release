@@ -19,12 +19,12 @@ def scribe(
     Targets: Union[list, None] = None,
     gene_filter_rate: float = 0.1,
     cell_filter_UMI: int = 10000,
-    motif_ref: str = "https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1",
+    motif_ref: str = "https://figshare.com/ndownloader/files/47439455",
     nt_layers: list = ["X_new", "X_total"],
     normalize: bool = False,
     do_CLR: bool = True,
     drop_zero_cells: bool = True,
-    TF_link_ENCODE_ref: str = "https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
+    TF_link_ENCODE_ref: str = "https://figshare.com/ndownloader/files/47439458",
 ) -> AnnData:
     """Apply Scribe to calculate causal network from spliced/unspliced, metabolic labeling based and other "real" time
     series datasets.
@@ -49,7 +49,7 @@ def scribe(
         cell_filter_UMI: Minimum number of UMIs for cell filtering.
         motif_ref: It provides the list of TFs gene names and is used to parse the data to get the list of TFs and
             Targets for the causal network inference from those TFs to Targets. But currently the motif based filtering
-            is not implemented. By default, it is a dropbox link that store the data from us. Other motif reference can
+            is not implemented. By default, it is a figshare link that store the data from us. Other motif reference can
             bed downloaded from RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be
             downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-
@@ -64,7 +64,7 @@ def scribe(
             target. This can signify the relationship between potential regulators and targets, speed up the calculation,
             but at the risk of ignoring strong inhibition effects from certain regulators to targets.
         do_CLR: Whether to perform context likelihood relatedness analysis on the reconstructed causal network
-        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a dropbox link from us that stores the
+        TF_link_ENCODE_ref: The path to the TF chip-seq data. By default, it is a figshare link from us that stores the
             data. Other data can be downloaded from:
                 https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
 

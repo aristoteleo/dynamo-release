@@ -26,7 +26,6 @@ from ..dynamo_logger import (
     main_info_insert_adata_obsm,
     main_warning,
 )
-from ..tools.utils import update_dict
 from ..utils import copy_adata
 from .cell_cycle import cell_cycle_scores
 from .gene_selection import calc_dispersion_by_svr
@@ -71,6 +70,7 @@ def deprecated(func):
 # https://stackoverflow.com/questions/47686227/poisson-regression-in-statsmodels-and-r
 
 # from __future__ import division, print_function
+
 
 # https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the-gamma-
 # family
@@ -1784,6 +1784,7 @@ def _select_genes_monocle_legacy(
         for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be
         False.
     """
+    from ..tools.utils import update_dict
 
     filter_bool = (
         adata.var["pass_basic_filter"]

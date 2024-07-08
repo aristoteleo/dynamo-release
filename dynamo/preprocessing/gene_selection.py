@@ -602,8 +602,8 @@ def select_genes_by_seurat_recipe(
 
             chunked_mean, chunked_var = seurat_get_mean_var(layer_mat)
 
-            mean[mat_data[1]:mat_data[2]] = chunked_mean
-            variance[mat_data[1]:mat_data[2]] = chunked_var
+            mean[mat_data[1] : mat_data[2]] = chunked_mean
+            variance[mat_data[1] : mat_data[2]] = chunked_var
 
         mean, variance, highly_variable_mask = select_genes_by_seurat_dispersion(
             mean=mean,

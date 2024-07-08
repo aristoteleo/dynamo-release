@@ -75,9 +75,7 @@ def hill_act_grad(x: float, A: float, K: float, n: float, g: float = 0) -> float
     return A * n * Kd * x ** (n - 1) / (Kd + x**n) ** 2 - g
 
 
-def toggle(
-    ab: Union[np.ndarray, Tuple[float, float]], beta: float = 5, gamma: float = 1, n: int = 2
-) -> np.ndarray:
+def toggle(ab: Union[np.ndarray, Tuple[float, float]], beta: float = 5, gamma: float = 1, n: int = 2) -> np.ndarray:
     """Calculates the right-hand side (RHS) of the differential equations for the toggle switch system.
 
     Args:
@@ -234,7 +232,7 @@ def jacobian_bifur2genes(
     K: List[float] = [0.5, 0.5],
     m: List[float] = [4, 4],
     n: List[float] = [4, 4],
-    gamma: List[float] = [1, 1]
+    gamma: List[float] = [1, 1],
 ) -> np.ndarray:
     """The Jacobian of the toggle switch ODE model.
 

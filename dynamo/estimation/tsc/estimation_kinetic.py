@@ -1,5 +1,5 @@
-from typing import Dict, List, Optional, Tuple, Union
 import warnings
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -350,6 +350,7 @@ class kinetic_estimation:
 
 class Estimation_Degradation(kinetic_estimation):
     """The base parameters, estimation class for degradation experiments."""
+
     def __init__(self, ranges: np.ndarray, x0: np.ndarray, simulator: LinearODE):
         """Initialize the Estimation_Degradation object.
 
@@ -1381,6 +1382,7 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
 
 class Estimation_KineticChase(kinetic_estimation):
     """An estimation class for kinetic chase experiment."""
+
     def __init__(
         self,
         alpha: Optional[np.ndarray] = None,
@@ -1502,6 +1504,7 @@ class GoodnessOfFit:
     This class provides methods for assessing the quality of predictions, using various metrics including Gaussian
     likelihood, Gaussian log-likelihood, and mean squared deviation.
     """
+
     def __init__(
         self,
         simulator: LinearODE,
@@ -1600,7 +1603,7 @@ class GoodnessOfFit:
         return x_data_norm, x_model_norm
 
     def calc_gaussian_likelihood(self) -> float:
-        """ Calculate the Gaussian likelihood between model predictions and observations.
+        """Calculate the Gaussian likelihood between model predictions and observations.
 
         Returns:
             Gaussian likelihood value.

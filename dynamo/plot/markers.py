@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 from anndata import AnnData
+import matplotlib as mpl
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from scipy.sparse import issparse
@@ -217,7 +218,7 @@ def bubble(
     )
 
     if color_key is None:
-        cmap_ = matplotlib.cm.get_cmap(color_key_cmap)
+        cmap_ = mpl.colormaps[color_key_cmap]
         cmap_.set_bad("lightgray")
         unique_labels = np.unique(clusters)
         num_labels = unique_labels.shape[0]
@@ -259,7 +260,7 @@ def bubble(
                 linewidth=None,
                 palette=color_key,
                 inner="box",
-                scale="width",
+                density_norm="width",
                 cut=0,
                 ax=axes[igene],
                 alpha=alpha,

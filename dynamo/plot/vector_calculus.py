@@ -405,7 +405,7 @@ def jacobian(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
         the figure would be returned.
-        
+
     Examples:
         >>> import dynamo as dyn
         >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
@@ -797,7 +797,7 @@ def sensitivity(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
         the figure would be returned.
-    
+
     Examples:
         >>> import dynamo as dyn
         >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
@@ -1017,7 +1017,7 @@ def sensitivity_heatmap(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the matplotlib `GridSpec` of
         the figure would be returned.
-    
+
     Examples:
         >>> import dynamo as dyn
         >>> adata = dyn.sample_data.hgForebrainGlutamatergic()

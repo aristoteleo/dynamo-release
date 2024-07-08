@@ -302,7 +302,7 @@ def fit_linreg_robust(
                 f"estimation method {est_method} is not implemented. "
                 f"Currently supported linear regression methods include `rlm` and `ransac`."
             )
-    except:
+    except Exception as e:
         if intercept:
             ym = np.mean(yy)
             xm = np.mean(xx)

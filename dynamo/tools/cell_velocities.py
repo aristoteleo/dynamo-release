@@ -16,7 +16,12 @@ from sklearn.utils import sparsefuncs
 from ..configuration import DKM
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..utils import areinstance, expr_to_pca
-from .connectivity import generate_neighbor_keys, adj_to_knn, check_and_recompute_neighbors, construct_mapper_umap
+from .connectivity import (
+    adj_to_knn,
+    check_and_recompute_neighbors,
+    construct_mapper_umap,
+    generate_neighbor_keys,
+)
 from .dimension_reduction import reduceDimension
 from .graph_calculus import calc_gaussian_weight, fp_operator, graphize_velocity
 from .Markov import ContinuousTimeMarkovChain, KernelMarkovChain, velocity_on_grid
