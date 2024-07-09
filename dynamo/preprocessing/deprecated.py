@@ -209,7 +209,7 @@ def _disp_calc_helper_NB_legacy(
         nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
         nzGenes = nzGenes > min_cells_detected
 
-        nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
+        nzGenes = nzGenes.toarray().ravel() if issparse(rounded) else nzGenes
         if layer.startswith("X_"):
             x = rounded[:, nzGenes]
         else:
@@ -756,7 +756,7 @@ def _normalize_cell_expr_by_size_factors_legacy(
             n_feature = CM.shape[1]
 
             for i in range(CM.shape[0]):
-                x = CM[i].A if issparse(CM) else CM[i]
+                x = CM[i].toarray() if issparse(CM) else CM[i]
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100

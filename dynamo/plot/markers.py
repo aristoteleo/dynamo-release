@@ -199,7 +199,7 @@ def bubble(
 
     cells_df = adata.obs.get(group)
     gene_df = adata[:, genes].layers[layer]
-    gene_df = gene_df.A if issparse(gene_df) else gene_df
+    gene_df = gene_df.toarray() if issparse(gene_df) else gene_df
     gene_df = pd.DataFrame(gene_df.T, index=genes, columns=adata.obs_names)
 
     xmin, xmax = gene_df.quantile(vmin / 100, axis=1), gene_df.quantile(vmax / 100, axis=1)

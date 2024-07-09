@@ -299,7 +299,7 @@ def filter_cells_by_highly_variable_genes(
 
     filter_bool = adata.var[high_var_genes_key].values
     X = DKM.select_layer_data(adata, layer=select_genes_layer)
-    X = X[:, filter_bool].A if issparse(X) else X[:, filter_bool]
+    X = X[:, filter_bool].toarray() if issparse(X) else X[:, filter_bool]
     nan_columns_index = np.where(np.sum(X, axis=1) == 0)[0]
 
     adata.obs[obs_store_key].iloc[nan_columns_index] = False

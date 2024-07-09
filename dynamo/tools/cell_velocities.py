@@ -323,8 +323,8 @@ def cell_velocities(
             "min_gamma thresholds."
         )
 
-    V = V.A if sp.issparse(V) else V
-    X = X.A if sp.issparse(X) else X
+    V = V.toarray() if sp.issparse(V) else V
+    X = X.toarray() if sp.issparse(X) else X
     finite_inds = get_finite_inds(V)
 
     if sum(finite_inds) != X.shape[1]:
@@ -549,7 +549,7 @@ def cell_velocities(
 
         X_pca, pca_PCs = adata.obsm[DKM.X_PCA], adata.uns["PCs"]
         V = adata[:, adata.var.use_for_dynamics.values].layers[vkey] if vkey in adata.layers.keys() else None
-        CM, V = CM.A if sp.issparse(CM) else CM, V.A if sp.issparse(V) else V
+        CM, V = CM.toarray() if sp.issparse(CM) else CM, V.toarray() if sp.issparse(V) else V
         V[np.isnan(V)] = 0
         Y_pca = expr_to_pca(CM + V, PCs=pca_PCs, mean=(CM + V).mean(0))
 
@@ -964,7 +964,7 @@ def kernels_from_velocyto_scvelo(
     if neg_cells_trick:
         G, G_ = G
 
-    confidence, ub_confidence = G.max(1).A.flatten(), np.percentile(G.max(1).A.flatten(), 98)
+    confidence, ub_confidence = G.max(1).toarray().flatten(), np.percentile(G.max(1).toarray().flatten(), 98)
     dig_p = np.clip(ub_confidence - confidence, 0, 1)
     G.setdiag(dig_p)
 

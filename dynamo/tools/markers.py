@@ -131,7 +131,7 @@ def moran_i(
     if local_moran:
         l_moran = np.zeros(X_data.shape)
     for cur_g in tqdm(range(gene_num), desc="Moran’s I Global Autocorrelation Statistic"):
-        cur_X = X_data[:, cur_g].A if sparse else X_data[:, cur_g]
+        cur_X = X_data[:, cur_g].toarray() if sparse else X_data[:, cur_g]
         mbi = explore.esda.moran.Moran(cur_X, W, two_tailed=False)
 
         Moran_I[cur_g] = mbi.I
@@ -395,7 +395,7 @@ def two_groups_degs(
     for i_gene, gene in tqdm(enumerate(genes), desc="identifying top markers for each group"):
         rbc, specificity_, mw_p, log_fc, ncells = 0, 0, 1, 0, 0
 
-        all_vals = X_data[:, i_gene].A if sparse else X_data[:, i_gene]
+        all_vals = X_data[:, i_gene].toarray() if sparse else X_data[:, i_gene]
         test_vals = all_vals[test_cells]
         perc, ef = [len(test_vals.nonzero()[0]) / n_cells], len(test_vals.nonzero()[0]) / num_test_cells
         if ef < exp_frac_thresh:
@@ -716,7 +716,7 @@ def glm_degs(
         enumerate(genes),
         "Detecting time dependent genes via Generalized Additive Models (GAMs)",
     ):
-        expression = X_data[:, i].A if sparse else X_data[:, i]
+        expression = X_data[:, i].toarray() if sparse else X_data[:, i]
         df_factors["expression"] = expression
         deg_df.iloc[i, :] = diff_test_helper(df_factors, fullModelFormulaStr, reducedModelFormulaStr)
 

@@ -286,8 +286,8 @@ def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n):
     """helper function for parallism"""
 
     V = sp.csr_matrix((n, n))
-    x = X[i].A if sp.issparse(X) else X[i]
-    Y = X[idx[1:]].A if sp.issparse(X) else X[idx[1:]]
+    x = X[i].toarray() if sp.issparse(X) else X[i]
+    Y = X[idx[1:]].toarray() if sp.issparse(X) else X[idx[1:]]
     for j, y in enumerate(Y):
         pts = np.linspace(x, y, n_int_steps)
         v = func(pts)

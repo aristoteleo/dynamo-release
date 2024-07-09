@@ -109,7 +109,7 @@ def _parallel_init(
 def _parallel_wrapper(j: int) -> None:
     """Helper function to fit Poisson regression to UMI counts."""
     name = gn[genes_bin_regress[j]]
-    y = umi_bin[:, j].A.flatten()
+    y = umi_bin[:, j].toarray().flatten()
     pr = statsmodels.discrete.discrete_model.Poisson(y, mm)
     res = pr.fit(disp=False)
     mu = res.predict()
@@ -140,7 +140,7 @@ def gmean(
     assert np.all(X.sum(0) > 0)
     assert np.all(X.data > 0)
     X.data[:] = np.log(X.data + eps)
-    res = np.exp(X.mean(axis).A.flatten()) - eps
+    res = np.exp(X.mean(axis).toarray().flatten()) - eps
 
     assert np.all(res > 0)
     return res
@@ -230,7 +230,7 @@ def sctransform_core(
     X.eliminate_zeros()
     gene_names = np.array(list(adata.var_names))
     cell_names = np.array(list(adata.obs_names))
-    genes_cell_count = X.sum(0).A.flatten()
+    genes_cell_count = X.sum(0).toarray().flatten()
     genes = np.where(genes_cell_count >= min_cells)[0]
     genes_ix = genes.copy()
 
@@ -243,7 +243,7 @@ def sctransform_core(
     # sample by n_cells, or use all cells
     if n_cells is not None and n_cells < X.shape[0]:
         cells_step1 = np.sort(np.random.choice(X.shape[0], replace=False, size=n_cells))
-        genes_cell_count_step1 = X[cells_step1].sum(0).A.flatten()
+        genes_cell_count_step1 = X[cells_step1].sum(0).toarray().flatten()
         genes_step1 = np.where(genes_cell_count_step1 >= min_cells)[0]
         genes_log_gmean_step1 = np.log10(gmean(X[cells_step1][:, genes_step1], axis=0, eps=gmean_eps))
     else:
@@ -251,11 +251,11 @@ def sctransform_core(
         genes_step1 = genes
         genes_log_gmean_step1 = genes_log_gmean
 
-    umi = X.sum(1).A.flatten()
+    umi = X.sum(1).toarray().flatten()
     log_umi = np.log10(umi)
     X2 = X.copy()
     X2.data[:] = 1
-    gene = X2.sum(1).A.flatten()
+    gene = X2.sum(1).toarray().flatten()
     log_gene = np.log10(gene)
     umi_per_gene = umi / gene
     log_umi_per_gene = np.log10(umi_per_gene)
@@ -443,5 +443,5 @@ def sctransform(
                 X_squared = adata.X.copy()
                 X_squared.data **= 2
                 variance = X_squared.mean(0) - np.square(adata.X.mean(0))
-                adata.var["sct_score"] = variance.A1
+                adata.var["sct_score"] = variance.toarray().ravel() if sp.issparse(variance) else variance.ravel()
                 adata.var["use_for_pca"] = get_gene_selection_filter(adata.var["sct_score"], n_top_genes=n_top_genes)

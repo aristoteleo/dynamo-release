@@ -495,7 +495,7 @@ def flatten(arr: Union[pd.Series, sp.csr_matrix, np.ndarray]) -> np.ndarray:
     if type(arr) == pd.core.series.Series:
         ret = arr.values.flatten()
     elif sp.issparse(arr):
-        ret = arr.A.flatten()
+        ret = arr.toarray().flatten()
     else:
         ret = arr.flatten()
     return ret
@@ -1184,7 +1184,7 @@ def _one_shot_gamma_alpha_matrix(
     Returns:
         A tuple containing the gamma and alpha parameters.
     """
-    N, R = N.A.T, R.A.T
+    N, R = N.toarray().T, R.toarray().T
     K = np.array(K)
     tau = tau[0]
     Kc = np.clip(K, 0, 1 - 1e-3)
@@ -2482,7 +2482,7 @@ def find_extreme(
     Returns:
         A boolean mask identifying the extreme regions based on the provided percentiles.
     """
-    s, u = (s.A if sp.issparse(s) else s, u.A if sp.issparse(u) else u)
+    s, u = (s.toarray() if sp.issparse(s) else s, u.toarray() if sp.issparse(u) else u)
 
     if normalize:
         su = s / np.clip(np.max(s), 1e-3, None)

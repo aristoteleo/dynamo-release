@@ -103,10 +103,10 @@ def nxvizPlot(
         # data has to be float
         if cluster is not None:
             network.nodes[n]["size"] = (
-                adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].A.mean().astype(float)
+                adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].toarray().mean().astype(float)
             )
         else:
-            network.nodes[n]["size"] = adata[:, n].layers[layer].A.mean().astype(float)
+            network.nodes[n]["size"] = adata[:, n].layers[layer].toarray().mean().astype(float)
 
         network.nodes[n]["label"] = n
     for e in network.edges():

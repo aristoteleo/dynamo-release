@@ -516,7 +516,7 @@ class KernelMarkovChain(MarkovChain):
         V = np.zeros_like(X)
         P = self.propagate_P(int(num_prop))
         for i in tqdm(range(n), desc="compute drift"):
-            V[i] = (X - X[i]).T.dot(P[:, i].A.flatten())
+            V[i] = (X - X[i]).T.dot(P[:, i].toarray().flatten())
         return V * 1 / V.max() if scale else V
 
     def compute_density_corrected_drift(
@@ -553,7 +553,7 @@ class KernelMarkovChain(MarkovChain):
             D = X[Idx] - X[i]
             if normalize_vector:
                 D = D / np.linalg.norm(D, 1)
-            p = P[Idx, i].A.flatten()
+            p = P[Idx, i].toarray().flatten()
             if k is None:
                 if not correct_by_mean:
                     k_inv = 1 / len(Idx)

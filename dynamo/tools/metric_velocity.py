@@ -123,9 +123,9 @@ def cell_wise_confidence(
             range(adata.n_obs),
             desc="calculating hybrid method (jaccard + consensus) based cell wise confidence",
         ):
-            neigh_ids = np.where(intersect_[i].A)[0] if issparse(intersect_) else np.where(intersect_[i])[0]
+            neigh_ids = np.where(intersect_[i].toarray())[0] if issparse(intersect_) else np.where(intersect_[i])[0]
             confidence[i] = (
-                jac[i] * np.mean([consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids])
+                jac[i] * np.mean([consensus(V[i].toarray().flatten(), V[j].toarray().flatten()) for j in neigh_ids])
                 if issparse(V)
                 else jac[i] * np.mean([consensus(V[i].flatten(), V[j].flatten()) for j in neigh_ids])
             )
@@ -140,7 +140,7 @@ def cell_wise_confidence(
         ):
             neigh_ids = indices[i]
             confidence[i] = (
-                np.mean([einsum_correlation(V[i].A, V[j].A.flatten(), type="cosine")[0, 0] for j in neigh_ids])
+                np.mean([einsum_correlation(V[i].toarray(), V[j].toarray().flatten(), type="cosine")[0, 0] for j in neigh_ids])
                 if issparse(V)
                 else np.mean(
                     [einsum_correlation(V[i][None, :], V[j].flatten(), type="cosine")[0, 0] for j in neigh_ids]
@@ -157,7 +157,7 @@ def cell_wise_confidence(
         ):
             neigh_ids = indices[i]
             confidence[i] = (
-                np.mean([consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids])
+                np.mean([consensus(V[i].toarray().flatten(), V[j].toarray().flatten()) for j in neigh_ids])
                 if issparse(V)
                 else np.mean([consensus(V[i], V[j].flatten()) for j in neigh_ids])
             )
@@ -173,7 +173,7 @@ def cell_wise_confidence(
         ):
             neigh_ids = indices[i]
             confidence[i] = (
-                np.mean([einsum_correlation(V[i].A, V[j].A.flatten(), type="pearson")[0, 0] for j in neigh_ids])
+                np.mean([einsum_correlation(V[i].toarray(), V[j].toarray().flatten(), type="pearson")[0, 0] for j in neigh_ids])
                 if issparse(V)
                 else np.mean(
                     [einsum_correlation(V[i][None, :], V[j].flatten(), type="pearson")[0, 0] for j in neigh_ids]
@@ -295,8 +295,8 @@ def gene_wise_confidence(
         desc="calculating gene velocity vectors confidence based on phase "
         "portrait location with priors of progenitor/mature cell types",
     ):
-        all_vals = X_data[:, i_gene].A if sparse else X_data[:, i_gene]
-        all_vals_v = V_data[:, i_gene].A if sparse_v else V_data[:, i_gene]
+        all_vals = X_data[:, i_gene].toarray() if sparse else X_data[:, i_gene]
+        all_vals_v = V_data[:, i_gene].toarray() if sparse_v else V_data[:, i_gene]
 
         for progenitors_groups, mature_cells_groups in lineage_dict.items():
             progenitors_groups = [progenitors_groups]

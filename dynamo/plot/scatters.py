@@ -2847,8 +2847,8 @@ def _map_to_points(
         else:
             x_points_df_data, x_points_column = _map_cur_axis_to_title(axis_x, _adata, cur_b, cur_l_smoothed)
             y_points_df_data, y_points_column = _map_cur_axis_to_title(axis_y, _adata, cur_b, cur_l_smoothed)
-            x_points_df_data = x_points_df_data.A.flatten() if issparse(x_points_df_data) else x_points_df_data
-            y_points_df_data = y_points_df_data.A.flatten() if issparse(y_points_df_data) else y_points_df_data
+            x_points_df_data = x_points_df_data.toarray().flatten() if issparse(x_points_df_data) else x_points_df_data
+            y_points_df_data = y_points_df_data.toarray().flatten() if issparse(y_points_df_data) else y_points_df_data
             points = pd.DataFrame(
                 {
                     axis_x: x_points_df_data,

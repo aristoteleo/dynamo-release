@@ -119,7 +119,7 @@ def prune_transition(
 
     main_info("prune vf based cell graph transition graph via g' = `M' g")
     # note that dmatrix will first sort the unique group names and then construct the design matrix, so this is needed.
-    membership_df = pd.DataFrame(membership_matrix.A > 0, index=sorted_grps, columns=sorted_grps)
+    membership_df = pd.DataFrame(membership_matrix.toarray() > 0, index=sorted_grps, columns=sorted_grps)
 
     M = (group_graph * (membership_df.loc[uniq_grps, uniq_grps].values > 0) > 0).astype(float)
 
@@ -183,7 +183,7 @@ def state_graph(
             logger.info("KernelMarkovChain assuming column sum to be 1. Transposing transition matrix")
             T = T.T
         if sp.issparse(T):
-            T = T.A
+            T = T.toarray()
         dtmc = DiscreteTimeMarkovChain(P=T, eignum=eignum, check_norm=False)
 
         # ord_enc = OrdinalEncoder()
@@ -193,7 +193,7 @@ def state_graph(
         for i, grp in enumerate(uniq_grp):
             labels[groups == grp] = i
 
-        grp_graph = dtmc.lump(labels).T if method == "markov" else dtmc.naive_lump(T.A, labels).T
+        grp_graph = dtmc.lump(labels).T if method == "markov" else dtmc.naive_lump(T.toarray(), labels).T
         label_len, grp_avg_time = len(np.unique(labels)), None
         grp_graph = grp_graph[:label_len, :label_len]
 

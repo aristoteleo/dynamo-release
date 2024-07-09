@@ -119,7 +119,7 @@ def pseudotime_velocity(
     adata.obsm[velocity_key] = delta_x
 
     logger.info("Use pseudotime transition matrix to learn gene-wise velocity vectors.")
-    delta_X = projection_with_transition_matrix(T, adata.layers[ekey].A, True)
+    delta_X = projection_with_transition_matrix(T, adata.layers[ekey].toarray(), True)
     logger.info_insert_adata(vkey, "layers")
     adata.layers[vkey] = csr_matrix(delta_X)
 
