@@ -209,7 +209,7 @@ def _disp_calc_helper_NB_legacy(
         nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
         nzGenes = nzGenes > min_cells_detected
 
-        nzGenes = nzGenes.toarray().ravel() if issparse(rounded) else nzGenes
+        nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
         if layer.startswith("X_"):
             x = rounded[:, nzGenes]
         else:

@@ -49,7 +49,7 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
     cor = (
         einsum_correlation(
             np.array(expression_matrix.toarray().T, dtype="float"),
-            np.array(avg_exp.toarray().ravel(), dtype="float"),
+            np.array(avg_exp.A1, dtype="float"),
         )
         if issparse(expression_matrix)
         else einsum_correlation(
