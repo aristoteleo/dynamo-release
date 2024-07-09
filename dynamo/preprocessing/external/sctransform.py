@@ -243,7 +243,7 @@ def sctransform_core(
     # sample by n_cells, or use all cells
     if n_cells is not None and n_cells < X.shape[0]:
         cells_step1 = np.sort(np.random.choice(X.shape[0], replace=False, size=n_cells))
-        genes_cell_count_step1 = X[cells_step1].sum(0).toarray().flatten()
+        genes_cell_count_step1 = X[cells_step1].sum(0).A.flatten()
         genes_step1 = np.where(genes_cell_count_step1 >= min_cells)[0]
         genes_log_gmean_step1 = np.log10(gmean(X[cells_step1][:, genes_step1], axis=0, eps=gmean_eps))
     else:
