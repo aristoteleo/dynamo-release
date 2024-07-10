@@ -252,7 +252,7 @@ def coexp_measure(
     pearson = np.zeros(len(genes))
 
     X, Y = adata[:, genes].layers[layer_x].T, adata[:, genes].layers[layer_y].T
-    X, Y = X.A if issparse(X) else X, Y.A if issparse(Y) else Y
+    X, Y = X.toarray() if issparse(X) else X, Y.toarray() if issparse(Y) else Y
 
     k = min(5, int(adata.n_obs / 5 + 1))
     for i in tqdm(
@@ -424,7 +424,7 @@ def coexp_measure_mat(
                     return mi(x, y, k)
 
                 X = np.repeat(x[:, None], len(Targets), axis=1)
-                Y = t1_df[:, Targets] if issparse(t1_df) else t1_df[:, Targets].A
+                Y = t1_df[:, Targets].toarray() if issparse(t1_df) else t1_df[:, Targets]
                 pool = ThreadPool(cores)
                 res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
                 pool.close()

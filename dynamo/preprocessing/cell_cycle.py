@@ -48,7 +48,7 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
     avg_exp = expression_matrix.mean(axis=1)
     cor = (
         einsum_correlation(
-            np.array(expression_matrix.A.T, dtype="float"),
+            np.array(expression_matrix.toarray().T, dtype="float"),
             np.array(avg_exp.A1, dtype="float"),
         )
         if issparse(expression_matrix)

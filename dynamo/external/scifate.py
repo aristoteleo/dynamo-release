@@ -193,9 +193,9 @@ def adata_processing_TF_link(
 
     # normalize data (size factor correction, log transform and the scaling)
     if issparse(new):
-        new = new.A
+        new = new.toarray()
     if issparse(total):
-        total = total.A
+        total = total.toarray()
     new_mat = normalize_data(new, szfactors, pseudo_expr=0.1)
     tot_mat = normalize_data(total, szfactors, pseudo_expr=0.1)
     new_mat = pd.DataFrame(new_mat, index=adata.obs_names, columns=adata.var_names)
@@ -207,7 +207,7 @@ def adata_processing_TF_link(
     var.loc[:, "gene_short_name"] = make_index_unique(var.loc[:, "gene_short_name"].astype("str"))
     ntr = adata.layers["new"].sum(1).A1 / adata.layers["total"].sum(1).A1
     if issparse(ntr):
-        obs.loc[:, "labeling_rate"] = ntr.A1
+        obs.loc[:, "labeling_rate"] = ntr.toarray().ravel()
     else:
         obs.loc[:, "labeling_rate"] = ntr
 

@@ -179,9 +179,9 @@ def plot_kin_det(
                             )
             if show_variance:
                 if has_splicing:
-                    Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                    Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                 else:
-                    Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
+                    Obs = X_raw[i].toarray().flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
                 ax.boxplot(
                     x=[Obs[T == std] for std in T_uniq],
                     positions=T_uniq,
@@ -391,9 +391,9 @@ def plot_kin_sto(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                        Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
+                        Obs = X_raw[i].toarray().flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -624,9 +624,9 @@ def plot_kin_mix(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                        Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                        Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -874,9 +874,9 @@ def plot_kin_mix_det_sto(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                        Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                        Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -1149,9 +1149,9 @@ def plot_kin_mix_sto_sto(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                        Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                        Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -1375,9 +1375,9 @@ def plot_deg_det(
                             )
             if show_variance:
                 if has_splicing:
-                    Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                    Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                 else:
-                    Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
+                    Obs = X_raw[i].toarray().flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
                 ax.boxplot(
                     x=[Obs[T == std] for std in T_uniq],
                     positions=T_uniq,
@@ -1585,9 +1585,9 @@ def plot_deg_sto(
             if show_variance:
                 if j < max_box_plots:
                     if has_splicing:
-                        Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                        Obs = X_raw[i][j][0].toarray().flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
                     else:
-                        Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
+                        Obs = X_raw[i].toarray().flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
 
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
@@ -1697,8 +1697,8 @@ def plot_kin_twostep(
         )
         r = adata[:, gene_name].layers[mapper["X_total"]] if use_smoothed else adata[:, gene_name].layers["X_total"]
         n = adata[:, gene_name].layers[mapper["X_new"]] if use_smoothed else adata[:, gene_name].layers["X_new"]
-        r = r.A.flatten() if issparse(r) else r.flatten()
-        n = n.A.flatten() if issparse(n) else n.flatten()
+        r = r.toarray().flatten() if issparse(r) else r.flatten()
+        n = n.toarray().flatten() if issparse(n) else n.flatten()
 
         for j in range(sub_plot_n):
             row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
@@ -1909,7 +1909,7 @@ def plot_kin_deg_twostep(
             X_fit_data[i][1][1],
         )
 
-        Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
+        Obs = X_raw[i].toarray().flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
         for j in range(sub_plot_n):
             row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
 

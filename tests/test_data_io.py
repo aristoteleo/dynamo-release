@@ -75,9 +75,9 @@ def test_save_adata():
 
     def alpha_minus_gamma_s(new, gamma, t, M_s):
         # equation: alpha = new / (1 - e^{-rt}) * r
-        alpha = new.A.T / (1 - np.exp(-gamma.values[:, None] * t.values[None, :])) * gamma.values[:, None]
+        alpha = new.toarray().T / (1 - np.exp(-gamma.values[:, None] * t.values[None, :])) * gamma.values[:, None]
 
-        gamma_s = gamma.values[:, None] * M_s.A.T
+        gamma_s = gamma.values[:, None] * M_s.toarray().T
         alpha_minus_gamma_s = alpha - gamma_s
         return alpha_minus_gamma_s
 

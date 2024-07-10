@@ -194,23 +194,23 @@ def test_graph_calculus_and_operators():
 
     res_op = dyn.tools.graph_operators.gradop(graph)
     res_calc = dyn.tools.graph_calculus.gradop(adj)
-    assert np.allclose(res_op.A, res_calc.A)
+    assert np.allclose(res_op.toarray(), res_calc.toarray())
 
     res_op = dyn.tools.graph_operators.divop(graph)
     res_calc = dyn.tools.graph_calculus.divop(adj)
-    assert np.allclose(res_op.A, 2 * res_calc.A)
+    assert np.allclose(res_op.toarray(), 2 * res_calc.toarray())
 
     res_op = dyn.tools.graph_operators.potential(graph)
-    res_calc = dyn.tools.graph_calculus.potential(adj.A, method="lsq")
+    res_calc = dyn.tools.graph_calculus.potential(adj.toarray(), method="lsq")
     assert np.allclose(res_op, res_calc * 2)
 
-    potential_lsq = dyn.tools.graph_calculus.potential(adj.A, method="lsq")
+    potential_lsq = dyn.tools.graph_calculus.potential(adj.toarray(), method="lsq")
     res_op = dyn.tools.graph_operators.grad(graph)
-    res_calc = dyn.tools.graph_calculus.gradient(adj.A, p=potential_lsq)
+    res_calc = dyn.tools.graph_calculus.gradient(adj.toarray(), p=potential_lsq)
     assert np.allclose(res_op, 2 * res_calc)
 
     res_op = dyn.tools.graph_operators.div(graph)
-    res_calc = dyn.tools.graph_calculus.divergence(adj.A)
+    res_calc = dyn.tools.graph_calculus.divergence(adj.toarray())
     assert np.allclose(res_op, 2 * res_calc)
 
 
@@ -258,28 +258,28 @@ def test_gradop():
     grad_dense = dyn.tl.graph_calculus.gradop(adj.toarray())
 
     # Check that the matrix has the expected shape values
-    assert np.all(grad.A == grad_dense.A)
+    assert np.all(grad.toarray() == grad_dense.toarray())
     assert grad.shape == (4, 3)
 
 
 def test_graphize_velocity_coopt(adata):
     E, _, _ = dyn.tools.graph_calculus.graphize_velocity(
-        X=adata.X.A,
+        X=adata.X.toarray(),
         V=adata.layers["velocity_S"],
     )
     assert E.shape == (adata.n_obs, adata.n_obs)
 
     E = dyn.tools.graph_calculus.graphize_velocity_coopt(
-        X=adata.X.A,
-        V=adata.layers["velocity_S"].A,
+        X=adata.X.toarray(),
+        V=adata.layers["velocity_S"].toarray(),
         nbrs=adata.uns["neighbors"]["indices"],
-        C=adata.obsp["pearson_transition_matrix"].A,
+        C=adata.obsp["pearson_transition_matrix"].toarray(),
     )
     assert E.shape == (adata.n_obs, adata.n_obs)
 
     E = dyn.tools.graph_calculus.graphize_velocity_coopt(
-        X=adata.X.A,
-        V=adata.layers["velocity_S"].A,
+        X=adata.X.toarray(),
+        V=adata.layers["velocity_S"].toarray(),
         nbrs=adata.uns["neighbors"]["indices"],
         U=np.random.random((adata.n_obs, adata.n_vars)),
     )

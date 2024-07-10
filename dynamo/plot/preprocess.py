@@ -734,7 +734,7 @@ def exp_by_groups(
         raise ValueError(f"The layer {layer} is not existed in your adata object!")
 
     exprs = adata[:, valid_genes].X if layer == "X" else adata[:, valid_genes].layers[layer]
-    exprs = exprs.A if issparse(exprs) else exprs
+    exprs = exprs.toarray() if issparse(exprs) else exprs
     if use_ratio:
         (
             has_splicing,
@@ -749,7 +749,7 @@ def exp_by_groups(
                     if use_smoothed
                     else adata[:, valid_genes].layers["X_total"]
                 )
-                tot = tot.A if issparse(tot) else tot
+                tot = tot.toarray() if issparse(tot) else tot
                 exprs = exprs / tot
             else:
                 exprs = exprs
@@ -761,7 +761,7 @@ def exp_by_groups(
                     if use_smoothed
                     else adata[:, valid_genes].layers["X_unspliced"] + adata[:, valid_genes].layers["X_spliced"]
                 )
-                tot = tot.A if issparse(tot) else tot
+                tot = tot.toarray() if issparse(tot) else tot
                 exprs = exprs / tot
             else:
                 exprs = exprs

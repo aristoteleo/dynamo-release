@@ -341,8 +341,8 @@ def phase_portraits(
             raise ValueError("adata has no vkey {} in either the layers or the obsm slot".format(vkey))
 
     E_vec, V_vec = (
-        E_vec.A if issparse(E_vec) else E_vec,
-        V_vec.A if issparse(V_vec) else V_vec,
+        E_vec.toarray() if issparse(E_vec) else E_vec,
+        V_vec.toarray() if issparse(V_vec) else V_vec,
     )
 
     if k_name in vel_params_df.columns:
@@ -368,11 +368,11 @@ def phase_portraits(
             index_gene(adata, adata.layers[mapper["X_total"]], genes),
         )
 
-        new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
+        new_mat, tot_mat = (new_mat.toarray(), tot_mat.toarray()) if issparse(new_mat) else (new_mat, tot_mat)
 
         vel_u, vel_s = (
-            index_gene(adata, adata.layers["velocity_N"].A, genes),
-            index_gene(adata, adata.layers["velocity_T"].A, genes),
+            index_gene(adata, adata.layers["velocity_N"].toarray(), genes),
+            index_gene(adata, adata.layers["velocity_T"].toarray(), genes),
         )
 
         df = pd.DataFrame(
@@ -398,12 +398,12 @@ def phase_portraits(
         )
 
         unspliced_mat, spliced_mat = (
-            (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
+            (unspliced_mat.toarray(), spliced_mat.toarray()) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
         )
 
         vel_u, vel_s = (
-            np.zeros_like(index_gene(adata, adata.layers["velocity_S"].A, genes)),
-            index_gene(adata, adata.layers["velocity_S"].A, genes),
+            np.zeros_like(index_gene(adata, adata.layers["velocity_S"].toarray(), genes)),
+            index_gene(adata, adata.layers["velocity_S"].toarray(), genes),
         )
 
         df = pd.DataFrame(
@@ -429,17 +429,17 @@ def phase_portraits(
             index_gene(adata, adata.layers[mapper["X_new"]], genes),
             index_gene(adata, adata.layers[mapper["X_total"]], genes),
         )
-        U, S, N, T = (U.A, S.A, N.A, T.A) if issparse(U) else (U, S, N, T)
+        U, S, N, T = (U.toarray(), S.toarray(), N.toarray(), T.toarray()) if issparse(U) else (U, S, N, T)
 
         vel_u, vel_s = (
             (
-                index_gene(adata, adata.layers["velocity_U"].A, genes) if "velocity_U" in adata.layers.keys() else None,
-                index_gene(adata, adata.layers["velocity_S"].A, genes),
+                index_gene(adata, adata.layers["velocity_U"].toarray(), genes) if "velocity_U" in adata.layers.keys() else None,
+                index_gene(adata, adata.layers["velocity_S"].toarray(), genes),
             )
             if vkey == "velocity_S"
             else (
-                index_gene(adata, adata.layers["velocity_N"].A, genes) if "velocity_U" in adata.layers.keys() else None,
-                index_gene(adata, adata.layers["velocity_T"].A, genes),
+                index_gene(adata, adata.layers["velocity_N"].toarray(), genes) if "velocity_U" in adata.layers.keys() else None,
+                index_gene(adata, adata.layers["velocity_T"].toarray(), genes),
             )
         )
         if "protein" in adata.obsm.keys():
@@ -461,9 +461,9 @@ def phase_portraits(
                 if (["X_protein"] in adata.obsm.keys() or [mapper["X_protein"]] in adata.obsm.keys())
                 else index_gene(adata, adata.obsm["protein"], genes)
             )
-            P = P.A if issparse(P) else P
+            P = P.toarray() if issparse(P) else P
             if issparse(P_vec):
-                P_vec = P_vec.A
+                P_vec = P_vec.toarray()
 
             vel_p = np.zeros_like(adata.obsm["velocity_P"][:, :])
 
@@ -1683,16 +1683,16 @@ def dynamics(
                     if has_splicing:
                         tmp = (
                             [
-                                valid_adata[:, gene_name].layers["M_ul"].A.T,
-                                valid_adata.layers["M_sl"].A.T,
+                                valid_adata[:, gene_name].layers["M_ul"].toarray().T,
+                                valid_adata.layers["M_sl"].toarray().T,
                             ]
                             if "M_ul" in valid_adata.layers.keys()
                             else [
-                                valid_adata[:, gene_name].layers["ul"].A.T,
-                                valid_adata.layers["sl"].A.T,
+                                valid_adata[:, gene_name].layers["ul"].toarray().T,
+                                valid_adata.layers["sl"].toarray().T,
                             ]
                         )
-                        x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
+                        x_data = [tmp[0].toarray(), tmp[1].toarray()] if issparse(tmp[0]) else tmp
                         if log_unnormalized and "X_ul" not in valid_adata.layers.keys():
                             x_data = [np.log1p(tmp[0]), np.log1p(tmp[1])]
 
@@ -1717,7 +1717,7 @@ def dynamics(
                             if "X_new" in valid_adata.layers.keys()
                             else valid_adata[:, gene_name].layers["new"].T
                         )
-                        x_data = [tmp.A] if issparse(tmp) else [tmp]
+                        x_data = [tmp.toarray()] if issparse(tmp) else [tmp]
 
                         if log_unnormalized and "X_new" not in valid_adata.layers.keys():
                             x_data = [np.log1p(x_data[0])]

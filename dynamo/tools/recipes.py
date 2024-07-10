@@ -150,7 +150,7 @@ def recipe_one_shot_data(
         # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced
         # data.
         # first get X_spliced based pca embedding
-        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].A)
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].toarray())
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
@@ -314,7 +314,7 @@ def recipe_kin_data(
         # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced
         # data.
         # first get X_spliced based pca embedding
-        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].A)
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].toarray())
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
@@ -465,7 +465,7 @@ def recipe_deg_data(
 
         # then calculate moments for labeling data relevant layers using total based connectivity graph
         # first get X_total based pca embedding
-        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_total"].A)
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_total"].toarray())
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
@@ -635,7 +635,7 @@ def recipe_mix_kin_deg_data(
         # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced
         # data.
         # first get X_spliced based pca embedding
-        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].A)
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].toarray())
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()

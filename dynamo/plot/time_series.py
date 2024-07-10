@@ -117,7 +117,7 @@ def kinetic_curves(
         color = list(set(color).intersection(adata.obs.keys()))
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
-    exprs = exprs.A if issparse(exprs) else exprs
+    exprs = exprs.toarray() if issparse(exprs) else exprs
     if len(set(genes).intersection(valid_genes)) > 0:
         # by default, expression values are log1p tranformed if using the expression from adata.
         exprs = np.expm1(exprs) if not log else exprs
@@ -310,7 +310,7 @@ def kinetic_heatmap(
 
         valid_genes = [x for x in genes if x in valid_genes]
 
-        exprs = exprs.A if issparse(exprs) else exprs
+        exprs = exprs.toarray() if issparse(exprs) else exprs
         if mode != "pseudotime":
             exprs = np.log1p(exprs) if log else exprs
 

@@ -1578,8 +1578,8 @@ class ss_estimation:
         """
         if intercept and perc_left is None:
             perc_left = perc_right
-        u = u.A.flatten() if issparse(u) else u.flatten()
-        s = s.A.flatten() if issparse(s) else s.flatten()
+        u = u.toarray().flatten() if issparse(u) else u.flatten()
+        s = s.toarray().flatten() if issparse(s) else s.flatten()
 
         mask = find_extreme(
             s,
@@ -1660,10 +1660,10 @@ class ss_estimation:
             all_r2: float
                 Coefficient of determination or r square for all data points.
         """
-        u = u.A.flatten() if issparse(u) else u.flatten()
-        s = s.A.flatten() if issparse(s) else s.flatten()
-        us = us.A.flatten() if issparse(us) else us.flatten()
-        ss = ss.A.flatten() if issparse(ss) else ss.flatten()
+        u = u.toarray().flatten() if issparse(u) else u.flatten()
+        s = s.toarray().flatten() if issparse(s) else s.flatten()
+        us = us.toarray().flatten() if issparse(us) else us.flatten()
+        ss = ss.toarray().flatten() if issparse(ss) else ss.flatten()
 
         mask = find_extreme(
             s,
@@ -1795,7 +1795,7 @@ class ss_estimation:
             range(ul.shape[0]),
             desc="solving steady state alpha and induction alpha",
         ):
-            l = ul[i].A.flatten() if issparse(ul) else ul[i]
+            l = ul[i].toarray().flatten() if issparse(ul) else ul[i]
             for t_ind in np.arange(1, len(t_uniq)):
                 alpha_stm[i, t_ind] = solve_alpha_2p(
                     t_max - t_uniq[t_ind],
@@ -1870,7 +1870,7 @@ class ss_estimation:
             else:
                 data = self.data[key]
         if type(data) is list:
-            ret = len(data[0].A) if issparse(data[0]) else len(data[0])
+            ret = len(data[0].toarray()) if issparse(data[0]) else len(data[0])
         else:
             ret = data.shape[0]
         return ret

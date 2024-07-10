@@ -485,7 +485,7 @@ class Topography2D:
             an (n,) array of confidences for the fixed points
         """
         X = self.X_data
-        X = X.A if sp.issparse(X) else X
+        X = X.toarray() if sp.issparse(X) else X
         Xss = self.Xss.get_X()
         Xref = np.median(X, 0)
         Xss = np.vstack((Xss, Xref))

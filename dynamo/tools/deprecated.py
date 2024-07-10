@@ -1653,7 +1653,7 @@ class MomData(AnnData):
         for g in tqdm(range(ng), desc="calculating 1/2 moments"):
             tmp = self[:, g].layers["new"]
             L = (
-                np.array(tmp.A, dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)
+                np.array(tmp.toarray(), dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)
             )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
             if has_nan:
                 self.M[g] = strat_mom(L, self.times, np.nanmean)

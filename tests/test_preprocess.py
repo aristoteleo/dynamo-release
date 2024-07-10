@@ -131,8 +131,8 @@ def test_recipe_monocle_feature_selection_layer_simple0():
 
     # rpe1_kinetics = dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False, copy=True)
     dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=20, total_layers=False, feature_selection_layer="new")
-    assert np.all(rpe1_kinetics.X.A == rpe1_kinetics.X.A)
-    assert not np.all(rpe1_kinetics.layers["new"].A != rpe1_kinetics.layers["new"].A)
+    assert np.all(rpe1_kinetics.X.toarray() == rpe1_kinetics.X.toarray())
+    assert not np.all(rpe1_kinetics.layers["new"].toarray() != rpe1_kinetics.layers["new"].toarray())
 
 
 def test_calc_dispersion_sparse():
@@ -530,19 +530,19 @@ def test_transform():
 
     adata1 = log1p(adata.copy())
     assert not np.all(adata1.X == adata.X)
-    assert np.all(adata1.layers["spliced"].A == adata.layers["spliced"].A)
+    assert np.all(adata1.layers["spliced"].toarray() == adata.layers["spliced"].toarray())
 
     adata2 = log(adata.copy())
     assert not np.all(adata2.X == adata.X)
-    assert np.all(adata2.layers["spliced"].A == adata.layers["spliced"].A)
+    assert np.all(adata2.layers["spliced"].toarray() == adata.layers["spliced"].toarray())
 
     adata3 = log2(adata.copy())
     assert not np.all(adata3.X == adata.X)
-    assert np.all(adata3.layers["spliced"].A == adata.layers["spliced"].A)
+    assert np.all(adata3.layers["spliced"].toarray() == adata.layers["spliced"].toarray())
 
     adata4 = Freeman_Tukey(adata.copy())
     assert not np.all(adata3.X == adata.X)
-    assert np.all(adata4.layers["spliced"].A == adata.layers["spliced"].A)
+    assert np.all(adata4.layers["spliced"].toarray() == adata.layers["spliced"].toarray())
 
 
 def test_normalize():
