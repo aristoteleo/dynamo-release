@@ -15,7 +15,7 @@ seaborn>=0.9.0
 colorcet>=2.0.1
 tqdm
 igraph>=0.7.1
-louvain==0.8.0
+leidenalg
 pynndescent>=0.5.2
 pre-commit
 networkx>=2.6

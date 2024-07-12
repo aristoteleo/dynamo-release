@@ -494,7 +494,7 @@ def cluster_community(
 def cluster_community_from_graph(
     graph=None,
     graph_sparse_matrix: Union[np.ndarray, csr_matrix, None] = None,
-    method: Literal["leiden", "louvain"] = "louvain",
+    method: Literal["leiden", "louvain"] = "leiden",
     directed: bool = False,
     **kwargs
 ) -> Any:
