@@ -54,7 +54,7 @@ def deprecated(func):
 # deprecated _dynamics_deprecated.py
 @deprecated
 def _dynamics(*args, **kwargs):
-    _dynamics_legacy(*args, **kwargs)
+    return _dynamics_legacy(*args, **kwargs)
 
 
 def _dynamics_legacy(
@@ -72,7 +72,7 @@ def _dynamics_legacy(
     concat_data=False,
     log_unnormalized=True,
     one_shot_method="combined",
-):
+) -> AnnData:
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
     learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
     sci-fate, scNT-seq or cite-seq datasets.
@@ -379,7 +379,7 @@ def _dynamics_legacy(
 # deprecated dynamo_bk.py
 @deprecated
 def sol_u(*args, **kwargs):
-    _sol_u_legacy(*args, **kwargs)
+    return _sol_u_legacy(*args, **kwargs)
 
 
 def _sol_u_legacy(t, u0, alpha, beta):
@@ -388,7 +388,7 @@ def _sol_u_legacy(t, u0, alpha, beta):
 
 @deprecated
 def sol_s_dynamo_bk(*args, **kwargs):
-    _sol_s_dynamo_bk_legacy(*args, **kwargs)
+    return _sol_s_dynamo_bk_legacy(*args, **kwargs)
 
 
 def _sol_s_dynamo_bk_legacy(t, s0, u0, alpha, beta, gamma):
@@ -400,7 +400,7 @@ def _sol_s_dynamo_bk_legacy(t, s0, u0, alpha, beta, gamma):
 
 @deprecated
 def fit_gamma_labelling_dynamo_bk(*args, **kwargs):
-    _fit_gamma_labelling_dynamo_bk_legacy(*args, **kwargs)
+    return _fit_gamma_labelling_dynamo_bk_legacy(*args, **kwargs)
 
 
 def _fit_gamma_labelling_dynamo_bk_legacy(t, l, mode=None, lbound=None):
@@ -427,7 +427,7 @@ def _fit_gamma_labelling_dynamo_bk_legacy(t, l, mode=None, lbound=None):
 
 @deprecated
 def fit_alpha_dynamo_bk_labelling(*args, **kwargs):
-    _fit_alpha_labelling_dynamo_bk_legacy(*args, **kwargs)
+    return _fit_alpha_labelling_dynamo_bk_legacy(*args, **kwargs)
 
 
 def _fit_alpha_labelling_dynamo_bk_legacy(t, u, gamma, mode=None):
@@ -456,7 +456,7 @@ def _fit_alpha_labelling_dynamo_bk_legacy(t, u, gamma, mode=None):
 
 @deprecated
 def fit_gamma_splicing_dynamo_bk(*args, **kwargs):
-    _fit_gamma_splicing_dynamo_bk_legacy(*args, **kwargs)
+    return _fit_gamma_splicing_dynamo_bk_legacy(*args, **kwargs)
 
 
 def _fit_gamma_splicing_dynamo_bk_legacy(t, s, beta, u0, bounds=(0, np.inf)):
@@ -471,7 +471,7 @@ def _fit_gamma_splicing_dynamo_bk_legacy(t, s, beta, u0, bounds=(0, np.inf)):
 
 @deprecated
 def fit_gamma_dynamo_bk(*args, **kwargs):
-    _fit_gamma_dynamo_bk_legacy(*args, **kwargs)
+    return _fit_gamma_dynamo_bk_legacy(*args, **kwargs)
 
 
 def _fit_gamma_dynamo_bk_legacy(u, s):
@@ -485,7 +485,7 @@ def _fit_gamma_dynamo_bk_legacy(u, s):
 # deprecated dynamo_fitting.py
 @deprecated
 def sol_s_dynamo_fitting(*args, **kwargs):
-    _sol_s_dynamo_fitting_legacy(*args, **kwargs)
+    return _sol_s_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _sol_s_dynamo_fitting_legacy(t, s0, u0, alpha, beta, gamma):
@@ -503,7 +503,7 @@ def _sol_s_dynamo_fitting_legacy(t, s0, u0, alpha, beta, gamma):
 
 @deprecated
 def sol_p_dynamo_fitting(*args, **kwargs):
-    _sol_p_dynamo_fitting_legacy(*args, **kwargs)
+    return _sol_p_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _sol_p_dynamo_fitting_legacy(t, p0, s0, u0, alpha, beta, gamma, eta, gamma_p):
@@ -518,7 +518,7 @@ def _sol_p_dynamo_fitting_legacy(t, p0, s0, u0, alpha, beta, gamma, eta, gamma_p
 
 @deprecated
 def sol_ode_dynamo_fitting(*args, **kwargs):
-    _sol_ode_dynamo_fitting_legacy(*args, **kwargs)
+    return _sol_ode_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _sol_ode_dynamo_fitting_legacy(x, t, alpha, beta, gamma, eta, gamma_p):
@@ -531,7 +531,7 @@ def _sol_ode_dynamo_fitting_legacy(x, t, alpha, beta, gamma, eta, gamma_p):
 
 @deprecated
 def sol_num_dynamo_fitting(args, kwargs):
-    _sol_num_dynamo_fitting_legacy(*args, **kwargs)
+    return _sol_num_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _sol_num_dynamo_fitting_legacy(t, p0, s0, u0, alpha, beta, gamma, eta, gamma_p):
@@ -545,7 +545,7 @@ def _sol_num_dynamo_fitting_legacy(t, p0, s0, u0, alpha, beta, gamma, eta, gamma
 
 @deprecated
 def fit_gamma_labelling_dynamo_fitting(*args, **kwargs):
-    _fit_gamma_labelling_dynamo_fitting_legacy(*args, **kwargs)
+    return _fit_gamma_labelling_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _fit_gamma_labelling_dynamo_fitting_legacy(t, l, mode=None, lbound=None):
@@ -588,7 +588,7 @@ def _fit_gamma_labelling_dynamo_fitting_legacy(t, l, mode=None, lbound=None):
 
 @deprecated
 def fit_beta_lsq_dynamo_fitting(*args, **kwargs):
-    _fit_beta_lsq_dynamo_fitting_legacy(*args, **kwargs)
+    return _fit_beta_lsq_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _fit_beta_lsq_dynamo_fitting_legacy(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=None):
@@ -611,7 +611,7 @@ def _fit_beta_lsq_dynamo_fitting_legacy(t, l, bounds=(0, np.inf), fix_l0=False, 
 
 @deprecated
 def fit_alpha_labelling_dynamo_fitting(*args, **kwargs):
-    _fit_alpha_labelling_dynamo_fitting_legacy(*args, **kwargs)
+    return _fit_alpha_labelling_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _fit_alpha_labelling_dynamo_fitting_legacy(t, u, gamma, mode=None):
@@ -640,7 +640,7 @@ def _fit_alpha_labelling_dynamo_fitting_legacy(t, u, gamma, mode=None):
 
 @deprecated
 def fit_alpha_synthesis_dynamo_fitting(*args, **kwargs):
-    _fit_alpha_synthesis_dynamo_fitting_legacy(*args, **kwargs)
+    return _fit_alpha_synthesis_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _fit_alpha_synthesis_dynamo_fitting_legacy(t, u, beta, mode=None):
@@ -655,7 +655,7 @@ def _fit_alpha_synthesis_dynamo_fitting_legacy(t, u, beta, mode=None):
 
 @deprecated
 def fit_gamma_splicing_dynamo_fitting(*args, **kwargs):
-    _fit_gamma_splicing_dynamo_fitting_legacy(*args, **kwargs)
+    return _fit_gamma_splicing_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _fit_gamma_splicing_dynamo_fitting_legacy(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
@@ -677,7 +677,7 @@ def _fit_gamma_splicing_dynamo_fitting_legacy(t, s, beta, u0, bounds=(0, np.inf)
 
 @deprecated
 def fit_gamma_dynamo_fitting(*args, **kwargs):
-    _fit_gamma_dynamo_fitting_legacy(*args, **kwargs)
+    return _fit_gamma_dynamo_fitting_legacy(*args, **kwargs)
 
 
 def _fit_gamma_dynamo_fitting_legacy(u, s):
@@ -1721,7 +1721,7 @@ class Estimation:
             }
 
     def fit_gene(self, gene_no, n_p0=10):
-        from ..estimation.tsc.utils_moments import estimation
+        from ..estimation.deprecated import estimation
 
         estm = estimation(list(self.param_ranges.values()))
         if self.data_u is None:

@@ -2,6 +2,7 @@
 
 import os
 from functools import reduce
+from typing import List, Optional
 
 from anndata import (
     AnnData,
@@ -22,20 +23,15 @@ from .dynamo_logger import main_info
 from .tools.Markov import KernelMarkovChain
 
 
-def make_dir(path: str, can_exist=True):
-    """wrapper for making directory
+def make_dir(path: str, can_exist: bool = True) -> bool:
+    """Wrapper for making directory.
 
-    Parameters
-    ----------
-    path :
-        str or path object
-    can_exist : bool, optional
-        if path can exist or not. If set to True and path exists, an exception will be raised.
+    Args:
+        path: A str or path object.
+        can_exist: If path can exist or not. If set to True and path exists, an exception will be raised.
 
-    Returns
-    -------
-    bool
-        if a new directory has been created
+    Returns:
+        Boolean value about if a new directory has been created.
     """
     if os.path.exists(path):
         main_info(path + " : exists")
@@ -54,7 +50,7 @@ def make_dir(path: str, can_exist=True):
         return True
 
 
-def convert2float(adata, columns, var=False):
+def convert2float(adata: AnnData, columns: List, var: bool = False) -> None:
     """This helper function can convert the category columns (undesiredly converted) when saving adata object into h5ad
     file back to float type."""
 
@@ -81,27 +77,21 @@ def convert2float(adata, columns, var=False):
                 adata.obs[i] = data.copy()
 
 
-def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
-    """Function to create an anndata object from NASC-seq pipeline
+def load_NASC_seq(
+    dir: str, type: str = "TPM", delimiter: str = "_", colnames: Optional[List] = None, dropna: bool = False,
+) -> AnnData:
+    """Function to create an anndata object from NASC-seq pipeline.
 
-    Parameters
-    ----------
-        dir: `str`
-            The directory that points to the NASC-seq pipeline analysis folder (something like /Experimentdir).
-        type: `str` (default: `TPM`)
-            The data type that will be used as the gene expression. One of `{'TPM', 'FPKM', 'Reads'}`.
-        delimiter: `str` (default: `_`)
-            delimiter pattern for splitting the cells names (columns of each count table)
-        colnames: `list` or none
-            The list of column names after splitting the cell names.
-        dropna: `bool`
-            Whether to drop all genes that have any np.nan values across all cells. If not, all na values will be filled
-            as 0.
+    Args:
+        dir: The directory that points to the NASC-seq pipeline analysis folder (something like /Experimentdir).
+        type: The data type that will be used as the gene expression. One of `{'TPM', 'FPKM', 'Reads'}`.
+        delimiter: Delimiter pattern for splitting the cells names (columns of each count table).
+        colnames: The list of column names after splitting the cell names.
+        dropna: Whether to drop all genes that have any np.nan values across all cells. If not, all na values will be
+            filled as 0.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object with the `new` and `total` layers.
+    Returns:
+        AnnData object with the `new` and `total` layers.
     """
 
     import glob
@@ -237,15 +227,11 @@ def load_NASC_seq(dir, type="TPM", delimiter="_", colnames=None, dropna=False):
 def aggregate_adata(file_list: list) -> AnnData:
     """Aggregate gene expression from adata.X or layer for a list of adata based on the same cell and gene names.
 
-    Parameters
-    ----------
-        file_list:
-            A list of strings specifies the link to the anndata object.
+    Args:
+        file_list: A list of strings specifies the link to the anndata object.
 
-    Returns
-    -------
-        agg_adata:
-            Aggregated adata object.
+    Returns:
+        Aggregated adata object.
     """
 
     import anndata
@@ -284,8 +270,17 @@ def aggregate_adata(file_list: list) -> AnnData:
     return agg_adata
 
 
-def cleanup(adata, del_prediction=False, del_2nd_moments=False):
-    """clean up adata before saving it to a file"""
+def cleanup(adata: AnnData, del_prediction: bool = False, del_2nd_moments: bool = False) -> AnnData:
+    """Clean up adata before saving it to a file.
+
+    Args:
+        adata: The anndata object to be cleaned up.
+        del_prediction: Whether to delete the prediction from the adata object.
+        del_2nd_moments: Whether to delete the 2nd moments from the adata object.
+
+    Returns:
+        The cleaned up anndata object.
+    """
 
     if "pca_fit" in adata.uns_keys():
         adata.uns["pca_fit"] = None
@@ -327,7 +322,9 @@ def cleanup(adata, del_prediction=False, del_2nd_moments=False):
     return adata
 
 
-def export_rank_xlsx(adata, path="rank_info.xlsx", ext="excel", rank_prefix="rank"):
+def export_rank_xlsx(
+    adata: AnnData, path: str = "rank_info.xlsx", ext: str = "excel", rank_prefix: str = "rank",
+) -> None:
     import pandas as pd
 
     with pd.ExcelWriter(path) as writer:

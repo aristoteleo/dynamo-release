@@ -914,6 +914,7 @@ class SvcVectorField(DifferentiableVectorField):
         X: Optional[np.ndarray] = None,
         V: Optional[np.ndarray] = None,
         Grid: Optional[np.ndarray] = None,
+        normalize: Optional[str] = None,
         *args,
         **kwargs,
     ):
@@ -923,6 +924,10 @@ class SvcVectorField(DifferentiableVectorField):
             X: (dimension: n_obs x n_features), Original data.
             V: (dimension: n_obs x n_features), Velocities of cells in the same order and dimension of X.
             Grid: The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+            normalize: Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is
+                often required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension).
+                But it is normally not required for low dimensional embeddings by PCA or other non-linear dimension
+                reduction methods.
             M: `int` (default: None)
                 The number of basis functions to approximate the vector field. By default it is calculated as
                 `min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100))))`. So that any datasets with less
@@ -986,8 +991,9 @@ class SvcVectorField(DifferentiableVectorField):
             )
 
         self.norm_dict = {}
+        self.normalize = normalize
 
-    def train(self, normalize: bool = False, **kwargs) -> VecFldDict:
+    def train(self, **kwargs) -> VecFldDict:
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al,
         Pattern Recognition
@@ -1003,7 +1009,7 @@ class SvcVectorField(DifferentiableVectorField):
             probability and VFCIndex is the indexes of inliers which found by VFC.
         """
 
-        if normalize:
+        if self.normalize:
             X_norm, V_norm, T_norm, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
             (self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict,) = (
                 X_norm,
@@ -1025,7 +1031,7 @@ class SvcVectorField(DifferentiableVectorField):
                 verbose=verbose,
                 lstsq_method=lstsq_method,
             )
-        if normalize:
+        if self.normalize:
             VecFld = denorm(VecFld, X_norm, V_norm, self.norm_dict)
 
         self.parameters = update_dict(self.parameters, VecFld)
@@ -1034,7 +1040,7 @@ class SvcVectorField(DifferentiableVectorField):
 
         self.func = lambda x: vector_field_function(x, VecFld)
         self.vf_dict["V"] = self.func(self.data["X"])
-        self.vf_dict["normalize"] = normalize
+        self.vf_dict["normalize"] = self.normalize
 
         return self.vf_dict
 

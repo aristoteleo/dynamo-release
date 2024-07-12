@@ -111,17 +111,3 @@ def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
         # genes_to_exclude=["Sbspon", "Adgrb3", "Eif2s3y"],
     )
     dyn.pp.cell_cycle_scores(adata)
-
-
-if __name__ == "__main__":
-    test_tqdm_style_loops()
-
-    test_logger_simple_output_1(LoggerManager.get_main_logger())
-    test_logger_simple_progress_naive(LoggerManager.get_main_logger())
-    test_logger_simple_progress_logger(LoggerManager.get_main_logger())
-    test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
-
-    test_vectorField_logger()
-    test_zebrafish_topography_tutorial_logger()
-    test_cell_cycle_score_logger_pancreatic_endocrinogenesis()
-    test_sparseVFC_logger()

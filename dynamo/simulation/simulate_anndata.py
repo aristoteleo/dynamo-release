@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
@@ -72,6 +72,7 @@ neurongenesis_params = {
 
 
 class AnnDataSimulator:
+    """A base anndata simulator class."""
     def __init__(
         self,
         reactions: GillespieReactions,
@@ -82,6 +83,17 @@ class AnnDataSimulator:
         required_param_names: List = [],
         velocity_func: Optional[Callable] = None,
     ) -> None:
+        """Initialize an AnnDataSimulator object.
+
+        Args:
+            reactions: The reaction object.
+            C0s: Initial conditions.
+            param_dict: The parameter dictionary.
+            species: The species object.
+            gene_param_names: List of gene specific parameters.
+            required_param_names: List of required parameters.
+            velocity_func: Function used to calculate velocity.
+        """
 
         # initialization of variables
         self.reactions = reactions
@@ -109,20 +121,37 @@ class AnnDataSimulator:
 
         main_info(f"The model contains {self.get_n_genes()} genes and {self.get_n_species()} species")
 
-    def get_n_genes(self):
+    def get_n_genes(self) -> int:
+        """Get the number of genes.
+
+        Returns:
+            The number of genes.
+        """
         return self.species.get_n_genes()
 
-    def get_n_species(self):
+    def get_n_species(self) -> int:
+        """Get the number of species.
+
+        Returns:
+            The number of species.
+        """
         return len(self.species)
 
-    def get_n_cells(self):
+    def get_n_cells(self) -> int:
+        """Get the number of cells.
+
+        Returns:
+            The number of cells.
+        """
         if self.C is None:
             raise Exception("Simulation results not found. Run simulation first.")
         return self.C.shape[0]
 
-    def fix_param_dict(self, required_param_names):
-        """
-        Fixes parameters in place.
+    def fix_param_dict(self, required_param_names: List) -> None:
+        """Fixes parameters in place.
+
+        Args:
+            required_param_names: List of required parameters.
         """
         param_dict = {}
         for k, v in self.param_dict.items():
@@ -148,7 +177,17 @@ class AnnDataSimulator:
 
         self.param_dict = param_dict
 
-    def augment_C0_gaussian(self, n, sigma=5, inplace=True):
+    def augment_C0_gaussian(self, n: int, sigma: float = 5, inplace: bool = True) -> np.ndarray:
+        """Augment the initial conditions by adding Gaussian noise.
+
+        Args:
+            n: Number of augmented initial conditions.
+            sigma: Standard deviation of the Gaussian noise.
+            inplace: Whether to modify the object in place.
+
+        Returns:
+            The augmented initial conditions.
+        """
         C0s = np.array(self.C0s, copy=True)
         for C0 in self.C0s:
             c = np.random.normal(scale=sigma, size=(n, self.get_n_species()))
@@ -159,7 +198,14 @@ class AnnDataSimulator:
             self.C0s = C0s
         return C0s
 
-    def simulate(self, t_span, n_cells=None, **simulator_kwargs):
+    def simulate(self, t_span: Union[List, np.ndarray], n_cells: Optional[int] = None, **simulator_kwargs) -> None:
+        """Simulate the model.
+
+        Args:
+            t_span: The time span.
+            n_cells: Number of cells to sample.
+            **simulator_kwargs: Additional keyword arguments.
+        """
         Ts, Cs, traj_id = [], None, []
         count = 0
         for C0 in self.C0s:
@@ -191,7 +237,15 @@ class AnnDataSimulator:
                 V.append(flatten(v))
             self.V = np.array(V)
 
-    def generate_anndata(self, remove_empty_cells: bool = False):
+    def generate_anndata(self, remove_empty_cells: bool = False) -> anndata.AnnData:
+        """Generate an AnnData object.
+
+        Args:
+            remove_empty_cells: Whether to remove cells that have no expression.
+
+        Returns:
+            The AnnData object.
+        """
         if self.T is not None and self.C is not None:
 
             obs = pd.DataFrame(
@@ -245,6 +299,7 @@ class AnnDataSimulator:
 
 
 class CellularModelSimulator(AnnDataSimulator):
+    """An anndata simulator class handling models with synthesis, splicing (optional), and first-order degrdation reactions."""
     def __init__(
         self,
         gene_names: List,
@@ -259,18 +314,22 @@ class CellularModelSimulator(AnnDataSimulator):
         velocity_func: Optional[Callable] = None,
         report_stoich: bool = False,
     ) -> None:
-        """
-        An anndata simulator class handling models with synthesis, splicing (optional), and first-order degrdation reactions.
+        """Initialize a CellularModelSimulator object.
 
         Args:
             gene_names: List of gene names.
             synthesis_param_names: List of kinetic parameters used to calculate synthesis rates.
             param_dict: The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
-                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (`unspliced` and `spliced` for each gene).
-            molecular_param_names: List of names of parameters which has `number of molecules` in their dimensions. These parameters will be multiplied with `r_aug` for scaling.
-            kinetic_param_names: List of names of parameters which has `time` in their dimensions. These parameters will be multiplied with `tau` to scale the kinetics.
-            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions.
-            r_aug: Parameter which augments steady state copy number for r1 and r2. At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4
+                species (`unspliced` and `spliced` for each gene).
+            molecular_param_names: List of names of parameters which has `number of molecules` in their dimensions.
+                These parameters will be multiplied with `r_aug` for scaling.
+            kinetic_param_names: List of names of parameters which has `time` in their dimensions. These parameters
+                will be multiplied with `tau` to scale the kinetics.
+            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s`
+                initial conditions.
+            r_aug: Parameter which augments steady state copy number for r1 and r2. At steady state,
+                r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
             tau: Time scale parameter which does not affect steady state solutions.
             n_C0s: Number of augmented initial conditions, if C0s is `None`.
             velocity_func: Function used to calculate velocity. If `None`, the velocity will not be calculated.
@@ -342,20 +401,47 @@ class CellularModelSimulator(AnnDataSimulator):
             else:
                 self.vfunc = lambda x, param=self.param_dict: velocity_func(x, **param)
 
-    def get_synthesized_species(self):
-        """return species which are either `total` or `unspliced` when there is splicing."""
+    def get_synthesized_species(self) -> List:
+        """Get species which are either `total` or `unspliced` when there is splicing.
+
+        Returns:
+            List of species names.
+        """
         name = "unspliced" if self.splicing else "total"
         return self.species[name]
 
-    def get_primary_species(self):
-        """return species which are either `total` or `spliced` when there is splicing."""
+    def get_primary_species(self) -> List:
+        """Get species which are either `total` or `spliced` when there is splicing.
+
+        Returns:
+            List of species names.
+        """
         name = "spliced" if self.splicing else "total"
         return self.species[name]
 
-    def auto_C0(self, r_aug, tau):
+    def auto_C0(self, r_aug: float, tau: float) -> np.ndarray:
+        """Automatically calculate the initial conditions based on the steady state solutions.
+
+        Args:
+            r_aug: Parameter which augments steady state copy number for r1 and r2. At steady state,
+                r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+            tau: Time scale parameter which does not affect steady state solutions.
+
+        Returns:
+            Initial conditions (# init cond. by # species).
+        """
         return np.zeros(len(self.species))
 
-    def register_reactions(self, reactions: GillespieReactions):
+    def register_reactions(self, reactions: GillespieReactions) -> GillespieReactions:
+        """Register reactions to the reaction object.
+
+
+        Args:
+            reactions: The target reaction object to register.
+
+        Returns:
+            The reaction object after registration.
+        """
         for i_gene in range(self.get_n_genes()):
             if self.splicing:
                 u, s = self.species["unspliced", i_gene], self.species["spliced", i_gene]
@@ -375,7 +461,15 @@ class CellularModelSimulator(AnnDataSimulator):
                 )
         return reactions
 
-    def generate_anndata(self, remove_empty_cells: bool = False):
+    def generate_anndata(self, remove_empty_cells: bool = False) -> anndata.AnnData:
+        """Generate anndata object from the simulation results.
+
+        Args:
+            remove_empty_cells: Whether to remove cells that has no expression.
+
+        Returns:
+            The generated anndata object.
+        """
         adata = super().generate_anndata(remove_empty_cells)
 
         if self.splicing:
@@ -386,11 +480,17 @@ class CellularModelSimulator(AnnDataSimulator):
 
 
 class KinLabelingSimulator:
+    """A simulator for kinetic labeling experiments."""
     def __init__(
         self,
         simulator: CellularModelSimulator,
         syn_rxn_tag: str = "synthesis",
     ) -> None:
+        """Initialize a KinLabelingSimulator object.
+
+        Args:
+            simulator: The simulator object to simulate the kinetic labeling experiment.
+        """
 
         self.n_cells = simulator.C.shape[0]
         self.splicing = simulator.splicing
@@ -424,10 +524,30 @@ class KinLabelingSimulator:
         self.Tl = None
         self._label_time = None
 
-    def get_n_cells(self):
+    def get_n_cells(self) -> int:
+        """Get the number of cells.
+
+        Returns:
+            The number of cells.
+        """
         return self.n_cells
 
-    def register_reactions(self, species: CellularSpecies, label_species, param_dict):
+    def register_reactions(
+        self,
+        species: CellularSpecies,
+        label_species: List[str],
+        param_dict: Dict,
+    ) -> Tuple[GillespieReactions, List[int]]:
+        """Register reactions to the reaction object.
+
+        Args:
+            species: The species object.
+            label_species: List of label species names.
+            param_dict: The parameter dictionary.
+
+        Returns:
+            The reaction object after registration and the indices of synthesis reactions.
+        """
         reactions = GillespieReactions(species)
         syn_rxns = []
         if self.splicing:
@@ -467,7 +587,12 @@ class KinLabelingSimulator:
                 )
         return reactions, syn_rxns
 
-    def simulate(self, label_time):
+    def simulate(self, label_time: Union[float, np.ndarray]) -> None:
+        """Simulate the kinetic labeling experiment.
+
+        Args:
+            label_time: The label time.
+        """
         if np.isscalar(label_time):
             label_time = np.ones(self.get_n_cells()) * label_time
         self._label_time = label_time
@@ -482,7 +607,15 @@ class KinLabelingSimulator:
             self.Tl = np.hstack((self.Tl, T[-1]))
             self.Cl = C[:, -1] if self.Cl is None else np.vstack((self.Cl, C[:, -1]))
 
-    def write_to_anndata(self, adata: anndata):
+    def write_to_anndata(self, adata: anndata) -> anndata:
+        """Write the kinetic labeling experiment results to an anndata object.
+
+        Args:
+            adata: The anndata object to write to.
+
+        Returns:
+            The anndata object with the kinetic labeling experiment results.
+        """
         if adata.n_vars != self.species.get_n_genes():
             raise Exception(
                 f"The input anndata has {adata.n_vars} genes while there are {self.species.get_n_genes()} registered."
@@ -506,6 +639,7 @@ class KinLabelingSimulator:
 
 
 class BifurcationTwoGenes(CellularModelSimulator):
+    """Two gene bifurcation model anndata simulator."""
     def __init__(
         self,
         param_dict: Dict,
@@ -516,14 +650,16 @@ class BifurcationTwoGenes(CellularModelSimulator):
         gene_names: Optional[List] = None,
         report_stoich: bool = False,
     ) -> None:
-        """
-        Two gene toggle switch model anndata simulator.
+        """Initialize a BifurcationTwoGenes object.
 
         Args:
             param_dict: The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
-                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
-            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
-            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4
+                species (u and s for each gene).
+            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s`
+                initial conditions based on the steady states.
+            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state,
+                r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
             tau: Time scale parameter which does not affect steady state solutions.
             n_C0s: Number of augmented initial conditions, if C0s is `None`.
             gene_names: List of gene names. If `None`, "gene_1", "gene_2", etc., are used.
@@ -546,7 +682,17 @@ class BifurcationTwoGenes(CellularModelSimulator):
             report_stoich=report_stoich,
         )
 
-    def auto_C0(self, r_aug, tau):
+    def auto_C0(self, r_aug: float, tau: float) -> np.ndarray:
+        """Automatically calculate the initial conditions based on the steady state solutions.
+
+        Args:
+            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state,
+                r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+            tau: Time scale parameter which does not affect steady state solutions.
+
+        Returns:
+            Initial conditions (# init cond. by # species).
+        """
         a, b = self.param_dict["a"], self.param_dict["b"]
         ga = self.param_dict["gamma"]
 
@@ -563,7 +709,15 @@ class BifurcationTwoGenes(CellularModelSimulator):
             C0s = np.array([x1_s, x2_s])
         return C0s
 
-    def register_reactions(self, reactions):
+    def register_reactions(self, reactions: GillespieReactions) -> None:
+        """Register reactions to the reaction object.
+
+        Args:
+            reactions: The target reaction object to register.
+
+        Returns:
+            The reaction object after registration.
+        """
         def rate_syn(x, y, gene):
             activation = hill_act_func(
                 x, self.param_dict["a"][gene], self.param_dict["S"][gene], self.param_dict["m"][gene]
@@ -599,6 +753,8 @@ class BifurcationTwoGenes(CellularModelSimulator):
 
 
 class OscillationTwoGenes(CellularModelSimulator):
+    """Two gene oscillation model anndata simulator. This is essentially a predator-prey model, where gene 1 (predator)
+    inhibits gene 2 (prey) and gene 2 activates gene 1."""
     def __init__(
         self,
         param_dict: Dict,
@@ -609,13 +765,14 @@ class OscillationTwoGenes(CellularModelSimulator):
         gene_names: Optional[List] = None,
         report_stoich: bool = False,
     ) -> None:
-        """
-        Two gene oscillation model anndata simulator. This is essentially a predator-prey model, where gene 1 (predator) inhibits gene 2 (prey) and gene 2 activates gene 1.
+        """Initialize a OscillationTwoGenes object.
 
         Args:
             param_dict: The parameter dictionary containing "a", "b", "S", "K", "m", "n", "beta" (optional), "gamma"
-                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
-            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
+                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4
+                species (u and s for each gene).
+            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s`
+                initial conditions based on the steady states.
             r_aug: Parameter which augments copy numbers for the two genes.
             tau: Time scale parameter which does not affect steady state solutions.
             n_C0s: Number of augmented initial conditions, if C0s is `None`.
@@ -639,7 +796,17 @@ class OscillationTwoGenes(CellularModelSimulator):
             report_stoich=report_stoich,
         )
 
-    def auto_C0(self, r_aug, tau):
+    def auto_C0(self, r_aug: float, tau: float) -> np.ndarray:
+        """Automatically calculate the initial conditions based on the steady state solutions.
+
+        Args:
+            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state,
+                r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+            tau: Time scale parameter which does not affect steady state solutions.
+
+        Returns:
+            Initial conditions (# init cond. by # species).
+        """
         # TODO: derive solutions for auto C0
         if self.splicing:
             ga, be = self.param_dict["gamma"], self.param_dict["beta"]
@@ -652,7 +819,15 @@ class OscillationTwoGenes(CellularModelSimulator):
             C0s = 70 * np.ones(len(self.species))
         return C0s
 
-    def register_reactions(self, reactions):
+    def register_reactions(self, reactions: GillespieReactions) -> None:
+        """Register reactions to the reaction object.
+
+        Args:
+            reactions: The target reaction object to register.
+
+        Returns:
+            The reaction object after registration.
+        """
         def rate_syn_1(x, y, gene):
             activation = hill_act_func(
                 x, self.param_dict["a"][gene], self.param_dict["S"][gene], self.param_dict["m"][gene]
@@ -697,6 +872,7 @@ class OscillationTwoGenes(CellularModelSimulator):
 
 
 class Neurongenesis(CellularModelSimulator):
+    """Neurongenesis model anndata simulator from Xiaojie Qiu, et. al, 2012. anndata simulator."""
     def __init__(
         self,
         param_dict: Dict,
@@ -706,14 +882,16 @@ class Neurongenesis(CellularModelSimulator):
         n_C0s: int = 10,
         report_stoich: bool = False,
     ) -> None:
-        """
-        Neurongenesis model from Xiaojie Qiu, et. al, 2012. anndata simulator.
+        """Initialize a Neurongenesis object.
 
         Args:
             param_dict: The parameter dictionary.
-                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4 species (u and s for each gene).
-            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s` initial conditions based on the steady states.
-            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state, r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+                if `param_dict` has the key "beta", the simulation includes the splicing process and therefore has 4
+                species (u and s for each gene).
+            C0s: Initial conditions (# init cond. by # species). If None, the simulator automatically generates `n_C0s`
+                initial conditions based on the steady states.
+            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state,
+                r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
             tau: Time scale parameter which does not affect steady state solutions.
             n_C0s: Number of augmented initial conditions, if C0s is `None`.
             report_stoich: Whether to report the Stoichiometry Matrix.
@@ -748,14 +926,32 @@ class Neurongenesis(CellularModelSimulator):
             report_stoich=report_stoich,
         )
 
-    def auto_C0(self, r_aug, tau):
+    def auto_C0(self, r_aug: float, tau: float) -> np.ndarray:
+        """Automatically calculate the initial conditions based on the steady state solutions.
+
+        Args:
+            r_aug: Parameter which augments steady state copy number for gene 1 (r1) and gene 2 (r2). At steady state,
+                r1_s ~ r*(a1+b1)/ga1; r2_s ~ r*(a2+b2)/ga2
+            tau: Time scale parameter which does not affect steady state solutions.
+
+        Returns:
+            Initial conditions (# init cond. by # species).
+        """
         # C0 = np.ones(self.get_n_species()) * r_aug
         C0 = np.zeros(self.get_n_species())
         # TODO: splicing case
         C0[self.species["total", "Pax6"]] = 2.0 * r_aug
         return C0
 
-    def register_reactions(self, reactions):
+    def register_reactions(self, reactions: GillespieReactions) -> None:
+        """Register reactions to the reaction object.
+
+        Args:
+            reactions: The target reaction object to register.
+
+        Returns:
+            The reaction object after registration.
+        """
         def rate_pax6(x, y, z, gene):
             a = self.param_dict["a"][gene]
             K = self.param_dict["K"][gene]

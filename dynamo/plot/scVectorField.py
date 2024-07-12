@@ -25,7 +25,7 @@ from ..tools.Markov import (
     velocity_on_grid,
 )
 from ..tools.utils import update_dict
-from ..vectorfield.topography import VectorField
+from ..vectorfield.VectorField import VectorField
 from ..vectorfield.utils import vecfld_from_adata
 from .scatters import docstrings, scatters, scatters_interactive
 from .utils import (
