@@ -915,7 +915,7 @@ def highest_frac_genes(
 
     if gene_annotations is None:
         if gene_annotation_key in adata.var:
-            gene_annotations = adata.var[gene_annotation_key][selected_indices]
+            gene_annotations = adata.var[gene_annotation_key].iloc[selected_indices]
 
         else:
             main_warning(
@@ -930,8 +930,8 @@ def highest_frac_genes(
 
         if gene_annotations is not None:
             ax2 = ax.twiny()
-            ax2.set_xlim(ax.get_ylim())
-            ax2.set_xticks(ax.get_yticks())
+            ax2.set_xlim(ax.get_xlim())
+            ax2.set_xticks(ax.get_xticks())
             ax2.set_xticks(list(range(len(gene_annotations))))
             ax2.set_xticklabels(gene_annotations, rotation=v_rotation, ha="left")
             ax2.set_xlabel(gene_annotation_key)
