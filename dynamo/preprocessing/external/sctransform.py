@@ -109,7 +109,7 @@ def _parallel_init(
 def _parallel_wrapper(j: int) -> None:
     """Helper function to fit Poisson regression to UMI counts."""
     name = gn[genes_bin_regress[j]]
-    y = umi_bin[:, j].A.flatten()
+    y = umi_bin[:, j].toarray().flatten()
     pr = statsmodels.discrete.discrete_model.Poisson(y, mm)
     res = pr.fit(disp=False)
     mu = res.predict()
@@ -218,6 +218,7 @@ def sctransform_core(
     """
     import multiprocessing
     import sys
+
     try:
         from KDEpy import FFTKDE
     except ImportError:

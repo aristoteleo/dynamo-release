@@ -33,11 +33,13 @@ from .connectivity import (
     mnn,
     neighbors,
 )
+from .DDRTree import DDRTree, cal_ncenter
 
 # Pseudotime related
 from .DDRTree_graph import construct_velocity_tree, directed_pg
-from .DDRTree import DDRTree, cal_ncenter
-from .pseudotime import order_cells
+
+# deprecated functions
+from .deprecated import construct_velocity_tree_py
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension  # , run_umap
@@ -77,6 +79,7 @@ from .Markov import (
 # vector field related
 from .metric_velocity import cell_wise_confidence, gene_wise_confidence
 from .moments import calc_1nd_moment, calc_2nd_moment, moments
+from .pseudotime import order_cells
 from .pseudotime_velocity import pseudotime_velocity
 from .psl import psl
 
@@ -90,7 +93,14 @@ from .recipes import (
 )
 
 # Sampling methods
-from .sampling import TRNET, lhsclassic, sample, sample_by_kmeans, sample_by_velocity, trn
+from .sampling import (
+    TRNET,
+    lhsclassic,
+    sample,
+    sample_by_kmeans,
+    sample_by_velocity,
+    trn,
+)
 from .utils import (
     AnnDataPredicate,
     cell_norm,
@@ -110,9 +120,4 @@ from .velocyto_scvelo import (
     run_velocyto,
     scv_dyn_convertor,
     vlm_to_adata,
-)
-
-# deprecated functions
-from .deprecated import (
-    construct_velocity_tree_py,
 )

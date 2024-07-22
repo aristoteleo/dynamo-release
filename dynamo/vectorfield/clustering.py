@@ -413,8 +413,7 @@ def streamline_clusters(
         feature_adata.obs[key] = adata.obs.obs[key].astype("category")
     else:
         raise ValueError(
-            "only louvain, leiden, hdbscan and kmeans clustering supported but your requested "
-            f"method is {method}"
+            "only louvain, leiden, hdbscan and kmeans clustering supported but your requested " f"method is {method}"
         )
 
     if assign_fixedpoints or reversed_fixedpoints:

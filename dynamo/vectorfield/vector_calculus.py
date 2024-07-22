@@ -3,6 +3,7 @@
 # from anndata._core.views import ArrayView
 # import scipy.sparse as sp
 from typing import Dict, List, Optional, Union
+
 try:
     from typing import Literal
 except ImportError:
@@ -61,12 +62,12 @@ if use_dynode:
 def get_vf_class(adata: AnnData, basis: str = "pca") -> SvcVectorField:
     """Get the corresponding vector field class according to different methods.
 
-        Args:
-            adata: AnnData object that contains the reconstructed vector field in the `uns` attribute.
-            basis: The embedding data in which the vector field was reconstructed.
+    Args:
+        adata: AnnData object that contains the reconstructed vector field in the `uns` attribute.
+        basis: The embedding data in which the vector field was reconstructed.
 
-        Returns:
-            SvcVectorField object that is extracted from the `uns` attribute of adata.
+    Returns:
+        SvcVectorField object that is extracted from the `uns` attribute of adata.
     """
     vf_dict = get_vf_dict(adata, basis=basis)
     if "method" not in vf_dict.keys():
@@ -197,7 +198,7 @@ def jacobian(
     regulators: Optional[List] = None,
     effectors: Optional[List] = None,
     cell_idx: Optional[List] = None,
-    sampling: Optional[Literal['random', 'velocity', 'trn']] = None,
+    sampling: Optional[Literal["random", "velocity", "trn"]] = None,
     sample_ncells: int = 1000,
     basis: str = "pca",
     Qkey: str = "PCs",
@@ -340,7 +341,7 @@ def hessian(
     coregulators: List,
     effector: Optional[List] = None,
     cell_idx: Optional[List] = None,
-    sampling: Optional[Literal['random', 'velocity', 'trn']] = None,
+    sampling: Optional[Literal["random", "velocity", "trn"]] = None,
     sample_ncells: int = 1000,
     basis: str = "pca",
     Qkey: str = "PCs",
@@ -577,7 +578,7 @@ def sensitivity(
     regulators: Optional[List] = None,
     effectors: Optional[List] = None,
     cell_idx: Optional[List] = None,
-    sampling: Optional[Literal['random', 'velocity', 'trn']] = None,
+    sampling: Optional[Literal["random", "velocity", "trn"]] = None,
     sample_ncells: int = 1000,
     basis: str = "pca",
     Qkey: str = "PCs",
@@ -940,7 +941,7 @@ def curl(
 def divergence(
     adata: AnnData,
     cell_idx: Optional[List] = None,
-    sampling: Optional[Literal['random', 'velocity', 'trn']] = None,
+    sampling: Optional[Literal["random", "velocity", "trn"]] = None,
     sample_ncells: int = 1000,
     basis: str = "pca",
     vector_field_class=None,

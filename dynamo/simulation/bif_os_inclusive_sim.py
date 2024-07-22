@@ -8,6 +8,7 @@ from .utils import directMethod, temporal_interp
 # Differentiation model
 class sim_diff:
     """The differentiation model."""
+
     def __init__(
         self,
         a1: float,
@@ -170,6 +171,7 @@ class sim_diff:
 # Oscillator
 class sim_osc:
     """The oscillator model."""
+
     def __init__(
         self,
         a1: float,

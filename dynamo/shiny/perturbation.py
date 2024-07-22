@@ -1,12 +1,12 @@
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from anndata import AnnData
-from pathlib import Path
 
-from .utils import filter_fig
 from ..plot import streamline_plot
 from ..prediction import perturbation
-
+from .utils import filter_fig
 
 css_path = Path(__file__).parent / "styles.css"
 
@@ -21,7 +21,7 @@ def perturbation_web_app(input_adata: AnnData):
     try:
         import shiny.experimental as x
         from htmltools import HTML, div
-        from shiny import App, Inputs, Outputs, reactive, Session, render, ui
+        from shiny import App, Inputs, Outputs, Session, reactive, render, ui
     except ImportError:
         raise ImportError("Please install shiny and htmltools before running the web application!")
 
@@ -33,9 +33,7 @@ def perturbation_web_app(input_adata: AnnData):
                     div("Perturbation Setting", class_="bold-subtitle"),
                     ui.input_slider("n_genes", "Number of genes to perturb:", min=1, max=5, value=1),
                     ui.output_ui("selectize_genes"),
-                    ui.input_action_button(
-                        "activate_perturbation", "Run perturbation", class_="btn-primary"
-                    ),
+                    ui.input_action_button("activate_perturbation", "Run perturbation", class_="btn-primary"),
                     value="Perturbation",
                 ),
                 x.ui.accordion_panel(
@@ -52,14 +50,16 @@ def perturbation_web_app(input_adata: AnnData):
         ui.div(
             div("in silico perturbation", class_="bold-title"),
             div(HTML("<br><br>")),
-            div("Perturbation function in Dynamo can be used to either upregulating or suppressing a single or "
+            div(
+                "Perturbation function in Dynamo can be used to either upregulating or suppressing a single or "
                 "multiple genes in a particular cell or across all cells to perform in silico genetic perturbation. "
                 "Dynamo first calculates the perturbation velocity vector from the input expression value and "
                 "the analytical Jacobian from our vector field function Because Jacobian encodes the instantaneous "
                 "changes of velocity of any genes after increasing any other gene, the output vector will produce the "
                 "perturbation effect vector after propagating the genetic perturbation through the gene regulatory "
                 "network. Then Dynamo projects the perturbation vector to low dimensional space.",
-                class_="explanation"),
+                class_="explanation",
+            ),
             div(HTML("<br><br>")),
             x.ui.card(
                 div("Streamline Plot", class_="bold-subtitle"),
@@ -95,11 +95,11 @@ def perturbation_web_app(input_adata: AnnData):
         @render.ui
         def selectize_basis():
             return ui.input_selectize(
-                        "streamline_basis",
-                        "The perturbation output as the basis of plot: ",
-                        choices=[b[2:] if b.startswith("X_") else b for b in list(adata.obsm.keys())],
-                        selected="umap",
-                    )
+                "streamline_basis",
+                "The perturbation output as the basis of plot: ",
+                choices=[b[2:] if b.startswith("X_") else b for b in list(adata.obsm.keys())],
+                selected="umap",
+            )
 
         @output
         @render.ui
@@ -116,10 +116,11 @@ def perturbation_web_app(input_adata: AnnData):
                         ui.input_slider(
                             "expression_" + str(i),
                             "Expression value to encode the genetic perturbation: ",
-                            min=-200, max=200, value=-100,
+                            min=-200,
+                            max=200,
+                            value=-100,
                         ),
                     ),
-
                 )
             return ui_list
 
@@ -128,8 +129,9 @@ def perturbation_web_app(input_adata: AnnData):
         def base_plot():
             color = [getattr(input, "base_color_" + str(i))() for i in range(input.n_colors())]
 
-            axes_list = streamline_plot(adata, color=color, basis=input.streamline_basis(),
-                                        save_show_or_return="return")
+            axes_list = streamline_plot(
+                adata, color=color, basis=input.streamline_basis(), save_show_or_return="return"
+            )
 
             return filter_fig(plt.gcf())
 
@@ -146,7 +148,9 @@ def perturbation_web_app(input_adata: AnnData):
         def perturbation_plot():
             if input.activate_perturbation() > 0:
                 color = [getattr(input, "base_color_" + str(i))() for i in range(input.n_colors())]
-                axes_list = streamline_plot(adata, color=color, basis=input.streamline_basis() + "_perturbation", save_show_or_return="return")
+                axes_list = streamline_plot(
+                    adata, color=color, basis=input.streamline_basis() + "_perturbation", save_show_or_return="return"
+                )
 
                 return filter_fig(plt.gcf())
 

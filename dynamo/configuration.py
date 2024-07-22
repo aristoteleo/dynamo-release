@@ -1,8 +1,9 @@
 import warnings
-from typing import Any, List, Generator, Optional, Tuple, Union
+from typing import Any, Generator, List, Optional, Tuple, Union
 
 import colorcet
 import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ from .dynamo_logger import main_debug, main_info
 
 class DynamoAdataKeyManager:
     """A class to manage the keys used in anndata object for dynamo."""
+
     VAR_GENE_MEAN_KEY = "pp_gene_mean"
     VAR_GENE_VAR_KEY = "pp_gene_variance"
     VAR_GENE_HIGHLY_VARIABLE_KEY = "gene_highly_variable"
@@ -41,8 +43,8 @@ class DynamoAdataKeyManager:
     RAW = "raw"
 
     def _select_layer_cell_chunked_data(
-            mat: np.ndarray,
-            chunk_size: int,
+        mat: np.ndarray,
+        chunk_size: int,
     ) -> Generator:
         """Select layer data in cell chunks based on chunk_size."""
         start = 0
@@ -55,8 +57,8 @@ class DynamoAdataKeyManager:
             yield (mat[start:n, :], start, n)
 
     def _select_layer_gene_chunked_data(
-            mat: np.ndarray,
-            chunk_size: int,
+        mat: np.ndarray,
+        chunk_size: int,
     ) -> Generator:
         """Select layer data in gene chunks based on chunk_size."""
         start = 0
@@ -133,8 +135,11 @@ class DynamoAdataKeyManager:
             elif layer == DynamoAdataKeyManager.RAW:
                 return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.raw.X, chunk_size=chunk_size)
             elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
-                return DynamoAdataKeyManager._select_layer_cell_chunked_data(
-                    adata.obsm["protein"], chunk_size=chunk_size) if "protein" in adata.obsm_keys() else None
+                return (
+                    DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.obsm["protein"], chunk_size=chunk_size)
+                    if "protein" in adata.obsm_keys()
+                    else None
+                )
             else:
                 return DynamoAdataKeyManager._select_layer_cell_chunked_data(adata.layers[layer], chunk_size=chunk_size)
         elif chunk_mode == "gene":
@@ -143,8 +148,11 @@ class DynamoAdataKeyManager:
             elif layer == DynamoAdataKeyManager.RAW:
                 return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.raw.X, chunk_size=chunk_size)
             elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
-                return DynamoAdataKeyManager._select_layer_gene_chunked_data(
-                    adata.obsm["protein"], chunk_size=chunk_size) if "protein" in adata.obsm_keys() else None
+                return (
+                    DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.obsm["protein"], chunk_size=chunk_size)
+                    if "protein" in adata.obsm_keys()
+                    else None
+                )
             else:
                 return DynamoAdataKeyManager._select_layer_gene_chunked_data(adata.layers[layer], chunk_size=chunk_size)
         else:
@@ -174,7 +182,10 @@ class DynamoAdataKeyManager:
         return layer in adata.layers
 
     def get_available_layer_keys(
-        adata: AnnData, layers: str = "all", remove_pp_layers: bool = True, include_protein: bool = True,
+        adata: AnnData,
+        layers: str = "all",
+        remove_pp_layers: bool = True,
+        include_protein: bool = True,
     ) -> List[str]:
         """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if
         `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
@@ -280,6 +291,7 @@ DKM = DynamoAdataKeyManager
 
 class DynamoVisConfig:
     """Dynamo visualization config class holding static variables to change behaviors of functions globally."""
+
     def set_default_mode(background="white"):
         """Set the default mode for dynamo visualization."""
         set_figure_params("dynamo", background=background)
@@ -342,7 +354,7 @@ class DynamoAdataConfig:
         Returns:
             `val` or config value set in DynamoAdataConfig according to the method description above.
         """
-        if not key in DynamoAdataConfig.config_key_to_values:
+        if key not in DynamoAdataConfig.config_key_to_values:
             assert KeyError("Config %s not exist in DynamoAdataConfig." % (key))
         if val == replace_val:
             config_val = DynamoAdataConfig.config_key_to_values[key]
@@ -433,26 +445,26 @@ glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 # register cmap
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    if "zebrafish" not in matplotlib.colormaps():
-        plt.register_cmap("zebrafish", zebrafish_cmap)
-    if "fire" not in matplotlib.colormaps():
-        plt.register_cmap("fire", fire_cmap)
-    if "darkblue" not in matplotlib.colormaps():
-        plt.register_cmap("darkblue", darkblue_cmap)
-    if "darkgreen" not in matplotlib.colormaps():
-        plt.register_cmap("darkgreen", darkgreen_cmap)
-    if "darkred" not in matplotlib.colormaps():
-        plt.register_cmap("darkred", darkred_cmap)
-    if "darkpurple" not in matplotlib.colormaps():
-        plt.register_cmap("darkpurple", darkpurple_cmap)
-    if "div_blue_black_red" not in matplotlib.colormaps():
-        plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
-    if "div_blue_red" not in matplotlib.colormaps():
-        plt.register_cmap("div_blue_red", div_blue_red_cmap)
-    if "glasbey_white" not in matplotlib.colormaps():
-        plt.register_cmap("glasbey_white", glasbey_white_cmap)
-    if "glasbey_dark" not in matplotlib.colormaps():
-        plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
+    if "zebrafish" not in mpl.colormaps():
+        mpl.colormaps.register(name="zebrafish", cmap=zebrafish_cmap)
+    if "fire" not in mpl.colormaps():
+        mpl.colormaps.register(name="fire", cmap=fire_cmap)
+    if "darkblue" not in mpl.colormaps():
+        mpl.colormaps.register(name="darkblue", cmap=darkblue_cmap)
+    if "darkgreen" not in mpl.colormaps():
+        mpl.colormaps.register(name="darkgreen", cmap=darkgreen_cmap)
+    if "darkred" not in mpl.colormaps():
+        mpl.colormaps.register(name="darkred", cmap=darkred_cmap)
+    if "darkpurple" not in mpl.colormaps():
+        mpl.colormaps.register(name="darkpurple", cmap=darkpurple_cmap)
+    if "div_blue_black_red" not in mpl.colormaps():
+        mpl.colormaps.register(name="div_blue_black_red", cmap=div_blue_black_red_cmap)
+    if "div_blue_red" not in mpl.colormaps():
+        mpl.colormaps.register(name="div_blue_red", cmap=div_blue_red_cmap)
+    if "glasbey_white" not in mpl.colormaps():
+        mpl.colormaps.register(name="glasbey_white", cmap=glasbey_white_cmap)
+    if "glasbey_dark" not in mpl.colormaps():
+        mpl.colormaps.register(name="glasbey_dark", cmap=glasbey_dark_cmap)
 
 
 _themes = {

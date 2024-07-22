@@ -69,9 +69,7 @@ def lambda_correction(
     elif np.count_nonzero([has_l, has_n]):
         datatype = "labeling"
     else:
-        raise ValueError(
-            "the adata object has to include labeling layers."
-        )
+        raise ValueError("the adata object has to include labeling layers.")
 
     logger.info(f"the data type identified is {datatype}", indent_level=2)
 

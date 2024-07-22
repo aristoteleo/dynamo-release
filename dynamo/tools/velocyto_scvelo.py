@@ -5,6 +5,7 @@ Implemented functions includes:
     Convert adata to loom object or vice versa.
     Convert Dynamo AnnData object to scvelo AnnData object or vice versa.
 """
+
 # from .moments import *
 from typing import List, Optional
 
@@ -17,11 +18,11 @@ import anndata
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from .utils import get_vel_params
-from ..dynamo_logger import main_info
 from scipy.sparse import csr_matrix
 
 from ..configuration import DKM
+from ..dynamo_logger import main_info
+from .utils import get_vel_params
 
 
 def vlm_to_adata(
@@ -254,16 +255,21 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dy
     Returns:
         The adata object after conversion.
     """
-    main_info("Dynamo and scvelo have different preprocessing procedures and velocity estimation methods. "
-              "The conversion of adata may not be optimal for every use case, requiring potential manual adjustments.")
+    main_info(
+        "Dynamo and scvelo have different preprocessing procedures and velocity estimation methods. "
+        "The conversion of adata may not be optimal for every use case, requiring potential manual adjustments."
+    )
     if mode == "to_dyn":
         main_info("Start converting Scvelo adata into Dynamo adata...")
-        main_info("Scvelo data wil be converted into Dynamo adata with the conventional assumption and the"
-                  "stochastic model. If this is not what you want, please change them manually.")
+        main_info(
+            "Scvelo data wil be converted into Dynamo adata with the conventional assumption and the"
+            "stochastic model. If this is not what you want, please change them manually."
+        )
         if "highly_variable_genes" in adata.var.columns:
             adata.var["pass_basic_filter"] = adata.var.pop("highly_variable_genes")
-            adata.var["pass_basic_filter"] = [True if item == 'True' else False for item in
-                                              adata.var["pass_basic_filter"]]
+            adata.var["pass_basic_filter"] = [
+                True if item == "True" else False for item in adata.var["pass_basic_filter"]
+            ]
         if "spliced" in adata.layers.keys():
             adata.layers["X_spliced"] = adata.layers.pop("spliced")
         if "unspliced" in adata.layers.keys():
@@ -339,8 +345,9 @@ def scv_dyn_convertor(adata: anndata, mode: Literal["to_dyn", "to_scv"] = "to_dy
         main_info("Start converting Dynamo adata into Scvelo adata...")
         if "pass_basic_filter" in adata.var.columns:
             adata.var["highly_variable_genes"] = adata.var.pop("pass_basic_filter")
-            adata.var["highly_variable_genes"] = ["True" if item else "False" for item in
-                                                  adata.var["highly_variable_genes"]]
+            adata.var["highly_variable_genes"] = [
+                "True" if item else "False" for item in adata.var["highly_variable_genes"]
+            ]
         if "X_spliced" in adata.layers.keys():
             adata.layers["spliced"] = adata.layers.pop("X_spliced")
         if "X_unspliced" in adata.layers.keys():

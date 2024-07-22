@@ -78,7 +78,11 @@ def convert2float(adata: AnnData, columns: List, var: bool = False) -> None:
 
 
 def load_NASC_seq(
-    dir: str, type: str = "TPM", delimiter: str = "_", colnames: Optional[List] = None, dropna: bool = False,
+    dir: str,
+    type: str = "TPM",
+    delimiter: str = "_",
+    colnames: Optional[List] = None,
+    dropna: bool = False,
 ) -> AnnData:
     """Function to create an anndata object from NASC-seq pipeline.
 
@@ -134,7 +138,7 @@ def load_NASC_seq(
         tot_RNA = None
         cells_raw, cells = None, None
 
-        for f in tqdm(files, desc=f"reading rmse output files:"):
+        for f in tqdm(files, desc="reading rmse output files:"):
             tmp = pd.read_csv(f, index_col=0, sep="\t")
 
             if tot_RNA is None:
@@ -247,7 +251,7 @@ def aggregate_adata(file_list: list) -> AnnData:
 
     if len(valid_cells) == 0 or len(valid_genes) == 0:
         raise Exception(
-            f"we don't find any gene or cell names shared across different adata objects." f"Please check your data. "
+            "we don't find any gene or cell names shared across different adata objects."+"Please check your data. "
         )
 
     layer_dict = {}
@@ -323,7 +327,10 @@ def cleanup(adata: AnnData, del_prediction: bool = False, del_2nd_moments: bool 
 
 
 def export_rank_xlsx(
-    adata: AnnData, path: str = "rank_info.xlsx", ext: str = "excel", rank_prefix: str = "rank",
+    adata: AnnData,
+    path: str = "rank_info.xlsx",
+    ext: str = "excel",
+    rank_prefix: str = "rank",
 ) -> None:
     import pandas as pd
 
@@ -373,15 +380,16 @@ def export_h5ad(adata: AnnData, path: str = "data/processed_data.h5ad") -> None:
     for i in fate_keys:
         if i is not None:
             if "prediction" in adata.uns[i].keys():
-                adata.uns[i]["prediction"] = {str(index): array for index, array in
-                                              enumerate(adata.uns[i]["prediction"])}
+                adata.uns[i]["prediction"] = {
+                    str(index): array for index, array in enumerate(adata.uns[i]["prediction"])
+                }
             if "t" in adata.uns[i].keys():
                 adata.uns[i]["t"] = {str(index): array for index, array in enumerate(adata.uns[i]["t"])}
 
     adata.write_h5ad(path)
 
 
-def import_h5ad(path: str ="data/processed_data.h5ad") -> AnnData:
+def import_h5ad(path: str = "data/processed_data.h5ad") -> AnnData:
     """Import a Dynamo h5ad object into anndata."""
 
     adata = read_h5ad(path)
@@ -397,4 +405,3 @@ def import_h5ad(path: str ="data/processed_data.h5ad") -> AnnData:
                 adata.uns[i]["t"] = [adata.uns[i]["t"][index] for index in adata.uns[i]["t"]]
 
     return adata
-

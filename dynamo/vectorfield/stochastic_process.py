@@ -5,8 +5,11 @@ from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
-from ..tools.connectivity import generate_neighbor_keys, check_and_recompute_neighbors, k_nearest_neighbors
-from ..tools.utils import log1p_
+from ..tools.connectivity import (
+    check_and_recompute_neighbors,
+    generate_neighbor_keys,
+    k_nearest_neighbors,
+)
 from .utils import VecFldDict, vecfld_from_adata, vector_field_function
 
 
@@ -43,6 +46,8 @@ def diffusionMatrix(
             the diffusion matrix for each cell. A column `diffusion` corresponds to the square root of the sum of all
             elements for each cell's diffusion matrix will also be added.
     """
+    
+    from ..tools.utils import log1p_
 
     if X_data is None or V_data is not None:
         if genes is not None:

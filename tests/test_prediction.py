@@ -2,23 +2,23 @@ import dynamo as dyn
 
 
 def test_fate(adata):
-    progenitor = adata.obs_names[adata.obs.Cell_type.isin(['Proliferating Progenitor', 'Pigment Progenitor'])]
-    dyn.pd.fate(adata, basis='umap', init_cells=progenitor, direction='backward')
+    progenitor = adata.obs_names[adata.obs.Cell_type.isin(["Proliferating Progenitor", "Pigment Progenitor"])]
+    dyn.pd.fate(adata, basis="umap", init_cells=progenitor, direction="backward")
     assert "fate_umap" in adata.uns.keys()
     assert adata.uns["fate_umap"]["prediction"][0].shape == (2, 250)
 
-    dyn.pd.fate(adata, basis='umap', init_cells=progenitor, direction='both')
+    dyn.pd.fate(adata, basis="umap", init_cells=progenitor, direction="both")
     assert "fate_umap" in adata.uns.keys()
     assert adata.uns["fate_umap"]["prediction"][0].shape == (2, 500)
 
-    dyn.pd.fate(adata, basis='umap', init_cells=progenitor, direction='forward')
+    dyn.pd.fate(adata, basis="umap", init_cells=progenitor, direction="forward")
     assert "fate_umap" in adata.uns.keys()
     assert adata.uns["fate_umap"]["prediction"][0].shape == (2, 250)
 
     bias = dyn.pd.fate_bias(adata, group="Cell_type")
     assert len(bias) == len(adata.uns["fate_umap"]["prediction"])
 
-    dyn.pd.andecestor(adata, init_cells=adata.obs_names[adata.obs.Cell_type.isin(['Iridophore'])], direction='backward')
+    dyn.pd.andecestor(adata, init_cells=adata.obs_names[adata.obs.Cell_type.isin(["Iridophore"])], direction="backward")
     assert "ancestor" in adata.obs.keys()
 
     dyn.pd.andecestor(adata, init_cells=progenitor)
@@ -29,10 +29,10 @@ def test_fate(adata):
 
 
 def test_perturbation(adata):
-    dyn.pd.perturbation(adata, basis='umap', genes=adata.var_names[0], expression=-10)
+    dyn.pd.perturbation(adata, basis="umap", genes=adata.var_names[0], expression=-10)
     assert "X_umap_perturbation" in adata.obsm.keys()
 
-    vf_ko = dyn.pd.KO(adata, basis='pca', KO_genes=adata.var_names[0])
+    vf_ko = dyn.pd.KO(adata, basis="pca", KO_genes=adata.var_names[0])
     assert vf_ko.K.shape[0] == adata.n_vars
 
     dyn.pd.rank_perturbation_genes(adata)
@@ -57,18 +57,18 @@ def test_state_graph(adata):
     #     cell_type_to_excluded=["Unknown"],
     # )
 
-    dyn.pd.state_graph(adata, group='Cell_type')
+    dyn.pd.state_graph(adata, group="Cell_type")
     assert "Cell_type_graph" in adata.uns.keys()
 
-    ax = dyn.pl.state_graph(adata, group='Cell_type', save_show_or_return='return')
+    ax = dyn.pl.state_graph(adata, group="Cell_type", save_show_or_return="return")
     assert isinstance(ax, tuple)
 
     res = dyn.pd.tree_model(
         adata,
-        group='Cell_type',
-        basis='umap',
-        progenitor='Proliferating Progenitor',
-        terminators=['Iridophore'],
+        group="Cell_type",
+        basis="umap",
+        progenitor="Proliferating Progenitor",
+        terminators=["Iridophore"],
     )
     assert len(res) == len(adata.obs["Cell_type"].unique())
 

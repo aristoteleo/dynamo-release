@@ -27,10 +27,10 @@ from .external import (
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .normalization import calc_sz_factor, normalize
 from .pca import pca
-from .QC import basic_stats
+from .QC import basic_stats, filter_cells_by_highly_variable_genes
 from .QC import filter_cells_by_outliers as monocle_filter_cells_by_outliers
 from .QC import filter_genes_by_outliers as monocle_filter_genes_by_outliers
-from .QC import regress_out_parallel, filter_cells_by_highly_variable_genes
+from .QC import regress_out_parallel
 from .transform import Freeman_Tukey, log, log1p, log2
 from .utils import (
     _infer_labeling_experiment_type,
@@ -255,7 +255,6 @@ class Preprocessor:
         main_debug("applying convert_gene_name function...")
         self.convert_gene_name(adata)
 
-
         self.basic_stats(adata)
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
@@ -300,7 +299,9 @@ class Preprocessor:
 
         if self.filter_cells_by_highly_variable_genes:
             main_debug("filtering cells by highly variable genes...")
-            main_debug("filter_cells_by_highly_variable_genes kwargs:" + str(self.filter_cells_by_highly_variable_genes_kwargs))
+            main_debug(
+                "filter_cells_by_highly_variable_genes kwargs:" + str(self.filter_cells_by_highly_variable_genes_kwargs)
+            )
             self.filter_cells_by_highly_variable_genes(adata, **self.filter_cells_by_highly_variable_genes_kwargs)
 
     def _calc_size_factor(self, adata: AnnData) -> None:

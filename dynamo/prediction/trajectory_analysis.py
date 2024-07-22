@@ -155,7 +155,7 @@ def mean_first_passage_time(
     traj_id = adata.obs[traj_key]
 
     if sp.issparse(X):
-        X = X.A
+        X = X.toarray()
 
     trajs = []
     for traj_i in np.unique(traj_id):

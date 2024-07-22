@@ -1,10 +1,10 @@
+from typing import Callable, List, Optional, Tuple, Union
 from warnings import warn
 
-from anndata._core.anndata import AnnData
 import numpy as np
 import scipy as sp
 import scipy.optimize
-from typing import Callable, List, Optional, Tuple, Union
+from anndata._core.anndata import AnnData
 
 from ..tools.sampling import lhsclassic
 from .Ao import Ao_pot_map, construct_Ao_potential_grid
@@ -120,8 +120,8 @@ class Pot:
         method: str = "Ao",
         xyGridSpacing: int = 2,
         dt: float = 1e-2,
-        tol: float= 1e-2,
-        numTimeSteps: int =1400,
+        tol: float = 1e-2,
+        numTimeSteps: int = 1400,
     ) -> AnnData:
         """Function to map out the pseudo-potential landscape.
 
@@ -238,23 +238,23 @@ class Pot:
                 saddle=self.parameters["saddle"],
             )
 
-            adata.uns['grid_Pot_' + basis] = {'Xgrid': X, "Ygrid": Y, 'Zgrid': retmat}
+            adata.uns["grid_Pot_" + basis] = {"Xgrid": X, "Ygrid": Y, "Zgrid": retmat}
 
             return adata
             # return retmat, LAP
 
 
 def search_fixed_points(
-        func: Callable,
-        domain: np.ndarray,
-        x0: np.ndarray,
-        x0_method: str = "lhs",
-        reverse: bool = False,
-        return_x0: bool = False,
-        fval_tol: float = 1e-8,
-        remove_outliers: bool = True,
-        ignore_fsolve_err: bool = False,
-        **fsolve_kwargs
+    func: Callable,
+    domain: np.ndarray,
+    x0: np.ndarray,
+    x0_method: str = "lhs",
+    reverse: bool = False,
+    return_x0: bool = False,
+    fval_tol: float = 1e-8,
+    remove_outliers: bool = True,
+    ignore_fsolve_err: bool = False,
+    **fsolve_kwargs
 ) -> Union[FixedPoints, Tuple[FixedPoints, np.ndarray]]:
     """Search the fixed points of (learned) vector field function in a given domain.
 
@@ -332,10 +332,10 @@ def search_fixed_points(
 
 
 def gen_gradient(
-        dim: int,
-        N: int,
-        Function: Callable,
-        DiffusionMatrix: Callable,
+    dim: int,
+    N: int,
+    Function: Callable,
+    DiffusionMatrix: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Calculate the gradient of the (learned) vector field function for the least action path (LAP) symbolically
 

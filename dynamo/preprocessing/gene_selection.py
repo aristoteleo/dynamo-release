@@ -58,7 +58,7 @@ def calc_Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") 
     def _compute_gini(CM):
         # convert to dense array if sparse
         if issparse(CM):
-            CM = CM.A
+            CM = CM.toarray()
 
         # shift all values to be non-negative
         CM -= np.min(CM)
@@ -373,12 +373,12 @@ def get_mean_cv(
     elif algorithm == "cv_dispersion":
         if winsorize:
             down, up = (
-                np.percentile(valid_CM.A, winsor_perc, 0)
+                np.percentile(valid_CM.toarray(), winsor_perc, 0)
                 if issparse(valid_CM)
                 else np.percentile(valid_CM, winsor_perc, 0)
             )
             Sfw = (
-                np.clip(valid_CM.A, down[None, :], up[None, :])
+                np.clip(valid_CM.toarray(), down[None, :], up[None, :])
                 if issparse(valid_CM)
                 else np.percentile(valid_CM, winsor_perc, 0)
             )

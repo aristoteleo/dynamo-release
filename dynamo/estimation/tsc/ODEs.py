@@ -9,6 +9,7 @@ from ..csc.utils_velocity import sol_s, sol_u
 
 class LinearODE:
     """A general class for linear odes."""
+
     def __init__(self, n_species: int, x0: Optional[np.ndarray] = None):
         """Initialize the LinearODE object.
 
@@ -137,6 +138,7 @@ class LinearODE:
 
 class MixtureModels:
     """The base class for mixture models."""
+
     def __init__(self, models: LinearODE, param_distributor: List):
         """Initialize the MixtureModels class.
 
@@ -158,7 +160,9 @@ class MixtureModels:
         self.methods = ["numerical", "matrix"]
         self.default_method = "matrix"
 
-    def integrate(self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: Optional[Union[str, List]] = None) -> None:
+    def integrate(
+        self, t: np.ndarray, x0: Optional[np.ndarray] = None, method: Optional[Union[str, List]] = None
+    ) -> None:
         """Integrate with time values for all models.
 
         Args:
@@ -224,8 +228,9 @@ class MixtureModels:
 
 class LambdaModels_NoSwitching(MixtureModels):
     """Linear ODEs for the lambda mixture model. The order of params is:
-            parameter order: alpha, lambda, (beta), gamma
-            distributor order: alpha_1, alpha_2, (beta), gamma"""
+    parameter order: alpha, lambda, (beta), gamma
+    distributor order: alpha_1, alpha_2, (beta), gamma"""
+
     def __init__(self, model1: LinearODE, model2: LinearODE):
         """Initialize the LambdaModels_NoSwitching class.
 
@@ -261,6 +266,7 @@ class LambdaModels_NoSwitching(MixtureModels):
 class Moments(LinearODE):
     """The class simulates the dynamics of first and second moments of a transcription-splicing system with promoter
     switching."""
+
     def __init__(
         self,
         a: Optional[np.ndarray] = None,
@@ -527,6 +533,7 @@ class Moments(LinearODE):
 class Moments_Nosplicing(LinearODE):
     """The class simulates the dynamics of first and second moments of a transcription-splicing system with promoter
     switching."""
+
     def __init__(
         self,
         a: Optional[np.ndarray] = None,
@@ -534,7 +541,7 @@ class Moments_Nosplicing(LinearODE):
         alpha_a: Optional[np.ndarray] = None,
         alpha_i: Optional[np.ndarray] = None,
         gamma: Optional[np.ndarray] = None,
-        x0: Optional[np.ndarray] = None
+        x0: Optional[np.ndarray] = None,
     ):
         """Initialize the Moments_Nosplicing object.
 
@@ -602,7 +609,9 @@ class Moments_Nosplicing(LinearODE):
         """
         return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
 
-    def set_params(self, a: np.ndarray, b: np.ndarray, alpha_a: np.ndarray, alpha_i: np.ndarray, gamma: np.ndarray) -> None:
+    def set_params(
+        self, a: np.ndarray, b: np.ndarray, alpha_a: np.ndarray, alpha_i: np.ndarray, gamma: np.ndarray
+    ) -> None:
         """Set the parameters.
 
         Args:
@@ -686,6 +695,7 @@ class Moments_Nosplicing(LinearODE):
 class Moments_NoSwitching(LinearODE):
     """The class simulates the dynamics of first and second moments of a transcription-splicing system without promoter
     switching."""
+
     def __init__(
         self,
         alpha: Optional[np.ndarray] = None,
@@ -875,6 +885,7 @@ class Moments_NoSwitching(LinearODE):
 class Moments_NoSwitchingNoSplicing(LinearODE):
     """The class simulates the dynamics of first and second moments of a transcription system without promoter
     switching."""
+
     def __init__(
         self,
         alpha: Optional[np.ndarray] = None,
@@ -997,6 +1008,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
 
 class Deterministic(LinearODE):
     """This class simulates the deterministic dynamics of a transcription-splicing system."""
+
     def __init__(
         self,
         alpha: Optional[np.ndarray] = None,
@@ -1131,6 +1143,7 @@ class Deterministic(LinearODE):
 
 class Deterministic_NoSplicing(LinearODE):
     """The class simulates the deterministic dynamics of a transcription-splicing system."""
+
     def __init__(
         self,
         alpha: Optional[np.ndarray] = None,

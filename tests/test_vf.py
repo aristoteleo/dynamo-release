@@ -13,7 +13,7 @@ def test_vector_calculus_rank_vf(adata):
 
     adata = adata.copy()
 
-    progenitor = adata.obs_names[adata.obs.Cell_type.isin(['Proliferating Progenitor', 'Pigment Progenitor'])]
+    progenitor = adata.obs_names[adata.obs.Cell_type.isin(["Proliferating Progenitor", "Pigment Progenitor"])]
     dyn.vf.velocities(adata, basis="umap", init_cells=progenitor)
     assert "velocities_umap" in adata.uns.keys()
 
@@ -23,17 +23,27 @@ def test_vector_calculus_rank_vf(adata):
     ax = dyn.pl.speed(adata, basis="umap", save_show_or_return="return")
     assert isinstance(ax, plt.Axes)
 
-    dyn.vf.jacobian(adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=progenitor)
+    dyn.vf.jacobian(
+        adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=progenitor
+    )
     assert "jacobian_umap" in adata.uns.keys()
 
     ax = dyn.pl.jacobian(adata, basis="umap", j_basis="umap", save_show_or_return="return")
     assert isinstance(ax, matplotlib.gridspec.GridSpec)
 
     ax = dyn.pl.jacobian_heatmap(
-        adata, basis="umap", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=[2, 3], save_show_or_return="return")
+        adata,
+        basis="umap",
+        regulators=["ptmaa", "rpl5b"],
+        effectors=["ptmaa", "rpl5b"],
+        cell_idx=[2, 3],
+        save_show_or_return="return",
+    )
     assert isinstance(ax, matplotlib.gridspec.GridSpec)
 
-    dyn.vf.hessian(adata, basis="umap", regulators=["rpl5b"], coregulators=["ptmaa"], effector=["ptmaa"], cell_idx=progenitor)
+    dyn.vf.hessian(
+        adata, basis="umap", regulators=["rpl5b"], coregulators=["ptmaa"], effector=["ptmaa"], cell_idx=progenitor
+    )
     assert "hessian_umap" in adata.uns.keys()
 
     dyn.vf.laplacian(adata, hkey="hessian_umap", basis="umap")
@@ -46,7 +56,8 @@ def test_vector_calculus_rank_vf(adata):
     assert isinstance(ax, matplotlib.gridspec.GridSpec)
 
     ax = dyn.pl.sensitivity_heatmap(
-        adata, basis="umap", regulators=["rpl5b"], effectors=["ptmaa"], cell_idx=[2, 3], save_show_or_return="return")
+        adata, basis="umap", regulators=["rpl5b"], effectors=["ptmaa"], cell_idx=[2, 3], save_show_or_return="return"
+    )
     assert isinstance(ax, matplotlib.gridspec.GridSpec)
 
     dyn.vf.acceleration(adata, basis="pca")
@@ -146,14 +157,25 @@ def test_networks(adata):
 
     adata = adata.copy()
 
-    dyn.vf.jacobian(adata, basis="pca", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=np.arange(adata.n_obs))
+    dyn.vf.jacobian(
+        adata, basis="pca", regulators=["ptmaa", "rpl5b"], effectors=["ptmaa", "rpl5b"], cell_idx=np.arange(adata.n_obs)
+    )
 
     edges_list = dyn.vf.build_network_per_cluster(adata, cluster="Cell_type", genes=adata.var_names)
     assert isinstance(edges_list, dict)
 
-    network = nx.from_pandas_edgelist(edges_list['Unknown'], 'regulator', 'target', edge_attr='weight',
-                                      create_using=nx.DiGraph())
-    ax = dyn.pl.arcPlot(adata, cluster="Cell_type", cluster_name="Unknown", edges_list=None, network=network, color="M_s", save_show_or_return="return")
+    network = nx.from_pandas_edgelist(
+        edges_list["Unknown"], "regulator", "target", edge_attr="weight", create_using=nx.DiGraph()
+    )
+    ax = dyn.pl.arcPlot(
+        adata,
+        cluster="Cell_type",
+        cluster_name="Unknown",
+        edges_list=None,
+        network=network,
+        color="M_s",
+        save_show_or_return="return",
+    )
     assert isinstance(ax, dyn.plot.networks.ArcPlot)
 
     res = dyn.vf.adj_list_to_matrix(adj_list=edges_list["Neuron"])

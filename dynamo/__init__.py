@@ -1,7 +1,7 @@
 """Mapping Vector Field of Single Cells
 """
 
-from .get_version import get_version, get_dynamo_version
+from .get_version import get_dynamo_version, get_version
 
 __version__ = get_version(__file__)
 del get_version
@@ -19,7 +19,6 @@ from . import pl
 from . import mv
 from . import shiny
 from . import sim
-from .data_io import *
 from . import sample_data
 from . import configuration
 from . import ext

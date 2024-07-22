@@ -30,7 +30,7 @@ from ..dynamo_logger import (
     main_warning,
 )
 from ..preprocessing.transform import _Freeman_Tukey
-from ..tools.connectivity import generate_neighbor_keys, check_and_recompute_neighbors
+from ..tools.connectivity import check_and_recompute_neighbors, generate_neighbor_keys
 from .utils import fdr, fetch_X_data
 
 
@@ -131,7 +131,7 @@ def moran_i(
     if local_moran:
         l_moran = np.zeros(X_data.shape)
     for cur_g in tqdm(range(gene_num), desc="Moran’s I Global Autocorrelation Statistic"):
-        cur_X = X_data[:, cur_g].A if sparse else X_data[:, cur_g]
+        cur_X = X_data[:, cur_g].toarray() if sparse else X_data[:, cur_g]
         mbi = explore.esda.moran.Moran(cur_X, W, two_tailed=False)
 
         Moran_I[cur_g] = mbi.I
@@ -395,7 +395,7 @@ def two_groups_degs(
     for i_gene, gene in tqdm(enumerate(genes), desc="identifying top markers for each group"):
         rbc, specificity_, mw_p, log_fc, ncells = 0, 0, 1, 0, 0
 
-        all_vals = X_data[:, i_gene].A if sparse else X_data[:, i_gene]
+        all_vals = X_data[:, i_gene].toarray() if sparse else X_data[:, i_gene]
         test_vals = all_vals[test_cells]
         perc, ef = [len(test_vals.nonzero()[0]) / n_cells], len(test_vals.nonzero()[0]) / num_test_cells
         if ef < exp_frac_thresh:
@@ -676,21 +676,29 @@ def glm_degs(
             X_data.data = (
                 2**X_data.data - 1
                 if adata.uns["pp"][norm_method_key] == "log2"
-                else np.exp(X_data.data) - 1
-                if adata.uns["pp"][norm_method_key] == "log"
-                else _Freeman_Tukey(X_data.data + 1, inverse=True) - 1
-                if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
-                else X_data.data
+                else (
+                    np.exp(X_data.data) - 1
+                    if adata.uns["pp"][norm_method_key] == "log"
+                    else (
+                        _Freeman_Tukey(X_data.data + 1, inverse=True) - 1
+                        if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
+                        else X_data.data
+                    )
+                )
             )
         else:
             X_data = (
                 2**X_data - 1
                 if adata.uns["pp"][norm_method_key] == "log2"
-                else np.exp(X_data) - 1
-                if adata.uns["pp"][norm_method_key] == "log"
-                else _Freeman_Tukey(X_data, inverse=True)
-                if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
-                else X_data
+                else (
+                    np.exp(X_data) - 1
+                    if adata.uns["pp"][norm_method_key] == "log"
+                    else (
+                        _Freeman_Tukey(X_data, inverse=True)
+                        if adata.uns["pp"][norm_method_key] == "Freeman_Tukey"
+                        else X_data
+                    )
+                )
             )
 
     factors = get_all_variables(fullModelFormulaStr)
@@ -708,7 +716,7 @@ def glm_degs(
         enumerate(genes),
         "Detecting time dependent genes via Generalized Additive Models (GAMs)",
     ):
-        expression = X_data[:, i].A if sparse else X_data[:, i]
+        expression = X_data[:, i].toarray() if sparse else X_data[:, i]
         df_factors["expression"] = expression
         deg_df.iloc[i, :] = diff_test_helper(df_factors, fullModelFormulaStr, reducedModelFormulaStr)
 

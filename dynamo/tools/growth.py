@@ -15,6 +15,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from .connectivity import k_nearest_neighbors
 
+
 def score_cells(
     adata: AnnData,
     genes: Optional[List[str]] = None,
@@ -84,9 +85,11 @@ def score_cells(
         genes = (
             list(adata.var_names.intersection(genes))
             if adata.var_names[0].isupper()
-            else list(adata.var_names.intersection([i.capitalize() for i in genes]))
-            if adata.var_names[0][0].isupper() and adata.var_names[0][1:].islower()
-            else list(adata.var_names.intersection([i.lower() for i in genes]))
+            else (
+                list(adata.var_names.intersection([i.capitalize() for i in genes]))
+                if adata.var_names[0][0].isupper() and adata.var_names[0][1:].islower()
+                else list(adata.var_names.intersection([i.lower() for i in genes]))
+            )
         )
 
     if len(genes) < 1:
