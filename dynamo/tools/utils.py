@@ -3346,7 +3346,7 @@ def get_rank_array(
     if type(arr) == ArrayView:
         arr = np.array(arr)
     if sp.issparse(arr):
-        arr = arr.A
+        arr = arr.toarray()
     arr[np.isnan(arr)] = 0
 
     if dtype is not None:
