@@ -215,8 +215,8 @@ def fit_linreg(
         the extreme data points (r2), the r2 calculated using all data points (all_r2). If argument r2 is False, r2 and
         all_r2 will not be returned.
     """
-    x = x.A if issparse(x) else x
-    y = y.A if issparse(y) else y
+    x = x.toarray() if issparse(x) else x
+    y = y.toarray() if issparse(y) else y
 
     _mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
     if mask is not None:
@@ -279,8 +279,8 @@ def fit_linreg_robust(
         all_r2 will not be returned.
     """
 
-    x = x.A if issparse(x) else x
-    y = y.A if issparse(y) else y
+    x = x.toarray() if issparse(x) else x
+    y = y.toarray() if issparse(y) else y
 
     _mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
     if mask is not None:
@@ -302,7 +302,7 @@ def fit_linreg_robust(
                 f"estimation method {est_method} is not implemented. "
                 f"Currently supported linear regression methods include `rlm` and `ransac`."
             )
-    except:
+    except Exception as e:
         if intercept:
             ym = np.mean(yy)
             xm = np.mean(xx)
@@ -405,7 +405,7 @@ def fit_first_order_deg_lsq(
     Returns:
         The estimated value for beta (beta) and the estimated value for the initial spliced, labeled mRNA count (l0).
     """
-    l = l.A.flatten() if issparse(l) else l
+    l = l.toarray().flatten() if issparse(l) else l
 
     tau = t - np.min(t)
     l0 = np.nanmean(l[tau == 0])
@@ -434,7 +434,7 @@ def solve_first_order_deg(t: np.ndarray, l: Union[csr_matrix, np.ndarray]) -> Tu
         The initial counts of the species (for example, labeled mRNA), degradation rate constant and half-life the species.
     """
 
-    x = l.A.flatten() if issparse(l) else l
+    x = l.toarray().flatten() if issparse(l) else l
 
     t_uniq = np.unique(t)
     x_stra = strat_mom(x, t, np.nanmean)
@@ -468,7 +468,7 @@ def fit_gamma_lsq(
     Returns:
         The estimated value for gamma and the estimated value for the initial spliced mRNA count.
     """
-    s = s.A.flatten() if issparse(s) else s
+    s = s.toarray().flatten() if issparse(s) else s
 
     tau = t - np.min(t)
     s0 = np.mean(s[tau == 0])
@@ -501,7 +501,7 @@ def fit_alpha_synthesis(t: np.ndarray, u: Union[csr_matrix, np.ndarray], beta: f
     Returns:
         The estimated value for alpha.
     """
-    u = u.A if issparse(u) else u
+    u = u.toarray() if issparse(u) else u
 
     # fit alpha assuming u=0 at t=0
     expt = np.exp(-beta * t)
@@ -533,7 +533,7 @@ def fit_alpha_degradation(
         The estimated value for alpha (alpha), the initial unspliced mRNA count (u0), and coefficient of determination
     or r square (r2).
     """
-    x = u.A if issparse(u) else u
+    x = u.toarray() if issparse(u) else u
 
     tau = t - np.min(t)
 
@@ -569,7 +569,7 @@ def solve_alpha_degradation(
         The estimated value for alpha (alpha), the initial unspliced mRNA count (b), coefficient of determination or r
         square.
     """
-    u = u.A if issparse(u) else u
+    u = u.toarray() if issparse(u) else u
 
     n = u.size
     tau = t - np.min(t)
@@ -617,7 +617,7 @@ def fit_alpha_beta_synthesis(
     Returns:
         The estimated value for alpha and the estimated value for beta.
     """
-    l = l.A if issparse(l) else l
+    l = l.toarray() if issparse(l) else l
 
     tau = np.hstack((0, t))
     x = np.hstack((0, l))
@@ -649,7 +649,7 @@ def fit_all_synthesis(
     Returns:
         The estimated value for alpha, beta and gamma.
     """
-    l = l.A if issparse(l) else l
+    l = l.toarray() if issparse(l) else l
 
     tau = np.hstack((0, t))
     x = np.hstack((0, l))

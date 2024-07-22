@@ -9,8 +9,8 @@ import numpy as np
 from scipy.cluster.vq import kmeans2
 from sklearn.neighbors import NearestNeighbors
 
-from .connectivity import k_nearest_neighbors
 from ..dynamo_logger import LoggerManager
+from .connectivity import k_nearest_neighbors
 from .utils import nearest_neighbors, timeit
 
 

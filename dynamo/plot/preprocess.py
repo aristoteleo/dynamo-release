@@ -583,8 +583,7 @@ def feature_genes(
         variance_key = layer + "_gini"
 
         if variance_key not in adata.var.columns:
-            raise ValueError(
-                "Looks like you have not run gene selection yet, try run necessary preprocessing first.")
+            raise ValueError("Looks like you have not run gene selection yet, try run necessary preprocessing first.")
 
         mean = DynamoAdataKeyManager.select_layer_data(adata, layer).mean(0)[0]
         table = adata.var.loc[:, [variance_key]]
@@ -604,9 +603,7 @@ def feature_genes(
         else:
             table = adata.var.loc[:, [mean_key, variance_key]]
 
-    table = table.loc[
-        np.isfinite(table[mean_key]) & np.isfinite(table[variance_key])
-    ]
+    table = table.loc[np.isfinite(table[mean_key]) & np.isfinite(table[variance_key])]
     x_min, x_max = (
         np.nanmin(table[mean_key]),
         np.nanmax(table[mean_key]),
@@ -737,7 +734,7 @@ def exp_by_groups(
         raise ValueError(f"The layer {layer} is not existed in your adata object!")
 
     exprs = adata[:, valid_genes].X if layer == "X" else adata[:, valid_genes].layers[layer]
-    exprs = exprs.A if issparse(exprs) else exprs
+    exprs = exprs.toarray() if issparse(exprs) else exprs
     if use_ratio:
         (
             has_splicing,
@@ -752,7 +749,7 @@ def exp_by_groups(
                     if use_smoothed
                     else adata[:, valid_genes].layers["X_total"]
                 )
-                tot = tot.A if issparse(tot) else tot
+                tot = tot.toarray() if issparse(tot) else tot
                 exprs = exprs / tot
             else:
                 exprs = exprs
@@ -764,7 +761,7 @@ def exp_by_groups(
                     if use_smoothed
                     else adata[:, valid_genes].layers["X_unspliced"] + adata[:, valid_genes].layers["X_spliced"]
                 )
-                tot = tot.A if issparse(tot) else tot
+                tot = tot.toarray() if issparse(tot) else tot
                 exprs = exprs / tot
             else:
                 exprs = exprs

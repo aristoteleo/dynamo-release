@@ -15,7 +15,7 @@ from ..vectorfield.utils import (
     vector_field_function_transformation,
     vector_transformation,
 )
-from .trajectory import arclength_sampling_n, GeneTrajectory, Trajectory
+from .trajectory import GeneTrajectory, Trajectory, arclength_sampling_n
 from .utils import find_elbow
 
 
@@ -138,6 +138,7 @@ class GeneLeastActionPath(GeneTrajectory):
         t: Array of time values.
         action: Array of action values.
     """
+
     def __init__(
         self,
         adata: AnnData,
@@ -652,7 +653,7 @@ def least_action(
         A = []
 
     path_ind = 0
-    for (init_state, target_state) in LoggerManager.progress_logger(
+    for init_state, target_state in LoggerManager.progress_logger(
         pairs, progress_name=f"iterating through {len(pairs)} pairs"
     ):
         logger.info(

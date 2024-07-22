@@ -291,8 +291,7 @@ def filter_cells_by_highly_variable_genes(
     """
     if high_var_genes_key not in adata.var.keys():
         raise ValueError(
-            "The key %s is not found in adata.var. Please run genes selection methods first."
-            % high_var_genes_key
+            "The key %s is not found in adata.var. Please run genes selection methods first." % high_var_genes_key
         )
 
     if obs_store_key not in adata.obs.keys():
@@ -300,7 +299,7 @@ def filter_cells_by_highly_variable_genes(
 
     filter_bool = adata.var[high_var_genes_key].values
     X = DKM.select_layer_data(adata, layer=select_genes_layer)
-    X = X[:, filter_bool].A if issparse(X) else X[:, filter_bool]
+    X = X[:, filter_bool].toarray() if issparse(X) else X[:, filter_bool]
     nan_columns_index = np.where(np.sum(X, axis=1) == 0)[0]
 
     adata.obs[obs_store_key].iloc[nan_columns_index] = False

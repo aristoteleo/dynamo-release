@@ -3,13 +3,12 @@ from typing import Callable, List, Optional, Tuple, Union
 import anndata
 import numpy as np
 import pandas as pd
-from scipy.spatial import distance
 from scipy.sparse.csgraph import minimum_spanning_tree
-
-from .DDRTree import DDRTree
-from .utils import log1p_
+from scipy.spatial import distance
 
 from ..dynamo_logger import main_info, main_info_insert_adata_obs
+from .DDRTree import DDRTree
+from .utils import log1p_
 
 
 def order_cells(
@@ -102,7 +101,7 @@ def order_cells(
         cellPairwiseDistances,
         pr_graph_cell_proj_dist,
         pr_graph_cell_proj_closest_vertex,
-        pr_graph_cell_proj_tree
+        pr_graph_cell_proj_tree,
     ) = project2MST(mst, Z, Y, project_point_to_line_segment)
 
     adata.uns["cell_order"]["root_cell"] = root_cell
@@ -121,11 +120,15 @@ def order_cells(
     root_cell_candidates = np.intersect1d(cells_mapped_to_graph_root, tip_leaves)
 
     if len(root_cell_candidates) == 0:
-        root_cell = select_root_cell(adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse, map_to_tree=False)
+        root_cell = select_root_cell(
+            adata, Z=Z, root_state=root_state, init_cells=init_cells, reverse=reverse, map_to_tree=False
+        )
     else:
         root_cell = root_cell_candidates[0]
 
-    cc_ordering_new_pseudotime = get_order_from_DDRTree(dp=cellPairwiseDistances, mst=pr_graph_cell_proj_tree, root_cell=root_cell)  # re-calculate the pseudotime again
+    cc_ordering_new_pseudotime = get_order_from_DDRTree(
+        dp=cellPairwiseDistances, mst=pr_graph_cell_proj_tree, root_cell=root_cell
+    )  # re-calculate the pseudotime again
 
     adata.uns["cell_order"]["root_cell"] = root_cell
     adata.obs["Pseudotime"] = cc_ordering_new_pseudotime["pseudo_time"].values
@@ -157,12 +160,7 @@ def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> p
     dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst)
     curr_state = 0
     pseudotimes = [0 for _ in range(dp.shape[1])]
-    ordering_dict = {
-        'cell_index': [],
-        'cell_pseudo_state': [],
-        'pseudo_time': [],
-        'parent': []
-    }
+    ordering_dict = {"cell_index": [], "cell_pseudo_state": [], "pseudo_time": [], "parent": []}
 
     orders, pres = dp_mst.dfs(vid=root_cell, mode="all")
 
@@ -189,8 +187,8 @@ def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> p
 
     ordering_df = pd.DataFrame.from_dict(ordering_dict)
     ordering_df.reset_index(inplace=True)
-    ordering_df = ordering_df.rename(columns={'index': 'orders'})
-    ordering_df.set_index('cell_index', inplace=True)
+    ordering_df = ordering_df.rename(columns={"index": "orders"})
+    ordering_df.set_index("cell_index", inplace=True)
     ordering_df = ordering_df.sort_index()
     return ordering_df
 
@@ -361,11 +359,11 @@ def select_root_cell(
         root_cell = root_cell_candidates[index_of_closest_sample]
 
         if map_to_tree:
-            cell_proj_closest_vertex = np.argmax(adata.uns['cell_order']['R'], axis=1)
+            cell_proj_closest_vertex = np.argmax(adata.uns["cell_order"]["R"], axis=1)
             root_cell = cell_proj_closest_vertex[root_cell]
 
     elif root_state is not None:
-        if 'cell_pseudo_state' not in adata.obs.keys():
+        if "cell_pseudo_state" not in adata.obs.keys():
             raise ValueError("State has not yet been set. Please call order_cells() without specifying root_state.")
 
         root_cell_candidates = np.where(adata.obs["cell_pseudo_state"] == root_state)[0]
@@ -375,29 +373,31 @@ def select_root_cell(
         reduced_dim_subset = Z[:, root_cell_candidates].T
         dp = distance.cdist(reduced_dim_subset, reduced_dim_subset, metric="euclidean")
         gp = ig.Graph.Weighted_Adjacency(dp, mode="undirected")
-        dp_mst = gp.spanning_tree(weights=gp.es['weight'])
+        dp_mst = gp.spanning_tree(weights=gp.es["weight"])
         diameter = dp_mst.get_diameter(directed=False)
 
         if len(diameter) == 0:
             raise ValueError("No valid root cells for State =", root_state)
 
         root_cell_candidates = root_cell_candidates[diameter]
-        if adata.uns['cell_order']['root_cell'] is not None and \
-                adata.obs["cell_pseudo_state"][adata.uns['cell_order']['root_cell']] == root_state:
-            root_cell = root_cell_candidates[np.argmin(adata[root_cell_candidates].obs['Pseudotime'].values)]
+        if (
+            adata.uns["cell_order"]["root_cell"] is not None
+            and adata.obs["cell_pseudo_state"][adata.uns["cell_order"]["root_cell"]] == root_state
+        ):
+            root_cell = root_cell_candidates[np.argmin(adata[root_cell_candidates].obs["Pseudotime"].values)]
         else:
-            root_cell = root_cell_candidates[np.argmax(adata[root_cell_candidates].obs['Pseudotime'].values)]
+            root_cell = root_cell_candidates[np.argmax(adata[root_cell_candidates].obs["Pseudotime"].values)]
         if isinstance(root_cell, list):
             root_cell = root_cell[0]
 
         if map_to_tree:
-            root_cell = adata.uns['cell_order']['pr_graph_cell_proj_closest_vertex'][root_cell]
+            root_cell = adata.uns["cell_order"]["pr_graph_cell_proj_closest_vertex"][root_cell]
 
     else:
-        if 'minSpanningTree' not in adata.uns['cell_order'].keys():
+        if "minSpanningTree" not in adata.uns["cell_order"].keys():
             raise ValueError("No spanning tree found for adata object.")
 
-        graph = ig.Graph.Weighted_Adjacency(adata.uns['cell_order']['minSpanningTree'], mode="undirected")
+        graph = ig.Graph.Weighted_Adjacency(adata.uns["cell_order"]["minSpanningTree"], mode="undirected")
         diameter = graph.get_diameter(directed=False)
         if reverse:
             root_cell = diameter[-1]

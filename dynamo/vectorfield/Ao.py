@@ -1,8 +1,8 @@
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
-from scipy.optimize import least_squares
 import tqdm
+from scipy.optimize import least_squares
 
 from ..tools.utils import condensed_idx_to_squareform_idx, squareform, timeit
 
@@ -122,6 +122,7 @@ def Ao_pot_map(
     P = P / np.sum(P)
 
     return X, U, P, vecMat, S, A
+
 
 def Ao_pot_map_jac(fjac, X, D=None, **kwargs):
     nobs, ndim = X.shape

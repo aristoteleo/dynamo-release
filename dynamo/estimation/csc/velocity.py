@@ -2,6 +2,7 @@ import itertools
 from multiprocessing.dummy import Pool as ThreadPool
 from warnings import warn
 
+import numpy as np
 from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
@@ -23,6 +24,7 @@ from .utils_velocity import *
 
 class Velocity:
     """The class that computes RNA/protein velocity given unknown parameters."""
+
     def __init__(
         self,
         alpha: Optional[np.ndarray] = None,
@@ -163,7 +165,9 @@ class Velocity:
 
         return V
 
-    def vel_s(self, U: Union[csr_matrix, np.ndarray], S: Union[csr_matrix, np.ndarray]) -> Union[csr_matrix, np.ndarray]:
+    def vel_s(
+        self, U: Union[csr_matrix, np.ndarray], S: Union[csr_matrix, np.ndarray]
+    ) -> Union[csr_matrix, np.ndarray]:
         """Calculate the unspliced mRNA velocity.
 
         Args:
@@ -227,7 +231,9 @@ class Velocity:
             V = np.nan
         return V
 
-    def vel_p(self, S: Union[csr_matrix, np.ndarray], P: Union[csr_matrix, np.ndarray]) -> Union[csr_matrix, np.ndarray]:
+    def vel_p(
+        self, S: Union[csr_matrix, np.ndarray], P: Union[csr_matrix, np.ndarray]
+    ) -> Union[csr_matrix, np.ndarray]:
         """Calculate the protein velocity.
 
         Args:
@@ -904,7 +910,7 @@ class ss_estimation:
                     for i in tqdm(range(n_genes), desc="estimating gamma"):
                         try:
                             gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
-                        except:
+                        except Exception as e:
                             gamma[i], u0[i] = 0, 0
                     self.parameters["gamma"], self.aux_param["uu0"] = gamma, u0
                     alpha = np.zeros(n_genes)
@@ -1572,8 +1578,8 @@ class ss_estimation:
         """
         if intercept and perc_left is None:
             perc_left = perc_right
-        u = u.A.flatten() if issparse(u) else u.flatten()
-        s = s.A.flatten() if issparse(s) else s.flatten()
+        u = u.toarray().flatten() if issparse(u) else u.flatten()
+        s = s.toarray().flatten() if issparse(s) else s.flatten()
 
         mask = find_extreme(
             s,
@@ -1654,10 +1660,10 @@ class ss_estimation:
             all_r2: float
                 Coefficient of determination or r square for all data points.
         """
-        u = u.A.flatten() if issparse(u) else u.flatten()
-        s = s.A.flatten() if issparse(s) else s.flatten()
-        us = us.A.flatten() if issparse(us) else us.flatten()
-        ss = ss.A.flatten() if issparse(ss) else ss.flatten()
+        u = u.toarray().flatten() if issparse(u) else u.flatten()
+        s = s.toarray().flatten() if issparse(s) else s.flatten()
+        us = us.toarray().flatten() if issparse(us) else us.flatten()
+        ss = ss.toarray().flatten() if issparse(ss) else ss.flatten()
 
         mask = find_extreme(
             s,
@@ -1789,7 +1795,7 @@ class ss_estimation:
             range(ul.shape[0]),
             desc="solving steady state alpha and induction alpha",
         ):
-            l = ul[i].A.flatten() if issparse(ul) else ul[i]
+            l = ul[i].toarray().flatten() if issparse(ul) else ul[i]
             for t_ind in np.arange(1, len(t_uniq)):
                 alpha_stm[i, t_ind] = solve_alpha_2p(
                     t_max - t_uniq[t_ind],
@@ -1864,7 +1870,7 @@ class ss_estimation:
             else:
                 data = self.data[key]
         if type(data) is list:
-            ret = len(data[0].A) if issparse(data[0]) else len(data[0])
+            ret = len(data[0].toarray()) if issparse(data[0]) else len(data[0])
         else:
             ret = data.shape[0]
         return ret

@@ -6,10 +6,10 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-import pandas as pd
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
@@ -34,19 +34,21 @@ def _calculate_cells_mapping(
     cells_mapping_size = np.bincount(cell_proj_closest_vertex)
     centroids_index = range(len(cells_mapping_size))
 
-    cell_type_info = pd.DataFrame({
-        "class": adata.obs[group_key].values,
-        "centroid": cell_proj_closest_vertex,
-    })
+    cell_type_info = pd.DataFrame(
+        {
+            "class": adata.obs[group_key].values,
+            "centroid": cell_proj_closest_vertex,
+        }
+    )
 
     cell_color_map = get_color_map_from_labels(adata.obs[group_key].values)
 
-    cell_type_info = cell_type_info.groupby(['centroid', 'class']).size().unstack()
+    cell_type_info = cell_type_info.groupby(["centroid", "class"]).size().unstack()
     cell_type_info = cell_type_info.reindex(centroids_index, fill_value=0)
     cells_mapping_percentage = cell_type_info.div(cells_mapping_size, axis=0)
     cells_mapping_percentage = np.nan_to_num(cells_mapping_percentage.values)
 
-    cells_mapping_size = (cells_mapping_size / len(cell_proj_closest_vertex))
+    cells_mapping_size = cells_mapping_size / len(cell_proj_closest_vertex)
     cells_mapping_size = [0.05 if s < 0.05 else s for s in cells_mapping_size]
 
     return cells_mapping_size, cells_mapping_percentage, cell_color_map
@@ -168,7 +170,13 @@ def plot_dim_reduced_direct_graph(
                 max_idx = np.argmax(attributes)
                 dominate_colors.append(cells_colors[max_idx])
 
-        nx.draw_networkx_nodes(G, pos=pos_dict, node_color=dominate_colors, node_size=[s * len(cells_size) * 300 for s in cells_size], ax=ax)
+        nx.draw_networkx_nodes(
+            G,
+            pos=pos_dict,
+            node_color=dominate_colors,
+            node_size=[s * len(cells_size) * 300 for s in cells_size],
+            ax=ax,
+        )
         g = nx.draw_networkx_edges(
             G,
             pos=pos_dict,
@@ -180,11 +188,14 @@ def plot_dim_reduced_direct_graph(
         )
 
     cells_color_map["None"] = np.array([0, 0, 0, 1])
-    plt.legend(handles=[plt.Line2D([0], [0], marker="o", color='w', label=label,
-                                   markerfacecolor=color) for label, color in cells_color_map.items()],
-               loc="best",
-               fontsize="medium",
-               )
+    plt.legend(
+        handles=[
+            plt.Line2D([0], [0], marker="o", color="w", label=label, markerfacecolor=color)
+            for label, color in cells_color_map.items()
+        ],
+        loc="best",
+        fontsize="medium",
+    )
 
     return save_show_ret("plot_dim_reduced_direct_graph", save_show_or_return, save_kwargs, g)
 

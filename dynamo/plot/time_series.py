@@ -117,7 +117,7 @@ def kinetic_curves(
         color = list(set(color).intersection(adata.obs.keys()))
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
-    exprs = exprs.A if issparse(exprs) else exprs
+    exprs = exprs.toarray() if issparse(exprs) else exprs
     if len(set(genes).intersection(valid_genes)) > 0:
         # by default, expression values are log1p tranformed if using the expression from adata.
         exprs = np.expm1(exprs) if not log else exprs
@@ -310,7 +310,7 @@ def kinetic_heatmap(
 
         valid_genes = [x for x in genes if x in valid_genes]
 
-        exprs = exprs.A if issparse(exprs) else exprs
+        exprs = exprs.toarray() if issparse(exprs) else exprs
         if mode != "pseudotime":
             exprs = np.log1p(exprs) if log else exprs
 
@@ -449,7 +449,7 @@ def kinetic_heatmap(
         vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
         sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
-    return save_show_ret("kinetic_heatmap", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)
+    return save_show_ret("kinetic_heatmap", save_show_or_return, save_kwargs, sns_heatmap, adjust=show_colorbar)
 
 
 def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
@@ -675,7 +675,7 @@ def jacobian_kinetics(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
         ClusterGrid would be returned.
-    
+
     Examples:
         >>> import dynamo as dyn
         >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
@@ -803,7 +803,7 @@ def jacobian_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    return save_show_ret("jacobian_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)
+    return save_show_ret("jacobian_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust=show_colorbar)
 
 
 @docstrings.with_indent(4)
@@ -872,7 +872,7 @@ def sensitivity_kinetics(
     Returns:
         None would be returned by default. If `save_show_or_return` is set to be 'return', the generated seaborn
         ClusterGrid would be returned.
-        
+
     Examples:
         >>> import dynamo as dyn
         >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
@@ -1000,4 +1000,4 @@ def sensitivity_kinetics(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
 
-    return save_show_ret("sensitivity_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust = show_colorbar)
+    return save_show_ret("sensitivity_kinetics", save_show_or_return, save_kwargs, sns_heatmap, adjust=show_colorbar)

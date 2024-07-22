@@ -7,6 +7,7 @@ from scipy.sparse import csr_matrix, isspmatrix
 # Convert sparse matrix to dense matrix.
 to_dense_matrix = lambda X: np.array(X.todense()) if isspmatrix(X) else np.asarray(X)
 
+
 def integrate(
     adatas: List[AnnData],
     batch_key: str = "slices",
@@ -77,6 +78,7 @@ def integrate(
             integrated_adata.uns[key] = value
 
     return integrated_adata
+
 
 def harmony_debatch(
     adata: AnnData,

@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import issparse
 
-from ..tools.utils import einsum_correlation, log1p_
 from ..utils import LoggerManager, copy_adata
 
 
@@ -30,6 +29,7 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
         between input gene_list and the adata.var_names. corr contains the correlation coefficient of each gene with
         the mean expression of all genes in the list.
     """
+    from ..tools.utils import einsum_correlation, log1p_
 
     # returns list of correlations of each gene within a list of genes with the total expression of the group
     tmp = adata.var_names.intersection(gene_list)
@@ -48,7 +48,7 @@ def group_corr(adata: anndata.AnnData, layer: Union[str, None], gene_list: list)
     avg_exp = expression_matrix.mean(axis=1)
     cor = (
         einsum_correlation(
-            np.array(expression_matrix.A.T, dtype="float"),
+            np.array(expression_matrix.toarray().T, dtype="float"),
             np.array(avg_exp.A1, dtype="float"),
         )
         if issparse(expression_matrix)
@@ -106,6 +106,7 @@ def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: List
     Returns:
         The Z-scored expression data.
     """
+    from ..tools.utils import log1p_
 
     tmp = adata.var_names.intersection(gene_list)
     # use indices

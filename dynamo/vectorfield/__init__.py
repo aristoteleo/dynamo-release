@@ -37,18 +37,12 @@ from .scVectorField import (  # , evaluate, con_K_div_cur_free
     SvcVectorField,
     graphize_vecfld,
 )
-from .Tang import action, gen_fixed_points, IntGrad
 
 # stochastic process related
 from .stochastic_process import diffusionMatrix
-from .topography import (
-    FixedPoints,
-    Topography2D,
-    assign_fixedpoints,
-    topography,
-)
+from .Tang import IntGrad, action, gen_fixed_points
+from .topography import FixedPoints, Topography2D, assign_fixedpoints, topography
 from .utils import get_jacobian, parse_int_df, vector_field_function
-from .VectorField import VectorField
 from .vector_calculus import (
     acceleration,
     curl,
@@ -62,6 +56,7 @@ from .vector_calculus import (
     torsion,
     velocities,
 )
+from .VectorField import VectorField
 
 # vfGraph operation related:
 from .vfGraph_deprecated import vfGraph
