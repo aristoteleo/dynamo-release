@@ -792,11 +792,14 @@ def set_figure_params(
     import builtins
 
     if getattr(builtins, "__IPYTHON__", False):
-        import matplotlib_inline.backend_inline
+        try:
+            import matplotlib_inline.backend_inline
 
-        if isinstance(ipython_format, str):
-            ipython_format = [ipython_format]
-        matplotlib_inline.backend_inline.set_matplotlib_formats(*ipython_format)
+            if isinstance(ipython_format, str):
+                ipython_format = [ipython_format]
+            matplotlib_inline.backend_inline.set_matplotlib_formats(*ipython_format)
+        except Exception:
+            pass
 
     from matplotlib import rcParams
 
