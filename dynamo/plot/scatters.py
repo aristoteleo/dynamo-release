@@ -2224,7 +2224,7 @@ def scatters_single_input(
 
     # if #total_panel is 1, `_matplotlib_points` will create a figure. No need to create a figure here and generate a blank figure.
     if ax is None:
-        figure, ax = plt.subplots()
+        figure, ax = plt.subplots(figsize=figsize, facecolor=background)
 
     color_out = None
 
