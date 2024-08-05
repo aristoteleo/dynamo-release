@@ -5,6 +5,7 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -363,6 +364,7 @@ def circosPlot(
         the Matplotlib Axes on which the Circos plot is drawn.
     """
     try:
+        import matplotlib
         import nxviz as nv
         from nxviz import annotate
     except ImportError:
@@ -382,12 +384,16 @@ def circosPlot(
 
     annotate.circos_labels(network, group_by=node_label_key, layout=circos_label_layout)
     if node_color_key and show_colorbar:
-        annotate.node_colormapping(
-            network,
-            color_by=node_color_key,
-            legend_kwargs={"loc": "upper right", "bbox_to_anchor": (0.0, 1.0)},
-            ax=None,
+        nt = nv.utils.node_table(network)
+        data = nt[node_color_key]
+        cmap, data_family = nv.encodings.data_cmap(data)
+        norm = matplotlib.colors.Normalize(vmin=data.min(), vmax=data.max())
+        scalarmap = matplotlib.cm.ScalarMappable(
+            cmap=cmap,
+            norm=norm,
         )
+        fig = plt.gcf()
+        fig.colorbar(scalarmap, ax=ax)
     return ax
 
 
