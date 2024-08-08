@@ -13,9 +13,9 @@ from matplotlib.axes import Axes
 from matplotlib.colors import ListedColormap
 from matplotlib.figure import Figure
 
-from .utils import save_show_ret
 from ..tools.utils import flatten, index_gene, velocity_on_grid
 from ..utils import areinstance, isarray
+from .utils import save_show_ret
 
 # from ..tools.Markov import smoothen_drift_on_grid
 

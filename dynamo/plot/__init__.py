@@ -34,7 +34,7 @@ from .preprocess import (
 from .pseudotime import plot_dim_reduced_direct_graph
 from .scatters import scatters, scatters_interactive
 from .scPotential import show_landscape
-from .sctransform import sctransform_plot_fit, plot_residual_var
+from .sctransform import plot_residual_var, sctransform_plot_fit
 from .scVectorField import (  # , plot_LIC_gray
     cell_wise_vectors,
     cell_wise_vectors_3d,

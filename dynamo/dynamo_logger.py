@@ -1,10 +1,9 @@
-from typing import Iterable, Optional
-
 import functools
 import logging
 import sys
 import time
 from contextlib import contextmanager
+from typing import Iterable, Optional
 
 
 def silence_logger(name: str) -> None:
@@ -176,7 +175,13 @@ class Logger:
         return self.logger.error(message, *args, **kwargs)
 
     def info_insert_adata(
-        self, key: str, adata_attr: str = "obsm", log_level: int = logging.NOTSET, indent_level: int = 1, *args, **kwargs
+        self,
+        key: str,
+        adata_attr: str = "obsm",
+        log_level: int = logging.NOTSET,
+        indent_level: int = 1,
+        *args,
+        **kwargs,
     ) -> None:
         """Log a message for inserting data into an AnnData object."""
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
@@ -314,7 +319,10 @@ class LoggerManager:
 
     @staticmethod
     def progress_logger(
-        generator: Iterable, logger: Optional[Logger] = None, progress_name: str = "", indent_level: int = 1,
+        generator: Iterable,
+        logger: Optional[Logger] = None,
+        progress_name: str = "",
+        indent_level: int = 1,
     ) -> Iterable:
         """A generator that logs the progress of another generator."""
         if logger is None:
@@ -362,7 +370,10 @@ def main_critical(message: str, indent_level: int = 1) -> None:
 
 
 def main_tqdm(
-    generator: Iterable, desc: str = "", indent_level: int = 1, logger: LoggerManager = LoggerManager().main_logger,
+    generator: Iterable,
+    desc: str = "",
+    indent_level: int = 1,
+    logger: LoggerManager = LoggerManager().main_logger,
 ) -> Iterable:
     """a TQDM style wrapper for logging something like a loop.
 

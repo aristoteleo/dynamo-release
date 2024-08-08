@@ -171,7 +171,7 @@ def fit_hill_grad(
                 msd_min = msd
                 p_opt_min = [A, K, n, g]
 
-        except:
+        except Exception as e: #TODO: not a good practice
             pass
 
     if p_opt_min is None:
@@ -236,7 +236,7 @@ def fit_hill_inh_grad(
                 msd_min = msd
                 p_opt_min = p_opt
 
-        except:
+        except Exception as e: #TODO: not a good practice 
             pass
 
     return {"A": p_opt_min[0], "K": p_opt_min[1], "n": np.exp(p_opt_min[2]), "g": p_opt_min[3]}, msd_min
@@ -296,7 +296,7 @@ def fit_hill_act_grad(
                 msd_min = msd
                 p_opt_min = p_opt
 
-        except:
+        except Exception as e: # not a good practice
             pass
 
     return {"A": p_opt_min[0], "K": p_opt_min[1], "n": np.exp(p_opt_min[2]), "g": p_opt_min[3]}, msd_min

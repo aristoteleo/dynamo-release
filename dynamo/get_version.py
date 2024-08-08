@@ -2,6 +2,7 @@
 A minimalistic version helper in the spirit of versioneer, that is able to run without build step using pkg_resources.
 Developed by P Angerer, see https://github.com/flying-sheep/get_version.
 """
+
 import logging
 import os
 import re
@@ -28,6 +29,7 @@ def match_groups(regex: str, target: str) -> List[str]:
 
 class Version(NamedTuple):
     """A parsed version string."""
+
     release: str
     dev: Optional[str]
     labels: List[str]

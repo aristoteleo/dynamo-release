@@ -27,8 +27,8 @@ from ..dynamo_logger import (
 from ..estimation.csc.utils_velocity import solve_alpha_2p_mat
 from ..estimation.csc.velocity import Velocity, fit_linreg, ss_estimation
 from ..estimation.tsc.estimation_kinetic import *
-from ..estimation.tsc.twostep import fit_slope_stochastic, lin_reg_gamma_synthesis
 from ..estimation.tsc.ODEs import *
+from ..estimation.tsc.twostep import fit_slope_stochastic, lin_reg_gamma_synthesis
 from .moments import (
     moments,
     prepare_data_deterministic,
@@ -420,7 +420,7 @@ def dynamics(
                 enumerate(L),
                 desc=f"sanity check of {experiment_type} experiment data:",
             ):
-                cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
+                cur_L = cur_L.toarray().flatten() if issparse(cur_L) else cur_L.flatten()
                 y = strat_mom(cur_L, t, np.nanmean)
                 slope, _ = fit_linreg(t_uniq, y, intercept=True, r2=False)
                 valid_gene_checker[L_iter] = (
@@ -716,6 +716,7 @@ def dynamics(
                 kin_param_pre,
                 valid_bools_,
                 ind_for_proteins,
+                cur_cells_bools,
             )
 
         elif assumption_mRNA.lower() == "kinetic":
@@ -1591,7 +1592,7 @@ def kinetic_model(
             if model.lower() == "mixture":
                 cur_X_data = np.vstack([X[i_layer][i_gene] for i_layer in range(len(X))])
                 if issparse(X_raw[0]):
-                    cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene].A for i_layer in range(len(X))])
+                    cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene].toarray() for i_layer in range(len(X))])
                 else:
                     cur_X_raw = np.hstack([X_raw[i_layer][:, i_gene] for i_layer in range(len(X))])
             else:
@@ -1599,7 +1600,7 @@ def kinetic_model(
                 cur_X_raw = X_raw[i_gene]
 
                 if issparse(cur_X_raw[0, 0]):
-                    cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+                    cur_X_raw = np.hstack((cur_X_raw[0, 0].toarray(), cur_X_raw[1, 0].toarray()))
 
             _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
             (
@@ -1654,7 +1655,7 @@ def kinetic_model(
                 Estm[i_gene] = estm.export_parameters()
 
             if issparse(cur_X_raw[0, 0]):
-                cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+                cur_X_raw = np.hstack((cur_X_raw[0, 0].toarray(), cur_X_raw[1, 0].toarray()))
             # model_1, kinetic_parameters, mix_x0 = estm.export_dictionary().values()
             # tmp = list(kinetic_parameters.values())
             # tmp.extend(mix_x0)

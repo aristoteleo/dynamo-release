@@ -97,7 +97,7 @@ def rank_genes(
     var_names = np.array(index_gene(adata, adata.var_names, genes))
     for g, arr in arr_dict.items():
         if ismatrix(arr):
-            arr = arr.A.flatten()
+            arr = arr.toarray().flatten()
         glst, sarr = list_top_genes(arr, var_names, None, return_sorted_array=True)
         # ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
         ret_dict[g] = glst
@@ -164,7 +164,7 @@ def rank_cell_groups(
     cell_names = np.array(adata.obs_names)
     for g, arr in arr_dict.items():
         if ismatrix(arr):
-            arr = arr.A.flatten()
+            arr = arr.toarray().flatten()
         glst, sarr = list_top_genes(arr, cell_names, None, return_sorted_array=True)
         # ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
         ret_dict[g] = glst

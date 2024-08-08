@@ -14,7 +14,13 @@ from dynamo.preprocessing import Preprocessor
 from dynamo.preprocessing.cell_cycle import get_cell_phase
 from dynamo.preprocessing.deprecated import _calc_mean_var_dispersion_sparse_legacy
 from dynamo.preprocessing.normalization import calc_sz_factor, normalize
-from dynamo.preprocessing.transform import log, log1p, log2, Freeman_Tukey, is_log1p_transformed_adata
+from dynamo.preprocessing.transform import (
+    Freeman_Tukey,
+    is_log1p_transformed_adata,
+    log,
+    log1p,
+    log2,
+)
 from dynamo.preprocessing.utils import (
     convert_layers2csr,
     is_float_integer_arr,
@@ -112,15 +118,21 @@ def test_recipe_monocle_feature_selection_layer_simple0():
         + rpe1_kinetics.layers["ul"],
     )
 
-    del rpe1, rpe1_kinetics.layers["uu"], rpe1_kinetics.layers["ul"], rpe1_kinetics.layers["su"], rpe1_kinetics.layers["sl"]
+    del (
+        rpe1,
+        rpe1_kinetics.layers["uu"],
+        rpe1_kinetics.layers["ul"],
+        rpe1_kinetics.layers["su"],
+        rpe1_kinetics.layers["sl"],
+    )
     rpe1_kinetics = rpe1_kinetics[:100, :100]
     dyn.pl.basic_stats(rpe1_kinetics, save_show_or_return="return")
     rpe1_genes = ["UNG", "PCNA", "PLK1", "HPRT1"]
 
     # rpe1_kinetics = dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=1000, total_layers=False, copy=True)
     dyn.pp.recipe_monocle(rpe1_kinetics, n_top_genes=20, total_layers=False, feature_selection_layer="new")
-    assert np.all(rpe1_kinetics.X.A == rpe1_kinetics.X.A)
-    assert not np.all(rpe1_kinetics.layers["new"].A != rpe1_kinetics.layers["new"].A)
+    assert np.all(rpe1_kinetics.X.toarray() == rpe1_kinetics.X.toarray())
+    assert not np.all(rpe1_kinetics.layers["new"].toarray() != rpe1_kinetics.layers["new"].toarray())
 
 
 def test_calc_dispersion_sparse():
@@ -146,7 +158,6 @@ def test_calc_dispersion_sparse():
     # print("expected var:", expected_var)
     # assert np.all(np.isclose(sc_mean, expected_mean))
     # assert np.all(np.isclose(sc_var, expected_var))
-
 
 
 def test_Preprocessor_monocle_recipe():
@@ -207,17 +218,17 @@ def test_layers2csr_matrix():
     data = np.array([[1, 2], [3, 4]])
     adata = anndata.AnnData(
         X=data,
-        obs={'obs1': ['cell1', 'cell2']},
-        var={'var1': ['gene1', 'gene2']},
+        obs={"obs1": ["cell1", "cell2"]},
+        var={"var1": ["gene1", "gene2"]},
     )
     layer = csr_matrix([[1, 2], [3, 4]]).transpose()  # Transpose the matrix
-    adata.layers['layer1'] = layer
+    adata.layers["layer1"] = layer
 
     result = dyn.preprocessing.utils.convert_layers2csr(adata)
 
-    assert issparse(result.layers['layer1'])
-    assert result.layers['layer1'].shape == layer.shape
-    assert (result.layers['layer1'].toarray() == layer.toarray()).all()
+    assert issparse(result.layers["layer1"])
+    assert result.layers["layer1"].shape == layer.shape
+    assert (result.layers["layer1"].toarray() == layer.toarray()).all()
 
 
 def test_compute_gene_exp_fraction():
@@ -307,10 +318,10 @@ def test_filter_genes_by_clusters_():
 
     # Add cluster information
     clusters = np.random.randint(low=0, high=3, size=n_cells)
-    adata.obs['clusters'] = clusters
+    adata.obs["clusters"] = clusters
 
     # Filter genes by cluster
-    clu_avg_selected = dyn.pp.filter_genes_by_clusters(adata, 'clusters')
+    clu_avg_selected = dyn.pp.filter_genes_by_clusters(adata, "clusters")
 
     # Check that the output is a numpy array
     assert type(clu_avg_selected) == np.ndarray
@@ -319,7 +330,7 @@ def test_filter_genes_by_clusters_():
     assert clu_avg_selected.shape == (n_genes,)
 
     # Check that all genes with U and S average > min_avg_U and min_avg_S respectively are selected
-    U, S = adata.layers['unspliced'], adata.layers['spliced']
+    U, S = adata.layers["unspliced"], adata.layers["spliced"]
     U_avgs = np.array([np.mean(U[clusters == i], axis=0) for i in range(3)])
     S_avgs = np.array([np.mean(S[clusters == i], axis=0) for i in range(3)])
     expected_clu_avg_selected = np.any((U_avgs.max(1) > 0.02) & (S_avgs.max(1) > 0.08), axis=0)
@@ -348,12 +359,9 @@ def test_filter_genes_by_outliers():
     # check that the original object is unchanged
     assert np.all(adata.var_names.values == ["gene1", "gene2", "gene3", "gene4"])
 
-    dyn.pp.filter_genes_by_outliers(adata,
-                                    min_avg_exp_s=0.5,
-                                    min_cell_s=2,
-                                    max_avg_exp=2.5,
-                                    min_count_s=2,
-                                    inplace=True)
+    dyn.pp.filter_genes_by_outliers(
+        adata, min_avg_exp_s=0.5, min_cell_s=2, max_avg_exp=2.5, min_count_s=2, inplace=True
+    )
 
     # check that the adata has been updated
     assert adata.shape == (6, 3)
@@ -362,14 +370,12 @@ def test_filter_genes_by_outliers():
 
 def test_filter_cells_by_outliers():
     # Create a test AnnData object with some example data
-    adata = anndata.AnnData(
-        X=np.array([[1, 0, 3], [4 ,0 ,0], [7, 8, 9], [10, 11, 12]]))
+    adata = anndata.AnnData(X=np.array([[1, 0, 3], [4, 0, 0], [7, 8, 9], [10, 11, 12]]))
     adata.var_names = ["gene1", "gene2", "gene3"]
     adata.obs_names = ["cell1", "cell2", "cell3", "cell4"]
 
     # Test the function with custom range values
-    dyn.pp.filter_cells_by_outliers(
-        adata, min_expr_genes_s=2, max_expr_genes_s=6)
+    dyn.pp.filter_cells_by_outliers(adata, min_expr_genes_s=2, max_expr_genes_s=6)
 
     assert np.array_equal(
         adata.obs_names.values,
@@ -385,8 +391,7 @@ def test_filter_cells_by_outliers():
 
 
 def test_filter_genes_by_patterns():
-    adata = anndata.AnnData(
-        X=np.array([[1, 0, 3], [4, 0, 0], [7, 8, 9], [10, 11, 12]]))
+    adata = anndata.AnnData(X=np.array([[1, 0, 3], [4, 0, 0], [7, 8, 9], [10, 11, 12]]))
     adata.var_names = ["MT-1", "RPS", "GATA1"]
     adata.obs_names = ["cell1", "cell2", "cell3", "cell4"]
 
@@ -525,19 +530,19 @@ def test_transform():
 
     adata1 = log1p(adata.copy())
     assert not np.all(adata1.X == adata.X)
-    assert np.all(adata1.layers["spliced"].A == adata.layers["spliced"].A)
+    assert np.all(adata1.layers["spliced"].toarray() == adata.layers["spliced"].toarray())
 
     adata2 = log(adata.copy())
     assert not np.all(adata2.X == adata.X)
-    assert np.all(adata2.layers["spliced"].A == adata.layers["spliced"].A)
+    assert np.all(adata2.layers["spliced"].toarray() == adata.layers["spliced"].toarray())
 
     adata3 = log2(adata.copy())
     assert not np.all(adata3.X == adata.X)
-    assert np.all(adata3.layers["spliced"].A == adata.layers["spliced"].A)
+    assert np.all(adata3.layers["spliced"].toarray() == adata.layers["spliced"].toarray())
 
     adata4 = Freeman_Tukey(adata.copy())
     assert not np.all(adata3.X == adata.X)
-    assert np.all(adata4.layers["spliced"].A == adata.layers["spliced"].A)
+    assert np.all(adata4.layers["spliced"].toarray() == adata.layers["spliced"].toarray())
 
 
 def test_normalize():

@@ -127,7 +127,7 @@ def kde2d(
             h /= 4
             ax = pd.DataFrame((gx - x[:, np.newaxis]) / h[0]).T
             ay = pd.DataFrame((gy - y[:, np.newaxis]) / h[1]).T
-            z = (np.matrix(dnorm(ax)) * np.matrix(dnorm(ay).T)) / (nx * h[0] * h[1])
+            z = (np.array(dnorm(ax)) @ np.array(dnorm(ay).T)) / (nx * h[0] * h[1])
     return gx, gy, z
 
 
@@ -362,8 +362,8 @@ def response(
         x, y_ori = x[valid_ids], y_ori[valid_ids]
 
         if log:
-            x, y_ori = x if sum(x < 0) else np.log(np.array(x) + 1), y_ori if sum(y_ori) < 0 else np.log(
-                np.array(y_ori) + 1
+            x, y_ori = x if sum(x < 0) else np.log(np.array(x) + 1), (
+                y_ori if sum(y_ori) < 0 else np.log(np.array(y_ori) + 1)
             )
 
         if delay != 0:

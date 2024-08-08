@@ -495,7 +495,7 @@ def flatten(arr: Union[pd.Series, sp.csr_matrix, np.ndarray]) -> np.ndarray:
     if type(arr) == pd.core.series.Series:
         ret = arr.values.flatten()
     elif sp.issparse(arr):
-        ret = arr.A.flatten()
+        ret = arr.toarray().flatten()
     else:
         ret = arr.flatten()
     return ret
@@ -1044,25 +1044,37 @@ def inverse_norm(adata: AnnData, layer_x: Union[np.ndarray, sp.csr_matrix]) -> n
         layer_x.data = (
             np.expm1(layer_x.data)
             if adata.uns["pp"]["layers_norm_method"] == "log1p"
-            else 2**layer_x.data - 1
-            if adata.uns["pp"]["layers_norm_method"] == "log2"
-            else np.exp(layer_x.data) - 1
-            if adata.uns["pp"]["layers_norm_method"] == "log"
-            else _Freeman_Tukey(layer_x.data + 1, inverse=True) - 1
-            if adata.uns["pp"]["layers_norm_method"] == "Freeman_Tukey"
-            else layer_x.data
+            else (
+                2**layer_x.data - 1
+                if adata.uns["pp"]["layers_norm_method"] == "log2"
+                else (
+                    np.exp(layer_x.data) - 1
+                    if adata.uns["pp"]["layers_norm_method"] == "log"
+                    else (
+                        _Freeman_Tukey(layer_x.data + 1, inverse=True) - 1
+                        if adata.uns["pp"]["layers_norm_method"] == "Freeman_Tukey"
+                        else layer_x.data
+                    )
+                )
+            )
         )
     else:
         layer_x = (
             np.expm1(layer_x)
             if adata.uns["pp"]["layers_norm_method"] == "log1p"
-            else 2**layer_x - 1
-            if adata.uns["pp"]["layers_norm_method"] == "log2"
-            else np.exp(layer_x) - 1
-            if adata.uns["pp"]["layers_norm_method"] == "log"
-            else _Freeman_Tukey(layer_x, inverse=True)
-            if adata.uns["pp"]["layers_norm_method"] == "Freeman_Tukey"
-            else layer_x
+            else (
+                2**layer_x - 1
+                if adata.uns["pp"]["layers_norm_method"] == "log2"
+                else (
+                    np.exp(layer_x) - 1
+                    if adata.uns["pp"]["layers_norm_method"] == "log"
+                    else (
+                        _Freeman_Tukey(layer_x, inverse=True)
+                        if adata.uns["pp"]["layers_norm_method"] == "Freeman_Tukey"
+                        else layer_x
+                    )
+                )
+            )
         )
 
     return layer_x
@@ -1172,7 +1184,7 @@ def _one_shot_gamma_alpha_matrix(
     Returns:
         A tuple containing the gamma and alpha parameters.
     """
-    N, R = N.A.T, R.A.T
+    N, R = N.toarray().T, R.toarray().T
     K = np.array(K)
     tau = tau[0]
     Kc = np.clip(K, 0, 1 - 1e-3)
@@ -1294,7 +1306,7 @@ def get_data_for_kin_params_estimation(
             )
         NTR_vel = True
 
-    U, Ul, S, Sl, P, US, U2, S2, = (
+    (U, Ul, S, Sl, P, US, U2, S2,) = (
         None,
         None,
         None,
@@ -1540,11 +1552,12 @@ def set_param_ss(
     kin_param_pre,
     valid_ind,
     ind_for_proteins,
+    cur_cells_bools,
 ):
     params_df = pd.DataFrame(index=adata.var.index)
     if experiment_type == "mix_std_stm":
         if alpha is not None:
-            if cur_grp == _group[0]:
+            if kin_param_pre + "alpha" not in adata.varm:
                 adata.varm[kin_param_pre + "alpha"] = np.zeros((adata.shape[1], alpha[1].shape[1]))
             adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha[1]
             (
@@ -1569,13 +1582,13 @@ def set_param_ss(
     else:
         if alpha is not None:
             if len(alpha.shape) > 1:  # for each cell
-                if cur_grp == _group[0]:
+                if kin_param_pre + "alpha" not in adata.varm:
                     adata.varm[kin_param_pre + "alpha"] = (
                         sp.csr_matrix(np.zeros(adata.shape[::-1]))
                         if sp.issparse(alpha)
                         else np.zeros(adata.shape[::-1])
                     )  #
-                adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha  #
+                adata.varm[kin_param_pre + "alpha"][valid_ind, :][:, cur_cells_bools] = alpha  #
                 params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
             elif len(alpha.shape) == 1:
                 if cur_grp == _group[0]:
@@ -1735,18 +1748,16 @@ def set_param_kinetic(
 
     if isarray(alpha) and alpha.ndim > 1:
         params_df.loc[valid_ind, kin_param_pre + "alpha"] = (
-            np.asarray(alpha.mean(1))
-            if sp.issparse(alpha)
-            else alpha.mean(1)
+            np.asarray(alpha.mean(1)) if sp.issparse(alpha) else alpha.mean(1)
         )
         cur_cells_ind, valid_ind_ = (
             np.where(cur_cells_bools)[0][:, np.newaxis],
             np.where(valid_ind)[0],
         )
-        if cur_grp == _group[0]:
-            adata.layers["cell_wise_alpha"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        if kin_param_pre + "cell_wise_alpha" not in adata.layers:
+            adata.layers[kin_param_pre + "cell_wise_alpha"] = sp.csr_matrix((adata.shape), dtype=np.float64)
         alpha = alpha.T.tocsr() if sp.issparse(alpha) else sp.csr_matrix(alpha, dtype=np.float64).T
-        adata.layers["cell_wise_alpha"][cur_cells_ind, valid_ind_] = alpha
+        adata.layers[kin_param_pre + "cell_wise_alpha"][cur_cells_ind, valid_ind_] = alpha
     else:
         params_df.loc[valid_ind, kin_param_pre + "alpha"] = alpha
     params_df.loc[valid_ind, kin_param_pre + "a"] = a
@@ -1808,9 +1819,9 @@ def get_vel_params(
     for param in params:
         if param == "alpha":
             if not skip_cell_wise:
-                if "cell_wise_alpha" in adata.layers.keys():
-                    target_params.append(adata[:, genes].layers["cell_wise_alpha"])
-                elif "alpha" in adata.varm.keys():
+                if kin_param_pre + "cell_wise_alpha" in adata.layers.keys():
+                    target_params.append(adata[:, genes].layers[kin_param_pre + "cell_wise_alpha"])
+                elif kin_param_pre + "alpha" in adata.varm.keys():
                     target_params.append(adata[:, genes].varm[kin_param_pre + "alpha"])
                 else:
                     target_params.append(df.loc[genes, kin_param_pre + "alpha"].values)
@@ -2472,7 +2483,7 @@ def find_extreme(
     Returns:
         A boolean mask identifying the extreme regions based on the provided percentiles.
     """
-    s, u = (s.A if sp.issparse(s) else s, u.A if sp.issparse(u) else u)
+    s, u = (s.toarray() if sp.issparse(s) else s, u.toarray() if sp.issparse(u) else u)
 
     if normalize:
         su = s / np.clip(np.max(s), 1e-3, None)
@@ -2574,7 +2585,9 @@ def set_transition_genes(
             )
             if is_group_alpha.sum() > 0:
                 vel_params_df["alpha"] = vel_params_df.loc[:, is_group_alpha].mean(1, skipna=True)
-                vel_params_df["alpha_r2"] = vel_params_df.loc[:, np.hstack((is_group_alpha_r2, False))].mean(1, skipna=True)
+                vel_params_df["alpha_r2"] = vel_params_df.loc[:, np.hstack((is_group_alpha_r2, False))].mean(
+                    1, skipna=True
+                )
             else:
                 raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
 
@@ -2595,7 +2608,9 @@ def set_transition_genes(
             )
             if is_group_gamma.sum() > 0:
                 vel_params_df["gamma"] = vel_params_df.loc[:, is_group_gamma].mean(1, skipna=True)
-                vel_params_df["gamma_r2"] = vel_params_df.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
+                vel_params_df["gamma_r2"] = vel_params_df.loc[:, np.hstack((is_group_gamma_r2, False))].mean(
+                    1, skipna=True
+                )
             else:
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
@@ -2618,7 +2633,9 @@ def set_transition_genes(
             )
             if is_group_delta.sum() > 0:
                 vel_params_df["delta"] = vel_params_df.loc[:, is_group_delta].mean(1, skipna=True)
-                vel_params_df["delta_r2"] = vel_params_df.loc[:, np.hstack((is_group_delta_r2, False))].mean(1, skipna=True)
+                vel_params_df["delta_r2"] = vel_params_df.loc[:, np.hstack((is_group_delta_r2, False))].mean(
+                    1, skipna=True
+                )
             else:
                 raise Exception("there is no delta/delta_r2 parameter estimated for your adata object")
 
@@ -2639,7 +2656,9 @@ def set_transition_genes(
             )
             if is_group_gamma.sum() > 0:
                 vel_params_df["gamma"] = vel_params_df.loc[:, is_group_gamma].mean(1, skipna=True)
-                vel_params_df["gamma_r2"] = vel_params_df.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
+                vel_params_df["gamma_r2"] = vel_params_df.loc[:, np.hstack((is_group_gamma_r2, False))].mean(
+                    1, skipna=True
+                )
             else:
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
@@ -2962,7 +2981,7 @@ def integrate_vf(
     args: Tuple,
     integration_direction: Literal["forward", "backward", "both"],
     f: Callable,
-    interpolation_num: Optional[int]=None,
+    interpolation_num: Optional[int] = None,
     average: bool = True,
 ):
     """Integrating along vector field function.
@@ -3229,6 +3248,7 @@ def compute_smallest_distance(
 # ---------------------------------------------------------------------------------------------------
 # multiple core related
 
+
 # Pass kwargs to starmap while using Pool
 # https://stackoverflow.com/questions/45718523/pass-kwargs-to-starmap-while-using-pool-in-python
 def starmap_with_kwargs(pool, fn, args_iter, kwargs_iter):
@@ -3327,7 +3347,7 @@ def get_rank_array(
     if type(arr) == ArrayView:
         arr = np.array(arr)
     if sp.issparse(arr):
-        arr = arr.A
+        arr = arr.toarray()
     arr[np.isnan(arr)] = 0
 
     if dtype is not None:
@@ -3380,6 +3400,7 @@ def projection_with_transition_matrix(
                 delta_X[i] -= T_i.mean() * diff_emb.sum(0)
 
     return delta_X
+
 
 def density_corrected_transition_matrix(T: Union[npt.ArrayLike, sp.csr_matrix]) -> sp.csr_matrix:
     """Compute the density corrected transition matrix.

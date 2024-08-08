@@ -37,10 +37,10 @@ def fit_slope_stochastic(
         zip(np.arange(n_var), S, U, US, S2),
         "Estimate slope k via linear regression.",
     ):
-        u = u.A.flatten() if issparse(u) else u.flatten()
-        s = s.A.flatten() if issparse(s) else s.flatten()
-        us = us.A.flatten() if issparse(us) else us.flatten()
-        s2 = s2.A.flatten() if issparse(s2) else s2.flatten()
+        u = u.toarray().flatten() if issparse(u) else u.flatten()
+        s = s.toarray().flatten() if issparse(s) else s.flatten()
+        us = us.toarray().flatten() if issparse(us) else us.flatten()
+        s2 = s2.toarray().flatten() if issparse(s2) else s2.flatten()
 
         mask = find_extreme(u, s, perc_left=perc_left, perc_right=perc_right)
         k[i] = fit_stochastic_linreg(u[mask], s[mask], us[mask], s2[mask])
@@ -77,8 +77,8 @@ def lin_reg_gamma_synthesis(
         zip(np.arange(n_var), R, N),
         "Estimate gamma via linear regression of t vs. -ln(1-K)",
     ):
-        r = r.A.flatten() if issparse(r) else r.flatten()
-        n = n.A.flatten() if issparse(n) else n.flatten()
+        r = r.toarray().flatten() if issparse(r) else r.flatten()
+        n = n.toarray().flatten() if issparse(n) else n.flatten()
 
         K_list[i], R2 = fit_labeling_synthesis(n, r, time, perc_right=perc_right)
         gamma[i], r2[i] = compute_gamma_synthesis(K_list[i], np.unique(time))

@@ -21,7 +21,7 @@ from ..vectorfield.utils import vecfld_from_adata, vector_field_function
     div,
     potential,
 )"""
-from ..tools.connectivity import generate_neighbor_keys, check_and_recompute_neighbors
+from ..tools.connectivity import check_and_recompute_neighbors, generate_neighbor_keys
 
 
 def ddhodge(

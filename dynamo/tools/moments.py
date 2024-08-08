@@ -377,7 +377,7 @@ def prepare_data_deterministic(
                 x_layer = adata[:, genes].layers[layer]
                 if return_ntr:
                     T_genes = adata[:, genes].layers[get_layer_pair(layer)]
-                    T_genes = T_genes.A if issparse(T_genes) else T_genes
+                    T_genes = T_genes.toarray() if issparse(T_genes) else T_genes
                     x_layer = x_layer / (T_genes + 1e-5)
                 else:
                     x_layer = x_layer - adata[:, genes].layers[get_layer_pair(layer)]
@@ -443,7 +443,7 @@ def prepare_data_deterministic(
 
                 if return_ntr:
                     T_genes = adata[:, genes].layers[t_layer_key]
-                    T_genes = T_genes.A if issparse(T_genes) else T_genes
+                    T_genes = T_genes.toarray() if issparse(T_genes) else T_genes
                     x_layer = (x_layer - y_layer) / (T_genes + 1e-5)
                 else:
                     x_layer = x_layer - y_layer
@@ -454,7 +454,7 @@ def prepare_data_deterministic(
 
                 if return_ntr:
                     T_genes = adata[:, genes].layers[total_layer]
-                    T_genes = T_genes.A if issparse(T_genes) else T_genes
+                    T_genes = T_genes.toarray() if issparse(T_genes) else T_genes
                     x_layer = adata[:, genes].layers[layer] / (T_genes + 1e-5)
                 else:
                     x_layer = adata[:, genes].layers[layer]
@@ -491,7 +491,7 @@ def prepare_data_deterministic(
                         pseudo_expr=0,
                         norm_method=None,
                     )
-                    total_layer = total_layer.A if issparse(total_layer) else total_layer
+                    total_layer = total_layer.toarray() if issparse(total_layer) else total_layer
                     x_layer /= total_layer + 1e-5
         if log:
             if issparse(x_layer):
@@ -640,7 +640,7 @@ def prepare_data_has_splicing(
 
     for i, g in enumerate(genes):
         if return_ntr:
-            T_i = T[:, i].A if issparse(T[:, i]) else T[:, i]
+            T_i = T[:, i].toarray() if issparse(T[:, i]) else T[:, i]
             u = U[:, i] / (T_i + 1e-5)
             s = S[:, i] / (T_i + 1e-5)
         else:
@@ -759,7 +759,7 @@ def prepare_data_no_splicing(
 
     for i, g in enumerate(genes):
         if return_ntr:
-            T_i = T[:, i].A if issparse(T[:, i]) else T[:, i]
+            T_i = T[:, i].toarray() if issparse(T[:, i]) else T[:, i]
             u, t = U[:, i] / (T_i + 1e-5), T[:, i]
         else:
             u, t = U[:, i], T[:, i]
@@ -1137,7 +1137,7 @@ def calc_12_mom_labeling(
 
     for i in range(data.shape[0]):
         data_ = (
-            np.array(data[i].A.flatten(), dtype=float) if issparse(data) else np.array(data[i], dtype=float)
+            np.array(data[i].toarray().flatten(), dtype=float) if issparse(data) else np.array(data[i], dtype=float)
         )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
         m[i] = strat_mom(data_, t, np.nanmean)
         if calculate_2_mom:
@@ -1189,7 +1189,7 @@ def strat_mom(arr: Union[np.ndarray, csr_matrix], strata: np.ndarray, fcn_mom: C
         The momentum for each stratum.
     """
 
-    arr = arr.A if issparse(arr) else arr
+    arr = arr.toarray() if issparse(arr) else arr
     x = stratify(arr, strata)
     return np.array([fcn_mom(y) for y in x])
 

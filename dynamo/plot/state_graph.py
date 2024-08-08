@@ -322,4 +322,6 @@ def state_graph(
 
     plt.axis("off")
 
-    return save_show_ret("state_graph", save_show_or_return, save_kwargs, (axes_list, color_list, font_color), adjust = show_legend)
+    return save_show_ret(
+        "state_graph", save_show_or_return, save_kwargs, (axes_list, color_list, font_color), adjust=show_legend
+    )

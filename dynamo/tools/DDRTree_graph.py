@@ -3,11 +3,11 @@ from typing import Dict, List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 from anndata import AnnData
-from scipy.sparse import issparse, csr_matrix
+from scipy.sparse import csr_matrix, issparse
 from scipy.sparse.csgraph import minimum_spanning_tree
 
-from .DDRTree import cal_ncenter, DDRTree
 from ..dynamo_logger import main_info, main_info_insert_adata_uns
+from .DDRTree import DDRTree, cal_ncenter
 
 
 def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearson"):
@@ -25,12 +25,15 @@ def construct_velocity_tree(adata: AnnData, transition_matrix_key: str = "pearso
         A directed velocity tree represented as a NumPy array.
     """
     if transition_matrix_key + "_transition_matrix" not in adata.obsp.keys():
-        raise KeyError("Transition matrix not found in anndata. Please call cell_velocities() before constructing "
-                       "velocity tree")
+        raise KeyError(
+            "Transition matrix not found in anndata. Please call cell_velocities() before constructing " "velocity tree"
+        )
 
     if "cell_order" not in adata.uns.keys():
-        raise KeyError("Cell order information not found in anndata. Please call order_cells() before constructing "
-                       "velocity tree.")
+        raise KeyError(
+            "Cell order information not found in anndata. Please call order_cells() before constructing "
+            "velocity tree."
+        )
 
     main_info("Constructing velocity tree...")
 
@@ -168,16 +171,20 @@ def _compute_center_transition_matrix(transition_matrix: Union[csr_matrix, np.nd
                 continue
             indices_a = clusters[a]
             indices_b = clusters[b]
-            q = np.sum(
-                R[indices_a, a][:, np.newaxis] *
-                R[indices_b, b].T[np.newaxis, :] *
-                transition_matrix[indices_a[:, None], indices_b]
-            ) if (indices_a.shape[0] > 0 and indices_b.shape[0] > 0) else 0
+            q = (
+                np.sum(
+                    R[indices_a, a][:, np.newaxis]
+                    * R[indices_b, b].T[np.newaxis, :]
+                    * transition_matrix[indices_a[:, None], indices_b]
+                )
+                if (indices_a.shape[0] > 0 and indices_b.shape[0] > 0)
+                else 0
+            )
             totals[a] += q
             transition[a, b] = q
 
     totals = totals.reshape(-1, 1)
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         res = transition / totals
         res[np.isinf(res)] = 0
         res = np.nan_to_num(res)
@@ -195,7 +202,7 @@ def _calculate_segment_probability(transition_matrix: np.ndarray, segments: np.n
         The probability for each segment.
     """
 
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         log_transition_matrix = np.log1p(transition_matrix)
         log_transition_matrix[np.isinf(log_transition_matrix)] = 0
         log_transition_matrix = np.nan_to_num(log_transition_matrix)
@@ -217,7 +224,7 @@ def _get_edges(orders: Union[np.ndarray, List], parents: Optional[Union[np.ndarr
     if parents:
         segments = [(p, o) for p, o in zip(parents, orders) if p != -1]
     else:
-        segments = [(orders[i-1], orders[i]) for i in range(1, len(orders))]
+        segments = [(orders[i - 1], orders[i]) for i in range(1, len(orders))]
     return segments
 
 
@@ -271,7 +278,8 @@ def _get_all_segments(orders: Union[np.ndarray, List], parents: Union[np.ndarray
 
     element_counts = Counter(parents)
     bifurcation_nodes = [
-        node for node, count in element_counts.items()
+        node
+        for node, count in element_counts.items()
         if count > 1 and node != -1 and not (count == 2 and parents_dict == -1)
     ]
     root_nodes = [node for node in orders if parents_dict[node] == -1]

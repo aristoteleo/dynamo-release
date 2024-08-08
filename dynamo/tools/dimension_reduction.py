@@ -103,7 +103,9 @@ def reduceDimension(
         conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
 
     if enforce or not has_basis:
-        logger.info(f"[{reduction_method.upper()}] using {basis} with n_pca_components = {n_pca_components}", indent_level=1)
+        logger.info(
+            f"[{reduction_method.upper()}] using {basis} with n_pca_components = {n_pca_components}", indent_level=1
+        )
         adata = run_reduce_dim(
             adata,
             X_data,

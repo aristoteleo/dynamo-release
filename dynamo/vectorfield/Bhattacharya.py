@@ -216,11 +216,13 @@ def path_integral(
 
                         # check if start points of current and previous paths are "adjacent" - if so, assign separatrix
                         if startPt_dist_sqr < (2 * (xyGridSpacing**2)):
-                            curr_sepx = np.array([
-                                path_tag[path_counter - 1][0],
-                                path_tag[path_counter][0],
-                                path_counter - 1,
-                            ])  # create array
+                            curr_sepx = np.array(
+                                [
+                                    path_tag[path_counter - 1][0],
+                                    path_tag[path_counter][0],
+                                    path_counter - 1,
+                                ]
+                            )  # create array
                             sepx_old_new_pathNum = (
                                 np.vstack((sepx_old_new_pathNum, curr_sepx))
                                 if sepx_old_new_pathNum is not None
@@ -248,11 +250,13 @@ def path_integral(
                         if prev_attr_new == 1:
                             # check if start points of current and previous paths are "adjacent"  - if so, assign separatrix
                             if startPt_dist_sqr < (2 * (xyGridSpacing**2)):
-                                curr_sepx = np.array([
-                                    path_tag[path_counter - 1][0],
-                                    path_tag[path_counter][0],
-                                    (path_counter - 1),
-                                ])  # create array
+                                curr_sepx = np.array(
+                                    [
+                                        path_tag[path_counter - 1][0],
+                                        path_tag[path_counter][0],
+                                        (path_counter - 1),
+                                    ]
+                                )  # create array
                                 sepx_old_new_pathNum = (
                                     np.vstack((sepx_old_new_pathNum, curr_sepx))
                                     if sepx_old_new_pathNum is not None

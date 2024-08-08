@@ -10,7 +10,6 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
-
 from typing import Any, Dict, List, Optional, Union
 
 try:
@@ -562,7 +561,6 @@ def nneighbors(
                 ax.set_title(cur_c)
 
     return save_show_ret("nneighbors", save_show_or_return, save_kwargs, plt.gcf())
-
 
 
 def plot_connectivity(

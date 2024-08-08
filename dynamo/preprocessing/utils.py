@@ -840,6 +840,7 @@ def relative2abs(
     """
 
     if ERCC_annotation is None:
+        #TODO: outdated link. consider replacing or removing it.
         ERCC_annotation = pd.read_csv(
             "https://www.dropbox.com/s/cmiuthdw5tt76o5/ERCC_specification.txt?dl=1",
             sep="\t",
@@ -884,13 +885,13 @@ def relative2abs(
 
     if not logged:
         X, X_ercc = (
-            np.log1p(X.A) if issparse(X_ercc) else np.log1p(X),
-            np.log1p(X_ercc.A) if issparse(X_ercc) else np.log1p(X_ercc),
+            np.log1p(X.toarray()) if issparse(X_ercc) else np.log1p(X),
+            np.log1p(X_ercc.toarray()) if issparse(X_ercc) else np.log1p(X_ercc),
         )
     else:
         X, X_ercc = (
-            X.A if issparse(X_ercc) else X,
-            X_ercc.A if issparse(X_ercc) else X_ercc,
+            X.toarray() if issparse(X_ercc) else X,
+            X_ercc.toarray() if issparse(X_ercc) else X_ercc,
         )
 
     y = np.log1p(ERCC_annotation["numMolecules"])
@@ -907,9 +908,9 @@ def relative2abs(
             logged = False if X.max() > 100 else True
 
             if not logged:
-                X_i = np.log1p(X[i, :].A) if issparse(X) else np.log1p(X[i, :])
+                X_i = np.log1p(X[i, :].toarray()) if issparse(X) else np.log1p(X[i, :])
             else:
-                X_i = X[i, :].A if issparse(X) else X[i, :]
+                X_i = X[i, :].toarray() if issparse(X) else X[i, :]
 
             res = k * X_i + b
             res = res if logged else np.expm1(res)
@@ -920,9 +921,9 @@ def relative2abs(
 
                 logged = False if X.max() > 100 else True
                 if not logged:
-                    X_i = np.log1p(X[i, :].A) if issparse(X) else np.log1p(X[i, :])
+                    X_i = np.log1p(X[i, :].toarray()) if issparse(X) else np.log1p(X[i, :])
                 else:
-                    X_i = X[i, :].A if issparse(X) else X[i, :]
+                    X_i = X[i, :].toarray() if issparse(X) else X[i, :]
 
                 res = k * X_i + b if logged else np.expm1(k * X_i + b)
                 adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res
