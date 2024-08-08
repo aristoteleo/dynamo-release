@@ -321,17 +321,17 @@ the left-most (highest-order) byte is red, the middle byte is green and the righ
 """
 
 
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+@numba.vectorize(["uint8(uint32)"])
 def _red(x):
     return (x & 0xFF0000) >> 16
 
 
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+@numba.vectorize(["uint8(uint32)"])
 def _green(x):
     return (x & 0x00FF00) >> 8
 
 
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+@numba.vectorize(["uint8(uint32)"])
 def _blue(x):
     return x & 0x0000FF
 
