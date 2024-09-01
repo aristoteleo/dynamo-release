@@ -30,6 +30,7 @@ from .QC import (
 )
 from .transform import log1p, log1p_adata_layer
 from .utils import (
+    calc_new_to_total_ratio,
     compute_gene_exp_fraction,
     convert2symbol,
     decode,
@@ -54,6 +55,7 @@ from .Preprocessor import Preprocessor
 
 __all__ = [
     "calc_sz_factor",
+    "calc_new_to_total_ratio",
     "filter_cells",
     "filter_genes",
     "normalize_cells",
