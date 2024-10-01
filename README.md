@@ -37,7 +37,7 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
     * Overcome intrinsic limitation of the conventional splicing based RNA velocity analyses
     * Explicitly model RNA metabolic labeling, in conjunction with RNA bursting, transcription, splicing and degradation
     * Comprehensive RNA kinetic rate estimation for one-shot, pulse, chase and mixture metabolic labeling experiments
-* Move beyond RNA velocity to continuous vector field function for gaining mechannistic insights of cell fate transitions:
+* Move beyond RNA velocity to continuous vector field function for gaining mechanistic insights of cell fate transitions:
     * Dynamical systems approaches to identify stable cell types (fixed points), boundaries of cell states (separatrices), etc
     * Calculate RNA acceleration (reveals early drivers), curvature (reveals master regulators of fate decision points), divergence (stability of cell states) and RNA Jacobian (cell-state dependent regulatory networks) 
     * Various downstream differential geometry analyses to rank critical regulators/effectors,  and visualize regulatory networks at key fate decision points    
@@ -47,8 +47,8 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
 
 ## News
 * 5/30/2023: dynamo 1.3.0 released!
-* 3/1/2023: We welcome @Sichao25 to join the dynamo develop team!
-* 1/28/2023: We welcome @Ukyeon to join the dynamo develop team! 
+* 3/1/2023: We welcome @Sichao25 to join the dynamo development team!
+* 1/28/2023: We welcome @Ukyeon to join the dynamo development team! 
 * 15/12/2022: *Thanks for @elfofmaxwell and @MukundhMurthy's contribution*. dynamo 1.2.0 released
 * 11/11/2022: the continuing development of dynamo and the Aristotle ecosystem will be supported by CZI. See [here](https://chanzuckerberg.com/eoss/proposals/predictive-modeling-of-single-cell-multiomics-over-time-and-space/)
 * 4/14/2022: dynamo 1.1.0 released!
