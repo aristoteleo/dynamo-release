@@ -38,7 +38,7 @@ sphinx-gallery
 typing-extensions
 dyname-release
 
-docutils>=0.8,!=0.18.*,!=0.19.*
+docutils
 ipython
 sphinx-book-theme>=1.0.1
 sphinx_copybutton
