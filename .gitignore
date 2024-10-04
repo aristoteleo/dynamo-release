@@ -53,6 +53,10 @@ docs/build
 docs/source/dynamo*
 docs/source/_autosummary
 
+docs/generated/
+docs/_build/
+docs/api/reference/*rst
+
 # always-ignore directories
 /build/
 /dist/
