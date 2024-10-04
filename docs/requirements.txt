@@ -34,20 +34,18 @@ docutils
 mock
 pandocfilters
 readthedocs-sphinx-ext
-sphinxcontrib-bibtex>=2.3
 sphinx-gallery
 typing-extensions
 dyname-release
 
-docutils>=0.8,!=0.18.*,!=0.19.*, # see https://github.com/scverse/cookiecutter-scverse/pull/205
-sphinx>=4.1,
-ipython,
-sphinx-book-theme>=1.0.1,
-sphinx_copybutton,
-sphinx-design,
-sphinxext-opengraph,
-sphinx-hoverxref,
-sphinxcontrib-bibtex>=1.0.0,
-myst-parser,
-myst-nb,
-sphinx-autodoc-typehints,
+docutils>=0.8,!=0.18.*,!=0.19.*
+ipython
+sphinx-book-theme>=1.0.1
+sphinx_copybutton
+sphinx-design
+sphinxext-opengraph
+sphinx-hoverxref
+sphinxcontrib-bibtex>=1.0.0
+myst-parser
+myst-nb
+sphinx-autodoc-typehints
