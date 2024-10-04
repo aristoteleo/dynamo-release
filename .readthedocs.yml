@@ -24,3 +24,8 @@ python:
         - docs
     # - method: setuptools
     #   path: package
+
+submodules:
+  include:
+    - "docs/tutorials/notebooks"
+  recursive: true
