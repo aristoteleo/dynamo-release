@@ -19,7 +19,7 @@ sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
 info = metadata("dynamo-release")
 project_name = info["Name"]
-author = info["author_team"]
+author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 repository_url = f"https://github.com/aristoteleo/{project_name}"
