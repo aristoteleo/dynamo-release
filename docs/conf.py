@@ -200,7 +200,7 @@ if not git_ref or re.search(r"[\^~]", git_ref):
         git_ref = "main"
 
 # https://github.com/DisnakeDev/disnake/blob/7853da70b13fcd2978c39c0b7efa59b34d298186/docs/conf.py#L192
-_scvi_tools_module_path = os.path.dirname(importlib.util.find_spec("scvi").origin)  # type: ignore
+_dynamo_module_path = os.path.dirname(importlib.util.find_spec("dynamo").origin)  # type: ignore
 
 
 def linkcode_resolve(domain, info):
@@ -217,7 +217,7 @@ def linkcode_resolve(domain, info):
         if isinstance(obj, property):
             obj = inspect.unwrap(obj.fget)  # type: ignore
 
-        path = os.path.relpath(inspect.getsourcefile(obj), start=_scvi_tools_module_path)  # type: ignore
+        path = os.path.relpath(inspect.getsourcefile(obj), start=_dynamo_module_path)  # type: ignore
         src, lineno = inspect.getsourcelines(obj)
     except Exception:
         return None
