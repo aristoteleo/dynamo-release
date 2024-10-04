@@ -36,7 +36,6 @@ pandocfilters
 readthedocs-sphinx-ext
 sphinx-gallery
 typing-extensions
-dyname-release
 
 docutils
 ipython
