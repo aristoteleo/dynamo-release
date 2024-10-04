@@ -1,0 +1,3 @@
+[submodule "docs/tutorials/notebooks"]
+	path = docs/tutorials/notebooks
+	url = git@github.com:aristoteleo/dynamo-tutorials.git
