@@ -1042,6 +1042,7 @@ def _datashade_points(
                 if adjust_legend==True:
                     from adjustText import adjust_text
                     import adjustText
+                    
                     if adjustText.__version__<='0.8':
                         adjust_text(texts,only_move={'text': 'xy'},arrowprops=dict(arrowstyle='->', color='red'),)
                     else:
