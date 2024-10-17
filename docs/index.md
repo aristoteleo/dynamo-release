@@ -6,7 +6,7 @@ Inclusive model of expression dynamics with metabolic labeling based scRNA-seq /
 
 ![dyname-abstract](https://user-images.githubusercontent.com/7456281/152110270-7ee1b0ed-1205-495d-9d65-59c7984d2fa2.png)
 
-If you find a model useful for your research, please consider citing the [dynamo manuscript](https://www.sciencedirect.com/science/article/pii/S0092867421015774) as well as the publication describing the model, which can be found in the corresponding documentation.
+If you find dynamo to be useful for your research, please consider citing the [dynamo manuscript](https://www.sciencedirect.com/science/article/pii/S0092867421015774)
 
 ::::{grid} 1 2 3 3
 :gutter: 2

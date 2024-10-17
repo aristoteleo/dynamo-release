@@ -6,6 +6,6 @@
 
 notebooks/lap_tutorial
 notebooks/perturbation_tutorial
-
+shiny
 
 ```
