@@ -14,6 +14,7 @@ index_conventional
 index_labeling
 index_differential_geometry
 index_vector_pre
+index_multivelo
 index_gallery
 
 ```
