@@ -410,7 +410,7 @@ def generate_exp(tau_list,
     },
     fastmath=True)
 def generate_exp_backward(tau_list, t_sw_array, alpha_c, alpha, beta, gamma,
-                          scale_cc=1, model=1):
+                          scale_cc=1, model=1, t=None):
     if beta == alpha_c:
         beta += 1e-3
     if gamma == beta or gamma == alpha_c:
@@ -420,6 +420,10 @@ def generate_exp_backward(tau_list, t_sw_array, alpha_c, alpha, beta, gamma,
         tau_sw1 = np.array([t_sw_array[0]])
         if switch >= 2:
             tau_sw2 = np.array([t_sw_array[1] - t_sw_array[0]])
+    else:
+        tau_sw1 = np.array([t_sw_array[0]])
+        tau_sw2 = np.array([t_sw_array[1] - t_sw_array[0]])
+
     if t is None:
         if model == 0:
             exp_sw1 = predict_exp(tau_sw1, 1e-3, 1e-3, 1e-3, alpha_c, 0, beta,
@@ -2374,9 +2378,10 @@ class ChromatinDynamical:
             t_sw_1 = 0.1
             t_sw_3 = 20.0
             if self.init_mode == 'grid':
+                
                 # arange returns sequence [2,6,10,14,18]
                 for t_sw_2 in np.arange(2, 20, 4, dtype=np.float64):
-                    self.update(params, initialize=True, adjust_time=False,
+                    self.update(self.params, initialize=True, adjust_time=False,
                                 plot=False)
 
             elif self.init_mode == 'simple':
@@ -3298,7 +3303,7 @@ class ChromatinDynamical:
                     keep_idx = torch.where(~remove_cand)[0]
 
                     tmp = tmp[keep_idx, :]
-
+                from sklearn.neighbors import NearestNeighbors
                 model = NearestNeighbors(n_neighbors=k, output_type="numpy")
                 model.fit(tmp.detach())
                 dd, ii = model.kneighbors(exp_mat.detach())
