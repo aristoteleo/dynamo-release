@@ -1,7 +1,7 @@
 # This has been taken and lightly modified from Dylan's Kotliar's github repository
 from anndata import AnnData
 import numpy as np
-import scanpy as sc
+
 from sklearn import preprocessing
 from scipy.sparse import csr_matrix, lil_matrix, diags
 import sys
@@ -140,6 +140,7 @@ class pyWNN():
         Class for running weighted nearest neighbors analysis as described in Hao
         et al 2021.
         """
+        import scanpy as sc
         # Set default arguments
         if npcs is None:
             npcs = [20, 20]
