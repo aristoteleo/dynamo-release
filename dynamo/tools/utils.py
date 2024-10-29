@@ -2718,6 +2718,7 @@ def get_ekey_vkey_from_adata(adata: AnnData) -> Tuple[str, str, str]:
     mapper = get_mapper()
     layer = []
 
+
     if has_splicing:
         if has_labeling:
             if "X_new" not in adata.layers.keys():  # unlabel spliced: S

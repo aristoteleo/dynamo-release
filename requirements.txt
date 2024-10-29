@@ -25,3 +25,4 @@ openpyxl
 typing-extensions
 session-info>=1.0.0
 adjustText
+mudata
