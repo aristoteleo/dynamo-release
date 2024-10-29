@@ -6,7 +6,7 @@ from typing import Dict
 
 from ..tl import dynamics,reduceDimension,cell_velocities
 from .MultiPreprocessor import knn_smooth_chrom
-from .dynamical_chrom_func import recover_dynamics_chrom
+
 
 def multi_velocities(
         mdata:              MuData,
@@ -41,6 +41,7 @@ def multi_velocities(
         An updated AnnData object with the velocities calculated.
     
     """
+    from .dynamical_chrom_func import recover_dynamics_chrom
     # We need to calculate the dynamics of the RNA data first and reduce the dimensionality
     dynamics(mdata['rna'], model=model, cores=core)
     reduceDimension(mdata['rna'])
