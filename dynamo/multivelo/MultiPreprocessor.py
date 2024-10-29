@@ -6,7 +6,7 @@ from mudata import MuData
 import numpy as np
 import os
 import pandas as pd
-import scanpy as sc
+
 from tqdm import tqdm
 from scipy.sparse import coo_matrix, csr_matrix, diags
 
@@ -181,6 +181,7 @@ class MultiPreprocessor(Preprocessor):
             experiment_type: Optional[str] = None
     ) -> None:
         from muon import atac as ac
+        import scanpy as sc
         main_info('Running muon preprocessing pipeline for scATAC-seq data ...')
         preprocess_logger = LoggerManager.gen_logger('preprocess_atac_muon')
         preprocess_logger.log_time()

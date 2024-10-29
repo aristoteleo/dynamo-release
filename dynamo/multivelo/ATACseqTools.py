@@ -8,7 +8,7 @@ import numpy as np
 from os import PathLike
 import pandas as pd
 
-import scanpy as sc
+
 from scipy.sparse import coo_matrix, csr_matrix, diags, hstack
 from tqdm import tqdm
 from typing import (
@@ -47,6 +47,7 @@ def annotate_integrated_mdata(mdata: MuData,
                               ) -> MuData:
     import celltypist
     from celltypist import models
+    import scanpy as sc
     # Extract the RNA data
     rna_adata = mdata.mod['rna'].copy()
 

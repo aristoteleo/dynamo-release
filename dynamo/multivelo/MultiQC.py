@@ -7,7 +7,7 @@ from mudata import MuData
 
 import numpy as np
 import pandas as pd
-import scanpy as sc
+
 from scipy.sparse import (
     issparse
 )
@@ -54,6 +54,7 @@ def modality_basic_stats(
         raise ValueError(f'Modality {modality} not found in MuData object.')
 
     # Compute QC metrics via functionality in scanpy
+    import scanpy as sc
     sc.pp.calculate_qc_metrics(modality_adata,  percent_top=None, log1p=False, inplace=True)
 
     # Compute modality specific QC metrics
