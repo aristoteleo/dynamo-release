@@ -12,7 +12,7 @@ from scipy.spatial import KDTree
 from sklearn.metrics import pairwise_distances
 from sklearn.mixture import GaussianMixture
 
-import scvelo as scv
+
 import pandas as pd
 import seaborn as sns
 from numba import njit
@@ -5304,6 +5304,7 @@ def velocity_graph(adata, vkey='velo_s', xkey='Ms', **kwargs):
     Normalized velocity matrix and associated velocity genes and params.
     Outputs of `scvelo.tl.velocity_graph`.
     """
+    import scvelo as scv
     if vkey not in adata.layers.keys():
         raise ValueError('Velocity matrix is not found. Please run multivelo'
                          '.recover_dynamics_chrom function first.')
@@ -5337,6 +5338,7 @@ def velocity_embedding_stream(adata, vkey='velo_s', show=True, **kwargs):
     -------
     If `show==False`, a matplotlib axis object.
     """
+    import scvelo as scv
     if vkey not in adata.layers:
         raise ValueError('Velocity matrix is not found. Please run multivelo.'
                          'recover_dynamics_chrom function first.')
@@ -5371,6 +5373,7 @@ def latent_time(adata, vkey='velo_s', **kwargs):
     -------
     Outputs of `scvelo.tl.latent_time`.
     """
+    import scvelo as scv
     if vkey not in adata.layers.keys() or 'fit_t' not in adata.layers.keys():
         raise ValueError('Velocity or time matrix is not found. Please run '
                          'multivelo.recover_dynamics_chrom function first.')
