@@ -33,8 +33,8 @@ from .MultiPreprocessor import aggregate_peaks_10x
 
 def add_splicing_data(
         mdata:                     MuData,
-        multiome_base_path:        PathLike | str,
-        rna_splicing_loom:         PathLike | str = 'multiome.loom',
+        multiome_base_path:        Union[PathLike, str],
+        rna_splicing_loom:         Union[PathLike, str] = 'multiome.loom',
         cellranger_path_structure: bool = True
 ) -> MuData:
     # Extract accessibility and transcriptomic counts
