@@ -413,6 +413,7 @@ def _matplotlib_points(
     inset_dict={},
     show_colorbar=True,
     projection=None,  # default in matplotlib
+    adjust_legend=False,
     **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -833,6 +834,7 @@ def _matplotlib_points(
             )
         elif len(unique_labels) > 1 and show_legend == "on data":
             font_color = "white" if background in ["black", "#ffffff"] else "black"
+            texts=[]
             for i in unique_labels:
                 if i == "other":
                     continue
@@ -855,6 +857,15 @@ def _matplotlib_points(
                         PathEffects.Normal(),
                     ]
                 )
+                texts.append(txt)
+            if adjust_legend==True:
+                from adjustText import adjust_text
+                import adjustText
+                if adjustText.__version__<='0.8':
+                    adjust_text(texts,only_move={'text': 'xy'},arrowprops=dict(arrowstyle='->', color='red'),)
+                else:
+                    adjust_text(texts,only_move={"text": "xy", "static": "xy", "explode": "xy", "pull": "xy"},
+                                arrowprops=dict(arrowstyle='->', color='black'))
         else:
             ax.legend(
                 handles=legend_elements,
@@ -885,6 +896,7 @@ def _datashade_points(
     vmax=98,
     sort="raw",
     projection="2d",
+    adjust_legend=False,
     **kwargs,
 ):
     import datashader as ds
@@ -1007,6 +1019,7 @@ def _datashade_points(
         if show_legend and legend_elements is not None:
             if len(unique_labels) > 1 and show_legend == "on data":
                 font_color = "white" if background == "black" else "black"
+                texts=[]
                 for i in unique_labels:
                     color_cnt = np.nanmedian(points.iloc[np.where(labels == i)[0], :2], 0)
                     txt = plt.text(
@@ -1025,6 +1038,16 @@ def _datashade_points(
                             PathEffects.Normal(),
                         ]
                     )
+                    texts.append(txt)
+                if adjust_legend==True:
+                    from adjustText import adjust_text
+                    import adjustText
+                    
+                    if adjustText.__version__<='0.8':
+                        adjust_text(texts,only_move={'text': 'xy'},arrowprops=dict(arrowstyle='->', color='red'),)
+                    else:
+                        adjust_text(texts,only_move={"text": "xy", "static": "xy", "explode": "xy", "pull": "xy"},
+                                    arrowprops=dict(arrowstyle='->', color='black'))
             else:
                 if type(show_legend) == "str":
                     ax.legend(

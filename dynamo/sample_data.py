@@ -145,6 +145,17 @@ def DentateGyrus(
 
     return adata
 
+def bone_marrow(
+    url: str = "https://figshare.com/ndownloader/files/35826944",
+    filename: str = "bone_marrow.h5ad",
+) -> AnnData:
+    """The bone marrow dataset used in
+
+    This data consists of 27,876 genes across 5,780 cells.
+    """
+    adata = get_adata(url, filename)
+
+    return adata
 
 def Haber(
     url: str = "http://pklab.med.harvard.edu/velocyto/Haber_et_al/Haber_et_al.loom",
