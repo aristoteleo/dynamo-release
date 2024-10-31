@@ -10,18 +10,25 @@ from .external import (harmony_debatch, integrate,
                        normalize_layers_pearson_residuals, sctransform,
                        select_genes_by_pearson_residuals)
 from .normalization import calc_sz_factor, normalize
+from .pca import pca, top_pca_genes
 from .QC import (
     basic_stats,
-    filter_genes_by_clusters,
-    filter_cells_by_outliers,
     filter_cells_by_highly_variable_genes,
+    filter_cells_by_outliers,
+    filter_genes_by_clusters,
     filter_genes_by_outliers,
     filter_genes_by_pattern,
 )
-from .pca import pca, top_pca_genes
 from .transform import log1p, log1p_adata_layer
-from .utils import (compute_gene_exp_fraction, convert2symbol, decode,
-                    get_svr_filter, relative2abs, scale)
+from .utils import (
+    calc_new_to_total_ratio,
+    compute_gene_exp_fraction,
+    convert2symbol,
+    decode,
+    get_svr_filter,
+    relative2abs,
+    scale,
+)
 
 filter_cells = filter_cells_by_outliers
 filter_genes = filter_genes_by_outliers
@@ -35,6 +42,7 @@ from .Preprocessor import Preprocessor
 
 __all__ = [
     "calc_sz_factor",
+    "calc_new_to_total_ratio",
     "filter_cells",
     "filter_genes",
     "normalize_cells",

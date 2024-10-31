@@ -10,7 +10,6 @@ Created on Wed Sep 4 18:29:24 2019
 from numpy import *
 from scipy.integrate import odeint
 
-
 spec = [
     ("a", float32),
     ("b", float32),

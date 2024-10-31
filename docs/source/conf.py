@@ -84,7 +84,7 @@ copyright = "2020, Xiaojie Qiu, Yan Zhang, Ke Ni"
 author = "Xiaojie Qiu, Yan Zhang, Ke Ni"
 
 # The full version, including alpha/beta/rc tags
-release = "1.4.0"
+release = "1.4.1"
 
 # -- General configuration ---------------------------------------------------
 
@@ -114,7 +114,7 @@ extensions = [
     "sphinxcontrib.bibtex",
     "sphinx_gallery.load_style",
     # pdf embed
-    'pdfembed',
+    "pdfembed",
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)

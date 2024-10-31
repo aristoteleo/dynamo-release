@@ -485,7 +485,7 @@ class Topography2D:
             an (n,) array of confidences for the fixed points
         """
         X = self.X_data
-        X = X.A if sp.issparse(X) else X
+        X = X.toarray() if sp.issparse(X) else X
         Xss = self.Xss.get_X()
         Xref = np.median(X, 0)
         Xss = np.vstack((Xss, Xref))
@@ -609,6 +609,7 @@ class Topography3D(Topography2D):
     the vector at each point, or by separate functions for the x and y components of the vector. Nullclines calculation
     are not supported for 3D vector space because of the computational complexity.
     """
+
     def __init__(
         self,
         func: Callable,
@@ -683,7 +684,6 @@ class Topography3D(Topography2D):
         if X is None:
             raise ValueError(f"No fixed points found. Try to increase the number of samples n.")
         self.Xss.add_fixed_points(X, J, tol_redundant)
-
 
     def output_to_dict(self, dict_vf) -> Dict:
         """Output the vector field as a dictionary.

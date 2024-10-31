@@ -1,11 +1,12 @@
 from typing import Optional
 
-from anndata import AnnData
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from anndata import AnnData
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+
 
 def sctransform_plot_fit(
     adata: AnnData,
@@ -24,23 +25,21 @@ def sctransform_plot_fit(
     """
     if fig is None:
         fig = plt.figure(figsize=(12, 3))
-    gene_names = adata.var['genes_step1_sct'][
-        ~adata.var['genes_step1_sct'].isna()].index
+    gene_names = adata.var["genes_step1_sct"][~adata.var["genes_step1_sct"].isna()].index
 
     genes_log10_mean = adata.var["log10_gmean_sct"]
     genes_log_gmean = genes_log10_mean[~genes_log10_mean.isna()]
 
-    model_params_fit = pd.concat(
-        [adata.var["log_umi_sct"], adata.var["Intercept_sct"], adata.var["theta_sct"]], axis=1)
+    model_params_fit = pd.concat([adata.var["log_umi_sct"], adata.var["Intercept_sct"], adata.var["theta_sct"]], axis=1)
     model_params = pd.concat(
-        [adata.var["log_umi_step1_sct"], adata.var["Intercept_step1_sct"], adata.var["model_pars_theta_step1"]],
-        axis=1)
+        [adata.var["log_umi_step1_sct"], adata.var["Intercept_step1_sct"], adata.var["model_pars_theta_step1"]], axis=1
+    )
     model_params_fit = model_params_fit.rename(
-        columns={"log_umi_sct": "log_umi", "Intercept_sct": "Intercept", "theta_sct": "theta"})
+        columns={"log_umi_sct": "log_umi", "Intercept_sct": "Intercept", "theta_sct": "theta"}
+    )
     model_params = model_params.rename(
-        columns={"log_umi_step1_sct": "log_umi",
-                 "Intercept_step1_sct": "Intercept",
-                 "model_pars_theta_step1": "theta"})
+        columns={"log_umi_step1_sct": "log_umi", "Intercept_step1_sct": "Intercept", "model_pars_theta_step1": "theta"}
+    )
 
     model_params = model_params.loc[gene_names]
 
@@ -92,6 +91,7 @@ def sctransform_plot_fit(
     _ = fig.tight_layout()
     return fig
 
+
 def plot_residual_var(
     adata: AnnData,
     topngenes: int = 10,
@@ -111,6 +111,7 @@ def plot_residual_var(
     Returns:
         The Figure object if `ax` is not given, else None.
     """
+
     def vars(a, axis=None):
         """Helper function to calculate variance of sparse matrix by equation: var = mean(a**2) - mean(a)**2"""
         a_squared = a.copy()
@@ -122,28 +123,21 @@ def plot_residual_var(
     else:
         fig = None
 
-    gene_attr = pd.DataFrame(adata.var['log10_gmean_sct'])
+    gene_attr = pd.DataFrame(adata.var["log10_gmean_sct"])
     # gene_attr = gene_attr.loc[gene_names]
     gene_attr["var"] = vars(adata.X, axis=0).tolist()[0]
     gene_attr["mean"] = adata.X.mean(axis=0).tolist()[0]
-    gene_attr_sorted = gene_attr.sort_values(
-        "var", ascending=False
-    ).reset_index()
+    gene_attr_sorted = gene_attr.sort_values("var", ascending=False).reset_index()
     topn = gene_attr_sorted.iloc[:topngenes]
     gene_attr = gene_attr_sorted.iloc[topngenes:]
     ax.set_xscale("log")
 
-    ax.scatter(
-        gene_attr["mean"], gene_attr["var"], s=1.5, color="black"
-    )
+    ax.scatter(gene_attr["mean"], gene_attr["var"], s=1.5, color="black")
     ax.scatter(topn["mean"], topn["var"], s=1.5, color="deeppink")
     ax.axhline(1, linestyle="dashed", color="red")
     ax.set_xlabel("mean")
     ax.set_ylabel("var")
     if label_genes:
-        texts = [
-            plt.text(row["mean"], row["var"], row["index"])
-            for index, row in topn.iterrows()
-        ]
+        texts = [plt.text(row["mean"], row["var"], row["index"]) for index, row in topn.iterrows()]
     fig.tight_layout()
     return fig

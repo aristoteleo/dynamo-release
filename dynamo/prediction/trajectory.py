@@ -15,6 +15,7 @@ from ..vectorfield.utils import angle, normalize_vectors
 
 class Trajectory:
     """Base class for handling trajectory interpolation, resampling, etc."""
+
     def __init__(self, X: np.ndarray, t: Union[None, np.ndarray] = None, sort: bool = True) -> None:
         """Initializes a Trajectory object.
 
@@ -156,7 +157,7 @@ class Trajectory:
         # idx = dup_osc_idx_iter(x)
         x = x[:idx]
         _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
-        cur_Y, alen, self.t = arclength_sampling_n(x, num=interpolation_num+1, t=tau[:idx])
+        cur_Y, alen, self.t = arclength_sampling_n(x, num=interpolation_num + 1, t=tau[:idx])
         self.t = self.t[1:]
         cur_Y = cur_Y[:, 1:]
 
@@ -301,6 +302,7 @@ class Trajectory:
 
 class VectorFieldTrajectory(Trajectory):
     """Class for handling trajectory data with a differentiable vector field."""
+
     def __init__(self, X: np.ndarray, t: np.ndarray, vecfld: DifferentiableVectorField) -> None:
         """Initializes a VectorFieldTrajectory object.
 
@@ -414,6 +416,7 @@ class VectorFieldTrajectory(Trajectory):
 
 class GeneTrajectory(Trajectory):
     """Class for handling gene expression trajectory data."""
+
     def __init__(
         self,
         adata: AnnData,
@@ -524,7 +527,10 @@ class GeneTrajectory(Trajectory):
         self.adata.varm[save_key][self.genes_to_mask(), :] = self.X.T
 
     def select_gene(
-        self, genes: Union[np.ndarray, list], arr: Optional[np.ndarray] = None, axis: Optional[int] = None,
+        self,
+        genes: Union[np.ndarray, list],
+        arr: Optional[np.ndarray] = None,
+        axis: Optional[int] = None,
     ) -> np.ndarray:
         """Selects the gene expression data for the specified genes.
 
@@ -560,7 +566,9 @@ class GeneTrajectory(Trajectory):
 
 
 def arclength_sampling_n(
-    X: np.ndarray, num: int, t: Optional[np.ndarray] = None,
+    X: np.ndarray,
+    num: int,
+    t: Optional[np.ndarray] = None,
 ) -> Union[Tuple[np.ndarray, float], Tuple[np.ndarray, float, np.ndarray]]:
     """Uniformly sample data points on an arc curve that generated from vector field predictions.
 
@@ -585,7 +593,9 @@ def arclength_sampling_n(
 
 
 def remove_redundant_points_trajectory(
-    X: np.ndarray, tol: float = 1e-4, output_discard: bool = False,
+    X: np.ndarray,
+    tol: float = 1e-4,
+    output_discard: bool = False,
 ) -> Union[Tuple[np.ndarray, float], Tuple[np.ndarray, float, np.ndarray]]:
     """Remove consecutive data points that are too close to each other.
 

@@ -3,6 +3,7 @@
 
 from docutils import nodes
 
+
 def pdfembed_html(pdfembed_specs):
     """
     Build the iframe code for the pdf file,
@@ -20,27 +21,31 @@ def pdfembed_html(pdfembed_specs):
                                 align="%s">
                         </iframe>
                      """
-    return ( html_base_code % (pdfembed_specs['src'   ],
-                               pdfembed_specs['height'],
-                               pdfembed_specs['width' ],
-                               pdfembed_specs['align' ]) )
+    return html_base_code % (
+        pdfembed_specs["src"],
+        pdfembed_specs["height"],
+        pdfembed_specs["width"],
+        pdfembed_specs["align"],
+    )
+
 
 def pdfembed_role(typ, rawtext, text, lineno, inliner, options={}, content=[]):
     """
     Get iframe specifications and generate the associate HTML code for the pdf iframe.
     """
     # parse and init variables
-    text           = text.replace(' ', '')
+    text = text.replace(" ", "")
     pdfembed_specs = {}
     # read specs
-    for component in text.split(','):
-         pdfembed_specs[component.split(':')[0]] = component.split(':')[1]
+    for component in text.split(","):
+        pdfembed_specs[component.split(":")[0]] = component.split(":")[1]
     # build node from pdf iframe html code
-    node = nodes.raw('', pdfembed_html(pdfembed_specs), format='html')
+    node = nodes.raw("", pdfembed_html(pdfembed_specs), format="html")
     return [node], []
+
 
 def setup(app):
     """
     Set up the app with the extension function
     """
-    app.add_role('pdfembed', pdfembed_role)
+    app.add_role("pdfembed", pdfembed_role)

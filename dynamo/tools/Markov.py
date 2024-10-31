@@ -84,7 +84,7 @@ def grid_velocity_filter(
     min_mass: Optional[float] = None,
     autoscale: bool = False,
     adjust_for_stream: bool = True,
-    V_threshold: Optional[float]=None,
+    V_threshold: Optional[float] = None,
 ) -> Tuple:
     """Filter the grid velocities, adjusting for streamlines if needed.
 
@@ -217,13 +217,14 @@ def velocity_on_grid(
 
 class MarkovChain:
     """Base class for all Markov Chain implementation."""
+
     def __init__(
         self,
         P: Optional[np.ndarray] = None,
         eignum: Optional[int] = None,
         check_norm: bool = True,
         sumto: int = 1,
-        tol: float = 1e-3
+        tol: float = 1e-3,
     ):
         """Initialize the MarkovChain instance.
 
@@ -322,12 +323,7 @@ class MarkovChain:
         return p0
 
     def is_normalized(
-        self,
-        P: Optional[np.ndarray] = None,
-        tol: float = 1e-3,
-        sumto: int = 1,
-        axis: int = 0,
-        ignore_nan: bool = True
+        self, P: Optional[np.ndarray] = None, tol: float = 1e-3, sumto: int = 1, axis: int = 0, ignore_nan: bool = True
     ) -> bool:
         """check if the matrix is properly normalized up to `tol`.
 
@@ -358,11 +354,12 @@ class MarkovChain:
 
 class KernelMarkovChain(MarkovChain):
     """KernelMarkovChain class represents a Markov chain with kernel-based transition probabilities."""
+
     def __init__(
         self,
         P: Optional[np.ndarray] = None,
         Idx: Optional[np.ndarray] = None,
-        n_recurse_neighbors: Optional[int] = None
+        n_recurse_neighbors: Optional[int] = None,
     ):
         """Initialize the KernelMarkovChain instance.
 
@@ -418,7 +415,7 @@ class KernelMarkovChain(MarkovChain):
         if neighbor_idx is None:
             neighbor_idx, _ = k_nearest_neighbors(
                 X,
-                k=k-1,
+                k=k - 1,
                 exclude_self=False,
                 pynn_rand_state=19491001,
             )
@@ -519,7 +516,7 @@ class KernelMarkovChain(MarkovChain):
         V = np.zeros_like(X)
         P = self.propagate_P(int(num_prop))
         for i in tqdm(range(n), desc="compute drift"):
-            V[i] = (X - X[i]).T.dot(P[:, i].A.flatten())
+            V[i] = (X - X[i]).T.dot(P[:, i].toarray().flatten())
         return V * 1 / V.max() if scale else V
 
     def compute_density_corrected_drift(
@@ -556,7 +553,7 @@ class KernelMarkovChain(MarkovChain):
             D = X[Idx] - X[i]
             if normalize_vector:
                 D = D / np.linalg.norm(D, 1)
-            p = P[Idx, i].A.flatten()
+            p = P[Idx, i].toarray().flatten()
             if k is None:
                 if not correct_by_mean:
                     k_inv = 1 / len(Idx)
@@ -621,6 +618,7 @@ class KernelMarkovChain(MarkovChain):
 
 class DiscreteTimeMarkovChain(MarkovChain):
     """DiscreteTimeMarkovChain class represents a discrete-time Markov chain."""
+
     def __init__(self, P: Optional[np.ndarray] = None, eignum: Optional[int] = None, sumto: int = 1, **kwargs):
         """Initialize the DiscreteTimeMarkovChain instance.
 
@@ -866,6 +864,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
 class ContinuousTimeMarkovChain(MarkovChain):
     """ContinuousTimeMarkovChain class represents a continuous-time Markov chain."""
+
     def __init__(self, P: Optional[np.ndarray] = None, eignum: Optional[int] = None, **kwargs):
         """Initialize the ContinuousTimeMarkovChain instance.
 
@@ -1101,7 +1100,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         mfpt = -(k @ (K_inv @ K_inv @ p0_)) / (k @ (K_inv @ p0_))
         return mfpt
 
-    def compute_hitting_time(self, p_st: Optional[np.ndarray] = None, return_Z: bool = False) -> Union[Tuple, np.ndarray]:
+    def compute_hitting_time(
+        self, p_st: Optional[np.ndarray] = None, return_Z: bool = False
+    ) -> Union[Tuple, np.ndarray]:
         """Compute the hitting time of the continuous-time Markov chain.
 
         Args:
@@ -1123,7 +1124,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         else:
             return H
 
-    def diffusion_map_embedding(self, n_dims: int = 2, t: Union[int, float] = 1, n_pca_dims: Optional[int] = None) -> np.ndarray:
+    def diffusion_map_embedding(
+        self, n_dims: int = 2, t: Union[int, float] = 1, n_pca_dims: Optional[int] = None
+    ) -> np.ndarray:
         """Perform diffusion map embedding for the continuous-time Markov chain.
 
         Args:
@@ -1319,7 +1322,9 @@ def compute_drift_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Uni
 
 
 # @jit(nopython=True)
-def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]) -> np.ndarray:
+def compute_drift_local_kernel(
+    x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_s: Union[np.ndarray, float]
+) -> np.ndarray:
     """Compute a local kernel representing the drift based on input data and parameters.
 
     Args:
@@ -1337,7 +1342,7 @@ def compute_drift_local_kernel(x: np.ndarray, v: np.ndarray, X: np.ndarray, inv_
     D = X - x
     dists = np.zeros(n)
     vds = np.zeros(n)
-    for (i, d) in enumerate(D):
+    for i, d in enumerate(D):
         dists[i] = np.linalg.norm(d)
         if dists[i] > 0:
             vds[i] = v.dot(d) / dists[i]
@@ -1446,7 +1451,7 @@ def graphize_velocity(
     nbrs_idx: Optional[list] = None,
     k: int = 30,
     normalize_v: bool = False,
-    E_func: Optional[Union[Callable, str]] = None
+    E_func: Optional[Union[Callable, str]] = None,
 ) -> Tuple:
     """The function generates a graph based on the velocity data. The flow from i- to j-th
     node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].

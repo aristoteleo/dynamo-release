@@ -16,9 +16,13 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_warning,
 )
-from ..utils import pca_to_expr
-from ..tools.connectivity import construct_mapper_umap, correct_hnsw_neighbors, k_nearest_neighbors
+from ..tools.connectivity import (
+    construct_mapper_umap,
+    correct_hnsw_neighbors,
+    k_nearest_neighbors,
+)
 from ..tools.utils import fetch_states, getTseq
+from ..utils import pca_to_expr
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vecfld_from_adata, vector_transformation
 from .utils import integrate_vf_ivp

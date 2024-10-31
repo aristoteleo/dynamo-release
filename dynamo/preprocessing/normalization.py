@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 from scipy.sparse import csr_matrix
-from scipy.sparse.base import issparse
+from scipy.sparse import issparse
 
 from ..configuration import DKM
 from ..dynamo_logger import (main_debug, main_info_insert_adata_layer,
@@ -32,6 +32,7 @@ def calc_sz_factor(
     scale_to: Union[float, None] = None,
     use_all_genes_cells: bool = True,
     genes_use_for_norm: Union[List[str], None] = None,
+    initial_dtype: Optional[type] = None,
 ) -> anndata.AnnData:
     """Calculate the size factor of each cell using geometric mean or median of total UMI across cells for a AnnData
     object.
@@ -61,11 +62,17 @@ def calc_sz_factor(
         genes_use_for_norm: A list of gene names that will be used to calculate total RNA for each cell and then the
             size factor for normalization. This is often very useful when you want to use only the host genes to
             normalize the dataset in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection). Defaults to None.
+        initial_dtype: the data type when initializing a new array. Should be one of the float type.
 
     Returns:
         An updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the
         obs attribute.
     """
+
+    if initial_dtype is None:
+        initial_dtype = (
+            adata_ori.X.dtype if adata_ori.X.dtype == np.float32 or adata_ori.X.dtype == np.float64 else np.float32
+        )
 
     if use_all_genes_cells:
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
@@ -116,6 +123,7 @@ def calc_sz_factor(
                 chunk_size=chunk_size,
                 total_layers=None,
                 scale_to=scale_to,
+                initial_dtype=initial_dtype,
             )
         else:
             sfs, cell_total = sz_util(
@@ -127,6 +135,7 @@ def calc_sz_factor(
                 chunk_size=chunk_size,
                 total_layers=total_layers,
                 scale_to=scale_to,
+                initial_dtype=initial_dtype,
             )
 
         sfs[~np.isfinite(sfs)] = 1
@@ -274,6 +283,13 @@ def normalize(
 
     layers = DKM.get_available_layer_keys(adata, layers)
 
+    if "X" in layers and transform_int_to_float and adata.X.dtype == "int":
+        main_warning(
+            "Transforming adata.X from int to float32 for normalization. If you want to disable this, set "
+            "`transform_int_to_float` to False."
+        )
+        adata.X = adata.X.astype("float32")
+
     if recalc_sz:
         if "use_for_pca" in adata.var.columns and keep_filtered is False:
             adata = adata[:, adata.var.loc[:, "use_for_pca"]]
@@ -298,11 +314,6 @@ def normalize(
         splicing_total_layers=splicing_total_layers,
     )
 
-    if "X" in layers and transform_int_to_float and adata.X.dtype == "int":
-        main_warning("Transforming adata.X from int to float32 for normalization. If you want to disable this, set "
-                     "`transform_int_to_float` to False.")
-        adata.X = adata.X.astype("float32")
-
     main_debug("size factor normalize following layers: " + str(layers))
     for layer in layers:
         if layer in excluded_layers:
@@ -321,7 +332,7 @@ def normalize(
             n_feature = CM.shape[1]
 
             for i in range(CM.shape[0]):
-                x = CM[i].A if issparse(CM) else CM[i]
+                x = CM[i].toarray() if issparse(CM) else CM[i]
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
@@ -344,8 +355,8 @@ def normalize(
 
                 for CM_data in CMs_data:
                     CM = CM_data[0]
-                    CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
-                    adata.X[CM_data[1]:CM_data[2]] = CM
+                    CM = size_factor_normalize(CM, szfactors[CM_data[1] : CM_data[2]])
+                    adata.X[CM_data[1] : CM_data[2]] = CM
 
             else:
                 main_info_insert_adata_layer("X_" + layer)
@@ -357,8 +368,8 @@ def normalize(
 
                 for CM_data in CMs_data:
                     CM = CM_data[0]
-                    CM = size_factor_normalize(CM, szfactors[CM_data[1]:CM_data[2]])
-                    adata.layers["X_" + layer][CM_data[1]:CM_data[2]] = CM
+                    CM = size_factor_normalize(CM, szfactors[CM_data[1] : CM_data[2]])
+                    adata.layers["X_" + layer][CM_data[1] : CM_data[2]] = CM
 
     return adata
 
@@ -426,6 +437,7 @@ def sz_util(
     total_layers: List[str] = None,
     CM: pd.DataFrame = None,
     scale_to: Union[float, None] = None,
+    initial_dtype: type = np.float32,
 ) -> Tuple[pd.Series, pd.Series]:
     """Calculate the size factor for a given layer.
 
@@ -444,6 +456,7 @@ def sz_util(
             ["uu", "ul", "su", "sl"] or ["new", "old"], etc. Defaults to None.
         CM: the data to operate on, overriding the layer. Defaults to None.
         scale_to: the final total expression for each cell that will be scaled to. Defaults to None.
+        initial_dtype: the data type when initializing the cell_total.
 
     Raises:
         NotImplementedError: method is invalid.
@@ -463,7 +476,7 @@ def sz_util(
     chunk_size = chunk_size if chunk_size is not None else adata.n_obs
     chunked_CMs = DKM.select_layer_chunked_data(adata, layer, chunk_size=chunk_size) if CM is None else CM
 
-    cell_total = np.zeros(adata.n_obs, dtype=adata.X.dtype)
+    cell_total = np.zeros(adata.n_obs, dtype=initial_dtype)
 
     for CM_data in chunked_CMs:
         CM = CM_data[0]
@@ -481,7 +494,7 @@ def sz_util(
         chunk_cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
         chunk_cell_total += chunk_cell_total == 0  # avoid infinity value after log (0)
 
-        cell_total[CM_data[1]:CM_data[2]] = chunk_cell_total
+        cell_total[CM_data[1] : CM_data[2]] = chunk_cell_total
 
     cell_total = cell_total.astype(int) if np.all(cell_total % 1 == 0) else cell_total
 

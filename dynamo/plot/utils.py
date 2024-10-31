@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 from warnings import warn
 
 import matplotlib
+import matplotlib as mpl
 import matplotlib.patheffects as PathEffects
 import matplotlib.pyplot as plt
 import numba
@@ -125,7 +126,7 @@ def calculate_colors(
             )
         if color_key is None:
             main_debug("color_key is None")
-            cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
+            cmap = copy.copy(mpl.colormaps[color_key_cmap])
             cmap.set_bad("lightgray")
             colors = None
 
@@ -207,12 +208,13 @@ def calculate_colors(
     elif values is not None:
         main_debug("drawing points by values")
         color_type = "values"
-        cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
+        cmap_ = copy.copy(mpl.colormaps[cmap])
         cmap_.set_bad("lightgray")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            matplotlib.cm.register_cmap(name=cmap_.name, cmap=cmap_, override_builtin=True)
+            if cmap_.name not in plt.colormaps():
+                mpl.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
 
         if values.shape[0] != points.shape[0]:
             raise ValueError(
@@ -243,27 +245,30 @@ def calculate_colors(
         _vmin = (
             np.nanmin(values)
             if vmin is None
-            else np.nanpercentile(values, vmin * 100)
-            if (vmin + vmax == 1 and 0 <= vmin < vmax)
-            else np.nanpercentile(values, vmin)
-            if (vmin + vmax == 100 and 0 <= vmin < vmax)
-            else vmin
+            else (
+                np.nanpercentile(values, vmin * 100)
+                if (vmin + vmax == 1 and 0 <= vmin < vmax)
+                else np.nanpercentile(values, vmin)
+                if (vmin + vmax == 100 and 0 <= vmin < vmax)
+                else vmin
+            )
         )
         _vmax = (
             np.nanmax(values)
             if vmax is None
-            else np.nanpercentile(values, vmax * 100)
-            if (vmin + vmax == 1 and 0 <= vmin < vmax)
-            else np.nanpercentile(values, vmax)
-            if (vmin + vmax == 100 and 0 <= vmin < vmax)
-            else vmax
+            else (
+                np.nanpercentile(values, vmax * 100)
+                if (vmin + vmax == 1 and 0 <= vmin < vmax)
+                else np.nanpercentile(values, vmax)
+                if (vmin + vmax == 100 and 0 <= vmin < vmax)
+                else vmax
+            )
         )
 
         if sym_c and _vmin < 0 and _vmax > 0:
             bounds = np.nanmax([np.abs(_vmin), _vmax])
             bounds = bounds * np.array([-1, 1])
             _vmin, _vmax = bounds
-
 
         if "norm" in kwargs:
             norm = kwargs["norm"]
@@ -273,7 +278,7 @@ def calculate_colors(
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(values)
 
-        cmap = matplotlib.cm.get_cmap(cmap)
+        cmap = mpl.colormaps[cmap]
         colors = cmap(values)
     # No color (just pick the midpoint of the cmap)
     else:
@@ -316,17 +321,17 @@ the left-most (highest-order) byte is red, the middle byte is green and the righ
 """
 
 
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+@numba.vectorize(["uint8(uint32)"])
 def _red(x):
     return (x & 0xFF0000) >> 16
 
 
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+@numba.vectorize(["uint8(uint32)"])
 def _green(x):
     return (x & 0x00FF00) >> 8
 
 
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+@numba.vectorize(["uint8(uint32)"])
 def _blue(x):
     return x & 0x0000FF
 
@@ -424,9 +429,15 @@ def _matplotlib_points(
     if ax is None:
         dpi = plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
-        ax = fig.add_subplot(
-            111, projection=projection, computed_zorder=False,
-        ) if projection == "3d" else fig.add_subplot(111, projection=projection)
+        ax = (
+            fig.add_subplot(
+                111,
+                projection=projection,
+                computed_zorder=False,
+            )
+            if projection == "3d"
+            else fig.add_subplot(111, projection=projection)
+        )
 
     ax.set_facecolor(background)
 
@@ -442,7 +453,7 @@ def _matplotlib_points(
             )
         if color_key is None:
             main_debug("color_key is None")
-            cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
+            cmap = copy.copy(mpl.colormaps[color_key_cmap])
             cmap.set_bad("lightgray")
             colors = None
 
@@ -619,12 +630,13 @@ def _matplotlib_points(
     # Color by values
     elif values is not None:
         main_debug("drawing points by values")
-        cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
+        cmap_ = copy.copy(mpl.colormaps[cmap])
         cmap_.set_bad("lightgray")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            matplotlib.cm.register_cmap(name=cmap_.name, cmap=cmap_, override_builtin=True)
+            if cmap_.name not in plt.colormaps():
+                mpl.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
 
         if values.shape[0] != points.shape[0]:
             raise ValueError(
@@ -655,20 +667,24 @@ def _matplotlib_points(
         _vmin = (
             np.nanmin(values)
             if vmin is None
-            else np.nanpercentile(values, vmin * 100)
-            if (vmin + vmax == 1 and 0 <= vmin < vmax)
-            else np.nanpercentile(values, vmin)
-            if (vmin + vmax == 100 and 0 <= vmin < vmax)
-            else vmin
+            else (
+                np.nanpercentile(values, vmin * 100)
+                if (vmin + vmax == 1 and 0 <= vmin < vmax)
+                else np.nanpercentile(values, vmin)
+                if (vmin + vmax == 100 and 0 <= vmin < vmax)
+                else vmin
+            )
         )
         _vmax = (
             np.nanmax(values)
             if vmax is None
-            else np.nanpercentile(values, vmax * 100)
-            if (vmin + vmax == 1 and 0 <= vmin < vmax)
-            else np.nanpercentile(values, vmax)
-            if (vmin + vmax == 100 and 0 <= vmin < vmax)
-            else vmax
+            else (
+                np.nanpercentile(values, vmax * 100)
+                if (vmin + vmax == 1 and 0 <= vmin < vmax)
+                else np.nanpercentile(values, vmax)
+                if (vmin + vmax == 100 and 0 <= vmin < vmax)
+                else vmax
+            )
         )
 
         if sym_c and _vmin < 0 and _vmax > 0:
@@ -795,11 +811,11 @@ def _matplotlib_points(
         if show_colorbar:
             cb = plt.colorbar(mappable, cax=set_colorbar(ax, inset_dict), ax=ax)
             cb.set_alpha(1)
-            cb.draw_all()
+            cb._draw_all()
             cb.locator = MaxNLocator(nbins=3, integer=True)
             cb.update_ticks()
 
-        cmap = matplotlib.cm.get_cmap(cmap)
+        cmap = mpl.colormaps[cmap]
         colors = cmap(values)
     # No color (just pick the midpoint of the cmap)
     else:
@@ -904,7 +920,7 @@ def _datashade_points(
             aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
             result = tf.shade(aggregation, how="eq_hist")
         elif color_key is None:
-            cmap = matplotlib.cm.get_cmap(color_key_cmap)
+            cmap = mpl.colormaps[color_key_cmap]
             cmap.set_bad("lightgray")
             # add plotnonfinite=True to canvas.points
 
@@ -945,7 +961,7 @@ def _datashade_points(
 
     # Color by values
     elif values is not None:
-        cmap_ = matplotlib.cm.get_cmap(cmap)
+        cmap_ = mpl.colormaps[cmap]
         cmap_.set_bad("lightgray")
 
         if values.shape[0] != points.shape[0]:
@@ -1663,31 +1679,31 @@ def save_show_ret(
     prefix: str,
     save_show_or_return: Literal["save", "show", "return", "both", "all"],
     save_kwargs: Dict[str, Any],
-    ret_value = None,
+    ret_value=None,
     tight: bool = True,
     adjust: bool = False,
     background: Optional[str] = None,
 ):
     """
-    Helper function that performs actions based on the variable save_show_or_return. 
+    Helper function that performs actions based on the variable save_show_or_return.
     Should always have at least 3 inputs (prefix, save_show__or_return, save_kwargs).
 
     Args:
         prefix: Prefix added to name of figure that will be saved. See the `s_kwargs` variable.
-        save_show_or_return: Whether the figure should be saved, shown, or returned. 
+        save_show_or_return: Whether the figure should be saved, shown, or returned.
             "both" means that the figure would be shown and saved but not returned. Defaults
             to "show".
-        save_kwargs: A dictionary that will be passed to the save_fig() function. 
+        save_kwargs: A dictionary that will be passed to the save_fig() function.
             The save_fig() function will use
                 {
-                    "path": None, 
-                    "prefix": [prefix input], 
-                    "dpi": None, 
+                    "path": None,
+                    "prefix": [prefix input],
+                    "dpi": None,
                     "ext": 'pdf',
-                    "transparent": True, 
-                    "close": True, 
+                    "transparent": True,
+                    "close": True,
                     "verbose": True
-                } 
+                }
             as its parameters. `save_kwargs` modifies those keys according to your needs. Defaults to {}.
         ret_value: Value to be returned if `save_show_or_return` equals "return" or "all".
         tight: Toggles whether plt.tight_layout() is called.
@@ -1722,7 +1738,7 @@ def save_show_ret(
             plt.subplots_adjust(right=0.85)
 
         if tight:
-            #Do note that warnings should not be ignored in the future.
+            # Do note that warnings should not be ignored in the future.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 plt.tight_layout()
@@ -1812,7 +1828,7 @@ def save_pyvista_plotter(
             "path": None,
             "prefix": "scatters_pv",
             "ext": "pdf",
-            "title": 'PyVista Export',
+            "title": "PyVista Export",
             "raster": True,
             "painter": True,
         }

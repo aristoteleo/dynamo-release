@@ -61,6 +61,7 @@ neurongenesis_params = {
 
 class AnnDataSimulator:
     """A base anndata simulator class."""
+
     def __init__(
         self,
         reactions: GillespieReactions,
@@ -287,6 +288,7 @@ class AnnDataSimulator:
 
 class CellularModelSimulator(AnnDataSimulator):
     """An anndata simulator class handling models with synthesis, splicing (optional), and first-order degrdation reactions."""
+
     def __init__(
         self,
         gene_names: List,
@@ -468,6 +470,7 @@ class CellularModelSimulator(AnnDataSimulator):
 
 class KinLabelingSimulator:
     """A simulator for kinetic labeling experiments."""
+
     def __init__(
         self,
         simulator: CellularModelSimulator,
@@ -627,6 +630,7 @@ class KinLabelingSimulator:
 
 class BifurcationTwoGenes(CellularModelSimulator):
     """Two gene bifurcation model anndata simulator."""
+
     def __init__(
         self,
         param_dict: Dict,
@@ -705,6 +709,7 @@ class BifurcationTwoGenes(CellularModelSimulator):
         Returns:
             The reaction object after registration.
         """
+
         def rate_syn(x, y, gene):
             activation = hill_act_func(
                 x, self.param_dict["a"][gene], self.param_dict["S"][gene], self.param_dict["m"][gene]
@@ -742,6 +747,7 @@ class BifurcationTwoGenes(CellularModelSimulator):
 class OscillationTwoGenes(CellularModelSimulator):
     """Two gene oscillation model anndata simulator. This is essentially a predator-prey model, where gene 1 (predator)
     inhibits gene 2 (prey) and gene 2 activates gene 1."""
+
     def __init__(
         self,
         param_dict: Dict,
@@ -815,6 +821,7 @@ class OscillationTwoGenes(CellularModelSimulator):
         Returns:
             The reaction object after registration.
         """
+
         def rate_syn_1(x, y, gene):
             activation = hill_act_func(
                 x, self.param_dict["a"][gene], self.param_dict["S"][gene], self.param_dict["m"][gene]
@@ -860,6 +867,7 @@ class OscillationTwoGenes(CellularModelSimulator):
 
 class Neurongenesis(CellularModelSimulator):
     """Neurongenesis model anndata simulator from Xiaojie Qiu, et. al, 2012. anndata simulator."""
+
     def __init__(
         self,
         param_dict: Dict,
@@ -939,6 +947,7 @@ class Neurongenesis(CellularModelSimulator):
         Returns:
             The reaction object after registration.
         """
+
         def rate_pax6(x, y, z, gene):
             a = self.param_dict["a"][gene]
             K = self.param_dict["K"][gene]

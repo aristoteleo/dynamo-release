@@ -1,7 +1,8 @@
+import os
 from pathlib import Path
 
 from setuptools import find_packages, setup
-import os
+
 # from version import __version__
 
 
@@ -16,7 +17,7 @@ with open("README.md", "r") as fh:
 if __name__ == "__main__":
     setup(
         name="dynamo-release",
-        version="v1.4.0",
+        version="v1.4.1",
         python_requires=">=3.7",
         install_requires=read_requirements("requirements.txt"),
         extras_require={

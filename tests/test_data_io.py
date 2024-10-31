@@ -1,10 +1,11 @@
 import os
 
 import numpy as np
+import pytest
 
 import dynamo
 import dynamo as dyn
-import pytest
+
 # import utils
 
 
@@ -74,9 +75,9 @@ def test_save_adata():
 
     def alpha_minus_gamma_s(new, gamma, t, M_s):
         # equation: alpha = new / (1 - e^{-rt}) * r
-        alpha = new.A.T / (1 - np.exp(-gamma.values[:, None] * t.values[None, :])) * gamma.values[:, None]
+        alpha = new.toarray().T / (1 - np.exp(-gamma.values[:, None] * t.values[None, :])) * gamma.values[:, None]
 
-        gamma_s = gamma.values[:, None] * M_s.A.T
+        gamma_s = gamma.values[:, None] * M_s.toarray().T
         alpha_minus_gamma_s = alpha - gamma_s
         return alpha_minus_gamma_s
 
@@ -111,11 +112,3 @@ def test_save_adata():
 
     dyn.vf.rank_jacobian_genes(adata, groups="leiden")
     adata.write_h5ad("debug11.h5ad")
-
-
-if __name__ == "__main__":
-    # test_scEU_seq()
-    # adata = utils.gen_or_read_zebrafish_data()
-    # test_save_rank_info(adata)
-    # test_save_adata()
-    pass

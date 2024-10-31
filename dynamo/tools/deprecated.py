@@ -21,6 +21,8 @@ from scipy.sparse.csgraph import shortest_path
 from tqdm import tqdm
 
 from ..dynamo_logger import main_info, main_warning
+from ..estimation.csc.velocity import Velocity, ss_estimation
+from ..estimation.tsc.utils_moments import moments
 from .DDRTree import DDRTree
 from .moments import calc_1nd_moment, strat_mom
 from .utils import (
@@ -32,8 +34,6 @@ from .utils import (
     set_param_ss,
     set_velocity,
 )
-from ..estimation.tsc.utils_moments import moments
-from ..estimation.csc.velocity import ss_estimation, Velocity
 
 
 def deprecated(func):
@@ -1653,7 +1653,7 @@ class MomData(AnnData):
         for g in tqdm(range(ng), desc="calculating 1/2 moments"):
             tmp = self[:, g].layers["new"]
             L = (
-                np.array(tmp.A, dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)
+                np.array(tmp.toarray(), dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)
             )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
             if has_nan:
                 self.M[g] = strat_mom(L, self.times, np.nanmean)
@@ -1866,7 +1866,7 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
     return adata, Est, t_ind
 
 
-#---------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------
 # deprecated clustering.py
 def infomap(
     adata: AnnData,
@@ -1880,7 +1880,7 @@ def infomap(
     selected_cell_subset: Union[List[int], List[str], None] = None,
     directed: bool = False,
     copy: bool = False,
-    **kwargs
+    **kwargs,
 ) -> AnnData:
     """Apply infomap community detection algorithm to cluster adata.
 

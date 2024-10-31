@@ -420,6 +420,7 @@ def simulate_multigene(
 
 class CellularSpecies:
     """A class to register gene and species for easier implemention of simulations."""
+
     def __init__(self, gene_names: list = []) -> None:
         """Initialize the CellularSpecies class.
 
@@ -582,6 +583,7 @@ class CellularSpecies:
 
 class Reaction:
     """A class to register reactions for easier implementation of simulations."""
+
     def __init__(
         self,
         substrates: list,
@@ -615,6 +617,7 @@ class Reaction:
 
 class GillespieReactions:
     """A class to register reactions for easier implementation of Gillespie simulations."""
+
     def __init__(self, species: CellularSpecies) -> None:
         """Initialize the GillespieReactions class.
 

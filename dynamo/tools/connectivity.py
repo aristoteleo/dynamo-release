@@ -57,13 +57,13 @@ def adj_to_knn(adj: np.ndarray, n_neighbors: int = 15) -> Tuple[np.ndarray, np.n
         cur_n_neighbors = len(cur_neighbors[1])
 
         if cur_n_neighbors > n_neighbors - 1:
-            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[0][: (n_neighbors - 1)]
+            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].toarray())[0][: (n_neighbors - 1)]
             idx[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
-            wgt[cur_cell, 1:] = adj[cur_cell][0, cur_neighbors[1][sorted_indices]].A
+            wgt[cur_cell, 1:] = adj[cur_cell][0, cur_neighbors[1][sorted_indices]].toarray()
         else:
             idx_ = np.arange(1, (cur_n_neighbors + 1))
             idx[cur_cell, idx_] = cur_neighbors[1]
-            wgt[cur_cell, idx_] = adj[cur_cell][:, cur_neighbors[1]].A
+            wgt[cur_cell, idx_] = adj[cur_cell][:, cur_neighbors[1]].toarray()
 
     return idx, wgt
 

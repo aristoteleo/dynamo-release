@@ -25,17 +25,17 @@ from ..tools.Markov import (
     velocity_on_grid,
 )
 from ..tools.utils import update_dict
-from ..vectorfield.VectorField import VectorField
 from ..vectorfield.utils import vecfld_from_adata
+from ..vectorfield.VectorField import VectorField
 from .scatters import docstrings, scatters, scatters_interactive
 from .utils import (
     _get_adata_color_vec,
     default_quiver_args,
     quiver_autoscaler,
     retrieve_plot_save_path,
-    save_show_ret,
     save_plotly_figure,
     save_pyvista_plotter,
+    save_show_ret,
     set_arrow_alpha,
     set_stream_line_alpha,
 )
@@ -75,7 +75,7 @@ def cell_wise_vectors_3d(
     save_show_or_return: str = "show",
     save_kwargs: Dict[str, Any] = {},
     quiver_3d_kwargs: Dict[str, Any] = {
-         "linewidth": 1,
+        "linewidth": 1,
         "edgecolors": "white",
         "alpha": 1,
         "length": 8,
@@ -349,7 +349,7 @@ def cell_wise_vectors_3d(
         )
 
         point_cloud = pv.PolyData(np.column_stack((x0.values, x1.values, x2.values)))
-        point_cloud['vectors'] = np.column_stack((v0.values, v1.values, v2.values))
+        point_cloud["vectors"] = np.column_stack((v0.values, v1.values, v2.values))
 
         r, c = pl.shape[0], pl.shape[1]
         subplot_indices = [[i, j] for i in range(r) for j in range(c)]
@@ -359,7 +359,7 @@ def cell_wise_vectors_3d(
             point_cloud.point_data["colors"] = np.stack(colors_list[i])
 
             arrows = point_cloud.glyph(
-                orient='vectors',
+                orient="vectors",
                 factor=3.5,
             )
 
@@ -367,7 +367,7 @@ def cell_wise_vectors_3d(
                 pl.subplot(subplot_indices[cur_subplot][0], subplot_indices[cur_subplot][1])
                 cur_subplot += 1
 
-            pl.add_mesh(arrows, scalars="colors", preference='point', rgb=True)
+            pl.add_mesh(arrows, scalars="colors", preference="point", rgb=True)
 
         return save_pyvista_plotter(
             pl=pl,
@@ -422,7 +422,8 @@ def cell_wise_vectors_3d(
                     sizemode="absolute",
                     sizeref=1,
                 ),
-                row=subplot_indices[cur_subplot][0] + 1, col=subplot_indices[cur_subplot][1] + 1,
+                row=subplot_indices[cur_subplot][0] + 1,
+                col=subplot_indices[cur_subplot][1] + 1,
             )  # TODO: implement customized color for individual cone
 
             cur_subplot += 1
@@ -607,7 +608,7 @@ def line_integral_conv(
         Exception: _description_
 
     Returns:
-        None would be returned by default. If `save_show_or_return` is set to "return" or "all", the generated 
+        None would be returned by default. If `save_show_or_return` is set to "return" or "all", the generated
         `yt.SlicePlot` will be returned.
     """
 
@@ -966,7 +967,6 @@ def cell_wise_vectors(
         "alpha": 1,
         "length": 8,
         "arrow_length_ratio": scale,
-
     }
 
     axes_list, color_list, _ = scatters(
@@ -1039,7 +1039,7 @@ def cell_wise_vectors(
             )
         ax.set_facecolor(background)
 
-    return save_show_ret("cell_wise_vector", save_show_or_return, save_kwargs, axes_list, tight = projection != "3d")
+    return save_show_ret("cell_wise_vector", save_show_or_return, save_kwargs, axes_list, tight=projection != "3d")
 
 
 @docstrings.with_indent(4)

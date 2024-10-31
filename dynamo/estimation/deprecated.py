@@ -1,12 +1,12 @@
-import warnings
 import functools
+import warnings
 
 from numba import float32  # import the types
 from numpy import *
 from scipy.optimize import least_squares
 
-from .tsc.utils_moments import moments
 from ..tools.sampling import lhsclassic
+from .tsc.utils_moments import moments
 
 
 class estimation:

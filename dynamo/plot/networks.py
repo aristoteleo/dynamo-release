@@ -5,6 +5,7 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -103,10 +104,10 @@ def nxvizPlot(
         # data has to be float
         if cluster is not None:
             network.nodes[n]["size"] = (
-                adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].A.mean().astype(float)
+                adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].toarray().mean().astype(float)
             )
         else:
-            network.nodes[n]["size"] = adata[:, n].layers[layer].A.mean().astype(float)
+            network.nodes[n]["size"] = adata[:, n].layers[layer].toarray().mean().astype(float)
 
         network.nodes[n]["label"] = n
     for e in network.edges():
@@ -307,7 +308,7 @@ def arcPlot(
             cb.ax.set_title(cbar_title)
 
         cb.set_alpha(1)
-        cb.draw_all()
+        cb._draw_all()
         cb.locator = MaxNLocator(nbins=3, integer=True)
         cb.update_ticks()
 
@@ -363,6 +364,7 @@ def circosPlot(
         the Matplotlib Axes on which the Circos plot is drawn.
     """
     try:
+        import matplotlib
         import nxviz as nv
         from nxviz import annotate
     except ImportError:
@@ -382,12 +384,16 @@ def circosPlot(
 
     annotate.circos_labels(network, group_by=node_label_key, layout=circos_label_layout)
     if node_color_key and show_colorbar:
-        annotate.node_colormapping(
-            network,
-            color_by=node_color_key,
-            legend_kwargs={"loc": "upper right", "bbox_to_anchor": (0.0, 1.0)},
-            ax=None,
+        nt = nv.utils.node_table(network)
+        data = nt[node_color_key]
+        cmap, data_family = nv.encodings.data_cmap(data)
+        norm = matplotlib.colors.Normalize(vmin=data.min(), vmax=data.max())
+        scalarmap = matplotlib.cm.ScalarMappable(
+            cmap=cmap,
+            norm=norm,
         )
+        fig = plt.gcf()
+        fig.colorbar(scalarmap, ax=ax)
     return ax
 
 
@@ -404,7 +410,6 @@ def circosPlotDeprecated(
     save_kwargs: Dict[str, Any] = {},
     **kwargs,
 ) -> Optional[Any]:
-
     """Deprecated.
 
     A wrapper of `dynamo.pl.networks.nxvizPlot` to plot Circos graph. See the `nxvizPlot` for more information.

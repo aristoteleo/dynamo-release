@@ -745,7 +745,7 @@ def _normalize_cell_expr_by_size_factors_legacy(
             n_feature = CM.shape[1]
 
             for i in range(CM.shape[0]):
-                x = CM[i].A if issparse(CM) else CM[i]
+                x = CM[i].toarray() if issparse(CM) else CM[i]
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
@@ -1773,6 +1773,7 @@ def _select_genes_monocle_legacy(
         for downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be
         False.
     """
+    from ..tools.utils import update_dict
 
     filter_bool = (
         adata.var["pass_basic_filter"]

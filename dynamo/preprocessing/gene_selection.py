@@ -47,7 +47,7 @@ def calc_Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") 
     def _compute_gini(CM):
         # convert to dense array if sparse
         if issparse(CM):
-            CM = CM.A
+            CM = CM.toarray()
 
         # shift all values to be non-negative
         CM -= np.min(CM)
@@ -366,12 +366,12 @@ def get_mean_cv(
     elif algorithm == "cv_dispersion":
         if winsorize:
             down, up = (
-                np.percentile(valid_CM.A, winsor_perc, 0)
+                np.percentile(valid_CM.toarray(), winsor_perc, 0)
                 if issparse(valid_CM)
                 else np.percentile(valid_CM, winsor_perc, 0)
             )
             Sfw = (
-                np.clip(valid_CM.A, down[None, :], up[None, :])
+                np.clip(valid_CM.toarray(), down[None, :], up[None, :])
                 if issparse(valid_CM)
                 else np.percentile(valid_CM, winsor_perc, 0)
             )
@@ -528,6 +528,7 @@ def select_genes_by_seurat_recipe(
     gene_names: Union[List[str], None] = None,
     var_filter_key: str = "pass_basic_filter",
     inplace: bool = False,
+    initial_dtype: Optional[type] = None,
 ) -> None:
     """A general function for feature genes selection.
 
@@ -549,10 +550,14 @@ def select_genes_by_seurat_recipe(
         var_filter_key: filter gene names based on the key defined in adata.var before gene selection. Defaults to
             "pass_basic_filter".
         inplace: when inplace is True, subset adata according to selected genes. Defaults to False.
+        initial_dtype: the data type when initializing a new array. Should be one of the float type.
 
     Raises:
         NotImplementedError: the recipe is invalid/unsupported.
     """
+
+    if initial_dtype is None:
+        initial_dtype = adata.X.dtype if adata.X.dtype == np.float32 or adata.X.dtype == np.float64 else np.float32
 
     pass_filter_genes = adata.var_names
     if gene_names:
@@ -577,8 +582,8 @@ def select_genes_by_seurat_recipe(
             chunk_size=chunk_size,
             chunk_mode="gene",
         )
-        mean = np.zeros(len(pass_filter_genes), dtype=adata.X.dtype)
-        variance = np.zeros(len(pass_filter_genes), dtype=adata.X.dtype)
+        mean = np.zeros(len(pass_filter_genes), dtype=initial_dtype)
+        variance = np.zeros(len(pass_filter_genes), dtype=initial_dtype)
 
         for mat_data in chunked_layer_mats:
             layer_mat = mat_data[0]
@@ -590,8 +595,8 @@ def select_genes_by_seurat_recipe(
 
             chunked_mean, chunked_var = seurat_get_mean_var(layer_mat)
 
-            mean[mat_data[1]:mat_data[2]] = chunked_mean
-            variance[mat_data[1]:mat_data[2]] = chunked_var
+            mean[mat_data[1] : mat_data[2]] = chunked_mean
+            variance[mat_data[1] : mat_data[2]] = chunked_var
 
         mean, variance, highly_variable_mask = select_genes_by_seurat_dispersion(
             mean=mean,
