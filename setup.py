@@ -17,7 +17,7 @@ with open("README.md", "r") as fh:
 if __name__ == "__main__":
     setup(
         name="dynamo-release",
-        version="v1.4.1",
+        version="v1.4.2-rc1",
         python_requires=">=3.7",
         install_requires=read_requirements("requirements.txt"),
         extras_require={
@@ -31,6 +31,7 @@ if __name__ == "__main__":
         ],
         #     include_dirs=[np.get_include()],
         author="Xiaojie Qiu, Yan Zhang, Ke Ni",
+        author_team="dynamo team",
         author_email="xqiu.sc@gmail.com",
         description="Mapping Vector Field of Single Cells",
         long_description=long_description,

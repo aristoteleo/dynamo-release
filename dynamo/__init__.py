@@ -22,6 +22,7 @@ from . import sim
 from . import sample_data
 from . import configuration
 from . import ext
+from . import multi
 
 from .data_io import *
 from .dynamo_logger import (
