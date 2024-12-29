@@ -79,6 +79,8 @@ from .vector_calculus import (
     speed,
 )
 
+from .violin_box import violin_box
+
 __all__ = [
     "quiver_autoscaler",
     "save_fig",
@@ -161,4 +163,5 @@ __all__ = [
     "sctransform_plot_fit",
     "plot_residual_var",
     "plot_dim_reduced_direct_graph",
+    "violin_box"
 ]
