@@ -19,6 +19,7 @@ from numba import njit
 import numba
 from numba.typed import List
 from tqdm.auto import tqdm
+import scipy as sp
 
 import math
 import torch
@@ -1559,12 +1560,22 @@ class ChromatinDynamical:
 
         # input
         self.total_n = len(u)
-        if sparse.issparse(c):
-            c = c.A
-        if sparse.issparse(u):
-            u = u.A
-        if sparse.issparse(s):
-            s = s.A
+        
+        if sp.__version__ < '1.14.0':
+            if sparse.issparse(c):
+                c = c.A
+            if sparse.issparse(u):
+                u = u.A
+            if sparse.issparse(s):
+                s = s.A
+        else:
+            if sparse.issparse(c):
+                c = c.toarray()
+            if sparse.issparse(u):
+                u = u.toarray()
+            if sparse.issparse(s):
+                s = s.toarray()
+        
         self.c_all = np.ravel(np.array(c, dtype=np.float64))
         self.u_all = np.ravel(np.array(u, dtype=np.float64))
         self.s_all = np.ravel(np.array(s, dtype=np.float64))
@@ -4857,15 +4868,27 @@ def recover_dynamics_chrom(adata_rna,
         else adata_atac.obsm[embedding]
     global_pdist = pairwise_distances(embed_coord)
 
-    u_mat = adata_rna[:, gene_list].layers['Mu'].A \
-        if sparse.issparse(adata_rna.layers['Mu']) \
-        else adata_rna[:, gene_list].layers['Mu']
-    s_mat = adata_rna[:, gene_list].layers['Ms'].A \
-        if sparse.issparse(adata_rna.layers['Ms']) \
-        else adata_rna[:, gene_list].layers['Ms']
-    c_mat = adata_atac[:, gene_list].layers['Mc'].A \
-        if sparse.issparse(adata_atac.layers['Mc']) \
-        else adata_atac[:, gene_list].layers['Mc']
+    if sp.__version__ < '1.14.0':
+
+        u_mat = adata_rna[:, gene_list].layers['Mu'].A \
+            if sparse.issparse(adata_rna.layers['Mu']) \
+            else adata_rna[:, gene_list].layers['Mu']
+        s_mat = adata_rna[:, gene_list].layers['Ms'].A \
+            if sparse.issparse(adata_rna.layers['Ms']) \
+            else adata_rna[:, gene_list].layers['Ms']
+        c_mat = adata_atac[:, gene_list].layers['Mc'].A \
+            if sparse.issparse(adata_atac.layers['Mc']) \
+            else adata_atac[:, gene_list].layers['Mc']
+    else:
+        u_mat = adata_rna[:, gene_list].layers['Mu'].toarray() \
+            if sparse.issparse(adata_rna.layers['Mu']) \
+            else adata_rna[:, gene_list].layers['Mu']
+        s_mat = adata_rna[:, gene_list].layers['Ms'].toarray() \
+            if sparse.issparse(adata_rna.layers['Ms']) \
+            else adata_rna[:, gene_list].layers['Ms']
+        c_mat = adata_atac[:, gene_list].layers['Mc'].toarray() \
+            if sparse.issparse(adata_atac.layers['Mc']) \
+            else adata_atac[:, gene_list].layers['Mc']
 
     ru = rescale_u if rescale_u is not None else None
 
@@ -5447,23 +5470,42 @@ def LRT_decoupling(adata_rna, adata_atac, **kwargs):
 
 
 def transition_matrix_s(s_mat, velo_s, knn):
-    knn = knn.astype(int)
-    tm_val, tm_col, tm_row = [], [], []
-    for i in range(knn.shape[0]):
-        two_step_knn = knn[i, :]
-        for j in knn[i, :]:
-            two_step_knn = np.append(two_step_knn, knn[j, :])
-        two_step_knn = np.unique(two_step_knn)
-        for j in two_step_knn:
-            s = s_mat[i, :]
-            sn = s_mat[j, :]
-            ds = s - sn
-            dx = np.ravel(ds.A)
-            velo = velo_s[i, :]
-            cos_sim = np.dot(dx, velo)/(norm(dx)*norm(velo))
-            tm_val.append(cos_sim)
-            tm_col.append(j)
-            tm_row.append(i)
+    if sp.__version__ < '1.14.0':
+        knn = knn.astype(int)
+        tm_val, tm_col, tm_row = [], [], []
+        for i in range(knn.shape[0]):
+            two_step_knn = knn[i, :]
+            for j in knn[i, :]:
+                two_step_knn = np.append(two_step_knn, knn[j, :])
+            two_step_knn = np.unique(two_step_knn)
+            for j in two_step_knn:
+                s = s_mat[i, :]
+                sn = s_mat[j, :]
+                ds = s - sn
+                dx = np.ravel(ds.A)
+                velo = velo_s[i, :]
+                cos_sim = np.dot(dx, velo)/(norm(dx)*norm(velo))
+                tm_val.append(cos_sim)
+                tm_col.append(j)
+                tm_row.append(i)
+    else:
+        knn = knn.astype(int)
+        tm_val, tm_col, tm_row = [], [], []
+        for i in range(knn.shape[0]):
+            two_step_knn = knn[i, :]
+            for j in knn[i, :]:
+                two_step_knn = np.append(two_step_knn, knn[j, :])
+            two_step_knn = np.unique(two_step_knn)
+            for j in two_step_knn:
+                s = s_mat[i, :]
+                sn = s_mat[j, :]
+                ds = s - sn
+                dx = np.ravel(ds.toarray())
+                velo = velo_s[i, :]
+                cos_sim = np.dot(dx, velo)/(norm(dx)*norm(velo))
+                tm_val.append(cos_sim)
+                tm_col.append(j)
+                tm_row.append(i)
     tm = coo_matrix((tm_val, (tm_row, tm_col)), shape=(s_mat.shape[0],
                     s_mat.shape[0])).tocsr()
     tm.setdiag(0)
@@ -5476,29 +5518,54 @@ def transition_matrix_s(s_mat, velo_s, knn):
 
 
 def transition_matrix_chrom(c_mat, u_mat, s_mat, velo_c, velo_u, velo_s, knn):
-    knn = knn.astype(int)
-    tm_val, tm_col, tm_row = [], [], []
-    for i in range(knn.shape[0]):
-        two_step_knn = knn[i, :]
-        for j in knn[i, :]:
-            two_step_knn = np.append(two_step_knn, knn[j, :])
-        two_step_knn = np.unique(two_step_knn)
-        for j in two_step_knn:
-            u = u_mat[i, :].A
-            s = s_mat[i, :].A
-            c = c_mat[i, :].A
-            un = u_mat[j, :]
-            sn = s_mat[j, :]
-            cn = c_mat[j, :]
-            dc = (c - cn) / np.std(c)
-            du = (u - un) / np.std(u)
-            ds = (s - sn) / np.std(s)
-            dx = np.ravel(np.hstack((dc.A, du.A, ds.A)))
-            velo = np.hstack((velo_c[i, :], velo_u[i, :], velo_s[i, :]))
-            cos_sim = np.dot(dx, velo)/(norm(dx)*norm(velo))
-            tm_val.append(cos_sim)
-            tm_col.append(j)
-            tm_row.append(i)
+    if sp.__version__ < '1.14.0':
+        knn = knn.astype(int)
+        tm_val, tm_col, tm_row = [], [], []
+        for i in range(knn.shape[0]):
+            two_step_knn = knn[i, :]
+            for j in knn[i, :]:
+                two_step_knn = np.append(two_step_knn, knn[j, :])
+            two_step_knn = np.unique(two_step_knn)
+            for j in two_step_knn:
+                u = u_mat[i, :].A
+                s = s_mat[i, :].A
+                c = c_mat[i, :].A
+                un = u_mat[j, :]
+                sn = s_mat[j, :]
+                cn = c_mat[j, :]
+                dc = (c - cn) / np.std(c)
+                du = (u - un) / np.std(u)
+                ds = (s - sn) / np.std(s)
+                dx = np.ravel(np.hstack((dc.A, du.A, ds.A)))
+                velo = np.hstack((velo_c[i, :], velo_u[i, :], velo_s[i, :]))
+                cos_sim = np.dot(dx, velo)/(norm(dx)*norm(velo))
+                tm_val.append(cos_sim)
+                tm_col.append(j)
+                tm_row.append(i)
+    else:
+        knn = knn.astype(int)
+        tm_val, tm_col, tm_row = [], [], []
+        for i in range(knn.shape[0]):
+            two_step_knn = knn[i, :]
+            for j in knn[i, :]:
+                two_step_knn = np.append(two_step_knn, knn[j, :])
+            two_step_knn = np.unique(two_step_knn)
+            for j in two_step_knn:
+                u = u_mat[i, :].toarray()
+                s = s_mat[i, :].toarray()
+                c = c_mat[i, :].toarray()
+                un = u_mat[j, :]
+                sn = s_mat[j, :]
+                cn = c_mat[j, :]
+                dc = (c - cn) / np.std(c)
+                du = (u - un) / np.std(u)
+                ds = (s - sn) / np.std(s)
+                dx = np.ravel(np.hstack((dc.toarray(), du.toarray(), ds.toarray())))
+                velo = np.hstack((velo_c[i, :], velo_u[i, :], velo_s[i, :]))
+                cos_sim = np.dot(dx, velo)/(norm(dx)*norm(velo))
+                tm_val.append(cos_sim)
+                tm_col.append(j)
+                tm_row.append(i)
     tm = coo_matrix((tm_val, (tm_row, tm_col)), shape=(c_mat.shape[0],
                     c_mat.shape[0])).tocsr()
     tm.setdiag(0)
@@ -5790,9 +5857,14 @@ def dynamic_plot(adata,
         s = adata[:, gene].layers['Ms' if by == 'expression' else 'velo_s']
         c = adata[:, gene].layers['ATAC' if by == 'expression'
                                   else 'velo_chrom']
-        c = c.A if sparse.issparse(c) else c
-        u = u.A if sparse.issparse(u) else u
-        s = s.A if sparse.issparse(s) else s
+        if sp.__version__ < '1.14.0':
+            c = c.A if sparse.issparse(c) else c
+            u = u.A if sparse.issparse(u) else u
+            s = s.A if sparse.issparse(s) else s
+        else:
+            c = c.toarray() if sparse.issparse(c) else c
+            u = u.toarray() if sparse.issparse(u) else u
+            s = s.toarray() if sparse.issparse(s) else s
         c, u, s = np.ravel(c), np.ravel(u), np.ravel(s)
         non_outlier = c <= np.percentile(c, outlier)
         non_outlier &= u <= np.percentile(u, outlier)
@@ -6083,20 +6155,37 @@ def scatter_plot(adata,
             else adata[:, gene].layers['unspliced'].copy()
         s = adata[:, gene].layers['Ms'].copy() if 'Ms' in adata.layers \
             else adata[:, gene].layers['spliced'].copy()
-        u = u.A if sparse.issparse(u) else u
-        s = s.A if sparse.issparse(s) else s
-        u, s = np.ravel(u), np.ravel(s)
-        if 'ATAC' not in adata.layers.keys() and \
-                'Mc' not in adata.layers.keys():
-            show_anchors = False
-        elif 'ATAC' in adata.layers.keys():
-            c = adata[:, gene].layers['ATAC'].copy()
-            c = c.A if sparse.issparse(c) else c
-            c = np.ravel(c)
-        elif 'Mc' in adata.layers.keys():
-            c = adata[:, gene].layers['Mc'].copy()
-            c = c.A if sparse.issparse(c) else c
-            c = np.ravel(c)
+        if sp.__version__ < '1.14.0':
+            u = u.A if sparse.issparse(u) else u
+            s = s.A if sparse.issparse(s) else s
+
+            u, s = np.ravel(u), np.ravel(s)
+            if 'ATAC' not in adata.layers.keys() and \
+                    'Mc' not in adata.layers.keys():
+                show_anchors = False
+            elif 'ATAC' in adata.layers.keys():
+                c = adata[:, gene].layers['ATAC'].copy()
+                c = c.A if sparse.issparse(c) else c
+                c = np.ravel(c)
+            elif 'Mc' in adata.layers.keys():
+                c = adata[:, gene].layers['Mc'].copy()
+                c = c.A if sparse.issparse(c) else c
+                c = np.ravel(c)
+        else:
+            u = u.toarray() if sparse.issparse(u) else u
+            s = s.toarray() if sparse.issparse(s) else s
+            u, s = np.ravel(u), np.ravel(s)
+            if 'ATAC' not in adata.layers.keys() and \
+                    'Mc' not in adata.layers.keys():
+                show_anchors = False
+            elif 'ATAC' in adata.layers.keys():
+                c = adata[:, gene].layers['ATAC'].copy()
+                c = c.toarray() if sparse.issparse(c) else c
+                c = np.ravel(c)
+            elif 'Mc' in adata.layers.keys():
+                c = adata[:, gene].layers['Mc'].copy()
+                c = c.toarray() if sparse.issparse(c) else c
+                c = np.ravel(c)
 
         if velocity_arrows:
             if 'velo_u' in adata.layers.keys():

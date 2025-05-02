@@ -315,9 +315,8 @@ class MultiPreprocessor(Preprocessor):
                                     tkey=tkey,
                                     experiment_type=experiment_type)
             elif mod == 'rna':
-                rna_adata = mdata.mod.get('rna', None)
-
-                self.preprocess_adata(adata=rna_adata,
+                #rna_adata = mdata.mod.get('rna', None)
+                self.preprocess_adata(adata=mdata['rna'],
                                       recipe=recipe,
                                       tkey=tkey,
                                       experiment_type=experiment_type)
@@ -602,7 +601,11 @@ def aggregate_peaks_10x(adata_atac, peak_annot_file, linkage_file,
                         enhancer_dict[gene].append(peak)
 
     # aggregate to genes
-    adata_atac_X_copy = adata_atac.X.A
+    import scipy as sp
+    if sp.__version__ < '1.14.0':
+        adata_atac_X_copy = adata_atac.X.A
+    else:
+        adata_atac_X_copy = adata_atac.X.toarray()
     gene_mat = np.zeros((adata_atac.shape[0], len(promoter_genes)))
     var_names = adata_atac.var_names.to_numpy()
     var_dict = {}
