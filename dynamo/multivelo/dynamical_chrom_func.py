@@ -1639,8 +1639,8 @@ class ChromatinDynamical:
         else:
             self.conn_sub = None
 
-        main_info(f'{len(self.u)} cells passed filter and will be used to '
-                    'compute trajectories.', indent_level=2)
+        #main_info(f'{len(self.u)} cells passed filter and will be used to '
+        #            'compute trajectories.', indent_level=2)
         self.known_pars = (True
                            if None not in [rescale_u, alpha, beta, gamma, t_]
                            else False)
@@ -2196,12 +2196,12 @@ class ChromatinDynamical:
         if np.sum(w_low) < 10:
             fit_gmm = False
             self.partial = True
-        if self.local_std is None:
-            main_info('local standard deviation not provided. '
-                      'Skipping GMM..', indent_level=2)
-        if self.embed_coord is None:
-            main_info('Warning: embedded coordinates not provided. '
-                      'Skipping GMM..')
+        #if self.local_std is None:
+        #    main_info('local standard deviation not provided. '
+        #              'Skipping GMM..', indent_level=2)
+        #if self.embed_coord is None:
+        #    main_info('Warning: embedded coordinates not provided. '
+        #              'Skipping GMM..')
         if (fit_gmm and self.local_std is not None and self.embed_coord
                 is not None):
 
@@ -2213,17 +2213,17 @@ class ChromatinDynamical:
                                     random_state=2021).fit(dists)
             mean_diff = np.abs(model.means_[1][0] - model.means_[0][0])
             criterion1 = mean_diff > self.local_std / self.tm
-            main_info(f'GMM: difference between means = {mean_diff}, '
-                        f'threshold = {self.local_std / self.tm}.', indent_level=2)
+            #main_info(f'GMM: difference between means = {mean_diff}, '
+            #            f'threshold = {self.local_std / self.tm}.', indent_level=2)
             criterion2 = np.all(model.weights_[1] > 0.2 / self.tm)
-            main_info('GMM: weight of the second Gaussian ='
-                        f' {model.weights_[1]}.', indent_level=2)
+            #main_info('GMM: weight of the second Gaussian ='
+            #            f' {model.weights_[1]}.', indent_level=2)
             if criterion1 and criterion2:
                 self.partial = False
             else:
                 self.partial = True
-            main_info(f'GMM decides {"" if self.partial else "not "}'
-                        'partial.', indent_level=2)
+            #main_info(f'GMM decides {"" if self.partial else "not "}'
+            #            'partial.', indent_level=2)
 
         # steady-state slope
         wu = self.u >= np.percentile(u_non_zero, 95)
@@ -2260,15 +2260,15 @@ class ChromatinDynamical:
             off_ = slope_ < gamma
             on_dist = np.sum((u_non_zero[on_] - gamma * s_non_zero[on_])**2)
             off_dist = np.sum((gamma * s_non_zero[off_] - u_non_zero[off_])**2)
-            main_info(f'Slope: SSE on induction phase = {on_dist},'
-                        f' SSE on repression phase = {off_dist}.', indent_level=2)
+            #main_info(f'Slope: SSE on induction phase = {on_dist},'
+            #            f' SSE on repression phase = {off_dist}.', indent_level=2)
             if self.thickness < 1.5 / np.sqrt(self.tm):
                 narrow = True
             else:
                 narrow = False
-            main_info(f'Thickness of trajectory = {self.thickness}. '
-                        f'Trajectory is {"narrow" if narrow else "normal"}.',
-                        indent_level=2)
+            #main_info(f'Thickness of trajectory = {self.thickness}. '
+            #            f'Trajectory is {"narrow" if narrow else "normal"}.',
+            #            indent_level=2)
             if on_dist > 10 * self.tm**2 * off_dist:
                 self.direction = 'on'
                 self.partial = True
@@ -2322,6 +2322,7 @@ class ChromatinDynamical:
         if determine_model:
             self.model = self.model_
 
+        '''
         if not self.known_pars:
             if fit_gmm or fit_slope:
                 main_info(f'predicted partial trajectory: {self.partial}',
@@ -2330,6 +2331,7 @@ class ChromatinDynamical:
                             f'{self.direction}', indent_level=1)
             if determine_model:
                 main_info(f'predicted model: {self.model}', indent_level=1)
+        '''
 
     def initialize_steady_state_params(self, model_mismatch=False):
         self.scale_cc = 1.0
@@ -2532,12 +2534,12 @@ class ChromatinDynamical:
                                     + self.params[2]])
         self.t_sw_1, self.t_sw_2, self.t_sw_3 = self.t_sw_array
 
-        main_info(f'initial params:\nswitch time array = {self.t_sw_array},'
-                    '\n'
-                    f'rates = {self.rates},\ncc scale = {self.scale_cc},\n'
-                    f'c rescale factor = {self.rescale_c},\n'
-                    f'u rescale factor = {self.rescale_u}', indent_level=1)
-        main_info(f'initial loss: {self.loss[-1]}', indent_level=1)
+        #main_info(f'initial params:\nswitch time array = {self.t_sw_array},'
+         #           '\n'
+         #           f'rates = {self.rates},\ncc scale = {self.scale_cc},\n'
+         #           f'c rescale factor = {self.rescale_c},\n'
+         #           f'u rescale factor = {self.rescale_u}', indent_level=1)
+        #main_info(f'initial loss: {self.loss[-1]}', indent_level=1)
 
     def fit(self):
         if self.low_quality:
@@ -2575,8 +2577,8 @@ class ChromatinDynamical:
             if last_t_sw > np.max(self.t):
                 gap_sum += 20 - last_t_sw
             realign_ratio = np.clip(20/(20 - gap_sum), None, 20/last_t_sw)
-            main_info(f'removing gaps and realigning by {realign_ratio}..',
-                        indent_level=1)
+            #main_info(f'removing gaps and realigning by {realign_ratio}..',
+            #            indent_level=1)
             self.rates /= realign_ratio
             self.alpha_c, self.alpha, self.beta, self.gamma = self.rates
             self.params[:3] *= realign_ratio
@@ -2594,7 +2596,7 @@ class ChromatinDynamical:
             plt.show(block=True)
 
         # likelihood
-        main_info('computing likelihood..', indent_level=1)
+        #main_info('computing likelihood..', indent_level=1)
         keep = self.non_zero & self.non_outlier & \
             (self.u_all > 0.2 * np.percentile(self.u_all, 99.5)) & \
             (self.s_all > 0.2 * np.percentile(self.s_all, 99.5))
@@ -2626,12 +2628,12 @@ class ChromatinDynamical:
             # TODO: Keep? Remove??
             l_s = 0
 
-        if not self.rna_only:
-            main_info(f'likelihood of c: {self.l_c}, likelihood of u: {l_u},'
-                        f' likelihood of s: {l_s}', indent_level=1)
+        #if not self.rna_only:
+            #main_info(f'likelihood of c: {self.l_c}, likelihood of u: {l_u},'
+            #            f' likelihood of s: {l_s}', indent_level=1)
 
         # velocity
-        main_info('computing velocities..', indent_level=1)
+        #main_info('computing velocities..', indent_level=1)
         self.velocity = np.empty((len(self.u_all), 3))
         if self.conn is not None:
             new_time = self.conn.dot(self.t)
@@ -2744,13 +2746,13 @@ class ChromatinDynamical:
 
         self.realign_time_and_velocity(c, u, s, anchor_time)
 
-        main_info(f'final params:\nswitch time array = {self.t_sw_array},\n'
-                    f'rates = {self.rates},\ncc scale = {self.scale_cc},\n'
-                    f'c rescale factor = {self.rescale_c},\n'
-                    f'u rescale factor = {self.rescale_u}',
-                    indent_level=1)
-        main_info(f'final loss: {self.loss[-1]}', indent_level=1)
-        main_info(f'final likelihood: {self.likelihood}', indent_level=1)
+        #main_info(f'final params:\nswitch time array = {self.t_sw_array},\n'
+       #             f'rates = {self.rates},\ncc scale = {self.scale_cc},\n'
+        #            f'c rescale factor = {self.rescale_c},\n'
+        #            f'u rescale factor = {self.rescale_u}',
+        #            indent_level=1)
+        #main_info(f'final loss: {self.loss[-1]}', indent_level=1)
+        #main_info(f'final likelihood: {self.likelihood}', indent_level=1)
 
         return self.loss
 
@@ -2863,7 +2865,7 @@ class ChromatinDynamical:
 
             # RNA-only
             if self.rna_only:
-                main_info('Nelder Mead on t_sw_2 and alpha..', indent_level=2)
+                #main_info('Nelder Mead on t_sw_2 and alpha..', indent_level=2)
                 self.fitting_flag_ = 0
                 if self.cur_iter == 1:
                     var_test = (self.alpha +
@@ -2879,8 +2881,8 @@ class ChromatinDynamical:
                                callback=self.update, options={'maxiter': 3})
 
                 if self.fit_rescale:
-                    main_info('Nelder Mead on t_sw_2, beta, and rescale u..',
-                                indent_level=2)
+                    #main_info('Nelder Mead on t_sw_2, beta, and rescale u..',
+                    #            indent_level=2)
                     res = minimize(self.mse, x0=[self.params[1],
                                                  self.params[5],
                                                  self.params[9]],
@@ -2888,18 +2890,18 @@ class ChromatinDynamical:
                                    callback=self.update,
                                    options={'maxiter': 5})
 
-                main_info('Nelder Mead on alpha and gamma..', indent_level=2)
+                #main_info('Nelder Mead on alpha and gamma..', indent_level=2)
                 self.fitting_flag_ = 1
                 res = minimize(self.mse, x0=[self.params[4], self.params[6]],
                                method='Nelder-Mead', tol=1e-2,
                                callback=self.update, options={'maxiter': 3})
 
-                main_info('Nelder Mead on t_sw_2..', indent_level=2)
+                #main_info('Nelder Mead on t_sw_2..', indent_level=2)
                 res = minimize(self.mse, x0=[self.params[1]],
                                method='Nelder-Mead', tol=1e-2,
                                callback=self.update, options={'maxiter': 2})
 
-                main_info('Full Nelder Mead..', indent_level=2)
+                #main_info('Full Nelder Mead..', indent_level=2)
                 res = minimize(self.mse, x0=[self.params[1], self.params[4],
                                              self.params[5], self.params[6]],
                                method='Nelder-Mead', tol=1e-2,
@@ -2909,8 +2911,8 @@ class ChromatinDynamical:
             else:
 
                 if not self.adam:
-                    main_info('Nelder Mead on t_sw_1, chromatin switch time,'
-                                'and alpha_c..', indent_level=2)
+                    #main_info('Nelder Mead on t_sw_1, chromatin switch time,'
+                    #            'and alpha_c..', indent_level=2)
                     self.fitting_flag_ = 1
                     if self.cur_iter == 1:
                         var_test = (self.gamma + np.array([-1, -0.5, 0.5, 1])
@@ -2934,9 +2936,9 @@ class ChromatinDynamical:
                                        callback=self.update,
                                        options={'maxiter': 20})
 
-                    main_info('Nelder Mead on chromatin switch time,'
-                                'chromatin closing rate scaling, and rescale'
-                                'c..', indent_level=2)
+                    #main_info('Nelder Mead on chromatin switch time,'
+                    #            'chromatin closing rate scaling, and rescale'
+                    #            'c..', indent_level=2)
                     self.fitting_flag_ = 2
                     if self.model == 0 or self.model == 1:
                         res = minimize(self.mse, x0=[self.params[1],
@@ -2953,8 +2955,8 @@ class ChromatinDynamical:
                                        callback=self.update,
                                        options={'maxiter': 20})
 
-                    main_info('Nelder Mead on rna switch time and alpha..',
-                                indent_level=2)
+                    #main_info('Nelder Mead on rna switch time and alpha..',
+                    #            indent_level=2)
                     self.fitting_flag_ = 1
                     if self.model == 0 or self.model == 1:
                         res = minimize(self.mse, x0=[self.params[2],
@@ -2969,8 +2971,8 @@ class ChromatinDynamical:
                                        callback=self.update,
                                        options={'maxiter': 10})
 
-                    main_info('Nelder Mead on rna switch time, beta, and '
-                                'rescale u..', indent_level=2)
+                    #main_info('Nelder Mead on rna switch time, beta, and '
+                    #            'rescale u..', indent_level=2)
                     self.fitting_flag_ = 3
                     if self.model == 0 or self.model == 1:
                         res = minimize(self.mse, x0=[self.params[2],
@@ -2987,7 +2989,7 @@ class ChromatinDynamical:
                                        callback=self.update,
                                        options={'maxiter': 20})
 
-                    main_info('Nelder Mead on alpha and gamma..', indent_level=2)
+                    #main_info('Nelder Mead on alpha and gamma..', indent_level=2)
                     self.fitting_flag_ = 2
                     res = minimize(self.mse, x0=[self.params[4],
                                                  self.params[6]],
@@ -2995,7 +2997,7 @@ class ChromatinDynamical:
                                    callback=self.update,
                                    options={'maxiter': 10})
 
-                    main_info('Nelder Mead on t_sw..', indent_level=2)
+                    #main_info('Nelder Mead on t_sw..', indent_level=2)
                     self.fitting_flag_ = 4
                     res = minimize(self.mse, x0=self.params[:3],
                                    method='Nelder-Mead', tol=1e-2,
@@ -3004,18 +3006,18 @@ class ChromatinDynamical:
 
                 else:
 
-                    main_info('Adam on all parameters', indent_level=2)
+                    #main_info('Adam on all parameters', indent_level=2)
                     self.AdamMin(np.array(self.params, dtype=self.u.dtype), 20,
                                  tol=1e-2)
 
-                    main_info('Nelder Mead on t_sw..', indent_level=2)
+                    #main_info('Nelder Mead on t_sw..', indent_level=2)
                     self.fitting_flag_ = 4
                     res = minimize(self.mse, x0=self.params[:3],
                                    method='Nelder-Mead', tol=1e-2,
                                    callback=self.update,
                                    options={'maxiter': 15})
 
-            main_info(f'iteration {self.cur_iter} finished', indent_level=2)
+            #main_info(f'iteration {self.cur_iter} finished', indent_level=2)
 
     def _variables(self, x):
         scale_cc = self.scale_cc
@@ -3773,9 +3775,9 @@ class ChromatinDynamical:
             if fit_outlier:
                 self.t = t_pred
 
-            main_info(f'params updated as: {self.t_sw_array} {self.rates} '
-                        f'{self.scale_cc} {self.rescale_c} {self.rescale_u}',
-                        indent_level=2)
+            #main_info(f'params updated as: {self.t_sw_array} {self.rates} '
+            #            f'{self.scale_cc} {self.rescale_c} {self.rescale_u}',
+            #            indent_level=2)
 
             # interactive plot
             if self.plot and plot:
@@ -3874,7 +3876,7 @@ class ChromatinDynamical:
                       show_all=False):
         if not os.path.exists(self.plot_path):
             os.makedirs(self.plot_path)
-            main_info(f'{self.plot_path} directory created.', indent_level=2)
+            #main_info(f'{self.plot_path} directory created.', indent_level=2)
 
         switch = np.sum(self.t_sw_array < 20)
         scale_back = np.array([self.scale_c, self.scale_u, self.scale_s])
@@ -4182,13 +4184,13 @@ class ChromatinDynamical:
         self.u0 = u[self.anchor_min_idx]
         self.s0 = s[self.anchor_min_idx]
         self.realign_ratio = 20 / (np.max(self.t) - np.min(self.t))
-        main_info(f'fitted params:\nswitch time array = {self.t_sw_array},\n'
-                    f'rates = {self.rates},\ncc scale = {self.scale_cc},\n'
-                    f'c rescale factor = {self.rescale_c},\n'
-                    f'u rescale factor = {self.rescale_u}',
-                    indent_level=1)
-        main_info(f'aligning to range (0,20) by {self.realign_ratio}..',
-                    indent_level=1)
+        #main_info(f'fitted params:\nswitch time array = {self.t_sw_array},\n'
+        #            f'rates = {self.rates},\ncc scale = {self.scale_cc},\n'
+        #            f'c rescale factor = {self.rescale_c},\n'
+        #            f'u rescale factor = {self.rescale_u}',
+        #            indent_level=1)
+        #main_info(f'aligning to range (0,20) by {self.realign_ratio}..',
+         #           indent_level=1)
         self.rates /= self.realign_ratio
         self.alpha_c, self.alpha, self.beta, self.gamma = self.rates
         self.params[3:7] = self.rates
@@ -4257,10 +4259,10 @@ def regress_func(c, u, s, m, mi, im, dev, nn, ad, lr, b1, b2, bs, gpdist,
     settings.LOG_FILENAME = log_filename
     settings.GENE = gene
 
-    if m is not None:
-        main_info('#########################################################'
-                    '######################################', indent_level=1)
-        main_info(f'testing model {m}', indent_level=1)
+    #if m is not None:
+        #main_info('#########################################################'
+        #            '######################################', indent_level=1)
+       # main_info(f'testing model {m}', indent_level=1)
 
     c_90 = np.percentile(c, 90)
     u_90 = np.percentile(u, 90)
@@ -6132,7 +6134,7 @@ def scatter_plot(adata,
     genes = np.array(genes)
     missing_genes = genes[~np.isin(genes, adata.var_names)]
     if len(missing_genes) > 0:
-        main_info(f'{missing_genes} not found', v=0)
+        main_info(f'{missing_genes} not found')
     genes = genes[np.isin(genes, adata.var_names)]
     gn = len(genes)
     if gn == 0:
