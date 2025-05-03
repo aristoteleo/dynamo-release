@@ -7,6 +7,9 @@ import anndata
 import numpy as np
 import scipy.sparse as sp
 
+import matplotlib as mpl
+from matplotlib import rcParams
+
 from .dynamo_logger import LoggerManager
 
 

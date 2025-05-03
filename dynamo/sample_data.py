@@ -348,6 +348,7 @@ def multi_brain_5k(
     fragment_tbi_url='https://cf.10xgenomics.com/samples/cell-arc/1.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k_atac_fragments.tsv.gz.tbi'
     peak_annotation_url='https://cf.10xgenomics.com/samples/cell-arc/1.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k_atac_peak_annotation.tsv'
     velocyto_url='https://figshare.com/ndownloader/files/54153947'
+    anontation_url='https://figshare.com/ndownloader/files/54154376'
 
     
 
@@ -356,6 +357,7 @@ def multi_brain_5k(
     fragment_tbi_path = download_data_requests(fragment_tbi_url, 'fragments.tsv.gz.tbi', dir='./data/multi_brain_5k')
     peak_annotation_path = download_data_requests(peak_annotation_url, 'peak_annotation.tsv', dir='./data/multi_brain_5k')
     velocyto_path = download_data_requests(velocyto_url, '10X_multiome_mouse_brain.loom', dir='./data/multi_brain_5k/velocyto')
+    annotation_path = download_data_requests(anontation_url, 'cell_annotations.tsv', dir='./data/multi_brain_5k')
 
     analysis_url='https://cf.10xgenomics.com/samples/cell-arc/1.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k_analysis.tar.gz'
     analysis_path = download_data_requests(analysis_url, 'e18_mouse_brain_fresh_5k_analysis.tar.gz', dir='./data/multi_brain_5k')
@@ -370,6 +372,13 @@ def multi_brain_5k(
     mdata=read_10x_multiome_h5(multiome_base_path='./data/multi_brain_5k',
                                                        rna_splicing_loom='velocyto/10X_multiome_mouse_brain.loom',
                                                       cellranger_path_structure=False)
+    cell_annot = pd.read_csv('./data/multi_brain_5k/cell_annotations.tsv', sep='\t', index_col=0)
+    cell_annot.index=[i.split('-')[0] for i in cell_annot.index]
+    ret_index=list(set(cell_annot.index) & set(mdata.obs.index))
+    cell_annot=cell_annot.loc[ret_index]
+    mdata.update()
+    mdata = mdata[ret_index]
+    mdata['rna'].obs['celltype'] = cell_annot['celltype'].tolist()
     return mdata
 
 

@@ -113,4 +113,14 @@ def multi_velocities(
                       )
     return adata_result
 
-    
+
+def get_transition_genes(
+        adata:              AnnData,
+):
+    if 'pearson_transition_matrix' in adata.obsp.keys():
+        del adata.obsp['pearson_transition_matrix']
+    if 'velocity_umap' in adata.obsm.keys():
+        del adata.obsm['velocity_umap']
+    transition_genes=adata.var.loc[adata.var['velo_s_norm_genes']==True].index.tolist()
+    adata.uns['transition_genes']=transition_genes
+    return transition_genes
