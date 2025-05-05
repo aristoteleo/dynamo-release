@@ -21,6 +21,8 @@ dynamo_logo="""
 Tutorial: https://dynamo-release.readthedocs.io/       
                                      █████      
 """    
+# Add this at the module level
+_has_printed_logo = False  # Flag to ensure logo prints only once
 
 def style(
         dpi=80,
@@ -28,13 +30,14 @@ def style(
         transparent: bool = False,
         facecolor='white',
         fontsize=14,
-        figsize = None,
-        color_map  = None,
+        figsize=None,
+        color_map=None,
         dynamo=True,
 ):
     """
     Set the default parameters for matplotlib figures.
     """
+    global _has_printed_logo  # Use the global flag
 
     from matplotlib import rcParams
 
@@ -57,7 +60,11 @@ def style(
     warnings.simplefilter("ignore", category=FutureWarning)
     warnings.simplefilter("ignore", category=DeprecationWarning)
 
-    print(dynamo_logo)
+    # Print the logo only once
+    if not _has_printed_logo:
+        print(dynamo_logo)
+        _has_printed_logo = True
+
 
                   
 
