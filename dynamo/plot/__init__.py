@@ -84,6 +84,7 @@ from ._trends import (
 )
 
 from .violin_box import violin_box
+from ._jacobian import jacobian_on_gene_axis
 
 __all__ = [
     "quiver_autoscaler",
@@ -169,6 +170,7 @@ __all__ = [
     "plot_dim_reduced_direct_graph",
     "violin_box",
     "trends",
+    "jacobian_on_gene_axis",
 ]
 
 
