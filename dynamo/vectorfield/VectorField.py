@@ -407,7 +407,10 @@ def _get_X_V_for_VectorField(
         V = adata[:, valid_genes].layers[velocity_key].copy()
 
         if sp.issparse(X):
-            X, V = X.A, V.A
+            if sp.__version__ < '1.14.0':
+                X, V = X.A, V.A
+            else:
+                X, V = X.toarray(), V.toarray()
 
         # keep only genes with finite velocity and expression values, useful when learning vector field in the original
         # gene expression space.

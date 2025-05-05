@@ -261,8 +261,13 @@ def cell_wise_vectors_3d(
                 "If you want to plot the vector flow of three genes, please make sure those three genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
-        X = adata[:, projection_dim_indexer].layers[ekey].A
-        V = adata[:, projection_dim_indexer].layers[vkey].A
+        import scipy as sp
+        if sp.__version__ < '1.14.0':
+            X = adata[:, projection_dim_indexer].layers[ekey].A
+            V = adata[:, projection_dim_indexer].layers[vkey].A
+        else:
+            X = adata[:, projection_dim_indexer].layers[ekey].toarray()
+            V = adata[:, projection_dim_indexer].layers[vkey].toarray()
         layer = ekey
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
@@ -883,8 +888,13 @@ def cell_wise_vectors(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
-        X = adata[:, projection_dim_indexer].layers[ekey].A
-        V = adata[:, projection_dim_indexer].layers[vkey].A
+        import scipy as sp
+        if sp.__version__ < '1.14.0':
+            X = adata[:, projection_dim_indexer].layers[ekey].A
+            V = adata[:, projection_dim_indexer].layers[vkey].A
+        else:
+            X = adata[:, projection_dim_indexer].layers[ekey].toarray()
+            V = adata[:, projection_dim_indexer].layers[vkey].toarray()
         layer = ekey
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
@@ -1203,8 +1213,13 @@ def grid_vectors(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
-        X = adata[:, [x, y]].layers[ekey].A
-        V = adata[:, [x, y]].layers[vkey].A
+        import scipy as sp
+        if sp.__version__ < '1.14.0':
+            X = adata[:, [x, y]].layers[ekey].A
+            V = adata[:, [x, y]].layers[vkey].A
+        else:
+            X = adata[:, [x, y]].layers[ekey].toarray()
+            V = adata[:, [x, y]].layers[vkey].toarray()
         layer = ekey
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
@@ -1541,8 +1556,14 @@ def streamline_plot(
                 "If you want to plot the vector flow of two genes, please make sure those two genes "
                 "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
-        X = adata[:, [x, y]].layers[ekey].A
-        V = adata[:, [x, y]].layers[vkey].A
+        import scipy as sp
+        if sp.__version__ < '1.14.0':
+            X = adata[:, [x, y]].layers[ekey].A
+            V = adata[:, [x, y]].layers[vkey].A
+        else:
+            X = adata[:, [x, y]].layers[ekey].toarray()
+            V = adata[:, [x, y]].layers[vkey].toarray()
+
         layer = ekey
     else:
         if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
