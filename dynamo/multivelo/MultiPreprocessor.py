@@ -1,7 +1,6 @@
 # Imports from external modules
 from anndata import AnnData
 from .MultiConfiguration import MDKM
-from mudata import MuData
 
 import numpy as np
 import os
@@ -134,11 +133,12 @@ class MultiPreprocessor(Preprocessor):
 
     def preprocess_atac(
             self,
-            mdata:           MuData,
+            mdata                     ,
             recipe:          ATACType = 'muon',
             tkey:            Optional[str] = None,
             experiment_type: Optional[str] = None
-    ) -> None:
+    ):
+        from mudata import MuData
         if recipe == 'archR':
             self.preprocess_atac_archr(mdata,
                                        tkey=tkey,
@@ -160,26 +160,28 @@ class MultiPreprocessor(Preprocessor):
 
     def preprocess_atac_archr(
             self,
-            mdata: MuData,
+            mdata                     ,
             tkey: Optional[str] = None,
             experiment_type: Optional[str] = None
-    ) -> None:
+    ):
+        from mudata import MuData
         pass
 
     def preprocess_atac_cicero(
             self,
-            mdata: MuData,
+            mdata                     ,
             tkey: Optional[str] = None,
             experiment_type: Optional[str] = None
-    ) -> None:
+    ):
+        from mudata import MuData
         pass
 
     def preprocess_atac_muon(
             self,
-            mdata:           MuData,
+            mdata                     ,
             tkey:            Optional[str] = None,
             experiment_type: Optional[str] = None
-    ) -> None:
+    ):
         from muon import atac as ac
         import scanpy as sc
         main_info('Running muon preprocessing pipeline for scATAC-seq data ...')
@@ -249,34 +251,38 @@ class MultiPreprocessor(Preprocessor):
 
     def preprocess_atac_signac(
             self,
-            mdata:           MuData,
+            mdata                     ,
             recipe:          ATACType = 'muon',
             tkey:            Optional[str] = None,
             experiment_type: Optional[str] = None
-    ) -> None:
+    ):
+        from mudata import MuData
         pass
 
     def preprocess_cite(
             self,
-            mdata:  MuData,
+            mdata                     ,
             recipe: CITEType
-    ) -> None:
+    ):
+        from mudata import MuData
         pass
 
     def preprocess_hic(
             self,
-            mdata:  MuData,
+            mdata                     ,
             recipe: HiCType
-    ) -> None:
+    ):
+        from mudata import MuData
         pass
 
     def preprocess_mdata(
             self,
-            mdata:           MuData,
+            mdata                     ,
             recipe_dict:     RecipeDataType = None,
             tkey:            Optional[str] = None,
             experiment_type: Optional[str] = None,
-    ) -> None:
+    ):
+        from mudata import MuData
         """Preprocess the MuData object with the recipe specified.
 
         Args:
@@ -328,10 +334,11 @@ class MultiPreprocessor(Preprocessor):
 
     def standardize_mdata(
             self,
-            mdata:           MuData,
+            mdata                     ,
             tkey:            str,
             experiment_type: str
-    ) -> None:
+):
+        from mudata import MuData
         """Process the scATAC-seq modality within MuData to make it meet the standards of dynamo.
 
         The index of the observations would be ensured to be unique. The layers with sparse matrix would be converted to

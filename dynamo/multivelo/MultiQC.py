@@ -1,7 +1,7 @@
 import anndata as ad
 from anndata import AnnData
 from .MultiConfiguration import MDKM
-from mudata import MuData
+
 
 
 
@@ -35,9 +35,10 @@ from ..dynamo_logger import (
 )
 
 def modality_basic_stats(
-        mdata:    MuData,
+        mdata                     ,
         modality: ModalityType = None
-) -> None:
+):
+    from mudata import MuData
     """Generate basic stats of the adata, including number of genes, number of cells, and number of mitochondria genes.
 
     Args:
@@ -63,12 +64,13 @@ def modality_basic_stats(
 
 
 def modality_filter_cells_by_outliers(
-        mdata:      MuData,
+        mdata,
         modality:   ModalityType = 'atac',
         obs_key:    VarKeyType = 'n_cells_by_counts',
         quantiles:  Optional[Union[List[float], float]] = [0.01, 0.99],
         thresholds: Optional[Union[List[float], float]] = None
-) -> None:
+):
+    from mudata import MuData
     import muon as mu
     modality_adata = mdata.mod.get(modality, None)
     if modality_adata is None:
@@ -103,12 +105,13 @@ def modality_filter_cells_by_outliers(
 
 
 def modality_filter_features_by_outliers(
-        mdata:      MuData,
+        mdata,
         modality:   ModalityType = 'atac',
         quantiles:  Optional[Union[List[float], float]] = [0.01, 0.99],
         thresholds: Optional[Union[List[float], float]] = None,
         var_key:    ObsKeyType = 'n_cells_by_counts'
-) -> None:
+):
+    from mudata import MuData
     import muon as mu
     modality_adata = mdata.mod.get(modality, None)
     if modality_adata is None:
