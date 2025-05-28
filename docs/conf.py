@@ -14,24 +14,24 @@ if TYPE_CHECKING:
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
-# 添加调试信息和模块路径配置
+# Add debug information and module path configuration
 print("Python path:", sys.path)
 try:
     import dynamo
     print("Dynamo module found:", dynamo.__file__)
 except ImportError as e:
     print("Failed to import dynamo:", e)
-    # 尝试查找安装的包
+    # Try to find installed packages
     try:
         import pkg_resources
         dist = pkg_resources.get_distribution('dynamo-release')
         print("dynamo-release package location:", dist.location)
-        # 添加包路径到 sys.path
+        # Add package path to sys.path
         sys.path.insert(0, dist.location)
     except Exception as pkg_error:
         print("dynamo-release package not found:", pkg_error)
     
-    # 尝试添加常见的包安装路径
+    # Try to add common package installation paths
     import site
     for path in site.getsitepackages():
         dynamo_path = os.path.join(path, 'dynamo')
@@ -199,7 +199,7 @@ if not git_ref or re.search(r"[\^~]", git_ref):
     except Exception:
         git_ref = "main"
 
-# 修复模块路径获取，添加错误处理
+# Fix module path acquisition, add error handling
 _dynamo_module_path = None
 try:
     spec = importlib.util.find_spec("dynamo")
@@ -216,7 +216,7 @@ def linkcode_resolve(domain, info):
     if domain != "py":
         return None
     
-    # 如果无法获取模块路径，返回 None
+    # If module path cannot be obtained, return None
     if not _dynamo_module_path:
         return None
         
@@ -232,7 +232,7 @@ def linkcode_resolve(domain, info):
     except Exception:
         return None
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
-    # 修复路径：使用 dynamo 而不是 scvi
+    # Fix path: use dynamo instead of scvi
     return f"{repository_url}/blob/{git_ref}/dynamo/{path}"
 
 # -- Config for hoverxref -------------------------------------------
