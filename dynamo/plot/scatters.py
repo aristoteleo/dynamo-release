@@ -443,7 +443,7 @@ def scatters_legacy(
         cur_l :
             current layer
         """
-        nonlocal adata, x, y, z, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
+        nonlocal x, y, z, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
@@ -940,7 +940,7 @@ def map_to_points(
         Returns:
             The coordinates and the column names.
         """
-        nonlocal gene_title, anno_title
+        # nonlocal gene_title, anno_title # Removed as per F824
 
         if is_gene_name(_adata, cur):
             points_df_data = (
@@ -1182,7 +1182,7 @@ def scatters_interactive_legacy(
             cur_b: current basis
             cur_l: current layer
         """
-        nonlocal background, adata, cmap, cur_subplot, sym_c
+        nonlocal background, cmap, cur_subplot, sym_c
 
         if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
@@ -1499,7 +1499,7 @@ def scatters_interactive(
             cur_b: current basis
             cur_l: current layer
         """
-        nonlocal background, cur_subplot, cur_l_smoothed, cmap, sym_c, labels, values, theme, color_key, color_key_cmap
+        nonlocal background, cur_subplot, cur_l_smoothed
 
         cur_l_smoothed = cur_l_smoothed if cur_l_smoothed is not None else cur_l
         main_debug("coloring scatter of cur_c: %s" % str(cur_c))
@@ -2757,7 +2757,7 @@ def _map_to_points(
         Returns:
             The coordinates and the column names.
         """
-        nonlocal gene_title, anno_title
+        # nonlocal gene_title, anno_title # Removed as per F824
 
         if is_gene_name(_adata, cur):
             points_df_data = (
