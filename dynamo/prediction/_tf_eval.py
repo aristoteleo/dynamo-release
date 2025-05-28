@@ -100,7 +100,9 @@ def process_all_transition_rankings(transition_graph, human_tfs_names, known_tfs
         Dictionary of processed rankings for each transition
     """
     if known_tfs_dict is None:
-        known_tfs_dict = KNOWN_TFS_DICT
+        #known_tfs_dict = KNOWN_TFS_DICT
+        print("No known TFs dictionary provided, skipping transition ranking analysis")
+        return None
     
     processed_rankings = {}
     
@@ -175,9 +177,11 @@ def create_reprogramming_matrix(transition_graph,
         Flattened dataframe for analysis and plotting
     """
     if transition_pmids is None:
-        transition_pmids = TRANSITION_PMIDS
+        #transition_pmids = TRANSITION_PMIDS
+        print("No transition PMIDs provided, skipping transition PMIDs analysis")
     if transition_types is None:
-        transition_types = TRANSITION_TYPES
+        #transition_types = TRANSITION_TYPES
+        print("No transition types provided, skipping transition types analysis")
     
     reprogramming_dict = {}
     
