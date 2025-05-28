@@ -8,30 +8,51 @@ from pathlib import Path
 from importlib.metadata import metadata
 from datetime import datetime
 from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     from typing import Any
 
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
-# -- Project information -----------------------------------------------------
+# 添加调试信息和模块路径配置
+print("Python path:", sys.path)
+try:
+    import dynamo
+    print("Dynamo module found:", dynamo.__file__)
+except ImportError as e:
+    print("Failed to import dynamo:", e)
+    # 尝试查找安装的包
+    try:
+        import pkg_resources
+        dist = pkg_resources.get_distribution('dynamo-release')
+        print("dynamo-release package location:", dist.location)
+        # 添加包路径到 sys.path
+        sys.path.insert(0, dist.location)
+    except Exception as pkg_error:
+        print("dynamo-release package not found:", pkg_error)
+    
+    # 尝试添加常见的包安装路径
+    import site
+    for path in site.getsitepackages():
+        dynamo_path = os.path.join(path, 'dynamo')
+        if os.path.exists(dynamo_path):
+            print(f"Found dynamo at: {dynamo_path}")
+            sys.path.insert(0, path)
+            break
 
+# -- Project information -----------------------------------------------------
 info = metadata("dynamo-release")
 project_name = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 repository_url = f"https://github.com/aristoteleo/{project_name}"
-
 # The full version, including alpha/beta/rc tags
 release = info["Version"]
-
 bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
 nitpicky = True  # Warn about broken links
 needs_sphinx = "4.0"
-
 html_context = {
     "display_github": True,  # Integrate GitHub
     "github_user": "aristoteleo",  # Username
@@ -39,7 +60,6 @@ html_context = {
     "github_version": "main",  # Version
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
-
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
@@ -59,13 +79,9 @@ extensions = [
     "sphinxext.opengraph",
     "hoverxref.extension",
 ]
-
-
 # for sharing urls with nice info
 #ogp_site_url = "https://docs.scvi-tools.org/"
 #ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
-
-
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
@@ -90,25 +106,21 @@ nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
 typehints_defaults = "braces"
-
 source_suffix = {
     ".rst": "restructuredtext",
     ".ipynb": "myst-nb",
     ".myst": "myst-nb",
 }
-
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
-
 # extlinks config
 extlinks = {
     "issue": (f"{repository_url}/issues/%s", "#%s"),
     "pr": (f"{repository_url}/pull/%s", "#%s"),
     "ghuser": ("https://github.com/%s", "@%s"),
 }
-
 intersphinx_mapping = {
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "ipython": ("https://ipython.readthedocs.io/en/stable/", None),
@@ -131,15 +143,11 @@ intersphinx_mapping = {
     "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
     "sparse": ("https://sparse.pydata.org/en/stable/", None),
 }
-
 # -- Options for HTML output -------------------------------------------
-
 # html_show_sourcelink = True
 html_theme = "sphinx_book_theme"
 html_title = project_name
-
 html_logo = "_static/logo.png"
-
 html_theme_options = {
     "repository_url": repository_url,
     "use_repository_button": True,
@@ -149,16 +157,13 @@ html_theme_options = {
     "path_to_docs": "docs/",
     "repository_branch": version,
 }
-
 pygments_style = "default"
-
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["css/override.css"]
 html_show_sphinx = False
-
 
 def setup(app):
     """App setup hook."""
@@ -174,14 +179,10 @@ def setup(app):
         True,
     )
 
-
 # -- Config for linkcode -------------------------------------------
-
-
 def git(*args):
     """Run git command and return output as string."""
     return subprocess.check_output(["git", *args]).strip().decode()
-
 
 # https://github.com/DisnakeDev/disnake/blob/7853da70b13fcd2978c39c0b7efa59b34d298186/docs/conf.py#L192
 # Current git reference. Uses branch/tag name if found, otherwise uses commit hash
@@ -191,7 +192,6 @@ try:
     git_ref = re.sub(r"^(remotes/[^/]+|tags)/", "", git_ref)
 except Exception:
     pass
-
 # (if no name found or relative ref, use commit hash instead)
 if not git_ref or re.search(r"[\^~]", git_ref):
     try:
@@ -199,35 +199,43 @@ if not git_ref or re.search(r"[\^~]", git_ref):
     except Exception:
         git_ref = "main"
 
-# https://github.com/DisnakeDev/disnake/blob/7853da70b13fcd2978c39c0b7efa59b34d298186/docs/conf.py#L192
-_dynamo_module_path = os.path.dirname(importlib.util.find_spec("dynamo").origin)  # type: ignore
-
+# 修复模块路径获取，添加错误处理
+_dynamo_module_path = None
+try:
+    spec = importlib.util.find_spec("dynamo")
+    if spec and spec.origin:
+        _dynamo_module_path = os.path.dirname(spec.origin)
+        print(f"Dynamo module path found: {_dynamo_module_path}")
+    else:
+        print("Dynamo module spec not found or has no origin")
+except Exception as e:
+    print(f"Error finding dynamo module: {e}")
 
 def linkcode_resolve(domain, info):
     """Determine the URL corresponding to Python object."""
     if domain != "py":
         return None
-
+    
+    # 如果无法获取模块路径，返回 None
+    if not _dynamo_module_path:
+        return None
+        
     try:
         obj: Any = sys.modules[info["module"]]
         for part in info["fullname"].split("."):
             obj = getattr(obj, part)
         obj = inspect.unwrap(obj)
-
         if isinstance(obj, property):
             obj = inspect.unwrap(obj.fget)  # type: ignore
-
         path = os.path.relpath(inspect.getsourcefile(obj), start=_dynamo_module_path)  # type: ignore
         src, lineno = inspect.getsourcelines(obj)
     except Exception:
         return None
-
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
-    return f"{repository_url}/blob/{git_ref}/scvi/{path}"
-
+    # 修复路径：使用 dynamo 而不是 scvi
+    return f"{repository_url}/blob/{git_ref}/dynamo/{path}"
 
 # -- Config for hoverxref -------------------------------------------
-
 hoverx_default_type = "tooltip"
 hoverxref_domains = ["py"]
 hoverxref_role_types = dict.fromkeys(
