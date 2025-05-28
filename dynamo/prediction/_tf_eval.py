@@ -287,14 +287,23 @@ def plot_transition_tf_analysis(reprogramming_df, transition_type="transdifferen
         palette=transition_color_dict, clip_on=False
     )
     
-    # Add gene annotations
+    
+    
+    from adjustText import adjust_text
+    texts=[]
     for idx, row in subset_df.iterrows():
-        ax.annotate(
-            row["genes"], 
-            xy=(row["rank"], row["transition"]), 
-            xytext=(0, 3), textcoords="offset points", 
-            ha="center", va="bottom", fontsize=9
-        )
+        if row['rank']<=0.6: 
+            pass
+        else:
+            texts.append(ax.text(row["rank"],
+                                row["transition"],
+                                row["genes"],
+                                fontdict={'size':9,'color':'black'}
+                                ))
+    
+    adjust_text(texts,
+                only_move={"text": "y", "static": "xy", "explode": "xy", "pull": "xy"},
+                arrowprops=dict(arrowstyle='->', color='red'))
     
     # Add threshold line
     plt.axvline(score_threshold, linestyle="--", lw=0.5)
@@ -315,7 +324,7 @@ def plot_transition_tf_analysis(reprogramming_df, transition_type="transdifferen
     
     plt.tick_params(axis='both', which='both', labelsize=10)
     plt.tight_layout()
-    plt.show()
+    return fig, ax
 
 
 def analyze_transition_tfs(transition_graph, human_tfs_names, 
@@ -468,7 +477,8 @@ def plot_roc_curve(y_true, y_scores,
                    diagonal_color="navy",
                    title=None,
                    legend_size=12,
-                   hide_zero_ticks=True):
+                   hide_zero_ticks=True,
+                   return_fig=False):
     """
     Plot ROC curve for binary classification performance
     
@@ -535,9 +545,11 @@ def plot_roc_curve(y_true, y_scores,
     plt.legend(loc="lower right", prop={'size': legend_size})
     
     plt.tight_layout()
-    plt.show()
     
-    return fpr, tpr, roc_auc
+    if return_fig:
+        return ax
+    else:
+        return fpr, tpr, roc_auc
 
 
 def analyze_tf_roc_performance(processed_rankings, 

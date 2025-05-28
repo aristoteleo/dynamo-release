@@ -12,7 +12,8 @@ from .least_action_path import (
     analyze_kinetic_genes,
     batch_plot_kinetic_heatmaps,
     plot_kinetic_heatmap,
-    select_marginal_cells_simple
+    select_marginal_cells_simple,
+    conversions_heatmap
 
 
 )
@@ -85,6 +86,7 @@ __all__ = [
     "calculate_priority_scores_from_consolidated",
     "plot_roc_curve",
     "analyze_tf_roc_performance",
-    "get_tf_statistics"
+    "get_tf_statistics",
+    "conversions_heatmap"
 
 ]

@@ -1329,7 +1329,7 @@ def plot_kinetic_heatmap(
     
     # Set plotting style
     #dyn.configuration.set_pub_style(scaler=scaler)
-    #sns.set(font_scale=font_scale)
+    sns.set(font_scale=font_scale)
     
     # Compute LAP
     print(f"\nComputing least action path...")
@@ -1550,3 +1550,59 @@ def analyze_kinetic_genes(
 
 
 
+def conversions_heatmap(
+    action_df,
+    figsize=(3,3),
+    color_dict=None,
+    cmap='magma'
+):
+    import marsilea as ma
+    import marsilea.plotter as mp
+    action_df = action_df.fillna(0)
+    sc_color=[
+     '#1F577B', '#A56BA7', '#E0A7C8', '#E069A6', '#941456', '#FCBC10', '#EF7B77', '#279AD7','#F0EEF0',
+     '#EAEFC5', '#7CBB5F','#368650','#A499CC','#5E4D9A','#78C2ED','#866017', '#9F987F','#E0DFED',
+     '#01A0A7', '#75C8CC', '#F0D7BC', '#D5B26C', '#D5DA48', '#B6B812', '#9DC3C3', '#A89C92', '#FEE00C', '#FEF2A1']
+
+    if color_dict is None:
+        color_dict=dict(zip(
+            action_df.index,
+            sc_color[:len(action_df.index)]
+        ))
+    m = ma.Heatmap(
+        action_df.values, 
+        cmap=cmap, 
+        height=figsize[1], width=figsize[0],
+        linewidth=0.5,
+        linecolor="lightgray",
+        label='Action',
+    )
+    m.group_rows(pd.DataFrame(action_df.index)[0], 
+    order=action_df.index)
+    
+    
+    # Create plotters
+    chunk = mp.Chunk(action_df.index, rotation=0, 
+                     align="center",padding=12,size=10)
+    colors_left = mp.Colors(action_df.index, palette=color_dict)
+    colors_top = mp.Colors(action_df.index, palette=color_dict)
+    #label_markers = mp.Labels(markers)
+    
+    # Add to the heatmap
+    m.add_left(colors_left, size=0.1, pad=0.1,legend=False)
+    m.add_left(chunk)
+    
+    m.add_bottom(colors_top, size=0.1, pad=0.1,legend=False)
+    
+    text_mask=ma.plotter.TextMesh(action_df.fillna(0).values.round(2),
+                                 color='white',size=8)
+    m.add_layer(text_mask)
+    #cell_count = mp.Numbers(t_df.fillna(0).values, color="#fac858", label="Cell Count")
+    #m.add_left(mp.Labels('Source'))
+    title_left = mp.Title(f'Source', align='center')
+    m.add_left(title_left)
+    title_top = mp.Title(f'Target', align='center')
+    m.add_bottom(title_top)
+    m.add_legends()
+    m.render()
+    return m
