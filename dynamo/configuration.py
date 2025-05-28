@@ -156,10 +156,25 @@ class DynamoAdataKeyManager:
         else:
             raise NotImplementedError("chunk_mode %s not implemented." % (chunk_mode))
 
-    def set_layer_data(adata: AnnData, layer: str, vals: np.array, var_indices: np.array = None) -> None:
-        """This utility provides a unified interface for setting data to layers."""
+    def set_layer_data(adata: AnnData, layer: str, vals: np.array, var_indices: Union[np.array, pd.Series, None] = None) -> None:
+        """This utility provides a unified interface for setting data to layers.
+        
+        Args:
+            adata: AnnData object to modify.
+            layer: The layer to set data for.
+            vals: The values to set.
+            var_indices: Indices for variable selection. Can be a numpy array, pandas Series, or None.
+                        If pandas Series, it will be converted to numpy array automatically.
+        """
         if var_indices is None:
             var_indices = slice(None)
+        else:
+            # Handle pandas Series by converting to numpy array
+            # This is needed because scipy sparse matrices expect indices with nonzero() method
+            # but pandas Series doesn't have nonzero(), it has to_numpy().nonzero()
+            if hasattr(var_indices, 'to_numpy'):
+                var_indices = var_indices.to_numpy()
+            
         if layer == DynamoAdataKeyManager.X_LAYER:
             adata.X[:, var_indices] = vals
         elif layer in adata.layers:
@@ -263,7 +278,7 @@ class DynamoAdataKeyManager:
 
         Args:
             _adata: the Anndata object.
-            layers: the layer(s) to be normailized in the normailzation function.
+            layers: the layer(s) to be normailzed in the normailzation function.
             total_layers: the layer(s) to sum up to get the total mRNA. For example, ["spliced", "unspliced"],
                 ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
             extend_layers: whether to extend the `_total_` layer to the list of layers.

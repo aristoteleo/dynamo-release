@@ -311,7 +311,11 @@ def perturbation(
     perturbation_csc = vector_transformation(delta_Y, PCs)
 
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
-    adata.layers[add_delta_Y_key][:, adata.var.use_for_pca] = perturbation_csc
+    import pandas as pd
+    if pd.__version__ >= "2.0.0":
+        adata.layers[add_delta_Y_key][:, adata.var.use_for_pca.values] = perturbation_csc
+    else:
+        adata.layers[add_delta_Y_key][:, adata.var.use_for_pca] = perturbation_csc
     if zero_perturb_genes_vel:
         adata.layers[add_delta_Y_key][:, gene_loc] = 0
 
