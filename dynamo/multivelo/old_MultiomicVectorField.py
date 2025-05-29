@@ -147,7 +147,7 @@ class MultiomicVectorField:
                  rescale_velo_c:        float = 1.0):
         # This is basically an adapter from multiomic data to format where we can borrow tools previously developed
         # in dynamo.
-        if isinstance(multi_velocity):
+        if isinstance(multi_velocity, MultiVelocity):
             multi_velocity = MultiVelocity.from_mdata(multi_velocity)
 
         # ... mdata
