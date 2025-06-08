@@ -16,24 +16,13 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, issparse
 
 from ..configuration import DKM
-from ..dynamo_logger import (
-    LoggerManager,
-    main_critical,
-    main_debug,
-    main_info,
-    main_info_insert_adata_uns,
-    main_info_insert_adata_var,
-    main_warning,
-)
+from ..dynamo_logger import (LoggerManager, main_critical, main_debug,
+                             main_info, main_info_insert_adata_uns,
+                             main_info_insert_adata_var, main_warning)
 from .pca import pca
-from .utils import (
-    compute_gene_exp_fraction,
-    get_gene_selection_filter,
-    get_nan_or_inf_data_bool_mask,
-    get_svr_filter,
-    merge_adata_attrs,
-    seurat_get_mean_var,
-)
+from .utils import (compute_gene_exp_fraction, get_gene_selection_filter,
+                    get_nan_or_inf_data_bool_mask, get_svr_filter,
+                    merge_adata_attrs, seurat_get_mean_var)
 
 
 def calc_Gini(adata: AnnData, layers: Union[Literal["all"], List[str]] = "all") -> AnnData:
@@ -247,7 +236,11 @@ def calc_dispersion_by_svr(
         adata_ori.uns[key] = {"mean": mean, "cv": cv, "svr_gamma": svr_gamma}
 
         prefix = "" if layer == "X" else layer + "_"
-        (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
+        (
+            adata.var[prefix + "log_m"],
+            adata.var[prefix + "log_cv"],
+            adata.var[prefix + "score"],
+        ) = (
             np.nan,
             np.nan,
             -np.inf,
