@@ -580,30 +580,38 @@ def select_genes_by_seurat_recipe(
         main_info("n_top_genes is None, reserve all genes and add filter gene information")
         n_top_genes = adata.n_vars
 
-    chunk_size = chunk_size if chunk_size is not None else adata.n_vars
-
     if algorithm == "seurat_dispersion":
-        chunked_layer_mats = DKM.select_layer_chunked_data(
-            adata[:, pass_filter_genes],
-            layer,
-            chunk_size=chunk_size,
-            chunk_mode="gene",
-        )
-        mean = np.zeros(len(pass_filter_genes), dtype=initial_dtype)
-        variance = np.zeros(len(pass_filter_genes), dtype=initial_dtype)
-
-        for mat_data in chunked_layer_mats:
-            layer_mat = mat_data[0]
+        if chunk_size is None:
+            layer_mat = DKM.select_layer_data(adata[:, pass_filter_genes], layer)
 
             if nan_replace_val:
                 main_info("replacing nan values with: %s" % (nan_replace_val))
                 _mask = get_nan_or_inf_data_bool_mask(layer_mat)
                 layer_mat[_mask] = nan_replace_val
 
-            chunked_mean, chunked_var = seurat_get_mean_var(layer_mat)
+            mean, variance = seurat_get_mean_var(layer_mat)
+        else:
+            chunked_layer_mats = DKM.select_layer_chunked_data(
+                adata[:, pass_filter_genes],
+                layer,
+                chunk_size=chunk_size,
+                chunk_mode="gene",
+            )
+            mean = np.zeros(len(pass_filter_genes), dtype=initial_dtype)
+            variance = np.zeros(len(pass_filter_genes), dtype=initial_dtype)
 
-            mean[mat_data[1] : mat_data[2]] = chunked_mean
-            variance[mat_data[1] : mat_data[2]] = chunked_var
+            for mat_data in chunked_layer_mats:
+                layer_mat = mat_data[0]
+
+                if nan_replace_val:
+                    main_info("replacing nan values with: %s" % (nan_replace_val))
+                    _mask = get_nan_or_inf_data_bool_mask(layer_mat)
+                    layer_mat[_mask] = nan_replace_val
+
+                chunked_mean, chunked_var = seurat_get_mean_var(layer_mat)
+
+                mean[mat_data[1]:mat_data[2]] = chunked_mean
+                variance[mat_data[1]:mat_data[2]] = chunked_var
 
         mean, variance, highly_variable_mask = select_genes_by_seurat_dispersion(
             mean=mean,

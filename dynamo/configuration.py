@@ -109,6 +109,8 @@ class DynamoAdataKeyManager:
         res_data = None
         if layer == DynamoAdataKeyManager.X_LAYER:
             res_data = adata.X
+        elif layer == DynamoAdataKeyManager.RAW:
+            res_data = adata.raw.X
         elif layer == DynamoAdataKeyManager.PROTEIN_LAYER:
             res_data = adata.obsm["protein"] if "protein" in adata.obsm_keys() else None
         else:
