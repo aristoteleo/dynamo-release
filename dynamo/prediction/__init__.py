@@ -10,7 +10,6 @@ from .least_action_path import (
     compute_cell_type_transitions,
     extract_transition_metrics,
     analyze_kinetic_genes,
-    batch_plot_kinetic_heatmaps,
     plot_kinetic_heatmap,
     select_marginal_cells_simple,
     conversions_heatmap
@@ -73,7 +72,6 @@ __all__ = [
     "compute_cell_type_transitions",
     "extract_transition_metrics",
     "analyze_kinetic_genes",
-    "batch_plot_kinetic_heatmaps",
     "plot_kinetic_heatmap",
     "select_marginal_cells_simple",
     "process_single_transition_ranking",

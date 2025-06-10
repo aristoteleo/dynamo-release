@@ -4649,6 +4649,12 @@ def recover_dynamics_chrom(adata_rna,
         raise Exception("Multivelo only uses non-CPU devices for Adam or"
                         " Neural Network mode. Please use one of those or"
                         "set the device to \"cpu\"")
+    if device[0:5] == "cuda:":
+        import torch
+        if torch.cuda.is_available():
+            device = "cuda"
+        else:
+            device = "cpu"
 
     if adam and not device[0:5] == "cuda:":
         raise Exception("ADAM and Neural Net mode are only possible on a cuda "
