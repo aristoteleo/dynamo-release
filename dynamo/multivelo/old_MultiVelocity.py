@@ -1,7 +1,7 @@
 from anndata import AnnData
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
-from mudata import MuData
+
 import numpy as np
 import os
 from os import PathLike
@@ -267,7 +267,7 @@ def top_n_sparse(conn, n):
 
 class MultiVelocity:
     def __init__(self,
-                 mdata:               MuData,
+                 mdata                     ,
                  cosine_similarities: csr_matrix = None,
                  cre_dict:            Dict = None,
                  include_gene_body:   bool = False,
@@ -729,7 +729,8 @@ class MultiVelocity:
 
     @classmethod
     def from_mdata(cls,
-                   mdata: MuData):
+                   mdata):
+        from mudata import MuData
         # Deep copy MuData object for export
         atac_adata, rna_adata = mdata.mod['atac'].copy(), mdata.mod['rna'].copy()
 
@@ -991,7 +992,8 @@ class MultiVelocity:
     def rna_genes(self):
         return self.mdata.mod['rna'].var_names.tolist()
 
-    def to_mdata(self) -> MuData:
+    def to_mdata(self):
+        from mudata import MuData
         # Deep copy MuData object for export
         atac_adata, rna_adata = self.mdata.mod['atac'].copy(), self.mdata.mod['rna'].copy()
 

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from anndata import AnnData
-from mudata import MuData
+
 from typing import Dict
 
 from ..tl import dynamics,reduceDimension,cell_velocities
@@ -9,7 +9,7 @@ from .MultiPreprocessor import knn_smooth_chrom
 
 
 def multi_velocities(
-        mdata:              MuData,
+        mdata                     ,
         model:              str='stochastic',
         method:             str='pearson',
         other_kernels_dict: Dict={'transform': 'sqrt'},
@@ -20,7 +20,8 @@ def multi_velocities(
         velo_arg:           Dict ={},
         vkey:               str='velo_s',
         **kwargs
-)->AnnData:
+):
+    from mudata import MuData
     """
     Calculate the velocites using the scRNA-seq and scATAC-seq data.
 
@@ -113,4 +114,14 @@ def multi_velocities(
                       )
     return adata_result
 
-    
+
+def get_transition_genes(
+        adata:              AnnData,
+):
+    if 'pearson_transition_matrix' in adata.obsp.keys():
+        del adata.obsp['pearson_transition_matrix']
+    if 'velocity_umap' in adata.obsm.keys():
+        del adata.obsm['velocity_umap']
+    transition_genes=adata.var.loc[adata.var['velo_s_norm_genes']==True].index.tolist()
+    adata.uns['transition_genes']=transition_genes
+    return transition_genes

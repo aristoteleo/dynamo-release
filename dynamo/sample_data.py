@@ -4,6 +4,11 @@ from pathlib import Path
 from typing import Optional
 from urllib.request import urlretrieve
 
+import os
+import requests
+from typing import Optional
+from tqdm import tqdm
+
 import pandas as pd
 from anndata import AnnData, read_h5ad, read_loom
 
@@ -47,6 +52,7 @@ def get_adata(url: str, filename: Optional[str] = None) -> Optional[AnnData]:
             adata = read_h5ad(filename=file_path)
         else:
             main_info("REPORT THIS: Unknown filetype (" + file_path + ")")
+            return None
 
         adata.var_names_make_unique()
     except OSError:
@@ -291,6 +297,92 @@ def hematopoiesis(
     return adata
 
 
+
+def download_data_requests(url: str, file_path: Optional[str] = None, dir: str = "./data") -> str:
+    """Download data with headers to bypass 403 errors."""
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+    file_name = os.path.basename(url) if file_path is None else file_path
+    file_path = os.path.join(dir, file_name)
+
+    if os.path.exists(file_path):
+        main_info(f"File {file_path} already exists.")
+        return file_path
+
+    main_info(f"Downloading data to {file_path}...")
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Referer": "https://cf.10xgenomics.com/",
+    }
+
+    logger = LoggerManager.get_main_logger()
+
+    try:
+        with requests.get(url, headers=headers, stream=True) as r:
+            r.raise_for_status()
+            total_size = int(r.headers.get('Content-Length', 0))
+            chunk_size = 8192
+            with open(file_path, 'wb') as f:
+                for bn, chunk in enumerate(r.iter_content(chunk_size=chunk_size), start=1):
+                    if chunk:
+                        f.write(chunk)
+                        logger.request_report_hook(bn, chunk_size, total_size)
+    except Exception as e:
+        main_info(f"Download failed: {e}")
+        raise
+
+    return file_path
+
+
+def multi_brain_5k(
+        
+):
+    """Processed dataset originally from https://pitt.box.com/v/hematopoiesis-processed."""
+    main_info("Downloading raw Fresh Embryonic E18 Mouse Brain (5k)\nEpi Multiome ATAC + Gene Expression dataset adata")
+
+    h5_url='https://cf.10xgenomics.com/samples/cell-arc/1.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k_filtered_feature_bc_matrix.h5'
+    fragment_url='https://cf.10xgenomics.com/samples/cell-arc/1.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k_atac_fragments.tsv.gz'
+    fragment_tbi_url='https://cf.10xgenomics.com/samples/cell-arc/1.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k_atac_fragments.tsv.gz.tbi'
+    peak_annotation_url='https://cf.10xgenomics.com/samples/cell-arc/1.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k_atac_peak_annotation.tsv'
+    velocyto_url='https://figshare.com/ndownloader/files/54153947'
+    anontation_url='https://figshare.com/ndownloader/files/54154376'
+
+    
+
+    h5_path = download_data_requests(h5_url, 'filtered_feature_bc_matrix.h5', dir='./data/multi_brain_5k')
+    fragment_path = download_data_requests(fragment_url, 'fragments.tsv.gz', dir='./data/multi_brain_5k')
+    fragment_tbi_path = download_data_requests(fragment_tbi_url, 'fragments.tsv.gz.tbi', dir='./data/multi_brain_5k')
+    peak_annotation_path = download_data_requests(peak_annotation_url, 'peak_annotation.tsv', dir='./data/multi_brain_5k')
+    velocyto_path = download_data_requests(velocyto_url, '10X_multiome_mouse_brain.loom', dir='./data/multi_brain_5k/velocyto')
+    annotation_path = download_data_requests(anontation_url, 'cell_annotations.tsv', dir='./data/multi_brain_5k')
+
+    analysis_url='https://cf.10xgenomics.com/samples/cell-arc/1.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k_analysis.tar.gz'
+    analysis_path = download_data_requests(analysis_url, 'e18_mouse_brain_fresh_5k_analysis.tar.gz', dir='./data/multi_brain_5k')
+    # Extract the tar.gz file
+    import tarfile
+    with tarfile.open(analysis_path, "r:gz") as tar:
+        tar.extractall(path='./data/multi_brain_5k/')
+    # Remove the tar.gz file after extraction
+    os.remove(analysis_path)
+
+    from .multi import read_10x_multiome_h5
+    mdata=read_10x_multiome_h5(multiome_base_path='./data/multi_brain_5k',
+                                                       rna_splicing_loom='velocyto/10X_multiome_mouse_brain.loom',
+                                                      cellranger_path_structure=False)
+    cell_annot = pd.read_csv('./data/multi_brain_5k/cell_annotations.tsv', sep='\t', index_col=0)
+    cell_annot.index=[i.split('-')[0] for i in cell_annot.index]
+    ret_index=list(set(cell_annot.index) & set(mdata.obs.index))
+    cell_annot=cell_annot.loc[ret_index]
+    mdata.update()
+    mdata = mdata[ret_index]
+    mdata['rna'].obs['celltype'] = cell_annot['celltype'].tolist()
+    return mdata
+
+
+
 def hematopoiesis_raw(
     url: str = "https://figshare.com/ndownloader/files/47439626",
     # url: str = "https://pitt.box.com/shared/static/bv7q0kgxjncc5uoget5wvmi700xwntje.h5ad", # with box
@@ -310,6 +402,8 @@ def human_tfs(
     file_path = download_data(url, filename)
     tfs = pd.read_csv(file_path, sep="\t")
     return tfs
+
+
 
 
 if __name__ == "__main__":

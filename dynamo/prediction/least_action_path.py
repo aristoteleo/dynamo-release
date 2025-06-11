@@ -2,9 +2,18 @@ from typing import Callable, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+
+
+
+from sklearn.metrics import pairwise_distances
+from scipy.spatial.distance import cdist
+from scipy.sparse import issparse
 
 from ..dynamo_logger import LoggerManager
 from ..tools.utils import fetch_states, nearest_neighbors
@@ -17,6 +26,11 @@ from ..vectorfield.utils import (
 )
 from .trajectory import GeneTrajectory, Trajectory, arclength_sampling_n
 from .utils import find_elbow
+
+
+from ..pl import kinetic_heatmap,multiplot
+from ..vf import rank_genes
+from ..tools.utils import nearest_neighbors
 
 
 class LeastActionPath(Trajectory):
@@ -736,3 +750,1074 @@ def least_action(
     logger.finish_progress(progress_name="least action path")
 
     return trajectory[0] if len(trajectory) == 1 else trajectory
+
+
+
+
+def select_marginal_cells_advanced(
+    adata,
+    cell_type_column='cell_type',
+    embedding_key='X_umap',
+    potential_key='umap_ddhodge_potential',
+    graph_key='connectivities',
+    method='combined',
+    n_candidates=50,
+    return_scores=False
+):
+    """
+    Select marginal cells using multiple criteria to find truly peripheral cells
+    """
+    
+    cell_types = adata.obs[cell_type_column].unique()
+    cells_indices_dict = {}
+    scores_dict = {}
+    
+    # Get embedding coordinates
+    if embedding_key in adata.obsm:
+        coords = adata.obsm[embedding_key]
+        if issparse(coords):
+            coords = coords.toarray()
+    else:
+        raise ValueError(f"Embedding key '{embedding_key}' not found in adata.obsm")
+    
+    print(f"Using method: {method}")
+    print(f"Analyzing {len(cell_types)} cell types...")
+    
+    for ct in cell_types:
+        print(f"\nProcessing {ct}...")
+        
+        # Get cells of current type
+        ct_mask = adata.obs[cell_type_column] == ct
+        ct_indices = np.where(ct_mask)[0]
+        ct_coords = coords[ct_mask]
+        
+        if len(ct_indices) == 0:
+            print(f"Warning: No cells found for type {ct}")
+            continue
+        
+        # Get coordinates of other cell types
+        other_mask = ~ct_mask
+        other_coords = coords[other_mask]
+        
+        scores = {}
+        
+        # Method 1: Distance-based marginality
+        if method in ['distance', 'combined']:
+            if len(other_coords) > 0:
+                distances = cdist(ct_coords, other_coords)
+                min_distances = np.min(distances, axis=1)
+                scores['distance'] = min_distances
+                print(f"  Distance scores range: {min_distances.min():.3f} - {min_distances.max():.3f}")
+            else:
+                scores['distance'] = np.ones(len(ct_indices))
+        
+        # Method 2: Graph degree-based marginality  
+        if method in ['degree', 'combined']:
+            if graph_key in adata.obsp:
+                graph = adata.obsp[graph_key]
+                if issparse(graph):
+                    degrees = np.array(graph.sum(axis=1)).flatten()
+                    ct_degrees = degrees[ct_indices]
+                    scores['degree'] = 1.0 / (ct_degrees + 1e-6)
+                    print(f"  Degree scores range: {ct_degrees.min():.1f} - {ct_degrees.max():.1f}")
+                else:
+                    scores['degree'] = np.ones(len(ct_indices))
+            else:
+                print(f"  Warning: Graph key '{graph_key}' not found")
+                scores['degree'] = np.ones(len(ct_indices))
+        
+        # Method 3: Potential-based marginality
+        if method in ['potential', 'combined']:
+            if potential_key in adata.obs.columns:
+                ct_potentials = adata.obs.loc[ct_mask, potential_key].values
+                
+                if ct == 'HSC':
+                    scores['potential'] = -ct_potentials
+                else:
+                    scores['potential'] = ct_potentials
+                
+                print(f"  Potential range: {ct_potentials.min():.3f} - {ct_potentials.max():.3f}")
+            else:
+                scores['potential'] = np.ones(len(ct_indices))
+        
+        # Combine scores
+        if method == 'combined':
+            normalized_scores = {}
+            for score_name, score_values in scores.items():
+                if len(score_values) > 0 and np.std(score_values) > 0:
+                    normalized_scores[score_name] = (score_values - np.min(score_values)) / (np.max(score_values) - np.min(score_values))
+                else:
+                    normalized_scores[score_name] = np.ones_like(score_values)
+            
+            weights = {'distance': 0.4, 'degree': 0.2, 'potential': 0.4}
+            combined_score = np.zeros(len(ct_indices))
+            
+            for score_name, weight in weights.items():
+                if score_name in normalized_scores:
+                    combined_score += weight * normalized_scores[score_name]
+            
+            final_score = combined_score
+        else:
+            final_score = scores[method]
+        
+        # Select top candidates
+        n_select = min(n_candidates, len(ct_indices))
+        top_indices = np.argsort(final_score)[-n_select:][::-1]
+        selected_global_idx = ct_indices[top_indices]
+        
+        print(f"  Selected top {len(selected_global_idx)} candidates")
+        print(f"  Best score: {final_score[top_indices[0]]:.3f}")
+        
+        # Use nearest_neighbors to get the final selection
+        best_cell_coord = coords[selected_global_idx[0]].reshape(1, -1)
+        cells_indices = nearest_neighbors(best_cell_coord, coords)
+        cells_indices_dict[ct] = cells_indices
+        
+        # Store detailed scores if requested
+        if return_scores:
+            scores_dict[ct] = {
+                'indices': ct_indices,
+                'scores': scores,
+                'final_score': final_score,
+                'selected_idx': selected_global_idx[0],
+                'selected_coord': coords[selected_global_idx[0]]
+            }
+        
+        print(f"  Final selected cell: {adata.obs_names[selected_global_idx[0]]}")
+    
+    if return_scores:
+        return cells_indices_dict, scores_dict
+    else:
+        return cells_indices_dict
+
+
+def visualize_marginal_cell_selection(
+    adata,
+    cells_indices_dict,
+    scores_dict=None,
+    embedding_key='X_umap',
+    cell_type_column='cell_type',
+    figsize=(12, 8),
+    save_path=None
+):
+    """
+    Visualize the selected marginal cells on the embedding
+    """
+    
+    coords = adata.obsm[embedding_key]
+    if issparse(coords):
+        coords = coords.toarray()
+    
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Plot all cells
+    cell_types = adata.obs[cell_type_column].unique()
+    colors = plt.cm.tab10(np.linspace(0, 1, len(cell_types)))
+    
+    for i, ct in enumerate(cell_types):
+        ct_mask = adata.obs[cell_type_column] == ct
+        ct_coords = coords[ct_mask]
+        ax.scatter(ct_coords[:, 0], ct_coords[:, 1], 
+                  c=[colors[i]], alpha=0.6, s=20, label=ct)
+    
+    # Highlight selected marginal cells
+    for ct, cell_indices in cells_indices_dict.items():
+        if len(cell_indices) > 0 and len(cell_indices[0]) > 0:
+            selected_idx = cell_indices[0][0]
+            selected_coord = coords[selected_idx]
+            ax.scatter(selected_coord[0], selected_coord[1], 
+                      c='red', s=200, marker='*', 
+                      edgecolors='black', linewidth=2)
+            
+            # Add text annotation
+            ax.annotate(f'{ct}', 
+                       (selected_coord[0], selected_coord[1]),
+                       xytext=(5, 5), textcoords='offset points',
+                       fontsize=10, fontweight='bold',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+    
+    ax.set_xlabel('UMAP 1')
+    ax.set_ylabel('UMAP 2')
+    ax.set_title('Selected Marginal Cells (Red Stars)')
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    
+    plt.tight_layout()
+    
+    if save_path:
+        try:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        except:
+            print(f"Could not save to {save_path}")
+    
+    plt.show()
+
+
+def select_marginal_cells_simple(
+    adata,
+    source_cell_type='HSC',
+    target_cell_types=['Meg','Ery','Bas','Mon','Neu'],
+    method='combined'
+):
+    """
+    Simplified function to select marginal cells with optimized parameters
+    """
+    
+    all_cell_types = [source_cell_type] + target_cell_types
+    
+    # Filter adata to only include specified cell types
+    cell_mask = adata.obs['cell_type'].isin(all_cell_types)
+    adata_subset = adata[cell_mask].copy()
+    
+    cells_indices_dict, scores_dict = select_marginal_cells_advanced(
+        adata_subset,
+        method=method,
+        return_scores=True
+    )
+    
+    # Visualize results
+    visualize_marginal_cell_selection(
+        adata_subset,
+        cells_indices_dict,
+        scores_dict,
+        save_path='marginal_cells_selection.png'
+    )
+    
+    # Convert indices back to original adata
+    original_indices_dict = {}
+    original_obs_names = adata.obs_names
+    subset_obs_names = adata_subset.obs_names
+    
+    for ct, indices_list in cells_indices_dict.items():
+        if len(indices_list) > 0:
+            # Map subset indices back to original indices
+            subset_indices = indices_list[0]
+            original_indices = []
+            for subset_idx in subset_indices:
+                subset_cell_name = subset_obs_names[subset_idx]
+                original_idx = np.where(original_obs_names == subset_cell_name)[0]
+                if len(original_idx) > 0:
+                    original_indices.append(original_idx[0])
+            
+            original_indices_dict[ct] = [original_indices]
+        else:
+            original_indices_dict[ct] = [[]]
+    
+    return original_indices_dict, scores_dict
+
+
+def compute_cell_type_transitions(
+    adata,
+    cell_types,
+    potential_column='umap_ddhodge_potential',
+    cell_type_column='cell_type',
+    reference_cell_types=None,
+    basis_list=['umap', 'pca'],
+    umap_adj_key='X_umap_distances',
+    pca_adj_key='cosine_transition_matrix',
+    EM_steps=2,
+    top_genes=5,
+    enable_plotting=True,
+    enable_gene_analysis=True,
+    marginal_method='combined',
+    verify_selection=False,
+    manual_cell_indices=None,
+    manual_source_indices=None,
+    manual_target_indices=None
+):
+    """
+    Compute transition paths between cell types and analyze gene dynamics
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        AnnData object containing single-cell data
+    cell_types : list
+        List of cell types to analyze
+    potential_column : str, default='umap_ddhodge_potential'
+        Column name for potential values in adata.obs
+    cell_type_column : str, default='cell_type'
+        Column name for cell type annotations in adata.obs
+    reference_cell_types : list, optional
+        List of reference cell types (defaults to first cell type in cell_types)
+    basis_list : list, default=['umap', 'pca']
+        List of basis to use for transition path calculation
+    umap_adj_key : str, default='X_umap_distances'
+        Key for adjacency matrix in UMAP space
+    pca_adj_key : str, default='cosine_transition_matrix'
+        Key for adjacency matrix in PCA space
+    EM_steps : int, default=2
+        Number of expectation-maximization steps for optimization
+    top_genes : int, default=5
+        Number of top genes to analyze
+    enable_plotting : bool, default=True
+        Whether to generate plots
+    enable_gene_analysis : bool, default=True
+        Whether to perform gene trajectory analysis
+    marginal_method : str, default='combined'
+        Method for selecting marginal cells: 'distance', 'degree', 'potential', 'combined'
+    verify_selection : bool, default=False
+        Whether to show marginal cell selection for verification before proceeding
+    manual_cell_indices : dict, optional
+        Dictionary mapping cell types to specific cell obs indices. 
+        Format: {'HSC': [123], 'Meg': [456], ...}
+        If provided, overrides automatic marginal cell selection.
+    manual_source_indices : dict, optional
+        Dictionary mapping cell types to specific source cell obs indices.
+        Format: {'HSC': [123, 124], 'Meg': [456], ...}
+        Only used if manual_cell_indices is None.
+    manual_target_indices : dict, optional  
+        Dictionary mapping cell types to specific target cell obs indices.
+        Format: {'HSC': [789], 'Meg': [101112], ...}
+        Only used if manual_cell_indices is None and for asymmetric transitions.
+        
+    Returns:
+    --------
+    transition_graph : dict
+        Dictionary containing transition path results for each cell type pair
+    cells_indices_dict : dict
+        Dictionary mapping cell types to selected cell indices
+        
+    Examples:
+    ---------
+    # Example 1: Automatic marginal cell selection
+    >>> transition_graph, cells_dict = compute_cell_type_transitions(
+    ...     adata, 
+    ...     cell_types=['HSC', 'Meg', 'Ery', 'Bas'],
+    ...     marginal_method='combined'
+    ... )
+    
+    # Example 2: Manual cell specification using cell names
+    >>> cell_names = ['AAACCTGAGAAGGCCT-1', 'AAACCTGAGCAGGTCA-1', 'AAACCTGCAAGCCGAT-1']
+    >>> indices = get_cell_indices_by_name(adata, cell_names)
+    >>> manual_indices = {
+    ...     'HSC': [indices[0]], 
+    ...     'Meg': [indices[1]], 
+    ...     'Ery': [indices[2]]
+    ... }
+    >>> transition_graph, cells_dict = compute_cell_type_transitions(
+    ...     adata,
+    ...     cell_types=['HSC', 'Meg', 'Ery'],
+    ...     manual_cell_indices=manual_indices
+    ... )
+    
+    # Example 3: Manual cell specification using criteria-based selection
+    >>> hsc_indices = find_cells_by_criteria(adata, 'HSC', {'umap_ddhodge_potential': 'max'})
+    >>> meg_indices = find_cells_by_criteria(adata, 'Meg', {'GATA1': 'max'}) 
+    >>> manual_indices = {'HSC': hsc_indices, 'Meg': meg_indices}
+    >>> transition_graph, cells_dict = compute_cell_type_transitions(
+    ...     adata,
+    ...     cell_types=['HSC', 'Meg'],
+    ...     manual_cell_indices=manual_indices
+    ... )
+    
+    # Example 4: Asymmetric source/target specification
+    >>> source_indices = {'HSC': [100, 101]}  # Multiple source cells for HSC
+    >>> target_indices = {'Meg': [500], 'Ery': [600]}  # Different target cells
+    >>> transition_graph, cells_dict = compute_cell_type_transitions(
+    ...     adata,
+    ...     cell_types=['HSC', 'Meg', 'Ery'],
+    ...     manual_source_indices=source_indices,
+    ...     manual_target_indices=target_indices
+    ... )
+        
+    # Example 5: Mixed manual and automatic selection
+    >>> # Manually specify some cell types, auto-select others
+    >>> manual_indices = {'HSC': [123]}  # Manual HSC
+    >>> transition_graph, cells_dict = compute_cell_type_transitions(
+    ...     adata,
+    ...     cell_types=['HSC', 'Meg', 'Ery', 'Bas'],  # Auto-select Meg, Ery, Bas
+    ...     manual_cell_indices=manual_indices,
+    ...     marginal_method='combined'
+    ... )
+
+    # Example 6: Avoiding duplicate calculations
+    >>> # If you specify HSC manually, only Meg and Ery will be auto-calculated
+    >>> # HSC will NOT be recalculated automatically
+    >>> manual_indices = {'HSC': [100]}  
+    >>> transition_graph, cells_dict = compute_cell_type_transitions(
+    ...     adata,
+    ...     cell_types=['HSC', 'Meg', 'Ery'],  # Only Meg, Ery auto-calculated
+    ...     manual_cell_indices=manual_indices,
+    ...     marginal_method='combined'
+    ... )
+
+    Helper Functions:
+    """
+    
+    # Set reference cell types
+    if reference_cell_types is None:
+        reference_cell_types = [cell_types[0]]
+    
+    print("=" * 60)
+    print("CELL TYPE TRANSITION ANALYSIS")
+    print("=" * 60)
+    
+    # Step 1: Determine cell selection method and get cell indices
+    if manual_cell_indices is not None:
+        print("Step 1: Using manually specified cell indices...")
+        cells_indices_dict = {}
+        
+        # Validate and convert manual indices to the expected format
+        for ct in cell_types:
+            if ct in manual_cell_indices:
+                # Convert to the nested list format expected by the rest of the code
+                if isinstance(manual_cell_indices[ct], (list, tuple)):
+                    cells_indices_dict[ct] = [list(manual_cell_indices[ct])]
+                else:
+                    cells_indices_dict[ct] = [[manual_cell_indices[ct]]]
+                
+                print(f"  {ct}: manual indices {manual_cell_indices[ct]}")
+            else:
+                print(f"  {ct}: will use automatic selection")
+        
+        # Fill in missing cell types with automatic selection if needed
+        missing_cell_types = [ct for ct in cell_types if ct not in cells_indices_dict]
+        if missing_cell_types:
+            print(f"  Automatically selecting cells for: {missing_cell_types}")
+            
+            # Only call automatic selection for missing cell types
+            if reference_cell_types[0] in missing_cell_types:
+                # If reference cell type is missing, include it in automatic selection
+                source_ct = reference_cell_types[0]
+                target_cts = [ct for ct in missing_cell_types if ct != source_ct]
+            else:
+                # Reference cell type is manually specified, only auto-select targets
+                source_ct = reference_cell_types[0]  # This will be used for graph initialization
+                target_cts = missing_cell_types
+            
+            if target_cts:  # Only run if there are target cell types to auto-select
+                auto_cells_dict, _ = select_marginal_cells_simple(
+                    adata=adata,
+                    source_cell_type=source_ct,
+                    target_cell_types=target_cts,
+                    method=marginal_method
+                )
+                # Only update with missing cell types, not all auto-calculated ones
+                for ct in missing_cell_types:
+                    if ct in auto_cells_dict:
+                        cells_indices_dict[ct] = auto_cells_dict[ct]
+            
+            # Handle case where reference cell type needs auto-selection
+            if reference_cell_types[0] in missing_cell_types and reference_cell_types[0] not in cells_indices_dict:
+                ref_auto_dict, _ = select_marginal_cells_simple(
+                    adata=adata,
+                    source_cell_type=reference_cell_types[0],
+                    target_cell_types=[],  # Empty target list for reference cell
+                    method=marginal_method
+                )
+                if reference_cell_types[0] in ref_auto_dict:
+                    cells_indices_dict[reference_cell_types[0]] = ref_auto_dict[reference_cell_types[0]]
+        
+        scores_dict = None  # No scores for manual selection
+        
+    elif manual_source_indices is not None or manual_target_indices is not None:
+        print("Step 1: Using manually specified source/target cell indices...")
+        cells_indices_dict = {}
+        
+        # Handle source indices
+        if manual_source_indices is not None:
+            for ct, indices in manual_source_indices.items():
+                if isinstance(indices, (list, tuple)):
+                    cells_indices_dict[ct] = [list(indices)]
+                else:
+                    cells_indices_dict[ct] = [[indices]]
+                print(f"  {ct} (source): manual indices {indices}")
+        
+        # Handle target indices (if different from source)
+        if manual_target_indices is not None:
+            for ct, indices in manual_target_indices.items():
+                if ct not in cells_indices_dict:
+                    if isinstance(indices, (list, tuple)):
+                        cells_indices_dict[ct] = [list(indices)]
+                    else:
+                        cells_indices_dict[ct] = [[indices]]
+                    print(f"  {ct} (target): manual indices {indices}")
+        
+        # Fill in missing cell types with automatic selection
+        missing_cell_types = [ct for ct in cell_types if ct not in cells_indices_dict]
+        if missing_cell_types:
+            print(f"  Automatically selecting cells for: {missing_cell_types}")
+            
+            # Determine source and target for automatic selection
+            available_source = reference_cell_types[0] if reference_cell_types[0] in cells_indices_dict else None
+            if available_source is None and missing_cell_types:
+                # If reference cell is also missing, include it
+                available_source = reference_cell_types[0] if reference_cell_types[0] in missing_cell_types else missing_cell_types[0]
+            
+            missing_targets = [ct for ct in missing_cell_types if ct != available_source]
+            
+            if missing_targets or available_source in missing_cell_types:
+                auto_cells_dict, _ = select_marginal_cells_simple(
+                    adata=adata,
+                    source_cell_type=available_source,
+                    target_cell_types=missing_targets,
+                    method=marginal_method
+                )
+                # Only update with missing cell types
+                for ct in missing_cell_types:
+                    if ct in auto_cells_dict:
+                        cells_indices_dict[ct] = auto_cells_dict[ct]
+        
+        scores_dict = None  # No scores for manual selection
+        
+    else:
+        print("Step 1: Selecting marginal cells automatically...")
+        
+        cells_indices_dict, scores_dict = select_marginal_cells_simple(
+            adata=adata,
+            source_cell_type=reference_cell_types[0],
+            target_cell_types=[ct for ct in cell_types if ct not in reference_cell_types],
+            method=marginal_method
+        )
+    
+    print(f"\nSelected representative cells:")
+    for ct, indices in cells_indices_dict.items():
+        if len(indices) > 0 and len(indices[0]) > 0:
+            selected_idx = indices[0][0]
+            selected_name = adata.obs_names[selected_idx]
+            print(f"  {ct}: {selected_name} (index: {selected_idx})")
+    
+    # Verification step (only for automatic selection)
+    if verify_selection and manual_cell_indices is None and manual_source_indices is None and manual_target_indices is None:
+        print("\n" + "=" * 60)
+        print("VERIFICATION: Please check the red stars in the plot above.")
+        print("Do the selected cells look like they are on the periphery of each cell type?")
+        
+        user_input = input("Continue with these selections? (y/n): ").lower().strip()
+        
+        if user_input != 'y':
+            print("Analysis interrupted by user. Please adjust parameters and try again.")
+            return None, cells_indices_dict
+
+    # Step 2: Calculate transition paths
+    print("\n" + "=" * 60)
+    print("Step 2: Calculating transition paths...")
+    print("=" * 60)
+    
+    transition_graph = {}
+    start_cell_indices = [cells_indices_dict[ct] for ct in cell_types]
+    end_cell_indices = start_cell_indices
+    
+    for i, start in enumerate(tqdm(start_cell_indices, desc="Source cell types")):
+        for j, end in enumerate(tqdm(end_cell_indices, desc="Target cell types", leave=False)):
+            if i != j:  # Skip self-to-self transitions
+                start_ct = cell_types[i]
+                end_ct = cell_types[j]
+                transition_name = f"{start_ct}->{end_ct}"
+                
+                print(f"\nComputing {transition_name}")
+                
+                # Determine if source is a reference cell type
+                min_lap_t = start_ct in reference_cell_types
+                
+                # Get cell names
+                start_cell_name = adata.obs_names[start[0][0]]
+                end_cell_name = adata.obs_names[end[0][0]]
+                
+                # Calculate least action path in different basis
+                lap_results = {}
+                
+                for basis in basis_list:
+                    adj_key = umap_adj_key if basis == 'umap' else pca_adj_key
+                    
+                    # Compute least action path
+                    lap = least_action(
+                        adata,
+                        [start_cell_name],
+                        [end_cell_name],
+                        basis=basis,
+                        adj_key=adj_key,
+                        min_lap_t=min_lap_t,
+                        EM_steps=EM_steps,
+                    )
+                    
+                    lap_results[basis] = lap
+                    
+                    # Plotting
+                    if enable_plotting:
+                        from ..pl import least_action as pl_least_action
+                        pl_least_action(adata, basis=basis)
+                
+                # Gene trajectory analysis
+                gene_analysis_results = {}
+                if enable_gene_analysis and 'pca' in lap_results:
+                    print(f"  Performing gene trajectory analysis...")
+                    
+                    # Plot kinetic heatmap
+                    if enable_plotting:
+                        kinetic_heatmap(
+                            adata,
+                            basis="pca",
+                            mode="lap",
+                            genes=adata.var_names[adata.var.use_for_transition],
+                            project_back_to_high_dim=True,
+                        )
+                    
+                    # Gene trajectory analysis
+                    gtraj = GeneTrajectory(adata)
+                    gtraj.from_pca(lap_results['pca'].X, t=lap_results['pca'].t)
+                    gtraj.calc_msd()
+                    
+                    # Gene ranking
+                    ranking = rank_genes(adata, "traj_msd")
+                    genes = ranking[:top_genes]["all"].to_list()
+                    
+                    # Plot gene trajectories
+                    if enable_plotting:
+                        arr = gtraj.select_gene(genes)
+                        multiplot(
+                            lambda k: [plt.plot(arr[k, :]), plt.title(genes[k])], 
+                            np.arange(len(genes))
+                        )
+                    
+                    gene_analysis_results = {
+                        "ranking": ranking,
+                        "gtraj": gtraj,
+                        "top_genes": genes
+                    }
+                
+                # Save results
+                transition_graph[transition_name] = {
+                    "lap_results": lap_results,
+                    **{f"LAP_{basis}": adata.uns[f"LAP_{basis}"] for basis in basis_list if f"LAP_{basis}" in adata.uns},
+                    **gene_analysis_results
+                }
+    
+    print(f"\n" + "=" * 60)
+    print(f"COMPLETED! Calculated {len(transition_graph)} transition paths")
+    print("=" * 60)
+    
+    return transition_graph, cells_indices_dict
+
+
+
+def extract_transition_metrics(
+    transition_graph,
+    cells_indices_dict,
+    cell_types,
+    transcription_factors,
+    top_tf_genes=10,
+    lap_method='action'  # 'action' or 'action_t'
+):
+    """
+    Extract transition metrics with error handling and method fallback
+    
+    Parameters:
+    -----------
+    lap_method : str, default='action'
+        Method to call on lap object: 'action' or 'action_t'
+    """
+    
+    action_df = pd.DataFrame(index=cell_types, columns=cell_types)
+    t_df = pd.DataFrame(index=cell_types, columns=cell_types)
+    tf_genes_results = {}
+    
+    # Create list of cell indices
+    cell_indices_list = [cells_indices_dict[ct] for ct in cell_types]
+    
+    for i, start in enumerate(cell_indices_list):
+        for j, end in enumerate(cell_indices_list):
+            if start is not end:
+                transition_name = cell_types[i] + "->" + cell_types[j]
+                print(transition_name, end=",")
+                
+                try:
+                    # Get data from transition_graph
+                    transition_data = transition_graph[transition_name]
+                    
+                    # Try different keys for lap data
+                    if "lap" in transition_data:
+                        lap = transition_data["lap"]
+                    elif "lap_results" in transition_data and "pca" in transition_data["lap_results"]:
+                        lap = transition_data["lap_results"]["pca"] 
+                    else:
+                        print(f"\nWarning: Could not find lap data for {transition_name}")
+                        continue
+                    
+                    gtraj = transition_data["gtraj"]
+                    ranking = transition_data["ranking"].copy()
+                    
+                    # Filter for transcription factors
+                    ranking["TF"] = [gene in transcription_factors for gene in list(ranking["all"])]
+                    genes = ranking.query("TF == True").head(top_tf_genes)["all"].to_list()
+                    
+                    # Fallback to top genes if no TF genes found
+                    if len(genes) == 0:
+                        genes = ranking.head(top_tf_genes)["all"].to_list()
+                    
+                    tf_genes_results[transition_name] = genes
+                    
+                    # Select gene array
+                    arr = gtraj.select_gene(genes)
+                    
+                    # Extract action value with method selection
+                    if lap_method == 'action_t':
+                        action_value = lap.action_t()[-1]
+                    else:
+                        action_value = lap.action()[-1]
+                    
+                    action_df.loc[cell_types[i], cell_types[j]] = action_value
+                    t_df.loc[cell_types[i], cell_types[j]] = lap.t[-1]
+                    
+                except Exception as e:
+                    print(f"\nError processing {transition_name}: {str(e)}")
+                    continue
+    
+    print("\nExtraction completed!")
+    return action_df, t_df, tf_genes_results
+
+
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib import transforms
+import pandas as pd
+
+def plot_kinetic_heatmap(
+    adata,
+    cells_indices_dict,
+    source_cell_type,
+    target_cell_type,
+    transcription_factors,
+    basis="pca",
+    adj_key="cosine_transition_matrix",
+    figsize=(16, 8),
+    color_map="bwr",
+    font_scale=0.8,
+    scaler=0.6,
+    save_path=None,
+    show_plot=True,
+    return_data=False
+):
+    """
+    Plot kinetic heatmap showing gene expression dynamics along least action path
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        Annotated data object
+    cells_indices_dict : dict
+        Dictionary containing cell indices for each cell type
+    source_cell_type : str
+        Source cell type (e.g., 'HSC')
+    target_cell_type : str
+        Target cell type (e.g., 'Bas')
+    transcription_factors : list
+        List of transcription factor gene names
+    basis : str, default="pca"
+        Basis for least action path computation
+    adj_key : str, default="cosine_transition_matrix"
+        Adjacency matrix key
+    figsize : tuple, default=(16, 8)
+        Figure size for heatmap
+    color_map : str, default="bwr" 
+        Color map for heatmap
+    font_scale : float, default=0.8
+        Font scale for seaborn
+    scaler : float, default=0.6
+        Publication style scaler for dynamo
+    save_path : str, optional
+        Full path to save figure (e.g., 'HSC_to_Bas_kinetics.pdf')
+    show_plot : bool, default=True
+        Whether to display plot
+    return_data : bool, default=False
+        Whether to return LAP object and heatmap data
+        
+    Returns:
+    --------
+    If return_data=True:
+        dict containing LAP object and heatmap data
+    """
+    
+    # Set up cells
+    init_cells = [adata.obs_names[cells_indices_dict[source_cell_type][0][0]]]
+    target_cells = [adata.obs_names[cells_indices_dict[target_cell_type][0][0]]]
+    
+    print(f"Transition: {source_cell_type} → {target_cell_type}")
+    print(f"Initial cells: {init_cells}")
+    print(f"Target cells: {target_cells}")
+    
+    # Filter for transcription factors
+    is_human_tfs = [gene in transcription_factors for gene in adata.var_names[adata.var.use_for_transition]]
+    human_genes = adata.var_names[adata.var.use_for_transition][is_human_tfs]
+    
+    print(f"Using {len(human_genes)} transcription factors for analysis")
+    
+    # Set plotting style
+    #dyn.configuration.set_pub_style(scaler=scaler)
+    sns.set(font_scale=font_scale)
+    
+    # Compute LAP
+    print(f"\nComputing least action path...")
+    lap = least_action(
+        adata,
+        init_cells=init_cells,
+        target_cells=target_cells,
+        basis=basis,
+        adj_key=adj_key,
+    )
+    
+    # Plot heatmap
+    print(f"Generating kinetic heatmap...")
+    plt.figure(figsize=figsize)
+    sns_heatmap = kinetic_heatmap(
+        adata,
+        basis=basis,
+        mode="lap",
+        figsize=figsize,
+        genes=human_genes,
+        project_back_to_high_dim=True,
+        save_show_or_return="return",
+        color_map=color_map,
+        transpose=True,
+        xticklabels=True,
+        yticklabels=False,
+    )
+    
+    # Customize plot
+    plt.setp(sns_heatmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
+    plt.title(f'{source_cell_type} → {target_cell_type}\nTranscription Factor Expression Kinetics', 
+              fontsize=14, pad=20)
+    plt.tight_layout()
+    
+    # Save if requested
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Figure saved to: {save_path}")
+    
+    # Show if requested
+    if show_plot:
+        plt.show()
+        
+    
+    print(f"Completed kinetic heatmap for {source_cell_type} → {target_cell_type}")
+    
+    if return_data:
+        return {
+            'lap': lap,
+            'heatmap': sns_heatmap,
+            'transcription_factors': human_genes
+        }
+    else:
+        return sns_heatmap
+
+
+def analyze_kinetic_genes(
+    adata,
+    cells_indices_dict,
+    source_cell_type,
+    target_cell_type,
+    transcription_factors,
+    top_genes=20,
+    basis="pca",
+    adj_key="cosine_transition_matrix"
+):
+    """
+    Analyze top dynamic genes along the transition path
+    
+    Returns:
+    --------
+    analysis_df : pd.DataFrame
+        DataFrame with gene rankings and TF information
+    """
+    
+    # Get cells
+    init_cells = [adata.obs_names[cells_indices_dict[source_cell_type][0][0]]]
+    target_cells = [adata.obs_names[cells_indices_dict[target_cell_type][0][0]]]
+    
+    print(f"Analyzing gene dynamics for {source_cell_type} → {target_cell_type}")
+    
+    # Compute LAP
+    lap = least_action(
+        adata, init_cells=init_cells, target_cells=target_cells,
+        basis=basis, adj_key=adj_key
+    )
+    
+    # Gene trajectory analysis
+    gtraj = GeneTrajectory(adata)
+    gtraj.from_pca(lap.X, t=lap.t)
+    gtraj.calc_msd()
+    ranking = rank_genes(adata, "traj_msd")
+    
+    # Add TF information
+    ranking["TF"] = [gene in transcription_factors for gene in ranking["all"]]
+    
+    # Get top TF genes
+    tf_genes = ranking.query("TF == True").head(top_genes)
+    
+    print(f"Top {len(tf_genes)} transcription factors:")
+    for i, (idx, row) in enumerate(tf_genes.iterrows(), 1):
+        # Find the score column (usually first numeric column)
+        score_value = None
+        for col in tf_genes.columns:
+            if col != 'all' and col != 'TF':
+                try:
+                    score_value = row[col]
+                    if isinstance(score_value, (int, float)):
+                        print(f"  {i}. {row['all']} (score: {score_value:.3f})")
+                        break
+                except:
+                    continue
+        if score_value is None:
+            print(f"  {i}. {row['all']}")
+    
+    return ranking, tf_genes
+
+
+def conversions_heatmap(
+    action_df,
+    figsize=(3,3),
+    color_dict=None,
+    cmap='magma'
+):
+    import marsilea as ma
+    import marsilea.plotter as mp
+    action_df = action_df.fillna(0)
+    sc_color=[
+     '#1F577B', '#A56BA7', '#E0A7C8', '#E069A6', '#941456', '#FCBC10', '#EF7B77', '#279AD7','#F0EEF0',
+     '#EAEFC5', '#7CBB5F','#368650','#A499CC','#5E4D9A','#78C2ED','#866017', '#9F987F','#E0DFED',
+     '#01A0A7', '#75C8CC', '#F0D7BC', '#D5B26C', '#D5DA48', '#B6B812', '#9DC3C3', '#A89C92', '#FEE00C', '#FEF2A1']
+
+    if color_dict is None:
+        color_dict=dict(zip(
+            action_df.index,
+            sc_color[:len(action_df.index)]
+        ))
+    m = ma.Heatmap(
+        action_df.values, 
+        cmap=cmap, 
+        height=figsize[1], width=figsize[0],
+        linewidth=0.5,
+        linecolor="lightgray",
+        label='Action',
+    )
+    m.group_rows(pd.DataFrame(action_df.index)[0], 
+    order=action_df.index)
+    
+    
+    # Create plotters
+    chunk = mp.Chunk(action_df.index, rotation=0, 
+                     align="center",padding=12,size=10)
+    colors_left = mp.Colors(action_df.index, palette=color_dict)
+    colors_top = mp.Colors(action_df.index, palette=color_dict)
+    #label_markers = mp.Labels(markers)
+    
+    # Add to the heatmap
+    m.add_left(colors_left, size=0.1, pad=0.1,legend=False)
+    m.add_left(chunk)
+    
+    m.add_bottom(colors_top, size=0.1, pad=0.1,legend=False)
+    
+    text_mask=ma.plotter.TextMesh(action_df.fillna(0).values.round(2),
+                                 color='white',size=8)
+    m.add_layer(text_mask)
+    #cell_count = mp.Numbers(t_df.fillna(0).values, color="#fac858", label="Cell Count")
+    #m.add_left(mp.Labels('Source'))
+    title_left = mp.Title(f'Source', align='center')
+    m.add_left(title_left)
+    title_top = mp.Title(f'Target', align='center')
+    m.add_bottom(title_top)
+    m.add_legends()
+    m.render()
+    return m
+
+
+def get_cell_indices_by_name(adata, cell_names):
+    """
+    Helper function to get cell obs indices from cell names
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        AnnData object
+    cell_names : list or str
+        Cell names to find indices for
+        
+    Returns:
+    --------
+    indices : list
+        List of obs indices corresponding to the cell names
+        
+    Examples:
+    ---------
+    >>> indices = get_cell_indices_by_name(adata, ['CELL_001', 'CELL_002'])
+    >>> manual_indices = {'HSC': indices[:1], 'Meg': indices[1:]}
+    """
+    if isinstance(cell_names, str):
+        cell_names = [cell_names]
+    
+    indices = []
+    for name in cell_names:
+        if name in adata.obs_names:
+            idx = adata.obs_names.get_loc(name)
+            indices.append(idx)
+        else:
+            print(f"Warning: Cell name '{name}' not found in adata.obs_names")
+    
+    return indices
+
+
+def find_cells_by_criteria(adata, cell_type, criteria_dict, top_n=1):
+    """
+    Helper function to find cells by specific criteria
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        AnnData object
+    cell_type : str
+        Cell type to filter for
+    criteria_dict : dict
+        Dictionary of criteria to filter cells
+        e.g., {'umap_ddhodge_potential': 'max'} or {'gene_expression': ('GATA1', 'min')}
+    top_n : int, default=1
+        Number of top cells to return
+        
+    Returns:
+    --------
+    indices : list
+        List of obs indices of selected cells
+        
+    Examples:
+    ---------
+    >>> # Find HSC cell with highest potential
+    >>> indices = find_cells_by_criteria(adata, 'HSC', {'umap_ddhodge_potential': 'max'})
+    >>> 
+    >>> # Find Meg cell with lowest GATA1 expression
+    >>> indices = find_cells_by_criteria(adata, 'Meg', {'GATA1': 'min'})
+    """
+    # Filter for cell type
+    cell_mask = adata.obs['cell_type'] == cell_type
+    cell_indices = np.where(cell_mask)[0]
+    
+    if len(cell_indices) == 0:
+        print(f"Warning: No cells found for type {cell_type}")
+        return []
+    
+    # Apply criteria
+    scores = np.ones(len(cell_indices))
+    
+    for criterion, direction in criteria_dict.items():
+        if criterion in adata.obs.columns:
+            values = adata.obs.loc[cell_mask, criterion].values
+        elif criterion in adata.var_names:
+            # Gene expression
+            gene_idx = adata.var_names.get_loc(criterion)
+            if hasattr(adata.X, 'toarray'):
+                values = adata.X[cell_mask, gene_idx].toarray().flatten()
+            else:
+                values = adata.X[cell_mask, gene_idx]
+        else:
+            print(f"Warning: Criterion '{criterion}' not found")
+            continue
+        
+        if direction == 'max':
+            scores *= values
+        elif direction == 'min':
+            scores *= (1.0 / (values + 1e-6))
+    
+    # Get top cells
+    top_indices = np.argsort(scores)[-top_n:][::-1]
+    selected_indices = cell_indices[top_indices]
+    
+    return selected_indices.tolist()

@@ -7,6 +7,14 @@ from .least_action_path import (
     LeastActionPath,
     get_init_path,
     least_action,
+    compute_cell_type_transitions,
+    extract_transition_metrics,
+    analyze_kinetic_genes,
+    plot_kinetic_heatmap,
+    select_marginal_cells_simple,
+    conversions_heatmap
+
+
 )
 from .perturbation import (
     KO,
@@ -23,6 +31,20 @@ from .trajectory_analysis import (
     mean_first_passage_time,
 )
 from .tscRNA_seq import get_pulse_r0
+from ._tf_eval import (
+    process_single_transition_ranking, 
+    assign_tf_ranks, 
+    process_all_transition_rankings, 
+    create_reprogramming_matrix, 
+    plot_transition_tf_analysis, 
+    analyze_transition_tfs,
+    consolidate_processed_rankings,
+    calculate_priority_scores_from_consolidated,
+    plot_roc_curve,
+    analyze_tf_roc_performance,
+    get_tf_statistics
+
+)
 
 # https://stackoverflow.com/questions/31079047/python-pep8-class-in-init-imported-but-not-used
 __all__ = [
@@ -47,4 +69,22 @@ __all__ = [
     "calc_mean_first_passage_time",
     "classify_clone_cell_type",
     "mean_first_passage_time",
+    "compute_cell_type_transitions",
+    "extract_transition_metrics",
+    "analyze_kinetic_genes",
+    "plot_kinetic_heatmap",
+    "select_marginal_cells_simple",
+    "process_single_transition_ranking",
+    "assign_tf_ranks",
+    "process_all_transition_rankings",
+    "create_reprogramming_matrix",
+    "plot_transition_tf_analysis",
+    "analyze_transition_tfs",
+    "consolidate_processed_rankings",
+    "calculate_priority_scores_from_consolidated",
+    "plot_roc_curve",
+    "analyze_tf_roc_performance",
+    "get_tf_statistics",
+    "conversions_heatmap"
+
 ]

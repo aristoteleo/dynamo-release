@@ -115,7 +115,15 @@ def order_cells(
     if len(cells_mapped_to_graph_root) == 0:
         cells_mapped_to_graph_root = [root_cell]
 
-    pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=pr_graph_cell_proj_tree)
+    mst_matrix = mst
+    if hasattr(mst_matrix, 'toarray'):
+        # Convert sparse matrix to dense and make symmetric
+        mst_dense = mst_matrix.toarray()
+        mst_dense = np.maximum(mst_dense, mst_dense.T)
+    else:
+        # For dense matrices, make symmetric
+        mst_dense = np.maximum(mst_matrix, mst_matrix.T)
+    pr_graph_cell_proj_tree_graph = ig.Graph.Weighted_Adjacency(matrix=mst_dense)
     tip_leaves = [v.index for v in pr_graph_cell_proj_tree_graph.vs.select(_degree=1)]
     root_cell_candidates = np.intersect1d(cells_mapped_to_graph_root, tip_leaves)
 
@@ -157,7 +165,15 @@ def get_order_from_DDRTree(dp: np.ndarray, mst: np.ndarray, root_cell: int) -> p
     """
     import igraph as ig
 
-    dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst)
+    mst_matrix = mst
+    if hasattr(mst_matrix, 'toarray'):
+        # Convert sparse matrix to dense and make symmetric
+        mst_dense = mst_matrix.toarray()
+        mst_dense = np.maximum(mst_dense, mst_dense.T)
+    else:
+        # For dense matrices, make symmetric
+        mst_dense = np.maximum(mst_matrix, mst_matrix.T)
+    dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst_dense)
     curr_state = 0
     pseudotimes = [0 for _ in range(dp.shape[1])]
     ordering_dict = {"cell_index": [], "cell_pseudo_state": [], "pseudo_time": [], "parent": []}
@@ -285,7 +301,15 @@ def project2MST(mst: np.ndarray, Z: np.ndarray, Y: np.ndarray, Projection_Method
 
     closest_vertex = find_cell_proj_closest_vertex(Z=Z, Y=Y)
 
-    dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst)
+    mst_matrix = mst
+    if hasattr(mst_matrix, 'toarray'):
+        # Convert sparse matrix to dense and make symmetric
+        mst_dense = mst_matrix.toarray()
+        mst_dense = np.maximum(mst_dense, mst_dense.T)
+    else:
+        # For dense matrices, make symmetric
+        mst_dense = np.maximum(mst_matrix, mst_matrix.T)
+    dp_mst = ig.Graph.Weighted_Adjacency(matrix=mst_dense)
     tip_leaves = [v.index for v in dp_mst.vs.select(_degree_eq=1)]
 
     if not callable(Projection_Method):
@@ -397,7 +421,15 @@ def select_root_cell(
         if "minSpanningTree" not in adata.uns["cell_order"].keys():
             raise ValueError("No spanning tree found for adata object.")
 
-        graph = ig.Graph.Weighted_Adjacency(adata.uns["cell_order"]["minSpanningTree"], mode="undirected")
+        mst_matrix = adata.uns["cell_order"]["minSpanningTree"]
+        if hasattr(mst_matrix, 'toarray'):
+            # Convert sparse matrix to dense and make symmetric
+            mst_dense = mst_matrix.toarray()
+            mst_dense = np.maximum(mst_dense, mst_dense.T)
+        else:
+            # For dense matrices, make symmetric
+            mst_dense = np.maximum(mst_matrix, mst_matrix.T)
+        graph = ig.Graph.Weighted_Adjacency(mst_dense, mode="undirected")
         diameter = graph.get_diameter(directed=False)
         if reverse:
             root_cell = diameter[-1]

@@ -1,7 +1,7 @@
 import anndata as ad
 from anndata import AnnData
 import matplotlib.pyplot as plt
-from mudata import MuData
+
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
@@ -141,13 +141,13 @@ def genes_and_elements_for_dynamics(atac_adata:    AnnData,
 
 class MultiomicVectorField:
     def __init__(self,
-                 multi_velocity:        Union[MultiVelocity, MuData],
+                 multi_velocity:        Union[MultiVelocity],
                  min_gamma:             float = None,
                  min_r2:                float = 0.01,
                  rescale_velo_c:        float = 1.0):
         # This is basically an adapter from multiomic data to format where we can borrow tools previously developed
         # in dynamo.
-        if isinstance(multi_velocity, MuData):
+        if isinstance(multi_velocity, MultiVelocity):
             multi_velocity = MultiVelocity.from_mdata(multi_velocity)
 
         # ... mdata

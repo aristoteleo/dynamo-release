@@ -4,7 +4,6 @@ from anndata import (
 )
 from .MultiConfiguration import MDKM
 
-from mudata import MuData
 
 
 import numpy as np
@@ -32,11 +31,12 @@ from .MultiPreprocessor import aggregate_peaks_10x
 
 
 def add_splicing_data(
-        mdata:                     MuData,
+        mdata                     ,
         multiome_base_path:        Union[PathLike, str],
         rna_splicing_loom:         Union[PathLike, str] = 'multiome.loom',
         cellranger_path_structure: bool = True
-) -> MuData:
+):
+    from mudata import MuData
     # Extract accessibility and transcriptomic counts
     atac_adata, rna_adata = mdata.mod['atac'], mdata.mod['rna']
 
@@ -128,11 +128,12 @@ def clean_obs_names(
 
 
 def homogenize_mudata_obs_names(
-        mdata:                    MuData,
+        mdata                     ,
         alphabet:                 Literal['[AGTCBDHKMNRSVWY]'] = '[AGTCBDHKMNRSVWY]',
         batch_key:                str = MDKM.INFERRED_BATCH_KEY,
         id_length:                int = 16
-) -> MuData:
+):
+    from mudata import MuData
     cleaned_modality_dict = {}
     for modality, modality_adata in mdata.mod.items():
         cleaned_modality_adata = clean_obs_names(adata=modality_adata,
@@ -157,7 +158,8 @@ def read_10x_atac_rna_h5_old(
         batch_key:                 str = MDKM.INFERRED_BATCH_KEY,
         cellranger_path_structure: bool = True,
         id_length:                 int = 16
-) -> MuData:
+):
+    from mudata import MuData
     from muon import atac as ac
     import muon as mu
     import scvi
@@ -237,7 +239,8 @@ def read_10x_multiome_h5_old(
         batch_key:                 str = MDKM.INFERRED_BATCH_KEY,
         cellranger_path_structure: bool = True,
         id_length: int = 16
-) -> MuData:
+):
+    from mudata import MuData
     import muon as mu
     from muon import atac as ac
 

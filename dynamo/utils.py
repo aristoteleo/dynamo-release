@@ -7,6 +7,9 @@ import anndata
 import numpy as np
 import scipy.sparse as sp
 
+import matplotlib as mpl
+from matplotlib import rcParams
+
 from .dynamo_logger import LoggerManager
 
 
@@ -133,3 +136,25 @@ def expr_to_pca(
     else:
         raise Exception("PCs dim 1 (%d) does not match X dim 1 (%d)." % (PCs.shape[0], expr.shape[1]))
     return X
+
+
+def save_pickle(file,path):
+    try:
+        import pickle
+        with open(path, 'wb') as f:
+            pickle.dump(file, f)
+    except:
+        import cloudpickle
+        with open(path, 'wb') as f:
+            cloudpickle.dump(file, f)
+
+def load_pickle(path):
+    try:
+        import pickle
+        with open(path, 'rb') as f:
+            return pickle.load(f)
+    except:
+        import cloudpickle
+        with open(path, 'rb') as f:
+            return cloudpickle.load(f)
+    

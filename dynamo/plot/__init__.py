@@ -79,7 +79,12 @@ from .vector_calculus import (
     speed,
 )
 
+from ._trends import (
+    trends
+)
+
 from .violin_box import violin_box
+from ._jacobian import jacobian_on_gene_axis
 
 __all__ = [
     "quiver_autoscaler",
@@ -163,5 +168,9 @@ __all__ = [
     "sctransform_plot_fit",
     "plot_residual_var",
     "plot_dim_reduced_direct_graph",
-    "violin_box"
+    "violin_box",
+    "trends",
+    "jacobian_on_gene_axis",
 ]
+
+

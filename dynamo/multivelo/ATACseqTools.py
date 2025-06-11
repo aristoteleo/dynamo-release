@@ -3,7 +3,7 @@ from anndata import AnnData
 
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
-from mudata import MuData
+
 import numpy as np
 from os import PathLike
 import pandas as pd
@@ -42,12 +42,13 @@ def extend_gene_coordinates(
     return BedTool(extended_genes)
 
 
-def annotate_integrated_mdata(mdata: MuData,
+def annotate_integrated_mdata(mdata,
                               celltypist_model: str = 'Immune_All_Low.pkl'
-                              ) -> MuData:
+                              ) :
     import celltypist
     from celltypist import models
     import scanpy as sc
+    from mudata import MuData
     # Extract the RNA data
     rna_adata = mdata.mod['rna'].copy()
 
@@ -206,14 +207,15 @@ def gene_activity(
     return atac_adata
 
 
-def integrate(mdata:                   MuData,
+def integrate(mdata                   ,
               integration_method:      Literal['moscot', 'multivi'] = 'multivi',
               alpha:                   float = 0.5,
               entropic_regularization: float = 0.01,
               gtf_path:                Union[PathLike, str] = None,
               max_epochs:              int = 500,
               lr:                      float = 0.0001,
-              ) -> MuData:
+              ):
+    from mudata import MuData
     # Split into scATAC-seq and scRNA-seq AnnData objects
     atac_adata, rna_adata = mdata.mod['atac'].copy(), mdata.mod['rna'].copy()
     atac_adata.obs['modality'], rna_adata.obs['modality'] = 'atac', 'rna'
@@ -240,19 +242,20 @@ def integrate(mdata:                   MuData,
         raise ValueError(f'Unknown integration method {integration_method} requested.')
 
 
-def integrate_via_moscot(mdata:                   MuData,
+def integrate_via_moscot(mdata                   ,
                          alpha:                   float = 0.7,
                          entropic_regularization: float = 0.01,
                          gtf_path:                Union[PathLike, str] = None,
-                         ) -> MuData:
+                         ):
+    from mudata import MuData
     pass
 
 
-def integrate_via_multivi(mdata:      MuData,
+def integrate_via_multivi(mdata      ,
                           gtf_path:   Union[PathLike, str] = None,
                           lr:         float = 0.0001,
                           max_epochs: int = 500,
-                          ) -> MuData:
+                          ):
     import scvi
     main_info('Integration via MULTIVI ...')
     integration_logger = LoggerManager.gen_logger('integration_via_multivi')
@@ -369,6 +372,7 @@ def integrate_via_multivi(mdata:      MuData,
                                  )
 
     # Knit together into one harmonized MuData object
+    from mudata import MuData
     harmonized_mdata = MuData({'atac': imputed_atac_adata, 'rna': imputed_rna_adata})
 
     integration_logger.finish_progress(progress_name='integration_via_multivi', indent_level=3)

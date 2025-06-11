@@ -18,7 +18,7 @@ if __name__ == "__main__":
     setup(
         name="dynamo-release",
         version="v1.4.2-rc1",
-        python_requires=">=3.7",
+        python_requires=">=3.9",
         install_requires=read_requirements("requirements.txt"),
         extras_require={
             "docs": read_requirements(os.path.join("docs", "requirements.txt")),
