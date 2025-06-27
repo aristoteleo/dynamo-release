@@ -208,12 +208,15 @@ def calculate_colors(
     elif values is not None:
         main_debug("drawing points by values")
         color_type = "values"
-        cmap_ = copy.copy(mpl.colormaps[cmap])
+        
+        # Handle cmap parameter - support both string names and colormap objects
+        cmap_ = copy.copy(mpl.colormaps[cmap]) if isinstance(cmap, str) else cmap
+        
         cmap_.set_bad("lightgray")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            if cmap_.name not in plt.colormaps():
+            if hasattr(cmap_, 'name') and cmap_.name not in plt.colormaps():
                 mpl.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
 
         if values.shape[0] != points.shape[0]:
@@ -284,7 +287,12 @@ def calculate_colors(
     else:
         main_debug("drawing points without color passed in args, using midpoint of the cmap")
         color_type = "midpoint"
-        colors = plt.get_cmap(cmap)(0.5)
+        # Handle cmap parameter - support both string names and colormap objects
+        if isinstance(cmap, str):
+            colors = plt.get_cmap(cmap)(0.5)
+        else:
+            colors = cmap(0.5)
+        _scatter_projection(ax, points, projection, c=colors, **kwargs)
 
     return (colors, color_type, None) if color_type != "labels" else (colors.values, color_type, legend_elements)
 
@@ -631,12 +639,12 @@ def _matplotlib_points(
     # Color by values
     elif values is not None:
         main_debug("drawing points by values")
-        cmap_ = copy.copy(mpl.colormaps[cmap])
+        cmap_ = copy.copy(mpl.colormaps[cmap]) if isinstance(cmap, str) else cmap
         cmap_.set_bad("lightgray")
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            if cmap_.name not in plt.colormaps():
+            if hasattr(cmap_, "name") and cmap_.name not in plt.colormaps():
                 mpl.colormaps.register(name=cmap_.name, cmap=cmap_, force=False)
 
         if values.shape[0] != points.shape[0]:
@@ -816,12 +824,17 @@ def _matplotlib_points(
             cb.locator = MaxNLocator(nbins=3, integer=True)
             cb.update_ticks()
 
-        cmap = mpl.colormaps[cmap]
-        colors = cmap(values)
+        # Use the cmap_ object we already processed earlier
+        colors = cmap_(values)
     # No color (just pick the midpoint of the cmap)
     else:
         main_debug("drawing points without color passed in args, using midpoint of the cmap")
-        colors = plt.get_cmap(cmap)(0.5)
+        color_type = "midpoint"
+        # Handle cmap parameter - support both string names and colormap objects
+        if isinstance(cmap, str):
+            colors = plt.get_cmap(cmap)(0.5)
+        else:
+            colors = cmap(0.5)
         _scatter_projection(ax, points, projection, c=colors, **kwargs)
 
     if show_legend and legend_elements is not None:
