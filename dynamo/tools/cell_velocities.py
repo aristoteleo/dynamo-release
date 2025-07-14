@@ -1090,57 +1090,80 @@ def calculate_velocity_alpha_minus_gamma_s(adata, gene_subset_key='use_for_pca',
     else:
         raise ValueError(f"Gene subset key '{gene_subset_key}' not found in adata.var")
     
-    # Get basic data
+    # Convert to numpy array to avoid indexing issues with sparse matrices
+    pca_genes_array = pca_genes.values
+    pca_gene_indices = np.where(pca_genes_array)[0]
+    
+    # Get basic data - avoid unnecessary copies
     new_expr = adata[:, pca_genes].layers["M_n"]
-    t = adata.obs.time.astype(float)
-    M_s = adata.layers["M_s"][:, pca_genes]
+    t = adata.obs.time.astype(float).values  # Convert to numpy array
+    M_s = adata.layers["M_s"][:, pca_genes_array]
     
     # Get unique time points
     unique_times = np.unique(t)
     print(f"Found {len(unique_times)} unique time points: {unique_times}")
     
-    # Initialize velocity matrix
-    if "velocity_N" in adata.layers:
-        velocity_n = adata.layers["velocity_N"].copy()
-    else:
-        velocity_n = np.zeros_like(adata.X)
-    
-    valid_velocity_n = velocity_n[:, pca_genes].copy()
+    # Create a more memory-efficient approach - only store velocity for PCA genes initially
+    n_cells, n_genes_pca = adata.n_obs, len(pca_gene_indices)
+    velocity_pca_data = np.zeros((n_cells, n_genes_pca), dtype=np.float32)
     
     # Calculate velocity for each time point
     for time_point in unique_times:
         print(f"Processing time point: {time_point}")
         
         # Get cells for this time point
-        time_cells = adata.obs.time == time_point
-        n_cells = np.sum(time_cells)
-        print(f"  Number of cells: {n_cells}")
+        time_mask = (t == time_point)
+        time_indices = np.where(time_mask)[0]
+        n_cells_time = len(time_indices)
+        print(f"  Number of cells: {n_cells_time}")
+        
+        if n_cells_time == 0:
+            continue
         
         # Get gamma parameters for this time point
         gamma_key = f"time_{int(time_point)}_"
         try:
             from .utils import get_vel_params
             gamma = get_vel_params(adata, params="gamma", genes=pca_genes, 
-                                        kin_param_pre=gamma_key).astype(float)
+                                        kin_param_pre=gamma_key).astype(np.float32)
         except Exception as e:
             print(f"  Warning: Could not get gamma parameters for time {time_point}: {e}")
             continue
             
         # Calculate velocity for this time point
         velocity_time = alpha_minus_gamma_s(
-            new_expr[time_cells, :], 
+            new_expr[time_mask, :], 
             gamma, 
-            t[time_cells], 
-            M_s[time_cells, :]
+            t[time_mask], 
+            M_s[time_mask, :]
         )
         
-        # Store results
-        valid_velocity_n[time_cells, :] = velocity_time.T
+        # Store results in the compact matrix
+        velocity_pca_data[time_indices, :] = velocity_time.T.astype(np.float32)
         print(f"  Velocity calculation completed for time point {time_point}")
     
-    # Update the velocity matrix
-    velocity_n[:, pca_genes] = valid_velocity_n.copy()
-    adata.layers[velocity_layer_name] = velocity_n.copy()
+    # Now efficiently create the final velocity layer
+    print("Creating final velocity matrix...")
+    
+    if velocity_layer_name not in adata.layers:
+        # Initialize with appropriate structure
+        if sp.issparse(adata.X):
+            adata.layers[velocity_layer_name] = sp.csr_matrix(adata.X.shape, dtype=np.float32)
+        else:
+            adata.layers[velocity_layer_name] = np.zeros(adata.X.shape, dtype=np.float32)
+    
+    # Update only the PCA gene columns efficiently
+    if sp.issparse(adata.layers[velocity_layer_name]):
+        # For sparse matrices, use the most memory-efficient approach
+        velocity_matrix = adata.layers[velocity_layer_name].tolil()  # LIL format for efficient column assignment
+        for j, gene_idx in enumerate(pca_gene_indices):
+            velocity_matrix[:, gene_idx] = velocity_pca_data[:, j]
+        adata.layers[velocity_layer_name] = velocity_matrix.tocsr()
+    else:
+        # For dense matrices, direct column assignment
+        adata.layers[velocity_layer_name][:, pca_gene_indices] = velocity_pca_data
+    
+    # Clean up temporary data
+    del velocity_pca_data
     
     print(f"Total RNA velocity stored in adata.layers['{velocity_layer_name}']")
-# Usage
