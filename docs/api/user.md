@@ -24,6 +24,59 @@ import dynamo as dyn
 
 ```
 
+## Preprocessing (pp)
+
+_Preprocessor class and recipe functions_
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   pp.recipe_monocle
+   pp.recipe_velocyto
+   pp.Preprocessor
+   pp.filter_cells_by_outliers
+   pp.filter_cells_by_highly_variable_genes
+   
+
+```
+
+_Basic preprocessing functions_
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   pp.filter_cells
+   pp.filter_cells_by_outliers
+   pp.filter_cells_by_highly_variable_genes
+   pp.filter_cells_by_outliers
+   pp.filter_genes_by_clusters
+   pp.filter_genes_by_outliers
+   pp.filter_genes_by_pattern
+   pp.filter_genes
+   pp.normalize_cell_expr_by_size_factors
+   pp.scale
+   pp.log1p
+   pp.pca
+
+```
+
+_Gene selection_
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   pp.highest_frac_genes
+   pp.select_genes_monocle
+   pp.select_genes_by_pearson_residuals
+
+```
+
 ## Tools (tl)
 
 _kNN and moments of expressions_

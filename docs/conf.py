@@ -100,6 +100,8 @@ myst_enable_extensions = [
     "dollarmath",
     "html_image",
     "html_admonition",
+    "substitution",
+    "linkify",
 ]
 myst_url_schemes = ("http", "https", "mailto")
 nb_output_stderr = "remove"
