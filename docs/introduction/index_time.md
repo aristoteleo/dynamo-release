@@ -15,7 +15,7 @@ Although the seminal RNA velocity work is exciting, it has the following limitat
 1. It can only predict short-term direction and magnitude of RNA dynamics.
 2. It is mostly a descriptive instead of a predictive tool.
 3. It relies on the `mis-priming` of intron reads for current single-cell platforms and thus the intron measures are biased and inaccurate.
-4. RNA velocity was estimated as \(U - \gamma / \beta S\) (\(U\): unspliced RNA, \(S\): spliced RNA, \(\gamma\): degradation rate, \(\beta\): splicing rate, \(\gamma / \beta\) is the slope of the steady state cell fitting.), it is thus scaled by the splicing rate and lacks real physical meanings (i.e. molecules / hour).
+4. RNA velocity was estimated as $U - \gamma / \beta S$ ($U$: unspliced RNA, $S$: spliced RNA, $\gamma$: degradation rate, $\beta$: splicing rate, $\gamma / \beta$ is the slope of the steady state cell fitting.), it is thus scaled by the splicing rate and lacks real physical meanings (i.e. molecules / hour).
 
 We reason that metabolic labeling based method which measures both the historical or old, and the new and nascent RNA of cells in a controllable way will be better measurements for RNA velocity and transcriptomic dynamics. When extending metabolic labeling to single cell RNA-seq, labeling based scRNA-seq essentially measures two modalities or timepoints for the same cell.
 
@@ -56,7 +56,7 @@ We can be very creative and smart in designing the metabolic labeling experiment
 
 ![Labeling strategies](https://user-images.githubusercontent.com/7456281/93838322-392fa700-fc57-11ea-9019-e76358160f57.png)
 
-## Dynamo’s comprehensive model framework for analyzing labeling datasets
+## Dynamo's comprehensive model framework for analyzing labeling datasets
 
 In order to fully take advantage of the scSLAM-seq data, we recently developed a sophisticated framework, dynamo that provides an inclusive model of expression dynamics with scSLAM-seq and multiomics, vector field reconstruction and potential landscape mapping. In dynamo, we abstract every step from RNA transcription, splicing, metabolic labeling, translation and RNA or protein degradation. We can model the mean and variance of RNA species via a set of moment equations, we then transform them into a matrix format and solve them efficiently. In dynamo, we also implemented the traditional RNA velocity method based on the steady state assumptions to support analyzing regular 10x data. Similarly, dynamo supports studying cite-seq data to estimate protein velocity.
 
