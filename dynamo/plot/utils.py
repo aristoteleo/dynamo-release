@@ -18,7 +18,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from scipy.spatial import Delaunay
 
-from ..configuration import _themes, reset_rcParams
+from ..configuration import _themes
 from ..dynamo_logger import main_debug
 from ..tools.utils import integrate_vf, update_dict  # integrate_vf_ivp
 
@@ -87,8 +87,8 @@ def calculate_colors(
     color_key=None,
     color_key_cmap="Spectral",
     background="white",
-    width=7,
-    height=5,
+    width=4,
+    height=4,
     vmin=2,
     vmax=98,
     sort="raw",
@@ -99,7 +99,7 @@ def calculate_colors(
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
 
-    dpi = plt.rcParams["figure.dpi"]
+    dpi = 80  # Use default DPI instead of plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
     rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
     # """Use matplotlib to plot points"""
@@ -108,7 +108,7 @@ def calculate_colors(
     legend_elements = None
 
     if ax is None:
-        dpi = plt.rcParams["figure.dpi"]
+        dpi = 80  # Use default DPI instead of plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
         ax = fig.add_subplot(111, projection=projection)
 
@@ -407,8 +407,8 @@ def _matplotlib_points(
     color_key=None,
     color_key_cmap="Spectral",
     background="white",
-    width=7,
-    height=5,
+    width=4,
+    height=4,
     show_legend=True,
     vmin=2,
     vmax=98,
@@ -427,7 +427,7 @@ def _matplotlib_points(
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
 
-    dpi = plt.rcParams["figure.dpi"]
+    dpi = 80  # Use default DPI instead of plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
     rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
     # """Use matplotlib to plot points"""
@@ -436,7 +436,7 @@ def _matplotlib_points(
     legend_elements = None
 
     if ax is None:
-        dpi = plt.rcParams["figure.dpi"]
+        dpi = 80  # Use default DPI instead of plt.rcParams["figure.dpi"]
         fig = plt.figure(figsize=(width / dpi, height / dpi))
         ax = (
             fig.add_subplot(
@@ -842,8 +842,9 @@ def _matplotlib_points(
             ax.legend(
                 handles=legend_elements,
                 bbox_to_anchor=(1.04, 1),
-                loc=matplotlib.rcParams["legend.loc"],
+                loc="upper right",  # Use default instead of matplotlib.rcParams["legend.loc"]
                 ncol=len(unique_labels) // 15 + 1,
+                frameon=False,
             )
         elif len(unique_labels) > 1 and show_legend == "on data":
             font_color = "white" if background in ["black", "#ffffff"] else "black"
@@ -885,6 +886,7 @@ def _matplotlib_points(
                 bbox_to_anchor=(1.04, 1),
                 # loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
+                frameon=False,
             )
     else:
         main_debug("hiding legend")
@@ -902,8 +904,8 @@ def _datashade_points(
     color_key=None,
     color_key_cmap="Spectral",
     background="black",
-    width=7,
-    height=5,
+    width=4,
+    height=4,
     show_legend=True,
     vmin=2,
     vmax=98,
@@ -916,7 +918,7 @@ def _datashade_points(
     import datashader.transfer_functions as tf
     import matplotlib.pyplot as plt
 
-    dpi = plt.rcParams["figure.dpi"]
+    dpi = 80  # Use default DPI instead of plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
 
     """Use datashader to plot points"""
@@ -1067,12 +1069,14 @@ def _datashade_points(
                         handles=legend_elements,
                         loc=show_legend,
                         ncol=len(unique_labels) // 15 + 1,
+                        frameon=False,
                     )
                 else:
                     ax.legend(
                         handles=legend_elements,
                         loc="best",
                         ncol=len(unique_labels) // 15 + 1,
+                        frameon=False,
                     )
         return ax
     else:
@@ -1089,8 +1093,8 @@ def interactive(
     color_key=None,
     color_key_cmap="Spectral",
     background="white",
-    width=7,
-    height=5,
+    width=4,
+    height=4,
     point_size=None,
 ):
     """Create an interactive bokeh plot of a UMAP embedding.
@@ -1190,7 +1194,7 @@ def interactive(
     import holoviews.operation.datashader as hd
     import matplotlib.pyplot as plt
 
-    dpi = plt.rcParams["figure.dpi"]
+    dpi = 80  # Use default DPI instead of plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
 
     if theme is not None:
@@ -1418,7 +1422,7 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
             )
     else:
         _ = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend="full", **scatter_kwargs)
-        ax.legend(loc=legend, ncol=unique_labels // 15)
+        ax.legend(loc=legend, ncol=unique_labels // 15, frameon=False)
 
     return fig, ax
 
@@ -1655,7 +1659,7 @@ def save_fig(
         path: the path (and filename, without the extension) to save_fig the figure to. Defaults to None.
         prefix: the prefix added to the figure name. This will be automatically set accordingly to the plotting function
             used. Defaults to None.
-        dpi: the resolution in dots per inch. If None, defaults to rcParams["savefig.dpi"]. If 'figure', uses the
+        dpi: the resolution in dots per inch. If None, defaults to 300 DPI. If 'figure', uses the
             figure's dpi value. Defaults to None.
         ext: the file extension. This must be supported by the active matplotlib backend (see matplotlib.backends
             module).  Most backends support 'png', 'pdf', 'ps', 'eps', and 'svg'. Defaults to "pdf".
@@ -1745,7 +1749,7 @@ def save_show_ret(
         tight: Toggles whether plt.tight_layout() is called.
         adjust: Toggles whether plt.subplots_adjust() is called. Some functions, such as scatters(), pass
             in a string rather than a boolean.
-        background: Toggles whether reset_rcParams() is called.
+        background: Toggles whether rcParams are reset, but this functionality has been removed to avoid plot effect changes.
 
     Returns:
         If `save_show_or_return` is set as "return" or "all", returns `ret_value`.
@@ -1766,8 +1770,6 @@ def save_show_ret(
             s_kwargs["close"] = False
 
         save_fig(**s_kwargs)
-        if background is not None:
-            reset_rcParams()
 
     if save_show_or_return in ["show", "both", "all"]:
         if adjust:
@@ -1780,12 +1782,8 @@ def save_show_ret(
                 plt.tight_layout()
 
         plt.show()
-        if background is not None:
-            reset_rcParams()
 
     if save_show_or_return in ["return", "all"]:
-        if background is not None:
-            reset_rcParams()
         return ret_value
 
 
@@ -2110,3 +2108,49 @@ class Loess(object):
             a = mean_y - b * mean_x
             y = a + b * n_x
         return self.denormalize_y(y)
+
+
+def add_arrow(ax,adata,basis,fontsize=12,
+              x_label=None,y_label=None,
+              arrow_scale=5,arrow_width=0.01):
+    r"""
+    Add arrow and label to the axis
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The axis to add the arrow and label to.
+    adata : AnnData
+        The AnnData object to add the arrow and label to.
+    basis : str
+        The basis to add the arrow and label to.
+    fontsize : int
+        The fontsize of the label.
+    arrow_scale : float
+        The scale of the arrow.
+    arrow_width : float
+        The width of the arrow.
+    x_label : str
+        The label of the x-axis.
+    y_label : str
+        The label of the y-axis.
+    """
+    if x_label is None:
+        x_label=basis+'1'
+    if y_label is None:
+        y_label=basis+'2'
+    
+    x_range=(adata.obsm[basis][:,0].max()-adata.obsm[basis][:,0].min())/6
+    y_range=(adata.obsm[basis][:,1].max()-adata.obsm[basis][:,1].min())/6
+    x_min=adata.obsm[basis][:,0].min()
+    y_min=adata.obsm[basis][:,1].min()
+    ax.arrow(x=x_min-x_range/5,y=y_min,dx=x_range+x_range/arrow_scale,dy=0, 
+            width=arrow_width, color="k", 
+                head_width=y_range*2/arrow_scale, head_length=x_range*2/arrow_scale, overhang=0.5)
+
+    ax.arrow(x=x_min,y=y_min-y_range/5,dx=0,dy=y_range+y_range/arrow_scale, 
+            width=arrow_width, color="k", 
+                head_width=x_range*2/arrow_scale, head_length=y_range*2/arrow_scale, overhang=0.5)
+    ax.text(x=x_min,y=y_min-y_range/2,s=x_label,fontsize=fontsize,multialignment='center',
+            verticalalignment='center')
+    ax.text(x=x_min-x_range/2,y=y_min,s=y_label,fontsize=fontsize,rotation='vertical',multialignment='center',
+           horizontalalignment='center')

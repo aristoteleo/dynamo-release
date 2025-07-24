@@ -1717,6 +1717,9 @@ def scatters(
     deaxis: bool = True,
     despline_sides: Optional[List[str]] = None,
     projection: str = "2d",
+    arrow: bool = True,
+    arrow_scale: float = 5,
+    arrow_width: float = 0.01,
     **kwargs,
 ) -> Union[
     Axes,
@@ -1857,6 +1860,9 @@ def scatters(
         deaxis: whether to remove axis ticks of the figure. Defaults to True.
         despline_sides: which side of splines should be removed. Can be any combination of `["bottom", "right", "top", "left"]`. Defaults to None.
         projection: the projection property of the matplotlib.Axes. Defaults to "2d".
+        arrow: whether to add arrow to the plot. Defaults to True.
+        arrow_scale: the scale of the arrow. Defaults to 5.
+        arrow_width: the width of the arrow. Defaults to 0.01.
         **kwargs: any other kwargs that would be passed to `pyplot.scatters`.
 
     Raises:
@@ -2109,6 +2115,9 @@ def scatters_single_input(
     ax_index: Optional[int] = None,
     cur_l_smoothed: Optional[str] = None,
     basis_key: Optional[str] = None,
+    arrow: bool = True,
+    arrow_scale: float = 5,
+    arrow_width: float = 0.01,
 ) -> Union[
     Axes,
     List[Axes],
@@ -2216,6 +2225,9 @@ def scatters_single_input(
         deaxis: whether to remove axis ticks of the figure. Defaults to True.
         despline_sides: which side of splines should be removed. Can be any combination of `["bottom", "right", "top", "left"]`. Defaults to None.
         projection: the projection property of the matplotlib.Axes. Defaults to "2d".
+        arrow: whether to add arrow to the plot. Defaults to True.
+        arrow_scale: the scale of the arrow. Defaults to 5.
+        arrow_width: the width of the arrow. Defaults to 0.01.
 
     Returns:
         The matplotlib axes object of the generated plot.
@@ -2470,6 +2482,10 @@ def scatters_single_input(
                     "_adata does not seem to have %s column. Velocity estimation is required "
                     "before running this function." % group_k_name
                 )
+    if arrow:
+        from .utils import add_arrow
+        basis_key = 'X_'+basis if basis not in adata.obsm.keys() else basis
+        add_arrow(ax, adata, basis_key,arrow_scale=arrow_scale,arrow_width=arrow_width)
     return ax, color_out, font_color, stack_legend_handles
 
 

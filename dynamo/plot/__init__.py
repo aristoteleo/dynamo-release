@@ -66,7 +66,7 @@ from .topography import (
 )
 
 # from .theme import points
-from .utils import quiver_autoscaler, save_fig
+from .utils import quiver_autoscaler, save_fig,add_arrow
 from .vector_calculus import (
     acceleration,
     curl,
@@ -171,6 +171,7 @@ __all__ = [
     "violin_box",
     "trends",
     "jacobian_on_gene_axis",
+    "add_arrow",
 ]
 
 
