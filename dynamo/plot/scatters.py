@@ -2039,6 +2039,9 @@ def scatters(
                         ax_index=ax_index,
                         cur_l_smoothed=cur_l_smoothed,
                         basis_key=basis_key,
+                        arrow=arrow,
+                        arrow_scale=arrow_scale,
+                        arrow_width=arrow_width,
                     )
 
                     axes_list.append(ax)

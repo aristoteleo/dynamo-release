@@ -67,6 +67,8 @@ def trends(
         distribution='gamma',
         spline_order=3,
         n_knots=6,
+        lam=3,
+        max_lam=1000,
         ax=None,
         figsize=(4,4),
         fontsize=14,
@@ -97,6 +99,11 @@ def trends(
         The order of the spline. Default is 3.
     n_knots: int, optional
         The number of knots to use. Default is 6.
+    lam: float, optional
+        Regularization parameter for the GAM model. Default is 3.
+        If optimization fails, this will be automatically increased.
+    max_lam: float, optional
+        Maximum regularization parameter to try. Default is 1000.
     ax: matplotlib.axes.Axes, optional
         The axes to plot on. If None, a new figure and axes will be created.
     figsize: tuple, optional
@@ -124,6 +131,8 @@ def trends(
         PoissonGAM,
         s,
     )
+    from pygam.utils import OptimizationError
+    
     _gams = collections.defaultdict(
         lambda: pGAM,
         {
@@ -147,29 +156,9 @@ def trends(
     filtered_kwargs["link"] = link
     filtered_kwargs["distribution"] = distribution
 
-    term = s(
-        0,
-        spline_order=spline_order,
-        n_splines=n_knots,
-        **_filter_kwargs(s, **{**{"lam": 3, "penalties": ["derivative", "l2"]},}),
-    )
-
-    model = gam(
-        term,
-        max_iter=max_iter,
-        verbose=False,
-        **_filter_kwargs(gam.__init__, **filtered_kwargs),
-    )
     idx=adata.obs.sort_values(pseudotime_key).index
     x_test=adata.obs.loc[idx,pseudotime_key].values
     w_test=np.ones(len(x_test))
-
-    term = s(
-        0,
-        spline_order=spline_order,
-        n_splines=n_knots,
-        **_filter_kwargs(s, **{**{"lam": 3, "penalties": ["derivative", "l2"]},}),
-    )
 
     if ax is None:
         fig,ax=plt.subplots(1,1,figsize = figsize)
@@ -199,11 +188,45 @@ def trends(
         x_train=adata.obs.loc[idx,pseudotime_key].values
         w_train=np.ones(len(x_train))
         y_train=adata[idx,gene].to_df().values.reshape(-1)
-        model.fit(
-            x_train,
-            y_train,
-            weights=w_train
-        )
+        
+        # Try fitting with increasing regularization until successful
+        current_lam = lam
+        model_fitted = False
+        
+        while current_lam <= max_lam and not model_fitted:
+            try:
+                term = s(
+                    0,
+                    spline_order=spline_order,
+                    n_splines=n_knots,
+                    **_filter_kwargs(s, **{**{"lam": current_lam, "penalties": ["derivative", "l2"]},}),
+                )
+
+                model = gam(
+                    term,
+                    max_iter=max_iter,
+                    verbose=False,
+                    **_filter_kwargs(gam.__init__, **filtered_kwargs),
+                )
+                
+                model.fit(
+                    x_train,
+                    y_train,
+                    weights=w_train
+                )
+                model_fitted = True
+                
+            except OptimizationError:
+                current_lam *= 3  # Increase regularization
+                if current_lam > max_lam:
+                    warnings.warn(f"Could not fit GAM model for cluster {ct} with gene {gene}. "
+                                f"Optimization failed even with maximum regularization {max_lam}. "
+                                f"Skipping this cluster.")
+                    break
+                
+        if not model_fitted:
+            continue  # Skip this cluster if we couldn't fit the model
+            
         _y_train = model.predict(x_train)
         _y_train = np.squeeze(_y_train)
         _conf_int = model.confidence_intervals(x_train,0.95)

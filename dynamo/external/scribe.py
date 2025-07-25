@@ -148,7 +148,7 @@ def scribe(
             round_exprs=True,
             total_layers=["total"],
         )
-        szfactors = adata.obs["Size_Factor"][:, None]
+        szfactors = adata.obs["Size_Factor"].values[:, None]
 
         # normalize data (size factor correction, log transform and the scaling)
         adata.layers[nt_layers[0]] = normalize_data(new, szfactors, pseudo_expr=0.1)
