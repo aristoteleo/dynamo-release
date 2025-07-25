@@ -1,4 +1,4 @@
-# User guide
+# Get Started
 
 ## 10 minutes to dynamo
 
