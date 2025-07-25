@@ -21,6 +21,7 @@ import dynamo as dyn
    read
    read_h5ad
    read_loom
+   read_h5
 
 ```
 
@@ -167,6 +168,7 @@ _Velocity metrics_
 
    tl.cell_wise_confidence
    tl.gene_wise_confidence
+   tl.pseudotime_velocity
 
 ```
 
