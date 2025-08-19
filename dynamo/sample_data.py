@@ -57,10 +57,14 @@ def get_adata(url: str, filename: Optional[str] = None) -> Optional[AnnData]:
         adata.var_names_make_unique()
     except OSError:
         # Usually occurs when download is stopped before completion then attempted again.
+        file_path = os.path.join('./data', filename)
         main_info("Corrupted file. Deleting " + file_path + " then redownloading...")
         # Half-downloaded file cannot be read due to corruption so it's better to delete it.
         # Potential issue: user have a file with duplicate name but is not sample data (this will overwrite file).
-        os.remove(file_path)
+        try:
+            os.remove(file_path)
+        except:
+            pass
         adata = get_adata(url, filename)
     except Exception as e:
         main_info("REPORT THIS: " + e)

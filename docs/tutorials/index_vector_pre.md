@@ -1,11 +1,11 @@
-# Vector field predictions
+# Vector field analysis
 
 
 ```{toctree}
 :maxdepth: 1
 
-notebooks/lap_tutorial
-notebooks/perturbation_tutorial
+notebooks/501_lap_tutorial
+notebooks/502_perturbation_tutorial
 shiny
 
 ```

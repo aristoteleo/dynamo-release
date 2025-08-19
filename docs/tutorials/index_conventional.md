@@ -3,8 +3,7 @@
 ```{toctree}
 :maxdepth: 1
 
-notebooks/zebrafish
-notebooks/dynamo_beyondvelo
-notebooks/zebrafish_topography_analysis_tutorial
+notebooks/200_zebrafish
+notebooks/201_dynamo_beyondvelo
 
 ```

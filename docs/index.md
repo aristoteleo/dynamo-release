@@ -62,9 +62,9 @@ Find a bug? Interested in improving dynamo? Checkout our GitHub for the latest d
 
 introduction/index
 installation
+user_guide/index
 tutorials/index
 faq
-user_guide/index
 api/index
 developer
 changelog.md

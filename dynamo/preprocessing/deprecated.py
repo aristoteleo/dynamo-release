@@ -191,13 +191,13 @@ def _disp_calc_helper_NB_legacy(
     for layer in layers:
         if layer == "raw":
             CM = adata.raw.X
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
+            szfactors = adata.obs[layer + "Size_Factor"].values[:, None]
         elif layer == "X":
             CM = adata.X
-            szfactors = adata.obs["Size_Factor"][:, None]
+            szfactors = adata.obs["Size_Factor"].values[:, None]
         else:
             CM = adata.layers[layer]
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
+            szfactors = adata.obs[layer + "Size_Factor"].values[:, None]
 
         if issparse(CM):
             CM.data = np.round(CM.data, 0)
@@ -1111,7 +1111,7 @@ def _recipe_monocle_legacy(
         keep_raw_layers: whether to keep layers with raw measurements in the returned adata object. Defaults to None.
         scopes: scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
             argument corresponds to types of identifiers, either a list or a comma-separated fields to specify type of
-            input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official
+            input qterms, e.g. "entrezgene", "entrezgene,symbol", ["ensemblgene", "symbol"]. Refer to official
             MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for the full
             list of fields. Defaults to None.
         fc_kwargs: other Parameters passed into the filter_cells function. Defaults to None.

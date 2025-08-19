@@ -36,6 +36,7 @@ pandocfilters
 readthedocs-sphinx-ext
 sphinx-gallery
 typing-extensions
+furo>=2022.09.29
 
 docutils>=0.8,!=0.18.*,!=0.19.*
 ipython
@@ -47,5 +48,7 @@ sphinx-hoverxref
 sphinxcontrib-bibtex>=1.0.0
 myst-parser
 myst-nb
+sphinx-tippy
 sphinx-autodoc-typehints
+linkify-it-py
 dynamo-release

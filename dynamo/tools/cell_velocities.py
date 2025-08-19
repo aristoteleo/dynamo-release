@@ -1022,3 +1022,127 @@ def permute_rows_nsign(A: np.ndarray) -> None:
     for i in range(A.shape[1]):
         np.random.shuffle(A[:, i])
         A[:, i] = A[:, i] * np.random.choice(plmi, size=A.shape[0])
+
+
+def alpha_minus_gamma_s(new, gamma, t, M_s):
+    """
+    Calculate alpha - gamma * s for a given time point.
+    
+    Parameters:
+    -----------
+    new : array-like
+        New RNA expression matrix
+    gamma : array-like  
+        Splicing rate parameters
+    t : array-like
+        Time points
+    M_s : array-like
+        Spliced RNA matrix
+        
+    Returns:
+    --------
+    alpha_minus_gamma_s : array-like
+        Calculated velocity values
+    """
+    # Convert all inputs to numpy arrays to avoid pandas indexing issues
+    if hasattr(new, 'A'):  # sparse matrix
+        new_array = new.A.T
+    else:
+        new_array = np.array(new).T
+    
+    gamma_array = np.array(gamma)
+    t_array = np.array(t)
+    
+    if hasattr(M_s, 'A'):  # sparse matrix
+        M_s_array = M_s.A.T
+    else:
+        M_s_array = np.array(M_s).T
+    
+    # equation: alpha = new / (1 - e^{-rt}) * r
+    alpha = new_array / (1 - np.exp(-gamma_array[:, None] * t_array[None, :])) * gamma_array[:, None]
+    
+    gamma_s = gamma_array[:, None] * M_s_array
+    alpha_minus_gamma_s = alpha - gamma_s
+    return alpha_minus_gamma_s
+
+def calculate_velocity_alpha_minus_gamma_s(adata, gene_subset_key='use_for_pca', 
+                                         velocity_layer_name='velocity_alpha_minus_gamma_s'):
+    """
+    Calculate total RNA velocity using alpha - gamma * s formula for all time points.
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        Annotated data object containing expression data and time information
+    gene_subset_key : str, default 'use_for_pca'
+        Key in adata.var to identify genes to use for calculation
+    velocity_layer_name : str, default 'velocity_alpha_minus_gamma_s'
+        Name for the output velocity layer
+        
+    Returns:
+    --------
+    None (modifies adata in place)
+    """
+    
+    # Get genes to use for calculation
+    if gene_subset_key in adata.var.columns:
+        pca_genes = adata.var[gene_subset_key]
+    else:
+        raise ValueError(f"Gene subset key '{gene_subset_key}' not found in adata.var")
+    
+    # Convert to numpy array to avoid indexing issues with sparse matrices
+    pca_genes_array = pca_genes.values
+    
+    # Get basic data
+    new_expr = adata[:, pca_genes].layers["M_n"]
+    t = adata.obs.time.astype(float)
+    M_s = adata.layers["M_s"][:, pca_genes_array]
+    
+    # Get unique time points
+    unique_times = np.unique(t)
+    print(f"Found {len(unique_times)} unique time points: {unique_times}")
+    
+    # Initialize velocity matrix
+    if "velocity_N" in adata.layers:
+        velocity_n = adata.layers["velocity_N"].copy()
+    else:
+        velocity_n = np.zeros_like(adata.X)
+    
+    valid_velocity_n = velocity_n[:, pca_genes_array].copy()
+    
+    # Calculate velocity for each time point
+    for time_point in unique_times:
+        print(f"Processing time point: {time_point}")
+        
+        # Get cells for this time point - convert to numpy array for sparse matrix indexing
+        time_cells = (adata.obs.time == time_point).values
+        n_cells = np.sum(time_cells)
+        print(f"  Number of cells: {n_cells}")
+        
+        # Get gamma parameters for this time point
+        gamma_key = f"time_{int(time_point)}_"
+        try:
+            from .utils import get_vel_params
+            gamma = get_vel_params(adata, params="gamma", genes=pca_genes, 
+                                        kin_param_pre=gamma_key).astype(float)
+        except Exception as e:
+            print(f"  Warning: Could not get gamma parameters for time {time_point}: {e}")
+            continue
+            
+        # Calculate velocity for this time point
+        velocity_time = alpha_minus_gamma_s(
+            new_expr[time_cells, :], 
+            gamma, 
+            t[time_cells], 
+            M_s[time_cells, :]
+        )
+        
+        # Store results
+        valid_velocity_n[time_cells, :] = velocity_time.T
+        print(f"  Velocity calculation completed for time point {time_point}")
+    
+    # Update the velocity matrix
+    velocity_n[:, pca_genes_array] = valid_velocity_n.copy()
+    adata.layers[velocity_layer_name] = velocity_n.copy()
+    
+    print(f"Total RNA velocity stored in adata.layers['{velocity_layer_name}']")

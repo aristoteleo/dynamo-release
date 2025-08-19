@@ -100,6 +100,8 @@ myst_enable_extensions = [
     "dollarmath",
     "html_image",
     "html_admonition",
+    "substitution",
+    "linkify",
 ]
 myst_url_schemes = ("http", "https", "mailto")
 nb_output_stderr = "remove"
@@ -145,24 +147,38 @@ intersphinx_mapping = {
 }
 # -- Options for HTML output -------------------------------------------
 # html_show_sourcelink = True
-html_theme = "sphinx_book_theme"
+html_theme = "furo"
 html_title = project_name
 html_logo = "_static/logo.png"
 html_theme_options = {
-    "repository_url": repository_url,
+    "sidebar_hide_name": True,
+    "light_css_variables": {
+        "color-brand-primary": "#003262",
+        "color-brand-content": "#003262"
+    },
     "use_repository_button": True,
     "logo_only": True,
     "show_toc_level": 1,
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
     "path_to_docs": "docs/",
     "repository_branch": version,
+    "footer_icons": [{
+        "name": "GitHub",
+        "url": repository_url,
+        "class": "fab fa-github"
+    }]
 }
-pygments_style = "default"
+pygments_style = "tango"
+pygments_dark_style = "monokai"
+nitpicky = True
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ["css/override.css"]
+html_css_files = [
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+    "css/override.css"
+]
 html_show_sphinx = False
 
 def setup(app):

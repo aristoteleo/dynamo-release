@@ -189,7 +189,7 @@ def adata_processing_TF_link(
         round_exprs=True,
         total_layers=["total"],
     )
-    szfactors = adata.obs["Size_Factor"][:, None]
+    szfactors = adata.obs["Size_Factor"].values[:, None]
 
     # normalize data (size factor correction, log transform and the scaling)
     if issparse(new):

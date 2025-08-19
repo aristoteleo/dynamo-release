@@ -13,6 +13,7 @@ from .cell_velocities import (
     expected_return_time,
     generalized_diffusion_map,
     stationary_distribution,
+    calculate_velocity_alpha_minus_gamma_s,
 )
 
 # clustering related
