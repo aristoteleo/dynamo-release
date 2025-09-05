@@ -21,6 +21,60 @@ import dynamo as dyn
    read
    read_h5ad
    read_loom
+   read_h5
+
+```
+
+## Preprocessing (pp)
+
+_Preprocessor class and recipe functions_
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   pp.recipe_monocle
+   pp.recipe_velocyto
+   pp.Preprocessor
+   pp.filter_cells_by_outliers
+   pp.filter_cells_by_highly_variable_genes
+   
+
+```
+
+_Basic preprocessing functions_
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   pp.filter_cells
+   pp.filter_cells_by_outliers
+   pp.filter_cells_by_highly_variable_genes
+   pp.filter_cells_by_outliers
+   pp.filter_genes_by_clusters
+   pp.filter_genes_by_outliers
+   pp.filter_genes_by_pattern
+   pp.filter_genes
+   pp.normalize_cell_expr_by_size_factors
+   pp.scale
+   pp.log1p
+   pp.pca
+
+```
+
+_Gene selection_
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   pp.highest_frac_genes
+   pp.select_genes_monocle
+   pp.select_genes_by_pearson_residuals
 
 ```
 
@@ -114,6 +168,7 @@ _Velocity metrics_
 
    tl.cell_wise_confidence
    tl.gene_wise_confidence
+   tl.pseudotime_velocity
 
 ```
 

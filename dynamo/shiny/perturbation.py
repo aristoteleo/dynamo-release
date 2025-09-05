@@ -19,24 +19,23 @@ def perturbation_web_app(input_adata: AnnData):
         input_adata: the processed anndata object to perform in silico perturbation.
     """
     try:
-        import shiny.experimental as x
         from htmltools import HTML, div
         from shiny import App, Inputs, Outputs, Session, reactive, render, ui
     except ImportError:
         raise ImportError("Please install shiny and htmltools before running the web application!")
 
-    app_ui = x.ui.page_sidebar(
-        x.ui.sidebar(
+    app_ui = ui.page_sidebar(
+        ui.sidebar(
             ui.include_css(css_path),
-            x.ui.accordion(
-                x.ui.accordion_panel(
+            ui.accordion(
+                ui.accordion_panel(
                     div("Perturbation Setting", class_="bold-subtitle"),
                     ui.input_slider("n_genes", "Number of genes to perturb:", min=1, max=5, value=1),
                     ui.output_ui("selectize_genes"),
                     ui.input_action_button("activate_perturbation", "Run perturbation", class_="btn-primary"),
                     value="Perturbation",
                 ),
-                x.ui.accordion_panel(
+                ui.accordion_panel(
                     div("Streamline Plot Setting", class_="bold-subtitle"),
                     ui.input_slider("n_colors", "Number of observations:", min=1, max=5, value=1),
                     ui.output_ui("selectize_color"),
@@ -61,13 +60,13 @@ def perturbation_web_app(input_adata: AnnData):
                 class_="explanation",
             ),
             div(HTML("<br><br>")),
-            x.ui.card(
+            ui.card(
                 div("Streamline Plot", class_="bold-subtitle"),
-                x.ui.output_plot("base_plot"),
+                ui.output_plot("base_plot"),
             ),
-            x.ui.card(
+            ui.card(
                 div("Streamline Plot After Perturbation", class_="bold-subtitle"),
-                x.ui.output_plot("perturbation_plot"),
+                ui.output_plot("perturbation_plot"),
             ),
         ),
     )

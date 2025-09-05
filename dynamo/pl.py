@@ -3,9 +3,11 @@
 
 from .plot import *
 
-
-
+import os
+import tempfile
+import warnings
 import matplotlib as mpl
+import matplotlib.font_manager as fm
 from matplotlib import rcParams
 
 dynamo_logo="""
@@ -33,9 +35,21 @@ def style(
         figsize=None,
         color_map=None,
         dynamo=True,
+        font_path=None,
 ):
     """
     Set the default parameters for matplotlib figures.
+    
+    Arguments:
+        dpi: Resolution for matplotlib figures (80)
+        dpi_save: Resolution for saving figures (150)
+        transparent: Whether to save figures with transparent background (False)
+        facecolor: Background color for figures ('white')
+        fontsize: Default font size (14)
+        figsize: Figure size tuple (None)
+        color_map: Default color map (None)
+        dynamo: Whether to apply dynamo-specific rcParams (True)
+        font_path: Path to custom font file or 'arial' for auto-download (None)
     """
     global _has_printed_logo  # Use the global flag
 
@@ -55,7 +69,67 @@ def style(
     if figsize is not None:
         rcParams["figure.figsize"] = figsize
 
-    import warnings
+    # Custom font setup
+    if font_path is not None:
+        # Check if user wants Arial font (auto-download)
+        if font_path.lower() in ['arial', 'arial.ttf'] and not font_path.endswith('.ttf'):
+            try:
+                # Create a persistent cache location for the Arial font
+                cache_dir = tempfile.gettempdir()
+                cached_arial_path = os.path.join(cache_dir, 'dynamo_arial.ttf')
+                
+                # Check if Arial font is already cached
+                if os.path.exists(cached_arial_path):
+                    print(f"Using already downloaded Arial font from: {cached_arial_path}")
+                    font_path = cached_arial_path
+                else:
+                    print("Downloading Arial font from GitHub...")
+                    try:
+                        import requests
+                        arial_url = "https://github.com/kavin808/arial.ttf/raw/refs/heads/master/arial.ttf"
+                        
+                        # Download the font
+                        response = requests.get(arial_url, timeout=30)
+                        response.raise_for_status()
+                        
+                        # Save the font to cache location
+                        with open(cached_arial_path, 'wb') as f:
+                            f.write(response.content)
+                        
+                        # Use the cached font file
+                        font_path = cached_arial_path
+                        print(f"Arial font downloaded successfully to: {cached_arial_path}")
+                        
+                    except ImportError:
+                        print("requests module not available. Please install requests to download Arial font automatically.")
+                        print("Continuing with default font settings...")
+                        font_path = None
+                        
+            except Exception as e:
+                print(f"Failed to download Arial font: {e}")
+                print("Continuing with default font settings...")
+                font_path = None
+        
+        if font_path is not None:
+            try:
+                # 1) Create a brand-new manager
+                fm.fontManager = fm.FontManager()
+                
+                # 2) Add your file
+                fm.fontManager.addfont(font_path)
+                
+                # 3) Now find out what name it uses
+                name = fm.FontProperties(fname=font_path).get_name()
+                print(f"Registered custom font as: {name}")
+                
+                # 4) Point rcParams at that name
+                rcParams['font.family'] = 'sans-serif'
+                rcParams['font.sans-serif'] = [name, 'DejaVu Sans']
+                
+            except Exception as e:
+                print(f"Failed to set custom font: {e}")
+                print("Continuing with default font settings...")
+
     warnings.simplefilter("ignore", category=UserWarning)
     warnings.simplefilter("ignore", category=FutureWarning)
     warnings.simplefilter("ignore", category=DeprecationWarning)

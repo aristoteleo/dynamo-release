@@ -32,7 +32,6 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
             the `["Symbol"]` column. An example can be found in the `sample_data.py`.
     """
     try:
-        import shiny.experimental as x
         from htmltools import HTML, TagList, div
         from shiny import App, Inputs, Outputs, Session, reactive, render, ui
         from shiny.plotutils import brushed_points, near_points
@@ -42,25 +41,24 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
     app_ui = ui.page_fluid(
         ui.include_css(css_path),
         ui.navset_tab(
-            ui.nav(
+            ui.nav_panel(
                 "Run pairwise least action path analyses",
-                ui.panel_main(
-                    div("Most probable path predictions", class_="bold-title"),
-                    div(HTML("<br><br>")),
-                    div(
-                        "The least action path (LAP) is a principled method that has previously been used in "
-                        "theoretical efforts to predict the most probable path a cell will follow during fate "
-                        "transition. Specifically, the optimal path between any two cell states (e.g. the fixed "
-                        "point of HSCs and that of megakaryocytes) is searched by variating the continuous path "
-                        "connecting the source state to the target while minimizing its action and updating the "
-                        "associated transition time. The resultant least action path has the highest transition "
-                        "probability and is associated with a particular transition time.",
-                        class_="explanation",
-                    ),
-                    div(HTML("<br><br>")),
-                    ui.div(
-                        x.ui.card(
-                            div("Initialization", class_="bold-sectiontitle"),
+                div("Most probable path predictions", class_="bold-title"),
+                div(HTML("<br><br>")),
+                div(
+                    "The least action path (LAP) is a principled method that has previously been used in "
+                    "theoretical efforts to predict the most probable path a cell will follow during fate "
+                    "transition. Specifically, the optimal path between any two cell states (e.g. the fixed "
+                    "point of HSCs and that of megakaryocytes) is searched by variating the continuous path "
+                    "connecting the source state to the target while minimizing its action and updating the "
+                    "associated transition time. The resultant least action path has the highest transition "
+                    "probability and is associated with a particular transition time.",
+                    class_="explanation",
+                ),
+                div(HTML("<br><br>")),
+                ui.div(
+                    ui.card(
+                        div("Initialization", class_="bold-sectiontitle"),
                             div(
                                 "Given the group information and basis, we can visualize the projected velocity "
                                 "information. The velocity provides us with fundamental insights into cell fate "
@@ -71,12 +69,12 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 ui.column(6, ui.output_ui("selectize_cells_type_key")),
                                 ui.column(6, ui.output_ui("selectize_streamline_basis")),
                             ),
-                            x.ui.output_plot("base_streamline_plot"),
+                            ui.output_plot("base_streamline_plot"),
                             div(
                                 "In the scatter plot, we can choose the fixed points to initialize the LAP analyses. ",
                                 class_="explanation",
                             ),
-                            x.ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True, brush=True),
+                            ui.output_plot("initialize_searching", click=True, dblclick=True, hover=True, brush=True),
                             ui.row(
                                 ui.column(
                                     6,
@@ -104,7 +102,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 ),
                             ),
                         ),
-                        x.ui.card(
+                        ui.card(
                             div("LAP results", class_="bold-sectiontitle"),
                             div(
                                 "After calculating LAPs for all possible cell type transition pairs, the results will "
@@ -124,7 +122,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 ),
                                 ui.column(6, ui.output_ui("selectize_gene_barplot_transition")),
                             ),
-                            x.ui.output_plot("genes_barplot"),
+                            ui.output_plot("genes_barplot"),
                             div("Visualization LAPs for one or more transitions.", class_="bold-subtitle"),
                             ui.row(
                                 ui.column(
@@ -140,7 +138,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 ),
                                 ui.column(
                                     9,
-                                    x.ui.output_plot("plot_lap"),
+                                    ui.output_plot("plot_lap"),
                                 ),
                             ),
                             div("Barplot of the LAP time starting from given cell type", class_="bold-subtitle"),
@@ -151,12 +149,12 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 class_="explanation",
                             ),
                             ui.output_ui("selectize_barplot_start_genes"),
-                            x.ui.output_plot("tfs_barplot"),
+                            ui.output_plot("tfs_barplot"),
                             div(
                                 "Heatmap of LAP actions (left) and LAP time (right) matrices of pairwise cell fate conversions",
                                 class_="bold-subtitle",
                             ),
-                            x.ui.output_plot("pairwise_cell_fate_heatmap"),
+                            ui.output_plot("pairwise_cell_fate_heatmap"),
                             div("Kinetics heatmap of gene expression dynamics along the LAP", class_="bold-subtitle"),
                             ui.row(
                                 ui.column(
@@ -174,28 +172,26 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 ),
                                 ui.column(
                                     9,
-                                    x.ui.output_plot("lap_kinetic_heatmap"),
+                                    ui.output_plot("lap_kinetic_heatmap"),
                                 ),
                             ),
                         ),
                     ),
-                ),
             ),
-            ui.nav(
+            ui.nav_panel(
                 "Evaluate TF rankings based on LAP analyses",
-                ui.panel_main(
-                    div("Evaluate TF rankings based on LAP analyses.", class_="bold-title"),
-                    div(HTML("<br><br>")),
-                    div(
-                        "After we obtained the TFs ranking based on the mean square displacement, we are able to "
-                        "evaluate rankings by comparing with known transcription factors that enable the successful "
-                        "cell fate conversion.",
-                        class_="explanation",
-                    ),
-                    div(HTML("<br><br>")),
-                    ui.div(
-                        x.ui.card(
-                            div("Initialization", class_="bold-sectiontitle"),
+                div("Evaluate TF rankings based on LAP analyses.", class_="bold-title"),
+                div(HTML("<br><br>")),
+                div(
+                    "After we obtained the TFs ranking based on the mean square displacement, we are able to "
+                    "evaluate rankings by comparing with known transcription factors that enable the successful "
+                    "cell fate conversion.",
+                    class_="explanation",
+                ),
+                div(HTML("<br><br>")),
+                ui.div(
+                    ui.card(
+                        div("Initialization", class_="bold-sectiontitle"),
                             div(
                                 "Visualization of transition information and known TFs",
                                 class_="bold-subtitle",
@@ -253,7 +249,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 ),
                             ),
                         ),
-                        x.ui.card(
+                        ui.card(
                             div("TF evaluation results", class_="bold-sectiontitle"),
                             div(
                                 "Plotting priority scores of known TFs for specific transition type",
@@ -265,7 +261,7 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 class_="explanation",
                             ),
                             ui.output_ui("selectize_reprog_query_type"),
-                            x.ui.output_plot("plot_priority_scores"),
+                            ui.output_plot("plot_priority_scores"),
                             div("ROC curve analyses of TF priorization of the LAP predictions", class_="bold-subtitle"),
                             div(
                                 "We can evaluate the TF ranking through ROC of LAP TF prioritization predictions using "
@@ -273,12 +269,11 @@ def lap_web_app(input_adata: AnnData, tfs_data: Optional[AnnData] = None):
                                 class_="explanation",
                             ),
                             ui.input_text("roc_tf_key", "Key of TFs for ROC plot: ", value="TFs"),
-                            x.ui.output_plot("tf_roc_curve"),
+                            ui.output_plot("tf_roc_curve"),
                         ),
                     ),
-                ),
-            ),
-        ),
+                ),  # close second nav_panel
+            ),      # close navset_tab  
     )
 
     def server(input: Inputs, output: Outputs, session: Session):

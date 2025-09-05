@@ -66,7 +66,7 @@ from .topography import (
 )
 
 # from .theme import points
-from .utils import quiver_autoscaler, save_fig
+from .utils import quiver_autoscaler, save_fig,add_arrow
 from .vector_calculus import (
     acceleration,
     curl,
@@ -85,6 +85,9 @@ from ._trends import (
 
 from .violin_box import violin_box
 from ._jacobian import jacobian_on_gene_axis
+
+
+from .animation_lines import animate_streamplot,Streamlines,compute_velocity_on_grid
 
 __all__ = [
     "quiver_autoscaler",
@@ -171,6 +174,10 @@ __all__ = [
     "violin_box",
     "trends",
     "jacobian_on_gene_axis",
+    "add_arrow",
+    "animate_streamplot",
+    "Streamlines",
+    "compute_velocity_on_grid",
 ]
 
 

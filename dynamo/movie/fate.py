@@ -199,6 +199,7 @@ class StreamFuncAnim(BaseAnim):
         ax: matplotlib.axes.Axes = None,
         logspace: bool = False,
         max_time: Optional[float] = None,
+        **kwargs,
     ):
         """Construct the StreamFuncAnim class.
 
@@ -254,6 +255,7 @@ class StreamFuncAnim(BaseAnim):
                 color=self.color,
                 ax=self.ax,
                 save_show_or_return="return",
+                **kwargs,
             )
         else:
             self.fig = fig
