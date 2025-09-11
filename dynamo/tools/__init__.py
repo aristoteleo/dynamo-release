@@ -43,7 +43,7 @@ from .DDRTree_graph import construct_velocity_tree, directed_pg
 from .deprecated import construct_velocity_tree_py
 
 # dimension reduction related
-from .dimension_reduction import reduceDimension  # , run_umap
+from .dimension_reduction import reduceDimension, run_sude  # , run_umap
 from .dynamics import dynamics
 
 # state graph related
