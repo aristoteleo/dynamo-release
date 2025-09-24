@@ -1,8 +1,6 @@
 from .integration import harmony_debatch, integrate
-from .pearson_residual_recipe import (
-    normalize_layers_pearson_residuals,
-    select_genes_by_pearson_residuals,
-)
+from .pearson_residual_recipe import (normalize_layers_pearson_residuals,
+                                      select_genes_by_pearson_residuals)
 from .sctransform import sctransform
 
 __all__ = [

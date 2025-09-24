@@ -9,21 +9,13 @@ import numpy as np
 from anndata import AnnData
 
 from ..configuration import DKM
-from ..dynamo_logger import (
-    LoggerManager,
-    main_debug,
-    main_info,
-    main_info_insert_adata,
-    main_warning,
-)
+from ..dynamo_logger import (LoggerManager, main_debug, main_info,
+                             main_info_insert_adata, main_warning)
 from ..tools.connectivity import neighbors as default_neighbors
 from ..tools.utils import update_dict
 from .cell_cycle import cell_cycle_scores
-from .external import (
-    normalize_layers_pearson_residuals,
-    sctransform,
-    select_genes_by_pearson_residuals,
-)
+from .external import (normalize_layers_pearson_residuals, sctransform,
+                       select_genes_by_pearson_residuals)
 from .gene_selection import select_genes_by_seurat_recipe, select_genes_monocle
 from .normalization import calc_sz_factor, normalize
 from .pca import pca
@@ -32,15 +24,9 @@ from .QC import filter_cells_by_outliers as monocle_filter_cells_by_outliers
 from .QC import filter_genes_by_outliers as monocle_filter_genes_by_outliers
 from .QC import regress_out_parallel
 from .transform import Freeman_Tukey, log, log1p, log2
-from .utils import (
-    _infer_labeling_experiment_type,
-    calc_new_to_total_ratio,
-    collapse_species_adata,
-    convert2symbol,
-    convert_layers2csr,
-    detect_experiment_datatype,
-    unique_var_obs_adata,
-)
+from .utils import (_infer_labeling_experiment_type, calc_new_to_total_ratio,
+                    collapse_species_adata, convert2symbol, convert_layers2csr,
+                    detect_experiment_datatype, unique_var_obs_adata)
 
 
 class Preprocessor:

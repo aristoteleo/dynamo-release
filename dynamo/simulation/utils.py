@@ -3,14 +3,8 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 
 # dynamo logger related
-from ..dynamo_logger import (
-    LoggerManager,
-    main_critical,
-    main_exception,
-    main_info,
-    main_tqdm,
-    main_warning,
-)
+from ..dynamo_logger import (LoggerManager, main_critical, main_exception,
+                             main_info, main_tqdm, main_warning)
 
 
 def directMethod(

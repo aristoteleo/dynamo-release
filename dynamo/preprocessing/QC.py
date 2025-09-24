@@ -13,16 +13,10 @@ from anndata import AnnData
 from scipy.sparse import issparse, spmatrix
 
 from ..configuration import DKM
-from ..dynamo_logger import (
-    LoggerManager,
-    main_debug,
-    main_exception,
-    main_finish_progress,
-    main_info,
-    main_info_insert_adata_obs,
-    main_log_time,
-    main_warning,
-)
+from ..dynamo_logger import (LoggerManager, main_debug, main_exception,
+                             main_finish_progress, main_info,
+                             main_info_insert_adata_obs, main_log_time,
+                             main_warning)
 from .utils import get_inrange_shared_counts_mask
 
 

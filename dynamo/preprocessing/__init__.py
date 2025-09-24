@@ -2,22 +2,13 @@
 """
 
 from .cell_cycle import cell_cycle_scores
-from .deprecated import (
-    calc_sz_factor_legacy,
-    cook_dist,
-    filter_cells_legacy,
-    normalize_cell_expr_by_size_factors,
-    recipe_monocle,
-    recipe_velocyto,
-)
+from .deprecated import (calc_sz_factor_legacy, cook_dist, filter_cells_legacy,
+                         normalize_cell_expr_by_size_factors, recipe_monocle,
+                         recipe_velocyto)
 from .dynast import lambda_correction
-from .external import (
-    harmony_debatch,
-    integrate,
-    normalize_layers_pearson_residuals,
-    sctransform,
-    select_genes_by_pearson_residuals,
-)
+from .external import (harmony_debatch, integrate,
+                       normalize_layers_pearson_residuals, sctransform,
+                       select_genes_by_pearson_residuals)
 from .normalization import calc_sz_factor, normalize
 from .pca import pca, top_pca_genes
 from .QC import (
@@ -45,12 +36,8 @@ log1p = log1p
 normalize_cells = normalize
 
 from .CnmfPreprocessor import CnmfPreprocessor
-from .gene_selection import (
-    calc_dispersion_by_svr,
-    calc_Gini,
-    highest_frac_genes,
-    select_genes_monocle,
-)
+from .gene_selection import (calc_dispersion_by_svr, calc_Gini,
+                             highest_frac_genes, select_genes_monocle)
 from .Preprocessor import Preprocessor
 
 __all__ = [
