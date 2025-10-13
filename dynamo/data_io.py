@@ -6,7 +6,6 @@ from typing import List, Optional
 
 from anndata import (
     AnnData,
-    read,
     read_csv,
     read_excel,
     read_h5ad,
@@ -17,6 +16,15 @@ from anndata import (
     read_umi_tools,
     read_zarr,
 )
+
+# Compatibility with anndata >= 0.10
+# The 'read' function was deprecated and removed in anndata 0.10.0
+# Use read_h5ad as a fallback for backward compatibility
+try:
+    from anndata import read
+except ImportError:
+    # anndata >= 0.10 removed 'read', use 'read_h5ad' instead
+    from anndata import read_h5ad as read
 from tqdm import tqdm
 
 from .dynamo_logger import main_info
