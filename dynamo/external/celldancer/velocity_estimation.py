@@ -47,7 +47,12 @@ class DNN_layer(nn.Module):
 
     def forward(self, unsplice, splice, alpha0, beta0, gamma0, dt):
         #print(f"dt is {dt}")
-        input = torch.tensor(np.array([np.array(unsplice), np.array(splice)]).T)
+        # Keep tensors on GPU - no numpy conversion needed
+        if not isinstance(unsplice, torch.Tensor):
+            unsplice = torch.tensor(unsplice, dtype=torch.float32)
+        if not isinstance(splice, torch.Tensor):
+            splice = torch.tensor(splice, dtype=torch.float32)
+        input = torch.stack([unsplice, splice], dim=1)
         x = self.l1(input)
         x = F.leaky_relu(x)
         x = self.l2(x)
@@ -113,24 +118,36 @@ class DNN_module(nn.Module):
         predict unsplice_predict splice_predict from network 
         '''
         #generate neighbor indices and expr dataframe
-        points = np.array([embedding1.numpy(), embedding2.numpy()]).transpose()
+        # Stack embeddings into [N, 2] tensor and keep on GPU
+        points = torch.stack([embedding1, embedding2], dim=1)
 
-        self.n_neighbors=min((points.shape[0]-1), self.n_neighbors)
-        nbrs = NearestNeighbors(n_neighbors=self.n_neighbors, algorithm='ball_tree').fit(points)
-        
-        distances, indices = nbrs.kneighbors(points) 
-        # indices: 
-        #   row -> cell, 
-        #   col -> neighboring cells, 
-        #   value -> index of cells, 
-        #   the fist col is the index of row
+        # Compute KNN purely on GPU using PyTorch
+        self.n_neighbors = min((points.shape[0]-1), self.n_neighbors)
 
-        expr = pd.merge(pd.DataFrame(splice, columns=['splice']), pd.DataFrame(unsplice, columns=['unsplice']), left_index=True, right_index=True)
-        if barcode is not None:
-            expr.index = barcode
-        unsplice = torch.tensor(expr['unsplice'])
-        splice = torch.tensor(expr['splice'])
-        indices = torch.tensor(indices)
+        # Compute pairwise distances: [N, N]
+        dist_matrix = torch.cdist(points, points)
+
+        # Get k nearest neighbors (including self at index 0)
+        distances, indices = torch.topk(dist_matrix, self.n_neighbors, largest=False, dim=1)
+        # indices:
+        #   row -> cell,
+        #   col -> neighboring cells,
+        #   value -> index of cells,
+        #   the first col is the index of row (self)
+
+        # Keep data on same device as embeddings
+        device = embedding1.device
+        if not isinstance(unsplice, torch.Tensor):
+            unsplice = torch.tensor(unsplice, dtype=torch.float32, device=device)
+        else:
+            unsplice = unsplice.to(device)
+
+        if not isinstance(splice, torch.Tensor):
+            splice = torch.tensor(splice, dtype=torch.float32, device=device)
+        else:
+            splice = splice.to(device)
+
+        indices = indices.to(device)
         unsplice_predict, splice_predict, alphas, beta, gamma = self.module(unsplice, splice, alpha0, beta0, gamma0, dt)
 
         def cosine_similarity(unsplice, splice, unsplice_predict, splice_predict, indices):
@@ -232,9 +249,9 @@ class DNN_module(nn.Module):
         def corrcoef_cost(alphas, unsplice, beta, splice):
 
             # This cost has been deprecated.
-            
-            corrcoef1 = torch.corrcoef(torch.tensor([alphas.detach().numpy(),unsplice.detach().numpy()]))[1,0]
-            corrcoef2 = torch.corrcoef(torch.tensor([beta.detach().numpy(), splice.detach().numpy()]))[1,0]
+
+            corrcoef1 = torch.corrcoef(torch.stack([alphas.detach(), unsplice.detach()]))[1,0]
+            corrcoef2 = torch.corrcoef(torch.stack([beta.detach(), splice.detach()]))[1,0]
             corrcoef = corrcoef1 + corrcoef2
             cost=torch.where(corrcoef>=torch.tensor(0.0), torch.tensor(0.0), torch.tensor(-corrcoef))
             return(cost)
@@ -356,8 +373,14 @@ class ltModule(pl.LightningModule):
         unsplices, splices, gene_names, unsplicemaxs, splicemaxs, embedding1s, embedding2s = batch
         unsplice, splice, unsplicemax, splicemax, embedding1, embedding2  = unsplices[0], splices[0], unsplicemaxs[0], splicemaxs[0], embedding1s[0], embedding2s[0]
 
-        umax = unsplicemax
-        smax = splicemax
+        # Convert to numpy-compatible format (move to CPU if needed)
+        def to_scalar(x):
+            if isinstance(x, torch.Tensor):
+                return x.cpu().item() if x.is_cuda else x.item()
+            return float(x)
+
+        umax = to_scalar(unsplicemax)
+        smax = to_scalar(splicemax)
         alpha0 = np.float32(umax*self.initial_zoom)
         beta0 = np.float32(1.0)
         gamma0 = np.float32(umax/smax*self.initial_strech)
@@ -421,7 +444,8 @@ class ltModule(pl.LightningModule):
         unsplices, splices, gene_names, unsplicemaxs, splicemaxs, embedding1s, embedding2s = batch
         unsplice, splice,gene_name, unsplicemax, splicemax, embedding1, embedding2  = unsplices[0], splices[0], gene_names[0], unsplicemaxs[0], splicemaxs[0], embedding1s[0], embedding2s[0]
         if self.current_epoch!=0:
-            cost = self.get_loss.data.numpy()
+            # Move tensor to CPU if on GPU before converting to numpy (single operation)
+            cost = self.get_loss.detach().cpu().numpy()
             loss_df = self.backbone.summary_para_validation(cost)
             loss_df.insert(0, "gene_name", gene_name)
             loss_df.insert(1, "epoch", self.current_epoch)
@@ -433,8 +457,15 @@ class ltModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         unsplices, splices, gene_names, unsplicemaxs, splicemaxs, embedding1s, embedding2s = batch
         unsplice, splice, gene_name, unsplicemax, splicemax, embedding1, embedding2  = unsplices[0], splices[0], gene_names[0], unsplicemaxs[0], splicemaxs[0], embedding1s[0], embedding2s[0]
-        umax = unsplicemax
-        smax = splicemax
+
+        # Convert to scalar (efficient single operation)
+        def to_scalar(x):
+            if isinstance(x, torch.Tensor):
+                return x.item()
+            return float(x)
+
+        umax = to_scalar(unsplicemax)
+        smax = to_scalar(splicemax)
         alpha0 = np.float32(umax*2)
         beta0 = np.float32(1.0)
         gamma0 = np.float32(umax/smax)
@@ -446,10 +477,16 @@ class ltModule(pl.LightningModule):
                 trace_cost_ratio = self.trace_cost_ratio, \
                 corrcoef_cost_ratio=self.corrcoef_cost_ratio)
 
+        # Convert to numpy (efficient batch operation with detach)
+        def to_numpy(tensor):
+            if isinstance(tensor, torch.Tensor):
+                return tensor.detach().cpu().numpy()
+            return tensor
+
         self.test_cellDancer_df= self.backbone.summary_para(
-            unsplice, splice, unsplice_predict.data.numpy(), splice_predict.data.numpy(),
-            alphas.data.numpy(), beta.data.numpy(), gamma.data.numpy(),
-            cost.data.numpy())
+            to_numpy(unsplice), to_numpy(splice), to_numpy(unsplice_predict), to_numpy(splice_predict),
+            to_numpy(alphas), to_numpy(beta), to_numpy(gamma),
+            to_numpy(cost))
         
         self.test_cellDancer_df.insert(0, "gene_name", gene_name)
         self.test_cellDancer_df.insert(0, "cellIndex", self.test_cellDancer_df.index)
@@ -554,7 +591,8 @@ def _train_thread(datamodule,
                   n_neighbors=None,
                   ini_model=None,
                   model_save_path=None,
-                  model_dir_path=None):
+                  model_dir_path=None,
+                  device='cpu'):
     
     try:
         seed = 0
@@ -623,6 +661,8 @@ def _train_thread(datamodule,
                 logger = False,
                 enable_checkpointing = False,
                 enable_model_summary=False,
+                accelerator=device,  # Use specified device (cpu/gpu)
+                devices=1,  # Use only 1 device to avoid multi-GPU issues
                 )
         else:
             # use early stop
@@ -634,7 +674,9 @@ def _train_thread(datamodule,
                 enable_checkpointing = False,
                 check_val_every_n_epoch = check_val_every_n_epoch,
                 enable_model_summary=False,
-                callbacks=[early_stop_callback]
+                callbacks=[early_stop_callback],
+                accelerator=device,  # Use specified device (cpu/gpu)
+                devices=1,  # Use only 1 device to avoid multi-GPU issues
                 )
 
         if max_epoches > 0:
@@ -749,6 +791,7 @@ def velocity(
     n_jobs=-1,
     save_path=None,
     model_dir_path=None,
+    device='cpu',
 ):
 
     """Velocity estimation for each cell.
@@ -785,6 +828,11 @@ def velocity(
         Directory path containing the model files (circle.pt and branch.pt).
         If None, will try to use the default package models. If package models are not found,
         you must specify this path.
+    device: optional, `str` (default: 'cpu')
+        Device to use for training: 'cpu' or 'gpu'.
+        IMPORTANT: When using multiprocessing (n_jobs > 1), 'cpu' is recommended to avoid
+        GPU memory conflicts. Use 'gpu' only with n_jobs=1 or when you have multiple GPUs
+        and proper CUDA_VISIBLE_DEVICES configuration.
     Returns
     -------
     loss_df: `pandas.DataFrame`
@@ -792,6 +840,14 @@ def velocity(
     cellDancer_df: `pandas.DataFrame`
         The result of velocity estimation.
     """
+
+    # Check device and n_jobs compatibility
+    n_jobs_actual = n_jobs if n_jobs != -1 else os.cpu_count()
+    if device == 'gpu' and n_jobs_actual > 1:
+        logger_cd.warning(
+            f"Using device='gpu' with n_jobs={n_jobs_actual} may cause GPU memory conflicts. "
+            f"Consider using device='cpu' for multiprocessing, or set n_jobs=1 to use a single GPU process."
+        )
 
     # set output dir
     datestring = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S");
@@ -836,7 +892,8 @@ def velocity(
             loss_func=loss_func,
             save_path=save_path,
             norm_u_s=norm_u_s,
-            model_dir_path=model_dir_path)
+            model_dir_path=model_dir_path,
+            device=device)
         for data_index in range(0,len(gene_list_buring)))
 
     # clean directory
@@ -882,7 +939,8 @@ def velocity(
                 patience=patience,
                 save_path=save_path,
                 norm_u_s=norm_u_s,
-                model_dir_path=model_dir_path)
+                model_dir_path=model_dir_path,
+                device=device)
                 for data_index in range(0,len(gene_list_batch)))
 
             # unpredicted gene list
