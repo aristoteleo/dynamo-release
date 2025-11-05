@@ -1,23 +1,24 @@
 """
-Dynamic weight scheduler for balancing spatial and gene expression losses
+Dynamic weight scheduler for balancing spatial and gene expression losses.
 """
 import torch
 
 
 class SpatialWeightScheduler:
     """
-    动态调整空间损失权重的调度器
+    Scheduler for dynamically adjusting spatial loss weight.
 
-    在训练初期使用较小的权重（基因表达更容易学习），
-    然后逐渐增加到目标权重，使空间和基因损失贡献平衡。
+    Starts with a smaller weight during early training (when gene expression is easier to learn),
+    then gradually increases to the target weight to balance spatial and gene loss contributions.
 
     Args:
-        z_dim: 基因表达的维度
-        p_dim: 空间位置的维度（默认3）
-        warmup_epochs: 预热的epoch数，在这期间权重从1逐渐增加到目标值
-        target_ratio: 目标权重相对于理论值的比例（默认1.0）
-                     理论值 = z_dim / p_dim
-                     可以调整这个比例来微调平衡
+        z_dim: Dimension of gene expression features.
+        p_dim: Dimension of spatial positions. Defaults to 3.
+        warmup_epochs: Number of warmup epochs during which the weight gradually increases
+                      from 1.0 to the target value. Defaults to 10.
+        target_ratio: Target weight relative to the theoretical value. Defaults to 1.0.
+                     Theoretical value = z_dim / p_dim
+                     Can be adjusted to fine-tune the balance.
 
     Example:
         >>> scheduler = SpatialWeightScheduler(z_dim=50, warmup_epochs=10)
@@ -38,10 +39,10 @@ class SpatialWeightScheduler:
         self.warmup_epochs = warmup_epochs
         self.target_ratio = target_ratio
 
-        # 理论上应该用的权重（使得两部分loss在同一量级）
+        # Theoretical weight to make both loss components have similar magnitudes
         self.target_weight = (z_dim / p_dim) * target_ratio
 
-        # 当前epoch计数
+        # Current epoch counter
         self.current_epoch = 0
 
         print(f"SpatialWeightScheduler initialized:")
@@ -51,17 +52,17 @@ class SpatialWeightScheduler:
 
     def step(self) -> float:
         """
-        获取当前epoch的空间权重，并将epoch计数+1
+        Get the spatial weight for the current epoch and increment the epoch counter.
 
         Returns:
-            lambda_spatial: 当前的空间损失权重
+            lambda_spatial: Current spatial loss weight.
         """
         if self.current_epoch < self.warmup_epochs:
-            # 线性增长：从1.0到target_weight
+            # Linear increase from 1.0 to target_weight
             alpha = self.current_epoch / self.warmup_epochs
             weight = 1.0 + alpha * (self.target_weight - 1.0)
         else:
-            # 预热结束后保持目标权重
+            # Maintain target weight after warmup
             weight = self.target_weight
 
         self.current_epoch += 1
@@ -69,13 +70,13 @@ class SpatialWeightScheduler:
 
     def get_weight(self, epoch: int = None) -> float:
         """
-        获取指定epoch的权重（不改变内部计数）
+        Get the weight for a specified epoch without changing the internal counter.
 
         Args:
-            epoch: 指定的epoch数，如果为None则使用当前epoch
+            epoch: The specified epoch number. If None, uses the current epoch.
 
         Returns:
-            lambda_spatial: 空间损失权重
+            lambda_spatial: Spatial loss weight for the specified epoch.
         """
         if epoch is None:
             epoch = self.current_epoch
@@ -89,21 +90,21 @@ class SpatialWeightScheduler:
         return weight
 
     def reset(self):
-        """重置epoch计数"""
+        """Reset the epoch counter to zero."""
         self.current_epoch = 0
 
 
 class AdaptiveSpatialWeightScheduler:
     """
-    自适应调整空间损失权重，根据实际的loss比例动态调整
+    Adaptive spatial loss weight scheduler that adjusts dynamically based on actual loss ratios.
 
     Args:
-        z_dim: 基因表达的维度
-        p_dim: 空间位置的维度（默认3）
-        target_ratio: 目标的spatial_loss/gene_loss比例（默认1.0表示平衡）
-        adjustment_rate: 调整速率（默认0.1）
-        min_weight: 最小权重（默认1.0）
-        max_weight: 最大权重（默认100.0）
+        z_dim: Dimension of gene expression features.
+        p_dim: Dimension of spatial positions. Defaults to 3.
+        target_ratio: Target ratio of spatial_loss/gene_loss. Defaults to 1.0 for balance.
+        adjustment_rate: Rate of adjustment. Defaults to 0.1.
+        min_weight: Minimum weight value. Defaults to 1.0.
+        max_weight: Maximum weight value. Defaults to 100.0.
 
     Example:
         >>> scheduler = AdaptiveSpatialWeightScheduler(z_dim=50)
@@ -131,7 +132,7 @@ class AdaptiveSpatialWeightScheduler:
         self.min_weight = min_weight
         self.max_weight = max_weight
 
-        # 初始权重
+        # Initial weight
         self.current_weight = z_dim / p_dim
 
         print(f"AdaptiveSpatialWeightScheduler initialized:")
@@ -140,36 +141,36 @@ class AdaptiveSpatialWeightScheduler:
 
     def step(self, gene_loss: float, spatial_loss: float) -> float:
         """
-        根据当前的loss比例调整权重
+        Adjust the weight based on current loss ratios.
 
         Args:
-            gene_loss: 基因表达的loss值
-            spatial_loss: 空间位置的loss值（未加权）
+            gene_loss: Gene expression loss value.
+            spatial_loss: Spatial position loss value (unweighted).
 
         Returns:
-            lambda_spatial: 更新后的空间损失权重
+            lambda_spatial: Updated spatial loss weight.
         """
         if spatial_loss < 1e-8:
             return self.current_weight
 
-        # 当前的加权比例
+        # Current weighted ratio
         current_ratio = (spatial_loss * self.current_weight) / (gene_loss + 1e-8)
 
-        # 如果spatial部分太小，增加权重；如果太大，减小权重
+        # If spatial part is too small, increase weight; if too large, decrease weight
         if current_ratio < self.target_ratio:
-            # 需要增加spatial的权重
+            # Need to increase spatial weight
             adjustment = self.adjustment_rate * (self.target_ratio / (current_ratio + 1e-8) - 1.0)
             self.current_weight = self.current_weight * (1.0 + adjustment)
         else:
-            # 需要减小spatial的权重
+            # Need to decrease spatial weight
             adjustment = self.adjustment_rate * (1.0 - current_ratio / self.target_ratio)
             self.current_weight = self.current_weight * (1.0 + adjustment)
 
-        # 限制在合理范围内
+        # Constrain to reasonable range
         self.current_weight = max(self.min_weight, min(self.max_weight, self.current_weight))
 
         return self.current_weight
 
     def get_weight(self) -> float:
-        """获取当前权重"""
+        """Get the current weight value."""
         return self.current_weight

@@ -16,29 +16,49 @@ Number = Union[float, int, Tensor]
 
 class EquiformerPointHead(nn.Module):
     """
-    输入
-      feats:  N x D_in or 1 x N x D_in  (连续标量特征)
-      coors:  N x 3   or 1 x N x 3
-      mask:   N or 1 x N (bool, 可选)
-    输出
-      pred_scalar: N x D_out   (旋转/平移不变, 用作 dz/dt)
-      pred_vector: N x 3       (旋转等变,   用作 dp/dt)
+    Equiformer-based point cloud processing head.
+
+    Input:
+      feats:  N x D_in or 1 x N x D_in  (continuous scalar features)
+      coors:  N x 3   or 1 x N x 3      (spatial coordinates)
+      mask:   N or 1 x N (bool, optional) (validity mask for points)
+
+    Output:
+      pred_scalar: N x D_out   (rotation/translation invariant, used as dz/dt)
+      pred_vector: N x 3       (rotation equivariant, used as dp/dt)
     """
     def __init__(
         self,
-        d_in: int,                 # 输入标量维度
-        c0: int = None,            # 主干 l=0 通道数，默认 d_in
-        c1: int = 64,              # 主干 l=1 通道数
+        d_in: int,                 # Input scalar dimension
+        c0: int = None,            # Backbone l=0 channel count, defaults to d_in
+        c1: int = 64,              # Backbone l=1 channel count
         depth: int = 4,
         heads: int = 4,
         dim_head: int = 32,
-        d_out: Optional[int] = None,     # <--- 新增：标量输出维度（默认与 d_in 相同）
+        d_out: Optional[int] = None,     # Output scalar dimension (defaults to d_in)
         reversible: bool = True,
         num_neighbors: int = 16,
         attend_self: bool = True,
         reduce_dim_out: bool = False,
         l2_dist_attention: bool = False,
     ):
+        """
+        Initialize EquiformerPointHead.
+
+        Args:
+            d_in: Input scalar feature dimension.
+            c0: Number of l=0 (scalar) channels in backbone. Defaults to d_in if None.
+            c1: Number of l=1 (vector) channels in backbone. Defaults to 64.
+            depth: Number of Equiformer layers. Defaults to 4.
+            heads: Number of attention heads. Defaults to 4.
+            dim_head: Dimension per attention head. Defaults to 32.
+            d_out: Output scalar dimension. Defaults to d_in if None.
+            reversible: Whether to use reversible layers for memory efficiency. Defaults to True.
+            num_neighbors: Number of nearest neighbors for local attention. Defaults to 16.
+            attend_self: Whether to include self-attention. Defaults to True.
+            reduce_dim_out: Whether to reduce output dimensions. Defaults to False.
+            l2_dist_attention: Whether to use L2 distance-based attention. Defaults to False.
+        """
         super().__init__()
         if c0 is None:
             c0 = d_in
@@ -59,10 +79,10 @@ class EquiformerPointHead(nn.Module):
             num_neighbors = num_neighbors,
         )
 
-        # 标量头：l=0 -> d_out
+        # Scalar head: l=0 -> d_out
         self.scalar_head = nn.Linear(c0, d_out)
 
-        # 向量头：对 l=1 的 c1 个向量通道做加权求和 -> 1 个向量通道 (3D)
+        # Vector head: weighted sum of c1 vector channels at l=1 -> 1 vector channel (3D)
         self.vector_head = nn.Linear(c1, 1, bias=False)
 
     @staticmethod
@@ -75,10 +95,24 @@ class EquiformerPointHead(nn.Module):
 
     def forward(
         self,
-        feats: torch.Tensor,         # N x D_in 或 1 x N x D_in
-        coors: torch.Tensor,         # N x 3   或 1 x N x 3
-        mask: Optional[torch.Tensor] = None  # N 或 1 x N，bool
+        feats: torch.Tensor,         # N x D_in or 1 x N x D_in
+        coors: torch.Tensor,         # N x 3   or 1 x N x 3
+        mask: Optional[torch.Tensor] = None  # N or 1 x N, bool
     ):
+        """
+        Forward pass through EquiformerPointHead.
+
+        Args:
+            feats: Input scalar features, shape (N, D_in) or (1, N, D_in).
+            coors: Spatial coordinates, shape (N, 3) or (1, N, 3).
+            mask: Optional validity mask for points, shape (N,) or (1, N), bool tensor.
+                 If None, all points are considered valid.
+
+        Returns:
+            A tuple of (pred_scalar, pred_vector) where:
+                - pred_scalar: Predicted scalar features, shape (N, d_out).
+                - pred_vector: Predicted vector features, shape (N, 3).
+        """
         device = feats.device
         feats = self._ensure_batched(feats)
         coors = self._ensure_batched(coors, 3)
@@ -102,9 +136,16 @@ class EquiformerPointHead(nn.Module):
 
 class EFVelocity(VelocityFieldBase):
     """
-    Equiformer-based velocity field
-      输入:  z(N, z_dim), p(N, 3), t(scalar)
-      输出:  dz_dt(N, z_dim), dp_dt(N, 3)
+    Equiformer-based velocity field for spatiotemporal dynamics.
+
+    Input:
+        z: Latent attributes, shape (N, z_dim)
+        p: Spatial positions, shape (N, 3)
+        t: Time scalar
+
+    Output:
+        dz_dt: Time derivative of latent attributes, shape (N, z_dim)
+        dp_dt: Time derivative of spatial positions, shape (N, 3)
     """
     def __init__(
         self,
@@ -114,7 +155,7 @@ class EFVelocity(VelocityFieldBase):
         use_time: bool = True,
         predict_p: bool = True,
         strict_checks: bool = False,
-        # EquiformerPointHead 超参数
+        # EquiformerPointHead hyperparameters
         c0: int | None = None,
         c1: int = 64,
         depth: int = 4,
@@ -126,11 +167,34 @@ class EFVelocity(VelocityFieldBase):
         reduce_dim_out: bool = False,
         l2_dist_attention: bool = False,
     ):
+        """
+        Initialize EFVelocity.
+
+        Args:
+            z_dim: Dimension of latent attribute vector z.
+            p_dim: Dimension of position vector p. Defaults to 3 for 3D space.
+            use_time: Whether to concatenate time t as an additional scalar channel to z.
+                     Defaults to True.
+            predict_p: Whether to predict dp/dt (spatial velocity). If False, dp/dt is set to zero.
+                      Defaults to True.
+            strict_checks: If True, performs additional validation checks. Defaults to False.
+            c0: Number of l=0 (scalar) channels in Equiformer backbone.
+                If None, defaults to (z_dim + 1) if use_time else z_dim.
+            c1: Number of l=1 (vector) channels in Equiformer backbone. Defaults to 64.
+            depth: Number of Equiformer layers. Defaults to 4.
+            heads: Number of attention heads. Defaults to 4.
+            dim_head: Dimension per attention head. Defaults to 32.
+            reversible: Whether to use reversible layers for memory efficiency. Defaults to True.
+            num_neighbors: Number of nearest neighbors for local attention. Defaults to 16.
+            attend_self: Whether to include self-attention. Defaults to True.
+            reduce_dim_out: Whether to reduce output dimensions. Defaults to False.
+            l2_dist_attention: Whether to use L2 distance-based attention. Defaults to False.
+        """
         super().__init__(z_dim=z_dim, p_dim=p_dim, strict_checks=strict_checks)
         self.use_time = use_time
         self.predict_p = predict_p
 
-        d_in = z_dim + (1 if use_time else 0)  # z 拼接 t 作为额外标量通道
+        d_in = z_dim + (1 if use_time else 0)  # Concatenate z and t as additional scalar channel
         self.head = EquiformerPointHead(
             d_in = d_in,
             c0 = (c0 if c0 is not None else d_in),
@@ -138,7 +202,7 @@ class EFVelocity(VelocityFieldBase):
             depth = depth,
             heads = heads,
             dim_head = dim_head,
-            d_out = z_dim,                 # 标量头输出维度对齐 z_dim -> dz/dt
+            d_out = z_dim,                 # Scalar head output dimension aligned with z_dim -> dz/dt
             reversible = reversible,
             num_neighbors = num_neighbors,
             attend_self = attend_self,
@@ -160,17 +224,33 @@ class EFVelocity(VelocityFieldBase):
         t: Number,
         context: Optional[Mapping] = None,
     ) -> Tuple[Tensor, Tensor]:
+        """
+        Compute velocity using Equiformer-based architecture.
+
+        Args:
+            z: Latent attribute tensor, shape (N, z_dim).
+            p: Position tensor, shape (N, p_dim).
+            t: Time scalar.
+            context: Optional dictionary that may contain:
+                    - 'mask': Validity mask for points, shape (N,) or (1, N), bool tensor.
+
+        Returns:
+            A tuple of (dz_dt, dp_dt) where:
+                - dz_dt: Time derivative of latent attributes, shape (N, z_dim).
+                - dp_dt: Time derivative of positions, shape (N, p_dim).
+                        If predict_p is False, returns zeros.
+        """
         feats = self._time_cat(z, t)
         mask = None
         if context is not None:
-            mask = context.get("mask", None)  # 可传 N 或 1xN 的 bool
+            mask = context.get("mask", None)  # Can pass N or 1xN bool mask
 
         dz_dt, dp_dt_pred = self.head(feats, p, mask)
 
         if not self.predict_p:
             dp_dt = torch.zeros_like(p)
         else:
-            dp_dt = dp_dt_pred  # 直接解释为 dp/dt（等变向量场）
+            dp_dt = dp_dt_pred  # Directly interpret as dp/dt (equivariant vector field)
 
         return dz_dt, dp_dt
 

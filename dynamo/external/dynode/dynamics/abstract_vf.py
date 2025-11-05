@@ -18,6 +18,15 @@ class VelocityFieldBase(nn.Module, metaclass=abc.ABCMeta):
     """
 
     def __init__(self, z_dim: int, p_dim: int = 3, *, strict_checks: bool = False):
+        """
+        Initialize the velocity field base.
+
+        Args:
+            z_dim: Dimension of the latent attribute vector z.
+            p_dim: Dimension of the position vector p. Defaults to 3 for 3D space.
+            strict_checks: If True, performs additional validation checks on outputs
+                          (shape matching, finite values). Defaults to False for performance.
+        """
         super().__init__()
         self.z_dim = int(z_dim)
         self.p_dim = int(p_dim)
@@ -54,7 +63,16 @@ class VelocityFieldBase(nn.Module, metaclass=abc.ABCMeta):
         context: Optional[Mapping] = None,
     ) -> Tensor:
         """
-        Convenience: accept (z, p) separately and return concatenated [dz/dt, dp/dt].
+        Convenience method: accept (z, p) separately and return concatenated [dz/dt, dp/dt].
+
+        Args:
+            z: Latent attribute tensor of shape (N, z_dim).
+            p: Position tensor of shape (N, p_dim).
+            t: Time scalar (float, int, or 0-d tensor).
+            context: Optional dictionary containing additional context information.
+
+        Returns:
+            Concatenated velocity vector [dz/dt, dp/dt] of shape (N, z_dim + p_dim).
         """
         dz_dt, dp_dt = self._compute_velocity(z, p, t, context)
         return self._concat(dz_dt, dp_dt)
@@ -69,9 +87,19 @@ class VelocityFieldBase(nn.Module, metaclass=abc.ABCMeta):
         context: Optional[Mapping] = None,
     ) -> Tuple[Tensor, Tensor]:
         """
-        Must return:
-          dz_dt: (N, z_dim)
-          dp_dt: (N, p_dim)
+        Abstract method to compute velocity components. Must be implemented by subclasses.
+
+        Args:
+            z: Latent attribute tensor of shape (N, z_dim).
+            p: Position tensor of shape (N, p_dim).
+            t: Time scalar (float, int, or 0-d tensor).
+            context: Optional dictionary containing additional context information
+                    (e.g., masks, conditioning variables).
+
+        Returns:
+            A tuple of (dz_dt, dp_dt) where:
+                - dz_dt: Time derivative of latent attributes, shape (N, z_dim).
+                - dp_dt: Time derivative of positions, shape (N, p_dim).
         """
         raise NotImplementedError
 
