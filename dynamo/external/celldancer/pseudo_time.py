@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 from .diffusion import *
 from .compute_cell_velocity import compute_cell_velocity
-from .plotting.cell import calculate_para_umap
+#from plotting.cell import calculate_para_umap
     
 def compute_trajectory_displacement(traj):
     traj = np.array(traj)

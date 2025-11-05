@@ -191,40 +191,52 @@ def adata_to_df_with_embed(adata,
         pandas DataFrame with columns gene_name, unsplice, splice, cellID, clusters, embedding1, embedding2.
     """
     from tqdm import tqdm
-    def adata_to_raw_one_gene(data, us_para, gene):
-        '''
-        convert adata to raw data format (one gene)
-        data: an anndata
-        us_para: the varable name of u0, s0, and gene name
-        us_para = ['Mu', 'Ms']
-        '''
-        data2 = data[:, data.var.index.isin([gene])].copy()
-        u0 = data2.layers[us_para[0]][:,0].copy().astype(np.float32)
-        s0 = data2.layers[us_para[1]][:,0].copy().astype(np.float32)
-        raw_data = pd.DataFrame({'gene_name':gene, 'unsplice':u0, 'splice':s0})
-        return(raw_data)
 
     if gene_list is None: gene_list=adata.var.index
-    
-    for i,gene in enumerate(tqdm(gene_list)):
-        data_onegene = adata_to_raw_one_gene(adata, us_para=us_para, gene=gene)
-        if i==0:
-            data_onegene.to_csv(save_path,header=True,index=False)
-        else:
-            data_onegene.to_csv(save_path,mode='a',header=False,index=False)
-    
+
+    # Vectorized approach: extract all genes at once (MUCH faster!)
+    with tqdm(total=5, desc="Processing genes") as pbar:
+        pbar.set_description("Subsetting adata")
+        adata_subset = adata[:, adata.var.index.isin(gene_list)].copy()
+        pbar.update(1)
+
+        pbar.set_description("Extracting unspliced data")
+        u_data = adata_subset.layers[us_para[0]]
+        if scipy.sparse.issparse(u_data):
+            u_data = u_data.toarray()
+        u_data = u_data.astype(np.float32)
+        pbar.update(1)
+
+        pbar.set_description("Extracting spliced data")
+        s_data = adata_subset.layers[us_para[1]]
+        if scipy.sparse.issparse(s_data):
+            s_data = s_data.toarray()
+        s_data = s_data.astype(np.float32)
+        pbar.update(1)
+
+        pbar.set_description("Reshaping data")
+        n_cells, n_genes = u_data.shape
+        gene_names_actual = adata_subset.var.index.tolist()
+        pbar.update(1)
+
+        pbar.set_description("Creating DataFrame")
+        raw_data = pd.DataFrame({
+            'gene_name': np.repeat(gene_names_actual, n_cells),
+            'unsplice': u_data.T.flatten(),
+            'splice': s_data.T.flatten()
+        })
+        pbar.update(1)
+
     # cell info
     gene_num=len(gene_list)
     cellID=pd.DataFrame({'cellID':adata.obs.index})
     celltype_meta=adata.obs[cell_type_para].reset_index(drop=True)
-    celltype=pd.DataFrame({'clusters':celltype_meta})#
+    celltype=pd.DataFrame({'clusters':celltype_meta})
     embed_map=pd.DataFrame({'embedding1':adata.obsm[embed_para][:,0],'embedding2':adata.obsm[embed_para][:,1]})
-    # embed_info_df = pd.concat([embed_info]*gene_num)
     embed_info=pd.concat([cellID,celltype,embed_map],axis=1)
-    embed_raw=pd.concat([embed_info]*gene_num)
-    embed_raw=embed_raw.reset_index(drop=True)
-    
-    raw_data=pd.read_csv(save_path)
+    embed_raw=pd.concat([embed_info]*gene_num, ignore_index=True)
+
+    # Combine and save once
     raw_data=pd.concat([raw_data,embed_raw],axis=1)
     raw_data.to_csv(save_path,header=True,index=False)
 
@@ -449,29 +461,45 @@ def adata_to_raw(adata,save_path,gene_list=None):
     '''
     from tqdm import tqdm
 
-    def adata_to_raw_one_gene(data, para, gene):
-        '''
-        convert adata to raw data format (one gene)
-        data: an anndata
-        para: the varable name of u0, s0, and gene name
-        para = ['Mu', 'Ms']
-        '''
-        data2 = data[:, data.var.index.isin([gene])].copy()
-        u0 = data2.layers[para[0]][:,0].copy().astype(np.float32)
-        s0 = data2.layers[para[1]][:,0].copy().astype(np.float32)
-        raw_data = pd.DataFrame({'gene_name':gene, 'u0':u0, 's0':s0})
-        raw_data['cellID']=adata.obs.index
-        return(raw_data)
-
     if gene_list is None: gene_list=adata.var.index
 
-    for i,gene in enumerate(tqdm(gene_list)):
-        data_onegene = adata_to_raw_one_gene(adata, para=['Mu', 'Ms'], gene=gene)
-        if i==0:
-            data_onegene.to_csv(save_path,header=True,index=False)
-        else:
-            data_onegene.to_csv(save_path,mode='a',header=False,index=False)
-    raw_data=pd.read_csv(save_path)
+    # Vectorized approach: extract all genes at once (MUCH faster!)
+    with tqdm(total=6, desc="Processing genes") as pbar:
+        pbar.set_description("Subsetting adata")
+        adata_subset = adata[:, adata.var.index.isin(gene_list)].copy()
+        pbar.update(1)
+
+        pbar.set_description("Extracting unspliced data")
+        u_data = adata_subset.layers['Mu']
+        if scipy.sparse.issparse(u_data):
+            u_data = u_data.toarray()
+        u_data = u_data.astype(np.float32)
+        pbar.update(1)
+
+        pbar.set_description("Extracting spliced data")
+        s_data = adata_subset.layers['Ms']
+        if scipy.sparse.issparse(s_data):
+            s_data = s_data.toarray()
+        s_data = s_data.astype(np.float32)
+        pbar.update(1)
+
+        pbar.set_description("Reshaping data")
+        n_cells, n_genes = u_data.shape
+        gene_names_actual = adata_subset.var.index.tolist()
+        pbar.update(1)
+
+        pbar.set_description("Creating DataFrame")
+        raw_data = pd.DataFrame({
+            'gene_name': np.repeat(gene_names_actual, n_cells),
+            'u0': u_data.T.flatten(),
+            's0': s_data.T.flatten(),
+            'cellID': np.tile(adata.obs.index, n_genes)
+        })
+        pbar.update(1)
+
+        pbar.set_description("Saving to CSV")
+        raw_data.to_csv(save_path,header=True,index=False)
+        pbar.update(1)
 
     return(raw_data)
 

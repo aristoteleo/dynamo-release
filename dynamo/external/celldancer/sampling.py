@@ -245,9 +245,10 @@ def downsampling(data_df, gene_list, downsampling_ixs):
     '''
     Guangyu
     '''
-    data_df_downsampled=pd.DataFrame()
+    data_df_downsampled_list = []
     for gene in gene_list:
         data_df_one_gene=data_df[data_df['gene_name']==gene]
         data_df_one_gene_downsampled = data_df_one_gene.iloc[downsampling_ixs]
-        data_df_downsampled=data_df_downsampled.append(data_df_one_gene_downsampled)
+        data_df_downsampled_list.append(data_df_one_gene_downsampled)
+    data_df_downsampled = pd.concat(data_df_downsampled_list, ignore_index=True)
     return(data_df_downsampled)

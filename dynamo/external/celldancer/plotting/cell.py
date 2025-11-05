@@ -10,11 +10,7 @@ import numpy as np
 import pandas as pd
 from .colormap import *
 
-if __name__ == "__main__":
-    sys.path.append('..')
-    from utilities import find_nn_neighbors, extract_from_df
-else:
-    from celldancer.utilities import find_nn_neighbors, extract_from_df
+from ..utilities import find_nn_neighbors, extract_from_df
 
 def scatter_cell(
     ax,

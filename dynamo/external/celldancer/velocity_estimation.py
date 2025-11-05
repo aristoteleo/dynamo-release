@@ -16,7 +16,12 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.neighbors import NearestNeighbors
 from joblib import Parallel, delayed
 from tqdm import tqdm
-import pkg_resources
+try:
+    # Python 3.9+
+    from importlib.resources import files
+except ImportError:
+    # Python 3.7-3.8 fallback
+    from importlib_resources import files
 import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -69,7 +74,9 @@ class DNN_layer(nn.Module):
         }, model_path)
 
     def load(self, model_path):
-        checkpoint = torch.load(model_path)
+        # Set weights_only=False for PyTorch 2.6+ compatibility
+        # These are trusted model files from the celldancer package
+        checkpoint = torch.load(model_path, weights_only=False)
         self.l1 = checkpoint["l1"]
         self.l2 = checkpoint["l2"]
         self.l3 = checkpoint["l3"]
@@ -348,7 +355,7 @@ class ltModule(pl.LightningModule):
 
         unsplices, splices, gene_names, unsplicemaxs, splicemaxs, embedding1s, embedding2s = batch
         unsplice, splice, unsplicemax, splicemax, embedding1, embedding2  = unsplices[0], splices[0], unsplicemaxs[0], splicemaxs[0], embedding1s[0], embedding2s[0]
-        
+
         umax = unsplicemax
         smax = splicemax
         alpha0 = np.float32(umax*self.initial_zoom)
@@ -396,13 +403,15 @@ class ltModule(pl.LightningModule):
             "gamma": gamma.detach()
         }
 
-    def training_epoch_end(self, outputs):
+    def on_train_epoch_end(self):
         '''
         steps after finished each epoch
+        Updated for PyTorch Lightning 2.0+ compatibility
         '''
-        loss = torch.stack([x["loss"] for x in outputs]).mean()
-        beta = torch.stack([x["beta"] for x in outputs]).mean()
-        gamma = torch.stack([x["gamma"] for x in outputs]).mean()
+        # In PyTorch Lightning 2.0+, outputs are accessed differently
+        # This method is kept for compatibility but the actual values
+        # are now computed in training_step
+        pass
 
     def validation_step(self, batch, batch_idx):
         '''
@@ -419,7 +428,7 @@ class ltModule(pl.LightningModule):
             if self.validation_loss_df.empty:
                 self.validation_loss_df = loss_df
             else:
-                self.validation_loss_df = self.validation_loss_df.append(loss_df)
+                self.validation_loss_df = pd.concat([self.validation_loss_df, loss_df], ignore_index=True)
 
     def test_step(self, batch, batch_idx):
         unsplices, splices, gene_names, unsplicemaxs, splicemaxs, embedding1s, embedding2s = batch
@@ -438,8 +447,8 @@ class ltModule(pl.LightningModule):
                 corrcoef_cost_ratio=self.corrcoef_cost_ratio)
 
         self.test_cellDancer_df= self.backbone.summary_para(
-            unsplice, splice, unsplice_predict.data.numpy(), splice_predict.data.numpy(), 
-            alphas.data.numpy(), beta.data.numpy(), gamma.data.numpy(), 
+            unsplice, splice, unsplice_predict.data.numpy(), splice_predict.data.numpy(),
+            alphas.data.numpy(), beta.data.numpy(), gamma.data.numpy(),
             cost.data.numpy())
         
         self.test_cellDancer_df.insert(0, "gene_name", gene_name)
@@ -532,7 +541,7 @@ class feedData(pl.LightningDataModule):
     def test_dataloader(self):
         return DataLoader(self.predict_dataset,num_workers=0,)
 
-def _train_thread(datamodule, 
+def _train_thread(datamodule,
                   data_indices,
                   save_path=None,
                   max_epoches=None,
@@ -544,7 +553,8 @@ def _train_thread(datamodule,
                   loss_func=None,
                   n_neighbors=None,
                   ini_model=None,
-                  model_save_path=None):
+                  model_save_path=None,
+                  model_dir_path=None):
     
     try:
         seed = 0
@@ -577,12 +587,29 @@ def _train_thread(datamodule,
             sampling_ixs_select_model=list(data_df.index)
             
         gene_downsampling=downsampling(data_df=data_df, gene_list=[this_gene_name], downsampling_ixs=sampling_ixs_select_model)
+
+        # Load model based on ini_model parameter
         if ini_model=='circle':
-            model_path=model_path=pkg_resources.resource_stream(__name__,os.path.join('model', 'circle.pt')).name
-        if ini_model=='branch':
-            model_path=model_path=pkg_resources.resource_stream(__name__,os.path.join('model', 'branch.pt')).name
+            if model_dir_path is not None:
+                model_path = os.path.join(model_dir_path, 'circle.pt')
+            else:
+                try:
+                    # Use importlib.resources instead of pkg_resources
+                    model_path = str(files('dynamo.external.celldancer').joinpath('model', 'circle.pt'))
+                except:
+                    raise FileNotFoundError("circle.pt not found. Please specify model_dir_path parameter.")
+        elif ini_model=='branch':
+            if model_dir_path is not None:
+                model_path = os.path.join(model_dir_path, 'branch.pt')
+            else:
+                try:
+                    # Use importlib.resources instead of pkg_resources
+                    model_path = str(files('dynamo.external.celldancer').joinpath('model', 'branch.pt'))
+                except:
+                    raise FileNotFoundError("branch.pt not found. Please specify model_dir_path parameter.")
         else:
-            model_path=select_initial_net(this_gene_name, gene_downsampling, data_df)
+            model_path=select_initial_net(this_gene_name, gene_downsampling, data_df, model_dir_path=model_dir_path)
+
         model.load(model_path)
 
         early_stop_callback = EarlyStopping(monitor="loss", min_delta=0.0, patience=patience,mode='min')
@@ -590,9 +617,9 @@ def _train_thread(datamodule,
         if check_val_every_n_epoch is None:
             # not use early stop
             trainer = pl.Trainer(
-                max_epochs=max_epoches, 
-                progress_bar_refresh_rate=0, 
-                reload_dataloaders_every_n_epochs=1, 
+                max_epochs=max_epoches,
+                enable_progress_bar=False,  # Replaces progress_bar_refresh_rate for PyTorch Lightning 2.0+
+                reload_dataloaders_every_n_epochs=1,
                 logger = False,
                 enable_checkpointing = False,
                 enable_model_summary=False,
@@ -600,9 +627,9 @@ def _train_thread(datamodule,
         else:
             # use early stop
             trainer = pl.Trainer(
-                max_epochs=max_epoches, 
-                progress_bar_refresh_rate=0, 
-                reload_dataloaders_every_n_epochs=1, 
+                max_epochs=max_epoches,
+                enable_progress_bar=False,  # Replaces progress_bar_refresh_rate for PyTorch Lightning 2.0+
+                reload_dataloaders_every_n_epochs=1,
                 logger = False,
                 enable_checkpointing = False,
                 check_val_every_n_epoch = check_val_every_n_epoch,
@@ -634,13 +661,31 @@ def _train_thread(datamodule,
         
         header_loss_df=['gene_name','epoch','loss']
         header_cellDancer_df=['cellIndex','gene_name','unsplice','splice','unsplice_predict','splice_predict','alpha','beta','gamma','loss']
-        
-        loss_df.to_csv(os.path.join(save_path,'TEMP', ('loss'+'_'+this_gene_name+'.csv')),header=header_loss_df,index=False)
-        cellDancer_df.to_csv(os.path.join(save_path,'TEMP', ('cellDancer_estimation_'+this_gene_name+'.csv')),header=header_cellDancer_df,index=False)
-        
+
+        # Ensure TEMP directory exists
+        temp_dir = os.path.join(save_path,'TEMP')
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir, exist_ok=True)
+
+        loss_file = os.path.join(temp_dir, f'loss_{this_gene_name}.csv')
+        cellDancer_file = os.path.join(temp_dir, f'cellDancer_estimation_{this_gene_name}.csv')
+
+        loss_df.to_csv(loss_file, header=header_loss_df, index=False)
+        cellDancer_df.to_csv(cellDancer_file, header=header_cellDancer_df, index=False)
+
+        # Verify files were saved
+        if not os.path.exists(loss_file) or not os.path.exists(cellDancer_file):
+            logger_cd.warning(f"Files for {this_gene_name} may not have been saved correctly")
+
         return None
 
-    except:
+    except Exception as e:
+        import traceback
+        error_msg = f"Error processing gene {this_gene_name}: {str(e)}\n{traceback.format_exc()}"
+        logger_cd.error(error_msg)
+        # Save error to file for debugging
+        with open(os.path.join(save_path,'TEMP', f'error_{this_gene_name}.txt'), 'w') as f:
+            f.write(error_msg)
         return this_gene_name
 
 
@@ -690,7 +735,7 @@ def build_datamodule(cell_type_u_s,
 def velocity(
     cell_type_u_s,
     gene_list=None,
-    max_epoches=200, 
+    max_epoches=200,
     check_val_every_n_epoch=10,
     patience=3,
     learning_rate=0.001,
@@ -703,6 +748,7 @@ def velocity(
     loss_func='cosine',
     n_jobs=-1,
     save_path=None,
+    model_dir_path=None,
 ):
 
     """Velocity estimation for each cell.
@@ -733,8 +779,12 @@ def velocity(
         Currently support `'cosine'`, `'rmse'`, and (`'mix'`, mix_ratio).
     n_jobs: optional, `int` (default: -1)
         The maximum number of concurrently running jobs.
-    save_path: optional, `str` (default: 200)
+    save_path: optional, `str` (default: None)
         Path to save the result of velocity estimation.
+    model_dir_path: optional, `str` (default: None)
+        Directory path containing the model files (circle.pt and branch.pt).
+        If None, will try to use the default package models. If package models are not found,
+        you must specify this path.
     Returns
     -------
     loss_df: `pandas.DataFrame`
@@ -776,7 +826,7 @@ def velocity(
     result = Parallel(n_jobs=n_jobs, backend="loky")(
         delayed(_train_thread)(
             datamodule = datamodule,
-            data_indices=[data_index], 
+            data_indices=[data_index],
             max_epoches=max_epoches,
             check_val_every_n_epoch=check_val_every_n_epoch,
             patience=patience,
@@ -785,7 +835,8 @@ def velocity(
             dt=dt,
             loss_func=loss_func,
             save_path=save_path,
-            norm_u_s=norm_u_s)
+            norm_u_s=norm_u_s,
+            model_dir_path=model_dir_path)
         for data_index in range(0,len(gene_list_buring)))
 
     # clean directory
@@ -808,48 +859,63 @@ def velocity(
         id_ranges.append((idx_start,idx_end))
 
 
-    print('Arranging genes for parallel job.')
-    if len(id_ranges)==1:
-        if id_ranges==1:
-            print(data_len,' gene was arranged to ',len(id_ranges),' portion.')
-        else:
-            print(data_len,' genes were arranged to ',len(id_ranges),' portion.')
-    else: 
-        print(data_len,' genes were arranged to ',len(id_ranges),' portions.')
-    
+    print(f'Processing {data_len} genes in {len(id_ranges)} batches with n_jobs={n_jobs if n_jobs != -1 else os.cpu_count()}')
+
     unpredicted_gene_lst=list()
-    for id_range in tqdm(id_ranges,desc="Velocity Estimation", total=len(id_ranges),position=1,leave=False, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}'):
-        gene_list_batch=gene_list[id_range[0]:id_range[1]]
-        datamodule=build_datamodule(cell_type_u_s,speed_up,norm_u_s,permutation_ratio,norm_cell_distribution,gene_list=gene_list_batch)
 
-        result = Parallel(n_jobs=n_jobs, backend="loky")(
-            delayed(_train_thread)(
-            datamodule = datamodule,
-            data_indices=[data_index], 
-            max_epoches=max_epoches,
-            check_val_every_n_epoch=check_val_every_n_epoch,
-            n_neighbors=n_neighbors,
-            dt=dt,
-            loss_func=loss_func,
-            learning_rate=learning_rate,
-            patience=patience,
-            save_path=save_path,
-            norm_u_s=norm_u_s)
-            for data_index in range(0,len(gene_list_batch)))
+    # Create progress bar for genes (not batches)
+    with tqdm(total=data_len, desc="Processing genes", unit="gene", position=0, leave=True) as pbar:
+        for id_range in id_ranges:
+            gene_list_batch=gene_list[id_range[0]:id_range[1]]
+            datamodule=build_datamodule(cell_type_u_s,speed_up,norm_u_s,permutation_ratio,norm_cell_distribution,gene_list=gene_list_batch)
 
-        # unpredicted gene list
-        gene_name_lst=[x for x in result if x is not None]
-        for i in gene_name_lst:
-            unpredicted_gene_lst.append(i)
+            result = Parallel(n_jobs=n_jobs, backend="loky")(
+                delayed(_train_thread)(
+                datamodule = datamodule,
+                data_indices=[data_index],
+                max_epoches=max_epoches,
+                check_val_every_n_epoch=check_val_every_n_epoch,
+                n_neighbors=n_neighbors,
+                dt=dt,
+                loss_func=loss_func,
+                learning_rate=learning_rate,
+                patience=patience,
+                save_path=save_path,
+                norm_u_s=norm_u_s,
+                model_dir_path=model_dir_path)
+                for data_index in range(0,len(gene_list_batch)))
+
+            # unpredicted gene list
+            gene_name_lst=[x for x in result if x is not None]
+            for i in gene_name_lst:
+                unpredicted_gene_lst.append(i)
+
+            # Update progress bar by the number of genes processed in this batch
+            pbar.update(len(gene_list_batch))
     if len(unpredicted_gene_lst)!=0:
         not_pred_err='Not predicted gene list:'+str(unpredicted_gene_lst)+'. Try visualizing the unspliced and spliced columns of the gene(s) to check the quality.'
         logger_cd.error(not_pred_err)
 
     # summarize
+    print(f"Looking for results in: {os.path.join(save_path,'TEMP')}")
+
+    # Check if TEMP directory exists
+    temp_dir = os.path.join(save_path,'TEMP')
+    if not os.path.exists(temp_dir):
+        logger_cd.error(f"TEMP directory does not exist: {temp_dir}")
+        return None, None
+
+    # List all files in TEMP directory for debugging
+    temp_files = os.listdir(temp_dir)
+    print(f"Files in TEMP directory ({len(temp_files)}): {temp_files[:10]}...")  # Show first 10 files
+
     cellDancer_df = os.path.join(save_path,'TEMP', "cellDancer_estimation*.csv")
     cellDancer_df_files = glob.glob(cellDancer_df)
+    print(f"Found {len(cellDancer_df_files)} cellDancer files")
+
     loss_df = os.path.join(save_path, 'TEMP',"loss*.csv")
     loss_df_files = glob.glob(loss_df)
+    print(f"Found {len(loss_df_files)} loss files")
 
     def combine_csv(save_path,files):
         with open(save_path,"wb") as fout:
@@ -887,27 +953,52 @@ def velocity(
         return loss_df, cellDancer_df
 
     
-def select_initial_net(gene, gene_downsampling, data_df):
+def select_initial_net(gene, gene_downsampling, data_df, model_dir_path=None):
     '''
     check if right top conner has cells
     circle.pt is the model for single kinetic
     branch.pt is multiple kinetic
+
+    Parameters:
+    -----------
+    model_dir_path: str, optional
+        Directory path containing the model files (circle.pt and branch.pt).
+        If None, will use the default package models.
     '''
     gene_u_s = gene_downsampling[gene_downsampling.gene_name==gene]
     gene_u_s_full = data_df[data_df.gene_name==gene]
-    
+
     s_max=np.max(gene_u_s.splice)
     u_max = np.max(gene_u_s.unsplice)
     s_max_90per = 0.9*s_max
     u_max_90per = 0.9*u_max
-    
+
     gene_u_s_full['position'] = 'position_cells'
     gene_u_s_full.loc[(gene_u_s_full.splice>s_max_90per) & (gene_u_s_full.unsplice>u_max_90per), 'position'] = 'cells_corner'
 
     if gene_u_s_full.loc[gene_u_s_full['position']=='cells_corner'].shape[0]>0.001*gene_u_s_full.shape[0]:
         # model in circle shape
-        model_path=pkg_resources.resource_stream(__name__,os.path.join('model', 'circle.pt')).name
+        model_name = 'circle.pt'
     else:
         # model in seperated branch shape
-        model_path=pkg_resources.resource_stream(__name__,os.path.join('model', 'branch.pt')).name
-    return(model_path)
+        model_name = 'branch.pt'
+
+    # Try to load from external path first, then fall back to package resources
+    if model_dir_path is not None:
+        model_path = os.path.join(model_dir_path, model_name)
+        if os.path.exists(model_path):
+            return model_path
+        else:
+            logger_cd.warning(f"Model file not found at {model_path}, falling back to package models")
+
+    # Fall back to package resources using importlib.resources
+    try:
+        # Use importlib.resources instead of pkg_resources
+        model_path = str(files('dynamo.external.celldancer').joinpath('model', model_name))
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+    except Exception as e:
+        logger_cd.error(f"Failed to load model from package: {e}")
+        raise FileNotFoundError(f"Could not find {model_name}. Please specify model_dir_path parameter with the directory containing the model files.")
+
+    return model_path
