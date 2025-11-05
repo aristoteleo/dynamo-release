@@ -175,7 +175,7 @@ def run_reduce_dim(
     X_data: np.ndarray,
     n_components: int,
     n_pca_components: int,
-    reduction_method: Literal["trimap", "diffusion_map", "tsne", "umap", "psl"],
+    reduction_method: Literal["trimap", "diffusion_map", "tsne", "umap", "psl", "sude"],
     embedding_key: str,
     n_neighbors: int,
     neighbor_key: str,
@@ -312,6 +312,44 @@ def run_reduce_dim(
         main_info_insert_adata_obsm(embedding_key, log_level=20)
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = adj_mat
+    elif reduction_method == "sude":
+        try:
+            from ..external.sude_py.sude import sude
+        except ImportError:
+            raise ImportError(
+                "Please ensure SUDE is properly installed. SUDE is available in dynamo.external.sude_py"
+            )
+        
+        # Extract SUDE-specific parameters from kwargs
+        k1 = kwargs.get("k1", 20)
+        normalize = kwargs.get("normalize", True)
+        large = kwargs.get("large", False)
+        initialize = kwargs.get("initialize", "le")
+        agg_coef = kwargs.get("agg_coef", 1.2)
+        T_epoch = kwargs.get("T_epoch", 50)
+        
+        X_dim = sude(
+            X_data,
+            no_dims=n_components,
+            k1=k1,
+            normalize=normalize,
+            large=large,
+            initialize=initialize,
+            agg_coef=agg_coef,
+            T_epoch=T_epoch
+        )
+        
+        main_info_insert_adata_obsm(embedding_key, log_level=20)
+        adata.obsm[embedding_key] = X_dim
+        adata.uns[neighbor_key] = {
+            "params": {"n_neighbors": n_neighbors, "method": reduction_method},
+            "k1": k1,
+            "normalize": normalize,
+            "large": large,
+            "initialize": initialize,
+            "agg_coef": agg_coef,
+            "T_epoch": T_epoch,
+        }
 
     else:
         raise Exception("reduction_method {} is not supported.".format(reduction_method))

@@ -1,6 +1,7 @@
 """
-A minimalistic version helper in the spirit of versioneer, that is able to run without build step using pkg_resources.
+A minimalistic version helper in the spirit of versioneer, that is able to run without build step using importlib.metadata.
 Developed by P Angerer, see https://github.com/flying-sheep/get_version.
+Updated to use importlib.metadata instead of deprecated pkg_resources.
 """
 
 import logging
@@ -110,17 +111,30 @@ def get_version_from_git(parent: Path) -> Optional[Version]:
 def get_version_from_metadata(name: str, parent: Optional[Path] = None) -> Optional[Version]:
     """Get the version from the package metadata."""
     try:
-        from pkg_resources import DistributionNotFound, get_distribution
+        from importlib.metadata import distribution, PackageNotFoundError
     except ImportError:
         return None
 
     try:
-        pkg = get_distribution(name)
-    except DistributionNotFound:
+        pkg = distribution(name)
+    except PackageNotFoundError:
         return None
 
     # For an installed package, the parent is the install location
-    path_pkg = Path(pkg.location).resolve()
+    try:
+        # Get the location from the distribution
+        if hasattr(pkg, '_path'):
+            path_pkg = Path(str(pkg._path)).resolve()
+        else:
+            # Fallback: try to get path from files
+            files = pkg.files
+            if files:
+                path_pkg = Path(str(files[0])).resolve().parent
+            else:
+                return Version(pkg.version)
+    except:
+        return Version(pkg.version)
+
     if parent is not None and path_pkg != parent.resolve():
         msg = f"""\
             metadata: Failed; distribution and package paths do not match:
@@ -177,13 +191,13 @@ def get_version(package: Union[Path, str]) -> str:
 
 def get_dynamo_version() -> Optional[str]:
     """Get the version of Dynamo."""
-    import pkg_resources
-
     try:
+        # Use importlib.metadata instead of deprecated pkg_resources
+        from importlib.metadata import version as get_version
         _package_name = "dynamo-release"
-        _package = pkg_resources.working_set.by_key[_package_name]
-        version = _package.version
-    except KeyError:
+        version = get_version(_package_name)
+    except Exception:
+        # Fallback version if package is not installed or found
         version = "1.0.9"
 
     return version
@@ -196,21 +210,31 @@ def get_all_dependencies_version(display: bool = True):
     https://stackoverflow.com/questions/40428931/package-for-listing-version-of-packages-used-in-a-jupyter-notebook
     """
     import pandas as pd
-    import pkg_resources
+    from importlib.metadata import distributions, distribution, version as get_version
     from IPython.display import display
 
     _package_name = "dynamo-release"
-    _package = pkg_resources.working_set.by_key[_package_name]
 
-    all_dependencies = [str(r).split(">")[0] for r in _package.requires()]  # retrieve deps from setup.py
+    try:
+        _package = distribution(_package_name)
+        # Get dependencies
+        if _package.requires:
+            all_dependencies = [str(r).split(">")[0].split("=")[0].strip() for r in _package.requires]
+        else:
+            all_dependencies = []
+    except:
+        all_dependencies = []
+
     all_dependencies.sort(reverse=True)
     all_dependencies.insert(0, "dynamo-release")
 
     all_dependencies_list = []
 
-    for m in pkg_resources.working_set:
-        if m.project_name.lower() in all_dependencies:
-            all_dependencies_list.append([m.project_name, m.version])
+    # Get all installed packages
+    for dist in distributions():
+        pkg_name = dist.name
+        if pkg_name.lower() in [dep.lower() for dep in all_dependencies]:
+            all_dependencies_list.append([pkg_name, dist.version])
 
     df = pd.DataFrame(all_dependencies_list[::-1], columns=["package", "version"]).set_index("package").T
 

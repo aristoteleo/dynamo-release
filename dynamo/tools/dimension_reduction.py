@@ -49,7 +49,7 @@ def reduceDimension(
         n_neighbors: The number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
         reduction_method: Non-linear dimension reduction method to further reduce dimension based on the top
             n_pca_components PCA components. Currently, PSL (probabilistic structure learning, a new dimension reduction
-            by us), tSNE (fitsne instead of traditional tSNE used) or umap are supported. Defaults to "umap".
+            by us), tSNE (fitsne instead of traditional tSNE used), umap, or sude are supported. Defaults to "umap".
         embedding_key: The str in `.obsm` that will be used as the key to save the reduced embedding space. By default,
             it is None and embedding key is set as layer + reduction_method. If layer is None, it will be "X_neighbors".
             Defaults to None.
@@ -122,6 +122,140 @@ def reduceDimension(
         neighbors(adata)
 
     logger.finish_progress(progress_name=reduction_method.upper())
+
+    if copy:
+        return adata
+    return None
+
+
+def run_sude(
+    adata: AnnData,
+    X_data: np.ndarray = None,
+    genes: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+    basis: Optional[str] = "pca",
+    dims: Optional[List[int]] = None,
+    n_pca_components: int = 30,
+    n_components: int = 2,
+    n_neighbors: int = 30,
+    embedding_key: Optional[str] = None,
+    neighbor_key: Optional[str] = None,
+    enforce: bool = False,
+    copy: bool = False,
+    k1: int = 20,
+    normalize: bool = True,
+    large: bool = False,
+    initialize: str = "le",
+    agg_coef: float = 1.2,
+    T_epoch: int = 50,
+    **kwargs,
+) -> Optional[AnnData]:
+    """Compute SUDE (Scalable Unsupervised Deep Embedding) dimension reduction projection of an AnnData object.
+
+    SUDE is a scalable unsupervised deep embedding method that can handle large-scale single-cell data efficiently.
+
+    Args:
+        adata: An AnnData object.
+        X_data: The user supplied data that will be used for dimension reduction directly. Defaults to None.
+        genes: The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+            all genes will be used. Defaults to None.
+        layer: The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is
+            used. Defaults to None.
+        basis: The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`,
+            `velocity_pca` (that is, you can use velocity for clustering), etc. Defaults to "pca".
+        dims: The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+            Defaults to None.
+        n_pca_components: Number of input PCs (principal components) that will be used for further non-linear dimension
+            reduction. If n_pca_components is larger than the existing #PC in adata.obsm['X_pca'] or input layer's
+            corresponding pca space (layer_pca), pca will be rerun with n_pca_components PCs requested. Defaults to 30.
+        n_components: The dimension of the space to embed into. Defaults to 2.
+        n_neighbors: The number of nearest neighbors when constructing adjacency matrix. Defaults to 30.
+        embedding_key: The str in `.obsm` that will be used as the key to save the reduced embedding space. By default,
+            it is None and embedding key is set as layer + reduction_method. If layer is None, it will be "X_sude".
+            Defaults to None.
+        neighbor_key: The str in .uns that will be used as the key to save the nearest neighbor graph. By default it is
+            None and neighbor_key key is set as layer + "_neighbors". If layer is None, it will be "X_neighbors".
+            Defaults to None.
+        enforce: Whether to re-perform dimension reduction even if there is reduced basis in the AnnData object.
+            Defaults to False.
+        copy: Whether to return a copy of the AnnData object or update the object in place. Defaults to False.
+        k1: A non-negative integer specifying the number of nearest neighbors for PPS to sample landmarks. 
+            It must be smaller than N. Defaults to 20.
+        normalize: Logical scalar. If true, normalize X using min-max normalization. If features in
+            X are on different scales, 'normalize' should be set to true because the learning
+            process is based on nearest neighbors and features with large scales can override
+            the contribution of features with small scales. Defaults to True.
+        large: Logical scalar. If true, the data can be split into multiple blocks to avoid the problem
+            of memory overflow, and the gradient can be computed block by block using 'learning_l' function.
+            Defaults to False.
+        initialize: A string specifying the method for initializing Y before manifold learning.
+            'le': Laplacian eigenmaps, 'pca': Principal component analysis, 'mds': Multidimensional scaling.
+            Defaults to "le".
+        agg_coef: A positive scalar specifying the aggregation coefficient. Defaults to 1.2.
+        T_epoch: Maximum number of epochs to take. Defaults to 50.
+        kwargs: Other kwargs that will be passed to SUDE.
+
+    Returns:
+        An updated AnnData object updated with reduced dimension data for data from different layers, returned if `copy`
+        is true.
+    """
+
+    logger = LoggerManager.gen_logger("dynamo-sude")
+    logger.log_time()
+
+    adata = copy_adata(adata) if copy else adata
+
+    logger.info("retrieve data for SUDE dimension reduction...", indent_level=1)
+
+    if X_data is None:
+        X_data, n_components, basis = prepare_dim_reduction(
+            adata,
+            genes=genes,
+            layer=layer,
+            basis=basis,
+            dims=dims,
+            n_pca_components=n_pca_components,
+            n_components=n_components,
+        )
+    
+    if embedding_key is None:
+        embedding_key = "X_sude" if layer is None else layer + "_sude"
+    if neighbor_key is None:
+        neighbor_result_prefix = "" if layer is None else layer
+        conn_key, dist_key, neighbor_key = generate_neighbor_keys(neighbor_result_prefix)
+
+    if embedding_key in adata.obsm_keys() and not enforce:
+        logger.warning(
+            f"adata already have basis sude. dimension reduction sude will be skipped! \n"
+            f"set enforce=True to re-performing dimension reduction."
+        )
+    else:
+        logger.info(
+            f"[SUDE] using {basis} with n_pca_components = {n_pca_components}", indent_level=1
+        )
+        adata = run_reduce_dim(
+            adata,
+            X_data,
+            n_components,
+            n_pca_components,
+            "sude",
+            embedding_key,
+            n_neighbors,
+            neighbor_key,
+            1,  # cores not used for SUDE
+            k1=k1,
+            normalize=normalize,
+            large=large,
+            initialize=initialize,
+            agg_coef=agg_coef,
+            T_epoch=T_epoch,
+            **kwargs,
+        )
+
+    if neighbor_key not in adata.uns_keys():
+        neighbors(adata)
+
+    logger.finish_progress(progress_name="SUDE")
 
     if copy:
         return adata
