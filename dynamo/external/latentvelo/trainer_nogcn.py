@@ -11,12 +11,15 @@ from .collate import collate
 
 def train_vae_nogcn(model, adata, epochs = 50, learning_rate = 1e-2, batch_size = 200, grad_clip = 1, shuffle=True, test=0.1, name = '', optimizer='adam', random_seed=42):
 
+    # Set device (GPU if available, otherwise CPU)
+    device = th.device('cuda' if th.cuda.is_available() else 'cpu')
+
     results_folder = './' + name + '/'
     if not os.path.exists(results_folder):
         os.mkdir(results_folder)
     else:
         print('Warning, folder already exists. This may overwrite a previous fit.')
-    
+
     if optimizer == 'adam':
         optimizer = th.optim.Adam(model.parameters(), lr = learning_rate)
     elif optimizer == 'adamW':

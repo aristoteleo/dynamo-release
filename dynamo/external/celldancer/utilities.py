@@ -27,18 +27,18 @@ def tqdm_joblib(tqdm_object):
         joblib.parallel.BatchCompletionCallBack = old_batch_callback
         tqdm_object.close()
 
-def _non_para_kernel(X,Y,down_sample_idx):
+def _non_para_kernel_t4(X,Y,down_sample_idx):
     # (no first cls),pseudotime r square calculation
     # this version has downsampling section
     # TO DO WHEN ONLY USING ONE GENE, WILL CAUSL PROBLEM WHEN COMBINING
     # Usage: Gene pseudotime fitting and r square (moved to utilities)
     # input: X,Y
     # return: estimator, r_square
-    # example: 
+    # example:
     # X = pd.DataFrame(np.arange(100)*np.pi/100)
     # Y = pd.DataFrame(np.sin(X)+np.random.normal(loc = 0, scale = 0.5, size = (100,1)))
     # estimator,r_square=non_para_kernel(X,Y)
-    
+
     # X2=pd.DataFrame(np.random.randint(0,100,size=[200,1]))
     # Y2=pd.DataFrame(np.random.normal(9,5,size=[200]))
     # X = pd.DataFrame(np.arange(100)*np.pi/100)
