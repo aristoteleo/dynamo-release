@@ -55,6 +55,7 @@ def extvelo(
                 param_name_key=param_name_key,
                 **kwargs
             )
+        
         return latent_data, adata
     elif method == "deepvelo":
         #tested successfully
@@ -79,6 +80,9 @@ def extvelo(
     elif method == "velovi":
         #Need to be tested
         from velovi import VELOVI
+        import torch
+        import numpy as np
+        import scipy as sp
         VELOVI.setup_anndata(adata, spliced_layer=Ms_key, unspliced_layer=Mu_key)
         vae = VELOVI(adata)
         vae.train(**kwargs)
