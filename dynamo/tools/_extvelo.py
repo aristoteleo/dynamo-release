@@ -15,7 +15,7 @@ def extvelo(
     latentvelo_VAE_kwargs: dict = {},
     param_name_key: str = 'tmp/latentvelo_params',
     **kwargs,
-) -> AnnData:
+):
     if method == "celldancer":
         #tested successfully
         from ..external.celldancer.utilities import adata_to_df_with_embed 
@@ -41,7 +41,7 @@ def extvelo(
             'model': 'stochastic','est_method': 'gmm','has_splicing': True,
             'has_labeling': False,'splicing_labeling': False,
             'has_protein': False,'use_smoothed': True,'NTR_vel': False,
-            'log_unnormalized': True,'fraction_for_deg': False
+            'log_unnormalized': True,'fraction_for_deg': False,
         }
         return cellDancer_df,adata
     elif method == "latentvelo":
@@ -79,10 +79,11 @@ def extvelo(
         return adata
     elif method == "velovi":
         #Need to be tested
-        from velovi import VELOVI
+        from velovi import VELOVI,preprocess_data
         import torch
         import numpy as np
-        import scipy as sp
+        adata=adata.copy()
+        adata = preprocess_data(adata,spliced_layer=Ms_key,unspliced_layer=Mu_key)
         VELOVI.setup_anndata(adata, spliced_layer=Ms_key, unspliced_layer=Mu_key)
         vae = VELOVI(adata)
         vae.train(**kwargs)
