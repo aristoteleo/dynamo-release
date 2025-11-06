@@ -2,6 +2,7 @@ import time
 import torch
 from abc import abstractmethod
 from numpy import inf
+from tqdm.auto import tqdm
 from ..logger import TensorboardWriter
 
 
@@ -78,7 +79,19 @@ class BaseTrainer:
                 ).to(self.device)
             else:
                 self.candidate_states = self.data_loader.dataset.Sx_sz.to(self.device)
-        for epoch in range(self.start_epoch, self.epochs + 1):
+
+        # Create progress bar for epochs
+        use_pbar = self.config["trainer"].get("use_progress_bar", True)
+        if use_pbar:
+            pbar = tqdm(range(self.start_epoch, self.epochs + 1),
+                        desc="Training",
+                        dynamic_ncols=True,
+                        leave=True,
+                        position=0)
+        else:
+            pbar = range(self.start_epoch, self.epochs + 1)
+
+        for epoch in pbar:
             result = self._train_epoch(epoch)
 
             # save logged informations into log dict
@@ -86,9 +99,16 @@ class BaseTrainer:
             log.update(result)
             tik = time.time()
 
-            # print logged informations to the screen
-            for key, value in log.items():
-                self.logger.info("    {:15s}: {}".format(str(key), value))
+            # Update progress bar with metrics or print to logger
+            if use_pbar:
+                postfix_dict = {k: f'{v:.4f}' if isinstance(v, float) else v
+                               for k, v in log.items() if k not in ['epoch', 'time:']}
+                pbar.set_postfix(postfix_dict)
+                pbar.refresh()
+            else:
+                # print logged informations to the screen
+                for key, value in log.items():
+                    self.logger.info("    {:15s}: {}".format(str(key), value))
 
             if callback is not None:
                 if epoch % callback_freq == 0:
@@ -122,6 +142,8 @@ class BaseTrainer:
                     not_improved_count += 1
 
                 if not_improved_count > self.early_stop:
+                    if use_pbar:
+                        pbar.close()
                     self.logger.info(
                         "Validation performance didn't improve for {} epochs. "
                         "Training stops.".format(self.early_stop)
@@ -130,6 +152,9 @@ class BaseTrainer:
 
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch, save_best=best)
+
+        if use_pbar:
+            pbar.close()
 
     def train_with_epoch_callback(self, callback, freq):
         self.train(callback, freq)

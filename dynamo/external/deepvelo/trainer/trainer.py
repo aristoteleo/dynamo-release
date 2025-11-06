@@ -3,6 +3,7 @@ import numpy as np
 from numpy import inf
 import torch
 import dgl
+from tqdm.auto import tqdm
 
 # from torchvision.utils import make_grid
 from ..base import BaseTrainer

@@ -1,8 +1,155 @@
-from scvelo.tools.utils import sum_obs, prod_sum_obs, make_dense
+#from scvelo.tools.utils import sum_obs, prod_sum_obs, make_dense
 from scipy.optimize import minimize
 from scipy.sparse import csr_matrix, issparse
 import numpy as np
 import warnings
+
+from typing import Union, Optional, List
+from numpy import ndarray
+from scipy.sparse import spmatrix
+from anndata import AnnData
+from pandas import DataFrame
+
+def prod_sum(
+    a1: Union[ndarray, spmatrix], a2: Union[ndarray, spmatrix], axis: Optional[int]
+) -> ndarray:
+    """Take sum of product of two arrays along given axis.
+
+    Arguments
+    ---------
+    a1:
+        First array.
+    a2:
+        Second array.
+    axis:
+        Axis along which to sum elements. If `None`, all elements will be summed.
+        Defaults to `None`.
+
+    Returns
+    -------
+    ndarray
+        Sum of product of arrays along given axis.
+
+    """
+
+    if issparse(a1):
+        return a1.multiply(a2).sum(axis=axis).A1
+    elif axis == 0:
+        return np.einsum("ij, ij -> j", a1, a2) if a1.ndim > 1 else (a1 * a2).sum()
+    elif axis == 1:
+        return np.einsum("ij, ij -> i", a1, a2) if a1.ndim > 1 else (a1 * a2).sum()
+
+
+def prod_sum_obs(A, B):
+    """dot product and sum over axis 0 (obs) equivalent to np.sum(A * B, 0)"""
+    return prod_sum(A, B, axis=0)
+
+
+def sum_obs(A):
+    """summation over axis 0 (obs) equivalent to np.sum(A, 0)"""
+    return sum(A, axis=0)
+
+def get_modality(adata: AnnData, modality: str) -> Union[ndarray, spmatrix]:
+    """Extract data of one modality.
+
+    Arguments
+    ---------
+    adata:
+        Annotated data to extract modality from.
+    modality:
+        Modality for which data is needed.
+
+    Returns
+    -------
+    Union[ndarray, spmatrix]
+        Retrieved modality from :class:`~anndata.AnnData` object.
+
+    """
+
+    if modality == "X":
+        return adata.X
+    elif modality in adata.layers.keys():
+        return adata.layers[modality]
+    elif modality in adata.obsm.keys():
+        if isinstance(adata.obsm[modality], DataFrame):
+            return adata.obsm[modality].values
+        else:
+            return adata.obsm[modality]
+
+def set_modality(
+    adata: AnnData,
+    new_value: Union[ndarray, spmatrix, DataFrame],
+    modality: Optional[str] = None,
+    inplace: bool = True,
+) -> Optional[AnnData]:
+    """Set modality of annotated data object to new value.
+
+    Arguments
+    ---------
+    adata:
+        Annotated data object.
+    new_value:
+        New value of modality.
+    modality:
+        Modality to overwrite with new value. Defaults to `None`.
+    inplace:
+        Boolean flag to indicate whether setting of modality should be inplace or
+            not. Defaults to `True`.
+
+    Returns
+    -------
+    Optional[AnnData]
+        Copy of annotated data `adata` with updated modality if `inplace=True`.
+
+    """
+
+    if not inplace:
+        adata = adata.copy()
+
+    if (modality == "X") or (modality is None):
+        adata.X = new_value
+    elif modality in adata.layers.keys():
+        adata.layers[modality] = new_value
+    elif modality in adata.obsm.keys():
+        adata.obsm[modality] = new_value
+
+    if not inplace:
+        return adata
+
+def make_dense(
+    adata: AnnData, modalities: Union[List[str], str], inplace: bool = True
+) -> Optional[AnnData]:
+    """Densify sparse AnnData entry.
+
+    Arguments
+    ---------
+    adata:
+        Annotated data object.
+    modality:
+        Modality to make dense.
+    inplace:
+        Boolean flag to perform operations inplace or not. Defaults to `True`.
+
+    Returns
+    -------
+    Optional[AnnData]
+        Copy of annotated data `adata` if `inplace=True` with dense modalities.
+
+    """
+
+    if not inplace:
+        adata = adata.copy()
+
+    if isinstance(modalities, str):
+        modalities = [modalities]
+
+    # Densify modalities
+    for modality in modalities:
+        count_data = get_modality(adata=adata, modality=modality)
+        if issparse(count_data):
+            set_modality(adata=adata, modality=modality, new_value=count_data.A)
+
+    return adata if not inplace else None
 
 
 def get_weight(x, y=None, perc=95):

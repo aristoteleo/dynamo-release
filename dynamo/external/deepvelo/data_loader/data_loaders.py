@@ -6,7 +6,12 @@ import numpy as np
 import torch
 import dgl
 import hnswlib
-from dgl.contrib.sampling import NeighborSampler
+import scipy.sparse as sp
+try:
+    from dgl.contrib.sampling import NeighborSampler
+except ImportError:
+    from dgl.dataloading.neighbor_sampler import NeighborSampler
+
 from torch.utils.data import Dataset
 from sklearn.metrics import pairwise_distances
 from sklearn.decomposition import PCA
@@ -37,6 +42,13 @@ class VeloDataset(Dataset):
             raise ValueError("data_source must be a file path or anndata object")
         self.Ux_sz = adata.layers["Mu"]
         self.Sx_sz = adata.layers["Ms"]
+
+        # Convert sparse matrices to dense arrays if needed
+        if sp.issparse(self.Ux_sz):
+            self.Ux_sz = self.Ux_sz.toarray()
+        if sp.issparse(self.Sx_sz):
+            self.Sx_sz = self.Sx_sz.toarray()
+
         if velocity_genes:
             self.Ux_sz = self.Ux_sz[:, adata.var["velocity_genes"]]
             self.Sx_sz = self.Sx_sz[:, adata.var["velocity_genes"]]
@@ -54,7 +66,7 @@ class VeloDataset(Dataset):
             n_pcas = 30
             pca_ = PCA(
                 n_components=n_pcas,
-                svd_solver="randomized",
+                svd_solver="arpack",
             )
             Sx_sz_pca = pca_.fit_transform(self.Sx_sz)
             if N_cell < 3000:
@@ -147,7 +159,7 @@ class VeloDataset(Dataset):
         """ind (N,k) contains neighbor index"""
         print("building graph")
         g = dgl.DGLGraph()
-        g.add_nodes(len(self.Ux_sz))
+        g.add_nodes(self.Ux_sz.shape[0])
         edge_list = []
         for i in range(ind.shape[0]):
             for j in range(ind.shape[1]):

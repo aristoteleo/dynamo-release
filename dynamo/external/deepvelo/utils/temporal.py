@@ -2,7 +2,7 @@ from scvelo import settings
 from scvelo import logging as logg
 from scvelo.preprocessing.moments import get_connectivities
 from scvelo.tools.utils import make_unique_list, test_bimodality
-from scvelo.tools.dynamical_model_utils import (
+from scvelo.tools._em_model_utils import (
     BaseDynamics,
     linreg,
     convolve,
