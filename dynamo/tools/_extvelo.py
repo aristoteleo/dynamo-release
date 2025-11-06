@@ -1,5 +1,6 @@
 from anndata import AnnData
 from typing import Literal, List
+import os
 
 
 def extvelo(
@@ -18,6 +19,8 @@ def extvelo(
         from ..external.celldancer.utilities import export_velocity_to_dynamo
         if gene_list is None:
             gene_list = adata.var.query("use_for_pca==True").index.tolist()
+        if not os.path.exists('temp'):
+            os.makedirs('temp')
         cell_type_u_s=adata_to_df_with_embed(adata,
                       us_para=[Mu_key,Ms_key],
                       cell_type_para=celltype_key,
@@ -25,8 +28,17 @@ def extvelo(
                       save_path='temp/test_cell_type_u_s.csv',
                       gene_list=gene_list)
         
-        loss_df, cellDancer_df = velocity(cell_type_u_s, **kwargs)
+        loss_df, cellDancer_df = velocity(cell_type_u_s, gene_list=gene_list, **kwargs)
         adata = export_velocity_to_dynamo(cellDancer_df,adata)
+        adata.uns['dynamics']={
+            'filter_gene_mode': 'final','t': None,'group': None,
+            'X_data': None,'X_fit_data': None,'asspt_mRNA': 'ss',
+            'experiment_type': 'conventional','normalized': True,
+            'model': 'stochastic','est_method': 'gmm','has_splicing': True,
+            'has_labeling': False,'splicing_labeling': False,
+            'has_protein': False,'use_smoothed': True,'NTR_vel': False,
+            'log_unnormalized': True,'fraction_for_deg': False
+        }
         return cellDancer_df,adata
     else:
         raise ValueError(f"Method {method} not supported")
