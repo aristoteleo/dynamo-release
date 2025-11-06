@@ -54,6 +54,26 @@ def extvelo(
                 **kwargs
             )
         return latent_data, adata
+    elif method == "deepvelo":
+        from ..external.deepvelo import train
+        from ..external.deepvelo.train import Constants
+        adata.layers['Ms']=adata.layers[Ms_key]
+        adata.layers['Mu']=adata.layers[Mu_key]
+        trainer = train(adata, Constants.default_configs)
+        adata.layers['velocity_S']=adata.layers['velocity']
+        adata.var[f'use_for_dynamics'] = adata.var['use_for_pca']
+        adata.var[f'use_for_transition'] = adata.var['use_for_pca']
+        adata.uns['dynamics']={
+            'filter_gene_mode': 'final','t': None,'group': None,
+            'X_data': None,'X_fit_data': None,'asspt_mRNA': 'ss',
+            'experiment_type': 'conventional','normalized': True,
+            'model': 'stochastic','est_method': 'gmm','has_splicing': True,
+            'has_labeling': False,'splicing_labeling': False,
+            'has_protein': False,'use_smoothed': True,'NTR_vel': False,
+            'log_unnormalized': True,'fraction_for_deg': False
+        }
+        return adata
+
     else:
         raise ValueError(f"Method {method} not supported")
 
