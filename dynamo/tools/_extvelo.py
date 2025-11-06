@@ -17,6 +17,7 @@ def extvelo(
     **kwargs,
 ) -> AnnData:
     if method == "celldancer":
+        #tested successfully
         from ..external.celldancer.utilities import adata_to_df_with_embed 
         from ..external.celldancer import velocity
         from ..external.celldancer.utilities import export_velocity_to_dynamo
@@ -44,6 +45,7 @@ def extvelo(
         }
         return cellDancer_df,adata
     elif method == "latentvelo":
+        #tested successfully
         latent_data, adata = _latentvelo_cal(
                 adata=adata,
                 velocity_key='velocity_S',
@@ -55,6 +57,7 @@ def extvelo(
             )
         return latent_data, adata
     elif method == "deepvelo":
+        #tested successfully
         from ..external.deepvelo import train
         from ..external.deepvelo.train import Constants
         adata.layers['Ms']=adata.layers[Ms_key]
@@ -73,6 +76,42 @@ def extvelo(
             'log_unnormalized': True,'fraction_for_deg': False
         }
         return adata
+    elif method == "velovi":
+        #Need to be tested
+        from velovi import VELOVI
+        VELOVI.setup_anndata(adata, spliced_layer=Ms_key, unspliced_layer=Mu_key)
+        vae = VELOVI(adata)
+        vae.train(**kwargs)
+        latent_time = vae.get_latent_time(n_samples=25)
+        velocities = vae.get_velocity(n_samples=25, velo_statistic="mean")
+
+        t = latent_time
+        scaling = 20 / t.max(0)
+
+        adata.layers["velocity_S"] = velocities / scaling
+        adata.layers["latent_time_velovi"] = latent_time
+
+        adata.var["fit_alpha"] = vae.get_rates()["alpha"] / scaling
+        adata.var["fit_beta"] = vae.get_rates()["beta"] / scaling
+        adata.var["fit_gamma"] = vae.get_rates()["gamma"] / scaling
+        adata.var["fit_t_"] = (
+            torch.nn.functional.softplus(vae.module.switch_time_unconstr).detach().cpu().numpy()
+        ) * scaling
+        adata.layers["fit_t"] = latent_time.values * scaling[np.newaxis, :]
+        adata.var["fit_scaling"] = 1.0
+        adata.var[f'use_for_dynamics'] = adata.var['use_for_pca']
+        adata.var[f'use_for_transition'] = adata.var['use_for_pca']
+        adata.uns['dynamics']={
+            'filter_gene_mode': 'final','t': None,'group': None,
+            'X_data': None,'X_fit_data': None,'asspt_mRNA': 'ss',
+            'experiment_type': 'conventional','normalized': True,
+            'model': 'stochastic','est_method': 'gmm','has_splicing': True,
+            'has_labeling': False,'splicing_labeling': False,
+            'has_protein': False,'use_smoothed': True,'NTR_vel': False,
+            'log_unnormalized': True,'fraction_for_deg': False
+        }
+        return adata
+
 
     else:
         raise ValueError(f"Method {method} not supported")
