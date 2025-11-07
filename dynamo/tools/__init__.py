@@ -122,3 +122,5 @@ from .velocyto_scvelo import (
     scv_dyn_convertor,
     vlm_to_adata,
 )
+
+from ._extvelo import extvelo

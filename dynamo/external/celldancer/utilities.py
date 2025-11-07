@@ -443,10 +443,28 @@ def export_velocity_to_dynamo(cellDancer_df,adata):
     velocity_matrix = np.zeros(adata.shape)
     adata_ds_zeros = pd.DataFrame(velocity_matrix, columns=adata.var.index, index=adata.obs.index)
     celldancer_velocity_s_df = (adata_ds_zeros + pivoted).fillna(0)[adata.var.index]
-
     adata.layers['velocity_S'] = scipy.sparse.csr_matrix(celldancer_velocity_s_df.values)
+
     adata.var['use_for_dynamics'] = adata.var.index.isin(dancer_genes)
     adata.var['use_for_transition'] = adata.var.index.isin(dancer_genes)
+    adata.uns['dynamics']={'filter_gene_mode': 'final',
+                't': None,
+                'group': None,
+                'X_data': None,
+                'X_fit_data': None,
+                'asspt_mRNA': 'ss',
+                'experiment_type': 'conventional',
+                'normalized': True,
+                'model': 'stochastic',
+                'est_method': 'gmm',
+                'has_splicing': True,
+                'has_labeling': False,
+                'splicing_labeling': False,
+                'has_protein': False,
+                'use_smoothed': True,
+                'NTR_vel': False,
+                'log_unnormalized': True,
+                'fraction_for_deg': False}
     return(adata.copy())
 
 def adata_to_raw(adata,save_path,gene_list=None):
