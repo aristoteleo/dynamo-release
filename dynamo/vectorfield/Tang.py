@@ -77,7 +77,7 @@ def Tang_action(
 
     if fixed_point_only:
         StateNum = points.shape[1]
-        retmat = np.Inf * np.ones((StateNum, 1))
+        retmat = np.inf * np.ones((StateNum, 1))
         LAP = [None] * StateNum
         I = range(StateNum)
         X, Y = None, None
@@ -88,7 +88,7 @@ def Tang_action(
             np.linspace(boundary[0], boundary[1], TotalPoints),
             np.linspace(boundary[0], boundary[1], TotalPoints),
         )
-        retmat = np.Inf * np.ones((TotalPoints, TotalPoints))
+        retmat = np.inf * np.ones((TotalPoints, TotalPoints))
         LAP = [None] * TotalPoints * TotalPoints
 
         points = np.vstack((X.flatten(), Y.flatten()))

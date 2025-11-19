@@ -466,7 +466,7 @@ def select_cell(
     cell_idx = pred.check(adata.obs)
 
     if presel is not None:
-        if np.issubsctype(presel, int):
+        if np.issubdtype(presel.dtype, int) or np.issubdtype(presel.dtype, np.integer):
             temp = np.zeros(adata.n_obs, dtype=bool)
             temp[presel] = True
             presel = temp

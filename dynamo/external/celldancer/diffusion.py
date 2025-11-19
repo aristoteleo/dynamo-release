@@ -137,13 +137,13 @@ def generate_grid(
 
     # the all cell embedding is used to generate grid_umap
     if abr_umap is not None:
-        grid_umap = np.full_like(mesh, np.NAN)
+        grid_umap = np.full_like(mesh, np.nan)
         n_umap_dims = all_cells_grid_idx.shape[-1]
         for index in range(n_cells):
             all_cells_grid_index = all_cells_grid_idx[index]
             if np.any(all_cells_grid_index > n_grids) or np.any(all_cells_grid_index < 0):
                 all_cells_grid_index = toTuple(all_cells_grid_index)
-                grid_umap[all_cells_grid_index] = np.full((1,n_umap_dims), np.NAN)
+                grid_umap[all_cells_grid_index] = np.full((1,n_umap_dims), np.nan)
                 pass
             all_cells_grid_index = toTuple(all_cells_grid_index)
             if np.any(np.isnan(grid_umap[all_cells_grid_index])):
