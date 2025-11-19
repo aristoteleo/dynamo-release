@@ -71,6 +71,16 @@ class TestUtils:
 
         print("reading test data...")
         adata = dyn.read_h5ad(test_zebrafish_data_path)
+        
+        # Re-run VectorField if it's missing from uns (since functions/classes might not be saved)
+        if "VecFld_umap" not in adata.uns:
+            print("VecFld_umap not found in uns, regenerating...")
+            dyn.vf.VectorField(adata, basis="umap")
+        
+        if "VecFld_pca" not in adata.uns:
+            print("VecFld_pca not found in uns, regenerating...")
+            dyn.vf.VectorField(adata, basis="pca")
+            
         return adata
 
     # def read_test_spatial_genomics_data():

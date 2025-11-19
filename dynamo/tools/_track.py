@@ -220,8 +220,21 @@ class StructureWatcher:
 
     def _log_to_uns(self, start, end, duration):
         """Save a short summary to adata.uns for permanence."""
-        if 'history_log' not in self.adata.uns:
-            self.adata.uns['history_log'] = []
+        current_log = []
+        if 'history_log' in self.adata.uns:
+            log_entry = self.adata.uns['history_log']
+            if isinstance(log_entry, pd.DataFrame):
+                current_log = log_entry.to_dict('records')
+            elif isinstance(log_entry, list):
+                current_log = log_entry
+            elif isinstance(log_entry, np.ndarray):
+                # If loaded as recarray or object array
+                if log_entry.dtype.names:
+                    # It's a structured array
+                    current_log = [dict(zip(log_entry.dtype.names, x)) for x in log_entry]
+                else:
+                    # Try to convert to list, assuming it might be array of dicts
+                    current_log = list(log_entry)
         
         entry = {
             "timestamp": datetime.now().isoformat(),
@@ -229,7 +242,8 @@ class StructureWatcher:
             "duration": duration,
             "shape": str(end['shape'])
         }
-        self.adata.uns['history_log'].append(entry)
+        current_log.append(entry)
+        self.adata.uns['history_log'] = pd.DataFrame(current_log)
 
 # --- DECORATOR ---
 def monitor(func):
