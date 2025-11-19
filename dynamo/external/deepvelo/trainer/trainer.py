@@ -1,4 +1,3 @@
-from distutils.command.config import config
 import numpy as np
 from numpy import inf
 import torch

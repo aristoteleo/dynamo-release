@@ -81,7 +81,7 @@ def backward(alpha, beta, gamma, percent_u1, percent_u2, samples, dt=0.001, nois
 def two_alpha(alpha1, alpha2, beta1, beta2, gamma1, gamma2, percent_u1, percent_u2, samples1, samples2, dt=0.001, noise_level=1):
     expr1, (new_u0_start, new_s0_start) = _simulate_without_t(0, 0, alpha1, beta1, gamma1, 0, percent_u1, samples1, dt, noise_level)
     expr2, end2  = _simulate_without_t(new_u0_start, new_s0_start, alpha2, beta2, gamma2, 0, percent_u2, samples2, dt, noise_level)
-    expr = expr1.append(expr2)
+    expr = pd.concat([expr1, expr2])
     expr.index = range(len(expr))
     return expr
 
@@ -97,14 +97,14 @@ def boost_path(alpha1, alpha2, beta1, beta2, gamma1, gamma2, percent_u1, percent
     expr2['s0'] += alpha1/gamma1
     expr2['u1'] += alpha1/beta1
     expr2['s1'] += alpha1/gamma1
-    expr = expr1.append(expr2)
+    expr = pd.concat([expr1, expr2])
     expr.index = range(len(expr))
     return expr
 
 def two_alpha2(alpha1, alpha2, beta1, beta2, gamma1, gamma2, percent_u1, percent_u2, samples1, samples2, dt=0.001, noise_level=1):
     expr1, end1 = _simulate_without_t(0, 0, alpha1, beta1, gamma1, 0, percent_u1, samples1, dt, noise_level)
     expr2, end2  = _simulate_without_t(0, 0, alpha2, beta2, gamma2, 0, percent_u2, samples2, dt, noise_level)
-    expr = expr1.append(expr2)
+    expr = pd.concat([expr1, expr2])
     expr.index = range(len(expr))
     return expr
 
@@ -112,7 +112,7 @@ def two_alpha3(alpha1, alpha2, beta1, beta2, gamma1, gamma2, percent_u1, percent
     exprx, (new_u0_start, new_s0_start) = _simulate_without_t(0, 0, alpha2, beta2, gamma2, 0, 99.9, samples2, dt, noise_level)
     expr1, (new_u0_start2, new_s0_start2)  = _simulate_without_t(new_u0_start, new_s0_start, alpha1, beta1, gamma1, 0, percent_u1, samples1, dt, noise_level)
     expr2, end1  = _simulate_without_t(new_u0_start2, new_s0_start2, alpha2, beta2, gamma2, 0, percent_u2, samples2, dt, noise_level)
-    expr = expr1.append(expr2)
+    expr = pd.concat([expr1, expr2])
     expr.index = range(len(expr))
     return expr
 
@@ -130,7 +130,7 @@ def generate_with_df(gene_info, dt=0.001, noise_level=0.2):
                 print("start_u and start_s should not be None at the first line.")
                 return None
             expr_tmp, (last_u, last_s) = _simulate_without_t(last_u, last_s, alpha, beta, gamma, start_pct, end_pct, samples)
-        expr = expr.append(expr_tmp)
+        expr = pd.concat([expr, expr_tmp])
     expr.index = range(len(expr))
     expr.u0, expr.s0 = _jitter(expr.u0, expr.s0, noise_level)
     return gene_info, expr
@@ -186,7 +186,7 @@ def generate(type, gene_num, alpha1, alpha2, beta1, beta2, gamma1, gamma2, path1
         alphas[gene_name] = expr.alpha
         betas[gene_name] = expr.beta
         gammas[gene_name] = expr.gamma
-        gene_info = gene_info.append({'gene_name':gene_name, 'type':"multi_path", 'alpha1':alpha1, 'alpha2':alpha2, 'beta1':beta1, 'beta2':beta2, 'gamma1':gamma1, 'gamma2':gamma2, 'path1_pct':path1_pct, 'path2_pct':path2_pct, 'samples':len(expr)}, ignore_index=True)
+        gene_info = pd.concat([gene_info, pd.DataFrame([{'gene_name':gene_name, 'type':"multi_path", 'alpha1':alpha1, 'alpha2':alpha2, 'beta1':beta1, 'beta2':beta2, 'gamma1':gamma1, 'gamma2':gamma2, 'path1_pct':path1_pct, 'path2_pct':path2_pct, 'samples':len(expr)}])], ignore_index=True)
 
     #gene_info.set_index("gene_name")
     cell_info = pd.DataFrame()
@@ -209,7 +209,7 @@ def generate(type, gene_num, alpha1, alpha2, beta1, beta2, gamma1, gamma2, path1
     genelist_all=adata.var_names
     data_onegene = pd.DataFrame()
     for g in genelist_all:
-        data_onegene = data_onegene.append(adata_to_detail(adata, para=['u0s', 's0s', 'alphas', 'betas', "gammas"], gene=g))
+        data_onegene = pd.concat([data_onegene, adata_to_detail(adata, para=['u0s', 's0s', 'alphas', 'betas', "gammas"], gene=g)])
     data_onegene=data_onegene.rename(columns={"u0": "unsplice", "s0": "splice","gene_list": "gene_name"})
     data_onegene.loc[:,'cellID']=list(range(len(data_onegene)))
     data_onegene.loc[:,'clusters']=None
@@ -226,8 +226,8 @@ def generate_forward(alpha1, alpha2, beta1, beta2, gamma1, gamma2, path1_pct, pa
 
 def generate_backward(start_s1, start_s2, start_u1, start_u2,alpha1, alpha2, beta1, beta2, gamma1, gamma2, path1_sample, path2_sample,noise_level=None):
     gene_info = pd.DataFrame(columns = ['gene_name', 'start_u', 'start_s', 'alpha', 'beta', 'gamma', 'start_pct', 'end_pct', 'samples'])
-    gene_info = gene_info.append({'gene_name':'g1', 'start_u':start_u1, 'start_s':start_s1, 'alpha':alpha1, 'beta':beta1, 'gamma':gamma1, 'start_pct':0, 'end_pct':99, 'samples':path1_sample}, ignore_index=True)
-    gene_info = gene_info.append({'gene_name':'g1', 'start_u':start_u2, 'start_s':start_s2, 'alpha':alpha2, 'beta':beta2, 'gamma':gamma2, 'start_pct':0, 'end_pct':99, 'samples':path2_sample}, ignore_index=True)
+    gene_info = pd.concat([gene_info, pd.DataFrame([{'gene_name':'g1', 'start_u':start_u1, 'start_s':start_s1, 'alpha':alpha1, 'beta':beta1, 'gamma':gamma1, 'start_pct':0, 'end_pct':99, 'samples':path1_sample}])], ignore_index=True)
+    gene_info = pd.concat([gene_info, pd.DataFrame([{'gene_name':'g1', 'start_u':start_u2, 'start_s':start_s2, 'alpha':alpha2, 'beta':beta2, 'gamma':gamma2, 'start_pct':0, 'end_pct':99, 'samples':path2_sample}])], ignore_index=True)
 
     gene_info, expr = generate_with_df(gene_info,noise_level)
     expr['embedding1']=expr['u0']
@@ -253,7 +253,7 @@ def generate_by_each_cell(df, t, dt=0.001, noise_level=1):
             dt=dt, scale=noise_level)
 
         last_u0, last_s0 = u0i, s0i
-        expr = expr.append(sub_expr)
+        expr = pd.concat([expr, sub_expr])
     expr.u0, expr.s0 = _jitter(expr.u0, expr.s0, noise_level)
  
     expr.index = range(len(expr.index))

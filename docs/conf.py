@@ -23,11 +23,9 @@ except ImportError as e:
     print("Failed to import dynamo:", e)
     # Try to find installed packages
     try:
-        import pkg_resources
-        dist = pkg_resources.get_distribution('dynamo-release')
-        print("dynamo-release package location:", dist.location)
-        # Add package path to sys.path
-        sys.path.insert(0, dist.location)
+        from importlib.metadata import distribution
+        dist = distribution('dynamo-release')
+        print(f"dynamo-release version {dist.version} found via importlib.metadata")
     except Exception as pkg_error:
         print("dynamo-release package not found:", pkg_error)
     
