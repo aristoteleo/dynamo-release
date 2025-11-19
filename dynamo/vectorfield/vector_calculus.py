@@ -46,6 +46,7 @@ from .utils import (
     vector_field_function,
     vector_transformation,
 )
+from ..tools._track import monitor
 
 try:
     import dynode
@@ -83,6 +84,7 @@ def get_vf_class(adata: AnnData, basis: str = "pca") -> SvcVectorField:
     return vector_field_class
 
 
+@monitor
 def velocities(
     adata: AnnData,
     init_cells: Optional[List] = None,
@@ -155,6 +157,7 @@ def velocities(
     adata.uns[vec_key] = vec_mat
 
 
+@monitor
 def speed(
     adata: AnnData,
     basis: Optional[str] = "umap",
@@ -193,6 +196,7 @@ def speed(
     adata.obs[speed_key] = speed
 
 
+@monitor
 def jacobian(
     adata: AnnData,
     regulators: Optional[List] = None,
@@ -335,6 +339,7 @@ def jacobian(
         return ret_dict
 
 
+@monitor
 def hessian(
     adata: AnnData,
     regulators: List,
@@ -498,6 +503,7 @@ def hessian(
         return ret_dict
 
 
+@monitor
 def laplacian(
     adata: AnnData,
     hkey: str = "hessian_pca",
@@ -573,6 +579,7 @@ def laplacian(
         )
 
 
+@monitor
 def sensitivity(
     adata: AnnData,
     regulators: Optional[List] = None,
@@ -746,6 +753,7 @@ def sensitivity(
         return ret_dict
 
 
+@monitor
 def acceleration(
     adata: AnnData,
     basis: str = "umap",
@@ -801,6 +809,7 @@ def acceleration(
         )
 
 
+@monitor
 def curvature(
     adata: AnnData,
     basis: str = "pca",
@@ -859,6 +868,7 @@ def curvature(
         )
 
 
+@monitor
 def torsion(
     adata: AnnData, basis: str = "umap", vector_field_class: Optional[scVectorField.BaseVectorField] = None, **kwargs
 ):
@@ -903,6 +913,7 @@ def torsion(
     adata.uns[torsion_key] = torsion_mat
 
 
+@monitor
 def curl(
     adata: AnnData,
     basis: str = "umap",
@@ -938,6 +949,7 @@ def curl(
         adata.obs[curl_key] = curl
 
 
+@monitor
 def divergence(
     adata: AnnData,
     cell_idx: Optional[List] = None,

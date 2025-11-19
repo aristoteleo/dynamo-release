@@ -8,8 +8,10 @@ from ..utils import copy_adata
 from .connectivity import generate_neighbor_keys, neighbors
 from .utils import update_dict
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
+from ._track import monitor
 
 
+@monitor
 def reduceDimension(
     adata: AnnData,
     X_data: np.ndarray = None,

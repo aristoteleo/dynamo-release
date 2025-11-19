@@ -16,6 +16,7 @@ from ..dynamo_logger import (
     main_info_insert_adata,
     main_warning,
 )
+from ..tools._track import monitor
 from ..tools.connectivity import (
     construct_mapper_umap,
     correct_hnsw_neighbors,
@@ -28,6 +29,7 @@ from ..vectorfield.utils import vecfld_from_adata, vector_transformation
 from .utils import integrate_vf_ivp
 
 
+@monitor
 def fate(
     adata: AnnData,
     init_cells: list,
@@ -594,6 +596,7 @@ def fate_bias(
 #     return adata
 
 
+@monitor
 def andecestor(
     adata: AnnData,
     init_cells: List,

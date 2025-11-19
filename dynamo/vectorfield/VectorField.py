@@ -11,11 +11,13 @@ import scipy.sparse as sp
 from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..tools.utils import inverse_norm, update_dict
 from ..utils import copy_adata
+from ..tools._track import monitor
 from .scVectorField import BaseVectorField, SvcVectorField
 from .topography import topography
 from .utils import angle
 
 
+@monitor
 def VectorField(
     adata: anndata.AnnData,
     basis: Optional[str] = None,

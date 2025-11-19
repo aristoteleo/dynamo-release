@@ -22,6 +22,7 @@ from umap import UMAP
 from ..configuration import DynamoAdataKeyManager
 from ..docrep import DocstringProcessor
 from ..dynamo_logger import Logger, LoggerManager, main_info, main_warning
+from ._track import monitor
 from ..utils import expr_to_pca
 from .utils import fetch_X_data, log1p_
 
@@ -603,6 +604,7 @@ def k_nearest_neighbors(
     return nbrs_idx, dists
 
 
+@monitor
 def neighbors(
     adata: AnnData,
     X_data: np.ndarray = None,

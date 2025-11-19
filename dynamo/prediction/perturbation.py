@@ -6,6 +6,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 from ..dynamo_logger import LoggerManager
+from ..tools._track import monitor
 from ..tools.cell_velocities import cell_velocities
 from ..utils import expr_to_pca, pca_to_expr
 from ..vectorfield import SvcVectorField
@@ -19,6 +20,7 @@ from ..vectorfield.vector_calculus import (
 from .utils import z_score, z_score_inv
 
 
+@monitor
 def KO(
     adata: anndata.AnnData,
     KO_genes: Union[str, list],
@@ -116,6 +118,7 @@ def KO(
         return vf_ko
 
 
+@monitor
 def perturbation(
     adata: anndata.AnnData,
     genes: Union[str, list],
@@ -353,6 +356,7 @@ def perturbation(
     adata.obsm[embedding_key] = adata.obsm["X_" + emb_basis].copy()
 
 
+@monitor
 def rank_perturbation_genes(
     adata: AnnData, pkey: str = "j_delta_x_perturbation", prefix_store: str = "rank", **kwargs
 ) -> AnnData:
@@ -374,6 +378,7 @@ def rank_perturbation_genes(
     return adata
 
 
+@monitor
 def rank_perturbation_cells(
     adata: AnnData, pkey: str = "j_delta_x_perturbation", prefix_store: str = "rank", **kwargs
 ) -> AnnData:
@@ -395,6 +400,7 @@ def rank_perturbation_cells(
     return adata
 
 
+@monitor
 def rank_perturbation_cell_clusters(
     adata: AnnData, pkey: str = "j_delta_x_perturbation", prefix_store: str = "rank", **kwargs
 ) -> AnnData:

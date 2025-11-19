@@ -41,8 +41,10 @@ from .utils import (
     split_velocity_graph,
     update_dict,
 )
+from ._track import monitor
 
 
+@monitor
 def cell_velocities(
     adata: AnnData,
     ekey: Union[str, None] = None,
@@ -616,6 +618,7 @@ def cell_velocities(
     return adata
 
 
+@monitor
 def confident_cell_velocities(
     adata: AnnData,
     group: str,
@@ -713,6 +716,7 @@ def confident_cell_velocities(
     return adata
 
 
+@monitor
 def stationary_distribution(
     adata: AnnData,
     method: str = "kmc",
@@ -788,6 +792,7 @@ def stationary_distribution(
                 adata.obs["source_steady_state_distribution_rnd"] = diffusion(T_rnd, backward=True)
 
 
+@monitor
 def generalized_diffusion_map(adata: AnnData, **kwargs) -> None:
     """Apply the diffusion map algorithm on the transition matrix build from Itô kernel.
 

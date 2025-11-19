@@ -400,6 +400,7 @@ def reserve_minimal_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minima
     return adata.var[var_store_key]
 
 
+@monitor
 def select_cell(
     adata: AnnData,
     grp_keys: Union[str, List[str]],

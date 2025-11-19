@@ -17,6 +17,7 @@ from sklearn.utils.sparsefuncs import mean_variance_axis
 
 from ..configuration import DKM
 from ..dynamo_logger import main_info_insert_adata_obsm, main_info_insert_adata_var
+from ..tools._track import monitor
 
 
 def _truncatedSVD_with_center(
@@ -314,6 +315,7 @@ def pca_genes(PCs: list, n_top_genes: int = 100) -> np.ndarray:
     return valid_genes
 
 
+@monitor
 def top_pca_genes(
     adata: AnnData,
     pc_key: str = "PCs",

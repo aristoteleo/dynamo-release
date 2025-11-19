@@ -10,6 +10,7 @@ from anndata._core.anndata import AnnData
 from numpy.typing import DTypeLike
 
 from ..dynamo_logger import main_info_insert_adata_uns
+from ..tools._track import monitor
 from ..tools.utils import (
     create_layer,
     get_rank_array,
@@ -173,6 +174,7 @@ def rank_cell_groups(
     return pd.DataFrame(data=ret_dict)
 
 
+@monitor
 def rank_expression_genes(adata: AnnData, ekey: str = "M_s", prefix_store: str = "rank", **kwargs) -> AnnData:
     """Rank genes based on their expression values for each cell group.
 
@@ -204,6 +206,7 @@ def rank_expression_genes(adata: AnnData, ekey: str = "M_s", prefix_store: str =
     return adata
 
 
+@monitor
 def rank_velocity_genes(adata, vkey="velocity_S", prefix_store="rank", **kwargs) -> AnnData:
     """Rank genes based on their raw and absolute velocities for each cell group.
 
@@ -236,6 +239,7 @@ def rank_velocity_genes(adata, vkey="velocity_S", prefix_store="rank", **kwargs)
     return adata
 
 
+@monitor
 def rank_divergence_genes(
     adata: AnnData,
     jkey: str = "jacobian_pca",
@@ -300,6 +304,7 @@ def rank_divergence_genes(
     return rdict
 
 
+@monitor
 def rank_s_divergence_genes(
     adata: AnnData,
     skey: str = "sensitivity_pca",
@@ -364,6 +369,7 @@ def rank_s_divergence_genes(
     return rdict
 
 
+@monitor
 def rank_acceleration_genes(adata, akey="acceleration", prefix_store="rank", **kwargs) -> AnnData:
     """Rank genes based on their absolute, positive, negative accelerations for each cell group.
 
@@ -397,6 +403,7 @@ def rank_acceleration_genes(adata, akey="acceleration", prefix_store="rank", **k
     return adata
 
 
+@monitor
 def rank_curvature_genes(adata: AnnData, ckey: str = "curvature", prefix_store: str = "rank", **kwargs):
     """Rank gene's absolute, positive, negative curvature by different cell groups.
 
@@ -429,6 +436,7 @@ def rank_curvature_genes(adata: AnnData, ckey: str = "curvature", prefix_store: 
     return adata
 
 
+@monitor
 def rank_jacobian_genes(
     adata: AnnData,
     groups: Optional[str] = None,

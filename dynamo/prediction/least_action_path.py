@@ -16,6 +16,7 @@ from scipy.spatial.distance import cdist
 from scipy.sparse import issparse
 
 from ..dynamo_logger import LoggerManager
+from ..tools._track import monitor
 from ..tools.utils import fetch_states, nearest_neighbors
 from ..utils import pca_to_expr
 from ..vectorfield import SvcVectorField
@@ -548,6 +549,7 @@ def get_init_path(
     return init_path_final
 
 
+@monitor
 def least_action(
     adata: AnnData,
     init_cells: Union[str, list],

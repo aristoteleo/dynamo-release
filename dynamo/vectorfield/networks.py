@@ -6,6 +6,7 @@ import pandas as pd
 from anndata import AnnData
 
 from ..dynamo_logger import main_debug, main_info, main_tqdm
+from ..tools._track import monitor
 from .rank_vf import rank_jacobian_genes
 
 
@@ -74,6 +75,7 @@ def get_interaction_in_cluster(
     return edges
 
 
+@monitor
 def build_network_per_cluster(
     adata: AnnData,
     cluster: str,
