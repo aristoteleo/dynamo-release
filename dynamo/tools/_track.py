@@ -26,7 +26,6 @@ def get_monitor_display() -> bool:
     Returns:
         True if monitor output is enabled, False otherwise.
     """
-    global _SHOW_MONITOR_OUTPUT
     return _SHOW_MONITOR_OUTPUT
 
 # ANSI escape codes for styling
@@ -91,7 +90,6 @@ class StructureWatcher:
 
     def _print_report(self, start, end, duration):
         # Check if monitor output is enabled
-        global _SHOW_MONITOR_OUTPUT, _MONITOR_NESTING_LEVEL
         if not _SHOW_MONITOR_OUTPUT:
             return
         
