@@ -6,6 +6,40 @@ import functools
 from datetime import datetime
 from scipy import sparse
 
+# Global flag to control monitor output display
+_SHOW_MONITOR_OUTPUT = True
+# Global nesting level counter
+_MONITOR_NESTING_LEVEL = 0
+
+def set_monitor_display(show: bool):
+    """Set whether to display monitor output.
+    
+    Args:
+        show: If True, display monitor output; if False, suppress it.
+    """
+    global _SHOW_MONITOR_OUTPUT
+    _SHOW_MONITOR_OUTPUT = show
+
+def get_monitor_display() -> bool:
+    """Get the current monitor display setting.
+    
+    Returns:
+        True if monitor output is enabled, False otherwise.
+    """
+    global _SHOW_MONITOR_OUTPUT
+    return _SHOW_MONITOR_OUTPUT
+
+# ANSI escape codes for styling
+class Style:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    BLUE = "\033[34m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+
 class StructureWatcher:
     def __init__(self, adata, func_name="Unknown Function"):
         self.adata = adata
@@ -56,63 +90,135 @@ class StructureWatcher:
         self._log_to_uns(self.start_state, end_state, duration)
 
     def _print_report(self, start, end, duration):
-        print("\n[STRUCTURE CHANGE DETECTED]")
-        print("-" * 57)
-        print(f"Function: {self.func_name}")
-        print(f"Duration: {duration}s\n")
-
-        # 1. DIMENSIONS
+        # Check if monitor output is enabled
+        global _SHOW_MONITOR_OUTPUT, _MONITOR_NESTING_LEVEL
+        if not _SHOW_MONITOR_OUTPUT:
+            return
+        
+        # Only print if we are at the top level (nesting level 0)
+        if _MONITOR_NESTING_LEVEL > 0:
+            return
+        
+        # Box drawing characters
+        TL, H, TR = "╭", "─", "╮"
+        V = "│"
+        BL, BR = "╰", "╯"
+        
+        width = 70
+        title = f" SUMMARY: {self.func_name} "
+        title_len = len(title)
+        header_line = f"{TL}{H}{title}{H * (width - 3 - title_len)}{TR}"
+        footer_line = f"{BL}{H * (width - 2)}{BR}"
+        
+        print(f"\n{Style.BLUE}{header_line}{Style.RESET}")
+        
+        # Duration
+        duration_text = f"  Duration: {Style.YELLOW}{duration}s{Style.RESET}"
+        visible_len = len(f"  Duration: {duration}s")
+        padding = " " * (width - 2 - visible_len)
+        print(f"{Style.BLUE}{V}{Style.RESET}{duration_text}{padding}{Style.BLUE}{V}{Style.RESET}")
+        
+        # Shape
+        # Use 'x' instead of '×' because '×' causes alignment issues in some terminals
+        shape_str = f"{end['shape'][0]:,} x {end['shape'][1]:,}"
         if start['shape'] == end['shape']:
-            print(f"1. DIMENSIONS: Unchanged {start['shape']}")
+            shape_info = f"{Style.GREEN}{shape_str}{Style.RESET} {Style.DIM}(Unchanged){Style.RESET}"
+            visible_shape = f"{shape_str} (Unchanged)"
         else:
-            print(f"1. DIMENSIONS: CHANGED {start['shape']} -> {end['shape']}")
-
-        # 2. UNS
-        self._print_section_diff("2. UNS (Unstructured Data)", start['uns'], end['uns'], is_uns=True)
-
-        # 3. OBSP
-        self._print_dict_diff("3. OBSP (Pairwise)", start['obsp'], end['obsp'])
-
-        # 4. OBSM
-        self._print_dict_diff("4. OBSM (Multi-dim Observation)", start['obsm'], end['obsm'])
+            old_shape = f"{start['shape'][0]:,} x {start['shape'][1]:,}"
+            shape_info = f"{Style.YELLOW}{old_shape}{Style.RESET} -> {Style.GREEN}{shape_str}{Style.RESET}"
+            visible_shape = f"{old_shape} -> {shape_str}"
         
-        # 5. LAYERS (Optional, but good to have)
-        self._print_dict_diff("5. LAYERS (Matrices)", start['layers'], end['layers'])
-
-        print("-" * 57)
-
-    def _print_section_diff(self, title, start_set, end_set, is_uns=False):
-        added = end_set - start_set
-        # You could also track removed items here
+        shape_text = f"  Shape:    {shape_info}"
+        visible_len = len(f"  Shape:    {visible_shape}")
+        padding = " " * (width - 2 - visible_len)
+        print(f"{Style.BLUE}{V}{Style.RESET}{shape_text}{padding}{Style.BLUE}{V}{Style.RESET}")
         
-        print(f"\n{title}:")
+        print(f"{Style.BLUE}{V}{Style.RESET}" + " " * (width - 2) + f"{Style.BLUE}{V}{Style.RESET}")
+        
+        # Changes Header
+        changes_text = f"  {Style.BOLD}{Style.CYAN}CHANGES DETECTED{Style.RESET}"
+        visible_len = len("  CHANGES DETECTED")
+        padding = " " * (width - 2 - visible_len)
+        print(f"{Style.BLUE}{V}{Style.RESET}{changes_text}{padding}{Style.BLUE}{V}{Style.RESET}")
+        
+        separator_text = f"  {Style.DIM}────────────────{Style.RESET}"
+        visible_len = len("  ────────────────")
+        padding = " " * (width - 2 - visible_len)
+        print(f"{Style.BLUE}{V}{Style.RESET}{separator_text}{padding}{Style.BLUE}{V}{Style.RESET}")
+
+        # Sections - use 6-char width for consistency
+        self._print_section("OBS", start['obs'], end['obs'], width, title_width=6)
+        self._print_section("VAR", start['var'], end['var'], width, title_width=6)
+        self._print_section("UNS", start['uns'], end['uns'], width, is_uns=True, title_width=6)
+        self._print_section("OBSP", set(start['obsp'].keys()), set(end['obsp'].keys()), width, descriptions=end['obsp'], title_width=6)
+        self._print_section("OBSM", set(start['obsm'].keys()), set(end['obsm'].keys()), width, descriptions=end['obsm'], title_width=6)
+        self._print_section("LAYERS", set(start['layers'].keys()), set(end['layers'].keys()), width, descriptions=end['layers'], title_width=6)
+
+        print(f"{Style.BLUE}{footer_line}{Style.RESET}")
+
+    def _print_section(self, title, start_keys, end_keys, width, is_uns=False, descriptions=None, title_width=6):
+        added = sorted(list(end_keys - start_keys))
+        V = f"{Style.BLUE}│{Style.RESET}"
+        
+        # Format title with consistent width
+        title_formatted = f"{title:<{title_width}}"
+        spaces_needed = 2 + title_width  # "● " + title + space before │
+        
         if not added:
-            print("   (No changes)")
             return
 
-        for key in sorted(added):
-            val = self.adata.uns[key]
-            type_desc = self._get_type_desc(val)
-            print(f"   (+) Added '{key}' {type_desc}")
+        for i, key in enumerate(added):
+            if i == 0:
+                prefix_colored = f"  {Style.CYAN}●{Style.RESET} {Style.BOLD}{title_formatted}{Style.RESET} │"
+                prefix_visible = f"  ● {title_formatted} │"
+            else:
+                # Match the spacing: "  ● " (4 chars) + title_width + " │" (2 chars)
+                prefix_colored = f"  {' ' * spaces_needed} │"
+                prefix_visible = f"  {' ' * spaces_needed} │"
             
-            # SPECIAL LOGIC: If it's a dict (like 'neighbors'), try to show 'params'
-            if is_uns and isinstance(val, dict) and 'params' in val:
-                print(f"       └─ params: {val['params']}")
-
-    def _print_dict_diff(self, title, start_dict, end_dict):
-        """Compare dictionaries of {key: description}."""
-        start_keys = set(start_dict.keys())
-        end_keys = set(end_dict.keys())
-        added = end_keys - start_keys
+            if is_uns:
+                content = f"{prefix_colored} {Style.GREEN}{key}{Style.RESET}"
+                visible_content = f"{prefix_visible} {key}"
+                
+                padding = " " * (width - 2 - len(visible_content))
+                print(f"{V}{content}{padding}{V}")
+                
+                # Check for params
+                if key in self.adata.uns:
+                    val = self.adata.uns[key]
+                    if isinstance(val, dict) and 'params' in val:
+                        params_str = str(val['params'])
+                        # Truncate if too long
+                        max_param_len = width - 20
+                        if len(params_str) > max_param_len:
+                            params_str = params_str[:max_param_len-3] + "..."
+                        
+                        # Sub-line should align with the content, not the prefix
+                        spaces_for_subline = 2 + spaces_needed + 1  # match prefix + space after │
+                        sub_line = f"  {' ' * spaces_needed} │ {Style.DIM}└─ params:{Style.RESET} {Style.YELLOW}{params_str}{Style.RESET}"
+                        visible_sub = f"  {' ' * spaces_needed} │ └─ params: {params_str}"
+                        padding = " " * (width - 2 - len(visible_sub))
+                        print(f"{V}{sub_line}{padding}{V}")
+            else:
+                desc = descriptions[key] if descriptions else ""
+                desc = desc.strip("()")
+                
+                content = f"{prefix_colored} {Style.GREEN}✚{Style.RESET} {Style.YELLOW}{key}{Style.RESET} {Style.DIM}({desc}){Style.RESET}"
+                visible_content = f"{prefix_visible} ✚ {key} ({desc})"
+                
+                # Handle potential overflow
+                if len(visible_content) > width - 2:
+                    max_len = width - 5
+                    visible_content = visible_content[:max_len] + "..."
+                    # Simplify colored version too
+                    key_truncated = key[:max_len-20] + "..." if len(key) > max_len-20 else key
+                    content = f"{prefix_colored} {Style.GREEN}✚{Style.RESET} {Style.YELLOW}{key_truncated}{Style.RESET} {Style.DIM}...{Style.RESET}"
+                
+                padding = " " * (width - 2 - len(visible_content))
+                print(f"{V}{content}{padding}{V}")
         
-        print(f"\n{title}:")
-        if not added:
-            print("   (No changes)")
-            return
-
-        for key in sorted(added):
-            desc = end_dict[key]
-            print(f"   (+) Added '{key}' {desc}")
+        print(f"{V}" + " " * (width - 2) + f"{V}")
 
     def _log_to_uns(self, start, end, duration):
         """Save a short summary to adata.uns for permanence."""
@@ -131,6 +237,9 @@ class StructureWatcher:
 def monitor(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        global _MONITOR_NESTING_LEVEL
+        _MONITOR_NESTING_LEVEL += 1
+        
         # Auto-detect name if it's a partial or bound method
         name = getattr(func, "__qualname__", func.__name__)
         
@@ -151,8 +260,8 @@ def monitor(func):
         try:
             result = func(*args, **kwargs)
         finally:
+            _MONITOR_NESTING_LEVEL -= 1
             if watcher:
                 watcher.finish()
         return result
     return wrapper
-

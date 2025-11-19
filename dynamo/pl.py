@@ -36,6 +36,7 @@ def style(
         color_map=None,
         dynamo=True,
         font_path=None,
+        show_monitor=True,
 ):
     """
     Set the default parameters for matplotlib figures.
@@ -50,10 +51,15 @@ def style(
         color_map: Default color map (None)
         dynamo: Whether to apply dynamo-specific rcParams (True)
         font_path: Path to custom font file or 'arial' for auto-download (None)
+        show_monitor: Whether to display monitor output for AnnData changes (True)
     """
     global _has_printed_logo  # Use the global flag
 
     from matplotlib import rcParams
+    from .tools._track import set_monitor_display
+
+    # Set monitor display preference
+    set_monitor_display(show_monitor)
 
     if dpi is not None:
         rcParams["figure.dpi"] = dpi
