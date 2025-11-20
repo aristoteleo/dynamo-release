@@ -5,5 +5,6 @@
 
 notebooks/200_zebrafish
 notebooks/201_dynamo_beyondvelo
+notebooks/202_extvelo
 
 ```

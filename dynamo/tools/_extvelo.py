@@ -1,8 +1,10 @@
 from anndata import AnnData
 from typing import Literal, List
 import os
+from ..tools._track import monitor
 
 
+@monitor
 def extvelo(
     adata: AnnData,
     method: Literal["latentvelo", 

@@ -10,11 +10,12 @@ import numpy as np
 from scipy.sparse import csr_matrix, diags, issparse
 
 from ..dynamo_logger import LoggerManager
+from ..tools._track import monitor
 from .connectivity import adj_to_knn, knn_to_adj
 from .graph_operators import build_graph, gradop
 from .utils import projection_with_transition_matrix
 
-
+@monitor
 def pseudotime_velocity(
     adata: anndata.AnnData,
     pseudotime: str = "pseudotime",
@@ -125,6 +126,13 @@ def pseudotime_velocity(
 
     logger.info_insert_adata(add_tkey, "obsp")
     adata.obsp[add_tkey] = T
+
+    if 'use_for_pca' in adata.var.keys():
+        adata.var[f'use_for_dynamics'] = adata.var['use_for_pca']
+        adata.var[f'use_for_transition'] = adata.var['use_for_pca']
+    else:
+        adata.var[f'use_for_dynamics'] = True
+        adata.var[f'use_for_transition'] = True
 
     if dynamics_info:
         if "dynamics" not in adata.uns_keys():

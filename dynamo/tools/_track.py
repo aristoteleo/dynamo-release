@@ -64,12 +64,23 @@ class StructureWatcher:
         else:
             return f"({type(obj).__name__})"
 
+    def _get_column_type(self, series):
+        """Helper to get a simplified type description for a Series."""
+        dtype = series.dtype
+        if isinstance(dtype, pd.CategoricalDtype):
+            return "category"
+        dt_str = str(dtype)
+        if "int" in dt_str: return "int"
+        if "float" in dt_str: return "float"
+        if "object" in dt_str or "str" in dt_str: return "str"
+        return dt_str
+
     def _snapshot(self, adata):
         """Captures keys, types, and shapes for comparison."""
         snapshot = {
             "shape": adata.shape,
-            "obs": set(adata.obs.columns),
-            "var": set(adata.var.columns),
+            "obs": {c: self._get_column_type(adata.obs[c]) for c in adata.obs.columns},
+            "var": {c: self._get_column_type(adata.var[c]) for c in adata.var.columns},
             "uns": set(adata.uns.keys()),
             # For complex slots, store a dict of {key: description_string}
             "obsm": {k: self._get_type_desc(v) for k, v in adata.obsm.items()},
@@ -146,8 +157,8 @@ class StructureWatcher:
         print(f"{Style.BLUE}{V}{Style.RESET}{separator_text}{padding}{Style.BLUE}{V}{Style.RESET}")
 
         # Sections - use 6-char width for consistency
-        self._print_section("OBS", start['obs'], end['obs'], width, title_width=6)
-        self._print_section("VAR", start['var'], end['var'], width, title_width=6)
+        self._print_section("OBS", set(start['obs'].keys()), set(end['obs'].keys()), width, descriptions=end['obs'], title_width=6)
+        self._print_section("VAR", set(start['var'].keys()), set(end['var'].keys()), width, descriptions=end['var'], title_width=6)
         self._print_section("UNS", start['uns'], end['uns'], width, is_uns=True, title_width=6)
         self._print_section("OBSP", set(start['obsp'].keys()), set(end['obsp'].keys()), width, descriptions=end['obsp'], title_width=6)
         self._print_section("OBSM", set(start['obsm'].keys()), set(end['obsm'].keys()), width, descriptions=end['obsm'], title_width=6)
@@ -176,8 +187,8 @@ class StructureWatcher:
                 prefix_visible = f"  {' ' * spaces_needed} │"
             
             if is_uns:
-                content = f"{prefix_colored} {Style.GREEN}{key}{Style.RESET}"
-                visible_content = f"{prefix_visible} {key}"
+                content = f"{prefix_colored} {Style.GREEN}✚{Style.RESET} {Style.YELLOW}{key}{Style.RESET}"
+                visible_content = f"{prefix_visible} ✚ {key}"
                 
                 padding = " " * (width - 2 - len(visible_content))
                 print(f"{V}{content}{padding}{V}")
