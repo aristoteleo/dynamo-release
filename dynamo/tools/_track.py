@@ -77,10 +77,24 @@ class StructureWatcher:
 
     def _snapshot(self, adata):
         """Captures keys, types, and shapes for comparison."""
+        obs_types = {}
+        for c in adata.obs.columns:
+            try:
+                obs_types[c] = self._get_column_type(adata.obs[c])
+            except Exception:
+                obs_types[c] = "unknown (error)"
+
+        var_types = {}
+        for c in adata.var.columns:
+            try:
+                var_types[c] = self._get_column_type(adata.var[c])
+            except Exception:
+                var_types[c] = "unknown (error)"        
+
         snapshot = {
             "shape": adata.shape,
-            "obs": {c: self._get_column_type(adata.obs[c]) for c in adata.obs.columns},
-            "var": {c: self._get_column_type(adata.var[c]) for c in adata.var.columns},
+            "obs": obs_types,
+            "var": var_types,
             "uns": set(adata.uns.keys()),
             # For complex slots, store a dict of {key: description_string}
             "obsm": {k: self._get_type_desc(v) for k, v in adata.obsm.items()},
