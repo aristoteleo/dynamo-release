@@ -524,7 +524,7 @@ def fate_bias(
                 else:
                     _, knn = nbrs.kneighbors(X[knn.flatten(), :])
 
-                fate_prob = clusters[knn.flatten()].value_counts() / len(knn.flatten())
+                fate_prob = clusters.iloc[knn.flatten()].value_counts() / len(knn.flatten())
                 if source_groups is not None:
                     source_p = fate_prob[source_groups].sum()
                     if 1 > source_p > 0:
@@ -542,7 +542,7 @@ def fate_bias(
                 walk_back_steps += 1
 
                 if any(indices - 1 < 0):
-                    pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
+                    pred_dict[i] = clusters.iloc[knn.flatten()].value_counts() * np.nan
                     break
 
                 if hasattr(nbrs, "query"):
@@ -559,8 +559,10 @@ def fate_bias(
                 indices = indices - 1
 
     bias = pd.DataFrame(pred_dict).T
+    if isinstance(bias.columns, pd.CategoricalIndex):
+        bias.columns = bias.columns.astype(object)
     conf = pd.DataFrame({"confidence": confidence}, index=bias.index)
-    bias = pd.merge(conf, bias, left_index=True, right_index=True)
+    bias = pd.concat([conf, bias], axis=1)
 
     if cell_indx is not None:
         bias.index = cell_indx
