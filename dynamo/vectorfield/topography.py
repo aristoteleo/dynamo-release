@@ -29,6 +29,7 @@ from .utils import (
     vecfld_from_adata,
     vector_field_function,
 )
+from ..tools._track import monitor
 
 
 def pac_onestep(x0: np.ndarray, func: Callable, v0: np.ndarray, ds: float = 0.01):
@@ -803,6 +804,7 @@ def util_topology(
     return X_basis, xlim, ylim, zlim, confidence, NCx, NCy, Xss, ftype, fp_ind
 
 
+@monitor
 def topography(
     adata: AnnData,
     basis: Optional[str] = "umap",
@@ -904,6 +906,7 @@ def topography(
     return adata
 
 
+@monitor
 def assign_fixedpoints(
     adata: AnnData,
     basis: str = "pca",

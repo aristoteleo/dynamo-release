@@ -49,11 +49,13 @@ from .utils import (
     set_velocity,
     update_dict,
 )
+from ._track import monitor
 
 warnings.simplefilter("ignore", SparseEfficiencyWarning)
 
 
 # incorporate the model selection code soon
+@monitor
 def dynamics(
     adata: AnnData,
     filter_gene_mode: Literal["final", "basic", "no"] = "final",

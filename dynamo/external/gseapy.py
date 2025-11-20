@@ -2,8 +2,10 @@ from pathlib import Path
 from typing import Union
 
 from ..dynamo_logger import LoggerManager
+from ..tools._track import monitor
 
 
+@monitor
 def enrichr(
     genes: Union[list, str],
     organism: str,

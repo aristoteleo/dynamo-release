@@ -42,6 +42,8 @@ from .utils import (
     unique_var_obs_adata,
 )
 
+from ..tools._track import monitor
+
 
 class Preprocessor:
     def __init__(
@@ -823,6 +825,7 @@ class Preprocessor:
         self.pca(adata, **self.pca_kwargs)
         temp_logger.finish_progress(progress_name="Preprocessor-monocle-pearson-residual")
 
+    @monitor
     def preprocess_adata(
         self,
         adata: AnnData,

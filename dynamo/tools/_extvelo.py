@@ -5,7 +5,10 @@ import os
 
 def extvelo(
     adata: AnnData,
-    method: Literal["latentvelo", "celldancer"] = "celldancer",
+    method: Literal["latentvelo", 
+    "celldancer",
+    "deepvelo",
+    "velovi"] = "celldancer",
     celltype_key: str = "clusters",
     batch_key: str = None,
     basis: str = "X_umap",
@@ -102,7 +105,7 @@ def extvelo(
         adata.var["fit_t_"] = (
             torch.nn.functional.softplus(vae.module.switch_time_unconstr).detach().cpu().numpy()
         ) * scaling
-        adata.layers["fit_t"] = latent_time.values * scaling[np.newaxis, :]
+        #adata.layers["fit_t"] = latent_time.values * scaling[np.newaxis, :]
         adata.var["fit_scaling"] = 1.0
         adata.var[f'use_for_dynamics'] = adata.var['use_for_pca']
         adata.var[f'use_for_transition'] = adata.var['use_for_pca']

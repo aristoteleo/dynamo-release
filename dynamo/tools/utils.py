@@ -33,6 +33,7 @@ from ..dynamo_logger import (
     main_info_verbose_timeit,
     main_warning,
 )
+
 from ..preprocessing.transform import _Freeman_Tukey
 from ..utils import areinstance, isarray
 
@@ -400,6 +401,7 @@ def reserve_minimal_genes_by_gamma_r2(adata: AnnData, var_store_key: str, minima
     return adata.var[var_store_key]
 
 
+
 def select_cell(
     adata: AnnData,
     grp_keys: Union[str, List[str]],
@@ -464,7 +466,7 @@ def select_cell(
     cell_idx = pred.check(adata.obs)
 
     if presel is not None:
-        if np.issubsctype(presel, int):
+        if np.issubdtype(presel.dtype, int) or np.issubdtype(presel.dtype, np.integer):
             temp = np.zeros(adata.n_obs, dtype=bool)
             temp[presel] = True
             presel = temp

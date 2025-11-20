@@ -10,6 +10,7 @@ from scipy.sparse.csgraph import shortest_path
 from scipy.spatial import cKDTree
 
 from ..dynamo_logger import LoggerManager, main_info, main_warning
+from ..tools._track import monitor
 from ..prediction.fate import _fate
 from ..tools.clustering import neighbors
 from ..tools.Markov import DiscreteTimeMarkovChain
@@ -128,6 +129,7 @@ def prune_transition(
     return M
 
 
+@monitor
 def state_graph(
     adata: AnnData,
     group: str,
@@ -333,6 +335,7 @@ def state_graph(
     return adata
 
 
+@monitor
 def tree_model(
     adata: AnnData,
     group: str,

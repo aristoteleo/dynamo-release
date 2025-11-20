@@ -185,10 +185,12 @@ def test_lap_plots():
 
     HSC_cells_indices = nearest_neighbors(fixed_points[0], adata.obsm["X_umap"])
     Meg_cells_indices = nearest_neighbors(fixed_points[1], adata.obsm["X_umap"])
+    init_cells = [adata.obs_names[HSC_cells_indices[0]][0]]
+    target_cells = [adata.obs_names[Meg_cells_indices[0]][0]]
     dyn.pd.least_action(
         adata,
-        [adata.obs_names[HSC_cells_indices[0]][0]],
-        [adata.obs_names[Meg_cells_indices[0]][0]],
+        init_cells,
+        target_cells,
         basis="umap",
         adj_key="X_umap_distances",
         min_lap_t=True,

@@ -314,6 +314,7 @@ def pca_genes(PCs: list, n_top_genes: int = 100) -> np.ndarray:
     return valid_genes
 
 
+
 def top_pca_genes(
     adata: AnnData,
     pc_key: str = "PCs",

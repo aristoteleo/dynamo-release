@@ -16,6 +16,7 @@ from scipy.spatial.distance import cdist
 from scipy.sparse import issparse
 
 from ..dynamo_logger import LoggerManager
+from ..tools._track import monitor
 from ..tools.utils import fetch_states, nearest_neighbors
 from ..utils import pca_to_expr
 from ..vectorfield import SvcVectorField
@@ -548,6 +549,7 @@ def get_init_path(
     return init_path_final
 
 
+@monitor
 def least_action(
     adata: AnnData,
     init_cells: Union[str, list],
@@ -1749,8 +1751,20 @@ def get_cell_indices_by_name(adata, cell_names):
     indices = []
     for name in cell_names:
         if name in adata.obs_names:
+            # get_loc with string is safe
             idx = adata.obs_names.get_loc(name)
-            indices.append(idx)
+            if isinstance(idx, slice):
+                # if name matches multiple cells (rare but possible with non-unique index)
+                # we'll take the first one to match original logic which appended single idx
+                start = idx.start if idx.start is not None else 0
+                indices.append(start)
+            elif isinstance(idx, np.ndarray):
+                 # mask
+                 where = np.where(idx)[0]
+                 if len(where) > 0:
+                     indices.append(where[0])
+            else:
+                indices.append(idx)
         else:
             print(f"Warning: Cell name '{name}' not found in adata.obs_names")
     

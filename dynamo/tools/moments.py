@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from ..configuration import DKM, DynamoAdataKeyManager
 from ..dynamo_logger import LoggerManager
+from ._track import monitor
 from ..preprocessing.normalization import normalize_mat_monocle, sz_util
 from ..preprocessing.pca import pca
 from ..utils import copy_adata
@@ -17,6 +18,7 @@ from .utils import elem_prod, get_mapper, inverse_norm
 
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
+@monitor
 def moments(
     adata: AnnData,
     X_data: Optional[np.ndarray] = None,
@@ -235,6 +237,7 @@ def moments(
     return None
 
 
+@monitor
 def time_moment(
     adata: AnnData,
     tkey: Optional[str],

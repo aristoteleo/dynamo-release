@@ -48,6 +48,7 @@ from .utils import (
     merge_adata_attrs,
     unique_var_obs_adata,
 )
+from ..tools._track import monitor
 
 
 def deprecated(func):
@@ -988,6 +989,7 @@ def _filter_genes_by_outliers_legacy(
     return adata
 
 
+@monitor
 @deprecated
 def recipe_monocle(*args, **kwargs):
     return _recipe_monocle_legacy(*args, **kwargs)
