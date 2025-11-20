@@ -253,14 +253,18 @@ def _fate(
         t_stack, prediction_stack = np.hstack(t), np.hstack(prediction)
         n_cell, n_feature = init_states.shape
 
-        t_len = int(len(t_stack) / n_cell)
-        avg = np.zeros((n_feature, t_len))
+        if len(t_stack) > 0 and len(prediction_stack) > 0:
+            t_len = int(len(t_stack) / n_cell)
+            avg = np.zeros((n_feature, t_len))
 
-        for i in range(t_len):
-            avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
+            for i in range(t_len):
+                avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
 
-        prediction = [avg]
-        t = [np.sort(np.unique(t))]
+            prediction = [avg]
+            t = [np.sort(np.unique(t))]
+        else:
+            # If stack is empty (e.g. failed integrations), keep original or handle as needed
+            pass
 
     return t, prediction
 
