@@ -23,7 +23,10 @@ from ..utils import areinstance
 
 # ---------------------------------------------------------------------------------------------------
 # symbol conversion related
-def convert2gene_symbol(input_names: List[str], scopes: Union[List[str], None] = "ensembl.gene") -> pd.DataFrame:
+def convert2gene_symbol(
+    input_names: List[str], 
+    scopes: Union[List[str], None] = "ensembl.gene"
+) -> pd.DataFrame:
     """Convert ensemble gene id to official gene names using mygene package.
 
     Args:
