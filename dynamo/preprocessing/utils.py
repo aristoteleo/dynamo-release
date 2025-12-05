@@ -26,26 +26,51 @@ from ..utils import areinstance
 def _infer_species_and_release(input_names: List[str]) -> str:
     """
     Infer species from Ensembl ID prefix.
+
+    Supported species and their Ensembl ID prefixes:
+    - human: ENSG
+    - mouse: ENSMUSG
+    - rat: ENSRNOG
+    - zebrafish: ENSDARG
+    - fly: FBGN (FlyBase)
+    - chicken: ENSGALG
+    - dog: ENSCAFG
+    - pig: ENSSSCG
+    - cow: ENSBTAG
+    - macaque: ENSMMUG
     """
     # Find first non-empty ID for sampling
     sample_id = next((x for x in input_names if isinstance(x, str) and len(x) > 0), None)
-    
+
     if not sample_id:
         return "human" # Default fallback
-    
+
     # Remove version if present (e.g. ENSG000001.5 -> ENSG000001)
-    clean_id = sample_id.split('.')[0]
-    
-    if clean_id.startswith("ENSG"):
-        return "human"
-    elif clean_id.startswith("ENSMUSG"):
-        return "mouse"
-    elif clean_id.startswith("ENSRNOG"):
-        return "rat"
-    else:
-        # If unrecognizable, default to human with warning
-        main_info(f"Warning: Could not infer species from ID '{sample_id}'. Defaulting to 'human'.")
-        return "human"
+    clean_id = sample_id.split('.')[0].upper()
+
+    # Species mapping based on Ensembl ID prefix
+    # Order matters: longer prefixes must come first to avoid mis-matching
+    # (e.g., ENSGALG must be checked before ENSG)
+    species_map = [
+        ("ENSMUSG", "mouse"),      # Mus musculus
+        ("ENSRNOG", "rat"),        # Rattus norvegicus
+        ("ENSDARG", "zebrafish"),  # Danio rerio
+        ("ENSGALG", "chicken"),    # Gallus gallus - must come before ENSG!
+        ("ENSCAFG", "dog"),        # Canis familiaris
+        ("ENSSSCG", "pig"),        # Sus scrofa
+        ("ENSBTAG", "cow"),        # Bos taurus
+        ("ENSMMUG", "macaque"),    # Macaca mulatta
+        ("ENSG", "human"),         # Homo sapiens - after ENSGALG!
+        ("FBGN", "fly"),           # Drosophila melanogaster (FlyBase)
+    ]
+
+    for prefix, species in species_map:
+        if clean_id.startswith(prefix):
+            return species
+
+    # If unrecognizable, default to human with warning
+    main_info(f"Warning: Could not infer species from ID '{sample_id}'. Defaulting to 'human'.")
+    return "human"
 
 def convert2gene_symbol(
     input_names: List[str],
@@ -54,7 +79,7 @@ def convert2gene_symbol(
     species: Optional[str] = None,
     force_rebuild: bool = False
 ) -> pd.DataFrame:
-    """Convert ensemble gene id to official gene names using pyensembl.
+    """Convert Ensembl gene IDs to official gene names using pyensembl.
     Supports auto-detection of species and smart release selection.
 
     Args:
@@ -62,13 +87,24 @@ def convert2gene_symbol(
         scopes: Deprecated, kept for compatibility.
         ensembl_release: Specific release version (e.g. 109).
             If None, defaults to 109 (stable).
-        species: 'human' or 'mouse'.
-            If None, infers from the input IDs (ENSG->human, ENSMUSG->mouse).
+        species: Species name. Supported species:
+            - 'human' (Homo sapiens, ENSG*)
+            - 'mouse' (Mus musculus, ENSMUSG*)
+            - 'rat' (Rattus norvegicus, ENSRNOG*)
+            - 'zebrafish' (Danio rerio, ENSDARG*)
+            - 'fly' (Drosophila melanogaster, FBGN*)
+            - 'chicken' (Gallus gallus, ENSGALG*)
+            - 'dog' (Canis familiaris, ENSCAFG*)
+            - 'pig' (Sus scrofa, ENSSSCG*)
+            - 'cow' (Bos taurus, ENSBTAG*)
+            - 'macaque' (Macaca mulatta, ENSMMUG*)
+            If None, automatically infers from the input IDs based on prefix.
         force_rebuild: If True, force rebuild the database even if it exists.
             Useful after bug fixes or when database is corrupted.
 
     Returns:
         DataFrame with index 'query' and column 'symbol'.
+        For genes without a symbol or not found, returns the original Ensembl ID.
     """
     
     try:
@@ -84,7 +120,7 @@ def convert2gene_symbol(
     # 2. Auto-detect version
     if ensembl_release is None:
         # Default to 109 as it is stable and widely used
-        ensembl_release = 109
+        ensembl_release = 77
 
     # 3. Initialize database
     data = EnsemblRelease(ensembl_release, species=species)
@@ -92,8 +128,15 @@ def convert2gene_symbol(
     def _validate_database(data, species):
         """Validate database by testing a query."""
         test_gene_ids = {
-            'human': 'ENSG00000141510',  # TP53
-            'mouse': 'ENSMUSG00000059552'  # Trp53
+            'human': 'ENSG00000141510',      # TP53
+            'mouse': 'ENSMUSG00000059552',   # Trp53
+            'rat': 'ENSRNOG00000019450',     # Tp53
+            'zebrafish': 'ENSDARG00000035559', # tp53
+            'chicken': 'ENSGALG00000000003', # CHIC1
+            'dog': 'ENSCAFG00000000002',     # Sample gene
+            'pig': 'ENSSSCG00000000018',     # Sample gene
+            'cow': 'ENSBTAG00000000011',     # Sample gene
+            'macaque': 'ENSMMUG00000000018', # Sample gene
         }
         test_id = test_gene_ids.get(species)
         if not test_id:
@@ -142,11 +185,43 @@ def convert2gene_symbol(
     results = {}
     found_count = 0
     
+    # Define expected ID prefixes for each species
+    species_prefixes = {
+        'human': 'ENSG',
+        'mouse': 'ENSMUSG',
+        'rat': 'ENSRNOG',
+        'zebrafish': 'ENSDARG',
+        'fly': 'FBGN',
+        'chicken': 'ENSGALG',
+        'dog': 'ENSCAFG',
+        'pig': 'ENSSSCG',
+        'cow': 'ENSBTAG',
+        'macaque': 'ENSMMUG',
+    }
+
+    expected_prefix = species_prefixes.get(species)
+
+    def _matches_species_prefix(ens_id, species, expected_prefix):
+        """Check if ID matches the expected species prefix.
+
+        Handles special cases where prefixes overlap:
+        - ENSG (human) vs ENSGALG (chicken)
+        """
+        if not expected_prefix:
+            return True
+
+        id_upper = ens_id.upper()
+
+        # Special case: human should NOT match ENSGALG (chicken IDs)
+        if species == 'human' and id_upper.startswith('ENSGALG'):
+            return False
+
+        return id_upper.startswith(expected_prefix)
+
     for ens_id in unique_ids:
         symbol = ens_id  # Default to original ID
         # Only query IDs matching species prefix to prevent errors
-        if (species == 'human' and not ens_id.startswith('ENSG')) or \
-           (species == 'mouse' and not ens_id.startswith('ENSMUSG')):
+        if not _matches_species_prefix(ens_id, species, expected_prefix):
             results[ens_id] = ens_id
             continue
 
