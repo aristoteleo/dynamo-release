@@ -11,8 +11,6 @@
 # limitations under the License.
 
 
-#from memoized_property import memoized_property
-
 from .locus_with_genome import LocusWithGenome
 
 

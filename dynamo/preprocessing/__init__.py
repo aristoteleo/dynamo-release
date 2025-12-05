@@ -37,6 +37,7 @@ from .utils import (
     get_svr_filter,
     relative2abs,
     scale,
+    convert2gene_symbol
 )
 
 filter_cells = filter_cells_by_outliers
@@ -95,4 +96,5 @@ __all__ = [
     "integrate",
     "normalize_cell_expr_by_size_factors",
     "filter_cells_legacy",
+    "convert2gene_symbol",
 ]

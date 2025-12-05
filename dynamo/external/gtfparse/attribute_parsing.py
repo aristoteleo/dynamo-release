@@ -90,8 +90,17 @@ def expand_attribute_strings(
             if usecols is not None and column_name not in usecols:
                 continue
 
-            if value[0] == quote_char:
-                value = value.replace(quote_char, "")
+            # Smart quote removal: detect and remove both single and double quotes
+            # Different GTF sources use different quote styles:
+            # - Older Ensembl releases or human GTFs may use double quotes
+            # - Newer releases or mouse GTFs may use single quotes
+            if len(value) >= 2:
+                if (value[0] == '"' and value[-1] == '"') or \
+                   (value[0] == "'" and value[-1] == "'"):
+                    value = value[1:-1]
+                elif value[0] == quote_char:
+                    # Fallback to original logic for backwards compatibility
+                    value = value.replace(quote_char, "")
                 
             try:
                 column = extra_columns[column_name]

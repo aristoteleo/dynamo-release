@@ -23,55 +23,154 @@ from ..utils import areinstance
 
 # ---------------------------------------------------------------------------------------------------
 # symbol conversion related
+def _infer_species_and_release(input_names: List[str]) -> str:
+    """
+    Infer species from Ensembl ID prefix.
+    """
+    # Find first non-empty ID for sampling
+    sample_id = next((x for x in input_names if isinstance(x, str) and len(x) > 0), None)
+    
+    if not sample_id:
+        return "human" # Default fallback
+    
+    # Remove version if present (e.g. ENSG000001.5 -> ENSG000001)
+    clean_id = sample_id.split('.')[0]
+    
+    if clean_id.startswith("ENSG"):
+        return "human"
+    elif clean_id.startswith("ENSMUSG"):
+        return "mouse"
+    elif clean_id.startswith("ENSRNOG"):
+        return "rat"
+    else:
+        # If unrecognizable, default to human with warning
+        main_info(f"Warning: Could not infer species from ID '{sample_id}'. Defaulting to 'human'.")
+        return "human"
+
 def convert2gene_symbol(
-    input_names: List[str], 
-    scopes: Union[List[str], None] = "ensembl.gene"
+    input_names: List[str],
+    scopes: Union[List[str], None] = "ensembl.gene",
+    ensembl_release: Optional[int] = None,
+    species: Optional[str] = None,
+    force_rebuild: bool = False
 ) -> pd.DataFrame:
-    """Convert ensemble gene id to official gene names using mygene package.
+    """Convert ensemble gene id to official gene names using pyensembl.
+    Supports auto-detection of species and smart release selection.
 
     Args:
-        input_names: the ensemble gene id names that you want to convert to official gene names. All names should come
-            from the same species.
-        scopes: scopes are needed when you use non-official gene name as your gene indices (or adata.var_name).
-            This arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to
-            specify type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to
-            official MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for
-            full list of fields. Defaults to "ensembl.gene".
-
-    Raises:
-        ImportError: fail to import `mygene`.
+        input_names: List of Ensembl IDs.
+        scopes: Deprecated, kept for compatibility.
+        ensembl_release: Specific release version (e.g. 109).
+            If None, defaults to 109 (stable).
+        species: 'human' or 'mouse'.
+            If None, infers from the input IDs (ENSG->human, ENSMUSG->mouse).
+        force_rebuild: If True, force rebuild the database even if it exists.
+            Useful after bug fixes or when database is corrupted.
 
     Returns:
-        A pandas dataframe that includes the following columns:
-            query: the input ensmble ids
-            _id: identified id from mygene
-            _score: confidence of the retrieved official gene name.
-            symbol: retrieved official gene name
+        DataFrame with index 'query' and column 'symbol'.
     """
+    
+    try:
+        from dynamo.external.pyensembl import EnsemblRelease
+    except ImportError:
+        raise ImportError("Please install pyensembl: pip install pyensembl")
+
+    # 1. Auto-detect species
+    if species is None:
+        species = _infer_species_and_release(input_names)
+        main_info(f"Auto-detected species: {species}")
+
+    # 2. Auto-detect version
+    if ensembl_release is None:
+        # Default to 109 as it is stable and widely used
+        ensembl_release = 109
+
+    # 3. Initialize database
+    data = EnsemblRelease(ensembl_release, species=species)
+
+    def _validate_database(data, species):
+        """Validate database by testing a query."""
+        test_gene_ids = {
+            'human': 'ENSG00000141510',  # TP53
+            'mouse': 'ENSMUSG00000059552'  # Trp53
+        }
+        test_id = test_gene_ids.get(species)
+        if not test_id:
+            return True  # Skip validation for unknown species
+
+        try:
+            gene = data.gene_by_id(test_id)
+            # Check if gene_id has quotes (old bug)
+            if '"' in gene.gene_id:
+                main_info("Database contains corrupted data (quoted gene IDs). Rebuilding...")
+                return False
+            return True
+        except Exception:
+            return False
+
+    needs_rebuild = force_rebuild
 
     try:
-        import mygene
-    except ImportError:
-        raise ImportError(
-            "You need to install the package `mygene` (pip install mygene --user) "
-            "See https://pypi.org/project/mygene/ for more details."
-        )
+        # Quick check if indexed
+        _ = data.db
+        # Validate database integrity
+        if not needs_rebuild and not _validate_database(data, species):
+            needs_rebuild = True
+    except Exception:
+        needs_rebuild = True
 
-    mg = mygene.MyGeneInfo()
-    main_info("Storing myGene name info into local cache db: mygene_cache.sqlite.")
-    mg.set_caching()
+    if needs_rebuild:
+        if force_rebuild:
+            main_info(f"Force rebuilding database for release {ensembl_release} ({species})...")
+        else:
+            main_info(f"Release {ensembl_release} ({species}) not found locally or corrupted.")
+        main_info("Downloading and indexing... (This may take several minutes)")
+        try:
+            data.download()
+            data.index(overwrite=True)  # Force overwrite
+        except Exception as e:
+            raise ValueError(
+                f"Failed to setup Ensembl DB: {e}. \n"
+                f"Try running in terminal: pyensembl install --release {ensembl_release} --species {species}"
+            )
 
-    ensemble_names = [i.split(".")[0] for i in input_names]
-    var_pd = mg.querymany(
-        ensemble_names,
-        scopes=scopes,
-        fields="symbol",
-        as_dataframe=True,
-        df_index=True,
-    )
-    # var_pd.drop_duplicates(subset='query', inplace=True) # use when df_index is not True
-    var_pd = var_pd.loc[~var_pd.index.duplicated(keep="first")]
+    # 4. Execute query
+    clean_ids = [i.split(".")[0] for i in input_names]
+    unique_ids = list(set(clean_ids))
+    
+    results = {}
+    found_count = 0
+    
+    for ens_id in unique_ids:
+        symbol = ens_id  # Default to original ID
+        # Only query IDs matching species prefix to prevent errors
+        if (species == 'human' and not ens_id.startswith('ENSG')) or \
+           (species == 'mouse' and not ens_id.startswith('ENSMUSG')):
+            results[ens_id] = ens_id
+            continue
 
+        try:
+            gene_obj = data.gene_by_id(ens_id)
+            gene_name = gene_obj.gene_name
+            # Use gene_name only if it's not empty, otherwise keep original ID
+            if gene_name and gene_name.strip():
+                symbol = gene_name
+                found_count += 1
+        except ValueError:
+            pass # Not found, keep original ID
+        except Exception:
+            pass
+
+        results[ens_id] = symbol
+
+    # 5. Build results
+    var_pd = pd.DataFrame.from_dict(results, orient='index', columns=['symbol'])
+    var_pd.index.name = 'query'
+    var_pd['_score'] = 1.0 # Keep compatibility
+    
+    main_info(f"Conversion finished. Found {found_count}/{len(unique_ids)} symbols.")
+    
     return var_pd
 
 

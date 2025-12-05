@@ -263,11 +263,24 @@ def read_gtf(
                 else:
                     return f(x)
             return wrapped_fn
-        
+
         column_names = set(column_converters.keys()).union(column_cast_types.keys())
+        # Only process columns that actually exist in the DataFrame
+        existing_columns = set(result_df.columns)
         for column_name in column_names:
-     
+            if column_name not in existing_columns:
+                logging.warning(f"Column '{column_name}' not found in DataFrame, skipping converter")
+                continue
+
             if column_name in column_converters:
+                # Convert categorical columns to object dtype first to avoid pandas
+                # categorical behavior where functions are applied to all categories.
+                # This prevents issues when Polars string cache causes categories
+                # to be shared across columns (e.g., 'havana' from source appearing
+                # in strand categories).
+                if hasattr(result_df[column_name].dtype, 'categories'):
+                    result_df[column_name] = result_df[column_name].astype(object)
+
                 column_fn = wrap_to_always_accept_none(
                     column_converters[column_name])
                 result_df[column_name] = result_df[column_name].apply(column_fn)

@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from memoized_property import memoized_property
+from functools import cached_property
 
 from .common import memoize
 from .locus_with_genome import LocusWithGenome
@@ -218,7 +218,7 @@ class Transcript(LocusWithGenome):
             )
         return results
 
-    @memoized_property
+    @cached_property
     def contains_start_codon(self):
         """
         Does this transcript have an annotated start_codon entry?
@@ -228,7 +228,7 @@ class Transcript(LocusWithGenome):
         )
         return len(start_codons) > 0
 
-    @memoized_property
+    @cached_property
     def contains_stop_codon(self):
         """
         Does this transcript have an annotated stop_codon entry?
@@ -238,7 +238,7 @@ class Transcript(LocusWithGenome):
         )
         return len(stop_codons) > 0
 
-    @memoized_property
+    @cached_property
     def start_codon_complete(self):
         """
         Does the start codon span 3 genomic positions?
@@ -249,21 +249,21 @@ class Transcript(LocusWithGenome):
             return False
         return True
 
-    @memoized_property
+    @cached_property
     def start_codon_positions(self):
         """
         Chromosomal positions of nucleotides in start codon.
         """
         return self._codon_positions("start_codon")
 
-    @memoized_property
+    @cached_property
     def stop_codon_positions(self):
         """
         Chromosomal positions of nucleotides in stop codon.
         """
         return self._codon_positions("stop_codon")
 
-    @memoized_property
+    @cached_property
     def exon_intervals(self):
         """List of (start,end) tuples for each exon of this transcript,
         in the order specified by the 'exon_number' column of the
@@ -335,7 +335,7 @@ class Transcript(LocusWithGenome):
             "Couldn't find position %d on any exon of %s" % (position, self.id)
         )
 
-    @memoized_property
+    @cached_property
     def start_codon_unspliced_offsets(self):
         """
         Offsets from start of unspliced pre-mRNA transcript
@@ -343,7 +343,7 @@ class Transcript(LocusWithGenome):
         """
         return [self.offset(position) for position in self.start_codon_positions]
 
-    @memoized_property
+    @cached_property
     def stop_codon_unspliced_offsets(self):
         """
         Offsets from start of unspliced pre-mRNA transcript
@@ -362,7 +362,7 @@ class Transcript(LocusWithGenome):
                 raise ValueError("Offsets not contiguous: %s" % (offsets,))
         return offsets
 
-    @memoized_property
+    @cached_property
     def start_codon_spliced_offsets(self):
         """
         Offsets from start of spliced mRNA transcript
@@ -373,7 +373,7 @@ class Transcript(LocusWithGenome):
         ]
         return self._contiguous_offsets(offsets)
 
-    @memoized_property
+    @cached_property
     def stop_codon_spliced_offsets(self):
         """
         Offsets from start of spliced mRNA transcript
@@ -384,7 +384,7 @@ class Transcript(LocusWithGenome):
         ]
         return self._contiguous_offsets(offsets)
 
-    @memoized_property
+    @cached_property
     def coding_sequence_position_ranges(self):
         """
         Return absolute chromosome position ranges for CDS fragments
@@ -392,7 +392,7 @@ class Transcript(LocusWithGenome):
         """
         return self._transcript_feature_position_ranges("CDS")
 
-    @memoized_property
+    @cached_property
     def complete(self):
         """
         Consider a transcript complete if it has start and stop codons and
@@ -406,7 +406,7 @@ class Transcript(LocusWithGenome):
             and len(self.coding_sequence) % 3 == 0
         )
 
-    @memoized_property
+    @cached_property
     def sequence(self):
         """
         Spliced cDNA sequence of transcript
@@ -417,7 +417,7 @@ class Transcript(LocusWithGenome):
             transcript_id = transcript_id.rsplit(".", 1)[0]
         return self.genome.transcript_sequences.get(transcript_id)
 
-    @memoized_property
+    @cached_property
     def first_start_codon_spliced_offset(self):
         """
         Offset of first nucleotide in start codon into the spliced mRNA
@@ -426,7 +426,7 @@ class Transcript(LocusWithGenome):
         start_offsets = self.start_codon_spliced_offsets
         return min(start_offsets)
 
-    @memoized_property
+    @cached_property
     def last_stop_codon_spliced_offset(self):
         """
         Offset of last nucleotide in stop codon into the spliced mRNA
@@ -435,7 +435,7 @@ class Transcript(LocusWithGenome):
         stop_offsets = self.stop_codon_spliced_offsets
         return max(stop_offsets)
 
-    @memoized_property
+    @cached_property
     def coding_sequence(self):
         """
         cDNA coding sequence (from start codon to stop codon, without
@@ -457,7 +457,7 @@ class Transcript(LocusWithGenome):
         # TODO(tavi) Figure out pylint is not happy with this slice
         return self.sequence[start : end + 1]
 
-    @memoized_property
+    @cached_property
     def five_prime_utr_sequence(self):
         """
         cDNA sequence of 5' UTR
@@ -467,7 +467,7 @@ class Transcript(LocusWithGenome):
         # TODO(tavi) Figure out pylint is not happy with this slice
         return self.sequence[: self.first_start_codon_spliced_offset]
 
-    @memoized_property
+    @cached_property
     def three_prime_utr_sequence(self):
         """
         cDNA sequence of 3' UTR
@@ -475,7 +475,7 @@ class Transcript(LocusWithGenome):
         """
         return self.sequence[self.last_stop_codon_spliced_offset + 1 :]
 
-    @memoized_property
+    @cached_property
     def protein_id(self):
         result_tuple = self.db.query_one(
             select_column_names=["protein_id"],
@@ -490,7 +490,7 @@ class Transcript(LocusWithGenome):
         else:
             return None
 
-    @memoized_property
+    @cached_property
     def protein_sequence(self):
         if self.protein_id:
             return self.genome.protein_sequences.get(self.protein_id)
