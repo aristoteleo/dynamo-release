@@ -26,10 +26,11 @@ except ImportError:
         import polars
         logger.info("Polars installed successfully!")
     except Exception as e:
-        raise ImportError(
+        print(
             f"Failed to install polars automatically: {e}\n"
             "Please install manually: pip install polars"
         )
+        polars = None
 
 from .attribute_parsing import expand_attribute_strings
 from .parsing_error import ParsingError
