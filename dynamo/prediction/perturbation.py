@@ -247,6 +247,17 @@ def perturbation(
         else:
             means = adata.uns[pca_mean_key]
 
+        # Check for consistency between PCs and use_for_pca
+        n_use_for_pca = adata.var.use_for_pca.sum()
+        if PCs.shape[0] != n_use_for_pca:
+            raise ValueError(
+                f"Dimension mismatch detected: PCs has {PCs.shape[0]} genes but "
+                f"adata.var.use_for_pca has {n_use_for_pca} genes marked as True. "
+                f"This indicates that the PCA components were computed with a different "
+                f"set of genes than currently marked in use_for_pca. "
+                f"Please recompute PCA or ensure that the PCs match the current use_for_pca genes."
+            )
+
         # project pca gene expression back to original gene expression:
         X = pca_to_expr(X_pca, PCs, means)
 

@@ -2857,11 +2857,13 @@ def get_neighbor_indices(
     Returns:
         A list of neighbor indices.
     """
-    _indices = [source_idx]
+    _indices = np.array([source_idx], dtype=int)
     for _ in range(n_order_neighbors):
-        _indices = np.append(_indices, adjacency_list[_indices])
-        if np.isnan(_indices).any():
-            _indices = _indices[~np.isnan(_indices)]
+        new_neighbors = adjacency_list[_indices]
+        # Handle NaN values before appending
+        if np.isnan(new_neighbors).any():
+            new_neighbors = new_neighbors[~np.isnan(new_neighbors)]
+        _indices = np.append(_indices, new_neighbors).astype(int)
     _indices = np.unique(_indices)
     if max_neighbors_num is not None and len(_indices) > max_neighbors_num:
         _indices = np.random.choice(_indices, max_neighbors_num, replace=False)
