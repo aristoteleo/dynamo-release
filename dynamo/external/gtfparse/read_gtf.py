@@ -11,9 +11,26 @@
 # limitations under the License.
 
 import logging
+import subprocess
+import sys
 from os.path import exists
 
-import polars 
+# Auto-install polars if not available
+try:
+    import polars
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.info("Polars not found. Installing polars...")
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "polars"])
+        import polars
+        logger.info("Polars installed successfully!")
+    except Exception as e:
+        print(
+            f"Failed to install polars automatically: {e}\n"
+            "Please install manually: pip install polars"
+        )
+        polars = None
 
 from .attribute_parsing import expand_attribute_strings
 from .parsing_error import ParsingError
