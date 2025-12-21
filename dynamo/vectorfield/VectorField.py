@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import anndata
 import numpy as np
+import scipy
 import scipy.sparse as sp
 
 from ..dynamo_logger import LoggerManager, main_info, main_warning
@@ -409,7 +410,8 @@ def _get_X_V_for_VectorField(
         V = adata[:, valid_genes].layers[velocity_key].copy()
 
         if sp.issparse(X):
-            if sp.__version__ < '1.14.0':
+            sp_version = getattr(scipy, "__version__", "1.15.0")
+            if sp_version < "1.14.0":
                 X, V = X.A, V.A
             else:
                 X, V = X.toarray(), V.toarray()

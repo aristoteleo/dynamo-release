@@ -347,6 +347,8 @@ def jacobian(
     show_legend: bool = True,
     frontier: bool = True,
     sym_c: bool = True,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
     sort: Literal["raw", "abs", "neg"] = "abs",
     show_arrowed_spines: bool = False,
     stacked_fraction: bool = False,
@@ -388,6 +390,8 @@ def jacobian(
         sym_c: whether do you want to make the limits of continuous color to be symmetric, normally this should be used
             for plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative
             values. Defaults to True.
+        vmin, vmax: override color scale limits for the scatter; if None, falls back to symmetric limits when sym_c is
+            True, otherwise uses data min/max.
         sort: the method to reorder data so that high values points will be on top of background points. Can be one of
             {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values. Defaults
             to "abs".
@@ -549,8 +553,17 @@ def jacobian(
             cur_pd["jacobian"] = J
 
             # cur_pd.loc[:, "jacobian"] = np.array([scinot(i) for i in cur_pd.loc[:, "jacobian"].values])
-            v_max = np.max(np.abs(J))
-            scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
+            if vmin is not None or vmax is not None:
+                if vmin is not None:
+                    scatter_kwargs["vmin"] = vmin
+                if vmax is not None:
+                    scatter_kwargs["vmax"] = vmax
+            else:
+                if sym_c:
+                    v_max = np.max(np.abs(J))
+                    scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
+                else:
+                    scatter_kwargs.update({"vmin": None, "vmax": None})
             ax, color = _matplotlib_points(
                 cur_pd.iloc[:, [0, 1]].values,
                 ax=ax,
@@ -938,8 +951,17 @@ def sensitivity(
             cur_pd["sensitivity"] = S
 
             # cur_pd.loc[:, "sensitivity"] = np.array([scinot(i) for i in cur_pd.loc[:, "jacobian"].values])
-            v_max = np.max(np.abs(S))
-            scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
+            if vmin is not None or vmax is not None:
+                if vmin is not None:
+                    scatter_kwargs["vmin"] = vmin
+                if vmax is not None:
+                    scatter_kwargs["vmax"] = vmax
+            else:
+                if sym_c:
+                    v_max = np.max(np.abs(S))
+                    scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
+                else:
+                    scatter_kwargs.update({"vmin": None, "vmax": None})
             ax, color = _matplotlib_points(
                 cur_pd.iloc[:, [0, 1]].values,
                 ax=ax,
