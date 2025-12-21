@@ -3,6 +3,7 @@ import datetime
 import os
 import warnings
 from typing import Callable, Dict, List, Optional, Tuple, Union
+from tqdm import tqdm
 
 import anndata
 import numpy as np
@@ -709,6 +710,7 @@ def util_topology(
     VecFld: VecFldDict,
     X: Optional[np.ndarray] = None,
     n: Optional[int] = 25,
+    show_progress: bool = False,
     **kwargs,
 ):
     """A function that computes nullclines and fixed points defined by the function func.
@@ -755,14 +757,21 @@ def util_topology(
         ]
         zlim = None
 
+        progress = tqdm(total=3, desc="Topography (2D)", disable=not show_progress)
         vecfld = Topography2D(func, X_data=X_basis)
         vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
+        progress.update(1)
         if vecfld.get_num_fixed_points() > 0:
             vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
             NCx, NCy = vecfld.NCx, vecfld.NCy
+        else:
+            NCx, NCy = None, None
+        progress.update(1)
 
         Xss, ftype = vecfld.get_fixed_points(get_types=True)
         confidence = vecfld.get_Xss_confidence()
+        progress.update(1)
+        progress.close()
     elif X_basis.shape[1] == 3:
         fp_ind = None
         min_, max_ = X_basis.min(0), X_basis.max(0)
@@ -813,6 +822,7 @@ def topography(
     dims: Optional[list] = None,
     n: Optional[int] = 25,
     VecFld: Optional[VecFldDict] = None,
+    show_progress: bool = False,
     **kwargs,
 ) -> AnnData:
     """Map the topography of the single cell vector field in (first) two or three dimensions.
@@ -849,7 +859,11 @@ def topography(
                 return vector_field_function(x, VecFld)
 
     if dims is None:
-        dims = np.arange(adata.obsm["X_" + basis].shape[1])
+        if basis is None:
+            # fall back to provided X when no basis name is given
+            dims = np.arange(X.shape[1])
+        else:
+            dims = np.arange(adata.obsm["X_" + basis].shape[1])
 
     (
         X_basis,
@@ -862,7 +876,17 @@ def topography(
         Xss,
         ftype,
         fp_ind,
-    ) = util_topology(adata=adata, basis=basis, X=X, dims=dims, func=func, VecFld=VecFld, n=n, *kwargs)
+    ) = util_topology(
+        adata=adata,
+        basis=basis,
+        X=X,
+        dims=dims,
+        func=func,
+        VecFld=VecFld,
+        n=n,
+        show_progress=show_progress,
+        **kwargs,
+    )
 
     # commented for now, will go back to this later.
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
