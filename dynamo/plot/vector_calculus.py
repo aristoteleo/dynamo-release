@@ -537,6 +537,9 @@ def jacobian(
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
+    # Allow users to override color limits via kwargs while keeping defaults below.
+    vmin = scatter_kwargs.get("vmin")
+    vmax = scatter_kwargs.get("vmax")
 
     nrow, ncol = len(source_genes), len(target_genes)
     if figsize is None:
@@ -935,6 +938,9 @@ def sensitivity(
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
+    # Allow users to override color limits via kwargs while keeping defaults below.
+    vmin = scatter_kwargs.get("vmin")
+    vmax = scatter_kwargs.get("vmax")
 
     nrow, ncol = len(source_genes), len(target_genes)
     if figsize is None:
