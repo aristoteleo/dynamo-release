@@ -17,7 +17,7 @@ with open("README.md", "r") as fh:
 if __name__ == "__main__":
     setup(
         name="dynamo-release",
-        version="v1.4.4rc1",
+        version="v1.5",
         python_requires=">=3.9",
         install_requires=read_requirements("requirements.txt"),
         extras_require={
