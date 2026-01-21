@@ -166,7 +166,8 @@ def compute_nullclines_2d(
 
     NCx = []
     NCy = []
-    for x0 in X0:
+    from tqdm import tqdm
+    for x0 in tqdm(X0, desc="Computing nullclines"):
         # initialize tangent predictor
         theta = np.random.rand() * 2 * np.pi
         v0 = [np.cos(theta), np.sin(theta)]
@@ -589,6 +590,9 @@ class Topography2D:
         if find_new_fixed_points:
             sample_interval = ds * 10
             X, J = find_fixed_points_nullcline(self.func, self.NCx, self.NCy, sample_interval, tol_redundant)
+            if X is None or X.size == 0:
+                main_warning("No fixed points found along nullclines; skip adding.")
+                return
             outside = is_outside(X, [x_range, y_range])
             self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
@@ -710,7 +714,7 @@ def util_topology(
     VecFld: VecFldDict,
     X: Optional[np.ndarray] = None,
     n: Optional[int] = 25,
-    show_progress: bool = False,
+    show_progress: bool = True,
     **kwargs,
 ):
     """A function that computes nullclines and fixed points defined by the function func.
