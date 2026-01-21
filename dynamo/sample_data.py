@@ -14,6 +14,49 @@ from anndata import AnnData, read_h5ad, read_loom
 
 from .dynamo_logger import LoggerManager, main_info, main_log_time
 
+DATA_DOWNLOAD_FIGSHARE_DICT = {
+    "neuron_splicing": "https://figshare.com/ndownloader/files/47439605",
+    "neuron_labeling": "https://figshare.com/ndownloader/files/47439629",
+    "zebrafish": "https://figshare.com/ndownloader/files/47420257",
+    "bone_marrow": "https://figshare.com/ndownloader/files/35826944",
+    "human_tfs": "https://figshare.com/ndownloader/files/47439617",
+    "onefilepercell_A1_unique_and_others_J2CH1": "https://figshare.com/ndownloader/files/47439620",
+    "10X_multiome_mouse_brain": "https://figshare.com/ndownloader/files/54153947",
+    "cell_annotations": "https://figshare.com/ndownloader/files/54154376",
+    "dentategyrus_scv": "https://figshare.com/ndownloader/files/47439623",
+    "hematopoiesis_raw": "https://figshare.com/ndownloader/files/47439626",
+    "rpe1": "https://figshare.com/ndownloader/files/47439641",
+    "organoid": "https://figshare.com/ndownloader/files/47439632",
+    "hematopoiesis": "https://figshare.com/ndownloader/files/47439635",
+}
+
+DATA_DOWNLOAD_STANFORD_DICT = {
+    "neuron_splicing": "https://stacks.stanford.edu/file/sh696dv4420/neuron_splicing.h5ad",
+    "neuron_labeling": "https://stacks.stanford.edu/file/sh696dv4420/neuron_labeling.h5ad",
+    "zebrafish": "https://stacks.stanford.edu/file/sh696dv4420/zebrafish.h5ad",
+    "bone_marrow": "https://stacks.stanford.edu/file/sh696dv4420/setty_bone_marrow.h5ad",
+    "human_tfs": "https://stacks.stanford.edu/file/sh696dv4420/human_tfs.txt",
+    "onefilepercell_A1_unique_and_others_J2CH1": "https://stacks.stanford.edu/file/sh696dv4420/onefilepercell_A1_unique_and_others_J2CH1.loom",
+    "10X_multiome_mouse_brain": "https://stacks.stanford.edu/file/sh696dv4420/10X_multiome_mouse_brain.loom",
+    "cell_annotations": "https://stacks.stanford.edu/file/sh696dv4420/cell_annotations.tsv",
+    "dentategyrus_scv": "https://stacks.stanford.edu/file/sh696dv4420/dentategyrus_scv.h5ad",
+    "hematopoiesis_raw": "https://stacks.stanford.edu/file/sh696dv4420/hematopoiesis_raw.h5ad",
+    "rpe1": "https://stacks.stanford.edu/file/sh696dv4420/rpe1.h5ad",
+    "organoid": "https://stacks.stanford.edu/file/sh696dv4420/organoid.h5ad",
+    "hematopoiesis": "https://stacks.stanford.edu/file/sh696dv4420/hematopoiesis.h5ad",
+}
+
+FIGSHARE_URL_TO_KEY = {value: key for key, value in DATA_DOWNLOAD_FIGSHARE_DICT.items()}
+
+
+def _get_stanford_url(figshare_url: str) -> Optional[str]:
+    key = FIGSHARE_URL_TO_KEY.get(figshare_url)
+    if not key:
+        return None
+    stanford_url = DATA_DOWNLOAD_STANFORD_DICT.get(key, "")
+    return stanford_url if stanford_url else None
+
+
 
 def download_data(url: str, file_path: Optional[str] = None, dir: str = "./data") -> str:
     """Download example data to local folder."""
@@ -45,7 +88,16 @@ def get_adata(url: str, filename: Optional[str] = None) -> Optional[AnnData]:
     """
 
     try:
-        file_path = download_data(url, filename)
+        file_path = None
+        stanford_url = _get_stanford_url(url)
+        if stanford_url:
+            try:
+                file_path = download_data_requests(stanford_url, filename)
+            except Exception as e:
+                main_info(f"Stanford download failed, fallback to figshare. Error: {e}")
+                file_path = None
+        if file_path is None:
+            file_path = download_data(url, filename)
         if Path(file_path).suffixes[-1][1:] == "loom":
             adata = read_loom(filename=file_path)
         elif Path(file_path).suffixes[-1][1:] == "h5ad":
@@ -57,12 +109,15 @@ def get_adata(url: str, filename: Optional[str] = None) -> Optional[AnnData]:
         adata.var_names_make_unique()
     except OSError:
         # Usually occurs when download is stopped before completion then attempted again.
-        file_path = os.path.join('./data', filename)
-        main_info("Corrupted file. Deleting " + file_path + " then redownloading...")
+        if filename is not None:
+            file_path_to_remove = os.path.join('./data', filename)
+        else:
+            file_path_to_remove = file_path  # Use the file_path that was returned from download_data
+        main_info("Corrupted file. Deleting " + file_path_to_remove + " then redownloading...")
         # Half-downloaded file cannot be read due to corruption so it's better to delete it.
         # Potential issue: user have a file with duplicate name but is not sample data (this will overwrite file).
         try:
-            os.remove(file_path)
+            os.remove(file_path_to_remove)
         except:
             pass
         adata = get_adata(url, filename)
@@ -314,8 +369,6 @@ def download_data_requests(url: str, file_path: Optional[str] = None, dir: str =
         main_info(f"File {file_path} already exists.")
         return file_path
 
-    main_info(f"Downloading data to {file_path}...")
-
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -324,16 +377,31 @@ def download_data_requests(url: str, file_path: Optional[str] = None, dir: str =
 
     logger = LoggerManager.get_main_logger()
 
-    try:
-        with requests.get(url, headers=headers, stream=True) as r:
+    def _download_with_requests(download_url: str) -> None:
+        main_info(f"Downloading data to {file_path}...")
+        with requests.get(download_url, headers=headers, stream=True) as r:
             r.raise_for_status()
             total_size = int(r.headers.get('Content-Length', 0))
             chunk_size = 8192
+            downloaded_size = 0
             with open(file_path, 'wb') as f:
-                for bn, chunk in enumerate(r.iter_content(chunk_size=chunk_size), start=1):
+                for chunk in r.iter_content(chunk_size=chunk_size):
                     if chunk:
                         f.write(chunk)
-                        logger.request_report_hook(bn, chunk_size, total_size)
+                        downloaded_size += len(chunk)
+                        # Pass downloaded_size as bn and 1 as rs, so rs*bn = downloaded_size
+                        logger.request_report_hook(downloaded_size, 1, total_size)
+
+    stanford_url = _get_stanford_url(url)
+    if stanford_url:
+        try:
+            _download_with_requests(stanford_url)
+            return file_path
+        except Exception as e:
+            main_info(f"Stanford download failed, fallback to figshare. Error: {e}")
+
+    try:
+        _download_with_requests(url)
     except Exception as e:
         main_info(f"Download failed: {e}")
         raise
@@ -403,7 +471,7 @@ def human_tfs(
     filename: str = "human_tfs.txt",
 ) -> pd.DataFrame:
     """Download human transcription factors."""
-    file_path = download_data(url, filename)
+    file_path = download_data_requests(url, filename)
     tfs = pd.read_csv(file_path, sep="\t")
     return tfs
 

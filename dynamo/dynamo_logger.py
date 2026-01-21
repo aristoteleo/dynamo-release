@@ -278,13 +278,15 @@ class Logger:
         if self.report_hook_percent_state is None:
             self.report_hook_percent_state = 0
 
-        if ts == -1:
+        if ts <= 0:
             return
 
-        cur_percent = rs * bn / ts
+        # Calculate actual downloaded size, capped at total size to avoid >100% progress
+        downloaded = min(rs * bn, ts)
+        cur_percent = downloaded / ts
 
         if cur_percent - self.report_hook_percent_state > 0.01:
-            self.report_progress(count=rs * bn, total=ts)
+            self.report_progress(count=downloaded, total=ts)
             self.report_hook_percent_state = cur_percent
         if rs * bn >= ts:
             self.report_hook_percent_state = None
