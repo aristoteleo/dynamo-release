@@ -273,7 +273,7 @@ def path_integral(
 
                     # update no. of paths for current attractor
                     # (path tag already updated at start of path-counter loop)
-                    tag = path_tag[path_counter]
+                    tag = path_tag[path_counter, 0]
                     numPaths_att[tag - 1] = numPaths_att[tag - 1] + 1
 
             # increment "path counter"
@@ -357,7 +357,7 @@ def alignment(
 
     # "Align" potential values so all path-potentials end up at same global min.
     for n_path in range(numPaths):
-        tag = path_tag[n_path]
+        tag = path_tag[n_path, 0]
         # print(tag)
         del_pot = pot_path[n_path, numTimeSteps - 1] - attractors_pot[tag]
 

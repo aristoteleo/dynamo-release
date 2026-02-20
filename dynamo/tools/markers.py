@@ -432,7 +432,7 @@ def two_groups_degs(
 
             try:
                 mw_result = mannwhitneyu(test_vals, control_vals)
-                u, mw_p = float(mw_result.statistic), float(mw_result.pvalue)
+                u, mw_p = np.float64(mw_result.statistic).item(), np.float64(mw_result.pvalue).item()
             except ValueError:
                 pass
             else:
