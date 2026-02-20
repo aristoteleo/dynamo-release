@@ -103,7 +103,7 @@ def space(
         else:
             main_critical("No genes provided. Please check your argument passed in.")
             return
-    ptp_vec = adata.obsm[space_key].ptp(0)
+    ptp_vec = adata.obsm[space_key].max(0) - adata.obsm[space_key].min(0)
     # calculate the figure size based on the width and the ratio between width and height
     # from the physical coordinate.
     if figsize is None:

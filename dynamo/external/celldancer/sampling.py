@@ -208,7 +208,7 @@ def downsampling_embedding(data_df,para,target_amount, step, n_neighbors,express
         pca=PCA(n_components=pca_n_components)
         pca.fit(embedding_downsampling_0)
         embedding_downsampling_trans = pca.transform(embedding_downsampling_0)[:,range(pca_n_components)]
-        embedding_downsampling_trans_norm=(embedding_downsampling_trans - embedding_downsampling_trans.min(0)) / embedding_downsampling_trans.ptp(0)#normalize
+        embedding_downsampling_trans_norm=(embedding_downsampling_trans - embedding_downsampling_trans.min(0)) / (embedding_downsampling_trans.max(0) - embedding_downsampling_trans.min(0))#normalize
         embedding_downsampling_trans_norm_mult10=embedding_downsampling_trans_norm*10 #optional
         embedding_downsampling=embedding_downsampling_trans_norm_mult10**5 # optional
     elif projection_neighbor_choice=='embedding':

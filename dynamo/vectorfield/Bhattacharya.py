@@ -55,7 +55,7 @@ def path_integral(
     # Time step and tolerance to test for convergence
 
     # Calculate total no. of paths for defined grid spacing
-    numPaths = int(np.diff(x_lim) / xyGridSpacing + 1) ** 2
+    numPaths = int((np.diff(x_lim) / xyGridSpacing + 1).item()) ** 2
 
     # Initialize "path" variable matrices
     x_path = np.zeros((numPaths, numTimeSteps))  # x-coord. along path
