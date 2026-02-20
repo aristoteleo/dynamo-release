@@ -44,7 +44,6 @@ def _truncatedSVD_with_center(
         principal component.
     """
     random_state = check_random_state(random_state)
-    np.random.set_state(random_state.get_state())
     v0 = random_state.uniform(-1, 1, np.min(X.shape))
     n_components = min(n_components, X.shape[1] - 1)
 

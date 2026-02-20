@@ -68,9 +68,10 @@ class kinetic_estimation:
             for i in range(self.n_params):
                 ret[:, i] = ret[:, i] * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         else:
+            rng = np.random.default_rng()
             for n in range(samples):
                 for i in range(self.n_params):
-                    r = np.random.rand()
+                    r = rng.random()
                     ret[n, i] = r * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         return ret
 

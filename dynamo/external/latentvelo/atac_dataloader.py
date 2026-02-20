@@ -18,8 +18,8 @@ class ATACDataset(th.utils.data.Dataset):
         adata = ensure_csr_csc(adata)
 
         if shuffle:
-            np.random.seed(random_seed)
-            selected = np.random.choice(adata.shape[0], size = adata.shape[0], replace=False)
+            rng = np.random.default_rng(random_seed)
+            selected = rng.choice(adata.shape[0], size = adata.shape[0], replace=False)
             adata = adata[selected]
 
         velo_genes_mask = np.zeros(adata.layers['spliced'].shape)

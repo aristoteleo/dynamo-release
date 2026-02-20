@@ -333,7 +333,6 @@ def lasso_regression_expression(
     # the following code should match up that from cv.glmnet in R if the foldid is hard coded to be the same.
     # https://github.com/bbalasub1/glmnet_python/issues/45
 
-    np.random.seed(seed)
     seq = np.linspace(np.log(0.001), np.log(10), 100)
 
     # alpha = 1 is required for lasso regression.

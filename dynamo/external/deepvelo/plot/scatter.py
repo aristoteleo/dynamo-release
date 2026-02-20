@@ -130,7 +130,7 @@ def scatter(
         if is_categorical(adata, color):
             vc = adata.obs[color].value_counts()
             groups = [[c] for c in vc[vc > 0].index]
-    if isinstance(add_text, (list, tuple, np.ndarray, np.record)):
+    if isinstance(add_text, (list, tuple, np.ndarray, np.rec.record)):
         add_text = list(np.array(add_text, dtype=str))
 
     # create list of each mkey and check if all bases are valid.
@@ -546,7 +546,7 @@ def scatter(
                 or is_categorical(adata, color)
                 and np.any(pd.isnull(adata.obs[color]))
             ):
-                if isinstance(groups, (list, tuple, np.record)):
+                if isinstance(groups, (list, tuple, np.rec.record)):
                     groups = unique(groups)
                 zorder = 0 if zorder is None else zorder
                 pop_keys = ["groups", "add_linfit", "add_polyfit", "add_density"]
@@ -593,9 +593,9 @@ def scatter(
                     order = np.argsort(c)
                 elif not sort_order and is_categorical(adata, color):
                     counts = get_value_counts(adata, color)
-                    np.random.seed(0)
+                    rng = np.random.default_rng(0)
                     nums, p = np.arange(0, len(x)), counts / np.sum(counts)
-                    order = np.random.choice(nums, len(x), replace=False, p=p)
+                    order = rng.choice(nums, len(x), replace=False, p=p)
                 if order is not None:
                     x, y, c = x[order], y[order], c[order]
                     if isinstance(kwargs["s"], np.ndarray):  # sort sizes if array-type
@@ -638,7 +638,7 @@ def scatter(
 
             outline_dtypes = (list, tuple, np.ndarray, int, np.int_, str)
             if isinstance(add_outline, outline_dtypes) or add_outline:
-                if isinstance(add_outline, (list, tuple, np.record)):
+                if isinstance(add_outline, (list, tuple, np.rec.record)):
                     add_outline = unique(add_outline)
                 if (
                     add_outline is not True

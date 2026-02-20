@@ -259,7 +259,7 @@ def closest_distance_between_two_paths(path1, path2, cell_embedding):
         plt.show()
         return np.sqrt(A[pair]), pair[::-1]
     else:
-        return np.Inf,(np.nan,np.nan)
+        return np.inf,(np.nan,np.nan)
 
 
 def resolve_terminal_cells(terminal_cells, 

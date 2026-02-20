@@ -223,7 +223,8 @@ def state_graph(
             init_cells = adata.obs_names[groups == cur_grp]
             if sample_num is not None:
                 cell_num = np.min((sample_num, len(init_cells)))
-                ind = np.random.choice(len(init_cells), cell_num, replace=False)
+                rng = np.random.default_rng()
+                ind = rng.choice(len(init_cells), cell_num, replace=False)
                 init_cells = init_cells[ind]
 
             init_states, _, _, _ = fetch_states(

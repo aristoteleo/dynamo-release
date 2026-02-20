@@ -98,11 +98,10 @@ def ddhodge(
         if sampling_method == "trn":
             cell_idx = trn(X_data_full, n_downsamples)
         elif sampling_method == "velocity":
-            np.random.seed(seed)
             cell_idx = sample_by_velocity(func(X_data_full), n_downsamples)
         elif sampling_method == "random":
-            np.random.seed(seed)
-            cell_idx = np.random.choice(np.arange(adata.n_obs), n_downsamples)
+            rng = np.random.default_rng(seed)
+            cell_idx = rng.choice(np.arange(adata.n_obs), n_downsamples)
         else:
             raise ImportError(
                 f"sampling method {sampling_method} is not available. Only `random`, `velocity`, `trn` are"

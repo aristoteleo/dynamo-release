@@ -598,7 +598,6 @@ def _train_thread(datamodule,
         seed = 0
         torch.manual_seed(seed)
         random.seed(seed)
-        np.random.seed(seed)
 
         # iniate network (DNN_layer) and loss function (DynamicModule)
         backbone = DNN_module(DNN_layer(100, 100), n_neighbors=n_neighbors)

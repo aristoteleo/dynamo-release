@@ -303,9 +303,11 @@ def cell_wise_vectors_3d(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
+        rng = np.random.default_rng()
+        ix_choice = rng.choice(np.arange(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
+        rng = np.random.default_rng()
+        ix_choice = rng.choice(np.arange(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
@@ -932,9 +934,11 @@ def cell_wise_vectors(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
+        rng = np.random.default_rng()
+        ix_choice = rng.choice(np.arange(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
+        rng = np.random.default_rng()
+        ix_choice = rng.choice(np.arange(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
@@ -1244,9 +1248,11 @@ def grid_vectors(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
+        rng = np.random.default_rng()
+        ix_choice = rng.choice(np.arange(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
+        rng = np.random.default_rng()
+        ix_choice = rng.choice(np.arange(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
@@ -1588,9 +1594,11 @@ def streamline_plot(
     if cell_inds == "all":
         ix_choice = np.arange(adata.shape[0])
     elif cell_inds == "random":
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
+        rng = np.random.default_rng()
+        ix_choice = rng.choice(np.arange(adata.shape[0]), size=1000, replace=False)
     elif type(cell_inds) is int:
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
+        rng = np.random.default_rng()
+        ix_choice = rng.choice(np.arange(adata.shape[0]), size=cell_inds, replace=False)
     elif type(cell_inds) is list:
         if type(cell_inds[0]) is str:
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]

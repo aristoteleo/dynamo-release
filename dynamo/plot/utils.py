@@ -1559,7 +1559,7 @@ def quiver_autoscaler(X_emb: np.ndarray, V_emb: np.ndarray) -> float:
 
     fig, ax = plt.subplots()
 
-    scale_factor = np.ptp(X_emb, 0).mean()
+    scale_factor = (np.max(X_emb, 0) - np.min(X_emb, 0)).mean()
     X_emb = X_emb - X_emb.min(0)
 
     if len(V_emb.shape) == 3:

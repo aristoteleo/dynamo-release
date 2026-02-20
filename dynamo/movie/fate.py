@@ -104,7 +104,8 @@ class BaseAnim:
             )
         if cell_states is not None:
             if type(cell_states) is int:
-                self.init_states = self.init_states[np.random.choice(range(n_states), min(n_states, cell_states))]
+                rng = np.random.default_rng()
+                self.init_states = self.init_states[rng.choice(range(n_states), min(n_states, cell_states))]
             elif type(cell_states) is list:
                 self.init_states = self.init_states[cell_states]
             else:

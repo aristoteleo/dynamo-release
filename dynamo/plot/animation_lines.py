@@ -337,8 +337,8 @@ def animate_streamplot(X_grid, V_grid, adata=None,
         
         # Calculate segment lengths and cumulative distances
         D = np.sqrt(((points[1:] - points[:-1]) ** 2).sum(axis=-1)) / segment_length
-        np.random.seed(i + 42)
-        L = D.cumsum().reshape(n, 1) + np.random.uniform(0, 1)
+        rng = np.random.default_rng(i + 42)
+        L = D.cumsum().reshape(n, 1) + rng.uniform(0, 1)
         
         # Initialize colors
         C = np.zeros((n, 4))

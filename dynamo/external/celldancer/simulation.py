@@ -23,8 +23,9 @@ def _generate_points(u0_start, s0_start, alpha, beta, gamma, t1, t2, samples):
     return U, S
 
 def _jitter(U, S, scale):
-    S = S + np.random.normal(loc=0.0, scale=scale*np.percentile(S, 99) / 10, size=np.size(S))
-    U = U + np.random.normal(loc=0.0, scale=scale*np.percentile(U, 99) / 10, size=np.size(U))
+    rng = np.random.default_rng()
+    S = S + rng.normal(loc=0.0, scale=scale*np.percentile(S, 99) / 10, size=np.size(S))
+    U = U + rng.normal(loc=0.0, scale=scale*np.percentile(U, 99) / 10, size=np.size(U))
     S1 = S[(S>0)&(U>0)]
     U1 = U[(S>0)&(U>0)]
     S1, U1 = np.clip(S, 0, None), np.clip(U, 0, None)

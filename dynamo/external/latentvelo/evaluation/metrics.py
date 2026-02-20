@@ -89,7 +89,8 @@ def nn_velo(adata, layer=True, batch_key = 'batch', vkey = 'velocity', neighbor_
     
     if not all:
         
-        index = np.random.choice(adata.shape[0], size = 100, replace=False)
+        rng = np.random.default_rng()
+        index = rng.choice(adata.shape[0], size = 100, replace=False)
     else:
         index = np.arange(adata.shape[0])
 
