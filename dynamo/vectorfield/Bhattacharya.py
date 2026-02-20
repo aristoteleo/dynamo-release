@@ -359,7 +359,7 @@ def alignment(
     for n_path in range(numPaths):
         tag = path_tag[n_path, 0]
         # print(tag)
-        del_pot = pot_path[n_path, numTimeSteps - 1] - attractors_pot[tag]
+        del_pot = pot_path[n_path, numTimeSteps - 1] - attractors_pot.flat[tag]
 
         # align pot. at each time step along path
         for n_steps in range(numTimeSteps):
