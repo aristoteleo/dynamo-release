@@ -48,13 +48,14 @@ def directMethod(
     retT[0] = t
     count = 0
     count_rec = 0
+    rng = np.random.default_rng()
     while (t <= tspan[-1]) & (count < record_max_length - 1):
         count += 1
 
         a = prop_fcn(c)
         a0 = sum(a)
 
-        r = np.random.rand(2)
+        r = rng.random(2)
         tau = -np.log(r[0]) / a0
         mu = np.cumsum(a).searchsorted(r[1] * a0)
 

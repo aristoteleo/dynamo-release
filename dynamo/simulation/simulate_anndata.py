@@ -191,7 +191,8 @@ class AnnDataSimulator:
         """
         C0s = np.array(self.C0s, copy=True)
         for C0 in self.C0s:
-            c = np.random.normal(scale=sigma, size=(n, self.get_n_species()))
+            rng = np.random.default_rng()
+            c = rng.normal(scale=sigma, size=(n, self.get_n_species()))
             c += C0
             c = np.clip(c, 0, None)
             C0s = np.vstack((C0s, c))

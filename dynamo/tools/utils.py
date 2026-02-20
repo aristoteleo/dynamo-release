@@ -2866,7 +2866,8 @@ def get_neighbor_indices(
         _indices = np.append(_indices, new_neighbors).astype(int)
     _indices = np.unique(_indices)
     if max_neighbors_num is not None and len(_indices) > max_neighbors_num:
-        _indices = np.random.choice(_indices, max_neighbors_num, replace=False)
+        rng = np.random.default_rng()
+        _indices = rng.choice(_indices, max_neighbors_num, replace=False)
     return _indices
 
 
@@ -3241,7 +3242,8 @@ def compute_smallest_distance(
     if sample_num is None:
         sample_num = len(coords)
     N, _ = min(len(coords), sample_num), coords.shape[1]
-    selected_estimation_indices = np.random.choice(len(coords), size=N, replace=False)
+    rng = np.random.default_rng()
+    selected_estimation_indices = rng.choice(len(coords), size=N, replace=False)
 
     # Note k=2 here because the nearest query is always a point itself.
     distances, _ = kd_tree.query(coords[selected_estimation_indices, :], k=2)

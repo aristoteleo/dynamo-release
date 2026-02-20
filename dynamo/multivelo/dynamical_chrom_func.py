@@ -3536,8 +3536,9 @@ class ChromatinDynamical:
 
         if self.batch_size is not None and self.batch_size < len(c_array):
 
-            subset_choice = np.random.choice(len(c_array), self.batch_size,
-                                             replace=False)
+            rng = np.random.default_rng()
+            subset_choice = rng.choice(len(c_array), self.batch_size,
+                                       replace=False)
 
             c_array = c_array[subset_choice]
             u_array = u_array[subset_choice]

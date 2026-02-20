@@ -1318,8 +1318,9 @@ def _recipe_monocle_legacy(
             )
             # check whether total UMI is the same -- if not the same, logged
             if _has_szFactor_normalized:
+                rng = np.random.default_rng()
                 _has_log1p_transformed = not np.allclose(
-                    np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]),
+                    np.sum(adata.X.sum(1)[rng.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]),
                     0,
                     atol=1e-1,
                 )

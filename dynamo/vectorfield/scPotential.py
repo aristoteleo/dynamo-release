@@ -296,7 +296,8 @@ def search_fixed_points(
             pass
         else:
             print("Sampling initial points randomly (uniform distribution)...")
-            x0 = np.random.rand(n, k)
+            rng = np.random.default_rng()
+            x0 = rng.random((n, k))
 
         x0 = x0 * (domain[1] - domain[0]) + domain[0]
 

@@ -255,8 +255,11 @@ def test_pca():
     pca = PCA(n_components=30, random_state=0)
     X_pca_sklearn = pca.fit_transform(X_filterd.toarray())
 
-    assert np.linalg.norm(X_pca_sklearn[:, :10] - adata.obsm["X_pca"][:, :10]) < 1e-1
-    assert np.linalg.norm(pca.components_.T[:, :10] - adata.uns["PCs"][:, :10]) < 1e-1
+    # SVD has inherent sign ambiguity — iterative (ARPACK) and direct (LAPACK) solvers
+    # may produce sign-flipped but mathematically equivalent singular vectors.
+    # Compare using absolute values to account for this.
+    assert np.linalg.norm(np.abs(X_pca_sklearn[:, :10]) - np.abs(adata.obsm["X_pca"][:, :10])) < 1e-1
+    assert np.linalg.norm(np.abs(pca.components_.T[:, :10]) - np.abs(adata.uns["PCs"][:, :10])) < 1e-1
     assert np.linalg.norm(pca.explained_variance_ratio_[:10] - adata.uns["explained_variance_ratio_"][:10]) < 1e-1
 
 

@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from numpy.core.fromnumeric import size
+from numpy import size
 import scipy
 from sklearn.neighbors import NearestNeighbors
 import matplotlib.pyplot as plt
@@ -21,8 +21,6 @@ def sampling_neighbors(gene_unsplice_splice,step=(30,30),percentile=25):
     meshes_tuple = np.meshgrid(*grs)
     gridpoints_coordinates = np.vstack([i.flat for i in meshes_tuple]).T
     gridpoints_coordinates = gridpoints_coordinates + norm.rvs(loc=0, scale=0.15, size=gridpoints_coordinates.shape)
-    
-    np.random.seed(10) # set random seed
     
     nn = NearestNeighbors()
 
@@ -71,7 +69,8 @@ def sampling_circle(gene_unsplice_splice,target_amount=500):
     return(idx_choice)
 
 def sampling_random(gene_unsplice_splice, target_amount=500):
-    idx = np.random.choice(gene_unsplice_splice.shape[0], size = target_amount, replace=False)
+    rng = np.random.default_rng()
+    idx = rng.choice(gene_unsplice_splice.shape[0], size = target_amount, replace=False)
     return(idx)
     
 def sampling_adata(detail, 
@@ -209,7 +208,7 @@ def downsampling_embedding(data_df,para,target_amount, step, n_neighbors,express
         pca=PCA(n_components=pca_n_components)
         pca.fit(embedding_downsampling_0)
         embedding_downsampling_trans = pca.transform(embedding_downsampling_0)[:,range(pca_n_components)]
-        embedding_downsampling_trans_norm=(embedding_downsampling_trans - embedding_downsampling_trans.min(0)) / embedding_downsampling_trans.ptp(0)#normalize
+        embedding_downsampling_trans_norm=(embedding_downsampling_trans - embedding_downsampling_trans.min(0)) / (embedding_downsampling_trans.max(0) - embedding_downsampling_trans.min(0))#normalize
         embedding_downsampling_trans_norm_mult10=embedding_downsampling_trans_norm*10 #optional
         embedding_downsampling=embedding_downsampling_trans_norm_mult10**5 # optional
     elif projection_neighbor_choice=='embedding':

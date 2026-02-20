@@ -44,11 +44,10 @@ def _truncatedSVD_with_center(
         principal component.
     """
     random_state = check_random_state(random_state)
-    np.random.set_state(random_state.get_state())
     v0 = random_state.uniform(-1, 1, np.min(X.shape))
     n_components = min(n_components, X.shape[1] - 1)
 
-    mean = X.mean(0)
+    mean = np.asarray(X.mean(0))  # Convert from np.matrix to ndarray, shape (1, n_features)
     X_H = X.T.conj()
     mean_H = mean.T.conj()
     ones = np.ones(X.shape[0])[None, :].dot
@@ -105,7 +104,7 @@ def _truncatedSVD_with_center(
         random_state=random_state,
     )
     X_pca = result_dict["X_pca"]
-    fit.mean_ = mean.A1.flatten()
+    fit.mean_ = np.asarray(mean).ravel()
     fit.components_ = result_dict["components_"]
     fit.explained_variance_ratio_ = result_dict["explained_variance_ratio_"]
 

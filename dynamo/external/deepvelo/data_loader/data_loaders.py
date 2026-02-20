@@ -146,7 +146,8 @@ class VeloDataset(Dataset):
         return data_dict
 
     def gen_neighbor_batch(self, size):
-        indices = np.random.random_integers(0, high=len(self) - 1, size=size)
+        rng = np.random.default_rng()
+        indices = rng.integers(0, high=len(self), size=size)
         # self.neighbors_per_gene is the neighbor indices for all cells, shape
         # (N_cells, topG, genes)
 

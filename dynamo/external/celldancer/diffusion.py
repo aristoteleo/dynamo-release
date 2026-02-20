@@ -243,7 +243,8 @@ def velocity_add_random(velocity, theta):
     Adjusted velocity for the interested cell
         
     '''
-    r = np.random.normal(0, theta, 1)
+    rng = np.random.default_rng()
+    r = rng.normal(0, theta, 1)
 #    print(mp.current_process(), r)
 
     cosine = np.cos(r)[0]
@@ -332,8 +333,6 @@ def diffusion_off_grid_wallbound(
         (real_n_time_steps, n_dims)
     '''
     
-    np.random.seed(seed = random_seed)
-#    print("random seed is set to, ", random_seed)
     THETA = np.pi/6
     
     XMIN = np.min(cell_embedding, axis=0)
@@ -582,12 +581,13 @@ def run_diffusion(
     n_grids = np.array([vel.shape[0], vel.shape[1]])
     grid_size = embedding_range/n_grids
     
-    n_trajs = 0 
+    rng_diffusion = np.random.default_rng()
+    n_trajs = 0
     for i in init_cell:
         for j in range(n_repeats):
             n_trajs += 1
             if off_cell_init:
-                init_position = cell_embedding[i] + grid_size * np.random.uniform(-0.5,0.5,2)
+                init_position = cell_embedding[i] + grid_size * rng_diffusion.uniform(-0.5,0.5,2)
             else:
                 init_position = cell_embedding[i]
             TASKS.append((cell_embedding, vel, init_position, grid_mass, dt,

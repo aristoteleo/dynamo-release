@@ -547,7 +547,8 @@ class MultiVelocity:
         num_cells = tmp_adata.n_obs
 
         # Generate a random permutation of cell indices
-        cell_indices = np.random.permutation(num_cells)
+        rng = np.random.default_rng()
+        cell_indices = rng.permutation(num_cells)
 
         # Determine the split point
         split_point = num_cells // 2

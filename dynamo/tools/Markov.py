@@ -427,13 +427,14 @@ class KernelMarkovChain(MarkovChain):
 
         # apply kNN downsampling to accelerate calculation (adapted from velocyto)
         if sample_fraction is not None:
+            rng = np.random.default_rng()
             neighbor_idx = self.Idx
             p = np.linspace(0.5, 1, neighbor_idx.shape[1])
             p = p / p.sum()
 
             sampling_ixs = np.stack(
                 (
-                    np.random.choice(
+                    rng.choice(
                         np.arange(1, neighbor_idx.shape[1] - 1),
                         size=int(sample_fraction * (neighbor_idx.shape[1] + 1)),
                         replace=False,
@@ -479,11 +480,11 @@ class KernelMarkovChain(MarkovChain):
             if epsilon is not None:
                 k = k / D[0, self.Idx[i]]
             else:
-                k = np.matrix(k)
+                k = np.atleast_2d(k)
             p = k / np.sum(k) if np.sum(k) > 0 else np.ones_like(k) / n
             p[p <= tol] = 0  # tolerance check
             p = p / np.sum(p)
-            self.P[self.Idx[i], i] = p.A[0]
+            self.P[self.Idx[i], i] = np.asarray(p).flatten()
 
         self.P = sp.csc_matrix(self.P)
 
@@ -850,13 +851,14 @@ class DiscreteTimeMarkovChain(MarkovChain):
         Returns:
             The sequence of state indices resulting from the random walk.
         """
+        rng = np.random.default_rng()
         P = self.P.copy()
 
         seq = np.ones(num_steps + 1, dtype=int) * -1
         seq[0] = init_idx
         for i in range(1, num_steps + 1):
             cur_state = seq[i - 1]
-            r = np.random.rand()
+            r = rng.random()
             seq[i] = np.cumsum(P[:, cur_state]).searchsorted(r)
 
         return seq

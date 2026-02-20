@@ -149,7 +149,7 @@ class pyWNN():
             reps = ['X_pca', 'X_apca']
 
         self.seed = seed
-        np.random.seed(seed)
+        self._rng = np.random.default_rng(seed)
 
         if len(reps) > 2:
             sys.exit('WNN currently only implemented for 2 modalities')

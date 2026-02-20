@@ -720,7 +720,8 @@ def add_noise_to_duplicates(adata: anndata.AnnData, basis: str = "pca") -> None:
             adata.obsm["X_" + basis] = X_data
             break
         else:
-            X_data[duplicated_idx, :] += np.random.normal(0, min_val / 1000, (len(duplicated_idx), n_var))
+            rng = np.random.default_rng()
+            X_data[duplicated_idx, :] += rng.normal(0, min_val / 1000, (len(duplicated_idx), n_var))
 
 
 def is_float_integer_arr(arr: Union[np.ndarray, spmatrix, list]) -> bool:

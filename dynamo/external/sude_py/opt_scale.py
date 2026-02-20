@@ -15,6 +15,7 @@ def opt_scale(X, Y, k_num):
 
     """
     n = X.shape[0]
+    k_num = min(k_num, n - 1)
     get_knn = NearestNeighbors(n_neighbors=k_num + 1).fit(Y).kneighbors(Y, return_distance=False)
     scale = np.zeros((n, 1))
     for i in range(n):

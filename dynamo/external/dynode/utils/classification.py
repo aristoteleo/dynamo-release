@@ -21,6 +21,8 @@ USE_SAM = True           # Use SAM optimizer
 USE_CONTRASTIVE = True   # Use contrastive learning
 USE_TTA = True           # Test-time augmentation
 
+_rng = np.random.default_rng()
+
 
 class CellTypeClassifier:
     """Cell Type Classifier - Simple Wrapper"""
@@ -147,10 +149,10 @@ class CellTypeClassifier:
             yb = yb.to(self.device)
             
             # Select data augmentation
-            if use_mixup and np.random.rand() > 0.5:
+            if use_mixup and _rng.random() > 0.5:
                 xb_aug, ya, yb_aug, lam = mixup_data(xb, yb, alpha=self.config['MIXUP_ALPHA'])
                 aug_type = "mix"
-            elif use_cutmix and np.random.rand() > 0.5:
+            elif use_cutmix and _rng.random() > 0.5:
                 xb_aug, ya, yb_aug, lam = cutmix_data(xb, yb, alpha=self.config['CUTMIX_ALPHA'])
                 aug_type = "cut"
             else:
@@ -338,7 +340,7 @@ class CellTypeClassifier:
         all_preds = []
         
         for aug_idx in tqdm(range(n_aug), desc="TTA", leave=False):
-            X_aug = X_test + np.random.randn(*X_test.shape).astype(np.float32) * noise_std
+            X_aug = X_test + _rng.standard_normal(X_test.shape).astype(np.float32) * noise_std
             X_aug = self.norm(X_aug)
             
             logits = []
@@ -485,10 +487,10 @@ class SAM(torch.optim.Optimizer):
 
 def mixup_data(x, y, alpha=0.2):
     if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
+        lam = _rng.beta(alpha, alpha)
     else:
         lam = 1
-    
+
     batch_size = x.size(0)
     index = torch.randperm(batch_size).to(x.device)
     mixed_x = lam * x + (1 - lam) * x[index]
@@ -497,21 +499,21 @@ def mixup_data(x, y, alpha=0.2):
 
 def cutmix_data(x, y, alpha=1.0):
     if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
+        lam = _rng.beta(alpha, alpha)
     else:
         return x, y, y, 1
-    
+
     batch_size = x.size(0)
     index = torch.randperm(batch_size).to(x.device)
-    
+
     feat_size = x.size(1)
     cut_size = int(feat_size * (1 - lam))
-    
+
     if cut_size > 0:
-        start_idx = np.random.randint(0, feat_size - cut_size + 1)
+        start_idx = _rng.integers(0, feat_size - cut_size + 1)
         x = x.clone()
         x[:, start_idx:start_idx + cut_size] = x[index, start_idx:start_idx + cut_size]
-    
+
     return x, y, y[index], lam
 
 
@@ -688,10 +690,10 @@ class SAM(torch.optim.Optimizer):
 # =============== Data Augmentation ===============
 def mixup_data(x, y, alpha=0.2):
     if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
+        lam = _rng.beta(alpha, alpha)
     else:
         lam = 1
-    
+
     batch_size = x.size(0)
     index = torch.randperm(batch_size).to(x.device)
     mixed_x = lam * x + (1 - lam) * x[index]
@@ -699,21 +701,21 @@ def mixup_data(x, y, alpha=0.2):
 
 def cutmix_data(x, y, alpha=1.0):
     if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
+        lam = _rng.beta(alpha, alpha)
     else:
         return x, y, y, 1
-    
+
     batch_size = x.size(0)
     index = torch.randperm(batch_size).to(x.device)
-    
+
     feat_size = x.size(1)
     cut_size = int(feat_size * (1 - lam))
-    
+
     if cut_size > 0:
-        start_idx = np.random.randint(0, feat_size - cut_size + 1)
+        start_idx = _rng.integers(0, feat_size - cut_size + 1)
         x = x.clone()
         x[:, start_idx:start_idx + cut_size] = x[index, start_idx:start_idx + cut_size]
-    
+
     return x, y, y[index], lam
 
 def mixup_criterion(criterion, pred, y_a, y_b, lam):

@@ -182,8 +182,9 @@ def gen_fixed_points(
     SaddleNum = 0
 
     if x_ini is None:
+        rng = np.random.default_rng()
         for time in range(RandNum):
-            x0 = np.random.uniform(0, 1, EqNum) * (dim_range[1] - dim_range[0]) + dim_range[0]
+            x0 = rng.uniform(0, 1, EqNum) * (dim_range[1] - dim_range[0]) + dim_range[0]
             x, fval_dict, _, _ = sp.optimize.fsolve(func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
             # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix

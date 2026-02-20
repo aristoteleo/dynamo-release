@@ -152,7 +152,7 @@ class Trajectory:
             integration_direction: The direction to integrate the curve in. Can be "forward", "backward", or "both".
         """
         tau, x = self.t, self.X.T
-        idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
+        idx = dup_osc_idx_iter(x, max_iter=100, tol=(x.max(0) - x.min(0)).mean() / 1000)[0]
 
         # idx = dup_osc_idx_iter(x)
         x = x[:idx]

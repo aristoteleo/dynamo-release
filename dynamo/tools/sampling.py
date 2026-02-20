@@ -46,8 +46,8 @@ def sample(
     """
 
     if method == "random":
-        np.random.seed(seed)
-        sub_arr = arr[np.random.choice(arr.shape[0], size=n, replace=False)]
+        rng = np.random.default_rng(seed)
+        sub_arr = arr[rng.choice(arr.shape[0], size=n, replace=False)]
     elif method == "velocity" and V is not None:
         sub_arr = arr[sample_by_velocity(V=V, n=n, seed=seed, **kwargs)]
     elif method == "trn" and X is not None:
@@ -95,9 +95,9 @@ class TRNET:
             The initial positions of nodes.
         """
 
-        np.random.seed(self.seed)
+        rng = np.random.default_rng(self.seed)
 
-        idx = np.random.randint(0, self.X.shape[0], n_samples)
+        idx = rng.integers(0, self.X.shape[0], n_samples)
         return self.X[idx]
 
     def runOnce(self, p: np.ndarray, l: float, ep: float, c: float) -> None:
@@ -233,10 +233,10 @@ def sample_by_velocity(V: np.ndarray, n: int, seed: int = 19491001) -> np.ndarra
     Returns:
         The sample data array.
     """
-    np.random.seed(seed)
+    rng = np.random.default_rng(seed)
     tmp_V = np.linalg.norm(V, axis=1)
     p = tmp_V / np.sum(tmp_V)
-    idx = np.random.choice(np.arange(len(V)), size=n, p=p, replace=False)
+    idx = rng.choice(np.arange(len(V)), size=n, p=p, replace=False)
     return idx
 
 
@@ -277,11 +277,11 @@ def lhsclassic(
     """
 
     # Generate the intervals
-    np.random.seed(seed)
+    rng = np.random.default_rng(seed)
     cut = np.linspace(0, 1, n_samples + 1)
 
     # Fill points uniformly in each interval
-    u = np.random.rand(n_samples, n_dim)
+    u = rng.random((n_samples, n_dim))
     a = cut[:n_samples]
     b = cut[1 : n_samples + 1]
     rdpoints = np.zeros(u.shape)
@@ -291,7 +291,7 @@ def lhsclassic(
     # Make the random pairings
     H = np.zeros(rdpoints.shape)
     for j in range(n_dim):
-        order = np.random.permutation(range(n_samples))
+        order = rng.permutation(range(n_samples))
         H[:, j] = rdpoints[order, j]
 
     # Scale according to bounds

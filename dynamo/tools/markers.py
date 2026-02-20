@@ -431,7 +431,8 @@ def two_groups_degs(
                 log_fc = test_vals.mean() - control_vals.mean()  # for curvature, acceleration, log fc is meaningless
 
             try:
-                u, mw_p = map(float, mannwhitneyu(test_vals, control_vals))
+                mw_result = mannwhitneyu(test_vals, control_vals)
+                u, mw_p = np.float64(mw_result.statistic).item(), np.float64(mw_result.pvalue).item()
             except ValueError:
                 pass
             else:

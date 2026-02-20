@@ -167,9 +167,10 @@ def compute_nullclines_2d(
     NCx = []
     NCy = []
     from tqdm import tqdm
+    rng = np.random.default_rng()
     for x0 in tqdm(X0, desc="Computing nullclines"):
         # initialize tangent predictor
-        theta = np.random.rand() * 2 * np.pi
+        theta = rng.random() * 2 * np.pi
         v0 = [np.cos(theta), np.sin(theta)]
         v0 /= np.linalg.norm(v0)
         # nullcline continuation
@@ -531,7 +532,8 @@ class Topography2D:
 
             X0 = lhsclassic(n, 2)
         else:
-            X0 = np.random.rand(n, 2)
+            rng = np.random.default_rng()
+            X0 = rng.random((n, 2))
         X0[:, 0] = X0[:, 0] * (x_range[1] - x_range[0]) + x_range[0]
         X0[:, 1] = X0[:, 1] * (y_range[1] - y_range[0]) + y_range[0]
         X, J, _ = find_fixed_points(
@@ -677,7 +679,8 @@ class Topography3D(Topography2D):
 
             X0 = lhsclassic(n, 3)
         else:
-            X0 = np.random.rand(n, 3)
+            rng = np.random.default_rng()
+            X0 = rng.random((n, 3))
         X0[:, 0] = X0[:, 0] * (x_range[1] - x_range[0]) + x_range[0]
         X0[:, 1] = X0[:, 1] * (y_range[1] - y_range[0]) + y_range[0]
         X0[:, 2] = X0[:, 2] * (z_range[1] - z_range[0]) + z_range[0]

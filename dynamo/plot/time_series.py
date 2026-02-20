@@ -123,7 +123,7 @@ def kinetic_curves(
         exprs = np.expm1(exprs) if not log else exprs
 
     if standard_scale is not None:
-        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
+        exprs = (exprs - np.min(exprs, axis=standard_scale)) / (np.max(exprs, axis=standard_scale) - np.min(exprs, axis=standard_scale))
 
     time = np.sort(time)
     exprs = exprs[np.argsort(time), :]
@@ -341,7 +341,7 @@ def kinetic_heatmap(
             exprs = exprs[np.isfinite(exprs.sum(1)), :]
 
             if standard_scale is not None:
-                exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(exprs, axis=standard_scale)[
+                exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / (np.max(exprs, axis=standard_scale) - np.min(exprs, axis=standard_scale))[
                     :, None
                 ]
             if gene_order_method == "maximum":
@@ -757,9 +757,9 @@ def jacobian_kinetics(
         jacobian_mat = jacobian_mat[np.isfinite(jacobian_mat.sum(1)), :]
 
         if standard_scale is not None:
-            exprs = (jacobian_mat - np.min(jacobian_mat, axis=standard_scale)[:, None]) / np.ptp(
+            exprs = (jacobian_mat - np.min(jacobian_mat, axis=standard_scale)[:, None]) / (np.max(
                 jacobian_mat, axis=standard_scale
-            )[:, None]
+            ) - np.min(jacobian_mat, axis=standard_scale))[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         df = pd.DataFrame(
             exprs[max_sort, :],
@@ -954,9 +954,9 @@ def sensitivity_kinetics(
         sensitivity_mat = sensitivity_mat[np.isfinite(sensitivity_mat.sum(1)), :]
 
         if standard_scale is not None:
-            exprs = (sensitivity_mat - np.min(sensitivity_mat, axis=standard_scale)[:, None]) / np.ptp(
+            exprs = (sensitivity_mat - np.min(sensitivity_mat, axis=standard_scale)[:, None]) / (np.max(
                 sensitivity_mat, axis=standard_scale
-            )[:, None]
+            ) - np.min(sensitivity_mat, axis=standard_scale))[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         df = pd.DataFrame(
             exprs[max_sort, :],
