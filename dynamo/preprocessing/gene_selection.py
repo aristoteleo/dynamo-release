@@ -233,14 +233,28 @@ def calc_dispersion_by_svr(
 
     for layer in layers:
         valid_CM, detected_bool = get_vaild_CM(adata, layer, **SVRs_kwargs)
-        if valid_CM is None:
-            continue
+        # valid_CM seems to be set as an empty sparse array when adata.var has too few rows. 
+        # This is not picked up via None checks. (Empty valid_CM leads to a divide by 0 error in get_prediction_by_svr())
+        # Note that simply doing `not valid_CM.toarray()` results in "truth value of array..." error due to numpy array
+        # `not valid_CM.toarray().tolist()` doesn't work either because a list of empty lists still gives False
+        if valid_CM is None or valid_CM.shape[1] == 0:
+            main_warning("No valid_CM for layer " + layer)
+            
+            #If all layers are skipped then there will be no "score" column, causing a KeyError during preprocessing
+            #continue
 
-        mean, cv = get_mean_cv(adata, valid_CM, algorithm, winsorize, winsor_perc)
-        fitted_fun, svr_gamma = get_prediction_by_svr(mean, cv, svr_gamma)
-        score = cv - fitted_fun(mean)
-        if sort_inverse:
-            score = -score
+            #Temporary values.
+            #adata.shape[1] == valid_CM.shape[1] = adata.var.shape[0]
+            temp = np.full((adata.shape[1],), 0)
+            mean, cv = np.full((adata.shape[1],1), 0), temp
+            _, svr_gamma = None, temp
+            score = temp
+        else:
+            mean, cv = get_mean_cv(adata, valid_CM, algorithm, winsorize, winsor_perc)
+            fitted_fun, svr_gamma = get_prediction_by_svr(mean, cv, svr_gamma)
+            score = cv - fitted_fun(mean)
+            if sort_inverse:
+                score = -score
 
         # Now we can get "SVR" from get_prediction_by_svr
         key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
