@@ -39,6 +39,15 @@ from .utils import (
     set_stream_line_alpha,
 )
 
+# Import explanation utilities from vector_calculus
+from .vector_calculus import (
+    _SHOW_PLOT_EXPLANATIONS,
+    set_plot_explanations,
+    get_plot_explanations,
+    Style,
+    print_plot_explanation,
+)
+
 
 def plot_flow_field(
     vecfld: Topography2D,
@@ -415,6 +424,19 @@ def plot_fixed_points(
     else:
         _theme_ = "viridis"
     _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
+
+    # Print explanation
+    print_plot_explanation(
+        title="FIXED POINTS",
+        description="Fixed points are steady states of the dynamical system where dx/dt = 0.\nFull circles are stable/unstable fixed points; half-circles are saddle points.",
+        interpretation={
+            "Absorbing / attractors (black, filled)": "Stable terminal cell types — all trajectories converge here (e.g., melanophore, iridophore, xanthophore, unknown terminal states)",
+            "Emitting / repellers (red, filled)": "Progenitor/source states — cells spontaneously differentiate outward from these points (e.g., the multipotent pigment progenitor hub)",
+            "Saddles / unstable (blue, half-filled)": "Bifurcation/decision points — stable in some directions, unstable in others; mark where cell fates diverge into different lineages (e.g., iridophore vs. melanophore split, neuron vs. satellite glia split)",
+            "Confidence (color intensity)": "Brighter color = fixed point is closer to observed cells and therefore more confident",
+            "Biological meaning": "Together these fixed points map the full cellular landscape: sources (progenitors), sinks (terminal states), and the decision hubs between them"
+        }
+    )
 
     if vecfld_dict is None or any(("Xss" not in vecfld_dict.keys(), "ftype" not in vecfld_dict.keys())):
         if vecfld_dict is not None:
@@ -1143,6 +1165,20 @@ def topography(
         from ..tools.utils import vector_field_function
 
         V = vector_field_function(init_states, vecfld_dict, [0, 1])
+
+    # Print explanation
+    print_plot_explanation(
+        title="VECTOR FIELD TOPOGRAPHY",
+        description="Comprehensive visualization of the reconstructed vector field showing the\nfull landscape of cellular dynamics and fate decisions.\nIncludes streamlines, fixed points, nullclines, and separatrices.",
+        interpretation={
+            "Streamlines": "Flow of cell state trajectories — arrows indicate the direction of transcriptional change",
+            "Fixed points": "Terminal states (black/absorbing), progenitor sources (red/emitting), bifurcation hubs (blue/saddle)",
+            "Nullclines": "Curves where dx/dt=0 or dy/dt=0 — the equilibrium boundaries of each dimension",
+            "Separatrices": "Boundaries separating the basins of attraction of different terminal cell fates",
+            "Potential landscape": "Scalar potential estimated from the gradient component of the vector field — analogous to Waddington's epigenetic landscape",
+            "Use case": "Predict cell fates, identify fate-decision points, and map the full differentiation landscape"
+        }
+    )
 
     # plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(

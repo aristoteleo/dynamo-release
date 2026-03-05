@@ -1718,7 +1718,7 @@ def scatters(
     despline_sides: Optional[List[str]] = None,
     projection: str = "2d",
     arrow: bool = True,
-    arrow_scale: float = 5,
+    arrow_scale: float = 8,
     arrow_width: float = 0.01,
     **kwargs,
 ) -> Union[
