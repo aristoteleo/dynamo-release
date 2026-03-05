@@ -2112,7 +2112,7 @@ class Loess(object):
 
 def add_arrow(ax,adata,basis,fontsize=12,
               x_label=None,y_label=None,
-              arrow_scale=5,arrow_width=0.01):
+              arrow_scale=8,arrow_width=0.01):
     r"""
     Add arrow and label to the axis
     Parameters

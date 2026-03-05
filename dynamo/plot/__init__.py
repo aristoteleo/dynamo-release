@@ -77,6 +77,8 @@ from .vector_calculus import (
     sensitivity,
     sensitivity_heatmap,
     speed,
+    set_plot_explanations,
+    get_plot_explanations,
 )
 
 from ._trends import (
@@ -92,6 +94,8 @@ from .animation_lines import animate_streamplot,Streamlines,compute_velocity_on_
 __all__ = [
     "quiver_autoscaler",
     "save_fig",
+    "set_plot_explanations",
+    "get_plot_explanations",
     "scatters",
     "scatters_interactive",
     "basic_stats",
