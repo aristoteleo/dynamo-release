@@ -4,6 +4,7 @@ import numpy as np
 
 from ..vf import jacobian,get_jacobian
 from .scatters import scatters
+from .vector_calculus import print_plot_explanation
 
 
 def jacobian_on_gene_axis(adata,
@@ -46,6 +47,19 @@ def jacobian_on_gene_axis(adata,
     color_values = np.full(adata.n_obs, fill_value=np.nan)
     color_values[adata.obs["pass_basic_filter"]] =  J_df.iloc[:, 0]
     adata.obs[temp_color_key] = color_values
+
+    # Print explanation
+    print_plot_explanation(
+        title="JACOBIAN ON GENE AXIS",
+        description="Visualizes gene regulatory effects (∂f_effector/∂x_receptor) in the space\nof gene expression, revealing how regulatory relationships vary across states.",
+        interpretation={
+            "Color intensity": "Strength of regulatory effect at each expression state",
+            "Spatial patterns": "State-dependent regulation - effects vary by cell state",
+            "Positive regions": "Receptor activates effector in these expression ranges",
+            "Negative regions": "Receptor represses effector in these expression ranges",
+            "Biological insight": "Context-dependent gene regulation across the expression landscape"
+        }
+    )
 
     if ax is None:
         import matplotlib.pyplot as plt

@@ -1,5 +1,6 @@
 """plotting utilities that are used to visualize the curl, divergence."""
 
+import textwrap
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
@@ -27,6 +28,113 @@ from .utils import (
     is_layer_keys,
     save_show_ret,
 )
+
+# Global flag to control explanation output display
+_SHOW_PLOT_EXPLANATIONS = True
+
+def set_plot_explanations(show: bool):
+    """Set whether to display plot explanations.
+
+    Args:
+        show: If True, display plot explanations; if False, suppress them.
+    """
+    global _SHOW_PLOT_EXPLANATIONS
+    _SHOW_PLOT_EXPLANATIONS = show
+
+def get_plot_explanations() -> bool:
+    """Get the current plot explanations setting.
+
+    Returns:
+        True if plot explanations are enabled, False otherwise.
+    """
+    return _SHOW_PLOT_EXPLANATIONS
+
+# ANSI escape codes for styling
+class Style:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    BLUE = "\033[34m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    CYAN = "\033[36m"
+    MAGENTA = "\033[35m"
+    WHITE = "\033[37m"
+
+def print_plot_explanation(title: str, description: str, interpretation: Dict[str, str], width: int = 70):
+    """Print a formatted explanation box for differential geometry quantities.
+
+    Args:
+        title: The title of the explanation (e.g., "ACCELERATION")
+        description: A brief description of what the quantity measures
+        interpretation: A dictionary mapping value ranges to their biological interpretation
+    """
+    if not _SHOW_PLOT_EXPLANATIONS:
+        return
+
+    # Box drawing characters
+    TL, H, TR = "╭", "─", "╮"
+    V = "│"
+    BL, BR = "╰", "╯"
+
+    title_text = f" EXPLANATION: {title} "
+    title_len = len(title_text)
+    header_line = f"{TL}{H}{title_text}{H * (width - 3 - title_len)}{TR}"
+    footer_line = f"{BL}{H * (width - 2)}{BR}"
+
+    print(f"\n{Style.CYAN}{header_line}{Style.RESET}")
+
+    # Description section
+    desc_label = f"  {Style.BOLD}What it measures:{Style.RESET}"
+    print(f"{Style.CYAN}{V}{Style.RESET}{desc_label}")
+
+    # Wrap description text
+    desc_lines = description.split('\n')
+    for line in desc_lines:
+        content = f"  {line}"
+        visible_len = len(f"  {line}")
+        padding = " " * (width - 2 - visible_len)
+        print(f"{Style.CYAN}{V}{Style.RESET}{content}{padding}{Style.CYAN}{V}{Style.RESET}")
+
+    print(f"{Style.CYAN}{V}{Style.RESET}" + " " * (width - 2) + f"{Style.CYAN}{V}{Style.RESET}")
+
+    # Interpretation section
+    interp_label = f"  {Style.BOLD}Interpreting values:{Style.RESET}"
+    print(f"{Style.CYAN}{V}{Style.RESET}{interp_label}")
+
+    inner_width = width - 2  # usable chars between the two border │
+    for key, value in interpretation.items():
+        prefix_plain = f"  ● {key}: "
+        prefix_styled = f"  {Style.YELLOW}●{Style.RESET} {Style.GREEN}{key}:{Style.RESET} "
+        continuation_indent = "    "  # 4-space indent for wrapped lines
+
+        # Wrap value text: first pass respects explicit \n, then word-wraps each segment
+        avail_first = inner_width - len(prefix_plain)
+        avail_cont = inner_width - len(continuation_indent)
+
+        display_lines: List[Tuple[str, str]] = []  # (visible_text, styled_text)
+        segments = value.split("\n")
+        first_segment = True
+        for seg in segments:
+            avail = avail_first if first_segment else avail_cont
+            indent_plain = prefix_plain if first_segment else continuation_indent
+            indent_styled = prefix_styled if first_segment else continuation_indent
+
+            wrapped = textwrap.wrap(seg, width=avail) if seg.strip() else [""]
+            for i, chunk in enumerate(wrapped):
+                if first_segment and i == 0:
+                    display_lines.append((indent_plain + chunk, indent_styled + chunk))
+                    first_segment = False
+                else:
+                    display_lines.append((continuation_indent + chunk, continuation_indent + chunk))
+            if not wrapped:
+                first_segment = False
+
+        for visible, styled in display_lines:
+            padding = " " * max(0, inner_width - len(visible))
+            print(f"{Style.CYAN}{V}{Style.RESET}{styled}{padding}{Style.CYAN}{V}{Style.RESET}")
+
+    print(f"{Style.CYAN}{footer_line}{Style.RESET}\n")
 
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c")
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier")
@@ -77,6 +185,17 @@ def speed(
     if color is not None:
         color = [color] if type(color) == str else color
         color_.extend(color)
+
+    # Print explanation
+    print_plot_explanation(
+        title="SPEED",
+        description="The magnitude of the velocity vector, measuring how fast cells are\nchanging their transcriptional state.",
+        interpretation={
+            "High speed": "Cells undergoing rapid state transitions after committing to a lineage (e.g., iridophore, melanophore, or Schwann cell differentiation)",
+            "Low speed": "Cells in relatively stable or metastable states — progenitors generally have low speed before lineage commitment",
+            "Biological meaning": "Progenitors (pigment progenitors, proliferating progenitors) tend to have low speed as metastable states; speed increases markedly once cells commit to a particular lineage"
+        }
+    )
 
     return scatters(adata, color=color_, frontier=frontier, *args, **kwargs)
 
@@ -142,6 +261,18 @@ def curl(
     # adata.obs[curl_key] = adata.obs[curl_key].astype('float')
     # adata_ = adata[~ adata.obs[curl_key].isna(), :]
 
+    # Print explanation
+    print_plot_explanation(
+        title="CURL",
+        description="A quantity characterizing the infinitesimal rotation of a cell state based\non the reconstructed vector field.\nIn 2D, curl is a scalar value; in 3D, curl is a vector (matrix).",
+        interpretation={
+            "Negative curl": "Clockwise rotation of the local velocity field",
+            "Positive curl": "Counter-clockwise rotation of the local velocity field",
+            "Near zero": "No rotational flow; predominantly radial (non-cycling) movement",
+            "Biological relevance": "Combined with expression of cell cycle markers, curl analysis reveals whether a cell is undergoing a strong cell cycle process"
+        }
+    )
+
     return scatters(
         adata,
         color=color_,
@@ -204,6 +335,18 @@ def divergence(
     if color is not None:
         color = [color] if type(color) == str else color
         color_.extend(color)
+
+    # Print explanation
+    print_plot_explanation(
+        title="DIVERGENCE",
+        description="A quantity characterizing local 'outgoingness' of a cell — the extent to\nwhich more field vectors exit than enter an infinitesimal region of space.",
+        interpretation={
+            "Positive divergence": "Source: cells are diverging outward to become other cell types (progenitor states, e.g., pigment progenitors and proliferating progenitors)",
+            "Negative divergence": "Sink: trajectories converge here — stable terminal cell types (e.g., melanophores, iridophores, chromaffin cells, Schwann cells)",
+            "Near zero": "Steady flow without net convergence or divergence",
+            "Biological use": "Identifies progenitor sources (high positive divergence) and terminal differentiated sinks (negative divergence)"
+        }
+    )
 
     return scatters(
         adata,
@@ -269,6 +412,17 @@ def acceleration(
         color = [color] if type(color) == str else color
         color_.extend(color)
 
+    # Print explanation
+    print_plot_explanation(
+        title="ACCELERATION",
+        description="The derivative of the velocity vector (dv/dt).\nRNA acceleration is a vector like RNA velocity, so acceleration fields can\nbe plotted analogously to velocity fields.\nHere the norm across all PC components is visualized (analogous to speed).",
+        interpretation={
+            "Positive / high acceleration": "Cells are speeding up — this normally happens when cells exit the cell cycle and start to commit to a fate",
+            "Negative / low acceleration": "Cells are slowing down or maintaining a steady velocity",
+            "Biological insight": "Acceleration reveals the forces initiating state transitions before changes are fully visible in RNA velocity"
+        }
+    )
+
     return scatters(adata_, color=color_, frontier=frontier, *args, **kwargs)
 
 
@@ -324,6 +478,18 @@ def curvature(
     if color is not None:
         color = [color] if type(color) == str else color
         color_.extend(color)
+
+    # Print explanation
+    print_plot_explanation(
+        title="CURVATURE",
+        description="A quantity characterizing the curviness of a cell's vector field trajectory —\nlike making a turn at a crossroad when a progenitor bifurcates into\nmultiple lineages.",
+        interpretation={
+            "High curvature": "Sharp turns in state space — marks bifurcation/fate-decision points (e.g., iridophore vs. melanophore split, or neuron vs. satellite glia split)",
+            "Low curvature": "Smooth, gradual transitions — stable developmental progression along a single lineage",
+            "Regulatory genes": "Genes that strongly contribute to curvature correspond to regulatory genes that steer cell fate",
+            "Caveat": "Curvature can also be artificially inflated when RNA velocity estimates are noisy"
+        }
+    )
 
     return scatters(adata_, color=color_, frontier=frontier, *args, **kwargs)
 
@@ -435,6 +601,19 @@ def jacobian(
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
+
+    # Print explanation
+    print_plot_explanation(
+        title="JACOBIAN",
+        description="The Jacobian matrix (∂f/∂x) reveals gene regulatory interactions by\nmeasuring how changes in one gene's expression affect another gene's velocity.",
+        interpretation={
+            "Positive values": "Gene A promotes/activates gene B's transcription",
+            "Negative values": "Gene A represses/inhibits gene B's transcription",
+            "Large magnitude": "Strong regulatory effect between genes",
+            "Near zero": "Weak or no direct regulatory relationship",
+            "Biological use": "Infer gene regulatory networks with spatiotemporal resolution"
+        }
+    )
 
     Jacobian_ = jkey if j_basis is None else jkey + "_" + j_basis
     Der, cell_indx, jacobian_gene, regulators_, effectors_ = (
@@ -840,6 +1019,19 @@ def sensitivity(
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
+
+    # Print explanation
+    print_plot_explanation(
+        title="SENSITIVITY",
+        description="The sensitivity matrix (dx/dx) measures how perturbations to one gene's\nexpression propagate through the system to affect another gene's state.",
+        interpretation={
+            "High sensitivity": "Gene B's expression is highly responsive to changes in gene A",
+            "Low sensitivity": "Gene B is relatively insensitive/buffered from changes in gene A",
+            "Asymmetric patterns": "Unidirectional information flow in regulatory networks",
+            "Network robustness": "Low sensitivity indicates robust, buffered pathways",
+            "Biological use": "Predict downstream effects of genetic/drug perturbations"
+        }
+    )
 
     Sensitivity_ = skey if s_basis is None else skey + "_" + s_basis
     Der, cell_indx, sensitivity_gene, regulators_, effectors_ = (
