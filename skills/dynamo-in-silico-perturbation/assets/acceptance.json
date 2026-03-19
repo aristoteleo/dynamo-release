@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "skill": "dynamo-in-silico-perturbation",
+  "sample_requests": [
+    "Run in silico gene perturbation on a dynamo AnnData to predict cell fate diversion",
+    "Suppress GATA1 and visualize the effect using dyn.pd.perturbation",
+    "Activate KLF1 and SPI1 together and plot the perturbed trajectories",
+    "Convert 502_perturbation_tutorial.ipynb into a reusable perturbation workflow",
+    "Predict transcription factor perturbation effects on hematopoietic cell fate"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "perturbation",
+    "cell fate",
+    "gene",
+    "anndata"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Stage Selection",
+    "## Minimal Execution Patterns",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "dyn.pd.perturbation",
+    "pertubation_method",
+    "perturb_mode",
+    "emb_basis",
+    "umap_perturbation",
+    "streamline_plot",
+    "jacobian_pca",
+    "j_delta_x_perturbation",
+    "X_umap_perturbation",
+    "velocity_umap_perturbation"
+  ],
+  "required_paths": [
+    "references/source-grounding.md",
+    "references/branch-selection.md",
+    "references/source-notebook-map.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "single-gene-perturbation",
+      "conda_env": "omictest",
+      "env": {
+        "MPLBACKEND": "Agg",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba",
+        "PYTHONPATH": "/Users/fernandozeng/Desktop/analysis/dynamo-release"
+      },
+      "command": "${PYTHON} -c \"import dynamo as dyn; adata=dyn.sample_data.hematopoiesis(); dyn.pd.perturbation(adata, 'GATA1', [-100], emb_basis='umap'); print('X_umap_perturbation:', 'X_umap_perturbation' in adata.obsm and adata.obsm['X_umap_perturbation'].shape==(1947,2)); print('velocity_umap_perturbation:', 'velocity_umap_perturbation' in adata.obsm); print('j_delta_x_perturbation:', 'j_delta_x_perturbation' in adata.obsm); print('perturbation_transition_matrix:', 'perturbation_transition_matrix' in adata.obsp)\"",
+      "timeout_seconds": 120,
+      "expect_stdout_contains": [
+        "X_umap_perturbation: True",
+        "velocity_umap_perturbation: True",
+        "j_delta_x_perturbation: True",
+        "perturbation_transition_matrix: True"
+      ]
+    },
+    {
+      "name": "multi-gene-and-custom-keys",
+      "conda_env": "omictest",
+      "env": {
+        "MPLBACKEND": "Agg",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba",
+        "PYTHONPATH": "/Users/fernandozeng/Desktop/analysis/dynamo-release"
+      },
+      "command": "${PYTHON} -c \"import dynamo as dyn; adata=dyn.sample_data.hematopoiesis(); dyn.pd.perturbation(adata, ['SPI1','GATA1'], [-100,-15], emb_basis='umap'); print('multi_gene_ok:', 'X_umap_perturbation' in adata.obsm); dyn.pd.perturbation(adata, 'KLF1', [100], emb_basis='umap', add_embedding_key='X_umap_KLF1_up', add_velocity_key='velocity_umap_KLF1_up'); print('custom_key_ok:', 'X_umap_KLF1_up' in adata.obsm and 'velocity_umap_KLF1_up' in adata.obsm)\"",
+      "timeout_seconds": 120,
+      "expect_stdout_contains": [
+        "multi_gene_ok: True",
+        "custom_key_ok: True"
+      ]
+    }
+  ]
+}

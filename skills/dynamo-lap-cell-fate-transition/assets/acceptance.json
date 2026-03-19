@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "skill": "dynamo-lap-cell-fate-transition",
+  "sample_requests": [
+    "Run least action path analysis between hematopoietic cell types using dynamo",
+    "Compute pairwise LAP transitions and prioritize transcription factors with dyn.pd.compute_cell_type_transitions",
+    "Predict optimal cell fate conversion paths and rank TF cocktails using dynamo LAP on scNT-seq AnnData",
+    "Convert 501_lap_tutorial.ipynb into a reusable LAP cell fate transition workflow"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "least action path",
+    "cell fate",
+    "transcription factor",
+    "anndata"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Stage Selection",
+    "## Minimal Execution Patterns",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "compute_cell_type_transitions",
+    "extract_transition_metrics",
+    "plot_kinetic_heatmap",
+    "analyze_transition_tfs",
+    "analyze_tf_roc_performance",
+    "process_all_transition_rankings",
+    "save_pickle",
+    "umap_ddhodge_potential",
+    "marginal_method",
+    "EM_steps"
+  ],
+  "required_paths": [
+    "references/source-grounding.md",
+    "references/stage-selection.md",
+    "references/source-notebook-map.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "lap-core-and-metrics",
+      "conda_env": "omictest",
+      "env": {
+        "MPLBACKEND": "Agg",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba",
+        "PYTHONPATH": "/Users/fernandozeng/Desktop/analysis/dynamo-release"
+      },
+      "command": "${PYTHON} -c \"import dynamo as dyn; adata=dyn.sample_data.hematopoiesis(); dyn.tl.neighbors(adata, basis='umap', result_prefix='umap'); cell_types=['HSC','Meg']; transition_graph, cells_indices = dyn.pd.compute_cell_type_transitions(adata=adata, cell_types=cell_types, reference_cell_types=['HSC'], marginal_method='combined', potential_column='umap_ddhodge_potential', cell_type_column='cell_type', EM_steps=1, top_genes=3, enable_plotting=False, enable_gene_analysis=False); human_tfs=dyn.sample_data.human_tfs(); human_tfs_names=list(human_tfs['Symbol']); action_df, t_df, tf_genes=dyn.pd.extract_transition_metrics(transition_graph=transition_graph, cells_indices_dict=cells_indices, cell_types=cell_types, transcription_factors=human_tfs_names, top_tf_genes=3, lap_method='action_t'); print('transition_keys_ok:', 'HSC->Meg' in transition_graph and 'Meg->HSC' in transition_graph); print('action_df_shape:', action_df.shape); print('t_df_shape:', t_df.shape); print('cells_indices_ok:', 'HSC' in cells_indices and 'Meg' in cells_indices); print('umap_distances_ok:', 'umap_distances' in adata.obsp)\"",
+      "timeout_seconds": 600,
+      "expect_stdout_contains": [
+        "transition_keys_ok: True",
+        "action_df_shape: (2, 2)",
+        "t_df_shape: (2, 2)",
+        "cells_indices_ok: True",
+        "umap_distances_ok: True"
+      ]
+    },
+    {
+      "name": "tf-ranking-and-roc",
+      "conda_env": "omictest",
+      "env": {
+        "MPLBACKEND": "Agg",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba",
+        "PYTHONPATH": "/Users/fernandozeng/Desktop/analysis/dynamo-release"
+      },
+      "command": "${PYTHON} -c \"import dynamo as dyn; adata=dyn.sample_data.hematopoiesis(); dyn.tl.neighbors(adata, basis='umap', result_prefix='umap'); cell_types=['HSC','Meg']; transition_graph, cells_indices = dyn.pd.compute_cell_type_transitions(adata=adata, cell_types=cell_types, reference_cell_types=['HSC'], marginal_method='combined', potential_column='umap_ddhodge_potential', cell_type_column='cell_type', EM_steps=1, top_genes=3, enable_plotting=False, enable_gene_analysis=True); human_tfs=dyn.sample_data.human_tfs(); human_tfs_names=list(human_tfs['Symbol']); KNOWN_TFS={'HSC->Meg':['GATA1','GATA2'],'Meg->HSC':['HLF','MEIS1']}; processed_rankings=dyn.pd.process_all_transition_rankings(transition_graph, human_tfs_names, KNOWN_TFS); TRANSITIONS_CONFIG={'standard':['HSC->Meg','Meg->HSC'],'special':{}}; reprogramming_dict, reprogramming_df=dyn.pd.create_reprogramming_matrix(transition_graph=transition_graph, transitions_config=TRANSITIONS_CONFIG, transition_pmids={}, transition_types={}, total_tf_count=133); roc_results=dyn.pd.analyze_tf_roc_performance(processed_rankings=processed_rankings, plot_roc=False); print('processed_rankings_ok:', len(processed_rankings)>=2); print('reprogramming_df_ok:', set(['genes','rank','transition','type']).issubset(reprogramming_df.columns)); print('roc_auc_ok:', 0.0 <= roc_results['roc_auc'] <= 1.0)\"",
+      "timeout_seconds": 600,
+      "expect_stdout_contains": [
+        "processed_rankings_ok: True",
+        "reprogramming_df_ok: True",
+        "roc_auc_ok: True"
+      ]
+    }
+  ]
+}
