@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "skill": "dynamo-differential-geometry-analysis",
+  "sample_requests": [
+    "Convert 403_Differential_geometry.ipynb into a reusable dynamo differential geometry workflow",
+    "Run dynamo vector-field differential geometry, Jacobian ranking, ddhodge pseudotime, and state graph analysis on an AnnData object"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "differential-geometry",
+    "jacobian",
+    "vector-field",
+    "anndata",
+    "tutorial"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Stage Selection",
+    "## Minimal Execution Patterns",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "cell_velocities",
+    "VectorField",
+    "acceleration",
+    "curvature",
+    "jacobian",
+    "rank_jacobian_genes",
+    "ddhodge",
+    "kinetic_heatmap",
+    "state_graph",
+    "kinetics_heatmap"
+  ],
+  "required_paths": [
+    "references/stage-selection.md",
+    "references/jacobian-and-network-analysis.md",
+    "references/pseudotime-and-state-graph.md",
+    "references/source-grounding.md",
+    "references/source-notebook-map.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "geometry-jacobian-core",
+      "conda_env": "omictest",
+      "env": {
+        "MPLBACKEND": "Agg",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba",
+        "PYTHONPATH": "/Users/fernandozeng/Desktop/analysis/dynamo-release"
+      },
+      "command": "${PYTHON} -c \"import anndata as ad, dynamo as dyn; adata=dyn.sample_data.zebrafish(); adata.obs_names_make_unique(); groups=['Proliferating Progenitor','Pigment Progenitor','Melanophore','Unknown']; parts=[adata[adata.obs['Cell_type']==g][:30].copy() for g in groups]; adata=ad.concat(parts, merge='same', label='subset_batch', keys=groups, index_unique='-'); adata.obs_names_make_unique(); pre=dyn.pp.Preprocessor(cell_cycle_score_enable=True); pre.preprocess_adata(adata, recipe='monocle'); dyn.tl.dynamics(adata, cores=1); dyn.tl.reduceDimension(adata); dyn.tl.cell_velocities(adata); dyn.tl.cell_velocities(adata, basis='pca', transition_genes=adata.var.use_for_pca.values); dyn.vf.VectorField(adata, basis='pca', M=50, cores=1); dyn.vf.rank_velocity_genes(adata, groups='Cell_type', vkey='velocity_S'); dyn.vf.acceleration(adata, basis='pca'); dyn.vf.rank_acceleration_genes(adata, groups='Cell_type', akey='acceleration'); dyn.vf.curvature(adata, basis='pca'); dyn.vf.rank_curvature_genes(adata, groups='Cell_type', ckey='curvature'); dyn.pp.top_pca_genes(adata, n_top_genes=20); genes=adata.var_names[adata.var['top_pca_genes']][:10].tolist(); dyn.vf.jacobian(adata, regulators=genes, effectors=genes, sampling='trn', sample_ncells=60, basis='pca'); full_reg=dyn.vf.rank_jacobian_genes(adata, groups='Cell_type', mode='full_reg', abs=True, return_df=True); edges=dyn.vf.build_network_per_cluster(adata, cluster='Cell_type', cluster_names=['Unknown'], full_reg_rank=full_reg, genes=genes, n_top_genes=10, abs=True); print('velocity_pca' in adata.obsm, 'VecFld_pca' in adata.uns, 'acceleration' in adata.layers, 'curvature' in adata.layers, 'jacobian_pca' in adata.uns, edges['Unknown'].shape[0] > 0)\"",
+      "timeout_seconds": 420,
+      "expect_stdout_contains": [
+        "True True True True True True"
+      ]
+    },
+    {
+      "name": "ddhodge-state-graph-heatmap",
+      "conda_env": "omictest",
+      "env": {
+        "MPLBACKEND": "Agg",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba",
+        "PYTHONPATH": "/Users/fernandozeng/Desktop/analysis/dynamo-release"
+      },
+      "command": "${PYTHON} -c \"import anndata as ad, dynamo as dyn; adata=dyn.sample_data.zebrafish(); adata.obs_names_make_unique(); groups=['Proliferating Progenitor','Pigment Progenitor','Melanophore','Unknown']; parts=[adata[adata.obs['Cell_type']==g][:30].copy() for g in groups]; adata=ad.concat(parts, merge='same', label='subset_batch', keys=groups, index_unique='-'); adata.obs_names_make_unique(); pre=dyn.pp.Preprocessor(cell_cycle_score_enable=True); pre.preprocess_adata(adata, recipe='monocle'); dyn.tl.dynamics(adata, cores=1); dyn.tl.reduceDimension(adata); dyn.tl.cell_velocities(adata); dyn.tl.cell_velocities(adata, basis='pca', transition_genes=adata.var.use_for_pca.values); dyn.vf.VectorField(adata, basis='pca', M=50, cores=1); dyn.pp.top_pca_genes(adata, n_top_genes=20); transition_genes=adata.var_names[adata.var['top_pca_genes']][:10].tolist(); dyn.ext.ddhodge(adata, basis='pca', n_downsamples=5000); heat=dyn.pl.kinetic_heatmap(adata, genes=transition_genes, basis='pca', mode='pseudotime', tkey='pca_ddhodge_potential', gene_order_method='maximum', save_show_or_return='return'); dyn.pd.state_graph(adata, group='Cell_type', basis='pca', method='vf', sample_num=15); print('pca_ddhodge' in adata.obsp, 'pca_ddhodge_potential' in adata.obs, 'kinetics_heatmap' in adata.uns, 'Cell_type_graph' in adata.uns, type(heat).__name__)\"",
+      "timeout_seconds": 420,
+      "expect_stdout_contains": [
+        "True True True True ClusterGrid"
+      ]
+    }
+  ]
+}

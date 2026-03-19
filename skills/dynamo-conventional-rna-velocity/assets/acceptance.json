@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "skill": "dynamo-conventional-rna-velocity",
+  "sample_requests": [
+    "Run a conventional spliced/unspliced dynamo RNA velocity workflow through vector field and fate prediction",
+    "Adapt the 200_zebrafish tutorial to my conventional scRNA-seq AnnData without hard-coding zebrafish-specific labels"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "conventional",
+    "spliced/unspliced",
+    "preprocessor",
+    "dynamics",
+    "vectorfield",
+    "fate",
+    "tutorial"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Stage Selection",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "dynamics",
+    "cell_velocities",
+    "vectorfield",
+    "pearson_transition_matrix",
+    "velocity_umap",
+    "vecfld_umap",
+    "umap_ddhodge_potential",
+    "fate_umap",
+    "animate_fates",
+    "group_key",
+    "lineage_dict"
+  ],
+  "required_paths": [
+    "references/stage-selection.md",
+    "references/source-grounding.md",
+    "references/visualization-and-animation.md",
+    "references/source-notebook-map.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "umap-core-and-fate",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": ".",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"import dynamo as dyn; adata = dyn.sample_data.zebrafish()[:300].copy(); adata.obs_names_make_unique(); p = dyn.pp.Preprocessor(cell_cycle_score_enable=False); p.preprocess_adata(adata, recipe='monocle'); dyn.tl.dynamics(adata, model='stochastic', cores=1); dyn.tl.reduceDimension(adata); dyn.tl.cell_velocities(adata, basis='umap', method='pearson'); dyn.vf.VectorField(adata, basis='umap', M=100, pot_curl_div=False); progenitor = adata.obs_names[adata.obs.Cell_type.isin(['Proliferating Progenitor', 'Pigment Progenitor'])][:20]; dyn.pd.fate(adata, basis='umap', init_cells=progenitor, interpolation_num=20, direction='forward', inverse_transform=False, average=False, cores=1); print('velocity_umap' in adata.obsm, 'pearson_transition_matrix' in adata.obsp, 'VecFld_umap' in adata.uns, 'fate_umap' in adata.uns)\"",
+      "timeout_seconds": 240,
+      "expect_stdout_contains": [
+        "True True True True"
+      ]
+    },
+    {
+      "name": "topology-potential-branch",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": ".",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"import dynamo as dyn; adata = dyn.sample_data.zebrafish()[:200].copy(); adata.obs_names_make_unique(); p = dyn.pp.Preprocessor(cell_cycle_score_enable=False); p.preprocess_adata(adata, recipe='monocle'); dyn.tl.dynamics(adata, model='stochastic', cores=1); dyn.tl.reduceDimension(adata); dyn.tl.cell_velocities(adata, basis='umap', method='pearson'); dyn.vf.VectorField(adata, basis='umap', M=100, pot_curl_div=True, cores=1); print('umap_ddhodge_potential' in adata.obs, 'curl_umap' in adata.obs, 'divergence_umap' in adata.obs)\"",
+      "timeout_seconds": 240,
+      "expect_stdout_contains": [
+        "True True True"
+      ]
+    }
+  ]
+}

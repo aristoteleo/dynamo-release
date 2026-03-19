@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "skill": "dynamo-preprocess",
+  "sample_requests": [
+    "Help me preprocess an AnnData object for downstream dynamo analysis",
+    "Convert the preprocess tutorial notebook into an executable workflow using the current Preprocessor API"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "preprocessor",
+    "recipe",
+    "anndata",
+    "notebooks",
+    "kwargs"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Recipe Selection",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "preprocess_adata",
+    "recipe",
+    "monocle_pearson_residuals",
+    "source-grounding",
+    "x_pca",
+    "reduceDimension"
+  ],
+  "required_paths": [
+    "references/recipe-selection.md",
+    "references/source-notebook-map.md",
+    "references/source-grounding.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "import-preprocessor-interface",
+      "conda_env": "omictest",
+      "env": {
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"import numpy as np; import anndata as ad; from dynamo.preprocessing import Preprocessor; adata = ad.AnnData(X=np.abs(np.random.poisson(1, (20, 10))).astype(float)); p = Preprocessor(); print(Preprocessor.__name__); print(hasattr(p, 'preprocess_adata'))\"",
+      "timeout_seconds": 120,
+      "expect_stdout_contains": [
+        "Preprocessor",
+        "True"
+      ]
+    }
+  ]
+}

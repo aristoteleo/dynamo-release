@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "skill": "dynamo-geneid-convert",
+  "sample_requests": [
+    "Convert Ensembl gene IDs to symbols in this AnnData before dynamo preprocessing",
+    "Turn the gene ID conversion tutorial into an executable workflow with zebrafish and human examples"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "convert2gene_symbol",
+    "convert2symbol",
+    "anndata",
+    "preprocessor",
+    "notebooks"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Conversion Path Selection",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "convert2gene_symbol",
+    "convert2symbol",
+    "ensembl_release",
+    "species",
+    "scopes",
+    "recipe",
+    "query",
+    "symbol"
+  ],
+  "required_paths": [
+    "references/source-grounding.md",
+    "references/conversion-paths.md",
+    "references/preprocess-handoff.md",
+    "references/source-notebook-map.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "human-convert2gene_symbol",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": ".",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"from dynamo.preprocessing.utils import convert2gene_symbol; df = convert2gene_symbol(['ENSG00000141510']); print(df.loc['ENSG00000141510', 'symbol'])\"",
+      "timeout_seconds": 180,
+      "expect_stdout_contains": [
+        "TP53"
+      ]
+    },
+    {
+      "name": "zebrafish-convert2symbol-with-scopes",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": ".",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"import numpy as np; import anndata as ad; from dynamo.preprocessing.utils import convert2symbol; adata = ad.AnnData(X=np.ones((1, 1))); adata.var_names = ['ENSDARG00000035558.1']; convert2symbol(adata, scopes='ensembl.gene'); print(adata.var_names[0])\"",
+      "timeout_seconds": 180,
+      "expect_stdout_contains": [
+        "gps2"
+      ]
+    }
+  ]
+}

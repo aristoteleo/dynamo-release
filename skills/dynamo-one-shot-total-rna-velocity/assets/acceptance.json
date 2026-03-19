@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "skill": "dynamo-one-shot-total-rna-velocity",
+  "sample_requests": [
+    "Convert the hematopoiesis one-shot labeling tutorial into a reusable dynamo total RNA velocity workflow",
+    "Run one-shot total RNA velocity in dynamo on a metabolic-labeling AnnData and choose between sci_fate and combined branches"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "one-shot",
+    "total RNA",
+    "velocity",
+    "AnnData",
+    "tutorial"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Branch Selection",
+    "## Minimal Execution Patterns",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "one_shot_method",
+    "calculate_velocity_alpha_minus_gamma_s",
+    "genes_to_use",
+    "has_splicing",
+    "M_t",
+    "velocity_alpha_minus_gamma_s",
+    "cosine_transition_matrix",
+    "pearson_transition_matrix"
+  ],
+  "required_paths": [
+    "references/branch-selection.md",
+    "references/visualization-and-phase-portraits.md",
+    "references/source-notebook-map.md",
+    "references/source-grounding.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "sci-fate-cosine-total-rna",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": "/Users/fernandozeng/Desktop/analysis/dynamo-release",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"import anndata as ad, dynamo as dyn; raw=dyn.sample_data.hematopoiesis_raw(); selected=list(raw.uns['genes_to_use']); pairs=[('3','HSC',20),('5','HSC',20),('3','MEP-like',20),('5','MEP-like',20)]; parts=[raw[(raw.obs['time'].astype(str)==t) & (raw.obs['cell_type']==c)][:n].copy() for t,c,n in pairs]; adata=ad.concat(parts, merge='same', label='subset_group', keys=[f'{t}_{c}' for t,c,_ in pairs], index_unique='-'); adata.obs_names_make_unique(); adata.uns['genes_to_use']=selected; pre=dyn.pp.Preprocessor(force_gene_list=selected); pre.config_monocle_recipe(adata, n_top_genes=len(selected)); pre.preprocess_adata_monocle(adata, tkey='time', experiment_type='one-shot'); dyn.tl.reduceDimension(adata); dyn.tl.moments(adata, group='time'); adata.uns['pp']['has_splicing']=False; dyn.tl.dynamics(adata, group='time', one_shot_method='sci_fate', model='deterministic', cores=1); dyn.tl.calculate_velocity_alpha_minus_gamma_s(adata); dyn.tl.cell_velocities(adata, enforce=True, X=adata.layers['M_t'], V=adata.layers['velocity_alpha_minus_gamma_s'], method='cosine'); print('M_t' in adata.layers, 'velocity_T' in adata.layers, 'velocity_alpha_minus_gamma_s' in adata.layers, 'velocity_umap' in adata.obsm, 'cosine_transition_matrix' in adata.obsp)\"",
+      "timeout_seconds": 240,
+      "expect_stdout_contains": [
+        "True True True True True"
+      ]
+    },
+    {
+      "name": "combined-dynamics-branch",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": "/Users/fernandozeng/Desktop/analysis/dynamo-release",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"import anndata as ad, dynamo as dyn; raw=dyn.sample_data.hematopoiesis_raw(); selected=list(raw.uns['genes_to_use']); pairs=[('3','HSC',20),('5','HSC',20),('3','MEP-like',20),('5','MEP-like',20)]; parts=[raw[(raw.obs['time'].astype(str)==t) & (raw.obs['cell_type']==c)][:n].copy() for t,c,n in pairs]; adata=ad.concat(parts, merge='same', label='subset_group', keys=[f'{t}_{c}' for t,c,_ in pairs], index_unique='-'); adata.obs_names_make_unique(); adata.uns['genes_to_use']=selected; pre=dyn.pp.Preprocessor(force_gene_list=selected); pre.config_monocle_recipe(adata, n_top_genes=len(selected)); pre.preprocess_adata_monocle(adata, tkey='time', experiment_type='one-shot'); dyn.tl.reduceDimension(adata); dyn.tl.moments(adata, group='time'); adata.uns['pp']['has_splicing']=False; dyn.tl.dynamics(adata, group='time', one_shot_method='combined', model='deterministic', cores=1); print('velocity_T' in adata.layers, 'dynamics' in adata.uns, 'time_3_vel_params_names' in adata.uns, adata.uns['dynamics'].get('model'), adata.uns['dynamics'].get('est_method'))\"",
+      "timeout_seconds": 240,
+      "expect_stdout_contains": [
+        "True True True deterministic ols"
+      ]
+    }
+  ]
+}
