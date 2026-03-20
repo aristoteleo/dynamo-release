@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "skill": "dynamo-lineage-appearance-analysis",
+  "sample_requests": [
+    "Analyze whether one lineage appears earlier than related lineages in a precomputed dynamo AnnData using topography, graph potentials, and Jacobian outputs",
+    "Adapt 400_tutorial_hsc_dynamo_megakaryocytes_appearance.ipynb into a reusable workflow for lineage appearance timing and regulator-pair analysis"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "lineage",
+    "appearance",
+    "anndata",
+    "topography",
+    "jacobian"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Stage Selection",
+    "## Input Contract",
+    "## Minimal Execution Patterns",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "cosine_transition_matrix",
+    "fp_transition_rate",
+    "topography",
+    "potential",
+    "jacobian_pca",
+    "speed_pca",
+    "curvature_pca",
+    "FLI1",
+    "KLF1"
+  ],
+  "required_paths": [
+    "references/stage-selection.md",
+    "references/worked-example.md",
+    "references/source-notebook-map.md",
+    "references/source-grounding.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "worked-example-core-analysis",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": ".",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} - <<'PY'\nfrom __future__ import annotations\n\nimport json\nimport os\nimport warnings\n\nos.environ.setdefault(\"MPLCONFIGDIR\", \"/tmp/mpl\")\nos.environ.setdefault(\"NUMBA_CACHE_DIR\", \"/tmp/numba\")\n\nwarnings.filterwarnings(\"ignore\")\nwarnings.filterwarnings(\"ignore\", message=\"numpy.dtype size changed\")\n\nimport matplotlib\n\nmatplotlib.use(\"Agg\")\n\nimport dynamo as dyn\nfrom dynamo.tools.graph_operators import build_graph, div, potential\n\nadata = dyn.sample_data.hematopoiesis()\n\ncosine_graph = build_graph(adata.obsp[\"cosine_transition_matrix\"])\ncosine_div = div(cosine_graph)\nadata.obs[\"cosine_potential_smoke\"] = potential(cosine_graph, -cosine_div)\n\nfp_graph = build_graph(adata.obsp[\"fp_transition_rate\"])\nfp_div = div(fp_graph)\nadata.obs[\"potential_fp_smoke\"] = potential(fp_graph, fp_div)\nadata.obs[\"pseudotime_fp_smoke\"] = -adata.obs[\"potential_fp_smoke\"]\n\ngenes = [\"FLI1\", \"KLF1\"]\ndyn.vf.jacobian(adata, regulators=genes, effectors=genes, basis=\"pca\")\njacobian_plot = dyn.pl.jacobian(\n    adata,\n    regulators=genes,\n    effectors=[\"FLI1\"],\n    basis=\"umap\",\n    save_show_or_return=\"return\",\n)\n\nbasis = \"pca\"\ndyn.vf.speed(adata, basis=basis)\ndyn.vf.divergence(adata, basis=basis)\ndyn.vf.acceleration(adata, basis=basis)\ndyn.vf.curvature(adata, basis=basis, formula=2)\n\ntopography_plot = dyn.pl.topography(\n    adata,\n    basis=\"umap\",\n    fps_basis=\"umap\",\n    color=[\"cell_type\"],\n    streamline_alpha=0.9,\n    save_show_or_return=\"return\",\n)\n\nsummary = {\n    \"cosine_potential_smoke\": \"cosine_potential_smoke\" in adata.obs,\n    \"potential_fp_smoke\": \"potential_fp_smoke\" in adata.obs,\n    \"pseudotime_fp_smoke\": \"pseudotime_fp_smoke\" in adata.obs,\n    \"jacobian_pca\": \"jacobian_pca\" in adata.uns,\n    \"speed_pca\": \"speed_pca\" in adata.obs,\n    \"divergence_pca\": \"divergence_pca\" in adata.obs,\n    \"acceleration_pca\": \"acceleration_pca\" in adata.obs,\n    \"curvature_pca\": \"curvature_pca\" in adata.obs,\n    \"VecFld_umap\": \"VecFld_umap\" in adata.uns,\n    \"jacobian_plot_return\": type(jacobian_plot).__name__,\n    \"topography_return\": type(topography_plot).__name__,\n}\n\nprint(json.dumps(summary, sort_keys=True))\nPY",
+      "timeout_seconds": 300,
+      "expect_stdout_contains": [
+        "\"jacobian_plot_return\": \"GridSpec\"",
+        "\"topography_return\": \"Axes\"",
+        "\"speed_pca\": true",
+        "\"curvature_pca\": true",
+        "\"VecFld_umap\": true"
+      ]
+    }
+  ]
+}

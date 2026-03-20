@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "skill": "dynamo-pseudotime-velocity",
+  "sample_requests": [
+    "Convert pseudotime into dynamo RNA velocity and continue into vector field and fate without relying on measured spliced or unspliced kinetics",
+    "Adapt 201_dynamo_beyondvelo.ipynb into a reusable AnnData workflow with the current pseudotime_velocity API"
+  ],
+  "required_description_terms": [
+    "dynamo",
+    "pseudotime",
+    "velocity",
+    "vector field",
+    "anndata",
+    "tutorial"
+  ],
+  "required_sections": [
+    "## Goal",
+    "## Quick Workflow",
+    "## Interface Summary",
+    "## Branch Selection",
+    "## Minimal Execution Patterns",
+    "## Validation",
+    "## Resource Map"
+  ],
+  "required_body_terms": [
+    "pseudotime_velocity",
+    "distances",
+    "M_s",
+    "velocity_umap",
+    "pseudotime_transition_matrix",
+    "umap_ddhodge_potential",
+    "fate_umap",
+    "gradient"
+  ],
+  "required_paths": [
+    "references/branch-selection.md",
+    "references/visualization-and-animation.md",
+    "references/source-notebook-map.md",
+    "references/source-grounding.md",
+    "references/compatibility.md"
+  ],
+  "smoke_commands": [
+    {
+      "name": "hodge-core-vectorfield-fate",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": ".",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"import anndata as ad, dynamo as dyn; from scipy import sparse; adata=dyn.sample_data.bone_marrow(); clusters=['HSC_1','HSC_2','Ery_1','Mono_1']; parts=[adata[adata.obs['clusters']==c][:40].copy() for c in clusters]; adata=ad.concat(parts, merge='same', label='subset_batch', keys=clusters, index_unique='-'); adata.obs_names_make_unique(); pre=dyn.pp.Preprocessor(cell_cycle_score_enable=False); pre.preprocess_adata(adata, recipe='monocle'); dyn.tl.reduceDimension(adata); dyn.tl.neighbors(adata, basis='pca'); adata.layers['M_s']=adata.X.copy() if sparse.issparse(adata.X) else sparse.csr_matrix(adata.X); dyn.tl.pseudotime_velocity(adata, pseudotime='palantir_pseudotime', dynamics_info=True); dyn.vf.VectorField(adata, basis='umap', M=100, pot_curl_div=True, cores=1); progenitor=adata.obs_names[adata.obs['clusters'].isin(['HSC_1'])][:15]; dyn.pd.fate(adata, basis='umap', init_cells=progenitor, interpolation_num=20, direction='forward', inverse_transform=False, average=False, cores=1); print('velocity_umap' in adata.obsm, 'pseudotime_transition_matrix' in adata.obsp, 'VecFld_umap' in adata.uns, 'umap_ddhodge_potential' in adata.obs, 'curl_umap' in adata.obs, 'fate_umap' in adata.uns)\"",
+      "timeout_seconds": 300,
+      "expect_stdout_contains": [
+        "True True True True True True"
+      ]
+    },
+    {
+      "name": "gradient-branch",
+      "conda_env": "omictest",
+      "env": {
+        "PYTHONPATH": ".",
+        "MPLCONFIGDIR": "/tmp/mpl",
+        "NUMBA_CACHE_DIR": "/tmp/numba"
+      },
+      "command": "${PYTHON} -c \"import anndata as ad, dynamo as dyn; from scipy import sparse; adata=dyn.sample_data.bone_marrow(); clusters=['HSC_1','HSC_2','Ery_1']; parts=[adata[adata.obs['clusters']==c][:30].copy() for c in clusters]; adata=ad.concat(parts, merge='same', label='subset_batch', keys=clusters, index_unique='-'); adata.obs_names_make_unique(); pre=dyn.pp.Preprocessor(cell_cycle_score_enable=False); pre.preprocess_adata(adata, recipe='monocle'); dyn.tl.reduceDimension(adata); dyn.tl.neighbors(adata, basis='pca'); adata.layers['M_s']=adata.X.copy() if sparse.issparse(adata.X) else sparse.csr_matrix(adata.X); dyn.tl.pseudotime_velocity(adata, pseudotime='palantir_pseudotime', method='gradient', dynamics_info=False); print('velocity_umap' in adata.obsm, 'velocity_S' in adata.layers, 'pseudotime_transition_matrix' in adata.obsp, 'dynamics' in adata.uns)\"",
+      "timeout_seconds": 240,
+      "expect_stdout_contains": [
+        "True True True False"
+      ]
+    }
+  ]
+}
