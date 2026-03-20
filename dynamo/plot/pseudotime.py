@@ -20,6 +20,7 @@ def _calculate_cells_mapping(
     adata: AnnData,
     group_key: str,
     cell_proj_closest_vertex: Optional[np.ndarray] = None,
+    n_nodes: Optional[int] = None,
 ) -> Tuple[np.ndarray, np.ndarray, Dict]:
     """Calculate the distribution of cells in each node.
 
@@ -27,11 +28,12 @@ def _calculate_cells_mapping(
         adata: the anndata object.
         group_key: the key to locate the groups of each cell in adata.
         cell_proj_closest_vertex: the mapping from each cell to the corresponding node.
+        n_nodes: the total number of nodes in the graph. Used to ensure nodes with no mapped cells are included.
 
     Returns:
         The size of each node, the percentage of each group in every node, and the color mapping of each group.
     """
-    cells_mapping_size = np.bincount(cell_proj_closest_vertex)
+    cells_mapping_size = np.bincount(cell_proj_closest_vertex, minlength=n_nodes if n_nodes is not None else 0)
     centroids_index = range(len(cells_mapping_size))
 
     cell_type_info = pd.DataFrame(
@@ -111,10 +113,12 @@ def plot_dim_reduced_direct_graph(
     except KeyError:
         raise KeyError("Cell order data is missing. Please run `tl.order_cells()` first!")
 
+    n_nodes = graph.shape[0]
     cells_size, cells_percentage, cells_color_map = _calculate_cells_mapping(
         adata=adata,
         group_key=group_key,
         cell_proj_closest_vertex=cell_proj_closest_vertex,
+        n_nodes=n_nodes,
     )
 
     cells_colors = np.array([v for v in cells_color_map.values()])
