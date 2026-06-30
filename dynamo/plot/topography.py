@@ -506,6 +506,10 @@ def plot_fixed_points(
                 cur_subplot += 1
 
             for indices in fps_type_indices:
+                if len(indices) == 0:
+                    # this fixed-point type (emitting / unstable / absorbing) is absent; skip it
+                    # (an empty PolyData / colors array would raise in pyvista).
+                    continue
                 points = pv.PolyData(Xss[indices])
                 points.point_data["colors"] = np.array(colors)[indices]
                 points["Labels"] = [str(idx) for idx in indices]
