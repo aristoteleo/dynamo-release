@@ -353,7 +353,11 @@ def export_rank_xlsx(
 
 def export_kmc(adata: AnnData) -> None:
     """Save the parameters of kmc and delete the kmc object from anndata."""
-    kmc = adata.uns["kmc"]
+    kmc = adata.uns.get("kmc", None)
+    if kmc is None:
+        main_info("`kmc` is empty or does not exist in adata.uns; nothing to export.")
+        adata.uns.pop("kmc", None)
+        return
     adata.uns["kmc_params"] = {
         "P": kmc.P,
         "Idx": kmc.Idx,
@@ -364,7 +368,7 @@ def export_kmc(adata: AnnData) -> None:
         "W_inv": kmc.W_inv,
         "Kd": kmc.Kd,
     }
-    adata.uns.pop("kmc")
+    adata.uns.pop("kmc", None)
 
 
 def import_kmc(adata: AnnData) -> None:
