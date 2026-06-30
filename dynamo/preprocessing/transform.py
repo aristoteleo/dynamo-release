@@ -1,5 +1,5 @@
 import warnings
-from typing import Union
+from typing import Optional, Union
 
 try:
     from typing import Literal
@@ -367,6 +367,107 @@ def log2(adata: AnnData, layers: list = [DKM.X_LAYER], copy: bool = False) -> An
         else:
             main_info_insert_adata_uns("pp.layers_norm_method")
             adata.uns["pp"]["layers_norm_method"] = log2.__name__
+
+    return _adata
+
+
+def pflog1ppf_inplace(adata: AnnData, layer: str = DKM.X_LAYER, target_sum: Optional[float] = None) -> None:
+    """Apply the PFlog1pPF transform to a layer of an AnnData object inplace.
+
+    PFlog1pPF (Booeshaghi, Hjörleifsson, Gehring & Pachter, 2022; https://github.com/pachterlab/BHGP_2022) is the
+    composition of proportional fitting (PF), ``log1p`` and a second proportional fitting:
+
+        ``PF -> log1p -> PF``
+
+    The first PF places every cell at a common sequencing depth, ``log1p`` stabilizes the variance, and the second
+    PF re-equalizes the depth that ``log1p`` distorts. All three steps are per-cell rescalings or elementwise
+    transforms of nonzero entries, so the result stays sparse.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        target_sum: the per-cell target depth used by both PF steps. If None, each PF step uses the mean depth of
+            the data it sees, which is the canonical BHGP behavior. Defaults to None.
+    """
+    from .normalization import proportional_fitting
+
+    mat = DKM.select_layer_data(adata, layer, copy=False)
+    if issparse(mat):
+        if is_integer_arr(mat.data):
+            mat = mat.asfptype()
+        mat, _ = proportional_fitting(mat, target_sum=target_sum)
+        mat.data = np.log1p(mat.data)
+        mat, _ = proportional_fitting(mat, target_sum=target_sum)
+    else:
+        mat = mat.astype(np.float64)
+        mat, _ = proportional_fitting(mat, target_sum=target_sum)
+        mat = np.log1p(mat)
+        mat, _ = proportional_fitting(mat, target_sum=target_sum)
+
+    DKM.set_layer_data(adata, layer, mat)
+
+
+def pflog1ppf_adata_layer(
+    adata: AnnData, layer: str = DKM.X_LAYER, target_sum: Optional[float] = None, copy: bool = False
+) -> AnnData:
+    """Apply the PFlog1pPF transform to a single layer of an AnnData object.
+
+    Args:
+        adata: an AnnData object.
+        layer: the layer to operate on. Defaults to DKM.X_LAYER.
+        target_sum: the per-cell target depth used by both PF steps. If None, the mean depth is used at each PF
+            step. Defaults to None.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+    pflog1ppf_inplace(_adata, layer=layer, target_sum=target_sum)
+    return _adata
+
+
+def pflog1ppf(
+    adata: AnnData, layers: list = [DKM.X_LAYER], target_sum: Optional[float] = None, copy: bool = False
+) -> AnnData:
+    """Perform the PFlog1pPF depth-normalization transform on selected adata layers.
+
+    PFlog1pPF (proportional fitting -> log1p -> proportional fitting) is the depth-normalization recipe of
+    Booeshaghi, Hjörleifsson, Gehring & Pachter (2022). It is a drop-in replacement for the size-factor + ``log1p``
+    normalization that, unlike a single library-size normalization, also corrects the depth distortion that
+    ``log1p`` introduces, while keeping the matrix sparse.
+
+    A. Sina Booeshaghi, Ingileif B. Hjörleifsson, Lambda Moses, Lior Pachter. Depth normalization for single-cell
+    genomics count data. bioRxiv (2022). https://doi.org/10.1101/2022.05.06.490859
+
+    Args:
+        adata: an AnnData object.
+        layers: the layers to operate on. Defaults to [DKM.X_LAYER].
+        target_sum: the per-cell target depth used by both PF steps. If None, the mean depth of the data is used at
+            each PF step (the canonical behavior). Defaults to None.
+        copy: whether operate on the original object or on a copied one and return it. Defaults to False.
+
+    Returns:
+        The updated AnnData object.
+    """
+
+    _adata = adata
+    if copy:
+        _adata = copy_adata(adata)
+
+    main_debug("[pflog1ppf] transform applied to layers: %s" % (str(layers)))
+    for layer in layers:
+        pflog1ppf_adata_layer(_adata, layer=layer, target_sum=target_sum)
+
+        if layer == DKM.X_LAYER:
+            main_info_insert_adata_uns("pp.X_norm_method")
+            adata.uns["pp"]["X_norm_method"] = pflog1ppf.__name__
+        else:
+            main_info_insert_adata_uns("pp.layers_norm_method")
+            adata.uns["pp"]["layers_norm_method"] = pflog1ppf.__name__
 
     return _adata
 
