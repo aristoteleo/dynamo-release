@@ -442,3 +442,22 @@ def test_fit_linreg():
     assert np.allclose(b, b_r, rtol=1)
     assert np.allclose(r2, r2_r, rtol=1)
     assert np.allclose(all_r2, all_r2_r, rtol=1)
+
+
+def test_ss_estimation_stores_csr():
+    """Regression: ss_estimation stores sparse count layers as CSR so per-gene row
+    indexing (data[i]) is O(row nnz) instead of O(total nnz) for CSC. Storage-format
+    only; estimated values are unchanged."""
+    import scipy.sparse as sp
+    import numpy as np
+    from dynamo.estimation.csc.velocity import ss_estimation
+
+    rng = np.random.default_rng(0)
+    U = sp.csc_matrix(rng.poisson(1.0, (20, 50)).astype(float))
+    S = sp.csc_matrix(rng.poisson(1.0, (20, 50)).astype(float))
+    est = ss_estimation(U=U, S=S, concat_data=False)
+    assert sp.isspmatrix_csr(est.data["uu"])
+    assert sp.isspmatrix_csr(est.data["su"])
+    # values preserved exactly by the format conversion
+    assert np.array_equal(est.data["uu"].toarray(), U.toarray())
+    assert np.array_equal(est.data["su"].toarray(), S.toarray())
