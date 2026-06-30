@@ -75,6 +75,7 @@ class Preprocessor:
         regress_out_kwargs: Dict[List[str], Any] = {},
         cell_cycle_score_enable: bool = False,
         cell_cycle_score_kwargs: Dict[str, Any] = {},
+        normalized: bool = False,
     ) -> None:
         """Preprocessor constructor.
 
@@ -134,6 +135,7 @@ class Preprocessor:
         self.regress_out = regress_out_parallel
         self.pca = pca_function
         self.pca_kwargs = pca_kwargs
+        self.skip_normalize = normalized
 
         # self.n_top_genes = n_top_genes
         self.convert_gene_name = convert_gene_name_function
@@ -382,7 +384,9 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.normalize_selected_genes):
+        if self.skip_normalize:
+            main_info("Data already normalized. Skipping gene-wise normalization.")
+        elif callable(self.normalize_selected_genes):
             main_debug("normalizing selected genes...")
             self.normalize_selected_genes(adata, **self.normalize_selected_genes_kwargs)
 
@@ -393,7 +397,9 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.normalize_by_cells):
+        if self.skip_normalize:
+            main_info("Data already normalized. Skipping cell-wise normalization.")
+        elif callable(self.normalize_by_cells):
             main_debug("applying normalize by cells function...")
             self.normalize_by_cells(adata, **self.normalize_by_cells_function_kwargs)
 
@@ -404,7 +410,9 @@ class Preprocessor:
             adata: an AnnData object.
         """
 
-        if callable(self.norm_method):
+        if self.skip_normalize:
+            main_info("Data already normalized. Skipping normalization.")
+        elif callable(self.norm_method):
             main_debug("applying a normalization method transformation on expression matrix data...")
             self.norm_method(adata, **self.norm_method_kwargs)
 
