@@ -31,7 +31,7 @@ from .QC import basic_stats, filter_cells_by_highly_variable_genes
 from .QC import filter_cells_by_outliers as monocle_filter_cells_by_outliers
 from .QC import filter_genes_by_outliers as monocle_filter_genes_by_outliers
 from .QC import regress_out_parallel
-from .transform import Freeman_Tukey, log, log1p, log2
+from .transform import Freeman_Tukey, log, log1p, log2, pflog1ppf
 from .utils import (
     _infer_labeling_experiment_type,
     calc_new_to_total_ratio,
@@ -825,12 +825,74 @@ class Preprocessor:
         self.pca(adata, **self.pca_kwargs)
         temp_logger.finish_progress(progress_name="Preprocessor-monocle-pearson-residual")
 
+    def config_pflog1ppf_recipe(self, adata: AnnData, n_top_genes: int = 2000) -> None:
+        """Automatically configure the preprocessor for the PFlog1pPF (BHGP 2022) recipe.
+
+        The recipe reuses the monocle filtering, size-factor normalization (so that spliced / unspliced layers are
+        still prepared for RNA velocity) and feature selection, but replaces the size-factor + log1p normalization of
+        ``adata.X`` with the PFlog1pPF depth-normalization of Booeshaghi, Hjörleifsson, Gehring & Pachter (2022,
+        https://github.com/pachterlab/BHGP_2022).
+
+        Args:
+            adata: an AnnData object.
+            n_top_genes: Number of top feature genes to select in the preprocessing step. Defaults to 2000.
+        """
+
+        self.config_monocle_recipe(adata, n_top_genes=n_top_genes)
+        self.norm_method = pflog1ppf
+        self.norm_method_kwargs = {}
+
+    def preprocess_adata_pflog1ppf(
+        self, adata: AnnData, tkey: Optional[str] = None, experiment_type: Optional[str] = None
+    ) -> None:
+        """Preprocess the AnnData object using the PFlog1pPF depth-normalization recipe.
+
+        A. Sina Booeshaghi, Ingileif B. Hjörleifsson, Lambda Moses, Lior Pachter. Depth normalization for single-cell
+        genomics count data. bioRxiv (2022). https://doi.org/10.1101/2022.05.06.490859
+
+        ``adata.X`` is normalized with proportional fitting -> log1p -> proportional fitting, while the other layers
+        keep the standard size-factor normalization required by downstream RNA velocity and vector field analyses.
+
+        Args:
+            adata: an AnnData object.
+            tkey: the key for time information (labeling time period for the cells) in .obs. Defaults to None.
+            experiment_type: the experiment type of the data. If not provided, would be inferred from the data.
+        """
+
+        main_info("Running PFlog1pPF preprocessing pipeline...")
+        temp_logger = LoggerManager.gen_logger("preprocessor-pflog1ppf")
+        temp_logger.log_time()
+
+        self.standardize_adata(adata, tkey, experiment_type)
+        self._filter_cells_by_outliers(adata)
+        self._filter_genes_by_outliers(adata)
+
+        self._calc_size_factor(adata)
+        self._normalize_by_cells(adata)
+        self._select_genes(adata)
+
+        # append/delete/force selected gene list required by users.
+        self._append_gene_list(adata)
+        self._exclude_gene_list(adata)
+        self._force_gene_list(adata)
+
+        self._norm_method(adata)
+
+        if len(self.regress_out_kwargs["obs_keys"]) > 0:
+            self._regress_out(adata)
+
+        self._pca(adata)
+        self._calc_ntr(adata)
+        self._cell_cycle_score(adata)
+
+        temp_logger.finish_progress(progress_name="Preprocessor-pflog1ppf")
+
     @monitor
     def preprocess_adata(
         self,
         adata: AnnData,
         recipe: Literal[
-            "monocle", "seurat", "sctransform", "pearson_residuals", "monocle_pearson_residuals"
+            "monocle", "seurat", "sctransform", "pearson_residuals", "monocle_pearson_residuals", "pflog1ppf"
         ] = "monocle",
         tkey: Optional[str] = None,
         experiment_type: Optional[str] = None,
@@ -862,5 +924,8 @@ class Preprocessor:
         elif recipe == "monocle_pearson_residuals":
             self.config_monocle_pearson_residuals_recipe(adata)
             self.preprocess_adata_monocle_pearson_residuals(adata, tkey=tkey, experiment_type=experiment_type)
+        elif recipe == "pflog1ppf":
+            self.config_pflog1ppf_recipe(adata)
+            self.preprocess_adata_pflog1ppf(adata, tkey=tkey, experiment_type=experiment_type)
         else:
             raise NotImplementedError("preprocess recipe chosen not implemented: %s" % recipe)

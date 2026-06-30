@@ -18,7 +18,7 @@ from .external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
-from .normalization import calc_sz_factor, normalize
+from .normalization import calc_sz_factor, normalize, proportional_fitting
 from .pca import pca, top_pca_genes
 from .QC import (
     basic_stats,
@@ -28,7 +28,7 @@ from .QC import (
     filter_genes_by_outliers,
     filter_genes_by_pattern,
 )
-from .transform import log1p, log1p_adata_layer
+from .transform import log1p, log1p_adata_layer, pflog1ppf, pflog1ppf_adata_layer
 from .utils import (
     calc_new_to_total_ratio,
     compute_gene_exp_fraction,
@@ -92,6 +92,9 @@ __all__ = [
     "CnmfPreprocessor",
     "log1p",
     "log1p_adata_layer",
+    "pflog1ppf",
+    "pflog1ppf_adata_layer",
+    "proportional_fitting",
     "harmony_debatch",
     "integrate",
     "normalize_cell_expr_by_size_factors",

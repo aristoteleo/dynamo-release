@@ -439,6 +439,45 @@ def size_factor_normalize(mat: np.ndarray, szfactors: np.ndarray) -> np.ndarray:
     return mat.multiply(csr_matrix(1 / szfactors)) if issparse(mat) else mat / szfactors
 
 
+def proportional_fitting(
+    mat: Union[np.ndarray, csr_matrix],
+    target_sum: Optional[float] = None,
+) -> Tuple[Union[np.ndarray, csr_matrix], float]:
+    """Proportional fitting (PF): rescale each cell so its total count equals a common target depth.
+
+    Proportional fitting is the core operation of the depth-normalization method introduced by Booeshaghi,
+    Hjörleifsson, Gehring & Pachter (2022, https://github.com/pachterlab/BHGP_2022). Each cell (row) is scaled by
+    ``target_sum / cell_total`` so that every cell ends up with the same total count. By default ``target_sum`` is
+    the mean cell depth across the matrix, which leaves the data on its original count scale. Because PF is a pure
+    per-cell rescaling, sparsity (the location of zeros) is preserved.
+
+    Args:
+        mat: a cells x genes count matrix (dense or sparse).
+        target_sum: the total count each cell is scaled to. If None, the mean of the per-cell totals is used.
+            Defaults to None.
+
+    Returns:
+        A tuple (normalized_mat, target_sum) where normalized_mat is the rescaled matrix (same type as the input)
+        and target_sum is the depth that was used.
+    """
+
+    cell_total = np.asarray(mat.sum(axis=1)).ravel()
+    if target_sum is None:
+        target_sum = cell_total.mean()
+
+    # avoid division by zero for empty cells; their (empty) rows stay unchanged.
+    cell_total = cell_total.copy()
+    cell_total[cell_total == 0] = 1
+    scale = (target_sum / cell_total)[:, None]
+
+    if issparse(mat):
+        mat = mat.multiply(csr_matrix(scale)).tocsr()
+    else:
+        mat = mat * scale
+
+    return mat, target_sum
+
+
 def sz_util(
     adata: anndata.AnnData,
     layer: str,
