@@ -1,5 +1,15 @@
 # Release Notes
 
+## Dynamo (unreleased)
+
+### Performance
+
+- ~10x faster default (single-core) steady-state RNA-velocity estimation: store `ss_estimation`
+  count layers as CSR so per-gene row indexing is `O(row nnz)` instead of `O(total nnz)` on CSC;
+  results are bit-for-bit identical ([PR 757](https://github.com/aristoteleo/dynamo-release/pull/757)).
+  The performance issue was originally raised by @Ukyeon in
+  [PR 499](https://github.com/aristoteleo/dynamo-release/pull/499).
+
 ## Dynamo Ver 1.4.1
 
 ### DEBUG
