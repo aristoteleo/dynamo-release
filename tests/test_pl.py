@@ -264,3 +264,25 @@ def test_preprocess(adata):
     ax = dyn.pl.highest_frac_genes(adata)
     assert isinstance(ax, plt.Axes)
 
+
+
+def test_cell_wise_vectors_3d_matplotlib():
+    """Regression test: the matplotlib 3D vector plot must build a 3d axes without the
+    `scatter() got multiple values for 's'` / `Axes3D.text missing z` errors."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import anndata
+    import numpy as np
+    from mpl_toolkits.mplot3d import Axes3D
+
+    n = 60
+    adata = anndata.AnnData(np.random.default_rng(0).poisson(1.0, (n, 5)).astype(float))
+    adata.obsm["X_umap"] = np.random.default_rng(1).standard_normal((n, 3))
+    adata.obsm["velocity_umap"] = np.random.default_rng(2).standard_normal((n, 3))
+    adata.obs["group"] = (np.arange(n) % 3).astype(str)
+
+    axes = dyn.pl.cell_wise_vectors_3d(
+        adata, basis="umap", color=["group"], plot_method="matplotlib", save_show_or_return="return"
+    )
+    ax = axes[0] if isinstance(axes, (list, tuple)) else axes
+    assert isinstance(ax, Axes3D)
