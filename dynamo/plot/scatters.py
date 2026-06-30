@@ -2239,7 +2239,13 @@ def scatters_single_input(
 
     # if #total_panel is 1, `_matplotlib_points` will create a figure. No need to create a figure here and generate a blank figure.
     if ax is None:
-        figure, ax = plt.subplots(figsize=figsize, facecolor=background)
+        if projection == "3d":
+            # a 3d projection must be requested at axes-creation time, otherwise the
+            # downstream 3d scatter receives a 2d axes and z is mis-parsed as `s`.
+            figure = plt.figure(figsize=figsize, facecolor=background)
+            ax = figure.add_subplot(111, projection="3d")
+        else:
+            figure, ax = plt.subplots(figsize=figsize, facecolor=background)
 
     color_out = None
 
@@ -2485,7 +2491,8 @@ def scatters_single_input(
                     "_adata does not seem to have %s column. Velocity estimation is required "
                     "before running this function." % group_k_name
                 )
-    if arrow:
+    if arrow and projection != "3d":
+        # arrowed spines are a 2d concept; `add_arrow` uses 2d `ax.text`, which is invalid on a 3d axes.
         from .utils import add_arrow
         basis_key = 'X_'+basis if basis not in adata.obsm.keys() else basis
         add_arrow(ax, adata, basis_key,arrow_scale=arrow_scale,arrow_width=arrow_width)
