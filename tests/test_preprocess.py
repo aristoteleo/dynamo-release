@@ -20,7 +20,9 @@ from dynamo.preprocessing.transform import (
     log,
     log1p,
     log2,
+    pflog1ppf,
 )
+from dynamo.preprocessing.normalization import proportional_fitting
 from dynamo.preprocessing.utils import (
     convert_layers2csr,
     is_float_integer_arr,
@@ -194,6 +196,63 @@ def test_Preprocessor_monocle_pearson_residuals_recipe():
     preprocess_worker = Preprocessor(cell_cycle_score_enable=True)
     preprocess_worker.preprocess_adata(adata, recipe="monocle_pearson_residuals")
     assert "X_pca" in adata.obsm.keys()
+
+
+def test_Preprocessor_pflog1ppf_recipe():
+    raw_zebra_adata = dyn.sample_data.zebrafish()
+    adata = raw_zebra_adata[:1000, :1000].copy()
+    del raw_zebra_adata
+    preprocess_worker = Preprocessor(cell_cycle_score_enable=True)
+    preprocess_worker.preprocess_adata(adata, recipe="pflog1ppf")
+    assert "X_pca" in adata.obsm.keys()
+    assert adata.uns["pp"]["X_norm_method"] == "pflog1ppf"
+
+
+def test_proportional_fitting():
+    rng = np.random.default_rng(0)
+    dense = rng.poisson(2.0, size=(50, 20)).astype(float)
+    dense[3] = 0  # empty cell edge case
+    X = csr_matrix(dense)
+
+    pf_mat, target = proportional_fitting(X.copy())
+    assert issparse(pf_mat)
+    totals = np.asarray(pf_mat.sum(1)).ravel()
+    # every non-empty cell is scaled to the common target depth
+    nonempty = np.asarray(X.sum(1)).ravel() > 0
+    assert np.allclose(totals[nonempty], target)
+    # empty cell stays empty
+    assert np.allclose(totals[~nonempty], 0)
+
+    # explicit target_sum is honored
+    pf_mat2, target2 = proportional_fitting(X.copy(), target_sum=1e4)
+    assert target2 == 1e4
+    assert np.allclose(np.asarray(pf_mat2.sum(1)).ravel()[nonempty], 1e4)
+
+
+def test_pflog1ppf_transform():
+    rng = np.random.default_rng(1)
+    X = csr_matrix(rng.poisson(2.0, size=(40, 15)).astype(float))
+    adata = anndata.AnnData(X.copy())
+    adata.uns["pp"] = {}
+    pflog1ppf(adata)
+    # stays sparse and records the norm method
+    assert issparse(adata.X)
+    assert adata.uns["pp"]["X_norm_method"] == "pflog1ppf"
+    # zeros are preserved (sparsity not destroyed)
+    assert adata.X.nnz <= X.nnz
+
+
+def test_Preprocessor_normalized_flag_skips_normalization():
+    rng = np.random.default_rng(2)
+    X = csr_matrix(rng.poisson(3.0, size=(100, 40)).astype(float))
+    adata = anndata.AnnData(X.copy())
+    preprocess_worker = Preprocessor(normalized=True)
+    assert preprocess_worker.skip_normalize is True
+    preprocess_worker._normalize_by_cells(adata)
+    preprocess_worker._norm_method(adata)
+    preprocess_worker._normalize_selected_genes(adata)
+    # normalization skipped -> X is left untouched
+    assert np.allclose(adata.X.toarray(), X.toarray())
 
 
 @pytest.mark.skip(reason="optional dependency KDEpy not installed")
