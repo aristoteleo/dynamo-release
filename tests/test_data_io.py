@@ -112,3 +112,17 @@ def test_save_adata():
 
     dyn.vf.rank_jacobian_genes(adata, groups="leiden")
     adata.write_h5ad("debug11.h5ad")
+
+
+def test_export_kmc_no_kmc():
+    """export_kmc should not raise when no `kmc` object is present."""
+    import anndata
+    import numpy as np
+
+    from dynamo.data_io import export_kmc
+
+    adata = anndata.AnnData(np.ones((5, 3), dtype=float))
+    # no `kmc` in uns -> should be a no-op (no KeyError, no kmc_params created)
+    export_kmc(adata)
+    assert "kmc_params" not in adata.uns
+    assert "kmc" not in adata.uns
