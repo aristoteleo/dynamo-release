@@ -419,6 +419,14 @@ class ss_estimation:
         if concat_data:
             self.concatenate_data()
 
+        # Store sparse count layers in CSR format. The steady-state estimation indexes one gene
+        # (one row) at a time, e.g. ``data[i]``; this is O(row nnz) for CSR but O(total nnz) for
+        # CSC, and CSC row-slicing otherwise dominates the (default, single-core) runtime. This is
+        # a storage-format change only and does not alter any estimated value.
+        for _key, _val in self.data.items():
+            if _val is not None and issparse(_val) and not isinstance(_val, csr_matrix):
+                self.data[_key] = _val.tocsr()
+
         self.conn = conn
         self.extyp = experiment_type
         self.model = model
