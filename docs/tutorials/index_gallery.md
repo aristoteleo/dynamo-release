@@ -11,5 +11,7 @@ Welcome to the dynamo tutorial gallery. If you have any new analysis results wor
 :maxdepth: 1
 
 notebooks/pancreatic_endocrinogenesis
+notebooks/600_simulation_tutorial
+notebooks/610_3d_velocity_visualization
 
 ```
