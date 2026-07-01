@@ -233,7 +233,16 @@ def calc_dispersion_by_svr(
 
     for layer in layers:
         valid_CM, detected_bool = get_vaild_CM(adata, layer, **SVRs_kwargs)
-        if valid_CM is None:
+        if valid_CM is None or valid_CM.shape[1] == 0:
+            # No gene passes the validity filter for this layer (e.g. a very small adata). `valid_CM` can
+            # be an empty (0-column) sparse matrix rather than None, which the SVR fit would divide-by-zero
+            # on. Create the score columns as all-invalid so downstream feature selection skips gracefully
+            # (a missing "score" column would otherwise raise a KeyError during preprocessing).
+            main_warning(f"No valid genes for SVR gene selection on layer '{layer}'.")
+            _prefix = "" if layer == "X" else layer + "_"
+            adata.var[_prefix + "log_m"] = np.nan
+            adata.var[_prefix + "log_cv"] = np.nan
+            adata.var[_prefix + "score"] = -np.inf
             continue
 
         mean, cv = get_mean_cv(adata, valid_CM, algorithm, winsorize, winsor_perc)
