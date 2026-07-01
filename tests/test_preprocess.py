@@ -661,3 +661,36 @@ def test_regress_out():
 
     dyn.pl.umap(adata, color=celltype_key, figsize=figsize)
     print("The preprocess_adata() time difference is :", timeit.default_timer() - starttime)
+
+
+# Small-/degenerate-adata robustness (regression for PR #616, @AlexanderCaichen).
+def test_pca_small_adata():
+    """Preprocessing a few-cells adata must not crash in truncated SVD (needs k < min(X.shape))."""
+    rng = np.random.default_rng(0)
+    X = csr_matrix(rng.poisson(3.0, (10, 200)).astype(float))
+    adata = anndata.AnnData(X)
+    adata.layers["spliced"] = X.copy()
+    adata.layers["unspliced"] = csr_matrix(rng.poisson(1.0, (10, 200)).astype(float))
+    Preprocessor().preprocess_adata(adata, recipe="monocle")
+    assert "X_pca" in adata.obsm
+    assert adata.obsm["X_pca"].shape[1] <= min(adata.shape) - 1
+
+
+def test_get_svr_filter_no_finite_scores():
+    """get_svr_filter must not crash (np.sort on empty) when no gene has a finite score."""
+    from dynamo.preprocessing.utils import get_svr_filter
+
+    adata = anndata.AnnData(csr_matrix(np.ones((50, 10))))
+    adata.var["score"] = -np.inf
+    mask = get_svr_filter(adata, layer="X", n_top_genes=100)
+    assert int(mask.sum()) == 0
+
+
+def test_pca_no_genes_pass_filter():
+    """pca must skip gracefully (not crash with n_components=-1) when no gene passes the filter."""
+    from dynamo.preprocessing.pca import pca
+
+    adata = anndata.AnnData(np.random.default_rng(0).poisson(2.0, (50, 10)).astype(float))
+    adata.var["use_for_pca"] = False
+    result = pca(adata, n_pca_components=5)
+    assert "X_pca" not in result.obsm
