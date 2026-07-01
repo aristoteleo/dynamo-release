@@ -461,3 +461,30 @@ def test_ss_estimation_stores_csr():
     # values preserved exactly by the format conversion
     assert np.array_equal(est.data["uu"].toarray(), U.toarray())
     assert np.array_equal(est.data["su"].toarray(), S.toarray())
+
+
+# The following two cell_velocities tests were contributed by @Baschdl in PR #638 to expose a
+# transition-gene selection bug (a length-n_vars boolean mask crashed on `finite_inds` indexing).
+# The bug is fixed in cell_velocities; both cases now pass.
+def _setup_cell_velocities_tests():
+    adata = dyn.sample_data.DentateGyrus_scvelo()[:200, :1000]
+    from dynamo.preprocessing import Preprocessor
+
+    Preprocessor().preprocess_adata(adata, recipe="monocle")
+    dyn.tl.dynamics(adata, model="stochastic")
+    dyn.tl.reduceDimension(adata)
+    return adata
+
+
+def test_cell_velocities():
+    adata = _setup_cell_velocities_tests()
+    dyn.tl.cell_velocities(adata)
+    assert "velocity_S" in adata.layers
+
+
+def test_cell_velocities_selecting_transition_genes():
+    adata = _setup_cell_velocities_tests()
+    # a length-n_vars boolean mask must not crash (regression for PR #638)
+    dyn.tl.cell_velocities(adata, transition_genes=[True] * adata.n_vars)
+    assert "velocity_S" in adata.layers
+    assert adata.var["use_for_transition"].sum() > 0
