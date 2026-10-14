@@ -2,6 +2,7 @@
 """
 
 from .fate import andecestor, fate, fate_bias
+from .lap_plot import plot_lap
 from .least_action_path import (
     GeneLeastActionPath,
     LeastActionPath,
@@ -55,6 +56,7 @@ __all__ = [
     "tree_model",
     "get_init_path",
     "least_action",
+    "plot_lap",
     "KO",
     "perturbation",
     "rank_perturbation_cells",

@@ -2,6 +2,12 @@
 
 ## Dynamo (unreleased)
 
+### Features
+
+- Add `dyn.pd.plot_lap` to overlay selected cell-type transition paths on a
+  velocity streamline plot, with action-colored points and explicit data inputs.
+  This exposes the LAP plotting helper from the protocol notebook as a public API.
+
 ### Performance
 
 - ~10x faster default (single-core) steady-state RNA-velocity estimation: store `ss_estimation`
