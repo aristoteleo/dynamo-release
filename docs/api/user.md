@@ -374,6 +374,7 @@ _Vector field clustering and graph_
    pd.fate_bias
    pd.get_init_path
    pd.least_action
+   pd.plot_lap
    pd.perturbation
    pd.state_graph
    pd.KO
@@ -383,6 +384,33 @@ _Vector field clustering and graph_
    pd.tree_model     
 
 ```
+
+### Groups of least-action paths
+
+`pd.plot_lap` exposes the helper used in the protocol LAP notebook. Pass the
+annotated data and the graph returned by `pd.compute_cell_type_transitions`
+explicitly, along with the transition names to plot:
+
+```python
+fig, ax = dyn.pd.plot_lap(
+    adata, transition_graph, develope_keys, title="Developmental LAPs"
+)
+fig, ax = dyn.pd.plot_lap(
+    adata, transition_graph, reprogram_keys, title="Dedifferentiation LAPs"
+)
+fig, ax = dyn.pd.plot_lap(
+    adata, transition_graph, transdifferentiation, title="Transdifferentiation LAPs"
+)
+fig.savefig("transdifferentiation_laps.pdf")
+```
+
+The paths must have been computed in the same `basis` as the background
+(default: `"umap"`). Background cell colors can be supplied with `color_key`.
+Points along each path are colored by its cumulative **action**, normalized
+separately for each trajectory, as in the notebook; they do not represent time.
+The function returns `(fig, ax)` without automatically showing or saving the plot.
+It does not read variables from the notebook namespace: a call written as
+`dyn.pd.plot_lap(paths)` must also receive `adata` and `transition_graph`.
 
 ## Plotting (pl)
 
