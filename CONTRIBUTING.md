@@ -193,7 +193,7 @@ We strive to keep dynamo well-documented, particularly its public-facing API. Se
 Getting help with git
 ---------------------
 
-If you're new to ``git``, you'll probably find [gitref.org](http://gitref.org/) helpful.
+If you're new to ``git``, you'll probably find [Coddy's git command guide](https://coddy.tech/git-commands) helpful.
 
 Acknowledgement
 ---------------------
