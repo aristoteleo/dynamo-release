@@ -21,7 +21,9 @@
 
 Inclusive model of expression dynamics with metabolic labeling based scRNA-seq / multiomics, vector field reconstruction, potential landscape mapping, differential geometry analyses, and most probably paths / *in silico* perturbation predictions.
 
-[Installation](https://dynamo-release.readthedocs.io/en/latest/installation.html) - [Ten minutes to dynamo](https://dynamo-release.readthedocs.io/en/latest/user_guide/index.html) - [Tutorials](https://dynamo-release.readthedocs.io/en/latest/tutorials/index.html) - [API](https://dynamo-release.readthedocs.io/en/latest/api/index.html) - [Citation](https://dynamo-release.readthedocs.io/en/latest/references.html) - [Theory](https://dynamo-release.readthedocs.io/en/latest/introduction/index.html)
+[Installation](https://dynamo-release.readthedocs.io/en/latest/installation.html) - [Ten minutes to dynamo](https://dynamo-release.readthedocs.io/en/latest/user_guide/index.html) - [Tutorials](https://dynamo-release.readthedocs.io/en/latest/tutorials/index.html) - [API](https://dynamo-release.readthedocs.io/en/latest/api/index.html) - [Citation](https://dynamo-release.readthedocs.io/en/latest/references.html) - [Theory](https://dynamo-release.readthedocs.io/en/latest/introduction/index.html) - [Protocol](https://doi.org/10.1038/s41596-026-01458-3)
+
+> **New:** the step-by-step dynamo protocol is now published in *Nature Protocols*: [Predictive modeling of single-cell transcriptomic dynamics with Dynamo](https://doi.org/10.1038/s41596-026-01458-3). It walks through nine reproducible case studies, from velocity estimation to *in silico* perturbation and least action paths. See [The dynamo protocol](#the-dynamo-protocol) below.
 
 ![Dynamo](https://user-images.githubusercontent.com/7456281/152110270-7ee1b0ed-1205-495d-9d65-59c7984d2fa2.png)
 
@@ -45,7 +47,35 @@ Single-cell (sc)RNA-seq, together with RNA velocity and metabolic labeling, reve
     * Least action path approach to predict the optimal paths and transcription factors of cell fate reprogramming
     * In silico perturbation to predict the gene-wise perturbation effects and cell fate diversion after genetic perturbations
 
+## The dynamo protocol
+
+Our protocol, [Predictive modeling of single-cell transcriptomic dynamics with Dynamo](https://doi.org/10.1038/s41596-026-01458-3) (*Nature Protocols*, 2026), is a hands-on guide to building analytical vector fields from four kinds of single-cell data and to five downstream analyses. It is written for researchers with basic familiarity with scRNA-seq analysis and Python; the nine case studies can be completed in about seven and a half hours.
+
+| | Case study | Input data | What you learn |
+|---|---|---|---|
+| 1 | Standard workflow for metabolic labeling data | Human hematopoiesis scNT-seq (new / total RNA) | Absolute RNA velocity, vector field reconstruction, topography (attractors, saddles, repulsors), fate prediction |
+| 2 | Standard workflow for conventional scRNA-seq | Pancreatic endocrinogenesis (spliced / unspliced) | Preprocessing recipes, stochastic splicing kinetics, velocity confidence and correction, acceleration and curvature |
+| 3 | Vector field from pseudotime or other scalars | Any dataset with pseudotime or a differentiation score | `pseudotime_velocity`, transition graphs, topography without splicing or labeling |
+| 4 | Velocity for single-cell multiomics | Paired scRNA-seq + scATAC-seq | Multimodal preprocessing, chromatin-coupled velocity, transition gene selection |
+| 5 | Vector fields from external velocity tools | Velocities from CellDancer, DeepVelo, LatentVelo or veloVI | `dyn.tl.extvelo`, importing external velocities, topography on imported velocities |
+| 6 | Minimal network for basophil lineage commitment | Reconstructed hematopoiesis vector field | Jacobian calculation, regulatory ranking, network inference |
+| 7 | Cell-wise analyses of PU.1 (SPI1) and GATA1 | Reconstructed vector field and regulator-effector pairs | Gene-pair streamlines, Jacobian visualization, response heat maps |
+| 8 | *In silico* perturbation | Reconstructed hematopoiesis vector field | Single and combinatorial knockout / activation, fate diversion prediction |
+| 9 | Most probable path predictions | Reconstructed vector field with source and target states | Least action paths, transition categories, transcription factor ranking |
+
+* Tutorials that reproduce every case study: [dynamo-release.readthedocs.io](https://dynamo-release.readthedocs.io/en/latest/tutorials/index.html)
+* Code to reproduce the figures of the protocol: [aristoteleo/dynamo-protocol](https://github.com/aristoteleo/dynamo-protocol)
+* Web apps for least action paths and *in silico* perturbation: [lap_silico](https://aristoteleo.shinyapps.io/lap_silico) and [perturbation_silico](https://aristoteleo.shinyapps.io/perturbation_silico/)
+
+## Citation
+
+If you use dynamo in your work, please cite:
+
+* Qiu, X. *et al.* Mapping transcriptomic vector fields of single cells. *Cell* **185**, 690–711.e45 (2022). [https://doi.org/10.1016/j.cell.2021.12.045](https://doi.org/10.1016/j.cell.2021.12.045)
+* Zeng, Z., Yu, S., Ni, K., Zhang, Y., Shin, U., Huang, C., Cao, N., Weissman, J., Ellison, D., Xing, J. & Qiu, X. Predictive modeling of single-cell transcriptomic dynamics with Dynamo. *Nature Protocols* (2026). [https://doi.org/10.1038/s41596-026-01458-3](https://doi.org/10.1038/s41596-026-01458-3)
+
 ## News
+* 11/16/2026: our dynamo protocol, with nine reproducible case studies, is online in [Nature Protocols](https://doi.org/10.1038/s41596-026-01458-3) today!
 * 5/30/2023: dynamo 1.3.0 released!
 * 3/1/2023: We welcome @Sichao25 to join the dynamo development team!
 * 1/28/2023: We welcome @Ukyeon to join the dynamo development team! 
