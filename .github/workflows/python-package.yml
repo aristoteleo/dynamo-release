@@ -12,7 +12,8 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    # ubuntu-latest is now 26.04, which has no Python 3.9 or 3.10.14 builds for setup-python
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: [ 3.9, 3.10.14, 3.11, 3.12]
